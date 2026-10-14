@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-FRESH3-001
+    lens: "architecture-fit / code claims"
+    severity: 3
+    title: "Strict UTF-8 decoding of artifact, tasks.md and cycle bytes has no home that rules 1b and 2b allow"
+    evidence:
+      - artifact: "spec.md § FR-005 order of decision (5), § FR-003 Subtasks decoding rule, § FR-006 (c) lists what is application logic and omits the byte-to-text decode"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:142-152 (rule 1b and 2b admit only java.lang, java.util, java.time, java.math, java.security, java.nio.charset; java.nio.ByteBuffer is not admitted)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/LedgerLineDecoder.java:129-131 and FilesystemMissionEventSourceProject.java:314 (the only strict decoders today, both in the adapter, both through ByteBuffer.wrap)"
+    claim: "The text-read port returns bytes (FR-007) and the cap, the NUL check, the strict UTF-8 check (415) and the redaction are placed in application or domain (FR-006 (c), FR-008). CharsetDecoder.decode needs a ByteBuffer, and rules 1b and 2b reject java.nio.ByteBuffer, so the strict decode cannot be written in the layer the spec assigns it to. The spec never says where the decode lives, and AC-5.5 (lone 0xC3, overlong, surrogate, BOM kept) and the tasks.md decoding rule (D-37) depend on it being strict."
+    remediation: "State the placement in FR-007/FR-005. Either the port returns a typed result (bytes read, over-cap, or decoded String with a not-text outcome) with the strict decode in adapter.out.filesystem, or the plan writes a hand-rolled strict UTF-8 validator in domain (no ByteBuffer). Add one sentence to AC-7.3 and a unit control that the chosen decoder rejects overlong, surrogate and truncated sequences."
+  - id: SPEC-FRESH3-002
+    lens: "claims about existing code / falsifiability"
+    severity: 3
+    title: "AC-1.8(c) requires exactly one meta.json read per Mission, which the existing source cannot satisfy for the matched Mission on the ledger routes"
+    evidence:
+      - artifact: "spec.md § FR-001 Lookup (D-58) and AC-1.8(c)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver.java:66-69 (resolve re-reads meta.json with readRegular)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSource.java:79-106 (readMeta reads it once; stampLedger and readLedger each call resolver.resolve, which reads it again)"
+    claim: "findMission reads the matched Mission's meta.json through readMeta, then the ledger probe (stampLedger) and the ledger read each resolve the read directory and read meta.json again. On getMission, getWorkPackage and getWorkPackageDetail the matched Mission therefore records two or three meta.json reads, so 'exactly one read of each Mission's meta.json per request' is false as written, and the NFR-001 pricing rests on that count. The AC either fails on a correct implementation or forces an undeclared change to ReadDirResolver."
+    remediation: "Reword AC-1.8(c) to 'every non-matching Mission's meta.json exactly once; the matched Mission's at most the count the ledger routes need (state it, or require the resolver to take the meta already read)'. Keep the last-Mission control. If single-read is wanted for the matched Mission, add it to the campsite scope (C-011) as a stated change with its own test."
+  - id: SPEC-FRESH3-003
+    lens: "contradiction with #5529 rulings / oracle"
+    severity: 3
+    title: "Row M7 and V18 make every unshowable strict field a 500, but #5529's 2026-10-13 rulings and the oracle make dates and actor handles nullable"
+    evidence:
+      - artifact: "spec.md § FR-008 ('refused or nulled'), § FR-012 row M7, § divergence V18, AC-8.1, AC-12.1"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/reviews/analyze.ruling.md, section '2026-10-13: pre-merge squad rulings (operator)' items 1 and 2 (planning ref), strict nullable instants and actor handles"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/projection/Projector.java:43-67 (strict(..., nullable) returns null and records a redaction; only a non-nullable field throws)"
+      - code: "tests/contract/_mission_status_detail.py:485 (workspace_of serves planningBranch via projector.strict(..., nullable=True))"
+    claim: "The new routes carry many strict fields (lastTransitionAt, history[].at, actor and reviewer handles, reviewedAt, planningBranch, laneBranch, lastEventId). The spec never says which are nullable and which are not, and row M7 sends 'a strict field that cannot be shown' to 500 projection_refused. For the nullable ones the ruling and the oracle give null, so AC-8.1/AC-12.1 would test a 500 where the correct answer is a 200 with null, and AC-1.2 (head equals the overview item) would already disagree with the rest of the response. There is also no V entry for the intentional divergence from the oracle that the ruling names."
+    remediation: "Add a table in FR-008 listing, per new-route strict field, nullable or not (taken from the contract schemas and Projector use), restrict M7 and V18 to the non-nullable ones, add a fixture and a row for the nulled case (200, null member, whether a diagnostic is written), and add the matching knownDivergence entry where the oracle serves the value unprojected."
+  - id: SPEC-FRESH3-004
+    lens: "FR without coverage"
+    severity: 3
+    title: "The non-UTF-8 locale refusal of the Work Package index (FR-004 File names) has no table row, no AC and no divergence entry"
+    evidence:
+      - artifact: "spec.md § FR-004 'File names' (D-31) says the artifact routes and the Work Package index answer 500 source_unreadable"
+      - artifact: "spec.md § FR-012 row A8, AC-4.8, divergence V15 (listing and content only)"
+    claim: "FR-004 extends the locale rule to the Work Package index, so getMission, getWorkPackage and getWorkPackageDetail would answer 500 source_unreadable for a non-ASCII name under tasks/ when sun.jnu.encoding is not UTF-8. Row A8 covers only listArtifacts and getArtifactContent, AC-4.8 only exercises the artifacts-sort fixture, and V15 only lists the artifact routes. AC-12.1 requires a fixture per row and AC-14.4 requires a divergence entry per differing outcome, so this behaviour is built with no test that can fail it."
+    remediation: "Add a row (A8 widened, or M13) for the three index routes with a fixture under LC_ALL=C holding a non-ASCII WP file name, extend V15 to cover it, and add the assertion to AC-4.8 or a new AC under FR-006."
+  - id: SPEC-FRESH3-005
+    lens: "stale statement / internal contradiction"
+    severity: 3
+    title: "Baseline item 2 attributes reality-module reds by signature, but AC-21.3 lets that module go unrun so no signature is ever recorded"
+    evidence:
+      - artifact: "spec.md § Baseline and verification honesty, item 2 and item 3"
+      - artifact: "spec.md § FR-021 AC-21.3 (test_mission_status_reality.py may be recorded as 'not run: known timeout' with #5927) and AC-21.1 (rows and signatures come from executed runs)"
+    claim: "Item 2 says a test in test_mission_status_reality.py that was red with the #5927 signature and is now red with a detail-route signature is introduced. With the module recorded as not run there are no rows, no test ids and no signatures for it, so the rule cannot be applied and the 'is in the set with a different signature' branch is unfalsifiable for exactly the module the spec names."
+    remediation: "Reword item 2: for a module recorded as not run, any red in it is unclassified (reported to the orchestrator, AC-21.3) and is not attributed either way; item 3 already keeps the per-PR gate independent of it. Or require one bounded run of that module to capture its rows."
+  - id: SPEC-FRESH3-006
+    lens: "weak AC / contradiction"
+    severity: 2
+    title: "worktreePresent: the .git symlink half of V7 and 'neither followed' of OQ-3 are not in FR-010 or pinned by AC-10.3"
+    evidence:
+      - artifact: "spec.md § OQ-3 ('neither followed'), § FR-010 ('its .git entry exists'), § V7 ('a worktreePresent directory or .git that is a symbolic link'), § AC-10.3 and the worktree-states fixture list (6 rows, no .git link)"
+    claim: "FR-010 says only that the .git entry exists, which a stat that follows links would satisfy for a .git symlink; OQ-3 and V7 say it is not followed and gives false. No fixture or AC row exercises a .git symlink, so the second half of V7 is an unpinned divergence and an implementation that follows .git passes every listed row."
+    remediation: "Write in FR-010 that the .git entry must be a regular file or a directory and not a link, add a row 'directory present, .git a symbolic link (false)' to AC-10.3 and to the worktree-states class (Count 7), and keep V7 pointing at both fixtures."
+  - id: SPEC-FRESH3-007
+    lens: "NFR arithmetic / unverifiable claim"
+    severity: 2
+    title: "NFR-002 says getMission keeps no Work Package body, but FR-006 defines the decoded index record with a body and never says it is dropped"
+    evidence:
+      - artifact: "spec.md § FR-006 item 3 ('The body is every line after the closing delimiter'), § NFR-002 ('getMission keeps no Work Package body'), 20 concurrent getMission in the 96 MB figure"
+    claim: "The shared index is built from every Work Package file (up to 1 MiB each, 40 in the NFR-001 Mission) and serves three routes, one of which needs a single body for promptMarkdown. If the decoder record carries the body, a getMission request holds up to 40 MiB of bodies and 20 concurrent requests exceed the 96 MB bound; if it does not, getWorkPackage must re-read the winning file, which the spec does not describe (race, second cap decision, extra read in the per-route access set)."
+    remediation: "State in FR-006 whether the index record carries the body. Preferred wording: the index record holds the validated frontmatter fields only; getWorkPackage with includePrompt=true re-reads the winning file under the same cap and the same decoder, and AC-2.1/AC-7.4 record that read. Add the second read to the getWorkPackage access set and to NFR-002's arithmetic."

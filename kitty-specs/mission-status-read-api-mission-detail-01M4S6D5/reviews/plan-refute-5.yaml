@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 5
+verdicts:
+  - id: PLAN-FIT-005
+    verdict: refuted
+    reason: Plan only says the mapper emits subtasks through a code-point-ordered list serializer and never says it uses domain.model CodePoints, so a rule 13 breach is speculation (the mapper can carry its own comparator).
+  - id: PLAN-FIT-006
+    verdict: confirmed
+    reason: Plan sections 7, 7.4 and E-3 repeatedly rely on a "P5 merge" while section 11 commits to one draft PR stacked on #5529 with a split only conditionally recommended, so the event is unscheduled.
+  - id: PLAN-FIT-007
+    verdict: refuted
+    reason: The unreachable-baseline-sha scenario depends on a hypothetical squash of #5529 and not on the plan's own mission-history compaction (B is a #5529 commit); speculative and not evidenced.
+  - id: PLAN-FIT-008
+    verdict: confirmed
+    reason: The P5 row lists "Depends on P1, P4" while the section 11 paragraph puts P5 in the concurrent set "P2 || P3 || P4 || P5", which is a direct contradiction.
+  - id: PLAN-FIT-009
+    verdict: confirmed
+    reason: HistoryOrder appears only in the layer table and tree, ReviewCycleMeta and LanesResult only in the Ports text, and adapter/in/http/dto in no phase write scope, so the "every path owned by exactly one phase" claim is false.
+  - id: PLAN-FIT-010
+    verdict: confirmed
+    reason: Allowlist.java defines PathClass.LEDGER for the root status.events.jsonl under the existing AUTHORED classifier, contradicting the plan and spec statement that it is unclassified under both scopes.
+  - id: PLAN-FIT-011
+    verdict: confirmed
+    reason: RowClassifier.lifecycleOrIgnored drops a row to Ignored unless it is a forwarded type with string event_id and timestamp, while the oracle _lifecycle_types accepts any string event_type, and the plan records no such divergence.
+  - id: PLAN-FIT-012
+    verdict: refuted
+    reason: Traceability row FR-015 covers AC-15.1 to AC-15.3 in P2 and P13, P4 owns "the classes of FR-014" and P9 names "lookup fixtures", so the cited obligations are covered by reference.

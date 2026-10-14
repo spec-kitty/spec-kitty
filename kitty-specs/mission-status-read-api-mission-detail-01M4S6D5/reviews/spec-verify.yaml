@@ -1,0 +1,70 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "OQ-6, D-11 and new D-36 now state the read list came from the readiness report and dispatch, not the verbatim operator record, and OQ-6 became a genuine ratification request; no residual 'operator named' text remains."
+  - id: SPEC-GOV-004
+    status: resolved
+    reason: "FR-005 (D-28), FR-013 and AC-13.4 now agree: the adapter only collects and strictly percent-decodes into a typed ArtifactPathInput, the port applies count and artifact-path rules, and AC-13.3 adds the plain-Java invalid-path cases."
+  - id: SPEC-GOV-005
+    status: resolved
+    reason: "C-004 and the Reflexivity list now name the corpus-compare script, mission-status-api.yml (nightly-corpus, --floor, --request-floor), the conditional ci-router line, tests/ci pinning tests, build.gradle.kts and gitattributes; the files exist as cited and the false 'adds files only under services/ and tests/contract/' sentence is corrected."
+  - id: SPEC-GOV-009
+    status: resolved
+    reason: "C-011 adds a behaviour-preserving campsite first Work Package over the named surfaces with an observable commit prefix and a recorded-reason escape."
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: "FR-011 now makes ReadScope an input of classification (D-27) with explicit precedence, a (route, scope, class, mode) recorder and AC-11.1/11.2 red/green pairs for spec.md, tasks.md and meta.json; AC-11.3's arithmetic (11 existing entries plus 11 new lines gives 22) checks out against Allowlist.PATTERNS."
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "AC-13.1 now scopes rule 13 to the controllers and mappers of the five operations in one named package, records EventData/EventsController (verified to use domain.projection) as the one exemption, states it narrows rule 3, and requires a planted-violation control and non-zero scanned count."
+  - id: SPEC-ARCH-006
+    status: resolved
+    reason: "FR-005/D-28 assign raw-query collection, strict UTF-8 percent-decoding and the missing-parameter handler (ProblemAdvice verified to lack one) to the adapter, and AC-5.2 adds rows for %ff, overlong, truncated, literal +, joined repeated values and missing parameter."
+  - id: SPEC-ARCH-007
+    status: resolved
+    reason: "NFR-002 now names every cap (262145, 1 MiB, 4 MiB), adds concurrent detail and getMission load, a 4-permit admission gate with queue-not-503 decision recorded (D-30), and FR-004 plus AC-4.9 bound the path set with a 1001-path heap and a high-water assertion."
+  - id: SPEC-ARCH-009
+    status: resolved
+    reason: "FR-004 'File names' (D-31), row A8, AC-4.8 (LC_ALL=C loud 500 versus UTF-8 golden), the README grep in AC-18.1 and R-12 make the encoding dependency checked and loud rather than assumed, via a per-name refusal in place of a startup check."
+  - id: SPEC-ARCH-011
+    status: resolved
+    reason: "FR-007 now carries a ReadScope and says #5533 may add a project-root area to the same port, and AC-7.3 drops the unverifiable 'no second reader' claim and states what is not checked."
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "The scope-aware classification of D-27 resolves the overlap: ARTIFACT scope reaches authored sources without widening AUTHORED classes, and AC-11.2 pairs a red AUTHORED READ of spec.md with a green ARTIFACT READ (also tasks.md, meta.json)."
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: "Rules 13 and 14 are scoped to the new subjects and the events adapter and Subscription.next (verified to throw InterruptedException) are recorded exemptions with planted-violation controls and DEFINED_RULE_COUNT raised from the verified 12 to 14."
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "AC-19.3 and FR-019 now describe the real mechanism (three CLASS rules plus jacocoScopeCheck, counts domain=55 and application=44 verified, check currently only matched<floor), require equality tightening, a planted untested class in a nested build, and state that adapter packages have no numeric gate."
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: "FR-014 adds the V1 to V13 divergence inventory covering the listed omissions, AC-14.4 fails on an unlisted Java-only refusal, the generator feeds build_detail/build_work_package from index_work_packages, and AC-1.7 covers a broken sibling before and after."
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: "AC-10.3 generates worktree-states goldens under HostCapability(git=False, worktrees=True), runs the false rows under both hosts, and lists the symlink rows and resolve_workspace_for_wp branches as divergences V7 and V8 (R-7 aligned)."
+  - id: SPEC-VERIFY-006
+    status: resolved
+    reason: "The subtasks bullet now states the tasks.md decoding rule (strict UTF-8, BOM kept, split on \\n only, Python whitespace and Unicode word and digit classes, D-37) and AC-3.4 adds the CRLF, BOM, NBSP, U+0085, Arabic-Indic digit and lone-CR cases pinned by the tasks-md golden."
+  - id: SPEC-VERIFY-008
+    status: resolved
+    reason: "Rows M8 to M10 add 500 source_unreadable for failed planning-file stats, lstat in artifact references and non-directory tasks/, the listing emits one artifact_unreadable diagnostic per fault-unreadable entry, and the oracle's swallowing is divergence V2."
+  - id: SPEC-VERIFY-009
+    status: resolved
+    reason: "'ambiguous Mission selector' is removed from row W3 and D-38 records why Java cannot reach it."
+  - id: SPEC-VERIFY-010
+    status: resolved
+    reason: "AC-8.2 is now a mutation test in the suite, AC-14.6 and AC-19.4 name failing conditions, and AC-1.3 and AC-14.2 now name the phases array order and within-phase check order instead of an implement/review swap."
+  - id: SPEC-VERIFY-011
+    status: resolved
+    reason: "D-32 requires every permission case to be asserted by injected fault (RecordingAllowlistAccess.failWhen verified to exist) and the real-permission variant only behind an EACCES precondition reported 'not run: precondition unmet', never as a pass, with AC-4.3, AC-4.7, AC-10.3 and AC-12.1 wired to it."
+  - id: SPEC-VERIFY-012
+    status: resolved
+    reason: "FR-014 now holds one class vocabulary with golden files per route that AC-3.1 and AC-14.3 use, getWorkPackage with and without prompt joins AC-14.5 and SC-002, and 'no exemption' is reworded to 'the refused list is the only exemption'."
+  - id: SPEC-VERIFY-013
+    status: resolved
+    reason: "FR-021 with AC-21.1 to AC-21.3 makes traces/baseline-red.yaml a tested precondition with a normalised signature, permits recording the reality module as 'not run: known timeout' (#5927) and classifies #3284 by tracker id."

@@ -1,0 +1,32 @@
+{
+  "accept_commit": "4fd3cae899f13d51518a29985cbc26e926881f90",
+  "acceptance_history": [
+    {
+      "accept_commit": "4fd3cae899f13d51518a29985cbc26e926881f90",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-14T14:45:14.747219+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "6237acb95804a272d7a88c45b570c2b89a724e75"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-14T14:45:14.747219+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "6237acb95804a272d7a88c45b570c2b89a724e75",
+  "created_at": "2026-10-12T23:15:46.854694+00:00",
+  "flattened": false,
+  "friendly_name": "Mission Status Read API: mission detail, work packages and artifacts",
+  "mid8": "01M4S6D5",
+  "mission_id": "01M4S6D5JQ3ENNG81X4A1J5HSN",
+  "mission_number": null,
+  "mission_slug": "mission-status-read-api-mission-detail-01M4S6D5",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Mission Status Read API: mission detail, work packages and artifacts on issue-957-mission-status-read-api-mission-detail so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Mission Status Read API: mission detail, work packages and artifacts",
+  "slug": "mission-status-read-api-mission-detail-01M4S6D5",
+  "status_phase": "1",
+  "target_branch": "issue-957-mission-status-read-api-mission-detail",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-13T18:57:28.543510+00:00"
+}

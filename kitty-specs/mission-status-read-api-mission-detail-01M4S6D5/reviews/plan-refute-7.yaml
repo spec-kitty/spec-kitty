@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 7
+verdicts:
+  - id: PLAN-SEQ-008
+    verdict: refuted
+    reason: R-24 and section 11 already state an orchestrator-run merge with re-read of C-005 symbols per phase, and the P0 capture is explicitly of the design base at capture time, so the claimed gaps are elaboration wishes rather than evidenced defects.
+  - id: PLAN-SEQ-009
+    verdict: refuted
+    reason: P0 precedes P1 and P4 touches ci-router.yml only if AC-14.6 demands it, so ordering already serialises them, and the chokepoint paragraph already requires every phase touching a shared file to rebase and states trivial-conflict handling for the route-removal lines.
+  - id: PLAN-SEQ-010
+    verdict: refuted
+    reason: The plan deliberately defers the split to a tasks-stage recommendation with a stated 4,000-line trigger and seam, and the finding's claim about the seam being wrong for #5533 rests on another finding rather than on plan text.
+  - id: PLAN-SEQ-011
+    verdict: refuted
+    reason: Plan text says P3 is the first functional change to the reduction while P2 only touches the build script, and P0 captures the design base not its own tip, so the finding is a wording nit with no concrete defect.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: Plan section 6 and AC-21.1 require git cat-file -e on a design-base tip (merge fd866831a era) and on a first parent of merge 58cd71ec9, both local to this branch or an unmerged lane, while section 11 orders history compaction before the PR, so base B stops resolving in the CI checkout.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: tests/ci/test_mission_status_api_build.py native_test_count scans only config/nativetags and asserts the count is 3, plan.md places no new native-tagged tests there (no nativetags mention) and gives the pin edit to P13 alone, so the pin and floor 8 disagree.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: The nightly-corpus job is gated to schedule or workflow_dispatch, mission-status-api.yml is absent from origin/main, and the P13 exit gate demands a recorded workflow_dispatch with no local equivalent in section 5.
+  - id: PLAN-VERIFY-004
+    verdict: refuted
+    reason: The plan sentence explicitly parenthesises what per-PR checks it means (golden suites, Java build, fence tests), the reality module is already red on main from timeouts under #5927, and the remediation would require CI run capture the plan rules out as not-run by design.

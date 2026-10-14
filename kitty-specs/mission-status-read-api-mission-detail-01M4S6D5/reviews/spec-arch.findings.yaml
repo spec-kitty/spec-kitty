@@ -1,0 +1,310 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-ARCH-001
+    lens: "M2 read fence / Contracts"
+    severity: 4
+    title: "Path-classified read classes and per-route access sets contradict the artifact routes (spec.md, tasks.md, WP files, review cycles, meta.json, lanes.json)"
+    evidence:
+      - artifact: "spec.md § FR-011 (table, 'The classifier tries the specific classes first; ARTIFACT_DIR and ARTIFACT_FILE come last' and the per-route access sets)"
+      - artifact: "spec.md § AC-5.2 control ('spec.md is 200') against § AC-11.2 ('a READ of spec.md (PLANNING_FILE is STAT only)' must be red)"
+      - artifact: "spec.md § AC-4.1 / AC-5.8 / AC-4.3 (artifacts-populated lists tasks/WP01-x/review-cycle-1.md; readable is computed by a content read of every entry)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java:142 (classify returns the first matching ClassPattern; kitty-specs/<m>/meta.json and lanes.json already match MISSION_META and LANES_JSON)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/RecordingAllowlistAccess.java:47 (the recorder classifies by path alone; it has no notion of route or purpose)"
+    claim: >-
+      The fence classifies an access by its path, specific classes first. A content read of spec.md therefore records PLANNING_FILE
+      (STAT only), of tasks.md TASKS_MD, of tasks/WP01-x.md WP_FILE, of a review-cycle file WP_CYCLE_FILE, of meta.json MISSION_META and
+      of lanes.json LANES_JSON. The listing and content routes are allowed only ARTIFACT_DIR and ARTIFACT_FILE, and PLANNING_FILE is
+      STAT only. So the spec's own requirements cannot both hold: getArtifactContent of spec.md must answer 200 (AC-5.2 control, and
+      readable=true in every listing, AC-4.3) while AC-11.1/AC-11.2 require any READ of spec.md to fail the fence. The same applies to
+      every file that is both an authored source and an artifact (tasks.md, tasks/WP*.md, review-cycle files, meta.json, lanes.json).
+      Implemented as written, either the artifact routes cannot read the Mission's most common artifacts, or the per-route fence is
+      silently widened until it asserts nothing. The port of FR-007 takes only a Mission reference, a relative path and a cap, so it
+      cannot carry the intent that would disambiguate. The spec also never says how the test harness learns which route issued an
+      access (the recorder has no route).
+    remediation: >-
+      Make the class an explicit input of the access instead of a function of the path: the port call (or a scoped AllowlistAccess view)
+      carries the read purpose (for example a ReadScope) and the recorder records (scope, class, mode). Define ARTIFACT_FILE and
+      ARTIFACT_DIR as scope-addressed classes that may cover any eligible path below the primary directory except the two root status
+      records, and state the exact precedence: a file read through the artifact scope is checked against ARTIFACT_*, not against
+      PLANNING_FILE, TASKS_MD, WP_FILE, WP_CYCLE_FILE, MISSION_META or LANES_JSON. Add the per-request route tag to the recorder (a
+      request-scoped marker, serial flow) and write AC-11.1/AC-11.2 against (route, scope, class, mode). Keep AC-11.2's red control for
+      a PLANNING_FILE READ under the planning scope only, and add the artifact-scope green control for spec.md, tasks.md and meta.json.
+  - id: SPEC-ARCH-002
+    lens: "Layering / M2 transport-agnostic port"
+    severity: 4
+    title: "Rule 13 bars adapter.in.http from domain.projection, which the existing events adapter already uses"
+    evidence:
+      - artifact: "spec.md § AC-13.1 (rule 13: adapter.in.http 'may not depend on domain.reducer, domain.overview derivers, domain.projection or adapter.out')"
+      - artifact: "spec.md § FR-013 ('the HTTP controllers hold no logic')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventData.java:16-17,44,81 (imports LeakClasses and Projector, builds new Projector(leaks))"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java:34,64,184 (takes LeakClasses, emits DiagnosticCode.PROJECTION_REFUSED itself)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:159 (rule 3 already limits adapter.in.http to application.port.in, domain and itself)"
+    claim: >-
+      As worded, rule 13 is red on the unchanged production tree: EventData and EventsController (in adapter.in.http) use
+      domain.projection and write a diagnostic. AC-13.1 is therefore either unsatisfiable, or satisfied only by an unstated exemption
+      that lets a new controller copy the same pattern, which is exactly the duplication D-6 forbids for the later MCP adapter. The
+      spec also does not say that rule 13 is a tightening of rule 3 (rule 3 already allows the whole of domain), so it is unclear what
+      rule 13 adds beyond naming three sub-packages.
+    remediation: >-
+      Rewrite AC-13.1 to state its scope: rule 13 applies to the controllers and mappers of the five new operations (a named class set
+      or a package such as adapter.in.http.detail), with the events adapter listed as the one recorded exemption and a note that its
+      projection logic is not an input of the MCP mission. State rule 13 as: classes that serve the five operations depend on
+      application.port.in and on the domain result types only (domain.model, domain.overview result records), never on a deriver,
+      reducer, projector or LeakClasses. Make the planted-violation control name the same class set.
+  - id: SPEC-ARCH-003
+    lens: "M2 read fence"
+    severity: 3
+    title: "The fence is a test-only property, but the artifact routes put a caller-supplied path in front of the file system"
+    evidence:
+      - artifact: "spec.md § FR-007 ('so a read outside the allowlist is a failure of the test and not an unseen access')"
+      - artifact: "spec.md § FR-011, AC-11.4 (what stays forbidden is checked through the recording AllowlistAccess)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistPassThrough.java:12-45 (the production access performs no classification or refusal)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSource.java:52 (production wiring is AllowlistAccess.passThrough())"
+    claim: >-
+      In #5529 every path that reaches the file system is composed by the service from a Mission directory name that passed
+      SafeFiles.isSafeSegment, so a test-time fence was proportionate. #957 adds ARTIFACT_FILE and ARTIFACT_DIR, whose path is derived
+      from a request parameter, and WP_CYCLE_DIR and WORKTREE_LANE, whose segments come from authored files. The only runtime defences
+      the spec names are the artifact-path regex and the lstat chain. Nothing makes the allowlist itself a runtime invariant, so a
+      logic slip in path composition (a missed segment check, a Windows-specific name form) reads any file under the project root with
+      no test failing unless a fixture happens to exercise it.
+    remediation: >-
+      Add to FR-007/FR-011 a production AllowlistAccess decorator that classifies every access with Allowlist.classify and the scope of
+      SPEC-ARCH-001 and throws a SourceFault (fail closed, path-free) for an access whose class or mode is not permitted. The recording
+      access then wraps the same decorator, so the test observes the runtime decision. Add an acceptance criterion that a deliberately
+      misbuilt path (a segment such as ..\\x, an absolute segment, a segment with NUL) is refused by the production decorator, with no
+      read recorded.
+  - id: SPEC-ARCH-004
+    lens: "M2 read fence / containment"
+    severity: 3
+    title: "worktreePresent composes a path from the unvalidated Mission slug, and does not check .worktrees itself"
+    evidence:
+      - artifact: "spec.md § FR-010 (.worktrees/<recorded slug>-<lane id> 'composed as worktree_dir_name composes it'; 'a real directory (not a link)'), § FR-011 (WORKTREE_LANE, WORKTREE_LANE_GIT)"
+      - artifact: "spec.md § AC-10.3 (fixtures: a symbolic-link lane directory, no row for a hostile slug or a symbolic-link .worktrees)"
+      - code: "contracts/mission-status/schemas/MissionHead.yaml:48-51 (slug: type string, minLength 1, no pattern)"
+      - code: "contracts/mission-status/schemas/Workspace.yaml:17 (laneId pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$ excludes separators; the slug has no equivalent)"
+      - code: "tests/contract/_mission_status_detail.py:490 (the oracle takes the slug from the Mission identity and f-strings it into the directory name, src/specify_cli/lanes/branch_naming.py worktree_dir_name)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles.java:41 (isSafeSegment guards the Mission directory name only)"
+    claim: >-
+      The lane id is pattern-limited, but the slug comes from meta.json, which is authored content with only minLength 1. A slug such as
+      ../../x (or one with a separator) makes ".worktrees/<slug>-<lane>" and its .git entry resolve outside .worktrees and outside the
+      project root; the two stats then answer "does this path and its .git exist" for any host location, through the response bit
+      worktreePresent. The classifier would refuse a .. segment in the recording, but in production nothing does (SPEC-ARCH-003).
+      Separately, only the final component is statted without following; a .worktrees that is itself a symbolic link redirects every
+      lane stat, and the spec's "stat-only" ruling does not say that .worktrees is lstat-ed first.
+    remediation: >-
+      State in FR-010 that the composed directory name must pass SafeFiles.isSafeSegment (one segment, no separator, no dot segment, no
+      NUL), else worktreePresent is false with a path_refused diagnostic and no stat is issued; require .worktrees to be an lstat-ed
+      real directory inside the project root before either stat. Add to AC-10.3 the rows: slug containing a separator, slug equal to
+      .., .worktrees as a symbolic link (instrumented port records zero STAT below it), and a lane id with the contract pattern at its
+      boundary.
+  - id: SPEC-ARCH-005
+    lens: "M2 transport-agnostic port / secret handling"
+    severity: 3
+    title: "The only guard for the unredacted prompt lives in the HTTP adapter, while the port serves it to any adapter"
+    evidence:
+      - artifact: "spec.md § FR-009 ('The guard is the loopback bind plus the Host and Origin filter'), § FR-013 (ports carry 'a boolean' includePrompt and domain results), § AC-13.4"
+      - artifact: "spec.md § Clarifications, Standing ('A later mission adds Spring AI MCP resource adapters over the same application.port.in surface')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/HostOriginFilter.java:30 (the guard is a servlet filter) and config/HostOriginRegistration.java:17-24"
+    claim: >-
+      Decision Q3 (binding) justifies serving promptMarkdown unredacted by a guard that exists only as a servlet filter registered for
+      /*. FR-013 makes the port return the prompt for any caller that passes includePrompt=true and FR-013's purpose is that an MCP
+      adapter adds no logic. An MCP adapter on a non-HTTP transport (stdio) has no Host/Origin filter, and one on an HTTP transport
+      depends on remembering to keep the filter; the spec records neither as a constraint on that mission. The unredacted-secret path
+      is thus guarded by a property of a different layer that the port contract does not mention, so the "no duplicated logic" goal
+      and the Q3 guard pull in opposite directions.
+    remediation: >-
+      Add to FR-009/FR-013: the port method documents that includePrompt=true returns authored bytes with no redaction, and the
+      guarantee is the adapter's obligation; record as a constraint for the MCP mission that an adapter must not expose includePrompt
+      without an equivalent loopback/Host guard (and that stdio exposure needs an operator decision). Optionally add a configuration
+      switch read at the composition root (for example mission-status.prompt.enabled, default true) that the port honours, so the
+      decision is not only a filter. Add a decision card DC-6 so the MCP mission starts from the question instead of discovering it.
+  - id: SPEC-ARCH-006
+    lens: "M2 transport-agnostic port / contracts"
+    severity: 3
+    title: "The 'path decoded once' and 'repeated or malformed' rules are transport work the spec does not assign or test at the HTTP boundary"
+    evidence:
+      - artifact: "spec.md § FR-005 ('The path is decoded once at the HTTP layer and judged as decoded'; 400 for missing, repeated or malformed, including strings that are not UTF-8), § FR-013 ('path decoding rules that the contract fixes ... happens behind the port'), § AC-5.2"
+      - code: "contracts/mission-status/parameters/ArtifactPath.yaml (sent once, percent-encoded as any query value, decoded once at the HTTP layer)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/ProblemAdvice.java:42 (handlers exist for TypeMismatchException and Exception; none maps a missing required parameter)"
+    claim: >-
+      FR-013 puts 'path decoding rules' behind the port, but percent-decoding is done by the container before the controller runs, and
+      the oracle's read_content receives the already decoded list (tests/contract/_mission_status_artifacts.py read_content, 'the
+      list of values after the one decoding the HTTP layer does'). The spec does not say who detects the four transport facts that
+      decide 400: a repeated parameter (a generated Spring interface binding a String joins repeated values with commas, so
+      path=a&path=b would reach the port as the valid name 'a,b' and answer 404), a missing parameter (the framework's own exception,
+      which no advice maps to invalid_artifact_path), a percent sequence that is not valid UTF-8 (container-dependent: replacement
+      character or dropped parameter, and U+FFFD passes the contract pattern), and '+' (space under form decoding). AC-5.2 covers
+      'repeated' and 'missing' but not an invalid byte sequence or '+', and gives no design for catching them. Left implicit, the
+      logic either lands in the controller (a duplicate for MCP) or is wrong.
+    remediation: >-
+      Specify the split: the HTTP adapter takes the raw query (all values of 'path' as a list, strict UTF-8 percent-decoding it
+      performs itself or rejects the request) and passes List<String> to the port, whose single operation applies the count check and
+      the artifact-path rule (so MCP, which has a typed string, passes a one-element list). Add AC-5.2 rows for %ff, an overlong
+      percent sequence, a literal '+', a repeated value that would join to a valid name, and a missing parameter mapped to 400
+      invalid_artifact_path with the Problem body of the contract. Add a handler for the framework's missing-parameter exception.
+  - id: SPEC-ARCH-007
+    lens: "M2 resource bounds"
+    severity: 3
+    title: "Memory and concurrency bounds omit the walk's path set, the 4 MiB tasks.md read and the 1 MiB lanes.json, and NFR-002 contradicts FR-011"
+    evidence:
+      - artifact: "spec.md § OQ-4 / AC-4.4 (walk stops after 100000 entries), § FR-004 ('No two file contents are held at once'), § FR-011 (TASKS_MD 4 MiB, LANES_JSON 1 MiB), § FR-003 (tasks.md read per request, D-21 no cache)"
+      - artifact: "spec.md § NFR-002 ('the cap plus one byte (262145 bytes) for artifacts and lanes.json-class reads'; the test uses 100 content and 10 listing requests, none on getWorkPackageDetail)"
+      - code: "services/mission-status-api/src/main/resources/application.properties:7 (spring.threads.virtual.enabled=true; no limit on concurrent requests for the new routes)"
+    claim: >-
+      (1) The listing must sort the whole walk to take the first 1000, so it holds up to 100000 relative paths of up to 512 characters
+      per request; NFR-002 measures a 1000-file Mission and so never exercises that set. (2) NFR-002 says lanes.json-class reads are
+      262145 bytes, while FR-011 gives LANES_JSON a 1 MiB read; and getWorkPackageDetail reads tasks.md up to 4 MiB plus its decoded
+      string and title rows on every call, uncached, for each of the Mission's Work Packages a dashboard opens; no concurrent
+      detail requests are in the NFR-002 scenario. (3) A single listing is up to 1000 reads of 262145 bytes (about 256 MB of I/O) with
+      no wall-clock or admission limit; virtual threads accept any number at once. On loopback this is a self-inflicted hazard rather
+      than an attack, but the spec's stated purpose is that no combination exhausts resources.
+    remediation: >-
+      Reconcile NFR-002 with FR-011 (name each cap: 262145, 1 MiB, 4 MiB). Add a path-set bound to the walk (an entry count already
+      exists; add a cumulative path-character budget, or keep only the 1001 smallest paths with a bounded heap) and a fixture that
+      walks the bound. Extend NFR-002's scenario to concurrent getWorkPackageDetail on a Mission with a 4 MiB tasks.md and
+      concurrent getMission on a 40-file Mission. Add one admission control for the heavy routes (a small semaphore on listArtifacts
+      and getWorkPackageDetail, with a 503 or queue decision recorded) or state why none is needed given the loopback bind.
+  - id: SPEC-ARCH-008
+    lens: "M2 read fence / fault policy"
+    severity: 2
+    title: "An oversized or unreadable Work Package file denies the whole Mission page, against the reflexivity argument of OQ-1"
+    evidence:
+      - artifact: "spec.md § FR-006 item 2 ('A candidate over 1 MiB is a fault (500 source_unreadable)'), § OQ-1 (rejects the 500 alternative because 'one half-written planning file then denies the Mission page for a running Mission'), § FR-012 row M4"
+    claim: >-
+      The spec skips a malformed Work Package file to keep getMission available for a running Mission, but refuses the whole Mission
+      for a file over 1 MiB or one that cannot be read. A Work Package prompt that has grown large, or one a writer has briefly made
+      unreadable, causes exactly the denial OQ-1 argues against, and the 1 MiB figure is provisional. Only getMission is affected
+      this way for files it does not need in full: it needs the frontmatter, not the body.
+    remediation: >-
+      Either treat oversize and unreadable like the other skip cases on getMission (skip, wp_file_skipped with a distinct reason
+      field value) and keep the 500 on the single-WP routes where that file is the target, or record the asymmetry as a decision with
+      its reason. Consider bounding the getMission read to the frontmatter region (a smaller cap, stop at the closing delimiter) so
+      the 1 MiB cap protects only getWorkPackage.
+  - id: SPEC-ARCH-009
+    lens: "M2 read fence / determinism"
+    severity: 3
+    title: "Non-ASCII file names depend on the JVM's file-name encoding, which the spec and gates never pin"
+    evidence:
+      - artifact: "spec.md § AC-4.1 (accented name), § AC-4.2 (U+FF5E against U+1F600), § NFR-004 (byte-identical across four OS targets), § Edge Cases (names that sort differently)"
+      - code: "services/mission-status-api (rg for sun.jnu.encoding, file.encoding, LC_ALL, LANG finds no setting or check in the service or its build)"
+    claim: >-
+      On Linux the JDK decodes directory entries and encodes opened paths with sun.jnu.encoding, which follows the process locale,
+      not the UTF-8 default of file.encoding. A detached service started from a service manager or a container usually has the POSIX
+      locale, where a non-ASCII file name is listed with replacement characters and cannot be opened. The listing would then omit it
+      (read as 'vanished'), return a mangled path, or answer 404 for the exact path the oracle serves. The spec's fixtures include
+      such names but its legs run in whatever locale the runner has, so a green CI can coexist with a wrong deployment, and a name
+      that Python lists as ineligible (not valid UTF-8) could be listed in Java as a different valid name.
+    remediation: >-
+      Add to FR-004/FR-007 a startup check: on non-Windows hosts, if sun.jnu.encoding is not UTF-8 the artifact routes answer
+      500 artifact_listing_unreadable/artifact_unreadable with a path-free diagnostic when a non-ASCII or unmappable entry is met
+      (never silently omit), and the README states the locale requirement. Add a test leg that runs the artifacts-sort fixture under
+      LC_ALL=C and requires the loud refusal, and one under a UTF-8 locale requiring byte equality with the golden.
+  - id: SPEC-ARCH-010
+    lens: "M2 read fence"
+    severity: 2
+    title: "The root status-record exclusion is a name comparison, which case-folding and Windows name aliases can defeat"
+    evidence:
+      - artifact: "spec.md § FR-004 ('compared without regard to case, root only'), § FR-011 (ARTIFACT_FILE except the root records 'any case'), § AC-4.5 (ASCII case variants only)"
+      - code: "tests/contract/_mission_status_artifacts.py:293 (path.casefold() in ROOT_STATUS_FILES; Python casefold also maps U+017F to s)"
+    claim: >-
+      The oracle compares Python casefold; the spec says 'without regard to case' and tests ASCII variants. On a case-insensitive
+      file system (macOS default, Windows) a name the Java comparison treats as different can still open the record: the long s in
+      a spelling of status.json folds to the same name on APFS, and on Windows a trailing dot or an 8.3 alias names the same file.
+      The exclusion is the only thing that keeps the ledger and status.json out of the artifact routes, and the fence classes rely on
+      the same name test.
+    remediation: >-
+      Implement the comparison with full Unicode case folding to match the oracle, and additionally compare file identity: for each
+      candidate whose lowercased ASCII or folded name could alias, stat the two root records once per request and refuse a candidate
+      whose fileKey equals either (all OS targets). Add fixtures: a long-s spelling (generated at test time on case-insensitive hosts)
+      and, on the Windows leg, a trailing-dot spelling, each required absent from the listing and 404 on content.
+  - id: SPEC-ARCH-011
+    lens: "M2 shared primitive / layering"
+    severity: 3
+    title: "The text-read port is Mission-relative, so the claim that #5533 adds no second reader is unsupported and AC-7.3 pins the wrong shape"
+    evidence:
+      - artifact: "spec.md § FR-007 ('serves FR-001 to FR-005 and, later, #5533'; methods take 'only a Mission reference, a relative path and a cap'), § AC-7.3, § User Story 6, § FR-018"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/out/MissionEventSource.java:13-35 (every existing method takes a MissionRef or nothing; project-level files are read by a separate ProjectInputs path)"
+    claim: >-
+      Governance inputs (charter, doctrine, pack files) are project-level, not below a Mission directory. A port whose parameters are
+      a Mission reference and a path relative to it cannot read them, so #5533 would either add a second reader or widen the port,
+      and AC-7.3 (a unit test that the methods take only those three kinds of parameter) would then fail or be rewritten. The spec
+      asserts the reuse without showing the shape; it also records no governance file list in the allowlist, so the 'built once'
+      argument of Q1 is not checkable.
+    remediation: >-
+      Either define the port over a (scope, relative path) pair where scope is the project root or a Mission directory, with the
+      allowlist class and mode as the caller's declared purpose (this also solves SPEC-ARCH-001), or soften FR-007/AC-7.3 to claim only
+      what is verifiable now (the five operations) and add a note that #5533 may extend the scope parameter. Remove 'no second reader'
+      from AC-7.3's rationale unless the governance read set is named.
+  - id: SPEC-ARCH-012
+    lens: "M2 symlink handling / containment"
+    severity: 2
+    title: "Middle components are lstat-ed before the open but not rechecked after it; special files can block the open"
+    evidence:
+      - artifact: "spec.md § FR-007 ('every component below the Mission directory is lstat-ed'; 'size from fstat of the open handle'), § AC-7.2"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistPassThrough.java:23 (NOFOLLOW_LINKS protects the final component only)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles.java:124 (the existing check-then-open handles a final-component swap only)"
+    claim: >-
+      The existing code handles a swap of the final component between the stat and the open. For artifacts the walk has several
+      directory levels: a directory replaced by a symbolic link after its lstat and before the open is followed by the open, which
+      only refuses a link at the last name. The window needs a concurrent writer, so the risk is low, but the spec names no
+      post-open verification, and a regular file replaced by a named pipe between the lstat and the open blocks the reading thread
+      indefinitely. AC-7.1 tests a growing file, not these two swaps.
+    remediation: >-
+      After opening, verify containment by comparing the real path of the opened file's parent with the lstat chain's expected real
+      directory (one realPath per read, below the Mission directory), and refuse on mismatch with the same SourceFault as a link.
+      Add fault-injection rows to AC-7.2: a directory swapped for a link after the chain check, and note the pipe case as a
+      documented residual (Java has no non-blocking open) or bound it by running reads on a timed task.
+  - id: SPEC-ARCH-013
+    lens: "Layering / M2 transport-agnostic port"
+    severity: 2
+    title: "Client-facing refusals (413, 415, 422) are added to the diagnostic enum, and where diagnostics are emitted is not stated"
+    evidence:
+      - artifact: "spec.md § AC-12.2 (DiagnosticCode gains artifact_too_large, artifact_not_text, artifact_secret ...), § FR-012 (rows A4, A6, A7 'Diagnostic (log)'), § FR-013 (typed refusal exceptions 'in the style of MissionStatusUnavailable')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/ProblemMapper.java:23 (every MissionStatusUnavailable maps to 500 with the diagnostic code)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java:184 (precedent: a controller writes the diagnostic itself)"
+    claim: >-
+      DiagnosticCode is the code of an exception that ProblemMapper turns into a 500. Adding artifact_too_large and artifact_secret to
+      that enum, and typing the refusals 'in the style of MissionStatusUnavailable', invites a refusal that is a 4xx outcome to be
+      thrown as the 500 type. The spec also does not state that the diagnostic line is written behind the port (as MissionStatusService
+      does for the overview), which matters: a controller-written diagnostic, as in the events adapter, would be skipped by an MCP
+      adapter and the one-line-per-occurrence criterion of AC-12.2 would hold for HTTP only.
+    remediation: >-
+      State in FR-013 that the diagnostic is written inside the application behind the port for every row, via the injected
+      consumer, and that refusals are two families: a sealed ArtifactRefusal/WorkPackageNotFound (client outcomes, mapped to
+      400/404/413/415/422) and MissionStatusUnavailable (500). Keep the diagnostic codes in the enum if wanted, but add a one-line AC
+      that ProblemMapper has a test per refusal type and that the plain-Java caller of AC-13.3 also observes each diagnostic exactly
+      once.
+  - id: SPEC-ARCH-014
+    lens: "M2 redaction / secret refusal"
+    severity: 2
+    title: "Credential coverage is four families and file names are not screened, yet the stories promise that a credential file is refused"
+    evidence:
+      - artifact: "spec.md § User Story 4 ('A file with a credential in it is refused'), § AC-5.6 (eight prefixes and PEM header), § FR-004 (listing 'path' carries file names), § AC-8.3 (canaries in a body, title, artifact, lanes.json; none in a file name)"
+      - code: "services/mission-status-api/src/main/resources/leak-patterns.json (secret-0 to secret-3: GitHub prefixes, github_pat_, AKIA/ASIA, PEM private key header)"
+      - code: "contracts/mission-status/schemas/ArtifactEntry.yaml (readable: the credentials that make a file unreadable are listed as those same families)"
+    claim: >-
+      The refusal set is exactly the contract's families, which is correct and frozen, but the user story and the README framing
+      suggest a general guarantee; a bearer token, a JWT, a cloud key of another provider or a password line passes as 200 with only
+      host paths and e-mails substituted. A listing also echoes every file name unredacted, so a name carrying a token-shaped string or
+      an e-mail address is published in both the listing and the content response's path member. No decision records either limit.
+    remediation: >-
+      Reword User Story 4 and the README section to name the families and state that other credential shapes are not detected. Add a
+      decision (or DC-6) on file names: either record that names are shown as-is (contract-mandated) or screen a name with the human
+      class and make such a file ineligible (a recorded divergence from the oracle). Add the canary-in-file-name row to AC-8.3 so the
+      choice is tested.
+  - id: SPEC-ARCH-015
+    lens: "Contracts"
+    severity: 1
+    title: "AC-11.3 'eleven lines' is ambiguous between the new entries and the whole README list"
+    evidence:
+      - artifact: "spec.md § AC-11.3 ('including the new patterns (eleven lines, because PLANNING_FILE names two files)')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java:95 (ENTRIES holds 11 entries today)"
+    claim: >-
+      Ten new classes with PLANNING_FILE naming two patterns give eleven new lines; the list after the change has twenty-two. A reader
+      or a test author can take 'eleven' as the total.
+    remediation: >-
+      Write 'eleven new lines, twenty-two in all' and make the parity test assert the total, not only equality of the two lists.

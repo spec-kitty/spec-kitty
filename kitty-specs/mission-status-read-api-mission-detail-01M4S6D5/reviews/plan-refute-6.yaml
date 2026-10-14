@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 6
+verdicts:
+  - id: PLAN-FIT-013
+    verdict: confirmed
+    reason: RecordingAllowlistAccess lives in the test adapter.out.filesystem package, MAY_OPEN_FOR_READ includes AllowlistAccess which the plan omits, and grep -w cannot match feature_slug; a true nit.
+  - id: PLAN-SEQ-001
+    verdict: confirmed
+    reason: Section 11 lists P5 as depending on P1 and P4 and P3 on P4 goldens, yet the chokepoints paragraph runs P2, P3, P4 and P5 concurrently after P1.
+  - id: PLAN-SEQ-002
+    verdict: confirmed
+    reason: No phase's Depends-on column lists P2, though P9 to P12 need its model and hand-DTO decision.
+  - id: PLAN-SEQ-003
+    verdict: confirmed
+    reason: Section 7 promises seams stable from P5, but the testsupport doubles are in P7 scope and DetailInfrastructureWiring is in P8 scope, neither in P5.
+  - id: PLAN-SEQ-004
+    verdict: confirmed
+    reason: Plan says #5533 rebases on the P5 merge while mandating one PR, no agent pushes and pre-PR history compaction, with the split seam placed after P8.
+  - id: PLAN-SEQ-005
+    verdict: refuted
+    reason: The plan already gives the YAML spike a rule (R-15 restricted SafeConstructor that refuses what it cannot decode) and an escalation (E-6), so a failed spike does not invalidate P6 and later work; ordering preference only.
+  - id: PLAN-SEQ-006
+    verdict: confirmed
+    reason: P3 T/domain/** contains P5 T/domain/projection/**, T/adapter/out/filesystem/** overlaps P3 codec tests, and ProjectionCache appears in no phase write scope though P3 needs lifecycleTypes carried.
+  - id: PLAN-SEQ-007
+    verdict: confirmed
+    reason: R-16 treats #6122 (frontmatter) and #5953 (status models/store) as golden regeneration only, although they change behaviour that the P6 decoder and P3 reducer mirror, with no owner for the Java side.

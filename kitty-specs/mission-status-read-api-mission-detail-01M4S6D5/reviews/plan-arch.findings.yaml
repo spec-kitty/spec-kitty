@@ -1,0 +1,154 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-ARCH-001
+    lens: Layering (write-scope completeness) and 5533-seam
+    severity: 3
+    title: Adding SourceFault.Kind.FILE_UNREADABLE breaks two exhaustive switches in ChangeFeed that no phase owns, and mixes text-read faults into the ledger vocabulary
+    evidence:
+      - artifact: "plan.md § 7.1 row 6; § 11 P5 write scope and exit gate; § 11 'Write-scope completeness' (every path of the section 13 tree is owned by exactly one phase)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ChangeFeed.java metaStageCode and ledgerStageCode: both are `switch (kind)` expressions with no default over SourceFault.Kind"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java ledgerFault and omitted: two more exhaustive switches over the same enum"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/out/SourceFault.java Kind: VANISHED, PATH_REFUSED, META_UNPARSEABLE, DIR_UNREADABLE, LEDGER_UNREADABLE"
+    claim: >-
+      P5 adds FILE_UNREADABLE to the existing SourceFault.Kind and says it forces 'the exhaustive-switch updates'. P5's write scope names only MissionStatusService and OverviewReader (the new case only). ChangeFeed.java holds two further exhaustive switches over the same enum and is in no phase's write scope, so the P5 commit does not compile as scoped and the 'each path owned by exactly one phase' claim is false. Beyond the mechanics, §7.1 row 1 says TextSource has 'no route or Mission-status vocabulary', yet its fault type is the mission-status SourceFault whose other kinds (META_UNPARSEABLE, LEDGER_UNREADABLE) cannot occur on a text read; each existing switch would also have to pick a diagnostic for a kind that is unreachable there. #5533's own spec asks for distinct kinds for over-cap, not-text, credential and symlink (SPEC-FRESH3-010), which a mission-status-shaped enum serves badly.
+    remediation: >-
+      Either (preferred) give the text-read port its own fault type in application.port.out (for example TextFault with Kind PATH_REFUSED, VANISHED, DIR_UNREADABLE, FILE_UNREADABLE) so SourceFault, ChangeFeed, MissionStatusService and every existing switch stay untouched and the 'no Mission-status vocabulary' statement of §7.1 row 1 becomes true; or add ChangeFeed.java (the two arms, with the chosen DiagnosticCode written down) to P5's write scope and name all four switch sites in the P5 row. Whichever is chosen, grep for `switch` over SourceFault.Kind at plan time and list the sites.
+  - id: PLAN-ARCH-002
+    lens: Transport-agnostic inbound port
+    severity: 3
+    title: The strict percent-decoding of `path` lives in an HTTP adapter class, so the claim that an MCP adapter 'duplicates no rule' is not supported
+    evidence:
+      - artifact: "plan.md § 1 final paragraph ('An MCP adapter therefore passes strings and a one-element list and duplicates no rule'); § 1 layer table (RawQuery in adapter.in.http.detail); § 13 Ports (ArtifactPathInput sealed: Values(List<String>) | Undecodable)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java rule 5a: no adapter.in dependency on adapter.out; rule 3: adapter.in.http reaches only port.in and domain; an MCP adapter would be a new inbound adapter that cannot import adapter.in.http.detail.RawQuery"
+    claim: >-
+      The plan lists the controller's duties as (a) raw-query parsing including 'path strict percent decoding' (single decode, `+` literal, invalid UTF-8 is undecodable). The port then carries the outcome as ArtifactPathInput.Values or Undecodable, which is an HTTP-query shaped type (a repeated parameter becomes a multi-element list). The decoding rule is a real rule (AC-5.2: `%252e` decodes once, `%ff` and `%c0%af` are 400) implemented in the one adapter that cannot be shared. An MCP resource template variable is also percent-encoded text, so the #6116 adapter must re-implement the same decoder, or call the port with already-decoded text and silently diverge from the HTTP behaviour on `%` handling.
+    remediation: >-
+      Move the strict percent-decode to a pure function in domain.derive next to ArtifactPaths (it needs only java.nio.charset, which rule 1b allows), have RawQuery call it, and document that any inbound adapter passing an encoded value uses it. State in §13 which form the port expects: decoded text (then ArtifactPathInput.Undecodable is an HTTP artefact and should be produced by the shared function) or raw-encoded text with the decode behind the port. Add a plain-Java test (the PlainCaller of AC-13.3) that feeds `%252e` and `%ff` through the shared function.
+  - id: PLAN-ARCH-003
+    lens: Layering (ArchUnit rules 13 and 14) and 5533-seam
+    severity: 3
+    title: Rules 13 and 14 hard-code their subjects, so D-69's 'run the existing rules once per root' does not cover them and a governance inbound port is unguarded or the rules go vacuous
+    evidence:
+      - artifact: "plan.md § 13 table 'Rules 13 and 14' (rule 13 subject `adapter.in.http.detail..`; rule 14 subject the six named classes plus `domain.detail..`); § 7.4 D-69 ArchUnit row ('#5533 runs the existing rules once per root, adds the cross-context rules and raises DEFINED_RULE_COUNT itself')"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java all(String root, List<String> rule9Packages) builds every subject from `root + suffix`; Rule.scanned is asserted non-zero by ArchitectureControlsTest/ArchitectureRulesTest against DEFINED_RULE_COUNT"
+      - artifact: "kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md FR-017 (run every existing rule once per context root with a scanned-class non-vacuity assertion; inbound port reflection test AC-17b)"
+    claim: >-
+      Rules 1 to 12 are parameterised by root and can be re-run for a sibling root. Rule 13's subject is the package `adapter.in.http.detail` and rule 14's subject is a list of class names that exist only in missionstatus. Run for the governance root, the subjects are empty: the non-zero scanned-count assertion either fails (an artificial red the plan does not budget) or is waived (the transport-agnostic guarantee, the whole point of issue #6116, then covers only the five detail operations and none of governance's ports). The plan's statement that the primitives change 'no rule' therefore hides that its own two new rules do not generalise.
+    remediation: >-
+      Write rule 14 over `application.port.in..` of the given root (excluding by a documented, tested predicate the existing stream types that legitimately throw InterruptedException, D-50) instead of by class name, and write rule 13 over the root's `adapter.in.http..` controllers minus a named infrastructure set, both taking `root` like rules 1 to 12. State in D-69 that rules 13 and 14 run per root with per-root non-zero counts, so #5533 adds subjects, not rules.
+  - id: PLAN-ARCH-004
+    lens: Layering and wiring (hexagonal composition)
+    severity: 3
+    title: The shared OverviewReader and ProjectionCache are package-private in application but the plan wires the new services from one config class per route phase
+    evidence:
+      - artifact: "plan.md § 9 item 1 (MissionLookup and OverviewReader extracted as package-private classes; 'OverviewReader owns the one ProjectionCache'; AC-1.2 same derivation); § 13 layout (MissionDetailWiring, WorkPackageWiring ... in config); § 11 chokepoints ('one new wiring class per route phase so ServiceWiring is not edited')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/ServiceWiring.java missionStatusQuery: the only construction site, `new MissionStatusService(source, clock, diagnosticsLine, feedExecutor, settings, leaks)`"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java public constructor delegates with `new ProjectionCache(new StatusReducer(...))`; ProjectionCache.java is a package-private final class; cache() is package-private"
+    claim: >-
+      Config (a different package) can only construct application classes through public API. Today the cache is created inside MissionStatusService's public constructor and is unreachable from config. The plan makes MissionLookup and OverviewReader package-private and has four new wiring classes in config construct MissionDetailService, WorkPackageService and the rest, all of which need the same OverviewReader instance (one cache, NFR-009, AC-1.2). No wiring path is stated. Implementers will either create a second ProjectionCache (doubling the NFR-009 growth the plan measures and letting /missions and getMission serve different stamps) or widen visibility ad hoc in P9, outside P1's 'behaviour-preserving' campsite.
+    remediation: >-
+      Decide in the plan and execute in P1: expose one public application-level composition handle (for example a public final `MissionReadModel` holding MissionLookup, OverviewReader and the cache, built once in ServiceWiring and passed to both MissionStatusService and the detail services), or make the four detail services receive it through a public constructor. Add the class to §13, P1's write scope and the JaCoCo count, and add an assertion in OverviewReaderTest or a wiring test that /missions and getMission share one ProjectionCache instance.
+  - id: PLAN-ARCH-005
+    lens: 5533-seam (stable seams list)
+    severity: 3
+    title: AdmissionGate and the NUL/redaction policy are not named as seams, so #5533 either bypasses the process-wide memory bound or builds a second gate and a second NUL check
+    evidence:
+      - artifact: "plan.md § 7.1 (twelve seams; AdmissionGate is not among them); § 13 'Admission gate (FR-022)' (Semaphore(4, true) held by WorkPackageDetailService, ArtifactService, WorkPackageService); § 7.2 NOT_TEXT row ('a NUL byte (the application's check)'); § 7.1 row 7 (TextScreen has one LeakClasses constructor and one substitution policy)"
+      - artifact: "kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md SPEC-FRESH3-017 (different caps for event logs and the lint report), FR-020 (governance must not copy the primitive), FR-022"
+    claim: >-
+      NFR-002's memory arithmetic assumes at most four heavy holders in the process. #5533's routes also read up to a cap into memory (charter body, event logs, lint report), but the gate is an application bean with no stated export; a second gate yields eight concurrent holders, no gate yields unbounded ones. The NUL decision of §7.2 is 'the application's check' inside ArtifactReader, so #5533 must re-implement it (its FR-020 forbids copying primitives). TextScreen always substitutes paths and addresses; a governance file whose legitimate content contains such text has no verbatim-with-credential-check mode, so a different redaction needs a second function.
+    remediation: >-
+      Add to §7.1 a 13th seam: the single AdmissionGate bean (in DetailInfrastructureWiring) with the statement that every operation that holds a capped body in memory acquires it, and re-state the NFR-002 bound for both contexts. Move the NUL test next to the strict decode (a `TextRead.NotText` outcome covers 'NUL or invalid UTF-8', or a shared `TextChecks.hasNul` in domain.derive) so one check serves both. Give TextScreen an explicit second entry point (credential check only, text unchanged) or state that governance uses Projector.human and the check separately, so no one forks the function.
+  - id: PLAN-ARCH-006
+    lens: 5533-seam (refusal-kind set)
+    severity: 3
+    title: The 'closed set of refusal kinds' of §7.2 is a table, not a type; it spans three mechanisms and omits VANISHED, so #5533's injective map has nothing to import
+    evidence:
+      - artifact: "plan.md § 7.2 (seven kinds; originates as a returned result, a thrown SourceFault, or TextScreen.SecretFound); § 7.1 row 6 (PATH_REFUSED, VANISHED, DIR_UNREADABLE, FILE_UNREADABLE); § 7.3 D-68; § 13 DetailRefusal kinds (eight, different set)"
+      - artifact: "kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md OD-1 (injective map from refusal kinds to governance codes) and SPEC-FRESH3-010 (distinct kinds for over-cap, not-text, credential, symlink)"
+      - code: "contracts/mission-status/schemas/ArtifactRefusalCode.yaml (seven codes, 400/404/413/415/422/500): the table's status column matches; VANISHED has no row anywhere in §7.2"
+    claim: >-
+      The statuses in §7.2 are consistent with the frozen contract and with the spec status table (A2 to A7). But the 'set' is not a Java type: three kinds are returned results, two are thrown, one is a domain screen outcome, and DetailRefusal (the application's own, route-vocabulary set with eight members) is a fourth enumeration. #5533 cannot make an injective map from a markdown table. VANISHED (thrown by the port per §7.1 row 6) is in neither §7.2 nor the spec table for a content read (spec: a vanished file is a 404), so the application's mapping of that fault is undefined. 'Closed' is asserted but no test pins it.
+    remediation: >-
+      Introduce one enum in application.port.out (for example TextRefusal: NOT_FOUND, NOT_REGULAR, PATH_REFUSED, OVER_CAP, NOT_TEXT, SECRET_REFUSED, IO_FAILURE) plus a pure function from each TextRead/BytesRead/fault/Screened outcome to it, and have ArtifactService map TextRefusal to DetailRefusal. Add VANISHED to §7.2 (Absent semantics, 404 on content, omitted on listing) and a reflection test that the enum equals the table. DetailRefusal then needs no kinds the table lacks.
+  - id: PLAN-ARCH-007
+    lens: 5533-seam (stay versus shared package, D-69)
+    severity: 3
+    title: D-69 treats the #5533 coordination as 'not an escalation' although the design requires #5533 to edit #957-owned closed types, which #5533's own spec says must go to the operator
+    evidence:
+      - artifact: "plan.md § 7.1 rows 4 and 9 (#5533 adds the value GOVERNANCE to ReadScope and appends its PathClass values and ENTRIES after entry 22 and the README lines); § 7.4 table ('No rule changes', 'diff is additive'); § 14 E-3 ('Coordination (not an escalation)')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java PathClass (closed enum), ENTRIES, CLASSIFIERS; AllowlistReadmeParityTest compares entry for entry; ArchitectureRules.DEFINED_RULE_COUNT"
+      - artifact: "kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md PD-7 (a choice that moves #957-owned classes is raised with the operator as an Open Decision; the alternative of a governance-owned registry over a shared seam)"
+    claim: >-
+      Staying in missionstatus means governance's allowlist classes, scope value, README fence lines and rule count live inside files this mission owns and #5529 owns: the 'sibling context' of FR-017 then edits the missionstatus context in four places (ReadScope, PathClass/ENTRIES/classify switch, README fence, ArchitectureRules count). The plan presents 'stay' as additive and cheap-to-reverse, and weighs only the extract-a-package alternative. It does not consider the registry alternative that PD-7 names, and it does not raise the closed-enum edit as an Open Decision, which #5533's spec requires. If the operator decides differently the Allowlist and AllowlistReadmeParityTest shape of P5 changes.
+    remediation: >-
+      Add to D-69 a row for the third option (governance registers PathClass-like classes through a small public seam implemented once in missionstatus, so the closed enum is not edited) and decide between it and 'append to the enum'. Record the choice as an Open Decision for the operator (new E-7, not E-3's awareness), listing the exact #957-owned symbols #5533 would edit. If 'append' stays, say so in §7.1 as 'edits ReadScope, PathClass, ENTRIES, README' rather than 'TextSource itself does not change'.
+  - id: PLAN-ARCH-008
+    lens: Canonical source and generated artifacts
+    severity: 3
+    title: The regeneration command for gradle/verification-metadata.xml omits bootJar, which the CI strict step resolves
+    evidence:
+      - artifact: "plan.md § 2 table row 'gradle/verification-metadata.xml' (regenerate: `./gradlew --write-verification-metadata sha256 check nativeCompile nativeTest nativeSmoke -PnativeBinary=<built binary> jacocoTestReport openApiGenerate --refresh-dependencies`)"
+      - code: ".github/workflows/mission-status-api.yml step 'Verify dependencies strictly': runs `./gradlew --no-daemon --dependency-verification strict bootJar testClasses`, and its echo hint is `... jacocoTestReport openApiGenerate bootJar --refresh-dependencies`"
+    claim: >-
+      The plan's command drops `bootJar`, the task the strict gate itself runs and the workflow's own remediation hint includes. Metadata regenerated with the plan's command can lack the bootJar-only dependencies, so the strict step then fails on every leg. The plan says 'no change planned' but gives this command as the sole permitted route if a phase touches the file (P2 may, via a new generator model).
+    remediation: >-
+      Replace the command by the workflow's hint verbatim (copy-paste, per the transcribed-commands lesson) with `bootJar` added, keep `-PnativeBinary` only if nativeSmoke truly requires it, and add the strict verify command (`./gradlew --no-daemon --dependency-verification strict bootJar testClasses`) as the freshness check beside VerificationTamperTest.
+  - id: PLAN-ARCH-009
+    lens: Layering (bounded listing on the fence seam)
+    severity: 3
+    title: The plan changes AllowlistAccess only by adding scoped(ReadScope), but FilesystemTextSource.list needs a bounded listing and the existing seam lists everything
+    evidence:
+      - artifact: "plan.md § 1 adapter.out.filesystem row (AllowlistAccess +scoped(ReadScope)); § 7.1 row 1 (`list(FileRef dir, int nameLimit, ReadScope scope)`) and row 5 (`limitReached`); § 13 'Walk and listing' (nameLimit = 100000 - counter); NFR-002 bounded memory"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistAccess.java `List<String> listNames(Path dir)` returns all names of a directory, with no limit parameter"
+    claim: >-
+      limitReached and trustworthy cannot be produced from a method that returns the whole directory. An implementer who follows the plan literally reuses listNames and truncates afterwards, which materialises a 100001-plus name list per directory and defeats the bounded-memory claim (AC-4.9, NFR-002) that the walk's 1001-path heap is meant to deliver. Nothing in §1, §13 or P5 names the new method on the seam, its recorder entry, or the NoUncappedReadTest-style guard that stops a later caller from using the unbounded one.
+    remediation: >-
+      Add to P5 and §13 an explicit `listNames(Path dir, int limit)` (returning names plus a more-exist flag, via DirectoryStream iterated lazily) on AllowlistAccess and AllowlistPassThrough, make the recorder log it as LIST, and extend NoUncappedReadTest (or a sibling) so FilesystemTextSource cannot call the unbounded variant. Test it with a directory of limit+2 entries asserting at most limit+1 names were pulled.
+  - id: PLAN-ARCH-010
+    lens: Reflexivity and phasing consistency
+    severity: 3
+    title: Section 11 states both that P5 depends on P4 and that P5 runs concurrently with P4
+    evidence:
+      - artifact: "plan.md § 11 phase table row P5 ('Depends on: P1, P4'); § 11 'Write-scope completeness and chokepoints' ('after P1, P2 || P3 || P4 || P5 (disjoint ...)'); row P7 ('P4, P5')"
+    claim: >-
+      The tasks stage maps phases to work-package dependencies. The same section gives P5 a dependency on P4 and lists it in the concurrent set with P4, so lane assignment and dispatch order are ambiguous, and §7 relies on P5 landing early for #5533 ('Its Java work packages land after phase P5'). The dependency is also unexplained: P5's content (port, fence, redaction) does not read the Python goldens, only the exit gate mentions AC-7 to AC-11 tests.
+    remediation: >-
+      Decide one reading: if P5 truly needs P4 goldens, remove P5 from the concurrent set and state the cost to #5533's start; if it does not, change the row to 'Depends on: P1' and move the golden-dependent assertions to P7. Reflect the result in the §7 sentence about when #5533 may start.
+  - id: PLAN-ARCH-011
+    lens: Layering (class inventory)
+    severity: 2
+    title: Decoder result types ReviewCycleMeta, LanesResult (Manifest, Corrupt, Legacy) and the StrictUtf8 return type have no package in the §1 or §13 inventory
+    evidence:
+      - artifact: "plan.md § 13 Ports ('FrontmatterDecoder ... ReviewCycleMeta decodeReviewCycle(byte[])', 'LanesDecoder (LanesResult decode(byte[]): Manifest, Corrupt or Legacy)'); § 1 domain.model list (WpId, WpMetadata, FrontmatterResult, LanesManifest, ...); § 8 FRESH3-001 (StrictUtf8 in adapter.out.filesystem.codec)"
+      - code: "ArchitectureRules rule 12a (codec depends among project packages only on domain and codec) and rule 2b (application only on application and domain); a grep of src for ReviewCycleMeta and LanesResult finds nothing today"
+    claim: >-
+      ReviewCycleMeta and LanesResult are used in the port signatures but appear in no layer list, no write scope and no JaCoCo count. If they sit in port.out the codec classes (ReviewCycleCodec, LanesCodec) may not return them (12a); if in domain.model they are missing from §1 and the 'every path owned' claim. StrictUtf8 cannot return the port-level TextRead.NotText for the same reason, so its result type is also unplaced.
+    remediation: >-
+      Add the types to §1/§13 under domain.model (records or a sealed interface) and to the owning phase's write scope (P6), and state that StrictUtf8 returns a domain-neutral result (decoded String or a rejection) which FilesystemTextSource maps to TextRead. Re-count the application and domain class totals for the JaCoCo floors afterwards.
+  - id: PLAN-ARCH-012
+    lens: Contracts (coupled #5529 symbols, C-005 re-check procedure)
+    severity: 2
+    title: The C-005 re-check is prose ('re-read the symbols') with no command and no pin
+    evidence:
+      - artifact: "plan.md § Readiness facts row 'Coupled #5529 symbols (C-005)'; § 11 chokepoints final sentence; Risks R-24"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java (15 PathClass values, 11 ENTRIES verified today)"
+    claim: >-
+      Fourteen coupled symbols are listed with specific shapes (value counts, private method names, package-private visibility) that #5529's fold rounds can change. The only stated procedure is that each phase's first step 're-reads' them, which is exactly the silent-success failure mode of this repository. A merged #5529 tip that renames `resolve` or makes ProjectionCache public is noticed only if a person reads carefully.
+    remediation: >-
+      Add a small mechanical pre-flight to P0 or P1 (a script or a test in tests/ci, run in each phase's gate list): assert the shape facts that the plan relies on (enum value counts, ENTRIES size, DEFINED_RULE_COUNT, constructors, visibility) and print the #5529 tip sha it ran against. Cite the command in §5 and in R-24.
+  - id: PLAN-ARCH-013
+    lens: 5533-seam (verifiability)
+    severity: 1
+    title: Section 7 and D-69 cite #5533 identifiers (PD-7, FR-017, G3a, G4a, G4b, 'question 1/2') without a pinned revision
+    evidence:
+      - artifact: "plan.md § 7.1 to § 7.4; kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md at the sibling #5533 workspace (not on any ref of this repository, git for-each-ref shows none)"
+    claim: >-
+      I verified the cited identifiers against the sibling checkout and they exist and match (PD-7, FR-017, G3a/G4a/G4b, FR-020). But #5533's spec is not reachable from a ref of this repository, so a later reader cannot re-verify, and #5533's spec is still moving (round-3 findings are carried as plan obligations).
+    remediation: >-
+      Record in §7 the #5533 spec commit the references were checked against (short sha of its HEAD, cdce434a3 at review time) and that a #5533 change to those identifiers needs the note both missions' design-decisions already require.

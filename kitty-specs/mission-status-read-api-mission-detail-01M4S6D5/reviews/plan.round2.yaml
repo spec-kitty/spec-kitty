@@ -1,0 +1,314 @@
+schema: review-confirmed/v1
+phase: plan
+round: 2
+complete: true
+findings:
+- id: PLAN-GOV-001
+  lens: Scope (frozen C-004 write set)
+  severity: 4
+  title: Plan widens the frozen C-004 write set (packs.yml, corpus-trigger registry test, native-leg LC_ALL)
+    and applies it with only an "awareness" flag
+  evidence:
+  - artifact: plan.md section 14, S-11 and E-2 (owner operator, awareness, Blocking No, interim 'Applied
+      as written in S-11'); section 11 P0 write scope; section 12 environment row; S-16
+  - artifact: 'spec.md C-004: ''The write set outside it is exactly: ... A diff outside this list is a
+      defect.'' It lists the workflow only as the nightly-corpus job, the native --floor and --request-floor'
+  - artifact: traces/design-decisions.md D-82 ('two one-line edits to the C-004 write set ... Adopted')
+  claim: C-004 is a closed list whose breach is a stated defect. The plan adds .github/workflows/packs.yml
+    and tests/architectural/test_ci_corpus_trigger_completeness.py (S-11), and S-16/section 12 add an
+    LC_ALL environment line to the native smoke legs of mission-status-api.yml, which C-004 does not list
+    (it names the nightly-corpus job and the two floors only). The plan marks this "awareness", non-blocking,
+    "Applied as written", and the tracer records it as "Adopted". A closed constraint is therefore edited
+    by the planner with no operator-decision flag, and P0 (the first phase) already writes both out-of-set
+    files, so the defect lands in the first commit before anyone can rule.
+  remediation: Reclassify E-2 as a decision (owner operator, blocks P0's two out-of-set files and P13's
+    native-leg environment line) and state the fallback that stays inside C-004 if declined (for example
+    an unmarked-module-safe home inside tests/contract that the existing Packs deselect already covers,
+    or the baseline test appended to the conformance module). Extend S-11 to name the native-leg LC_ALL
+    line explicitly. Change D-82 from "Adopted" to "Adopted pending the operator's word".
+  refute_reason: C-004 says a diff outside its list is a defect and names only the nightly-corpus job
+    and the two native floors, yet plan S-11/S-16 add packs.yml, the corpus-trigger registry test and
+    a native-leg LC_ALL, with E-2 left as non-blocking awareness and P0 writing the out-of-set files first.
+  verify_remaining: 'E-2 is now an operator decision with an in-C-004 fallback and the native-leg LC_ALL
+    line is dropped (D-90, verified: NativeSmokeTest builds the ProcessBuilder), but the interim (E-2
+    unanswered) still commits the corpus-marked baseline-record module without its registry entry, which
+    turns tests/architectural/test_ci_corpus_trigger_completeness.py::test_corpus_marked_modules_match_the_curated_registry
+    red; the plan should default to the conformance-module fallback until E-2 is yes.'
+- id: PLAN-FRESH-001
+  lens: sequencing-green
+  severity: 4
+  title: P4 to P6 (and P7 by its own red-first form) leave the Java `test` task red, against the promise
+    that every phase is green
+  evidence:
+  - artifact: "plan.md \xA7 11 Phasing header ('every phase leaves the branch green'), rows P4, P4b, P7,\
+      \ 'Gate G'"
+  - code: 'services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/GoldenSuiteTest.java
+      theTagsTheSuiteExercisedAreExactlyTheManifestsAndEveryClassMeetsItsFloor: assertThat(manifestTags).isEqualTo(new
+      TreeSet<>(CLASS_FLOORS.keySet())) with a hard-coded 14-class CLASS_FLOORS'
+  - code: 'GoldenSuiteTest everyFixtureTreeOnDiskIsInTheManifestAndEveryGoldenFixtureHasBothGoldens: every
+      on-disk class dir must be in the manifest and every python-golden fixture needs project.json and
+      missions.json'
+  claim: 'P4 commits new classes to R/conformance/manifest.json and new fixture directories (its write
+    scope is Python plus R/conformance/**, with no Java file and no Gate G in its exit gate). The existing
+    Java GoldenSuiteTest asserts that the manifest tags equal its hard-coded CLASS_FLOORS keys and that
+    every golden fixture holds the two #5529 goldens, so the `test` task (and the CI `jvm` job) is red
+    from the P4 tip until P7, which alone owns T/conformance/golden/**. P7 then states its own red-first
+    form as ''the harness tests are red against the unwired suite ... the red the route phases then turn
+    green'' while its exit gate is Gate G (green). Both cannot hold: either the branch is red for P4 to
+    P12, or P7 needs a mechanism (a served-routes allowlist the route phases extend) that keeps its tip
+    green.
+
+    '
+  remediation: 'Give P4 (or a P4-paired Java step) ownership of the minimal GoldenSuiteTest and ManifestCouplingTest
+    edit that makes the new classes known but not yet served, add Gate G to P4 and P4b exit gates, and
+    state in P7 how unwired routes are excluded (an explicit served-routes set that P9 to P12 each extend
+    by a named edit, with a floor guard so it cannot stay empty). Reword the P7 red-first form to red-on-base
+    and green-on-tip.
+
+    '
+- id: PLAN-FRESH-002
+  lens: ruling-conflict
+  severity: 3
+  title: The concurrent graph lets P2, P4 and P5 land before P3, contradicting 'FR-020 first functional'
+    (D-44, C-011 Order of work)
+  evidence:
+  - artifact: "plan.md \xA7 11 Phasing ('then the Java reduction (P3) as the first functional change (D-44,\
+      \ amending D-22)'); P5 Depends on P1; 'After P1: P2 || P3a || P4 || P5'"
+  - artifact: spec.md C-011 Order of work; traces/design-decisions.md D-44 ('FR-020 as the first functional
+      Work Package')
+  claim: 'The Depends-on column is declared the only statement of order (D-87). P2 (build.gradle.kts,
+    models), P4 (oracle and goldens) and P5 (read fence, text-read port, redaction: a large functional
+    Java change) depend only on P1, while P3 depends on P3a and P1. Nothing forces P3 before them, so
+    the plan''s sentence that P3 is the first functional change is false of its own graph. The spec orders
+    it explicitly and D-44 restates it; the plan cannot satisfy D-44 and also run P5 beside P3 without
+    a spec amendment.
+
+    '
+  remediation: 'Either make P2, P4 and P5 depend on P3 (P3a stays documentation only), or add a spec amendment
+    row (S-n) and an escalation for the operator stating that D-44 is read as ''first functional change
+    of the reduction track'' and parallel primitives are accepted. Do not leave the sentence and the graph
+    disagreeing.
+
+    '
+- id: PLAN-FRESH-003
+  lens: sequencing-edges
+  severity: 3
+  title: P6 uses `WpId`, a P3 class, but does not depend on P3
+  evidence:
+  - artifact: "plan.md \xA7 11 rows P3 (write scope lists J/domain/model/WpId.java), P6 (Depends on 'P5,\
+      \ P4'; WpMetadata, FrontmatterResult, WorkPackageIndex.build(mission, Optional<WpId>))"
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/ has no WpId
+      today
+  claim: '`WpId` is created by P3 (section 1 and the P3 scope). P6''s `WpMetadata`, `FrontmatterResult`,
+    `IndexedWorkPackage` and `WorkPackageIndex.build(..., Optional<WpId>)` all need it, yet P6 depends
+    only on P5 and P4. P3 and P6 can therefore run concurrently and P6 would not compile.
+
+    '
+  remediation: Add P3 to P6's Depends-on (or move WpId to P3a/P1 or to P6 and let P3 consume it) and re-derive
+    the concurrent sets.
+- id: PLAN-FRESH-004
+  lens: sequencing-edges
+  severity: 3
+  title: The artifact-path and eligibility rule is owned by P12 but needed by P6 and P11
+  evidence:
+  - artifact: "plan.md \xA7 11 rows P6, P11, P12 (ArtifactPaths, ArtifactKinds, Eligibility are P12; P12\
+      \ 'may run beside P9 to P11'); \xA7 8 FRESH3-003 row T16 ('builder refusal, eligibility')"
+  - artifact: spec.md FR-006 item 2 ('a candidate that is ... not an eligible artifact path is skipped');
+      FR-003 review cycles ('artifactPath is null when the file is not an eligible artifact')
+  claim: 'The index (P6) must skip a candidate that is not an eligible artifact path, and `ReviewCycleReader`
+    and `ArtifactReferenceBuilder` (P11) must give `ReviewCycleEntry.artifactPath` and the references
+    by the same rule. The plan puts `ArtifactPaths`, `ArtifactKinds` and `Eligibility` in P12, which depends
+    on neither P6 nor P11 and runs beside P9 to P11. P6 and P11 either cannot compile, or re-implement
+    the rule (a second authority, against the charter''s single-authority principle and the ''one rule''
+    intent of FR-006 (c)).
+
+    '
+  remediation: 'Move `ArtifactPaths`, `ArtifactKinds` and `Eligibility` to P5 (primitives, before any
+    route) or to P6, and keep P12 as their consumer; update the P5/P6/P12 write scopes, section 13 and
+    the traceability rows.
+
+    '
+- id: PLAN-FRESH-005
+  lens: verification
+  severity: 3
+  title: The NFR-009 base measurement in P0 has no class, no Java write scope and a corpus shape the harness
+    does not produce
+  evidence:
+  - artifact: "plan.md \xA7 6 item 5 ('with the existing perf harness (CountingSource, MissionCorpus,\
+      \ Latency) ... 500 Missions ... 10 Work Packages and 100 transition events ... by one run of one\
+      \ named class (E-7)'); \xA7 11 row P0 write scope; row P3 (T/perf/Nfr009CacheGrowthTest.java is\
+      \ P3's)"
+  - code: 'services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/MissionCorpus.java
+      ledger(): 1 to 12 Work Packages, 1 to 5 transitions each, plus 120 annotation rows on every seventh
+      Mission; no heap-after-GC class exists in perf/'
+  claim: 'AC-20.5 compares P3 with a figure P0 records ''on the design-base tip''. P0''s write scope has
+    no Java file, the measuring class is never named, the only candidate (`Nfr009CacheGrowthTest`) is
+    created by P3 after the base, and the existing MissionCorpus does not generate the specified shape
+    (10 Work Packages, 100 events per Mission). The base figure cannot be taken as written, or is taken
+    with an uncommitted scratch class whose method is not reproducible by the later comparison.
+
+    '
+  remediation: 'Name the class and its author: let P3 add `Nfr009CacheGrowthTest` and a corpus option
+    in its own first commit and run it once against the base commit in a scratch worktree (recording command,
+    sha and figure into nfr009-base.md as a P3 output), or give P0 an explicit Java write scope for the
+    measuring class and the corpus shape. Pin the shape in both places.
+
+    '
+- id: PLAN-FRESH-006
+  lens: write-scope
+  severity: 3
+  title: '`MetaReadCountTest` is written by P9, P10, P11 and P12 but is in no owner row of the shared-file
+    table'
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-002 ('Owner: P9, P10, P11 ... and P12', helper MetaReadCounter in\
+      \ P7); \xA7 11 rows P9 to P12 (each gate 'MetaReadCountTest rows for ...'); shared-file table"
+  claim: 'Four phases, three of them concurrent (P10 || P11 || P12), add rows to one test class, `MetaReadCountTest`.
+    It is not in any phase''s write scope (only ''tests named for these classes'') and not in the shared-file
+    table that D-87 built to satisfy SK-357 (finalize-tasks collapses lanes on overlapping owned_files).
+    Left as is, the tasks stage either gives all four phases the same file (lane collapse or LANE_DEPENDENCY_CYCLE)
+    or no phase owns it.
+
+    '
+  remediation: 'Split it into one class per route (`MissionDetailMetaReadCountTest`, ...) each owned by
+    its route phase, or add it to the shared table with one owner (P9) and named edits for P10 to P12.
+    Do the same check for any other test class several route phases extend.
+
+    '
+- id: PLAN-FRESH-007
+  lens: baseline
+  severity: 2
+  title: Baseline procedure names only the Gradle module as absent on base A, but five Python modules
+    and the compare script are also absent there
+  evidence:
+  - artifact: "plan.md \xA7 6 item 2 ('On base A the service tree does not exist: record the Gradle module\
+      \ there as absent_on_base'), S-12 (1)"
+  - code: git cat-file -e d082b18106d284666581bfa3ad171fb58fe06625:<path> fails for tests/ci/test_mission_status_api_build.py,
+      test_mission_status_corpus_compare.py, test_mission_status_gate_checks.py, test_mission_status_routing.py,
+      tests/contract/test_mission_status_conformance.py, tests/contract/_mission_status_conformance.py
+      and scripts/ci/mission_status_corpus_compare.py
+  claim: 'Item 2 captures ''the glob of tests/contract/test_mission_status_*.py and tests/ci/test_mission_status_*.py
+    at the capture sha'' on both bases, but on base A (main) the four tests/ci modules and the conformance
+    test do not exist. Run as written, pytest on a missing module errors (counted as a red or an invalid
+    row) or the module is silently dropped, which is the vacuity the record is meant to prevent. S-12
+    states the rule generically but its worked example and the procedure mention only Gradle.
+
+    '
+  remediation: 'State that every targeted module absent on a base (the list above, verified) is recorded
+    `absent_on_base` with `executed: 0`, and add a record-test control that a module present on B and
+    absent on A without that status fails.
+
+    '
+- id: PLAN-FRESH-008
+  lens: gate-validity
+  severity: 2
+  title: The terminology grep of section 5 already matches eight or more lines in the service sources,
+    so its 'expect only feature_slug' is false
+  evidence:
+  - artifact: "plan.md \xA7 5 command list: grep -rniE 'feature' services/mission-status-api/src/main\
+      \ services/mission-status-api/README.md  # expect only the marked legacy literal feature_slug"
+  - code: 'grep -rniE ''feature'' services/mission-status-api/src/main: JsonReadFeature (PythonJson.java),
+      MapperFeature, SerializationFeature, DateTimeFeature (MissionStatusApplicationJson.java)'
+  claim: 'The command, run today before any change, prints Jackson `*Feature` identifiers, so the stated
+    expectation cannot be met and the gate will either be ignored or fail every phase. A gate that cannot
+    pass is not a gate (charter Standing Order 5), and the terminology canon half that is review-enforced
+    has no working local check.
+
+    '
+  remediation: 'Replace with a pattern that excludes the Jackson types, for example grep -rnE ''(^|[^A-Za-z])[Ff]eatures?([^A-Za-z]|$)|feature_''
+    over the same paths, and state the exact expected output (the marked legacy literal only) after the
+    pattern has been run on the checkout.
+
+    '
+- id: PLAN-FRESH-009
+  lens: charter-authority
+  severity: 2
+  title: StrictUtf8 adds a fifth strict-UTF-8 decode beside four existing ones without reconciling or
+    recording the decision
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-001 (new class `StrictUtf8` in adapter.out.filesystem.codec); \xA7\
+      \ 9 surveyed-and-left-alone table; \xA7 Charter Check row 'Single canonical authority'"
+  - code: strict REPORT/REPORT decoders already exist in adapter/out/filesystem/codec/LedgerLineDecoder.java
+      strictUtf8(), ReadDirResolverJson.java, FilesystemMissionEventSourceProject.java and FilesystemMissionEventSourceMeta.java
+  claim: 'The Charter Check claims one canonical source for each new rule, but the plan introduces a class
+    whose job existing #5529 code already does inline four times, and neither the campsite scout (section
+    9) nor FRESH3-001 mentions them. That is a missed ''reconcile, do not duplicate'' decision (DIRECTIVE_044),
+    and AC-7.3''s unit control would test only the new copy.
+
+    '
+  remediation: 'Either have the existing codec call sites delegate to `StrictUtf8` in P5 (behaviour-preserving,
+    tests unchanged), or add a row to the section 9 table (and P1''s approach.md entry) saying why they
+    are left and that StrictUtf8 is the single owner for new reads.
+
+    '
+- id: PLAN-FRESH-010
+  lens: write-scope
+  severity: 2
+  title: Ordering of research.md and data-model.md writers contradicts the phase graph, and the hand-DTO
+    drift reference has no owner
+  evidence:
+  - artifact: plan.md header ('the phases that need a spike record (P2, P3, P6) create research.md and
+      data-model.md ... as their first commit'); shared-file table (research.md owner P2, P6 appends;
+      data-model.md owner P3a, P4 and P4b append); Unverified 3 ('P3 writes it into data-model.md as its
+      first commit')
+  - artifact: "plan.md \xA7 11 P2 go/no-go rule ('a hand drift reference'), row P2 (ContractDriftProbe\
+      \ is P2's), rows P10 to P12 (hand DTO records are theirs)"
+  claim: '(a) P4 appends sections to a data-model.md that P3a creates, but P4 does not depend on P3a (they
+    are concurrent), and P6 appends to research.md without depending on P2 (P2 || P5, P6 after P5 and
+    P4). The header and Unverified 3 also still name P3 as the creator of data-model.md. (b) A hand-written
+    DTO is owned by the route phase that maps it, but its ''hand drift reference'' lives in ContractDriftProbe
+    and ContractDriftNestedBuildTest, which only P2 owns, and P2 cannot reference a record that does not
+    yet exist; P10 to P12 have no scope or named edit for those two files.
+
+    '
+  remediation: 'Add P3a to P4''s and P2 to P6''s Depends-on (or give each its own file), fix the two stale
+    phrases, and either give P10 to P12 a named edit on ContractDriftProbe and the nested-build test,
+    or make P2 produce the hand records for every model it sends to hand mode.
+
+    '
+- id: PLAN-FRESH-011
+  lens: traceability
+  severity: 2
+  title: Fixture ownership for row T7 and several traceability and fact lines disagree with the plan's
+    own sections
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-003 table row T7 (`ownedFiles[]`, `requirementRefs[]`, `trackerRefs[]`,\
+      \ OwnedFileEntry.pattern) and Owner list (P10 T5 to T8; P11 owned-file-pattern-leak)"
+  - artifact: "plan.md traceability row FR-019 ('every phase (native-tagged tests, class floor counts)')\
+      \ versus \xA7 12 and D-99 (P13 alone adds the five native-tagged tests; P6, P11 and P12 add none)"
+  - artifact: "plan.md \xA7 9 ('adds no file beyond the three application classes ... and the shape-pin\
+      \ test') versus the same section's four further new test classes; Scale/Scope ('588 tracked Missions')"
+  - code: git ls-files 'kitty-specs/*/meta.json' | wc -l gives 609 at HEAD (607 trees on origin/main)
+  claim: '(a) The WorkPackage route (P10) carries `ownedFiles[]` and the other T7 members, yet the only
+    fixture for T7 is `owned-file-pattern-leak`, assigned to P11, and the P10 gate lists no T7 case, so
+    row T7 is first carried by a route whose phase owns no case for it. (b) The traceability line for
+    FR-019 contradicts D-99. (c) Section 9''s ''no file beyond'' sentence is false by its own list, and
+    the corpus size figure (also used for the nightly timeout reasoning) is stale.
+
+    '
+  remediation: 'Assign a T7 case to P10 (and keep the detail case in P11), delete ''every phase (native-tagged
+    tests ...)'' from the FR-019 row, reword the section 9 sentence to ''no production file beyond ...'',
+    and restate the corpus size from the checkout (609 at HEAD).
+
+    '
+- id: PLAN-FRESH-012
+  lens: ruling-conflict
+  severity: 2
+  title: P0 is called a work-package candidate while C-011 and FR-021 make the baseline a precondition
+    and the campsite the first Work Package
+  evidence:
+  - artifact: "plan.md header ('In this plan phase (P0 to P13) is a work-package candidate'); \xA7 6 ('run\
+      \ once as phase P0 before any Work Package is claimed'); \xA7 11 'Order of work (D-44)'"
+  - artifact: spec.md C-011 ('the first Work Package is a behaviour-preserving campsite pass ... (1) the
+      baseline record of FR-021 (a recorded precondition, not a Work Package)'), FR-021 title
+  claim: 'If the tasks stage turns P0 into WP01 (the header says every phase is a candidate), the campsite
+    is no longer the first Work Package and the reviewer''s check ''a functional change must not precede
+    it'' and the ordering item of section 6 point at the wrong WP. P0 also carries a Python test and two
+    held out-of-set files, so it is more than a recorded capture. The plan does not say which of the two
+    readings wins.
+
+    '
+  remediation: 'State that P0 is executed by the orchestrator as the FR-021 precondition and is excluded
+    from the WP list (the tasks stage starts at P1), or record it as an explicit C-011 amendment with
+    the operator''s word.
+
+    '

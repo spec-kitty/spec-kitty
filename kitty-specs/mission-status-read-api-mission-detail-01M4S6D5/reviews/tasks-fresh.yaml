@@ -1,0 +1,144 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: TASKS-FRESH-001
+    lens: green-at-every-tip
+    severity: 4
+    title: WP10 pins "no provider loaded" in a permanent test, which turns red at WP13 and on every later PR B tip
+    evidence:
+      - artifact: "tasks/WP10-java-harness-detail-classes-provisioning.md line 163 (T-step 2 of the harness subtask): the loaded-providers accessor is covered 'in DetailGoldenSuiteTest (empty at this tip, and the planted-provider registry reports the planted provider)'"
+      - artifact: "tasks/WP10-java-harness-detail-classes-provisioning.md line 184: 'ServedRoutes has no provider at this tip'; DetailGoldenSuiteTest is in WP10 owned_files (wps.yaml WP10)"
+      - artifact: "tasks/WP13-get-mission.md line 191 (T094 step 2): MissionDetailServedRouteTest asserts the default ServedRoutes registry loaded MissionDetailServedRoute, i.e. the same accessor is non-empty from WP13 on"
+      - artifact: "No prompt of WP13 to WP18 lists DetailGoldenSuiteTest as a named edit"
+    claim: >-
+      The accessor test in DetailGoldenSuiteTest asserts the default registry is empty, which holds only at PR A's tip. The first provider class
+      (WP13 MissionDetailServedRoute) makes it false, so Gate G is red at WP13 and every later PR B tip. The file belongs to WP10 (PR A), no PR B WP is
+      told to edit it, and WP13 to WP16 are each told to assert the opposite through the same accessor. PR B cannot be green at its own tip as written.
+    remediation: >-
+      Reword the WP10 step: DetailGoldenSuiteTest covers the accessor only through an injected registry (ServedRoutes.of(List.of(planted)) reports
+      the planted provider) and asserts that the default registry's loaded names are a subset of the four known provider names. Remove the
+      'empty at this tip' assertion. Keep the per-route 'loaded and serves exactly these keys' tests in WP13 to WP16.
+
+  - id: TASKS-FRESH-002
+    lens: green-at-every-tip
+    severity: 3
+    title: WP12 DetailInfrastructureWiringTest asserts "no bean of the four inbound interfaces", a PR A-only invariant held in a permanent test
+    evidence:
+      - artifact: "tasks/WP12-inbound-ports-rules-admission-wiring.md line 217 (T085 step 5): the test 'asserts the context has exactly one TextSource and one AdmissionGate bean and no bean of the four inbound interfaces'; line 281 repeats it as the 'Beans' green condition"
+      - artifact: "tasks/WP13-get-mission.md line 174 (T093 step 3): MissionDetailWiring adds the MissionDetailQuery bean; WP13 to WP16 are told not to edit DetailInfrastructureWiring (WP16 line 204, WP14 line 154, WP15 line 182) and the test is WP12-owned (wps.yaml WP12: T/config/DetailInfrastructureWiring*Test.java)"
+    claim: >-
+      Unless the test uses a slice that imports only DetailInfrastructureWiring (the prompt says 'the same Spring test slice style the existing config tests
+      use', which may be a full-context test), the negative assertion goes red the moment WP13 lands MissionDetailWiring. Nobody in PR B owns or is
+      permitted to repair it. The 'no consumer in PR A' fact is a statement about the PR, not a property a permanent test should assert.
+    remediation: >-
+      State in T085 that the test loads only DetailInfrastructureWiring (for example @SpringJUnitConfig or ApplicationContextRunner with that one
+      configuration class) and asserts the two positive beans, and drop the negative assertion about the inbound interfaces (the PR A
+      'no consumer' fact stays a reviewer check). Do the same for the 'Beans' bullet in Self-contained green and the Definition of Done.
+
+  - id: TASKS-FRESH-003
+    lens: floors-satisfiable
+    severity: 3
+    title: WP17 T123(d) generic perf clause (RATIO and CEILING in every perf class) is red at WP17's own tip
+    evidence:
+      - artifact: "tasks/WP17-ci-native-nightly-readme.md line 134 (T123 step 2d): 'every class under T/perf that holds a test carries @Tag(\"perf\") and names a RATIO and a CEILING constant'"
+      - code: "tests/ci/test_mission_status_api_build.py lines 1795-1826 (perf_class_violations): today RATIO and CEILING are required only of Nfr001OverviewLatencyTest.java and Nfr004SseConnectionsTest.java; the tag rule applies to every class that holds a @Test"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/Nfr004HeapMedianTest.java holds two @Test methods and contains neither RATIO nor CEILING (grep count 0)"
+      - artifact: "tasks/WP05-p3-resolved-work-package-state.md line 129: Nfr009CacheGrowthTest names CEILING_BYTES and no RATIO constant (its quantity is a retained-heap difference)"
+    claim: >-
+      Widening the RATIO and CEILING requirement from two named classes to every test-holding class in T/perf fails on Nfr004HeapMedianTest (existing)
+      and on WP05's Nfr009CacheGrowthTest, so the pin WP17 owns is red at WP17's tip before WP18 adds anything. WP17's own Plan defects item 1
+      resolves only the 'named WP18 classes' half of the problem.
+    remediation: >-
+      Keep the generic clause to what the file already enforces for every class (the @Tag(\"perf\") rule and the PERF_CLASS_FLOOR) and leave the
+      RATIO and CEILING requirement on named classes. WP18 cannot edit the pin, so either accept that Nfr001DetailLatencyTest and
+      Nfr002BoundedMemoryScenarioTest are checked only by their own controls, or add a clause that names them conditionally (checked only if the file
+      exists) and has a control. Also correct WP18 T132 step 2 and T133 step 2, which say the pin checks RATIO and CEILING on the new classes.
+
+  - id: TASKS-FRESH-004
+    lens: floors-satisfiable
+    severity: 3
+    title: ServedRoutesCompleteTest cannot be satisfied for the resolved-state fixtures (and the Java-only artifact classes are not enumerated)
+    evidence:
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md line 158 (T131 step 3): 'every detail fixture of the manifest (ConformanceTree surface partition, WP07) is served by a ServedRoute provider', with a named floor and no exemption list"
+      - artifact: "tasks/WP08-p4b-resolved-state-goldens.md lines 64 and 96: resolved-state is a surface: detail class whose goldens are the get-work-package.json files"
+      - artifact: "tasks/WP14-get-work-package.md line 188: WorkPackageServedRoute registers detail-populated, wp-duplicate-id, wp-malformed-frontmatter, wp-two-selectors, wp-prompt-bytes and selected projection-nulls and projection-refusals fixtures; resolved-state is not named, and no WP13, WP15 or WP16 provider list names it"
+      - artifact: "tasks/WP07-p4-oracle-extension-goldens-and-census.md lines 130-160: artifacts-refusals, artifacts-links and artifacts-redaction are detail classes; WP16 line 220 enumerates only artifacts-populated and artifacts-sort for ArtifactServedRoute; artifacts-links and lookup-faults are 'Java-only'"
+    claim: >-
+      WP10's ResolvedStateGoldenTest compares the reducer with the resolved-state goldens directly, so no route provider serves them, yet WP18's
+      completeness test fails on any detail-surface fixture that no provider serves. The same applies to the detail classes WP16 does not enumerate. The
+      floor is either red at the PR B tip or silently vacuous depending on how 'detail fixture' is read.
+    remediation: >-
+      Decide in WP14 (preferred: WorkPackageServedRoute also registers the resolved-state getWorkPackage goldens, since the route emits those members) or
+      in WP18 (explicit, named exemption set with a control: resolved-state, plus the Java-only classes without a golden), and have WP16 enumerate every
+      artifacts-* fixture it serves. State the rule for golden-less Java-only classes in T131 step 3.
+
+  - id: TASKS-FRESH-005
+    lens: lane-lineage
+    severity: 3
+    title: M/data-model.md (planning-lane WP04 output) is read by WP05 and appended by WP07 and WP08 with no step that puts it in their lanes
+    evidence:
+      - artifact: "wps.yaml header lines 27-31 (LANE LINEAGE): WP04 is planning_artifact in the planning lane; 'a planning claim waives code-lane ancestry'; WP07 and WP08 'list WP04 but receive the code through WP05/WP07'. Only code lineage is addressed"
+      - code: "spec-kitty agent mission finalize-tasks --validate-only: lanes_preview lane_ids includes lane-planning, planning_artifact_wps [WP04], one lane per WP, collapse total_merges 0"
+      - artifact: "tasks/WP07-p4-oracle-extension-goldens-and-census.md line 82 and tasks/WP08-p4b-resolved-state-goldens.md lines 50, 84, 120-128 (T054): both append sections to M/data-model.md and WP08 reads the file 'in full'; tasks/WP05-p3-resolved-work-package-state.md line 110 builds its expectations from the same mapping"
+    claim: >-
+      data-model.md is committed by WP04 on the target branch (planning lane), not in a code lane. The WP05, WP07 and WP08 lane workspaces are cut from code
+      dependency tips (WP03 and WP05 lanes) and will not contain the file unless the orchestrator merges the target branch into the lane first. Absent
+      that, WP05 cannot read the mapping, and the WP07 and WP08 'append' creates a second copy of the file, giving an add/add conflict when the lanes merge.
+      Nothing in wps.yaml or the three prompts says so.
+    remediation: >-
+      Add to WP05, WP07 and WP08 (Pull request and dependencies) a precondition: before the first edit, confirm 'test -f M/data-model.md' in the lane workspace;
+      if absent, stop and report so the orchestrator merges the target branch (carrying WP04's commit) into the lane. Record the same step in the wps.yaml
+      LANE LINEAGE paragraph as an orchestrator action.
+
+  - id: TASKS-FRESH-006
+    lens: cross-reference
+    severity: 2
+    title: WP18 T128 spells the route paths with 'workPackages', the contract path segment is 'work-packages'
+    evidence:
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md line 113: '.../workPackages/{wpId}' and '.../workPackages/{wpId}/detail'"
+      - code: "contracts/mission-status/openapi.yaml lines 30-33: /missions/{missionId}/work-packages/{wpId} and /work-packages/{wpId}/detail; WP14 line 71 and WP15 line 81 use work-packages"
+    claim: >-
+      The new final-form OutOfScopeRoutesTest assertion 'the five routes answer non-404' would, if the listed paths are copied literally, probe two
+      unknown paths and fail (they are 404). The step also says to copy the exact paths from the contract, so the wording is contradictory.
+    remediation: >-
+      Replace 'workPackages' by 'work-packages' in T128 step 2 (or drop the literals and say 'the paths of the contract').
+
+  - id: TASKS-FRESH-007
+    lens: cross-reference
+    severity: 2
+    title: WP13 still says phases-matrix has 18 fixtures; WP07, plan S-20 and the manifest floor are 19
+    evidence:
+      - artifact: "tasks/WP13-get-mission.md lines 115, 158, 191, 302: 'the 18 fixtures of class phases-matrix', 'phases-matrix (18)', '18-fixture matrix'"
+      - artifact: "tasks/WP07-p4-oracle-extension-goldens-and-census.md lines 98 and 139: phases-matrix Count 19 including marker-row-without-event-id (plan section 14 S-20); WP04 line 106 names the same fixture"
+    claim: >-
+      PhaseDeriverMatrixTest and the served-fixture list in WP13 are written to 18 cases (the superseded spec number). The nineteenth fixture (the
+      D-98 marker row) is then either not iterated or breaks an exact-count assertion; the 'phases-matrix (18)' registration in MissionDetailServedRouteTest
+      step 2 (exact keys and count) would be red against a 19-fixture class.
+    remediation: >-
+      Change the counts in WP13 to 19 and say which table row the marker-row fixture belongs to (it feeds lifecycleTypes, not a planning-phase cell); make the
+      MissionDetailServedRouteTest key list use the manifest's 19 keys.
+
+  - id: TASKS-FRESH-008
+    lens: cross-reference
+    severity: 1
+    title: WP10 hedges DEFINED_RULE_COUNT as '12 or 14'; its dependency chain makes it always 14
+    evidence:
+      - artifact: "tasks/WP10-java-harness-detail-classes-provisioning.md line 185: 'DEFINED_RULE_COUNT untouched (12 or 14 as P1b left it until WP12)'"
+      - artifact: "wps.yaml: WP10 depends on WP05, which depends on WP03 (P1b); WP12 line 152 says 14 after P1b"
+    claim: Stale hedge; WP10 always starts after WP03, so the count it must find is 14.
+    remediation: State 14.
+
+  - id: TASKS-FRESH-009
+    lens: forward-reference
+    severity: 1
+    title: WP12 leaves the result shape of IncludePrompt unchosen while WP14 consumes it
+    evidence:
+      - artifact: "tasks/WP12-inbound-ports-rules-admission-wiring.md line 214: 'return an Optional<Boolean>/sealed result, or throw a package-level unchecked refusal ... choose one and test it'"
+      - artifact: "tasks/WP14-get-work-package.md lines 81 and 152: the controller uses 'the IncludePrompt conversion of WP12' and expects 400 invalid_parameter"
+    claim: >-
+      The contract between WP12 and WP14 is left to the WP12 implementer, and the ProblemAdvice handler count (exactly four) depends on the choice
+      (a thrown package-level refusal needs a handler of its own type).
+    remediation: Pin one form in T085 (the Optional<Boolean> form needs no extra exception type and keeps the four handlers) and name it in WP14.

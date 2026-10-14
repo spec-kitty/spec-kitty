@@ -1,0 +1,119 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-FRESH2-001
+    lens: "existing-code-correspondence"
+    severity: 4
+    title: "FrontmatterDecoder cannot be implemented in adapter.out.filesystem.codec without breaking ArchUnit rule 12a"
+    evidence:
+      - artifact: "spec.md § FR-006 (b) and traces/design-decisions.md D-41"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:208-216 (rules 12a, 12b, 12c)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:163 (rule 4)"
+    claim: "FR-006 and D-41 put the second outbound port FrontmatterDecoder (an application.port.out interface) in an implementation in adapter.out.filesystem.codec. Rule 12a says the codec package depends, among project packages, only on domain and itself, so a codec class that implements or references an application.port.out interface is a violation. Rule 12c also bars any class outside filesystem and testsupport from touching the codec, so the application layer cannot call it directly either. The spec states the placement as settled and lists no rule amendment. As written the first Work Package that follows it turns the existing architecture suite red, or a rule is weakened silently."
+    remediation: "State that the port implementation is a class directly in adapter.out.filesystem (allowed by rule 4) that delegates to a pure, port-free decoder in adapter.out.filesystem.codec (bytes to a domain record or a rejection), as the ledger codec already is. Alternatively list an explicit, justified amendment of rule 12a in FR-011 or FR-013 with a planted-violation control. Add an AC that the decoder implementation passes rules 4, 7, 12a-c unchanged."
+  - id: SPEC-FRESH2-002
+    lens: "existing-code-correspondence"
+    severity: 3
+    title: "The lookup is called the resolver of #5529 for all five routes, but MissionStatusService.resolve also probes the ledger and maps ledger faults to 500"
+    evidence:
+      - artifact: "spec.md § Edge Cases (first bullet), § OQ-5, § FR-012 rows M1 and M2, § FR-011 (per-route access sets)"
+      - artifact: "traces/design-decisions.md D-7, D-39"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java:202-242 (resolve returns probed(...), probed calls source.stampLedger, ledgerFault maps unreadable ledger to a 500 refusal)"
+    claim: "The spec says the lookup for every Mission-scoped route is MissionStatusService.resolve and that extending it to keep scanning is additive. But resolve ends with probed(), which stamps the ledger and throws LEDGER_UNREADABLE (500) for an unreadable ledger. Row M2 requires 200 with a ledger_unreadable diagnostic on the three ledger routes, and the artifact routes must not touch the ledger at all (FR-011 says the probe belongs to the ledger routes). So neither group can use resolve as it is. The spec leaves this to one parenthetical in FR-011 and never says a probe-free lookup has to be extracted, who owns that change, or how the stream routes are kept byte-identical. The after-match duplicate scan also reads every later Mission meta.json on every request of five routes, which NFR-001 (500 Missions, p95 100 ms) does not account for."
+    remediation: "In the Edge Cases, D-39 and FR-001 say explicitly that the lookup is split: a probe-free resolve-by-id shared by all five routes (extracted in the campsite Work Package, C-011) and the ledger probe applied afterwards by the ledger routes only, with the M1/M2 mapping. Add an AC that the stream routes keep their current answers over the same fixtures, and that the artifact routes record no LEDGER access on a Mission with an unreadable ledger. Bound or measure the duplicate-detection scan under NFR-001."
+  - id: SPEC-FRESH2-003
+    lens: "acceptance-criteria-non-vacuity"
+    severity: 3
+    title: "The walk bound of 100000 entries has no counting rule, so AC-4.9 and AC-4.4 cannot be constructed exactly"
+    evidence:
+      - artifact: "spec.md § OQ-4, § FR-004 Bounds, § AC-4.4, § AC-4.9"
+      - artifact: "traces/design-decisions.md D-23, D-30"
+    claim: "OQ-4 says the walk stops after 100000 directory entries visited. It does not say whether directories, ineligible files (root status.events.jsonl, status.json, meta.json, links) and the names inside nested directories count. AC-4.9 requires a Mission of 100000 eligible files to list 1000 and report truncated true, and a Mission with one more entry to answer 500. A real Mission also holds directories and the root status files, which are visited, so 100000 eligible files already exceed a 100000-visited bound under any natural counting rule and the positive leg would answer 500. The 500 leg 'one more entry' is equally unconstructible. The boundary is therefore either untestable or tests a rule the spec does not state."
+    remediation: "Define the counter (for example: every name returned by a directory listing during the walk, files, directories and links alike, root records included). State the exact boundary (N visited is served, N+1 is a 500). Rewrite AC-4.9 and AC-4.4 with fixtures sized in terms of that counter (for example 99990 eligible files plus the counted extras equal exactly the bound, and one extra file over it), generated at test time."
+  - id: SPEC-FRESH2-004
+    lens: "contract-correspondence"
+    severity: 3
+    title: "A credential in a subtask title or another human field is unspecified and conflicts with Projector.human and the contract"
+    evidence:
+      - artifact: "spec.md § FR-003 Subtasks and Dependencies, § AC-3.7, § FR-008, § FR-012 row M7"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/projection/Projector.java:69-87 (human refuses with LEAK_REMAINS when a secret remains)"
+      - code: "tests/contract/_mission_status_detail.py:289-296 (human_text withholds a credential title as None)"
+      - code: "contracts/mission-status/schemas/Subtask.yaml (a title that holds a credential is withheld and read as null)"
+    claim: "FR-008 says one function handles human text for every route, and lists subtask titles among the substituted fields. The contract says a subtask title with a credential becomes null, and the oracle does that in human_text. The existing Java Projector.human does the opposite for any human field: it throws ProjectionError (500 projection_refused path). FR-003 and AC-3.7 cover only the dependency title (id substituted). Nothing says what a credential in a subtask title, or in the Work Package title, phaseLabel, executionMode, taskType, priority or a review reason, does. Row M7 mentions only 'a strict field', so a human field with a credential has no row at all. Two implementations of 'the same function' can both pass the stated ACs while differing from the oracle."
+    remediation: "In FR-003 state that a subtask title holding a credential or an unremovable leak is null (as the contract and human_text). In FR-008 and row M7 state what a credential in the other human fields does on getMission and getWorkPackage (refuse with projection_refused as Projector.human does, if the oracle agrees) and add an AC with a fixture per field class, each assembled at test time (D-48). Extend AC-8.1 so the same corpus covers the withhold, the id-substitute and the refuse outcomes."
+  - id: SPEC-FRESH2-005
+    lens: "acceptance-criteria-non-vacuity"
+    severity: 3
+    title: "AC-21.1 cannot fail on an empty or incomplete baseline record although FR-021 claims it can"
+    evidence:
+      - artifact: "spec.md § FR-021 table row (No-op passable: no, a test fails when the record is absent or incomplete)"
+      - artifact: "spec.md § AC-21.1 (completeness is checked by a reviewer), traces/design-decisions.md D-44"
+    claim: "AC-21.1 checks schema, two resolvable shas, per-row fields and that redCount equals the number of rows. A file with zero rows and redCount 0 on both bases satisfies every assertion, and so does a file from which a failing test and the count were removed together. The AC itself says the test cannot know which tests are red and leaves completeness to a reviewer. FR-021 and its no-op column still claim the opposite. The requirement's purpose (tell an introduced red from a pre-existing one) is therefore carried by a manual step, and the 'Fails when' list is weaker than the stated requirement."
+    remediation: "Either soften the FR-021 title and no-op cell to say the test guards form only and a named review item guards content, or strengthen the test: have the capture step also write, per base and per targeted module, the number of tests executed and failed taken from the runner summary, and assert rows equal failed, executed is at least a committed floor, and the module list equals the glob of the targeted modules."
+  - id: SPEC-FRESH2-006
+    lens: "charter-compliance"
+    severity: 4
+    title: "Baseline handling does not require a GitHub issue for each pre-existing red, as the charter rule demands, and relies on a closed issue"
+    evidence:
+      - artifact: "spec.md § Baseline and verification honesty (items 1 and 5), § AC-21.3, § FR-021"
+      - artifact: ".kittify/charter/charter.md § Pre-existing Failure Reporting Rule (item 1: the agent MUST open a GitHub issue before treating the failures as accepted baseline context)"
+    claim: "The charter requires an issue, with the command run, the failure summary and the reason it is pre-existing, before pre-existing failures are treated as accepted baseline. The spec records the reds in traces/baseline-red.yaml and in item 5 only 'reports against the baseline file in the PR'. AC-21.3 demands an issue id only for the #3284 class and the reality module. Reds captured in the targeted modules need no issue, and #3284 is stated to be closed on GitHub since 2026-09-08, so classifying by that id does not satisfy 'open an issue'. This is a charter gap in the baseline mechanism the whole mission relies on."
+    remediation: "Add to FR-021 and AC-21.1 that every row of baseline-red.yaml carries the id of an open GitHub issue (an existing one, or one filed in the first Work Package with the command, summary and the pre-existing argument), and that the test fails on a row without it. Replace the reliance on closed #3284 by a reopened or new issue, or record the rule exception as an explicit decision card for the operator."
+  - id: SPEC-FRESH2-007
+    lens: "dependency-and-claims-verification"
+    severity: 2
+    title: "The #5529 ruling of 2026-10-13 that caps every readRegular is cited but is not in the checked-in ruling file or the code"
+    evidence:
+      - artifact: "spec.md § Requirements (Wall-clock bounds and figures), § FR-003 Workspace, § AC-3.9, traces/design-decisions.md D-46"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/reviews/analyze.ruling.md (last section is 2026-10-12; no 2026-10-13 section)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles.java:86 (readRegular(Path, Kind, Kind) takes no cap)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver.java:105 (lanes.json read without a cap)"
+    claim: "The spec states the 1 MiB lanes.json cap is #5529's, by a ruling of 2026-10-13 that 'every readRegular takes a cap'. On the merged lane-b of this branch the ruling file has no such section and readRegular takes no cap, so the classification read of lanes.json is uncapped. The Assumptions section says references were verified on this checkout. D-46 and AC-3.9 then build the 500 behaviour on a cap whose owner and content cannot be checked. If #5529 lands without the cap, the detail route and the classification read disagree and AC-3.9 has no owner."
+    remediation: "Mark the 2026-10-13 ruling as pending in C-005 and in D-46 (verify when #5529's final form lands), and make AC-3.9 independent of #5529 by stating that this mission's text-read port applies the 1 MiB cap on the detail route whatever the classification read does. Do not describe it as verified on this checkout."
+  - id: SPEC-FRESH2-008
+    lens: "scope-and-layering"
+    severity: 3
+    title: "The admission gate has no requirement, no layer and no AC, and may sit where an MCP adapter bypasses it"
+    evidence:
+      - artifact: "spec.md § NFR-002, § FR-004 Bounds, § R-13, traces/design-decisions.md D-30, D-51"
+      - artifact: "spec.md § FR-013 and § AC-13.1 (controllers hold no logic an MCP adapter would need to duplicate)"
+    claim: "D-30 and D-51 add a concurrency gate of 4 that queues requests for three routes. It exists only inside the NFR-002 prose. No FR owns it, the layer that holds it is not stated, and the only checks are a high-water mark 'recorded by the instrumented port' (a file-access recorder is the wrong place to observe a semaphore). If the gate is a servlet filter or controller code, it contradicts FR-013, and the planned MCP adapter reaches the same ports without it, so the memory bound of NFR-002 fails for that caller. If it is in application code, the ArchUnit rules 2b/2c and the 'no thread creation' rule need a statement. It is also new behaviour (queuing, unbounded waiting on a loopback bind) that the operator did not rule on."
+    remediation: "Give the gate its own FR (or a sub-clause of FR-013) that places it behind the inbound port in the application layer, state that it never refuses, add an AC with a test at the port level (plain-Java caller, more than 4 concurrent calls, high-water mark of the gate itself, a planted bypass that must turn it red), and decide whether it needs a decision card."
+  - id: SPEC-FRESH2-009
+    lens: "scope-creep"
+    severity: 2
+    title: "Tightening jacocoScopeCheck to equality edits #5529's gate semantics and makes the branch fragile to #5529 fold rounds"
+    evidence:
+      - artifact: "spec.md § FR-019, § AC-19.3, traces/design-decisions.md D-33"
+      - code: "services/mission-status-api/build.gradle.kts:398-417 (jacocoScopeFailures fails only when matched < floor)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/reviews/analyze.ruling.md § 2026-10-11 JaCoCo floors apply per class (DD-70)"
+    claim: "The task only needs the new classes under the existing per-class floors. AC-19.3 also changes jacocoScopeCheck from a lower bound to exact equality of matched classes and raises the counts to the final tree. The unmerged #5529 lane is still receiving fold rounds (C-005); any class it adds or removes in domain or application then turns this branch red until the property file is edited again, and the change rewrites the semantics of a gate #5529's operator ruling (DD-70) defined as a floor. It is not an operator decision and has no decision card."
+    remediation: "Keep the floor semantic: raise the two counts by the number of classes this mission adds, and add the planted-untested-class control only. If equality is wanted, make it a decision card for the operator and land it after #5529 merges."
+  - id: SPEC-FRESH2-010
+    lens: "cross-reference-integrity"
+    severity: 2
+    title: "FR-012 rows M5, M6 and M7 say 'same' after the detail-only row M4b"
+    evidence:
+      - artifact: "spec.md § FR-012 route table rows M4a, M4b, M5, M6, M7 (Route column), § AC-1.6, § AC-2.6"
+    claim: "Row M4b lists the Route as 'detail'. Rows M5, M6 and M7 then say 'same'. Read literally they apply to the detail route only, while M5's response column describes getMission and getWorkPackage, and AC-1.6 and AC-2.6 assign M5 to M7 to those two routes. Rows M2 and M3 'same' are clear only because they follow the three-route row M1. A WP author or reviewer building the fixture list from the table can drop the getMission and getWorkPackage fixtures without violating the text."
+    remediation: "Replace every 'same' in the Route column by the explicit route list (for example 'getMission, getWorkPackage, detail')."
+  - id: SPEC-FRESH2-011
+    lens: "acceptance-criteria-non-vacuity"
+    severity: 2
+    title: "Fixture-class counts in AC-14.3 are unfalsifiable for two classes and lookup fixtures sit in a golden class with no oracle golden"
+    evidence:
+      - artifact: "spec.md § FR-014 fixture class table (phases-matrix, wp-malformed-frontmatter, detail-populated, wp-duplicate-id), § AC-14.3, § AC-1.7, § V9"
+    claim: "AC-14.3 requires each class count to equal 'the number of fixtures named for it in the table'. phases-matrix ('one fixture for each state') and wp-malformed-frontmatter ('every case of AC-6.1') name no number, and the same text says a floor is the count at the commit that adds the class. The two rules differ, and for those classes nothing fixes the number a reviewer should expect. Also detail-populated holds bad-sibling-unknown, whose oracle outcome is a plain 404 with no golden (V9), while the table says every non-Java-only fixture holds the golden files of the class. Either the fixture is Java-only and belongs to another class, or the manifest rule cannot be met."
+    remediation: "List the fixture names (or an explicit count) for phases-matrix and wp-malformed-frontmatter, drop the 'floor equals count at the adding commit' wording or state the single rule, and move bad-sibling-unknown to a Java-only lookup class (like artifacts-links) with its V9 entry."
+  - id: SPEC-FRESH2-012
+    lens: "clarity"
+    severity: 1
+    title: "FR-006 step 3 has a garbled sentence and FR-006 misstates rule 2b"
+    evidence:
+      - artifact: "spec.md § FR-006 item 3 ('a file with bytes that are not skips, as the oracle's UnicodeDecodeError handling does') and the lead paragraph (b) ('YAML is the one technology the application layer may not touch (rule 2b)')"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:149-151 (rule 2b limits application to application, domain and a short JDK list, not only YAML)"
+    claim: "Item 3 drops words (a file whose bytes are not UTF-8 is skipped), and rule 2b bans every non-JDK dependency, not only YAML. Neither changes behaviour, but the first sentence is the rule a decoder author reads."
+    remediation: "Reword item 3 to 'a file whose bytes are not strict UTF-8 is skipped (wp_file_skipped), as the oracle skips a UnicodeDecodeError, and the decoder never replaces a byte'. Reword (b) to say the application layer may depend on no library outside the JDK list of rule 2b, so the YAML decoder sits behind a port."

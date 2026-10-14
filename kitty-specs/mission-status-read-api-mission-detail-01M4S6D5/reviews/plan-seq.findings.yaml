@@ -1,0 +1,196 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: seq
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-SEQ-001
+    lens: Phasing (dependency order)
+    severity: 4
+    title: "Concurrent set P2 || P3 || P4 || P5 contradicts the Depends-on column, and P3 and P4 depend on each other"
+    evidence:
+      - artifact: "plan.md § 11 phase table: P5 'Depends on P1, P4'; P3 'Depends on P1 (and P4's resolved-state goldens ...)'; P4 'Depends on P1'"
+      - artifact: "plan.md § 11 'Write-scope completeness and chokepoints': 'after P1, P2 || P3 || P4 || P5'"
+      - artifact: "plan.md § 11 P3 row: member-to-source mapping written into M/data-model.md by P3, 'then pinned by the oracle gate'; P4 row: class resolved-state"
+    claim: >
+      The table says P5 needs P4 and P3's golden-dependent members need P4's resolved-state goldens, yet the
+      concurrency paragraph runs all four in parallel. There is also a cycle in substance: P4 must generate the
+      resolved-state golden class, whose member set P3 only defines in data-model.md (its first commit), and P3's
+      mapping is validated by that same oracle gate. A tasks stage that follows the concurrency paragraph builds
+      P5 before the oracle/goldens it is gated on, or lets P4 invent the member set P3 is meant to derive.
+    remediation: >
+      Make the order explicit: P3a (data-model.md mapping only, first commit) -> P4 (resolved-state class, consuming
+      the mapping) -> P3b (reducer, pinned by the goldens); or split the resolved-state class into its own P4b after P3a.
+      Change the concurrency sentence to 'P2 || P3a || P4 (non-resolved-state classes)' and start P5 after P4.
+      Update the Depends-on column to match, one source of truth.
+  - id: PLAN-SEQ-002
+    lens: Phasing (dependency order)
+    severity: 3
+    title: "P2 (contract models and build spike) is a dependency of no later phase"
+    evidence:
+      - artifact: "plan.md § 11: P9..P12 Depends-on lists P3, P6, P7, P8, P9, P5; P13 lists P9 to P12; none lists P2"
+      - code: "services/mission-status-api/build.gradle.kts openApiGenerate (FILTER limited to getProject|listMissions, explicit models list)"
+    claim: >
+      The route phases' mappers and the go/no-go decision (generated model versus hand DTO, certainly WorkPackage)
+      depend on P2's output, but nothing orders P2 before P9. As written P9 may start with the old model list, and
+      P2 (the only phase allowed to edit build.gradle.kts) can land after, or be skipped, without breaking a stated dependency.
+    remediation: "Add P2 to the Depends-on of P8 (shared wiring and mappers) and P9, P10, P11, P12; state P2 must merge before P8."
+  - id: PLAN-SEQ-003
+    lens: Phasing (primitives before routes / #5533 seams)
+    severity: 4
+    title: "'Seams stable from the P5 merge' is false for seams 11 and 12: they land in P7 and P8"
+    evidence:
+      - artifact: "plan.md § 7 intro and E-3: 'Its Java work packages land after phase P5'; seams stable 'from the P5 merge'"
+      - artifact: "plan.md § 7.1 rows 11 (testsupport.InMemoryTextSource, RecordingAllowlistAccess pattern, cap-race injector) and 12 (config.DetailInfrastructureWiring#textSource())"
+      - artifact: "plan.md § 11: P7 owns T/testsupport/**; P8 owns J/config/DetailInfrastructureWiring.java; P5's write scope has neither"
+    claim: >
+      #5533 is promised two of its twelve seams (the test doubles it reuses for fence and growth fixtures, and the one
+      TextSource bean) at P5, but its own scope table puts them in P7 and P8. #5533's Java WPs that wait only for P5
+      would find neither the double nor the wiring, and the 'changes need the operator's word' rule cannot protect
+      names that do not exist yet.
+    remediation: >
+      Either move InMemoryTextSource, the recorder and the cap-race injector to P5 (and a minimal textSource() bean,
+      or state #5533 builds its own), or restate the milestone: 'primitives complete = P8' and have § 7, E-3 and the
+      P5 sentences in § 11 say P8. Add a seam-to-phase column to the § 7.1 table.
+  - id: PLAN-SEQ-004
+    lens: Stack / no-push consistency
+    severity: 4
+    title: "'#5533's Java PR based on this branch from the P5 merge' has no referent in a one-PR, compacted, never-pushed stack"
+    evidence:
+      - artifact: "plan.md header 'Branch contract' (one draft PR stacked on #5529, no agent pushes, opens or retargets) and § 11 'Compact the history before the draft PR'"
+      - artifact: "plan.md § 7.4 table 'Stacked PR' row, E-3, § 14 E-3 'based on this mission's branch from the P5 merge'"
+      - artifact: "plan.md § 11 'One PR, readability': split seam after P8"
+    claim: >
+      Phases are commits (or lanes) inside one PR; there is no 'P5 merge' event on any shared ref. The recommendation
+      is only coherent with the no-push rule if the operator publishes a ref, but (a) history compaction before the
+      draft PR rewrites every phase SHA, so a #5533 branch based on a pre-compaction P5 tip is orphaned; (b) the split
+      seam offered is after P8, not P5, so P5 is not an independently green, reviewable base; (c) the plan neither
+      says who publishes the ref nor that it is an operator-only act. The recommendation is not inconsistent with
+      'no agent pushes' as advice to the operator, but as written it is not executable.
+    remediation: >
+      Reword E-3: 'the operator may publish a tip of this branch after P8 (the planned split seam) as the base for
+      #5533's Java PR; agents do not push it'. State that the compaction happens before that ref is published (or that a
+      published base is exempt from rewriting and the series is rebased onto it). Add: a published base ref is frozen,
+      later changes to a § 7.1 name go through the design-decisions note and the operator.
+  - id: PLAN-SEQ-005
+    lens: Phasing (risk front-loading)
+    severity: 3
+    title: "The YAML decoder spike and all native evidence arrive late (P6 and P13), not front-loaded"
+    evidence:
+      - artifact: "plan.md § 11 P6 'YAML 1.1/1.2 parity spike recorded in research.md; native-tagged decoder tests'; P13 owns mission-status-api.yml and all four native legs"
+      - artifact: "plan.md Unverified 2 and 5 (no JDK on the planning host; sun.jnu.encoding under native is a 'P5/P13 spike item'); R-15, E-6"
+      - code: "services/mission-status-api/build.gradle.kts: implementation(libs.snakeyaml); nativeTagJvmTest and nativeTest are CI-only for native"
+    claim: >
+      The plan's own stated unknowns (YAML dialect parity with ruamel, which decides E-6 'new dependency or refuse', and
+      native reflection or encoding behaviour) are all resolved at P5/P6, and the native legs only run on the PR after
+      P13 (the workflow edits are P13 and no agent may push). If the spike fails, P6, P9, P10, P11 and the 27-case
+      corpus wpm-* are already built on the restricted SafeConstructor choice. Unlike P2, which is correctly early, the
+      parity spike has no go/no-go rule and no earlier home.
+    remediation: >
+      Move the YAML parity spike (corpus wpm-14..17 dialect cases through snakeyaml SafeConstructor versus the oracle)
+      into P2 as a research-only deliverable with a go/no-go rule like D-79, before P6 builds on it. Ask the operator
+      for one early pushed checkpoint (or a workflow_dispatch) after P5 and P6 so the native legs run before P9..P12,
+      and say so in § 11.
+  - id: PLAN-SEQ-006
+    lens: Write scopes
+    severity: 3
+    title: "Write scopes of concurrent phases overlap by glob, and ProjectionCache / lifecycleTypes has no owner"
+    evidence:
+      - artifact: "plan.md § 11 P3 scope 'T/domain/**', 'T/adapter/out/filesystem/codec/**' vs P5 scope 'T/domain/projection/**', 'T/adapter/out/filesystem/**'; P6 'T/adapter/out/filesystem/**'"
+      - artifact: "plan.md § 11 P3: 'lifecycleTypes ... which ProjectionCache.Entry does not hold today'"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ProjectionCache.java: record Entry(StatusSnapshot snapshot, StreamCursor cursor)"
+      - artifact: "plan.md § 11 'Every path of the section 13 tree is owned by exactly one phase'"
+    claim: >
+      P3 (T/domain/**) contains P5's T/domain/projection/**; P5 and P6 (T/adapter/out/filesystem/**) contain P3's
+      codec tests, and P3 can run beside P5 and P6. 'Disjoint' only holds at file level, which the table does not
+      state. Separately P3 adds lifecycleTypes and a resolved map that the cache must carry for NFR-009, yet
+      application/ProjectionCache.java and OverviewDeriver are in no phase's write scope, so the completeness claim is false
+      and the edit has no owner (P1 may not, being behaviour-preserving).
+    remediation: >
+      Replace the globs with file-precise lists (or sub-directory names) for any pair that is allowed to run
+      concurrently, and add J/application/ProjectionCache.java (and OverviewDeriver if touched) to P3's scope, stating
+      that P1 leaves ProjectionCache alone. Re-run the 'exactly one owner' check mechanically (a script over the § 13 tree).
+  - id: PLAN-SEQ-007
+    lens: Stack reflexivity (open PRs)
+    severity: 3
+    title: "R-16 treats #6122 and #5953 as golden churn, but they change behaviour the Java code must reproduce"
+    evidence:
+      - artifact: "plan.md Readiness facts 'Open pull requests' and R-16: 'Goldens are regenerated by --write when such a PR merges first'"
+      - artifact: "gh pr view 6122: files src/specify_cli/frontmatter.py (block scalars in WP frontmatter); gh pr view 5953: src/specify_cli/status/models.py, store.py, core/subtask_rows.py (skipped subtasks, scoped mark-status)"
+      - artifact: "plan.md § 11 P6 (decoder 'as FrontmatterManager.read does') and P3 (subtasks, review result from status reducer)"
+    claim: >
+      A merge of #6122 changes what FrontmatterManager.read returns for block scalars, and #5953 adds a 'skipped'
+      subtask state, in the very code P3 and P6 mirror. Regenerating goldens makes Python's expectation move but the Java
+      decoder and the FR-020 subtasks projection then diverge (contract enum for subtask state may not even have 'skipped'),
+      and --check fails with no plan-stated owner of the Java fix. Only the first of the three open PRs mentioned (#6127)
+      is plausibly golden-only.
+    remediation: >
+      Replace R-16 by: for #6122 and #5953, a merge before the P3/P6 freeze is a spec/plan escalation (add a fixture
+      wpm-NN and a subtask-state row, decide mirror versus declare a V-row divergence); after the freeze it goes through the
+      knownDivergence list. Name who rebuilds the Java side. Re-run gh pr list at the start of P3 and P6.
+  - id: PLAN-SEQ-008
+    lens: Stack reflexivity (#5529 mid-flight change)
+    severity: 3
+    title: "R-24 has no rebase procedure; a later #5529 tip silently invalidates the P0 baseline and the sequenced chokepoints"
+    evidence:
+      - artifact: "plan.md Risks R-24 and Readiness facts (design base 62a5caec4 containing m5529/lane-b tip 4dc35c7d5)"
+      - artifact: "plan.md § 11 P0 (baseline-red.yaml and nfr009-base.md captured on 'two bases' of the design base) and 'Chokepoints' last sentence"
+    claim: >
+      The only procedure is 're-read the C-005 symbols at the start of each phase; orchestrator-run merge; --check and
+      check'. Missing: (a) whether the merge is a merge commit or a rebase (it interacts with the pre-PR history
+      compaction); (b) that a new #5529 tip makes baseline-red.yaml and nfr009-base.md stale, so the later 'introduced
+      versus pre-existing' attribution (FR-021) compares against the wrong base; (c) what happens if the changed symbol is
+      one P5 already amended (Allowlist, SafeFiles, AllowlistAccess, ArchitectureRules) and #5533 has based work on P5's
+      shape; (d) the phase in flight at the time (a rebase mid-P5 versus between phases).
+    remediation: >
+      Add a short procedure to § 11: merge a new #5529 tip only between phases, never during P5 or P8; after it
+      re-run the P0 capture for the affected modules and append a dated delta to baseline-red.yaml; list the four coupled
+      files with the phases that amend them and say a conflict in one is resolved in the owning phase's workspace, with the
+      change noted in design-decisions.md. State the compaction happens after the last such merge.
+  - id: PLAN-SEQ-009
+    lens: Chokepoints
+    severity: 2
+    title: "Chokepoint list omits packs.yml, ci-router.yml and test_ci_corpus_trigger_completeness.py, and leaves four-way edits of OutOfScopeRoutesTest unserialised"
+    evidence:
+      - artifact: "plan.md § 11 P0 scope (packs.yml, tests/architectural/test_ci_corpus_trigger_completeness.py), P4 scope (ci-router.yml and tests/ci/test_contracts_workflows.py 'only if AC-14.6 demands'), P13 scope; Chokepoints paragraph"
+      - artifact: "plan.md § 11 P9 to P12 each edit OutOfScopeRoutesTest and R/portlevel-tests.txt; P9 || P12 and P10 || P11 are concurrent"
+    claim: >
+      The shared-CI files touched by P0 and P4 are not named as chokepoints (P13 'alone' only covers mission-status-api.yml and
+      the mission_status scripts), so nothing says P0 then P4 serialise on the trigger-completeness registry. The route
+      phases are said to remove 'only their own path' from OutOfScopeRoutesTest, but up to three phases edit adjacent
+      lines of one list concurrently, a predictable textual conflict. The jacoco 'counted at the commit that adds them'
+      rule likewise makes every concurrent phase conflict on two lines.
+    remediation: >
+      Add packs.yml, ci-router.yml and the trigger-completeness test to the chokepoint list with the order P0 then P4.
+      Have P8 pre-split OutOfScopeRoutesTest into one entry per route (one line each, comment-separated) or have the
+      orchestrator land the removals; state that the jacoco counts are re-derived by a script at merge, not by hand.
+  - id: PLAN-SEQ-010
+    lens: One PR readability
+    severity: 2
+    title: "No size estimate, and the split seam (after P8) is offered without the numbers that would trigger it"
+    evidence:
+      - artifact: "plan.md § 11 'One PR, readability': 'if the hand-written diff passes about 4,000 lines'; 'Hand-written Java will exceed what is readable'"
+    claim: >
+      The plan concedes the PR will be unreadable but gives no per-phase line estimate, so the 4,000-line trigger cannot be
+      assessed at the tasks stage. With roughly 40 new main classes plus the tests and the Python oracle, the total is
+      plausibly well beyond the threshold, and the split seam after P8 is also not the point #5533 needs (finding PLAN-SEQ-004).
+    remediation: >
+      Add an estimated added-line table by phase (hand-written main, hand-written test, generated or data) to § 11, decide
+      the split now if the P0 to P8 half is already above the trigger, and make that seam the same ref #5533 bases on.
+  - id: PLAN-SEQ-011
+    lens: Phasing (campsite alone, first; baseline before change)
+    severity: 2
+    title: "'Campsite first and alone' and 'P3 is the first functional change' hold only loosely: P0 edits CI files and P2 precedes P3 in number and may run beside it"
+    evidence:
+      - artifact: "plan.md § 9 'Order of work (D-44): (1) baseline record P0, (2) campsite P1, (3) FR-020 P3 as the first functional change' and § 11 concurrency 'P2 || P3 || P4 || P5'"
+      - artifact: "plan.md § 11 P0 scope: packs.yml (one --deselect token), trigger-completeness registry entry"
+    claim: >
+      P0 changes the Packs workflow before the baseline is complete (its own commits can alter which modules run in the
+      comparison it records), and P2 changes build.gradle.kts (a functional build change) concurrently with P3, so 'P3 first
+      functional change' is not enforceable. The campsite P1 is correctly alone and behaviour-preserving, but D-44 is read
+      by reviewers as a strict sequence.
+    remediation: >
+      Order the P0 commits: capture on both bases first (commit 1), then the module, registry entry and deselect token
+      (commit 2), and say the capture is of the design base, not of the P0 tip. Reword D-44 to 'P3 is the first functional
+      change to the reduction; P2 changes the build only'.

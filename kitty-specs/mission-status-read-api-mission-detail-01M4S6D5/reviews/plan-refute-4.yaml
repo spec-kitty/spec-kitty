@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 4
+verdicts:
+  - id: PLAN-ARCH-010
+    verdict: confirmed
+    reason: Section 11 row P5 says Depends on P1, P4 while the chokepoints paragraph lists P5 in the concurrent set P2 || P3 || P4 || P5, and the plan gives no reason for the P4 dependency.
+  - id: PLAN-ARCH-011
+    verdict: confirmed
+    reason: ReviewCycleMeta and LanesResult occur once each, in the section 13 port signatures only, and the section 1 domain.model list and the P6 write scope omit them.
+  - id: PLAN-ARCH-012
+    verdict: confirmed
+    reason: The plan states C-005 is handled by re-reading the coupled symbols at each phase start (plan lines 57, 418, 452) and names no command or test.
+  - id: PLAN-ARCH-013
+    verdict: confirmed
+    reason: Section 7 and D-69 cite the sibling spec's identifiers and the plan records no commit sha for the sibling spec they were checked against (grep for the sha and the sibling slug finds none).
+  - id: PLAN-FIT-001
+    verdict: confirmed
+    reason: S-13 (plan line 603) names only FR-022 and NFR-002, while spec AC-22.1 (three operations, 48 calls) and AC-22.2 (getWorkPackage must still complete during the block) contradict a gated includePrompt=true variant.
+  - id: PLAN-FIT-002
+    verdict: confirmed
+    reason: P8 depends on P5 and P7 only and owns no heavy service, yet its exit gate claims AC-22.1 to AC-22.3, which spec text defines as port-level tests over the real heavy operations owned by P10 to P12.
+  - id: PLAN-FIT-003
+    verdict: confirmed
+    reason: plan.md contains no AC-6.4 and mentions SK-353 only in the ledger-entries-read list (line 32), and its risk table starts at R-14, so the spec's SK-353 decision and the per-file nightly comparison have no plan element.
+  - id: PLAN-FIT-004
+    verdict: refuted
+    reason: D-71 and the readiness row already state the 3 warm / 4 cold count for the three ledger routes via the head derivation, and FRESH3-003 and the Work Package route M3 note both assume the whole-head path, so the choice is not unwritten.

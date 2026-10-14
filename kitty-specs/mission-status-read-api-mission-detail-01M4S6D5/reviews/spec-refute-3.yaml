@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 3
+verdicts:
+  - id: SPEC-ARCH-007
+    verdict: confirmed
+    reason: NFR-002 states lanes.json-class reads at 262145 bytes while FR-011 gives LANES_JSON a 1 MiB read, and its concurrency scenario omits getWorkPackageDetail and the unbounded path set of the sorted walk.
+  - id: SPEC-ARCH-008
+    verdict: refuted
+    reason: FR-012 row M4 deliberately fails loud on unreadable or oversize Work Package files while OQ-1 concerns only unusable frontmatter; the asymmetry is a disagreement with a stated fail-loud design, not a defect.
+  - id: SPEC-ARCH-009
+    verdict: confirmed
+    reason: The spec and service pin no file-name encoding (no mention of locale or sun.jnu.encoding), yet fixtures and NFR-004 require byte-exact non-ASCII names across OS targets.
+  - id: SPEC-ARCH-010
+    verdict: refuted
+    reason: The claimed aliasing (long s on case-insensitive volumes, Windows trailing dot) is speculative platform behaviour with no demonstrated defect, and the spec's "without regard to case" plus root-only rule already covers the stated contract.
+  - id: SPEC-ARCH-011
+    verdict: confirmed
+    reason: FR-007 and AC-7.3 restrict the port to a Mission reference plus relative path and claim #5533 needs no second reader, but the existing MissionEventSource keeps project-level files behind a separate projectInputs() path, so governance files are not reachable through that shape.
+  - id: SPEC-ARCH-012
+    verdict: refuted
+    reason: The finding itself rates the swap window low-risk and needing a concurrent writer; FR-007 already lstat-checks every component and the final-component NOFOLLOW is existing precedent, so this is hardening preference, not a spec contradiction.
+  - id: SPEC-ARCH-013
+    verdict: refuted
+    reason: FR-013 places everything except status mapping behind the port and AC-12.2 and AC-13.3 require one diagnostic per occurrence observable by a plain-Java caller; the 500-versus-4xx mapping risk is hypothetical.
+  - id: SPEC-ARCH-014
+    verdict: refuted
+    reason: AC-5.6 names the exact credential families frozen by the contract's leak patterns and the finding concedes this is correct; file-name echo is the contract-defined path member, so the claim is a wording and decision-record preference, not a defect.

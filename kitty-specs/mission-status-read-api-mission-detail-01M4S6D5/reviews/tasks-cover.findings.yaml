@@ -1,0 +1,186 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: cover
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: TASKS-COVER-001
+    lens: plan defects reported by WP authors (stale after wps.yaml was fixed)
+    severity: 3
+    title: >-
+      Four "Plan defects found" items claim an ownership gap that wps.yaml already closes, so the prompt contradicts its own owned_files
+    evidence:
+      - artifact: >-
+          tasks/WP13 § Plan defects found item 1; WP14 item 1; WP15 item 1; WP16 item 1 (port-level test class 'has no owner in the write map', 'justified out-of-map addition')
+      - artifact: >-
+          wps.yaml owned_files: WP13 owns conformance/port/MissionDetailPortLegsTest.java, WP14 WorkPackagePortLegsTest.java, WP15 WorkPackageDetailPortLegsTest.java, WP16 ArtifactPortLegsTest.java (and the same paths are in each prompt's frontmatter owned_files)
+      - artifact: >-
+          tasks/WP05 § Plan defects found item 1 and Context line 93 (LineKind.java 'is owned by no WP', 'out-of-map edit'); wps.yaml WP05 owned_files lists domain/model/LineKind.java
+    claim: >-
+      The WP authors reported gaps (port-level legs class, LineKind carrier record) that the manifest already fixes. An implementer reading the prompt will treat an owned file as an out-of-map edit, write a "justified exception" in the commit message, and a reviewer will wonder whether the ownership map was breached. WP13..16 also tell the orchestrator to "add the pattern before finalize-tasks (SK-310)", which is already done.
+    remediation: >-
+      Edit WP05, WP13, WP14, WP15, WP16 to state that the file is in owned_files (delete the out-of-map wording and the orchestrator request from "Plan defects found"; keep only the portlevel-tests.txt append as the named edit). No plan decision needed.
+
+  - id: TASKS-COVER-002
+    lens: file references real / dependency citations
+    severity: 3
+    title: >-
+      Stale phase-number-as-WP-number citations point implementers at the wrong work package
+    evidence:
+      - artifact: >-
+          tasks/WP18 § T129 step 1: 'PlainCaller (WP07 ...)', 'that file [portlevel-tests.txt] is owned by WP03'; § T129 Validation: 'WP08's AdmissionGateTest'; § T130/T131: 'PermissionCaseCoverageTest (WP07)', 'ConformanceTree surface partition, WP04', 'providers created with their routes (WP04, WP07, ...)'
+      - artifact: >-
+          tasks/WP02 context: 'AdmissionGate (WP08/P8 ...)'; tasks/WP03 context line 21 and Dependents: 'WP08 (P8) extends this WP's files', 'WP05 (P5)', and the arithmetic '14 + 2 (WP08) = 16'; tasks/WP17: 'testsupport classes of WP07', 'detail oracle module of WP04 (exists after WP04)'
+      - artifact: >-
+          wps.yaml owned_files: PlainCaller, AdmissionGate, DetailInfrastructureWiring are WP12 (P8); PermissionCaseCoverageTest, ServedRoute, testsupport are WP10 (P7); portlevel-tests.txt is WP05; ConformanceTree and the golden classes are WP07/WP08; WP04 is planning-only. tests/contract/_mission_status_detail.py already exists in this checkout.
+    claim: >-
+      The prompts mix plan phase numbers with WP numbers (P8 is WP12, P7 is WP10, P3 is WP05, P4 is WP07). An implementer told that WP08 owns AdmissionGateTest or that WP03 owns portlevel-tests.txt looks in the wrong work package for the helper or for the file to rebase on. WP18 T129 also says "three gated operations (48 in all)" before correcting to four in the next sentence.
+    remediation: >-
+      Replace the cited WP ids with the owners in wps.yaml (list in evidence); in WP18 T129 write "each of the four gated operations (64 calls)". Run a repo-wide grep of each prompt for "WP0x (Px)" patterns after the edit.
+
+  - id: TASKS-COVER-003
+    lens: test task for every gate named in plan section 5
+    severity: 3
+    title: >-
+      WP17 edits the workflow and CI scripts but its gate list omits the four architectural workflow tests plan section 5 names; WP08 omits the corpus trigger completeness test
+    evidence:
+      - artifact: >-
+          plan.md section 5 command block: 'tests/architectural/test_ci_corpus_trigger_completeness.py test_no_duplicate_suite_execution.py test_workflow_coherence.py test_module_shard_registry.py' (the CI pins and the router)
+      - artifact: >-
+          tasks/WP17 T123 Validation (line ~137) and T126 hygiene list (line ~165): tests/ci/* only, plus terminology, layer rules, archive freeze, parity script; none of the four architectural workflow tests. grep for test_workflow_coherence over all prompts: zero hits; test_module_shard_registry and test_no_duplicate_suite_execution: zero hits
+      - artifact: >-
+          tasks/WP08 (edits CLASS_FLOORS in tests/contract/test_mission_status_conformance.py, a corpus-marked module): no run of test_ci_corpus_trigger_completeness.py (only WP07 names it)
+      - code: >-
+          tests/architectural/test_workflow_coherence.py, test_module_shard_registry.py, test_no_duplicate_suite_execution.py, test_ci_corpus_trigger_completeness.py exist in this checkout
+    claim: >-
+      The workflow file mission-status-api.yml, scripts/ci/mission_status_*.py and the registry are exactly what those tests police (a silent double run is the defect class plan section 5 names under packs-gate). WP17 can pass every listed gate and still turn CI red on the retargeted PR.
+    remediation: >-
+      Add the four architectural tests to WP17 T123/T126 validation and the Definition of done; add test_ci_corpus_trigger_completeness.py to WP08 T-gate (it edits a corpus-marked module).
+
+  - id: TASKS-COVER-004
+    lens: file references real (visibility)
+    severity: 3
+    title: >-
+      Eligibility must be public for three consumers in other packages but WP09 never says so
+    evidence:
+      - artifact: >-
+          tasks/WP09 § T061 step 4 (Eligibility.java in application.query.artifact, no visibility stated)
+      - artifact: >-
+          tasks/WP15 step 6 and Plan defects item 2 ('if package-private ... stop and report, do not edit it'); WP11 uses Eligibility from application.query.index (WP09 line 116); WP16 uses it from application.query.artifact
+    claim: >-
+      WP15 (application.query.detail) and WP11 (application.query.index) are in other packages than Eligibility (application.query.artifact). If WP09 writes it package-private, two PR A/PR B WPs stop on a file they do not own. Plan section 13 settles the packages but not the modifier.
+    remediation: >-
+      In WP09 T061 step 4 write "public final class Eligibility (consumed from application.query.index and application.query.detail)" and add the same to its acceptance list; delete the stop-and-report branch from WP15.
+
+  - id: TASKS-COVER-005
+    lens: rulings and layout applied (E-1)
+    severity: 2
+    title: >-
+      WP16 still counts three heavy operations; E-1 makes four
+    evidence:
+      - artifact: >-
+          tasks/WP16 Context line 84: 'they are two of the three heavy operations (FR-022)'
+      - artifact: >-
+          plan.md section 14, E-1: 'the fourth heavy operation'; plan section 13 'Admission gate (four heavy operations)'; tasks/WP14 line 78 and WP18 T129 step 2 say four
+    claim: >-
+      Pre-ruling wording (spec D-64 era). It does not change what WP16 builds but it is the sentence a reviewer uses to check that the gate set is complete.
+    remediation: >-
+      Change to "two of the four heavy operations (FR-022, E-1)".
+
+  - id: TASKS-COVER-006
+    lens: every AC traceable to a WP subtask with an observable check
+    severity: 2
+    title: >-
+      AC-9.3 is assigned to P13 by the plan traceability table but no WP18 subtask names it
+    evidence:
+      - artifact: >-
+          plan.md section 11 traceability: 'FR-009, AC-9.1 to AC-9.4 | P10 (exact bytes, README), P13 (guard flow)'
+      - artifact: >-
+          tasks/WP18 T126 step 5 (HostOriginRig.TARGETS extended with the five detail routes, AC-17.1): no includePrompt=true target; grep AC-9 in WP18 finds no AC-9.3
+      - artifact: >-
+          tasks/WP14 T104 and Plan defects item 2: WP14 tests AC-9.3 for its own route at controller level and says WP18 owns the multi-route flow
+    claim: >-
+      WP14 and WP18 each assume the other holds the full guard flow. As written the Host/Origin guard is exercised on getWorkPackage with includePrompt=true only by WP14's controller test; the shared flow rig (zero reads recorded through EntryCounting for the prompt variant) is nobody's.
+    remediation: >-
+      In WP18 T126 step 5 add a target "getWorkPackage?includePrompt=true" with the AC-9.3 assertion (403 request_refused, no prompt byte, zero port reads; accepted Host gives 200 with bytes) and add AC-9.3 to WP18 requirement coverage text; or state in WP14 that AC-9.3 is entirely WP14's and drop it from the plan row.
+
+  - id: TASKS-COVER-007
+    lens: requirement_refs wrong or missing
+    severity: 2
+    title: >-
+      C-003, C-009, C-010 and SC-008 appear in no requirement_refs; NFR-003/NFR-004 omitted from WP14, WP15, WP16
+    evidence:
+      - artifact: >-
+          union of wps.yaml requirement_refs (all 18 WPs): missing C-003, C-009, C-010; SC-008 absent; plan traceability row 'NFR-003, NFR-004 | P13 canary / digest; every route phase (goldens)'; NFR-003 only WP02/WP09/WP13/WP18 and NFR-004 only WP02/WP07/WP13/WP17/WP18
+      - artifact: >-
+          plan.md traceability 'C-001 to C-011': C-003 phases, C-009 charter Q2, C-010 untouched; 'SC-008 Reflexivity checks'
+    claim: >-
+      The remaining 40 FR/NFR/C ids are covered. These three constraints and SC-008 are claimed by the plan but have no subtask with a check, so finalize-tasks' coverage output will show them uncovered. NFR-003/004 are checked by goldens and canary in every route WP (WP14 canary AC-8.3, WP15/16 goldens) but not declared.
+    remediation: >-
+      Add C-003 to WP13 (scope: five operations only; a check that no Drift/Ops route is added, which OutOfScopeRoutesTest provides), C-010 and C-009 to WP17 (Definition of done: git diff touches no .kittify/charter path), SC-008 to WP17 (README divergence note V-list is its only check, say so), NFR-003 and NFR-004 to WP14, WP15, WP16.
+
+  - id: TASKS-COVER-008
+    lens: test task for every gate (NFR-006 and NFR-007 hygiene)
+    severity: 2
+    title: >-
+      The NFR-006 terminology grep is run only by WP01, WP02, WP04, WP07, WP09, WP12, WP17; the route WPs that add main Java never run it
+    evidence:
+      - artifact: >-
+          plan.md section 5 command: grep -rnE '(^|[^A-Za-z])[Ff]eatures?([^A-Za-z]|$)|feature_' services/mission-status-api/src/main services/mission-status-api/README.md
+      - artifact: >-
+          tasks/WP13, WP14, WP15 (Plan: terminology hit only in a Mission-vs-feature note), WP16, WP05, WP11: no terminology grep step in the gate; WP02,03,09-16,18 add files but run the Windows-filename guard only via Gate P tracked-path scan (explicit guard in WP01, WP04-WP08 only)
+    claim: >-
+      NFR-006 is a review-enforced grep with no test (plan section 5: the terminology test scans src/tests/docs only). The WPs that create the controllers, mappers and DTO names are the ones that can introduce a feature alias, and they never run the grep. NFR-007 is covered by the Gate P scan, so only the terminology half is open.
+    remediation: >-
+      Add the section 5 terminology grep to the Definition of done of WP05, WP11, WP12, WP13, WP14, WP15, WP16 (expect empty), as WP01 does.
+
+  - id: TASKS-COVER-009
+    lens: plan defects needing an orchestrator or plan decision
+    severity: 3
+    title: >-
+      Reported plan defects that cannot be closed by editing wps.yaml or a prompt alone
+    evidence:
+      - artifact: >-
+          tasks/WP04 § Plan defects found item 1 and section 7 of data-model.md: history semantics for a duplicate event_id and for a row the reducer's rollback arbitration drops (oracle history_entries includes every to_lane row; reduce_parsed de-duplicates and arbitrates); no fixture pins it (AC-20.3)
+      - artifact: >-
+          tasks/WP16 § Plan defects found item 2: ill-formed missionId plus malformed path answers 404 (E-5 makes the controller map first), FR-005 orders the path check (400) before the Mission lookup; AC-5.2 runs only with a valid Mission
+      - artifact: >-
+          tasks/WP17 § Plan defects found item 1 (perf-class pin clause generic only) and item 3 (D-145 jacoco equality repair has no writer in PR B); tasks/WP13-16 item 2 / 3 (MissionStatusApplicationHints: only P6, P8 and P13 may edit)
+      - code: >-
+          services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ProjectHeaderMaterialisation.java:38 (NOT_COPIED names SYMLINK_PLAN, not PROVISION_PLAN), cited by tasks/WP10 Plan defects
+    claim: >-
+      Four items need a ruling. (1) History semantics: choose "every to_lane row, like the oracle" or "reduced rows", then add a resolved-state fixture with a duplicate-id row and a lost-arbitration row; without it Java and Python diverge on exactly those ledgers and no golden catches it. (2) The 404-over-400 order for an ill-formed id plus bad path is a consequence of E-5, so it is a spec amendment (record it in the S-list) or a binding decision that the oracle's corpus does not pin it. (3) Whether PR B may edit MissionStatusApplicationHints and the jacoco counts after PR A (owner decision on the shared-file table). (4) PROVISION_PLAN must stay at the fixture top level: WP07 must be told so, because the copy step belongs to a #5529 test-support file no WP of this mission owns.
+    remediation: >-
+      Orchestrator rules each item and records it in plan section 14; then (1) add the two fixtures to WP08 (class resolved-state) and a sentence to WP04/WP05, (2) add a clause to WP16 and the spec-fold list, (3) add MissionStatusApplicationHints and jacoco-class-floor.properties as named edits of WP13..WP16 and WP17/WP18 in wps.yaml header, (4) add a one-line constraint to WP07 T044 step 5.
+
+  - id: TASKS-COVER-010
+    lens: plan defects fixable by editing wps.yaml or WP prompts
+    severity: 2
+    title: >-
+      Reported defects that need only a manifest or prompt edit before finalize-tasks (SK-310: owned_files edits after bootstrap are inert)
+    evidence:
+      - artifact: >-
+          tasks/WP05 § Plan defects item 2: Nfr009CacheGrowthTest history-less control cannot use package-private ProjectionCache from package perf; the plan's 'test-tree hook in application.query' is not an owned path (WP05 owns main ProjectionCache.java, perf/Nfr009CacheGrowthTest.java, perf/MissionCorpus.java)
+      - artifact: >-
+          tasks/WP11 § Plan defects item 2: AC-6.5 planted controls (12a codec referencing a port.out interface, 12c application referencing the codec) have no owned home; WP11 owns no T/architecture/fixture path; pattern is ArchitectureControlsTest (owned by WP01)
+      - artifact: >-
+          tasks/WP03 § Plan defects item 1 (tooling-friction.md append), WP06 item 3 / WP11 (research.md), WP15/WP16 item 4/6 (PermissionCaseFloorTest id split), WP17 item 2 (tests/ci/test_mission_status_readme.py is in the owned glob), WP18 item 4 (PerfBudgets not owned)
+    claim: >-
+      Each is solvable inside the manifest. The nested-class workaround for AC-6.5 gives weaker planted controls than the fixture pattern the spec names; the NFR-009 control built from public API measures the same payload but is not the plan's hook.
+    remediation: >-
+      (a) WP05: add T/application/query/ProjectionCacheHistoryProbe.java to owned_files and create_intent, or have WP05 widen nothing and keep the public-API variant (already recorded in design-decisions). (b) WP11: add named edit of ArchitectureControlsTest with two planted fixtures under T/architecture/fixture/ (owned paths added to WP11, disjoint from WP12 names). (c) Add M/traces/tooling-friction.md to WP03 named edits in the wps.yaml header; fix the PermissionCaseFloorTest id split as 2+2 (WP15 two, WP16 two) in both prompts; accept WP17's tests/ci/test_mission_status_readme.py; keep PerfBudgets as test-class constants.
+
+  - id: TASKS-COVER-011
+    lens: rulings and layout applied
+    severity: 1
+    title: >-
+      Verified clean - E-1, E-5, E-7, E-8, E-9, D-131 are applied; no wrong or missing paths found in the cited checkout names
+    evidence:
+      - artifact: >-
+          E-1: WP14 line 78 + WorkPackageQueryServiceGateTest asserts both directions; WP16, WP15 gate; WP13 explicitly ungated. E-5: WP05 WpId.parse (WpIdTest), WP12 MissionId.parse (MissionIdParseTest, MissionId.java in owned_files), WP13-16 adapters call both parses; rule 16 clause c scoped to the four new interfaces only (WP12 line 288). E-9: WP06 T042 same commit. E-7: WP05, WP11, WP12, WP17 name the local runs. E-8: all 18 titles carry [PR A]/[PR B]; WP01-12 A, WP13-18 B; dependencies match plan Depends-on column for P1..P13.
+      - artifact: >-
+          finalize-tasks --validate-only: validation_passed, wp_count 18. Frontmatter title, dependencies, requirement_refs, owned_files, subtasks equal wps.yaml for all 18 WPs; subtask ids T001..T133 unique and contiguous, each has its '### Subtask' heading; max 10 per WP. All owned main-source paths follow the side-first tree with interface-only port roots and dto/ and exceptions/ subpackages (no flat application/port or domain/overview names outside 'checkout name' mentions). Every spec AC id except AC-21.1..21.3 (P0 precondition by ruling) appears in at least one WP.
+    claim: >-
+      Recorded so the orchestrator knows these lenses were checked and passed. Nit - WP01 plan-defect note counts the twelve probe paths as 8+4; correct.
+    remediation: >-
+      None.

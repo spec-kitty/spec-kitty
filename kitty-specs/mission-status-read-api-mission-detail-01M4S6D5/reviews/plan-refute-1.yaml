@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: C-004 says a diff outside its list is a defect and names only the nightly-corpus job and the two native floors, yet plan S-11/S-16 add packs.yml, the corpus-trigger registry test and a native-leg LC_ALL, with E-2 left as non-blocking awareness and P0 writing the out-of-set files first.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: build.gradle.kts states check depends on perfTest, nativeTagJvmTest and kitTest, plan section 5 makes check, nativeCompile nativeTest and nativeSmoke the phase exit gates, and the charter forbids performance/full-integration suite runs in mission work while the Charter Check row says Pass.
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: Base B is 62a5caec4, a commit only on the mission branch, the plan (line 420) and charter require history compaction and rebase before the draft PR, and AC-21.1 keeps asserting git cat-file -e after merge, so B stops resolving and the plan never addresses it.
+  - id: PLAN-GOV-004
+    verdict: confirmed
+    reason: FR-013 says the port parameters are typed values while S-9 passes missionId and wpId as raw strings, and StreamScope.OneMission(MissionId) with new MissionId at the controller edge shows the existing typed pattern, with E-5 recorded only as non-blocking awareness.
+  - id: PLAN-GOV-005
+    verdict: refuted
+    reason: Section 6 states P0 runs once before any Work Package is claimed, matching C-011's recorded precondition and the spec's own order, and the finding's harm is conditional on an unstated tasks-stage mapping and on reading C-011 'functional' to cover the spec-mandated baseline test.
+  - id: PLAN-GOV-006
+    verdict: refuted
+    reason: The spec (line 262, D-58) itself places the findMission split in the campsite WP and the continuation as a separate step, so the plan follows the spec; the no-file-beyond-two-classes wording is a trivial inconsistency in the same paragraph that allows new tests, and the dead-code rule is not evidenced.
+  - id: PLAN-GOV-007
+    verdict: confirmed
+    reason: P3 owns T/domain/** and P5 owns T/domain/projection/** (and T/adapter/out/filesystem/** vs P3's codec subtree) and both own jacoco-class-floor.properties, while the plan calls them disjoint concurrent phases; ledger SK-357 (open) predicts the lane collapse and the plan does not cite it.
+  - id: PLAN-GOV-008
+    verdict: confirmed
+    reason: ChangeFeed.metaStageCode and ledgerStageCode are default-less switch expressions over SourceFault.Kind, so adding FILE_UNREADABLE breaks compilation, and ChangeFeed.java appears in no phase scope or in the plan at all.

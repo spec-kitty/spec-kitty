@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: refuted
+    reason: OQ-6 already builds the tasks.md read as the default and only asks the operator to ratify the extension of their read list; a null title is schema-nullable, so the alternative is a legitimate fork, not an error.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: The verbatim Clarifications (Q1-Q4) contain no list of reads naming a stat of spec/plan/tasks; OQ-6 and D-11 attribute that list to the operator without a recorded source.
+  - id: SPEC-GOV-003
+    verdict: refuted
+    reason: The departure from the 404 path_refused ruling is already made explicit as decision card DC-5, and AC-5.3 and C3 consistently carry path_refused as the diagnostic.
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: FR-005 says the path is decoded once at the HTTP layer while FR-013 lists path decoding rules as happening behind the port, which are contradictory placements against the transport-agnostic standing rule.
+  - id: SPEC-GOV-005
+    verdict: confirmed
+    reason: AC-14.5 (scripts/ci/mission_status_corpus_compare.py, nightly) and AC-19.1 (native workflow --floor) require shared CI edits that the Reflexivity list, which claims shared edits are listed not summarised, omits.
+  - id: SPEC-GOV-006
+    verdict: refuted
+    reason: OQ-3 is an open question with a stated default and R-7 plus AC-13.5 already cover symlink and oracle-divergence handling for worktreePresent; the claimed missing knownDivergence is a plan-level detail, not a spec defect.
+  - id: SPEC-GOV-007
+    verdict: refuted
+    reason: This is a subjective triage opinion; DC-1 recommends Option A (the ruling) rather than reopening Q3, and DC-4 explicitly points to OQ-2, so no concrete spec defect is shown.
+  - id: SPEC-GOV-008
+    verdict: refuted
+    reason: SK-348's ledger heading says the review-cycle record is stranded in the PRIMARY checkout, which contradicts the finding's claim that a coordination Mission shows no cycles from a primary-only read, and the remaining items are speculative interactions.

@@ -1,0 +1,229 @@
+{
+  "mission_slug": "mission-status-read-api-mission-detail-01M4S6D5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01, WP13 approved (tasks/WP01-*/review-cycle-*.md, tasks/WP13-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:36.306836+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:47.475523+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP15 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:49.813443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP16 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:51.958956+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP16 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:54.272022+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07, WP11, WP17 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:56.371405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP11 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:43:58.464026+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP13, WP14, WP15, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:04.023081+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:06.127496+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP15 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:12.715452+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP10, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:14.743800+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP09, WP11-WP16, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:16.765071+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02, WP03, WP05, WP12 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:18.789321+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07, WP08, WP10, WP17 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review); nightly compare script extended and tested (AC-14.5 script/job), replayed over 139 conformance detail fixtures; the local full-corpus run (plan T125 step 6) not run: operator word not given; first nightly is post-merge",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:20.803851+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:23.280553+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:25.334435+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:27.384216+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP17, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:29.367639+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP17 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review); native build and smoke verified on linux-x64 locally; linux-arm64, macOS arm64 and Windows x64 legs are verified by PR CI only",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:31.440879+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04, WP05, WP08, WP10, WP14 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:33.442774+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "Verify FR-021 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01, WP07 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:35.473553+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "Verify FR-022 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP12, WP14, WP15, WP16, WP18 approved (tasks/WPnn-*/review-cycle-*.md); integration tip 4235951a9 (lane-q): gradle clean check 4563 tests 0 failed, nativeSmoke 63 requests digest 56d8ef40, pytest ci+contract 408 passed (WP18 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T14:44:37.488457+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

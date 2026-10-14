@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 9
+verdicts:
+  - id: PLAN-OBLIG-002
+    verdict: refuted
+    reason: The plan's replacement text for AC-1.8(c) itself includes the new "Fails if any other Mission is read twice" and "Control" sentences, and the test counts the MISSION_META access class, so neither claimed contradiction stands.
+  - id: PLAN-OBLIG-003
+    verdict: confirmed
+    reason: FRESH3-002 pins counts on three ledger routes, but the exit gates of P10 and P11 list neither AC-1.8 nor MetaReadCountTest rows, so only getMission is gated.
+  - id: PLAN-OBLIG-004
+    verdict: confirmed
+    reason: AC-8.4 demands a fixture per table row but the named 6 nulls and 4 refusals leave rows without fixtures (for example feedbackReference, requirementRefs, wpId) and one row is declared not separately reachable.
+  - id: PLAN-OBLIG-005
+    verdict: confirmed
+    reason: The P9 gate names projection-nulls for getMission only, and the P10 and P11 exit gates in section 11 name neither AC-8.4 nor projection-refusals, although most fixtures exercise those routes.
+  - id: PLAN-OBLIG-006
+    verdict: refuted
+    reason: The plan says "all rows" of its own table, not all fields; invalid lanes and verdicts are reducer or existing-row concerns the evidence does not show reaching the new routes unhandled.
+  - id: PLAN-OBLIG-007
+    verdict: confirmed
+    reason: FR-004 "File names" still says the Work Package index answers 500 for any non-pure-ASCII name met, and S-4 does not list FR-004 among the amended text, so it conflicts with the candidate-only M13 rule and AC-6.6's non-candidate control.
+  - id: PLAN-OBLIG-008
+    verdict: confirmed
+    reason: P6 (depends only on P5) gates AC-6.1 to AC-6.6, but AC-6.6 needs the three routes that land in P9 to P11, and AppProcess is package-private in the config test package with no stated location for the new process test.
+  - id: PLAN-OBLIG-009
+    verdict: refuted
+    reason: AC-21.1's floor is the captured number committed beside the record, so a not-run or absent_on_base module with executed 0 satisfies it, and the spec already lists not-run modules separately.

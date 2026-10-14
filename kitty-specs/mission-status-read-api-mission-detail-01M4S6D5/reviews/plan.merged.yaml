@@ -1,0 +1,1702 @@
+schema: review-merged/v1
+phase: plan
+complete: true
+note: concatenated mechanically (R2); duplicates by theme retained for R3/R4
+findings:
+- id: PLAN-GOV-001
+  lens: Scope (frozen C-004 write set)
+  severity: 4
+  title: Plan widens the frozen C-004 write set (packs.yml, corpus-trigger registry test, native-leg LC_ALL)
+    and applies it with only an "awareness" flag
+  evidence:
+  - artifact: plan.md section 14, S-11 and E-2 (owner operator, awareness, Blocking No, interim 'Applied
+      as written in S-11'); section 11 P0 write scope; section 12 environment row; S-16
+  - artifact: 'spec.md C-004: ''The write set outside it is exactly: ... A diff outside this list is a
+      defect.'' It lists the workflow only as the nightly-corpus job, the native --floor and --request-floor'
+  - artifact: traces/design-decisions.md D-82 ('two one-line edits to the C-004 write set ... Adopted')
+  claim: C-004 is a closed list whose breach is a stated defect. The plan adds .github/workflows/packs.yml
+    and tests/architectural/test_ci_corpus_trigger_completeness.py (S-11), and S-16/section 12 add an
+    LC_ALL environment line to the native smoke legs of mission-status-api.yml, which C-004 does not list
+    (it names the nightly-corpus job and the two floors only). The plan marks this "awareness", non-blocking,
+    "Applied as written", and the tracer records it as "Adopted". A closed constraint is therefore edited
+    by the planner with no operator-decision flag, and P0 (the first phase) already writes both out-of-set
+    files, so the defect lands in the first commit before anyone can rule.
+  remediation: Reclassify E-2 as a decision (owner operator, blocks P0's two out-of-set files and P13's
+    native-leg environment line) and state the fallback that stays inside C-004 if declined (for example
+    an unmarked-module-safe home inside tests/contract that the existing Packs deselect already covers,
+    or the baseline test appended to the conformance module). Extend S-11 to name the native-leg LC_ALL
+    line explicitly. Change D-82 from "Adopted" to "Adopted pending the operator's word".
+- id: PLAN-GOV-002
+  lens: Directive (NO_FULL_HEAVY_SUITES_IN_MISSION)
+  severity: 4
+  title: Plan certifies NO_FULL_HEAVY_SUITES as Pass while making ./gradlew check, nativeCompile nativeTest
+    and nativeSmoke the per-phase exit gates
+  evidence:
+  - artifact: 'plan.md Charter Check row NO_FULL_HEAVY_SUITES_IN_MISSION (''Pass. Section 5 lists targeted
+      files only''); section 5 ''Exact local commands'' (./gradlew --no-daemon check ''# phase exit gate:
+      everything the jvm job runs'', nativeCompile nativeTest ''phases P6, P11, P12, P13'', nativeSmoke
+      ''phase P13''); section 11 exit gates for P1, P5 (''./gradlew check'')'
+  - code: 'services/mission-status-api/build.gradle.kts: tasks.named("check") dependsOn perfTest, nativeTagJvmTest,
+      kitTest, jacocoTestCoverageVerification, jacocoScopeCheck (comment: ''check depends on perfTest'')'
+  - artifact: '.kittify/charter/charter.md ''No full heavy-suite runs in mission work'': never run a performance/stress/timing
+      suite or an e2e/full-integration suite; run targeted files and the owning module''s fast tier; exception
+      only on an explicit operator request'
+  claim: The service's check task includes the performance suite (perfTest) and the kit/nested-build tests,
+    and the native tasks build a GraalVM image and replay the smoke set. The charter forbids implementers,
+    reviewers and the orchestrator from running a performance or e2e suite during implement, review and
+    closeout. The plan's own gate list tells every phase to run exactly that, and the charter row above
+    it says the plan only lists targeted files. The self-certification is false and the written command
+    is a charter violation (rubric 5 edge; rated 4 because it is a plan instruction not yet executed and
+    the fix is local).
+  remediation: Replace the per-phase exit gate by the targeted surface already named per phase in section
+    11 (./gradlew test --tests for the classes the phase adds or touches, the named ArchUnit and golden
+    classes, jacocoTestCoverageVerification and jacocoScopeCheck only), and state that check, perfTest,
+    nativeCompile, nativeTest and nativeSmoke belong to CI (jvm and native jobs). If the operator wants
+    a local full check or the P13 perf ratio tests run locally, make that an explicit operator-decision
+    escalation (new E-7), not a default. Correct the Charter Check row.
+- id: PLAN-GOV-003
+  lens: Baseline (record integrity under history compaction)
+  severity: 4
+  title: Base B of baseline-red.yaml is a commit of this mission branch, which charter compaction rewrites,
+    so the git cat-file -e check of AC-21.1 goes red after the PR is prepared
+  evidence:
+  - artifact: plan.md section 6 step 1 (B = 'the design-base tip at capture ... today HEAD 62a5caec4'),
+      section 5 gate 'tests (contract tools)' (fetch-depth 0 'for the git cat-file -e of AC-21.1'), section
+      11 'Compact the history before the draft PR (charter, mission-wrap-up-sequence)'
+  - artifact: spec.md AC-21.1 ('Two base shas are present and resolve (git cat-file -e)')
+  - code: 'git log: 62a5caec4 is ''docs(spec): carry round-3 spec findings as plan obligations ...'',
+      a commit on the mission branch, not on main or on the #5529 refs'
+  - artifact: 'SPEC-KITTY-LEDGER.md SK-359: SHA evidence ''goes stale as soon as consolidation squashes
+      the lane, and again when history is compacted'''
+  claim: 'The record test asserts that both recorded shas resolve in CI. Base A (the first parent of 58cd71ec9)
+    is on main and stays resolvable. Base B is the tip of this very branch at capture. The charter requires
+    compacting the mission history before the draft PR (plan section 11 repeats it), and the PR is stacked
+    on a branch that will itself be rebased or squashed when #5529 lands. After either, sha B no longer
+    exists in the PR merge ref, so test_mission_status_baseline_record.py fails permanently in ''tests
+    (contract tools)''. The plan never says what happens at compaction, and the only ''ordering'' check
+    it describes (git merge-base --is-ancestor, section 6) breaks the same way.'
+  remediation: 'Choose B as a sha that survives the stack (the #5529 lane-b tip 4dc35c7d5 or a commit
+    that is an ancestor of the PR base) and say so, or make the test verify only base A by git cat-file
+    and verify B by a recorded tree-hash and date with a typed ''unreachable after rewrite'' outcome that
+    is non-vacuous (a copy with a malformed sha still fails). Add a step to the closeout: re-run --check
+    and the record test after compaction. Move the merge-base ordering check to before compaction and
+    say that.'
+- id: PLAN-GOV-004
+  lens: Scope (no new pattern where the
+  severity: 3
+  title: Inbound ports take raw String identifiers (E-5/S-9) where
+  evidence:
+  - artifact: plan.md section 14 S-9 and E-5 ('operator (awareness)'), section 13 Ports ('MissionDetailQuery#mission(String
+      missionId)', 'WorkPackageQuery#workPackage(String missionId, String wpId, boolean includePrompt)'),
+      traces D-78
+  - artifact: 'spec.md FR-013: ''Their parameters are typed values (a Mission id, a Work Package id, a
+      boolean, a relative path)'''
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/in/StreamScope.java
+      record OneMission(MissionId missionId); adapter/in/http/EventsController.java builds new MissionId(missionId)
+      at the edge
+  claim: 'The #5529 inbound port already takes the domain value type MissionId, constructed at the controller
+    edge, and the same value-object style is what FR-013 asks for. The plan departs to strings so that
+    ''an MCP adapter repeats no rule'', which replaces the repository''s own pattern with a new one and
+    rewrites an FR-013 sentence, yet it is recorded as an awareness item and ''Adopted''. Strings in the
+    port also make the 404-versus-400 decision leak into every adapter''s test surface (rows C2 and W1).'
+  remediation: Either keep the typed values (WpId and a MissionId whose constructor performs the lenient
+    parse and yields a typed 'ill-formed' that the port maps to not_found, so the rule still lives once),
+    or promote E-5 to a decision (operator, blocks P8) that states the rejected typed alternative and
+    why the existing MissionId pattern does not serve. Mark D-78 'pending'.
+- id: PLAN-GOV-005
+  lens: Campsite scope / Baseline ordering
+  severity: 3
+  title: P0 is listed as a work-package candidate with a functional write set although the spec makes
+    the baseline a precondition and the campsite the first Work Package
+  evidence:
+  - artifact: plan.md header ('phase (P0 to P13) is a work-package candidate'), section 6 ('run once as
+      phase P0 before any Work Package is claimed'), section 9 ('A distinct, behaviour-preserving FIRST
+      work package (phase P1)'), section 11 P0 row (writes tests/contract/test_mission_status_baseline_record.py,
+      packs.yml, the registry test)
+  - artifact: 'spec.md C-011: ''a recorded precondition, not a Work Package'' for the baseline; ''the
+      first Work Package is a behaviour-preserving campsite pass''; ''a reviewer rejects a functional
+      change that precedes it'''
+  claim: If the tasks stage maps P0 to a WP file, WP01 is a functional change (a new test, a CI deselect,
+    a registry entry) that precedes the campsite, which C-011 says a reviewer rejects. If P0 is not a
+    WP, the plan does not say who commits its files, under which claim or review, or how its out-of-Mission
+    files avoid the 'agents never write outside a claim' rule. Section 6 says an orchestrator-run 'Sonnet
+    implementer' writes the test outside any WP.
+  remediation: 'State in section 11 how P0 is carried: either (a) split P0 into the precondition capture
+    (records under M/traces only, orchestrator, no WP) and a baseline-test WP that is explicitly ordered
+    after P1 and before P3, or (b) keep one precondition commit and say that C-011''s ''functional'' means
+    product code, with the ordering rationale recorded as a decision for the operator. Add it to the tasks-stage
+    mapping rule (''P0 is never WP01'').'
+- id: PLAN-GOV-006
+  lens: Campsite scope (behaviour-preserving, domain-matched)
+  severity: 2
+  title: The campsite extraction folds in the duplicate-detection continuation, which is new behaviour
+    with no caller until P9, and section 9 also says the campsite adds no file beyond two classes while
+    P1 adds two test classes
+  evidence:
+  - artifact: plan.md section 9 item 1 ('MissionLookup (the scan of resolve, split as D-58 says into the
+      probe-free lookup find(MissionId) ... and the optional continuation that detects a second readable
+      directory with the id)'), section 9 intro ('adds no file beyond the two extracted classes'), section
+      11 P1 write scope (MissionLookupTest, OverviewReaderTest)
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java
+      private resolve/probed: no duplicate detection exists today'
+  - artifact: 'spec.md C-011 and D-58: resolve becomes findMission followed by probed ''without a change
+      of behaviour''; mission_id_duplicate is a new diagnostic added in P5'
+  claim: The existing resolve has no duplicate scan, and mission_id_duplicate is a DiagnosticCode that
+    P5 adds. Landing the continuation in P1 puts a new capability into the 'behaviour-preserving' commit,
+    unused by any caller and untestable end to end until P9 (dead code at the campsite point-cut, which
+    the charter forbids reviewers to accept). The 'no file beyond two classes' sentence also contradicts
+    the P1 write scope.
+  remediation: Keep P1 to the probe-free find and the unchanged probed composition; move the continuation
+    to P9 with its diagnostic and fixture. Reword section 9 to 'two extracted classes and their focused
+    tests, plus the split of ArchitectureRules'.
+- id: PLAN-GOV-007
+  lens: Ledger (SK-357) / Scope (write-scope disjointness)
+  severity: 3
+  title: Concurrent phases are declared 'disjoint' but share globs and files, which the finalize-tasks
+    lane computation (SK-357) will collapse or reject
+  evidence:
+  - artifact: 'plan.md section 11 table header ''Write scope (disjoint from concurrent phases)'' and ''Concurrent
+      sets: after P1, P2 || P3 || P4 || P5''; P3 scope ''T/domain/**'', ''T/adapter/out/filesystem/codec/**'',
+      ''R/jacoco-class-floor.properties''; P5 scope ''T/domain/projection/**'', ''T/adapter/out/filesystem/**'',
+      ''R/jacoco-class-floor.properties'''
+  - artifact: 'plan.md section 11 chokepoints: P10 || P11 (and P12) each edit OutOfScopeRoutesTest, R/portlevel-tests.txt,
+      R/jacoco-class-floor.properties'
+  - artifact: 'SPEC-KITTY-LEDGER.md SK-357 (open): finalize-tasks puts any overlapping owned_files pair
+      in one lane; workaround ''one owner per shared file, every other writer records a named out-of-map
+      edit'''
+  claim: T/domain/** contains T/domain/projection/**, and T/adapter/out/filesystem/** contains T/adapter/out/filesystem/codec/**,
+    so P3 and P5 overlap as written, and both own the class-floor file. P10, P11 and P12 are concurrent
+    yet share three files. The plan relies on 'rebase and state your edit', but the tool's overlap check
+    and lane computation work on owned_files, so the tasks stage will either refuse the manifest (validate_no_overlap)
+    or collapse the 'parallel' phases into one lane, and the ledger entry that predicts this is not cited.
+  remediation: Make the globs disjoint (P3 'T/domain/reducer/**' and 'T/domain/model/**'; P5 'T/adapter/out/filesystem/*'
+    excluding codec), assign each shared file (class-floor file, portlevel-tests.txt, OutOfScopeRoutesTest,
+    README) one owner per SK-357's workaround with the others as named out-of-map edits, and cite SK-357
+    in the Charter Check and the risks table.
+- id: PLAN-GOV-008
+  lens: Scope (write-scope completeness)
+  severity: 3
+  title: Adding SourceFault.Kind.FILE_UNREADABLE forces edits to two exhaustive switches in ChangeFeed.java,
+    which no phase owns
+  evidence:
+  - artifact: plan.md section 11 P5 ('SourceFault.Kind.FILE_UNREADABLE and the exhaustive-switch updates
+      it forces'; scope lists MissionStatusService and OverviewReader only), 'Every path of the section
+      13 tree is owned by exactly one phase above'
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ChangeFeed.java
+      metaStageCode and ledgerStageCode switch over SourceFault.Kind with no default (cases VANISHED,
+      PATH_REFUSED, META_UNPARSEABLE, DIR_UNREADABLE, LEDGER_UNREADABLE)
+  - code: application/MissionStatusService.java switches at the lines handling VANISHED/DIR_UNREADABLE
+      (resolve fault mapping and the stream fault mapping)
+  claim: 'A new enum constant breaks compilation of both ChangeFeed switches. ChangeFeed.java is a #5529
+    file in no phase scope and is not in the C-005 coupled list, so the ''owned by exactly one phase''
+    claim is false and the P5 implementer must edit outside the declared scope or the reviewer must reject
+    the diff. It is also a behavioural choice (which stream diagnostic a FILE_UNREADABLE maps to) that
+    is not decided anywhere.'
+  remediation: Add ChangeFeed.java to P5's scope with a stated mapping for FILE_UNREADABLE in both switches
+    (and its stream legs in MissionStatusService), add it to the C-005 re-read list, and add a test that
+    proves the stream answers for the three existing routes are unchanged.
+- id: PLAN-GOV-009
+  lens: Directive (Pre-existing Failure Reporting Rule)
+  severity: 3
+  title: Section 6 says an unclassified red blocks the dependent claim and also that it never gates, and
+    the record does not capture the command run the charter requires in the issue
+  evidence:
+  - artifact: plan.md section 6 paragraph 1 ('is unclassified, is not accepted as baseline, blocks the
+      claim that depends on it') versus 'How a failure is told apart' ('it never gates this mission's
+      per-PR checks'); FRESH3-005 / D-74
+  - artifact: '.kittify/charter/charter.md ''Pre-existing Failure Reporting Rule'': the agent MUST open
+      a GitHub issue (command run, failure summary, why pre-existing) before treating failures as accepted
+      baseline or continuing past them'
+  - artifact: 'plan.md section 6 step 4 (row fields: test id, base sha, normalised signature, issue; no
+      command field)'
+  claim: 'The charter forbids continuing past a pre-existing failure until the issue exists. Item 3 of
+    the plan''s own rule lets a red in the not-run reality module be ''attributed neither way'' and ''never
+    gate'', which is continuing past it, and the sentence two lines up says it blocks. An implementer
+    or reviewer cannot tell which applies, and a detail-route regression that only shows in the reality
+    module would pass unclassified (Standing Order 9: do not hide a red).'
+  remediation: 'Say one thing: such a red halts the claims that depend on it (review approval and the
+    readiness statement) until the orchestrator files the issue with the operator''s OK and the entry
+    is recorded; it does not fail the per-PR job (which excludes the module) but it is reported in the
+    PR body. Add a ''command'' field to each module record and require it in the AC-21.1 test so the filed
+    issue can state the command run.'
+- id: PLAN-GOV-010
+  lens: PR shape / Scope (#5533 coupling)
+  severity: 3
+  title: Section 7 and E-3 speak of a 'P5 merge' and a
+  evidence:
+  - artifact: 'plan.md section 7 (''Its Java work packages land after phase P5''), section 7.1 (''stable
+      from the P5 merge''), section 7.4 (''#5533''s Java PR rebases on this mission''s P5 merge''), E-3
+      (''operator, #5533 planner ... Blocking: No''), section 11 ''One PR, readability'' (split seam after
+      P8 if about 4,000 lines)'
+  - artifact: 'spec.md Clarifications 2 and D-54: one draft PR stacked on #5529, no agent pushes, opens
+      or retargets; C-005: #957 cannot merge before #5529'
+  claim: 'With one draft PR that cannot merge before #5529, nothing ''merges'' at P5. The stability promise
+    to #5533 (''a change after P5 merges needs a note in both missions and the operator''s word'') has
+    no event to bind to, and the recommended base of #5533''s Java PR is a mid-series commit of an unpushed,
+    to-be-compacted branch (see PLAN-GOV-003). The split-seam recommendation (two PRs) changes the ruled
+    PR shape and the primitives'' delivery order for #5533 and is not flagged as an operator decision.
+    This is drift toward #5533''s plan rather than a #957 requirement.'
+  remediation: 'Restate the seam stability as ''from the commit that lands P5 on this branch, as recorded
+    in design-decisions.md'', delete the claim about the base of #5533''s PR (or make it an operator-decision
+    item with owner the operator and #5533''s planner), and either drop the split-seam recommendation
+    or flag it as a decision that departs from D-54.'
+- id: PLAN-GOV-011
+  lens: Ledger
+  severity: 2
+  title: Ledger entries that the tasks and approval stages will hit are not cited (SK-357, SK-300, SK-361,
+    SK-356)
+  evidence:
+  - artifact: plan.md Charter Check (cites SK-310, SK-351, SK-353, SK-355, SK-363 only)
+  - artifact: SPEC-KITTY-LEDGER.md SK-357 (lane collapse on overlapping owned_files), SK-300 (approval
+      gate demands issue-matrix rows), SK-361 (an '#NN' reference is classed as a gating issue), SK-356
+      (plan_concern_refs must match IC-##)
+  claim: 'The plan cites five entries but not the four that govern its tasks and approval stage: it lists
+    many ''#NNNN'' references (#5838, #5927, #6116, #5528), names shared-file chokepoints, and a plan-concern
+    heading convention is not stated. Each of those has a recorded workaround that the orchestrator needs
+    before finalize-tasks.'
+  remediation: Add a short 'Ledger entries in force for the tasks stage' list to the Charter Check naming
+    SK-357 (owner per shared file), SK-300 and SK-361 (issue-matrix rows and issue-verdict not-applicable
+    for non-issue '#NN' text), and SK-356 (use IC-## headings or none).
+- id: PLAN-GOV-012
+  lens: Directive (red-first)
+  severity: 2
+  title: The claim that every phase starts with committed failing acceptance tests is false for P0, P1,
+    P2, P4 and P7, and the reviewer instruction is not satisfiable there
+  evidence:
+  - artifact: plan.md section 11 Test strategy ('Every phase starts with committed failing acceptance
+      tests; the reviewer verifies red on the phase base and green on its tip'), Charter Check Standing
+      order 4 row; P1 'behaviour-preserving', P0 (records), P2 (spike), P4 (generator that writes goldens)
+  claim: A behaviour-preserving campsite cannot be red on its base, a baseline capture and a build spike
+    have no failing acceptance test of the product, and the oracle phase produces the goldens the later
+    phases go red against. A reviewer told to verify red on base will either reject the phase or sign
+    a vacuous red.
+  remediation: 'State the red-first form per phase: P1 ''existing tests unchanged and green on base and
+    tip, no assertion changed''; P0 and P4 ''the record and golden tests are red on a copy with a row,
+    module or byte removed'' (already in the plan); P2 ''the drift-probe mutation is red''; P7 ''harness
+    tests red against the unwired suite''. Reserve ''red on the phase base'' for P3 and P5 to P13.'
+- id: PLAN-GOV-013
+  lens: Scope (escalation hygiene)
+  severity: 2
+  title: E-1 describes FR-022 as 'operator-ruled' while D-64 records that the operator did not rule on
+    the gate's behaviour, and D-85 is 'Adopted' while E-1 proceeds by default
+  evidence:
+  - artifact: plan.md section 14 E-1 ('an operator-ruled requirement shape (D-64)'; interim 'Without a
+      word the plan proceeds with the gate')
+  - artifact: traces/design-decisions.md D-64 ('Queuing instead of refusing is behaviour the operator
+      did not rule on; it is recorded here as this specification's decision'), D-85 ('Recommended, not
+      ruled ... Adopted pending the operator's word')
+  claim: The record misstates who decided FR-022, which makes the widening look like an amendment of an
+    operator ruling (it is a spec decision) and makes the 'default adopted' interim sound authorised.
+    A proceed-by-default on a requirement widening is also the self-authorised exception the operator
+    has warned against.
+  remediation: Rewrite E-1's reason as 'a fourth heavy operation widens FR-022, a requirement the specification
+    decided (D-64)'; keep the interim only if it is reversible by one line (as stated) and say P10's gate
+    wiring does not start until the word or a recorded default timeout set by the orchestrator.
+- id: PLAN-GOV-014
+  lens: Scope (no new pattern where the
+  severity: 2
+  title: Derivations go to a new domain.derive package although
+  evidence:
+  - artifact: 'plan.md section 1 layers table (domain.derive: PhaseDeriver, ReadinessDeriver, LaneNames,
+      ... ''barred to the controllers by rule 13''), section 13 rule 13'
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/overview/ holds
+      OverviewDeriver, ProjectHeaderDeriver, ProgressCalculator beside the records MissionOverview and
+      MissionPage; rule 13's own wording already distinguishes 'a non-record class of domain.overview
+      (a deriver)'
+  claim: The repository already has a way to keep derivers and records in one package while keeping controllers
+    off the derivers (a non-record class test). The plan instead adds two domain packages (detail, derive),
+    a second home for derivers, and widens the rules to name them. Not wrong, but two homes for one concept
+    is the drift the 'single canonical authority' principle asks the plan to avoid, and the plan does
+    not justify it.
+  remediation: Either place the new derivers in domain.detail and reuse the 'non-record class' wording
+    of rule 13, or add a one-line decision (in design-decisions) saying why domain.overview cannot grow,
+    and keep OverviewDeriver where it is.
+- id: PLAN-GOV-015
+  lens: Terminology
+  severity: 1
+  title: The plan uses 'phase' for work-package candidates (P0 to P13) in the same document that defines
+    a Mission's own phases (PhaseDeriver, MissionPhase)
+  evidence:
+  - artifact: plan.md header ('In this plan phase (P0 to P13) is a work-package candidate'), section 13
+      '**Phases (FR-001).** PhaseDeriver ...', section 11 'Phasing'; domain.detail MissionPhase, PhaseName,
+      PhaseStatus
+  claim: One word names two things (a delivery unit and a Mission lifecycle phase) in a document whose
+    reviewers search for either. No glossary term is violated and no Feature alias is present (the grep
+    claim holds), but the reader of section 13 must infer the sense.
+  remediation: Call the delivery units 'steps' or 'slices' (S0 to S13) or keep 'phase' and write 'Mission
+    phase' for the lifecycle sense everywhere in sections 1, 8, 11 and 13.
+- id: PLAN-ARCH-001
+  lens: Layering (write-scope completeness) and 5533-seam
+  severity: 3
+  title: Adding SourceFault.Kind.FILE_UNREADABLE breaks two exhaustive switches in ChangeFeed that no
+    phase owns, and mixes text-read faults into the ledger vocabulary
+  evidence:
+  - artifact: "plan.md \xA7 7.1 row 6; \xA7 11 P5 write scope and exit gate; \xA7 11 'Write-scope completeness'\
+      \ (every path of the section 13 tree is owned by exactly one phase)"
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ChangeFeed.java
+      metaStageCode and ledgerStageCode: both are `switch (kind)` expressions with no default over SourceFault.Kind'
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java
+      ledgerFault and omitted: two more exhaustive switches over the same enum'
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/out/SourceFault.java
+      Kind: VANISHED, PATH_REFUSED, META_UNPARSEABLE, DIR_UNREADABLE, LEDGER_UNREADABLE'
+  claim: "P5 adds FILE_UNREADABLE to the existing SourceFault.Kind and says it forces 'the exhaustive-switch\
+    \ updates'. P5's write scope names only MissionStatusService and OverviewReader (the new case only).\
+    \ ChangeFeed.java holds two further exhaustive switches over the same enum and is in no phase's write\
+    \ scope, so the P5 commit does not compile as scoped and the 'each path owned by exactly one phase'\
+    \ claim is false. Beyond the mechanics, \xA77.1 row 1 says TextSource has 'no route or Mission-status\
+    \ vocabulary', yet its fault type is the mission-status SourceFault whose other kinds (META_UNPARSEABLE,\
+    \ LEDGER_UNREADABLE) cannot occur on a text read; each existing switch would also have to pick a diagnostic\
+    \ for a kind that is unreachable there. #5533's own spec asks for distinct kinds for over-cap, not-text,\
+    \ credential and symlink (SPEC-FRESH3-010), which a mission-status-shaped enum serves badly."
+  remediation: "Either (preferred) give the text-read port its own fault type in application.port.out\
+    \ (for example TextFault with Kind PATH_REFUSED, VANISHED, DIR_UNREADABLE, FILE_UNREADABLE) so SourceFault,\
+    \ ChangeFeed, MissionStatusService and every existing switch stay untouched and the 'no Mission-status\
+    \ vocabulary' statement of \xA77.1 row 1 becomes true; or add ChangeFeed.java (the two arms, with\
+    \ the chosen DiagnosticCode written down) to P5's write scope and name all four switch sites in the\
+    \ P5 row. Whichever is chosen, grep for `switch` over SourceFault.Kind at plan time and list the sites."
+- id: PLAN-ARCH-002
+  lens: Transport-agnostic inbound port
+  severity: 3
+  title: The strict percent-decoding of `path` lives in an HTTP adapter class, so the claim that an MCP
+    adapter 'duplicates no rule' is not supported
+  evidence:
+  - artifact: "plan.md \xA7 1 final paragraph ('An MCP adapter therefore passes strings and a one-element\
+      \ list and duplicates no rule'); \xA7 1 layer table (RawQuery in adapter.in.http.detail); \xA7 13\
+      \ Ports (ArtifactPathInput sealed: Values(List<String>) | Undecodable)"
+  - code: 'services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java
+      rule 5a: no adapter.in dependency on adapter.out; rule 3: adapter.in.http reaches only port.in and
+      domain; an MCP adapter would be a new inbound adapter that cannot import adapter.in.http.detail.RawQuery'
+  claim: 'The plan lists the controller''s duties as (a) raw-query parsing including ''path strict percent
+    decoding'' (single decode, `+` literal, invalid UTF-8 is undecodable). The port then carries the outcome
+    as ArtifactPathInput.Values or Undecodable, which is an HTTP-query shaped type (a repeated parameter
+    becomes a multi-element list). The decoding rule is a real rule (AC-5.2: `%252e` decodes once, `%ff`
+    and `%c0%af` are 400) implemented in the one adapter that cannot be shared. An MCP resource template
+    variable is also percent-encoded text, so the #6116 adapter must re-implement the same decoder, or
+    call the port with already-decoded text and silently diverge from the HTTP behaviour on `%` handling.'
+  remediation: "Move the strict percent-decode to a pure function in domain.derive next to ArtifactPaths\
+    \ (it needs only java.nio.charset, which rule 1b allows), have RawQuery call it, and document that\
+    \ any inbound adapter passing an encoded value uses it. State in \xA713 which form the port expects:\
+    \ decoded text (then ArtifactPathInput.Undecodable is an HTTP artefact and should be produced by the\
+    \ shared function) or raw-encoded text with the decode behind the port. Add a plain-Java test (the\
+    \ PlainCaller of AC-13.3) that feeds `%252e` and `%ff` through the shared function."
+- id: PLAN-ARCH-003
+  lens: Layering (ArchUnit rules 13 and 14) and 5533-seam
+  severity: 3
+  title: Rules 13 and 14 hard-code their subjects, so D-69's 'run the existing rules once per root' does
+    not cover them and a governance inbound port is unguarded or the rules go vacuous
+  evidence:
+  - artifact: "plan.md \xA7 13 table 'Rules 13 and 14' (rule 13 subject `adapter.in.http.detail..`; rule\
+      \ 14 subject the six named classes plus `domain.detail..`); \xA7 7.4 D-69 ArchUnit row ('#5533 runs\
+      \ the existing rules once per root, adds the cross-context rules and raises DEFINED_RULE_COUNT itself')"
+  - code: services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java
+      all(String root, List<String> rule9Packages) builds every subject from `root + suffix`; Rule.scanned
+      is asserted non-zero by ArchitectureControlsTest/ArchitectureRulesTest against DEFINED_RULE_COUNT
+  - artifact: kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md FR-017 (run every existing rule
+      once per context root with a scanned-class non-vacuity assertion; inbound port reflection test AC-17b)
+  claim: 'Rules 1 to 12 are parameterised by root and can be re-run for a sibling root. Rule 13''s subject
+    is the package `adapter.in.http.detail` and rule 14''s subject is a list of class names that exist
+    only in missionstatus. Run for the governance root, the subjects are empty: the non-zero scanned-count
+    assertion either fails (an artificial red the plan does not budget) or is waived (the transport-agnostic
+    guarantee, the whole point of issue #6116, then covers only the five detail operations and none of
+    governance''s ports). The plan''s statement that the primitives change ''no rule'' therefore hides
+    that its own two new rules do not generalise.'
+  remediation: 'Write rule 14 over `application.port.in..` of the given root (excluding by a documented,
+    tested predicate the existing stream types that legitimately throw InterruptedException, D-50) instead
+    of by class name, and write rule 13 over the root''s `adapter.in.http..` controllers minus a named
+    infrastructure set, both taking `root` like rules 1 to 12. State in D-69 that rules 13 and 14 run
+    per root with per-root non-zero counts, so #5533 adds subjects, not rules.'
+- id: PLAN-ARCH-004
+  lens: Layering and wiring (hexagonal composition)
+  severity: 3
+  title: The shared OverviewReader and ProjectionCache are package-private in application but the plan
+    wires the new services from one config class per route phase
+  evidence:
+  - artifact: "plan.md \xA7 9 item 1 (MissionLookup and OverviewReader extracted as package-private classes;\
+      \ 'OverviewReader owns the one ProjectionCache'; AC-1.2 same derivation); \xA7 13 layout (MissionDetailWiring,\
+      \ WorkPackageWiring ... in config); \xA7 11 chokepoints ('one new wiring class per route phase so\
+      \ ServiceWiring is not edited')"
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/ServiceWiring.java
+      missionStatusQuery: the only construction site, `new MissionStatusService(source, clock, diagnosticsLine,
+      feedExecutor, settings, leaks)`'
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java
+      public constructor delegates with `new ProjectionCache(new StatusReducer(...))`; ProjectionCache.java
+      is a package-private final class; cache() is package-private
+  claim: Config (a different package) can only construct application classes through public API. Today
+    the cache is created inside MissionStatusService's public constructor and is unreachable from config.
+    The plan makes MissionLookup and OverviewReader package-private and has four new wiring classes in
+    config construct MissionDetailService, WorkPackageService and the rest, all of which need the same
+    OverviewReader instance (one cache, NFR-009, AC-1.2). No wiring path is stated. Implementers will
+    either create a second ProjectionCache (doubling the NFR-009 growth the plan measures and letting
+    /missions and getMission serve different stamps) or widen visibility ad hoc in P9, outside P1's 'behaviour-preserving'
+    campsite.
+  remediation: "Decide in the plan and execute in P1: expose one public application-level composition\
+    \ handle (for example a public final `MissionReadModel` holding MissionLookup, OverviewReader and\
+    \ the cache, built once in ServiceWiring and passed to both MissionStatusService and the detail services),\
+    \ or make the four detail services receive it through a public constructor. Add the class to \xA7\
+    13, P1's write scope and the JaCoCo count, and add an assertion in OverviewReaderTest or a wiring\
+    \ test that /missions and getMission share one ProjectionCache instance."
+- id: PLAN-ARCH-005
+  lens: 5533-seam (stable seams list)
+  severity: 3
+  title: AdmissionGate and the NUL/redaction policy are not named as seams, so
+  evidence:
+  - artifact: "plan.md \xA7 7.1 (twelve seams; AdmissionGate is not among them); \xA7 13 'Admission gate\
+      \ (FR-022)' (Semaphore(4, true) held by WorkPackageDetailService, ArtifactService, WorkPackageService);\
+      \ \xA7 7.2 NOT_TEXT row ('a NUL byte (the application's check)'); \xA7 7.1 row 7 (TextScreen has\
+      \ one LeakClasses constructor and one substitution policy)"
+  - artifact: kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md SPEC-FRESH3-017 (different caps
+      for event logs and the lint report), FR-020 (governance must not copy the primitive), FR-022
+  claim: "NFR-002's memory arithmetic assumes at most four heavy holders in the process. #5533's routes\
+    \ also read up to a cap into memory (charter body, event logs, lint report), but the gate is an application\
+    \ bean with no stated export; a second gate yields eight concurrent holders, no gate yields unbounded\
+    \ ones. The NUL decision of \xA77.2 is 'the application's check' inside ArtifactReader, so #5533 must\
+    \ re-implement it (its FR-020 forbids copying primitives). TextScreen always substitutes paths and\
+    \ addresses; a governance file whose legitimate content contains such text has no verbatim-with-credential-check\
+    \ mode, so a different redaction needs a second function."
+  remediation: "Add to \xA77.1 a 13th seam: the single AdmissionGate bean (in DetailInfrastructureWiring)\
+    \ with the statement that every operation that holds a capped body in memory acquires it, and re-state\
+    \ the NFR-002 bound for both contexts. Move the NUL test next to the strict decode (a `TextRead.NotText`\
+    \ outcome covers 'NUL or invalid UTF-8', or a shared `TextChecks.hasNul` in domain.derive) so one\
+    \ check serves both. Give TextScreen an explicit second entry point (credential check only, text unchanged)\
+    \ or state that governance uses Projector.human and the check separately, so no one forks the function."
+- id: PLAN-ARCH-006
+  lens: 5533-seam (refusal-kind set)
+  severity: 3
+  title: "The 'closed set of refusal kinds' of \xA77.2 is a table, not a type; it spans three mechanisms\
+    \ and omits VANISHED, so"
+  evidence:
+  - artifact: "plan.md \xA7 7.2 (seven kinds; originates as a returned result, a thrown SourceFault, or\
+      \ TextScreen.SecretFound); \xA7 7.1 row 6 (PATH_REFUSED, VANISHED, DIR_UNREADABLE, FILE_UNREADABLE);\
+      \ \xA7 7.3 D-68; \xA7 13 DetailRefusal kinds (eight, different set)"
+  - artifact: kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md OD-1 (injective map from refusal
+      kinds to governance codes) and SPEC-FRESH3-010 (distinct kinds for over-cap, not-text, credential,
+      symlink)
+  - code: "contracts/mission-status/schemas/ArtifactRefusalCode.yaml (seven codes, 400/404/413/415/422/500):\
+      \ the table's status column matches; VANISHED has no row anywhere in \xA77.2"
+  claim: "The statuses in \xA77.2 are consistent with the frozen contract and with the spec status table\
+    \ (A2 to A7). But the 'set' is not a Java type: three kinds are returned results, two are thrown,\
+    \ one is a domain screen outcome, and DetailRefusal (the application's own, route-vocabulary set with\
+    \ eight members) is a fourth enumeration. #5533 cannot make an injective map from a markdown table.\
+    \ VANISHED (thrown by the port per \xA77.1 row 6) is in neither \xA77.2 nor the spec table for a content\
+    \ read (spec: a vanished file is a 404), so the application's mapping of that fault is undefined.\
+    \ 'Closed' is asserted but no test pins it."
+  remediation: "Introduce one enum in application.port.out (for example TextRefusal: NOT_FOUND, NOT_REGULAR,\
+    \ PATH_REFUSED, OVER_CAP, NOT_TEXT, SECRET_REFUSED, IO_FAILURE) plus a pure function from each TextRead/BytesRead/fault/Screened\
+    \ outcome to it, and have ArtifactService map TextRefusal to DetailRefusal. Add VANISHED to \xA77.2\
+    \ (Absent semantics, 404 on content, omitted on listing) and a reflection test that the enum equals\
+    \ the table. DetailRefusal then needs no kinds the table lacks."
+- id: PLAN-ARCH-007
+  lens: 5533-seam (stay versus shared package, D-69)
+  severity: 3
+  title: D-69 treats the
+  evidence:
+  - artifact: "plan.md \xA7 7.1 rows 4 and 9 (#5533 adds the value GOVERNANCE to ReadScope and appends\
+      \ its PathClass values and ENTRIES after entry 22 and the README lines); \xA7 7.4 table ('No rule\
+      \ changes', 'diff is additive'); \xA7 14 E-3 ('Coordination (not an escalation)')"
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java
+      PathClass (closed enum), ENTRIES, CLASSIFIERS; AllowlistReadmeParityTest compares entry for entry;
+      ArchitectureRules.DEFINED_RULE_COUNT
+  - artifact: 'kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md PD-7 (a choice that moves #957-owned
+      classes is raised with the operator as an Open Decision; the alternative of a governance-owned registry
+      over a shared seam)'
+  claim: 'Staying in missionstatus means governance''s allowlist classes, scope value, README fence lines
+    and rule count live inside files this mission owns and #5529 owns: the ''sibling context'' of FR-017
+    then edits the missionstatus context in four places (ReadScope, PathClass/ENTRIES/classify switch,
+    README fence, ArchitectureRules count). The plan presents ''stay'' as additive and cheap-to-reverse,
+    and weighs only the extract-a-package alternative. It does not consider the registry alternative that
+    PD-7 names, and it does not raise the closed-enum edit as an Open Decision, which #5533''s spec requires.
+    If the operator decides differently the Allowlist and AllowlistReadmeParityTest shape of P5 changes.'
+  remediation: "Add to D-69 a row for the third option (governance registers PathClass-like classes through\
+    \ a small public seam implemented once in missionstatus, so the closed enum is not edited) and decide\
+    \ between it and 'append to the enum'. Record the choice as an Open Decision for the operator (new\
+    \ E-7, not E-3's awareness), listing the exact #957-owned symbols #5533 would edit. If 'append' stays,\
+    \ say so in \xA77.1 as 'edits ReadScope, PathClass, ENTRIES, README' rather than 'TextSource itself\
+    \ does not change'."
+- id: PLAN-ARCH-008
+  lens: Canonical source and generated artifacts
+  severity: 3
+  title: The regeneration command for gradle/verification-metadata.xml omits bootJar, which the CI strict
+    step resolves
+  evidence:
+  - artifact: "plan.md \xA7 2 table row 'gradle/verification-metadata.xml' (regenerate: `./gradlew --write-verification-metadata\
+      \ sha256 check nativeCompile nativeTest nativeSmoke -PnativeBinary=<built binary> jacocoTestReport\
+      \ openApiGenerate --refresh-dependencies`)"
+  - code: '.github/workflows/mission-status-api.yml step ''Verify dependencies strictly'': runs `./gradlew
+      --no-daemon --dependency-verification strict bootJar testClasses`, and its echo hint is `... jacocoTestReport
+      openApiGenerate bootJar --refresh-dependencies`'
+  claim: The plan's command drops `bootJar`, the task the strict gate itself runs and the workflow's own
+    remediation hint includes. Metadata regenerated with the plan's command can lack the bootJar-only
+    dependencies, so the strict step then fails on every leg. The plan says 'no change planned' but gives
+    this command as the sole permitted route if a phase touches the file (P2 may, via a new generator
+    model).
+  remediation: Replace the command by the workflow's hint verbatim (copy-paste, per the transcribed-commands
+    lesson) with `bootJar` added, keep `-PnativeBinary` only if nativeSmoke truly requires it, and add
+    the strict verify command (`./gradlew --no-daemon --dependency-verification strict bootJar testClasses`)
+    as the freshness check beside VerificationTamperTest.
+- id: PLAN-ARCH-009
+  lens: Layering (bounded listing on the fence seam)
+  severity: 3
+  title: The plan changes AllowlistAccess only by adding scoped(ReadScope), but FilesystemTextSource.list
+    needs a bounded listing and the existing seam lists everything
+  evidence:
+  - artifact: "plan.md \xA7 1 adapter.out.filesystem row (AllowlistAccess +scoped(ReadScope)); \xA7 7.1\
+      \ row 1 (`list(FileRef dir, int nameLimit, ReadScope scope)`) and row 5 (`limitReached`); \xA7 13\
+      \ 'Walk and listing' (nameLimit = 100000 - counter); NFR-002 bounded memory"
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistAccess.java
+      `List<String> listNames(Path dir)` returns all names of a directory, with no limit parameter
+  claim: "limitReached and trustworthy cannot be produced from a method that returns the whole directory.\
+    \ An implementer who follows the plan literally reuses listNames and truncates afterwards, which materialises\
+    \ a 100001-plus name list per directory and defeats the bounded-memory claim (AC-4.9, NFR-002) that\
+    \ the walk's 1001-path heap is meant to deliver. Nothing in \xA71, \xA713 or P5 names the new method\
+    \ on the seam, its recorder entry, or the NoUncappedReadTest-style guard that stops a later caller\
+    \ from using the unbounded one."
+  remediation: "Add to P5 and \xA713 an explicit `listNames(Path dir, int limit)` (returning names plus\
+    \ a more-exist flag, via DirectoryStream iterated lazily) on AllowlistAccess and AllowlistPassThrough,\
+    \ make the recorder log it as LIST, and extend NoUncappedReadTest (or a sibling) so FilesystemTextSource\
+    \ cannot call the unbounded variant. Test it with a directory of limit+2 entries asserting at most\
+    \ limit+1 names were pulled."
+- id: PLAN-ARCH-010
+  lens: Reflexivity and phasing consistency
+  severity: 3
+  title: Section 11 states both that P5 depends on P4 and that P5 runs concurrently with P4
+  evidence:
+  - artifact: "plan.md \xA7 11 phase table row P5 ('Depends on: P1, P4'); \xA7 11 'Write-scope completeness\
+      \ and chokepoints' ('after P1, P2 || P3 || P4 || P5 (disjoint ...)'); row P7 ('P4, P5')"
+  claim: "The tasks stage maps phases to work-package dependencies. The same section gives P5 a dependency\
+    \ on P4 and lists it in the concurrent set with P4, so lane assignment and dispatch order are ambiguous,\
+    \ and \xA77 relies on P5 landing early for #5533 ('Its Java work packages land after phase P5'). The\
+    \ dependency is also unexplained: P5's content (port, fence, redaction) does not read the Python goldens,\
+    \ only the exit gate mentions AC-7 to AC-11 tests."
+  remediation: "Decide one reading: if P5 truly needs P4 goldens, remove P5 from the concurrent set and\
+    \ state the cost to #5533's start; if it does not, change the row to 'Depends on: P1' and move the\
+    \ golden-dependent assertions to P7. Reflect the result in the \xA77 sentence about when #5533 may\
+    \ start."
+- id: PLAN-ARCH-011
+  lens: Layering (class inventory)
+  severity: 2
+  title: "Decoder result types ReviewCycleMeta, LanesResult (Manifest, Corrupt, Legacy) and the StrictUtf8\
+    \ return type have no package in the \xA71 or \xA713 inventory"
+  evidence:
+  - artifact: "plan.md \xA7 13 Ports ('FrontmatterDecoder ... ReviewCycleMeta decodeReviewCycle(byte[])',\
+      \ 'LanesDecoder (LanesResult decode(byte[]): Manifest, Corrupt or Legacy)'); \xA7 1 domain.model\
+      \ list (WpId, WpMetadata, FrontmatterResult, LanesManifest, ...); \xA7 8 FRESH3-001 (StrictUtf8\
+      \ in adapter.out.filesystem.codec)"
+  - code: ArchitectureRules rule 12a (codec depends among project packages only on domain and codec) and
+      rule 2b (application only on application and domain); a grep of src for ReviewCycleMeta and LanesResult
+      finds nothing today
+  claim: "ReviewCycleMeta and LanesResult are used in the port signatures but appear in no layer list,\
+    \ no write scope and no JaCoCo count. If they sit in port.out the codec classes (ReviewCycleCodec,\
+    \ LanesCodec) may not return them (12a); if in domain.model they are missing from \xA71 and the 'every\
+    \ path owned' claim. StrictUtf8 cannot return the port-level TextRead.NotText for the same reason,\
+    \ so its result type is also unplaced."
+  remediation: "Add the types to \xA71/\xA713 under domain.model (records or a sealed interface) and to\
+    \ the owning phase's write scope (P6), and state that StrictUtf8 returns a domain-neutral result (decoded\
+    \ String or a rejection) which FilesystemTextSource maps to TextRead. Re-count the application and\
+    \ domain class totals for the JaCoCo floors afterwards."
+- id: PLAN-ARCH-012
+  lens: Contracts (coupled
+  severity: 2
+  title: The C-005 re-check is prose ('re-read the symbols') with no command and no pin
+  evidence:
+  - artifact: "plan.md \xA7 Readiness facts row 'Coupled #5529 symbols (C-005)'; \xA7 11 chokepoints final\
+      \ sentence; Risks R-24"
+  - code: services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java
+      (15 PathClass values, 11 ENTRIES verified today)
+  claim: 'Fourteen coupled symbols are listed with specific shapes (value counts, private method names,
+    package-private visibility) that #5529''s fold rounds can change. The only stated procedure is that
+    each phase''s first step ''re-reads'' them, which is exactly the silent-success failure mode of this
+    repository. A merged #5529 tip that renames `resolve` or makes ProjectionCache public is noticed only
+    if a person reads carefully.'
+  remediation: "Add a small mechanical pre-flight to P0 or P1 (a script or a test in tests/ci, run in\
+    \ each phase's gate list): assert the shape facts that the plan relies on (enum value counts, ENTRIES\
+    \ size, DEFINED_RULE_COUNT, constructors, visibility) and print the #5529 tip sha it ran against.\
+    \ Cite the command in \xA75 and in R-24."
+- id: PLAN-ARCH-013
+  lens: 5533-seam (verifiability)
+  severity: 1
+  title: Section 7 and D-69 cite
+  evidence:
+  - artifact: "plan.md \xA7 7.1 to \xA7 7.4; kitty-specs/rehome-dashboard-read-surface-01M4S6D0/spec.md\
+      \ at the sibling #5533 workspace (not on any ref of this repository, git for-each-ref shows none)"
+  claim: 'I verified the cited identifiers against the sibling checkout and they exist and match (PD-7,
+    FR-017, G3a/G4a/G4b, FR-020). But #5533''s spec is not reachable from a ref of this repository, so
+    a later reader cannot re-verify, and #5533''s spec is still moving (round-3 findings are carried as
+    plan obligations).'
+  remediation: "Record in \xA77 the #5533 spec commit the references were checked against (short sha of\
+    \ its HEAD, cdce434a3 at review time) and that a #5533 change to those identifiers needs the note\
+    \ both missions' design-decisions already require."
+- id: PLAN-FIT-001
+  lens: spec fidelity / deviation handling
+  severity: 3
+  title: S-13 (gate getWorkPackage with includePrompt=true) amends FR-022 and NFR-002 only and leaves
+    AC-22.1 to AC-22.4, FR-004 and the NFR-002 scenario contradicting it
+  evidence:
+  - artifact: "plan.md \xA7 14 S-13 and E-1; \xA7 13 Admission gate; traces/design-decisions.md D-85"
+  - artifact: spec.md FR-022 (three heavy operations), AC-22.1 (16 calls to each of the three operations,
+      48 in all), AC-22.2 (getWorkPackage must still complete during the block), AC-22.4, FR-004 Bounds
+      sentence, NFR-002 scenario
+  claim: S-13 widens the heavy set to four operations (getWorkPackage with includePrompt=true) and says
+    it needs only FR-022 and NFR-002 text. But AC-22.2 explicitly lists getWorkPackage as an operation
+    that must NOT wait behind the gate, AC-22.1 counts 48 calls over three operations, and FR-004 names
+    the three heavy routes. After the spec-fold as written, the spec contradicts itself and the gate test
+    of P8/P10 has two readings. E-1 also calls FR-022 "an operator-ruled requirement shape (D-64)"; D-64
+    itself says the queuing behaviour is the specification's own decision, not an operator ruling. The
+    deviation is flagged and has an owner (the operator), which is right, but its amendment list is incomplete
+    and its justification overstated.
+  remediation: 'Extend S-13 to name every spec element it changes: AC-22.1 (add the includePrompt=true
+    variant, 64 calls), AC-22.2 (getWorkPackage without a prompt is ungated, with a prompt is gated),
+    AC-22.4, the FR-004 "heavy routes" sentence and the NFR-002 scenario. Reword E-1 to say D-64 is a
+    specification decision reported to the operator, not an operator ruling. State the decline path (drop
+    the includePrompt gating and amend NFR-002 to say prompt requests are ungated) in the same list.'
+- id: PLAN-FIT-002
+  lens: spec fidelity / phase-to-AC traceability
+  severity: 3
+  title: P8 exit gate claims AC-22.1 to AC-22.3 but no heavy service exists until P10/P11/P12
+  evidence:
+  - artifact: "plan.md \xA7 11 phase table, row P8 (exit gate lists AC-22.1 to AC-22.3; write scope has\
+      \ AdmissionGate, AdmissionGateTest, PlainCaller only) versus rows P10, P11, P12 which own WorkPackageService,\
+      \ WorkPackageDetailService, ArtifactService"
+  - artifact: spec.md AC-22.1 ('16 concurrent calls to each of the three operations through the port'),
+      AC-22.3 (planted bypass of 'one port implementation')
+  claim: 'AC-22.1 to AC-22.3 are acceptance tests at the inbound port over the real heavy operations,
+    with a latch in the source and a bypass variant of a port implementation. In P8 none of those implementations
+    exists (P8 depends on P5 and P7 only). The P8 gate can only unit-test AdmissionGate in isolation,
+    which is not what the AC states, so the AC is either vacuous at P8 or untestable and the plan''s traceability
+    ("FR-022, AC-22.1 to AC-22.4: P8 AdmissionGate; P13 HTTP leg") leaves the real port-level test with
+    no owner.'
+  remediation: 'Split the ACs: P8 owns the AdmissionGate unit test (permit count, fairness, release in
+    finally, high-water accessor); the port-level legs of AC-22.1 to AC-22.3 are owned by the last of
+    P10, P11, P12 (state which, e.g. P12) and appended to the plain-caller harness, with the planted-bypass
+    variant there. Update the P8 exit gate, the traceability row and the revert-fails row accordingly.'
+- id: PLAN-FIT-003
+  lens: spec fidelity / requirement coverage
+  severity: 3
+  title: AC-6.4 and the SK-353 decision have no plan element; the ledger entry is read but never resolved
+  evidence:
+  - artifact: "plan.md Charter Check (lists SK-353 among the ledger entries read); \xA7 11 traceability\
+      \ row 'FR-006, AC-6.1 to AC-6.6' (no nightly or SK-353 element); \xA7 5 nightly-corpus row; \xA7\
+      \ Risks (R-14 to R-25, no SK-353 or R-10 carry-over)"
+  - artifact: spec.md AC-6.4 ('the SK-353 Missions ... are served as the oracle serves them or refused
+      with projection_refused; whichever is chosen is recorded as a design decision and pinned by a fixture');
+      Risks R-10; Ledger accounting SK-353
+  claim: The string 'AC-6.4' occurs nowhere in the plan and SK-353 occurs only in a list of entries read.
+    The spec requires a decision (serve as the oracle serves, or refuse with projection_refused) pinned
+    by a fixture, plus a nightly all-file comparison that names the first difference (file, side, class).
+    The 27 wpm cases do not include a subtasks-as-mapping file, the decoder spike (P6) is not told to
+    decide it, and the nightly extension in P13 is described for routes, not for per-file decode classes.
+    A mapping-shaped subtasks file would then be decided by whatever the YAML decoder happens to do.
+  remediation: 'Add to the plan: (a) the SK-353 decision (recommended: refuse with projection_refused
+    unless the spike proves identical decode), recorded as a new D-87 and a numbered fixture (wpm-28 or
+    a named fixture in class wp-malformed-frontmatter, with Count amended in the spec-fold); (b) an AC-6.4
+    element in P13 (per-Work-Package-file decode-class comparison in mission_status_corpus_compare.py,
+    first difference named); (c) add AC-6.4 to the traceability row and to the P6/P13 exit gates; (d)
+    carry spec R-10 into the plan risk table.'
+- id: PLAN-FIT-004
+  lens: spec-vs-code claims
+  severity: 3
+  title: Meta-read counts for getWorkPackage and getWorkPackageDetail are asserted equal to getMission
+    without saying those routes derive the head
+  evidence:
+  - artifact: "plan.md Readiness facts row 'Meta reads per request'; \xA7 8 FRESH3-002 (three warm / four\
+      \ cold on getMission, getWorkPackage and getWorkPackageDetail); \xA7 9 item 1 (OverviewReader owns\
+      \ overview(ref), ledger(ref, mid8), derive)"
+  - code: 'MissionStatusService#overview (readMeta, then ledger), #ledger (source.stampLedger, source.readLedger
+      on a miss); FilesystemMissionEventSource#readMeta (one read), #stampLedger and #readLedger (each
+      call ledgerPath -> ReadDirResolver#resolve, which reads meta.json)'
+  claim: 'Verified against the code: readMeta costs one meta.json read, and stampLedger and readLedger
+    each cost one more through ReadDirResolver. So the matched Mission costs lookup 1 + readMeta 1 + stampLedger
+    1 (+ readLedger 1 cold) = 3 warm / 4 cold only if the route calls OverviewReader.overview(ref). A
+    route that needs only the snapshot (getWorkPackage, getWorkPackageDetail do not need the head) and
+    calls ledger(ref, mid8) directly costs 2 warm / 3 cold; a route that also keeps the spec''s separate
+    ledger probe (FR-001 ''the ledger routes then probe the ledger themselves'') costs 4 / 5. The plan
+    pins the AC-1.8(c) amendment to ''exactly'' three/four for all three routes and a revert test (MetaReadCountTest)
+    on those numbers, but never states which OverviewReader entry each route calls or whether the probe
+    is separate, so the pinned number is a guess that is red-or-green depending on an unwritten design
+    choice. The same choice decides whether a junk lastTransitionAt of another Work Package turns getWorkPackage
+    into an M3 500 (the plan''s FRESH3-003 table row says whole-head M3 for the Work Package routes).'
+  remediation: "In \xA7 13 (or \xA7 9) state per route which OverviewReader method is called (overview(ref)\
+    \ for getMission; ledger(ref, mid8) or overview(ref) for the two Work Package routes) and that the\
+    \ ledger probe of FR-001 is the one inside ledger(), not an additional stampLedger. Then recompute\
+    \ the counts per route (getMission 3/4; the Work Package routes accordingly), amend the S-2 AC-1.8(c)\
+    \ wording per route, and make the FRESH3-003 M3 row match the choice."
+- id: PLAN-FIT-005
+  lens: architecture fit / rule 13 consistency
+  severity: 3
+  title: The code-point-ordered subtasks serializer is placed in "the mapper", which rule 13 forbids from
+    using CodePoints
+  evidence:
+  - artifact: "plan.md \xA7 11 P2 go/no-go rule (b) ('the mapper emits it through a code-point-ordered\
+      \ list serializer'); \xA7 13 rule 13 row (mappers depend only on records and enums of domain.model\
+      \ ... not domain.derive); S-15; D-86"
+  - code: domain/model/CodePoints.java (static compare, a non-record class); config/MissionStatusApplicationJson#mapper
+      (ORDER_MAP_ENTRIES_BY_KEYS sorts Map keys by String natural order, UTF-16)
+  claim: 'The UTF-16 versus code point claim is correct (Jackson''s key ordering uses String natural order;
+    Python''s json sort_keys uses code points). But the remedy puts the ordering logic in the contract
+    mapper of adapter.in.http.detail, whose subject is rule 13: it may depend on records and enums of
+    domain.model only, and CodePoints is a utility class. Either the mapper breaks rule 13, or the planted-violation
+    control of rule 13 must exempt it, which D-50 forbids (no exemption list). Sorting in the application
+    and handing the mapper a LinkedHashMap does not help because ORDER_MAP_ENTRIES_BY_KEYS re-sorts it
+    in UTF-16 order.'
+  remediation: 'Say where the serializer lives: a ValueSerializer registered in config (like PinnedPercentage
+    in MissionStatusApplicationJson) or in adapter.in.http outside the rule 13 subject, with the comparison
+    coming from domain via a type rule 13 admits, or have the application emit the subtasks as an ordered
+    list of entries and a single serializer write it as a JSON object. Add the choice to S-15 and to P10''s
+    write scope (the file is not in any phase scope today).'
+- id: PLAN-FIT-006
+  lens: plan internal consistency / PR shape (D-54)
+  severity: 3
+  title: 'The phrase P5 merge has no meaning under the single draft PR of D-54; the #5533 import seam
+    is undefined'
+  evidence:
+  - artifact: "plan.md \xA7 7 intro ('Its Java work packages land after phase P5', 'a change ... after\
+      \ P5 merges'), \xA7 7.4 and E-3 ('based on this mission's branch from the P5 merge on'), \xA7 11\
+      \ 'One PR, readability' (one draft PR, split after P8 only conditionally on 4,000 lines)"
+  - artifact: 'traces/design-decisions.md D-54 (operator: stack on #5529, draft PR whose base is the branch
+      carrying #5529; applies to #957 and #5533); spec.md C-005'
+  claim: "The plan promises #5533 stable seams 'from the P5 merge', but under D-54 this mission has one\
+    \ draft PR and cannot merge before #5529; there is no separate P5 merge unless the plan commits to\
+    \ the split seam, which it only recommends conditionally. E-3 additionally recommends a base for #5533's\
+    \ PR that differs from the D-54 text (which stacks #5533 on #5529 as well). The deviation is flagged\
+    \ with an owner (operator), which is correct, but the stable-seam promise of \xA7 7 depends on an\
+    \ event the plan has not scheduled."
+  remediation: "Decide now whether P0 to P8 is a separate first PR (then say so in \xA7 11 and E-3, and\
+    \ name the commit/branch #5533 imports), or replace 'P5 merge' by 'the P5 commit on the mission branch,\
+    \ imported by commit, rebased when this PR is retargeted'. Put the question to the operator explicitly\
+    \ as E-3's blocking item, since it departs from the literal D-54 text."
+- id: PLAN-FIT-007
+  lens: plan vs process (baseline record)
+  severity: 3
+  title: Baseline base B (design-base tip) will be unreachable after history compaction or a squash of
+  evidence:
+  - artifact: "plan.md \xA7 6 step 1 and 'Ordering is a review item' (record test keeps reading the file\
+      \ after merge; git cat-file -e of both shas); \xA7 11 'Compact the history before the draft PR'"
+  - artifact: 'spec.md AC-21.1 (two resolvable shas, base B ''not earlier than merge fd866831a''); git
+      state: the design-base tip is reachable only from refs/remotes/m5529/lane-b and the mission branch'
+  claim: 'Base A (first parent of 58cd71ec9) is on main. Base B is a commit of #5529''s lane-b merged
+    on this mission branch; the plan itself compacts the mission history before the PR, and #5529 may
+    land by squash, so B can vanish from every ref that main''s CI fetches (fetch-depth 0 fetches reachable
+    history only). The baseline-record test then fails at git cat-file -e on every later run of ''tests
+    (contract tools)''. The spec requires the check; the plan reproduces it without addressing the lifetime
+    of the shas.'
+  remediation: In P0 record B as a commit that is on a ref that will exist (e.g. require B to be an ancestor
+    of the branch the PR targets, and say what to do at retarget), or make the test tolerate an unreachable
+    B only when the record carries a 'sha reachable at capture' attestation plus the tree hash (git cat-file
+    -e on the tree object is not enough either). At minimum raise it as an escalation to the operator
+    (new E-7) and amend AC-21.1 in S-12.
+- id: PLAN-FIT-008
+  lens: plan internal consistency (phasing)
+  severity: 2
+  title: P5 is declared dependent on P4 and also concurrent with P4
+  evidence:
+  - artifact: "plan.md \xA7 11 phase table row P5 ('Depends on P1, P4'); \xA7 11 'Write-scope completeness\
+      \ and chokepoints' ('after P1, P2 || P3 || P4 || P5'); D-80 ('P2 to P5 run concurrently')"
+  claim: "The dependency column and the concurrency paragraph contradict each other; P7 ('after P5, P6\
+    \ || P7') and the #5533 timing in \xA7 7 depend on which one is right. The tasks stage builds WP dependencies\
+    \ from the table."
+  remediation: "Decide whether P5 needs the P4 goldens (if only for P7's golden harness, drop P4 from\
+    \ P5's dependencies; if for AC-11.2 fixtures, remove P5 from the concurrent set) and make the table,\
+    \ \xA7 11 paragraph and D-80 agree."
+- id: PLAN-FIT-009
+  lens: plan internal consistency (write scope)
+  severity: 2
+  title: The claim that every path of the section 13 tree is owned by exactly one phase is false for several
+    classes
+  evidence:
+  - artifact: "plan.md \xA7 11 'Write-scope completeness' claim; \xA7 1 layer table and \xA7 13 tree (HistoryOrder\
+      \ in domain.derive); \xA7 13 Ports text (ReviewCycleMeta, LanesResult); \xA7 11 P2/P10 write scopes\
+      \ (adapter.in.http.dto records); \xA7 7.1 row 10 (ArtifactLimits as a seam)"
+  claim: "domain.derive.HistoryOrder appears in the layer table and tree but in no phase's write scope;\
+    \ the hand DTO records of adapter.in.http.dto (certainly WorkPackage per the P2 rule) are in no write\
+    \ scope (P2 owns only build.gradle.kts, ContractDriftProbe, its test and research.md); ReviewCycleMeta\
+    \ and LanesResult are named as port result types but are in neither the layer table nor the tree nor\
+    \ P6's scope; ArtifactLimits is promised to #5533 as a stable seam from P5 (\xA7 7.1 row 10) while\
+    \ its phase is P12."
+  remediation: "Assign each to a phase (HistoryOrder to P3 or P10; dto records to P10; ReviewCycleMeta/LanesResult\
+    \ to P6 with the tree updated) and either move ArtifactLimits to P5 or drop it from \xA7 7.1."
+- id: PLAN-FIT-010
+  lens: spec-vs-code claims / fence classification
+  severity: 2
+  title: Fence description says the root status.events.jsonl is unclassified under both scopes; under
+    AUTHORED it is the LEDGER class
+  evidence:
+  - artifact: "plan.md \xA7 13 'Scope views of the fence (D-77)' last clause of the classification sentence;\
+      \ spec.md FR-011 'Read scope and precedence' (same wording, inherited)"
+  - code: adapter/out/filesystem/Allowlist.java CLASSIFIERS entry PathClass.LEDGER 'kitty-specs/<seg>/status.events.jsonl';
+      ENTRIES first line '<read-dir>/status.events.jsonl'
+  claim: 'The plan says that under AUTHORED the existing classifier applies and, in the same paragraph,
+    that the root status.events.jsonl is unclassified under both scopes. Under AUTHORED the ledger routes
+    read exactly that path as LEDGER. Implemented literally, Allowlist.classify(scope, ...) would stop
+    the three ledger routes (and #5529''s routes) from reading their ledger. The AC-11.4 list in the spec
+    correctly names only status.json variants.'
+  remediation: 'Reword to: under ARTIFACT the root status.events.jsonl and status.json (any case) are
+    unclassified; under AUTHORED status.json variants are unclassified and the root status.events.jsonl
+    stays LEDGER at its exact name. Add the LEDGER-under-AUTHORED READ as the green twin in the AC-11.4/AC-11.2
+    control.'
+- id: PLAN-FIT-011
+  lens: spec-vs-code claims / phase derivation
+  severity: 2
+  title: lifecycleTypes taken from LineKind.Lifecycle is narrower than the oracle's rule
+  evidence:
+  - artifact: "plan.md \xA7 11 P3 (StatusSnapshot gains lifecycleTypes, 'the reducer currently ignores\
+      \ lifecycle lines'); D-86; \xA7 13 Phases"
+  - code: adapter/out/filesystem/codec/RowClassifier#lifecycleOrIgnored (a row with event_type becomes
+      Lifecycle only if the type is one of the seven forwarded types and event_id and timestamp are strings,
+      else Ignored); domain/model/LifecycleEvent#isForwarded; StatusReducer#reduceLines (case Lifecycle
+      -> ignored); tests/contract/_mission_status_payloads.py _lifecycle_types (any row whose event_type
+      is a string)
+  claim: The claim that the reducer ignores lifecycle lines is correct. But the oracle collects every
+    string event_type, while Java's classifier drops a PlanStarted/TasksCompleted row that lacks a string
+    event_id or timestamp to Ignored, so a phase would be pending in Java and in_progress or complete
+    in the oracle for such a row. No fixture in phases-matrix covers a lifecycle row without event_id/timestamp.
+    Real ledgers carry both, so the divergence is dormant but unrecorded, in a plan whose point is parity.
+  remediation: Either derive lifecycleTypes from the oracle's rule (any row with a string event_type among
+    the six phase markers, independent of the forwarded classification) or add a fixture and a knownDivergence
+    entry for a marker row lacking event_id or timestamp.
+- id: PLAN-FIT-012
+  lens: traceability
+  severity: 2
+  title: AC-15.2 (contract examples) and the Java-only lookup-faults class (V9) have no named phase element
+  evidence:
+  - artifact: "plan.md \xA7 11 traceability rows 'FR-015, AC-15.1 to AC-15.3' (P2, P13 only), 'FR-001'\
+      \ (no lookup-faults); P4 and P7 class lists; P9 ('lookup fixtures')"
+  - artifact: spec.md AC-15.2 (every example under contracts/mission-status/examples reproduced by a fixture
+      or named as not reproduced), FR-014 class table row lookup-faults (Count 3), V9
+  claim: "The command list in \xA7 5 runs test_mission_status_examples.py, but no phase owns the AC-15.2\
+    \ obligation to reference every example. The class lookup-faults is Java-only (no oracle golden),\
+    \ so P4 does not own it, P7 does not list it, and only P9's 'lookup fixtures' phrase could cover it;\
+    \ its CLASS_FLOORS entry and the V9 manifest entry have no owner."
+  remediation: Add AC-15.2 to P13 (or P12) with the example-to-fixture map, and add lookup-faults (3 fixtures,
+    V9) to the P7 harness scope and to the discovered-count guards list.
+- id: PLAN-FIT-013
+  lens: nit
+  severity: 1
+  title: Minor wrong names and an unmatched grep
+  evidence:
+  - artifact: "plan.md \xA7 7.1 row 11 ('testsupport.RecordingAllowlistAccess'); Readiness facts ('NoUncappedReadTest\
+      \ allows openRead calls only in SafeFiles, the ledger source and AllowlistPassThrough'); \xA7 5\
+      \ grep -rniw 'feature'"
+  - code: src/test/java/.../adapter/out/filesystem/RecordingAllowlistAccess.java; architecture/NoUncappedReadTest
+      MAY_OPEN_FOR_READ (SafeFiles, FilesystemMissionEventSourceLedger, AllowlistPassThrough, AllowlistAccess)
+  claim: RecordingAllowlistAccess lives in the adapter.out.filesystem test package, not testsupport; MAY_OPEN_FOR_READ
+    also lists AllowlistAccess; and grep -w 'feature' cannot match the legacy token feature_slug (underscore
+    is a word character), so the stated expectation of the grep is wrong (the legacy lanes detection in
+    src/main will contain that literal).
+  remediation: Correct the package, add AllowlistAccess to the list, and use grep -rniE 'feature' with
+    an explicit allowance for the marked legacy literal.
+- id: PLAN-SEQ-001
+  lens: Phasing (dependency order)
+  severity: 4
+  title: Concurrent set P2 || P3 || P4 || P5 contradicts the Depends-on column, and P3 and P4 depend on
+    each other
+  evidence:
+  - artifact: "plan.md \xA7 11 phase table: P5 'Depends on P1, P4'; P3 'Depends on P1 (and P4's resolved-state\
+      \ goldens ...)'; P4 'Depends on P1'"
+  - artifact: "plan.md \xA7 11 'Write-scope completeness and chokepoints': 'after P1, P2 || P3 || P4 ||\
+      \ P5'"
+  - artifact: "plan.md \xA7 11 P3 row: member-to-source mapping written into M/data-model.md by P3, 'then\
+      \ pinned by the oracle gate'; P4 row: class resolved-state"
+  claim: 'The table says P5 needs P4 and P3''s golden-dependent members need P4''s resolved-state goldens,
+    yet the concurrency paragraph runs all four in parallel. There is also a cycle in substance: P4 must
+    generate the resolved-state golden class, whose member set P3 only defines in data-model.md (its first
+    commit), and P3''s mapping is validated by that same oracle gate. A tasks stage that follows the concurrency
+    paragraph builds P5 before the oracle/goldens it is gated on, or lets P4 invent the member set P3
+    is meant to derive.
+
+    '
+  remediation: 'Make the order explicit: P3a (data-model.md mapping only, first commit) -> P4 (resolved-state
+    class, consuming the mapping) -> P3b (reducer, pinned by the goldens); or split the resolved-state
+    class into its own P4b after P3a. Change the concurrency sentence to ''P2 || P3a || P4 (non-resolved-state
+    classes)'' and start P5 after P4. Update the Depends-on column to match, one source of truth.
+
+    '
+- id: PLAN-SEQ-002
+  lens: Phasing (dependency order)
+  severity: 3
+  title: P2 (contract models and build spike) is a dependency of no later phase
+  evidence:
+  - artifact: "plan.md \xA7 11: P9..P12 Depends-on lists P3, P6, P7, P8, P9, P5; P13 lists P9 to P12;\
+      \ none lists P2"
+  - code: services/mission-status-api/build.gradle.kts openApiGenerate (FILTER limited to getProject|listMissions,
+      explicit models list)
+  claim: 'The route phases'' mappers and the go/no-go decision (generated model versus hand DTO, certainly
+    WorkPackage) depend on P2''s output, but nothing orders P2 before P9. As written P9 may start with
+    the old model list, and P2 (the only phase allowed to edit build.gradle.kts) can land after, or be
+    skipped, without breaking a stated dependency.
+
+    '
+  remediation: Add P2 to the Depends-on of P8 (shared wiring and mappers) and P9, P10, P11, P12; state
+    P2 must merge before P8.
+- id: PLAN-SEQ-003
+  lens: Phasing (primitives before routes /
+  severity: 4
+  title: '''Seams stable from the P5 merge'' is false for seams 11 and 12: they land in P7 and P8'
+  evidence:
+  - artifact: "plan.md \xA7 7 intro and E-3: 'Its Java work packages land after phase P5'; seams stable\
+      \ 'from the P5 merge'"
+  - artifact: "plan.md \xA7 7.1 rows 11 (testsupport.InMemoryTextSource, RecordingAllowlistAccess pattern,\
+      \ cap-race injector) and 12 (config.DetailInfrastructureWiring#textSource())"
+  - artifact: "plan.md \xA7 11: P7 owns T/testsupport/**; P8 owns J/config/DetailInfrastructureWiring.java;\
+      \ P5's write scope has neither"
+  claim: '#5533 is promised two of its twelve seams (the test doubles it reuses for fence and growth fixtures,
+    and the one TextSource bean) at P5, but its own scope table puts them in P7 and P8. #5533''s Java
+    WPs that wait only for P5 would find neither the double nor the wiring, and the ''changes need the
+    operator''s word'' rule cannot protect names that do not exist yet.
+
+    '
+  remediation: "Either move InMemoryTextSource, the recorder and the cap-race injector to P5 (and a minimal\
+    \ textSource() bean, or state #5533 builds its own), or restate the milestone: 'primitives complete\
+    \ = P8' and have \xA7 7, E-3 and the P5 sentences in \xA7 11 say P8. Add a seam-to-phase column to\
+    \ the \xA7 7.1 table.\n"
+- id: PLAN-SEQ-004
+  lens: Stack / no-push consistency
+  severity: 4
+  title: '''#5533''s Java PR based on this branch from the P5 merge'' has no referent in a one-PR, compacted,
+    never-pushed stack'
+  evidence:
+  - artifact: "plan.md header 'Branch contract' (one draft PR stacked on #5529, no agent pushes, opens\
+      \ or retargets) and \xA7 11 'Compact the history before the draft PR'"
+  - artifact: "plan.md \xA7 7.4 table 'Stacked PR' row, E-3, \xA7 14 E-3 'based on this mission's branch\
+      \ from the P5 merge'"
+  - artifact: "plan.md \xA7 11 'One PR, readability': split seam after P8"
+  claim: 'Phases are commits (or lanes) inside one PR; there is no ''P5 merge'' event on any shared ref.
+    The recommendation is only coherent with the no-push rule if the operator publishes a ref, but (a)
+    history compaction before the draft PR rewrites every phase SHA, so a #5533 branch based on a pre-compaction
+    P5 tip is orphaned; (b) the split seam offered is after P8, not P5, so P5 is not an independently
+    green, reviewable base; (c) the plan neither says who publishes the ref nor that it is an operator-only
+    act. The recommendation is not inconsistent with ''no agent pushes'' as advice to the operator, but
+    as written it is not executable.
+
+    '
+  remediation: "Reword E-3: 'the operator may publish a tip of this branch after P8 (the planned split\
+    \ seam) as the base for #5533's Java PR; agents do not push it'. State that the compaction happens\
+    \ before that ref is published (or that a published base is exempt from rewriting and the series is\
+    \ rebased onto it). Add: a published base ref is frozen, later changes to a \xA7 7.1 name go through\
+    \ the design-decisions note and the operator.\n"
+- id: PLAN-SEQ-005
+  lens: Phasing (risk front-loading)
+  severity: 3
+  title: The YAML decoder spike and all native evidence arrive late (P6 and P13), not front-loaded
+  evidence:
+  - artifact: "plan.md \xA7 11 P6 'YAML 1.1/1.2 parity spike recorded in research.md; native-tagged decoder\
+      \ tests'; P13 owns mission-status-api.yml and all four native legs"
+  - artifact: plan.md Unverified 2 and 5 (no JDK on the planning host; sun.jnu.encoding under native is
+      a 'P5/P13 spike item'); R-15, E-6
+  - code: 'services/mission-status-api/build.gradle.kts: implementation(libs.snakeyaml); nativeTagJvmTest
+      and nativeTest are CI-only for native'
+  claim: 'The plan''s own stated unknowns (YAML dialect parity with ruamel, which decides E-6 ''new dependency
+    or refuse'', and native reflection or encoding behaviour) are all resolved at P5/P6, and the native
+    legs only run on the PR after P13 (the workflow edits are P13 and no agent may push). If the spike
+    fails, P6, P9, P10, P11 and the 27-case corpus wpm-* are already built on the restricted SafeConstructor
+    choice. Unlike P2, which is correctly early, the parity spike has no go/no-go rule and no earlier
+    home.
+
+    '
+  remediation: "Move the YAML parity spike (corpus wpm-14..17 dialect cases through snakeyaml SafeConstructor\
+    \ versus the oracle) into P2 as a research-only deliverable with a go/no-go rule like D-79, before\
+    \ P6 builds on it. Ask the operator for one early pushed checkpoint (or a workflow_dispatch) after\
+    \ P5 and P6 so the native legs run before P9..P12, and say so in \xA7 11.\n"
+- id: PLAN-SEQ-006
+  lens: Write scopes
+  severity: 3
+  title: Write scopes of concurrent phases overlap by glob, and ProjectionCache / lifecycleTypes has no
+    owner
+  evidence:
+  - artifact: "plan.md \xA7 11 P3 scope 'T/domain/**', 'T/adapter/out/filesystem/codec/**' vs P5 scope\
+      \ 'T/domain/projection/**', 'T/adapter/out/filesystem/**'; P6 'T/adapter/out/filesystem/**'"
+  - artifact: "plan.md \xA7 11 P3: 'lifecycleTypes ... which ProjectionCache.Entry does not hold today'"
+  - code: 'services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ProjectionCache.java:
+      record Entry(StatusSnapshot snapshot, StreamCursor cursor)'
+  - artifact: "plan.md \xA7 11 'Every path of the section 13 tree is owned by exactly one phase'"
+  claim: 'P3 (T/domain/**) contains P5''s T/domain/projection/**; P5 and P6 (T/adapter/out/filesystem/**)
+    contain P3''s codec tests, and P3 can run beside P5 and P6. ''Disjoint'' only holds at file level,
+    which the table does not state. Separately P3 adds lifecycleTypes and a resolved map that the cache
+    must carry for NFR-009, yet application/ProjectionCache.java and OverviewDeriver are in no phase''s
+    write scope, so the completeness claim is false and the edit has no owner (P1 may not, being behaviour-preserving).
+
+    '
+  remediation: "Replace the globs with file-precise lists (or sub-directory names) for any pair that is\
+    \ allowed to run concurrently, and add J/application/ProjectionCache.java (and OverviewDeriver if\
+    \ touched) to P3's scope, stating that P1 leaves ProjectionCache alone. Re-run the 'exactly one owner'\
+    \ check mechanically (a script over the \xA7 13 tree).\n"
+- id: PLAN-SEQ-007
+  lens: Stack reflexivity (open PRs)
+  severity: 3
+  title: 'R-16 treats #6122 and #5953 as golden churn, but they change behaviour the Java code must reproduce'
+  evidence:
+  - artifact: 'plan.md Readiness facts ''Open pull requests'' and R-16: ''Goldens are regenerated by --write
+      when such a PR merges first'''
+  - artifact: 'gh pr view 6122: files src/specify_cli/frontmatter.py (block scalars in WP frontmatter);
+      gh pr view 5953: src/specify_cli/status/models.py, store.py, core/subtask_rows.py (skipped subtasks,
+      scoped mark-status)'
+  - artifact: "plan.md \xA7 11 P6 (decoder 'as FrontmatterManager.read does') and P3 (subtasks, review\
+      \ result from status reducer)"
+  claim: 'A merge of #6122 changes what FrontmatterManager.read returns for block scalars, and #5953 adds
+    a ''skipped'' subtask state, in the very code P3 and P6 mirror. Regenerating goldens makes Python''s
+    expectation move but the Java decoder and the FR-020 subtasks projection then diverge (contract enum
+    for subtask state may not even have ''skipped''), and --check fails with no plan-stated owner of the
+    Java fix. Only the first of the three open PRs mentioned (#6127) is plausibly golden-only.
+
+    '
+  remediation: 'Replace R-16 by: for #6122 and #5953, a merge before the P3/P6 freeze is a spec/plan escalation
+    (add a fixture wpm-NN and a subtask-state row, decide mirror versus declare a V-row divergence); after
+    the freeze it goes through the knownDivergence list. Name who rebuilds the Java side. Re-run gh pr
+    list at the start of P3 and P6.
+
+    '
+- id: PLAN-SEQ-008
+  lens: Stack reflexivity (#5529 mid-flight change)
+  severity: 3
+  title: 'R-24 has no rebase procedure; a later #5529 tip silently invalidates the P0 baseline and the
+    sequenced chokepoints'
+  evidence:
+  - artifact: plan.md Risks R-24 and Readiness facts (design base 62a5caec4 containing m5529/lane-b tip
+      4dc35c7d5)
+  - artifact: "plan.md \xA7 11 P0 (baseline-red.yaml and nfr009-base.md captured on 'two bases' of the\
+      \ design base) and 'Chokepoints' last sentence"
+  claim: 'The only procedure is ''re-read the C-005 symbols at the start of each phase; orchestrator-run
+    merge; --check and check''. Missing: (a) whether the merge is a merge commit or a rebase (it interacts
+    with the pre-PR history compaction); (b) that a new #5529 tip makes baseline-red.yaml and nfr009-base.md
+    stale, so the later ''introduced versus pre-existing'' attribution (FR-021) compares against the wrong
+    base; (c) what happens if the changed symbol is one P5 already amended (Allowlist, SafeFiles, AllowlistAccess,
+    ArchitectureRules) and #5533 has based work on P5''s shape; (d) the phase in flight at the time (a
+    rebase mid-P5 versus between phases).
+
+    '
+  remediation: "Add a short procedure to \xA7 11: merge a new #5529 tip only between phases, never during\
+    \ P5 or P8; after it re-run the P0 capture for the affected modules and append a dated delta to baseline-red.yaml;\
+    \ list the four coupled files with the phases that amend them and say a conflict in one is resolved\
+    \ in the owning phase's workspace, with the change noted in design-decisions.md. State the compaction\
+    \ happens after the last such merge.\n"
+- id: PLAN-SEQ-009
+  lens: Chokepoints
+  severity: 2
+  title: Chokepoint list omits packs.yml, ci-router.yml and test_ci_corpus_trigger_completeness.py, and
+    leaves four-way edits of OutOfScopeRoutesTest unserialised
+  evidence:
+  - artifact: "plan.md \xA7 11 P0 scope (packs.yml, tests/architectural/test_ci_corpus_trigger_completeness.py),\
+      \ P4 scope (ci-router.yml and tests/ci/test_contracts_workflows.py 'only if AC-14.6 demands'), P13\
+      \ scope; Chokepoints paragraph"
+  - artifact: "plan.md \xA7 11 P9 to P12 each edit OutOfScopeRoutesTest and R/portlevel-tests.txt; P9\
+      \ || P12 and P10 || P11 are concurrent"
+  claim: 'The shared-CI files touched by P0 and P4 are not named as chokepoints (P13 ''alone'' only covers
+    mission-status-api.yml and the mission_status scripts), so nothing says P0 then P4 serialise on the
+    trigger-completeness registry. The route phases are said to remove ''only their own path'' from OutOfScopeRoutesTest,
+    but up to three phases edit adjacent lines of one list concurrently, a predictable textual conflict.
+    The jacoco ''counted at the commit that adds them'' rule likewise makes every concurrent phase conflict
+    on two lines.
+
+    '
+  remediation: 'Add packs.yml, ci-router.yml and the trigger-completeness test to the chokepoint list
+    with the order P0 then P4. Have P8 pre-split OutOfScopeRoutesTest into one entry per route (one line
+    each, comment-separated) or have the orchestrator land the removals; state that the jacoco counts
+    are re-derived by a script at merge, not by hand.
+
+    '
+- id: PLAN-SEQ-010
+  lens: One PR readability
+  severity: 2
+  title: No size estimate, and the split seam (after P8) is offered without the numbers that would trigger
+    it
+  evidence:
+  - artifact: "plan.md \xA7 11 'One PR, readability': 'if the hand-written diff passes about 4,000 lines';\
+      \ 'Hand-written Java will exceed what is readable'"
+  claim: 'The plan concedes the PR will be unreadable but gives no per-phase line estimate, so the 4,000-line
+    trigger cannot be assessed at the tasks stage. With roughly 40 new main classes plus the tests and
+    the Python oracle, the total is plausibly well beyond the threshold, and the split seam after P8 is
+    also not the point #5533 needs (finding PLAN-SEQ-004).
+
+    '
+  remediation: "Add an estimated added-line table by phase (hand-written main, hand-written test, generated\
+    \ or data) to \xA7 11, decide the split now if the P0 to P8 half is already above the trigger, and\
+    \ make that seam the same ref #5533 bases on.\n"
+- id: PLAN-SEQ-011
+  lens: Phasing (campsite alone, first; baseline before change)
+  severity: 2
+  title: '''Campsite first and alone'' and ''P3 is the first functional change'' hold only loosely: P0
+    edits CI files and P2 precedes P3 in number and may run beside it'
+  evidence:
+  - artifact: "plan.md \xA7 9 'Order of work (D-44): (1) baseline record P0, (2) campsite P1, (3) FR-020\
+      \ P3 as the first functional change' and \xA7 11 concurrency 'P2 || P3 || P4 || P5'"
+  - artifact: "plan.md \xA7 11 P0 scope: packs.yml (one --deselect token), trigger-completeness registry\
+      \ entry"
+  claim: 'P0 changes the Packs workflow before the baseline is complete (its own commits can alter which
+    modules run in the comparison it records), and P2 changes build.gradle.kts (a functional build change)
+    concurrently with P3, so ''P3 first functional change'' is not enforceable. The campsite P1 is correctly
+    alone and behaviour-preserving, but D-44 is read by reviewers as a strict sequence.
+
+    '
+  remediation: 'Order the P0 commits: capture on both bases first (commit 1), then the module, registry
+    entry and deselect token (commit 2), and say the capture is of the design base, not of the P0 tip.
+    Reword D-44 to ''P3 is the first functional change to the reduction; P2 changes the build only''.
+
+    '
+- id: PLAN-VERIFY-001
+  lens: Baseline honesty
+  severity: 4
+  title: AC-21.1 resolves base shas that compaction and the stack retarget make unreachable, so the record
+    test goes red in CI or after merge
+  evidence:
+  - artifact: plan.md section 6 step 1 (two bases) and section 11 'One PR, readability' (Compact the history
+      before the draft PR); section 5 row 'tests (contract tools)' (fetch-depth 0 for the git cat-file
+      -e of AC-21.1)
+  - code: 'git log 58cd71ec9: ''Merge #5529 lane-b (Mission Status Read API overview, unmerged) as the
+      design base for #957'' is a merge commit local to this branch, and fd866831a is likewise; origin/main
+      is d082b1810 (the first parent). Neither is on main.'
+  - code: '.github/workflows/ci-router.yml job tests-contract-tools: actions/checkout with fetch-depth
+      0 fetches only the history of the PR merge ref'
+  claim: 'The record test must `git cat-file -e` two shas. Base A (d082b1810) is on main and durable.
+    Base B is "the design-base tip at capture, not earlier than merge fd866831a", i.e. a commit of this
+    branch or of #5529''s unmerged lane. The plan itself orders a history compaction before the draft
+    PR, and the PR is retargeted to main after #5529 lands (possibly squashed). After either, base B no
+    longer exists in the checkout of tests (contract tools) or of main, so a permanent corpus-marked test
+    fails with a "sha does not resolve" red that is attributable to nobody, on every later PR. The same
+    holds for the AC-21.1 requirement that the record''s module list equal "the glob at the capture sha":
+    that glob can only be computed with `git ls-tree <sha>`, which needs the same reachability. The spec
+    wording "first parent of merge commit 58cd71ec9" also cites a commit that will not survive compaction.'
+  remediation: 'Split the check: the existence check (`git cat-file -e`) applies only to shas on main
+    (base A, recorded as the literal d082b1810-style sha, never as "first parent of 58cd71ec9"); base
+    B is recorded with its sha plus an `ephemeral: true` flag and a description (the #5529 tip it carried),
+    and the test asserts only that it is a 40-hex string that differs from base A. Replace "module list
+    equals the glob at the capture sha" with a module list committed in the test beside the executed floors,
+    plus a test that the live glob is a superset of it. State in S-12 / AC-21.1 that compaction rewrites
+    base B and that this is by design. Add a P0 exit command: after the planned compaction, run the baseline-record
+    module again on the compacted tip.'
+- id: PLAN-VERIFY-002
+  lens: Gates (native floor)
+  severity: 4
+  title: The planned native-tag floor of 8 contradicts the existing pin test, and phases P6 to P12 would
+    leave tests/ci red before P13
+  evidence:
+  - artifact: plan.md section 12 table row 'native-tag-floor --floor' (3 to 8, 'the pin is edited in the
+      same change'); section 11 chokepoints (mission-status-api.yml and tests/ci/test_mission_status_*
+      are P13 alone); P6, P11, P12 add native-tagged tests
+  - code: tests/ci/test_mission_status_api_build.py NATIVE_TAGGED_DIR = TEST_JAVA / 'config' / 'nativetags';
+      native_test_count counts '@Test' lines only in files of that directory containing '@Tag("native")';
+      native_floor_violations requires every --floor to equal that count
+  - code: scripts/ci/mission_status_gate_checks.py _count_executed counts executed JUnit testcase elements
+      (a parameterised or dynamic test counts per invocation)
+  claim: '(1) The pin equates the floor with the number of `@Test` methods under src/test/java/.../config/nativetags.
+    The plan places the new native-tagged tests in decoder, index and route test packages (P6: `T/application/index/**`,
+    `T/adapter/out/filesystem/**`), none of which the pin scans, so after the plan''s edit to `--floor
+    8` the pin computes 3 and goes red; or, if the tests are put under config/nativetags, that directory
+    is in no phase''s write scope. (2) Because P6, P11 and P12 add tagged tests and only P13 edits the
+    workflow and the pin, the pin is red (count 4 to 8 against floor 3) from P6 on, contradicting "every
+    phase leaves the branch green". (3) The pin counts `@Test` lines, the gate counts executed testcases;
+    a `@ParameterizedTest` native test (the natural form of "decoder valid and rejected") is counted 0
+    by the pin and N by the gate, so floor 8 can be both too high for the pin and unreachable in a form
+    the pin counts.'
+  remediation: 'Decide one rule and write it into section 12 and the phase write scopes: native-tagged
+    tests live only in config/nativetags (add `T/config/nativetags/**` to P6, P11 and P12), are plain
+    `@Test` methods (no parameterised native tests, stated in the WP prompts), and each of those phases
+    raises `--floor` (both steps in mission-status-api.yml) and the pin''s expectation in its own commit
+    (an explicit chokepoint exception for those two lines). Alternatively amend `native_test_count` to
+    scan the whole test tree and count executed-style, in P0 or P1. Add the command to run: `.venv/bin/python
+    -m pytest tests/ci/test_mission_status_api_build.py -q` in every phase that tags a test.'
+- id: PLAN-VERIFY-003
+  lens: Gates (nightly-corpus)
+  severity: 4
+  title: The P13 exit gate requires a recorded workflow_dispatch of nightly-corpus, which cannot exist
+    before the workflow reaches main; no local equivalent is given
+  evidence:
+  - artifact: plan.md section 11 P13 exit gate ('one workflow_dispatch recorded for the nightly job (AC-14.5)');
+      Unverified 11 ('the first workflow_dispatch sets it'); section 5 row nightly-corpus (no command
+      in the local block)
+  - code: 'git ls-tree origin/main .github/workflows/mission-status-api.yml services/mission-status-api
+      returns nothing: the workflow and the service exist only on the unmerged #5529 lane'
+  - code: '.github/workflows/mission-status-api.yml job nightly-corpus: `if` allows schedule or workflow_dispatch
+      only'
+  claim: 'GitHub starts a workflow_dispatch run only for a workflow file that exists on the default branch.
+    This workflow is introduced by #5529, unmerged, and this mission is a draft stacked on it (C-005,
+    D-54), so the dispatch AC-14.5 and the P13 exit gate require cannot be performed before #5529 lands
+    and the stack is retargeted; the schedule trigger likewise cannot fire. The exit gate is therefore
+    unachievable in the mission as planned, and the 45-minute provisional timeout and the "no exemptions"
+    claim over 588 Missions are never exercised pre-merge. Section 5 also gives no runnable local command
+    for the job, although it is the only full-corpus check (section 6 relies on it as such).'
+  remediation: 'Add to section 5 an exact local sequence: build the bundle (as in the Java block), `cd
+    services/mission-status-api && ./gradlew --no-daemon bootJar`, start `java -jar build/libs/mission-status-api.jar
+    --mission-status.project-root=<repo> --mission-status.port=8787 &` capturing the PID, run `LC_ALL=C.UTF-8
+    .venv/bin/python scripts/ci/mission_status_corpus_compare.py --base-url http://127.0.0.1:8787 --repo-root
+    . --report <scratch>/nightly-report.json`, then `kill <pid>`; make that recorded local run (counts
+    of Missions and Work Packages compared, elapsed time) the P13 exit evidence, and move the workflow_dispatch
+    to an explicit post-merge item owned by the orchestrator, listed in Unverified. State that the nightly
+    job is untested in CI at PR time.'
+- id: PLAN-VERIFY-004
+  lens: Baseline honesty
+  severity: 3
+  title: '''Never gates this mission''s per-PR checks'' is false for the not-run reality module, and the
+    corpus the module reads includes this mission''s own files'
+  evidence:
+  - artifact: plan.md section 6 'How a failure is told apart' ('a red in a module recorded not run ...
+      never gates this mission's per-PR checks'); FRESH3-005 / D-74; section 5 row tests (corpus-blocking)
+  - code: .github/workflows/ci-router.yml job tests-corpus-blocking runs tests/contract/test_mission_status_reality.py
+      and test_mission_status_payloads.py; router-gate `needs` lists tests-corpus-blocking; the job is
+      selected by `corpus == true` (M/** and contracts/** edits)
+  claim: A red in the reality module turns tests (corpus-blocking) red and therefore router gate red on
+    this very PR, so it does gate it. The sentence is only true of the service gate and the Python pins,
+    which the parenthesis names, but it is written as a statement about per-PR checks. More importantly
+    the reality module reads every Mission under kitty-specs/, which from this PR on includes `kitty-specs/mission-status-read-api-mission-detail-01M4S6D5`
+    and its traces (baseline-red.yaml, data-model.md). A red it raises on one of this mission's files
+    has no recorded signature, is "unclassified, attributed neither to this mission nor to the baseline",
+    and the nightly job that would catch it cannot run pre-merge (PLAN-VERIFY-003). So the one check that
+    exercises the mission's own Mission directory is made unattributable by the baseline policy.
+  remediation: 'Capture the reality module''s red set from CI instead of running it: record, for base
+    A, the run id, conclusion and the failing node ids with normalised signatures of `tests (corpus-blocking)`
+    on the latest main run (`gh run view <id> --log-failed`), with #5927 on each row, so a red on the
+    PR is classified by comparison. Reword the sentence to "never gates the service gate; it does gate
+    router gate, where the comparison with the recorded main run decides". Add a P0 local check that the
+    Mission directory passes the reality module''s per-Mission assertions (a targeted node id on this
+    slug, not the whole module).'
+- id: PLAN-VERIFY-005
+  lens: Baseline honesty (record test non-vacuity)
+  severity: 3
+  title: The honest capture yields zero rows, so the 'copy with a row removed' control and a rows floor
+    cannot be built from the record
+  evidence:
+  - artifact: plan.md section 11 P0 (copy-with-a-row-removed, copy-with-a-module-removed, copy-with-an-issue-removed);
+      'Discovered-count guards' (lists 'the rows of baseline-red.yaml'); section 6 step 3 (reality module
+      zero rows, no other known red)
+  - code: 'plan.md section 6 names #5927 as the one accepted baseline red, and it lives only in the not-run
+      module'
+  claim: '#5927 is the only known baseline red and it is recorded `not run` with zero rows (FRESH3-005).
+    If the other targeted modules are green on both bases, baseline-red.yaml has no rows, so (a) a control
+    "copy of the file with one row removed" has nothing to remove and passes or errors vacuously, (b)
+    "every row has an open issue" and "rows equal failed" hold trivially, and (c) the discovered-count
+    guard for rows either asserts a floor of zero (vacuous) or forces the capture to contain a red it
+    does not have.'
+  remediation: 'State in P0 that the controls operate on a synthetic record built inside the test (two
+    rows, three modules) and that the real file is checked with module-level floors (modules present,
+    executed >= floor, issue on the not-run module), not a row floor. Replace ''rows of baseline-red.yaml''
+    in the discovered-count guard by ''modules of baseline-red.yaml''. Add the control "synthetic record
+    with rows: remove one row, expect red" explicitly.'
+- id: PLAN-VERIFY-006
+  lens: Permission-denied fixtures (D-32)
+  severity: 3
+  title: D-32 'not run, precondition unmet' has no owner, no test, no reporting step, and a JUnit skip
+    passes silently in check
+  evidence:
+  - artifact: 'plan.md FRESH3-004 test and revert (''reported not run: precondition unmet per D-32'');
+      section 11 phase table and test strategy (D-32 is not otherwise mentioned); spec.md D-32 paragraph
+      (line 224) and AC-4.3, AC-4.7, AC-10.3, AC-12.1'
+  - code: '.github/workflows/mission-status-api.yml jvm job: only `./gradlew --no-daemon check` plus artifact
+      uploads; no step writes a skipped-test list to the job summary. rg ''precondition unmet|not run:''
+      over services/mission-status-api/src/test and scripts/ci/mission_status_gate_checks.py finds no
+      existing mechanism'
+  claim: 'The spec requires every permission-denied case to run twice (fault injection always, real chmod
+    only when the OS refuses), and the real leg to be reported ''not run'' in the job summary when the
+    precondition fails (root runner, Windows). The plan assigns no phase, helper, class name, or workflow
+    change to this. A JUnit `assumeTrue` skip is shown green by `check`, so on a root or Windows runner
+    the (b) leg vanishes and the claim ''never as passed'' is unenforced; nothing asserts that the (a)
+    leg exists for each case. In addition, the Python generator (P4, `PROVISION_PLAN`) gets no statement
+    on unreadable-file fixtures: if any golden is produced with `chmod`, running the generator as root
+    produces a different golden from the committed one (the oracle reads the file), so `--check` is user-dependent.'
+  remediation: 'Add to P7 a testsupport helper (for example `RealPermissionFixture.refusedForThisUser(path)`)
+    used by every real-permission case, and to P13 a step in the jvm job that parses build/test-results
+    for skipped testcases of those classes, prints them to $GITHUB_STEP_SUMMARY as ''not run: precondition
+    unmet'', and a `mission_status_gate_checks.py` subcommand asserting the fault-injection leg count
+    (a named floor). Declare in P4 that permission-denied rows are Java-only (like `projection-refusals`)
+    and never generated by chmod. Name the cases (AC-4.3, AC-4.7, AC-10.3, M-rows) in the P5, P11, P12
+    write scopes.'
+- id: PLAN-VERIFY-007
+  lens: Gates (completeness of local commands)
+  severity: 3
+  title: Section 5 omits the native-leg nativePerf and floor-binary steps and gives no local command for
+    several included gates, without stating exclusion reasons
+  evidence:
+  - artifact: plan.md section 5 table rows 'native x4' and 'Perf ratio tests' and the 'Exact local commands'
+      block
+  - code: '.github/workflows/mission-status-api.yml native job: steps ''Build the trivial native binary
+      (the NFR-002 start-up floor)'', ''Measure start-up, memory and threads of the built binary'' (`./gradlew
+      nativePerf -PnativeBinary=...`), ''Require the native test floor'' (`mission_status_gate_checks.py
+      native-tag-floor ... --floor 3`), and the strict-verification step (`./gradlew --dependency-verification
+      strict bootJar testClasses`); gate job `digests ... --request-floor 49`'
+  - code: services/mission-status-api/build.gradle.kts tasks nativePerf (NativePerfTest, tag native-binary)
+      and perfTest (tag perf); check does not run nativePerf
+  claim: 'Section 5 says it re-verified the gate set and lists perf only as `perfTest` inside `check`.
+    The native legs also run `nativePerf`, which asserts the NFR-002 start-up ratio against a floor binary
+    and NFR-004 memory and threads on the built binary; this is a separate enforced gate that this mission
+    can turn red (new routes, the about 11 MiB prompt path, ten concurrent prompt requests added to the
+    NFR-002 scenario by S-13) and it appears neither in the table nor in the local commands nor in a phase
+    exit gate (P13 says only ''all four native legs green''). The commands for native-tag-floor, for the
+    digests comparison (not runnable locally: needs four OS digests, which should be stated as the exclusion
+    reason), and for the strict dependency-verification step (relevant because P2 edits build.gradle.kts
+    and the models) are missing from the runnable block.'
+  remediation: 'Add rows and commands: `./gradlew --no-daemon nativePerf -PnativeBinary=<binary>` (after
+    nativeCompile, with the floor-binary variable set as in the workflow, or state the ceiling-only mode),
+    `.venv/bin/python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native
+    --floor <N>`, and `./gradlew --no-daemon --dependency-verification strict bootJar testClasses`. State
+    the digests comparison as ''excluded locally: needs the four per-OS digest files; verified by the
+    gate job only''. Say whether NativePerfTest is extended for the S-13 scenario in P13''s write scope
+    (`T/nativesmoke/**` or `T/perf/**`).'
+- id: PLAN-VERIFY-008
+  lens: Revert discipline
+  severity: 3
+  title: The revert-fails table maps no row to 21 acceptance criteria and to the new AC-2.7, AC-6.6, AC-8.4,
+    although the Charter Check claims one per changed behaviour
+  evidence:
+  - artifact: plan.md Charter Check row 'Standing order 4' ('a revert-fails test for every changed behaviour');
+      section 11 'Test strategy' table; section 14 S-15 (new AC-2.7), FRESH3-004 (new AC-6.6), FRESH3-003
+      (new AC-8.4)
+  - code: 'spec.md ACs listed with their own behaviour: AC-1.6, AC-2.1, AC-2.3 (id outside WP[0-9]{2,}
+      is 404 with no file read), AC-2.4 (history in instant order), AC-2.6, AC-3.1, AC-3.6 (no READ of
+      prompt or spec.md while artifactReferences is built), AC-3.7, AC-3.8, AC-3.9 (lanes.json cap), AC-4.1,
+      AC-4.3 (readable agrees with content), AC-4.5 (links and root records), AC-4.6 (modifiedAt floor,
+      not rounded), AC-4.7, AC-4.8, AC-5.9, AC-9.4'
+  claim: Computing the AC ids named in the table's left column against the spec's AC list leaves AC-1.6,
+    2.1, 2.3, 2.4, 2.6, 3.1, 3.6 to 3.9, 4.1, 4.3, 4.5 to 4.8, 5.9 and 9.4 without a stated mutation,
+    plus the three ACs the plan adds (2.7 code-point order of the subtasks map, 6.6 locale refusal, 8.4
+    nulls). Several are distinct behaviours with an obvious mutation that the golden suites may not catch
+    (rounding of modifiedAt, text-order history, a size cap read earlier, an opened prompt file in artifactReferences).
+    Of the rows that are present, 'change one phase status in a golden' and 'perturb one golden byte'
+    test the comparator, not a reverted behaviour, and the rows for AC-16.x/17.x ('a write mode; a spawned
+    process') name no change to revert, only an absence property. The section's own rule says mutation
+    rows are run once in a scratch copy and reported in the PR; nothing makes them standing tests.
+  remediation: 'Add one row per missing AC with a concrete mutation (for example AC-4.6: `Math.round`
+    instead of floor; AC-2.4: sort history by text; AC-2.3: read the Work Package file before validating
+    the id; AC-3.6: open the prompt file in ArtifactReferenceBuilder; AC-4.5: follow a symlinked directory;
+    AC-2.7: UTF-16 order for subtasks). Mark each row ''standing'' (a named test that fails) or ''one-off
+    mutation'' and keep the one-off list short with its scratch-copy command. Fix the Charter Check sentence
+    to match.'
+- id: PLAN-VERIFY-009
+  lens: Gates (inclusion reasons)
+  severity: 2
+  title: The Contracts workflow is excluded for a false reason; release-readiness and ci-windows statements
+    are imprecise for a PR based on the
+  evidence:
+  - artifact: 'plan.md section 5 rows ''Contracts workflow (contracts.yml), docs-pages.yml, protect-main.yml''
+      (No: ''Path lists exclude services/**; no contracts/** edit''), ''release-readiness.yml'' (cutover-guard
+      runs on M/**)'
+  - code: .github/workflows/contracts.yml on.pull_request.paths includes 'tests/contract/**', 'pytest.ini',
+      'tests/conftest.py'; jobs verify-pins, python-checks, validate-bundle, lint, breaking-change, release-dry-run,
+      negative-tests, contracts-gate
+  - code: '.github/workflows/release-readiness.yml on.pull_request.branches: [main]; .github/workflows/ci-windows.yml
+      on.pull_request.branches: [main]'
+  claim: 'This diff edits tests/contract/** (the generator, the baseline-record test, the goldens'' tests),
+    so Contracts does run on the PR; it passes over unchanged contracts, but the plan says ''No'' and
+    gives neither a command nor the reason it is safe. Release Readiness `cutover-guard` and ci-windows
+    trigger only for pull requests whose base is main; this PR''s base is the #5529 branch (D-54), so
+    they do not run until the retarget, yet the plan says cutover-guard ''runs on M/**''. ci-windows is
+    not mentioned at all (its filter is src/** and a test list, so it is not selected, which is the verifiable
+    reason).'
+  remediation: 'Correct the three rows: Contracts ''Yes (selected by tests/contract/**), passes over unchanged
+    contracts; local: `.venv/bin/python contracts/tools/leak_scan.py` and `layout_check.py` as a smoke'';
+    release-readiness cutover-guard ''not run while the PR base is not main; run after the retarget (and
+    locally: the cutover-guard command)''; ci-windows ''not selected: filter is src/**''.'
+- id: PLAN-VERIFY-010
+  lens: Gates (request floor arithmetic)
+  severity: 2
+  title: The detail stage floor of 14 is not enumerable from the plan's own list ('the UTF-8 byte-order
+    pair')
+  evidence:
+  - artifact: plan.md section 12 table row requests.json stages (requestCountFloor 14, --request-floor
+      63)
+  - code: 'tests/ci/test_mission_status_api_build.py digest wiring: --request-floor must equal the sum
+      of the stage floors of requests.json (currently 37 + 12 = 49)'
+  claim: The enumeration gives getMission 2, getWorkPackage 4, getWorkPackageDetail 2, getArtifactContent
+    5 and listArtifacts 'the UTF-8 byte-order pair', which is one request if 'pair' means the two orderings
+    of one listing and two if it means two listings. The total is 14 or 15 and the gate value 63 or 64.
+    A floor that is one too low lets a dropped request pass the gate; one too high fails every leg.
+  remediation: List the request ids of stage `detail` one per line in section 12 (method, path, expected
+    status) and state N; the P13 exit command is the existing pin test run after editing both numbers.
+- id: PLAN-VERIFY-011
+  lens: Coverage floors
+  severity: 2
+  title: Coverage is held only for domain and application classes; the plan does not say that adapter,
+    config and wiring classes have none, and the floor-raise rule is review-only
+  evidence:
+  - artifact: plan.md Charter Check row 'Architectural alignment' and section 11 chokepoints (jacoco-class-floor.properties
+      raised by exactly the number each phase adds); NFR-005 traceability
+  - code: 'services/mission-status-api/build.gradle.kts jacocoTestCoverageVerification: three rules, includes
+      only org.speckitty.missionstatus.domain.* and application.*; jacocoScopeFailures fails only when
+      matched < floor'
+  claim: 'FilesystemTextSource, YamlFrontmatterDecoder, JsonLanesDecoder, the codecs, the controllers
+    and mappers and the wiring classes (roughly a third of the new code by the section 13 tree) carry
+    no floor; their fault branches (FILE_UNREADABLE, DIR_UNREADABLE, over-cap race) are held only by whichever
+    tests the phases happen to write. The plan does not state this, so the reader of ''JaCoCo floors on
+    every new class'' may assume more than is enforced. Because the scope check is a lower bound, a phase
+    that adds ten classes and raises the floor by two stays green: the ''raise by exactly the number it
+    adds'' rule is enforced by nothing but the review brief, which the plan also does not give a command
+    for.'
+  remediation: Add a sentence to section 5 that adapter and config classes have no floor (spec NFR-005
+    scope) and name the tests that hold the adapter fault branches (ListingTest-style fault injection
+    per Kind). Add a phase exit command that counts classes per pattern in build/reports/jacoco/test/jacocoTestReport.xml
+    against the two properties lines (the xml `class` elements that jacocoReportClassNames reads), so
+    a forgotten raise is visible to the reviewer.
+- id: PLAN-OBLIG-001
+  lens: Obligations FRESH3-002 (meta.json read count)
+  severity: 3
+  title: The 3-warm / 4-cold count only holds if the ledger routes skip the existing "probed" step, and
+    the plan never says so
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-002 (D-71); \xA7 3 readiness-facts row 'Meta reads per request';\
+      \ \xA7 9 item 1 (MissionLookup / OverviewReader)"
+  - artifact: 'spec.md FR-001 ''Lookup'' bullet: the three ledger routes ''then probe the ledger themselves'''
+  - code: services/mission-status-api/.../application/MissionStatusService.java symbol resolve -> probed
+      -> source.stampLedger
+  - code: services/mission-status-api/.../adapter/out/filesystem/FilesystemMissionEventSource.java ledgerPath
+      -> ReadDirResolver.resolve (reads meta.json through SafeFiles.readRegular on every stampLedger,
+      readLedger and readLedgerFrom call)
+  claim: "I recounted from the source. In the existing flow the matched Mission is read by: the scan (readMeta,\
+    \ 1), probed()'s stampLedger (resolver read, 2), overview(ref).readMeta (3), ledger() stampLedger\
+    \ (4), and on a cache miss readLedger (5). The plan's 3 warm / 4 cold equals this only if the detail\
+    \ routes use the probe-free MissionLookup.find followed directly by OverviewReader.overview(ref) and\
+    \ add NO separate probe/stamp. The plan's own fact table (\xA73) lists the repeated reads but omits\
+    \ probed(), and spec FR-001 says the ledger routes \"probe the ledger themselves\". An implementer\
+    \ who follows the spec (a probe step before the head derivation) produces 4 warm / 5 cold and the\
+    \ pinned AC fails by one; an implementer who adds nothing satisfies it. The count is a decision about\
+    \ the call sequence, but the call sequence is not stated.\n"
+  remediation: "In \xA7 8 FRESH3-002 and \xA7 9 item 1, state the sequence of the three ledger routes:\
+    \ MissionLookup.find, the duplicate continuation, then OverviewReader.overview(ref) (whose ledger()\
+    \ stamp IS the probe); they never call probed() and never call stampLedger/readLedger directly. Add\
+    \ that sentence to the amended AC-1.8(c) (\"the ledger probe of FR-001 is the stamp inside the head\
+    \ derivation, not an extra call\"). Add to the \xA7 3 fact table that resolve() also reads meta once\
+    \ more through probed(). MetaReadCountTest must include a stream-route control (resolve + probed:\
+    \ 2 warm) so the difference is visible.\n"
+- id: PLAN-OBLIG-002
+  lens: Obligations FRESH3-002 (AC-1.8 amendment wording)
+  severity: 3
+  title: The AC-1.8(c) replacement leaves the original "Fails if a Mission is read twice" and the Control
+    sentence standing, and counts "meta.json reads" ambiguously for the artifact routes
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-002 'Spec text' ('AC-1.8(c) becomes ...')"
+  - artifact: 'spec.md AC-1.8: the sentence ''Fails if a stream answer changes, if an artifact route touches
+      the ledger, if a Mission is read twice, or if the figures are missed ...'' and ''Control: ...same
+      number of meta.json reads'' follow clause (c) in the same bullet'
+  - artifact: spec.md FR-004 Entry 'readable' + FR-011 table ARTIFACT_FILE (listArtifacts reads every
+      candidate file including meta.json under scope ARTIFACT)
+  claim: '(1) The plan replaces only clause (c), but the bullet''s closing Fails/Control sentences apply
+    to the whole AC and still say "if a Mission is read twice": after the amendment the matched Mission
+    is legitimately read 3 or 4 times, so the AC contradicts itself. (2) The new wording says the port
+    "records exactly one read of the meta.json" of the requested Mission on listArtifacts/getArtifactContent.
+    listArtifacts reads every eligible file for `readable`, and `meta.json` is an eligible artifact (ARTIFACT_FILE),
+    so a literal per-file count is 2 for that Mission (lookup + artifact read), and a getArtifactContent
+    for path=meta.json is 2 as well. Only a count by access class (MISSION_META, which the plan''s MetaReadCountTest
+    uses) gives 1; the AC text does not say so.
+
+    '
+  remediation: 'Make the amendment replace the whole AC-1.8 closing ("Fails if ..." and "Control: ...")
+    as well as (c): "Fails if a stream answer changes, if an artifact route touches the ledger, if any
+    Mission other than the requested one is read more than once, if the requested Mission''s count differs
+    from the figures above, or if the NFR-001 figures are missed." Define the counted event as "reads
+    of the access class MISSION_META" and say that the artifact-scope read of meta.json as an artifact
+    is a different class and is not counted.
+
+    '
+- id: PLAN-OBLIG-003
+  lens: Obligations FRESH3-002 (ownership)
+  severity: 2
+  title: The per-route meta read counts for getWorkPackage and getWorkPackageDetail have no phase gate
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-002 'Owner: P9 (ledger routes) and P12 (artifact routes, count 1)'"
+  - artifact: "plan.md \xA7 11 exit gates of P10 and P11 (no AC-1.8, no MetaReadCountTest)"
+  claim: 'The decision pins the count on three ledger routes, but only P9 (getMission) lists AC-1.8 in
+    its exit gate. getWorkPackage (P10) and getWorkPackageDetail (P11) are the other two ledger routes
+    and nothing makes their counts a gate, so a route that re-reads meta.json once more (for example the
+    WorkspaceReader or lanes.json path calling the resolver) passes its phase.
+
+    '
+  remediation: "Add \"MetaReadCountTest rows for getWorkPackage / getWorkPackageDetail\" to the exit gates\
+    \ of P10 and P11 and to the \xA7 11 traceability row for FR-002/FR-003.\n"
+- id: PLAN-OBLIG-004
+  lens: Obligations FRESH3-003 (testability of AC-8.4)
+  severity: 3
+  title: New AC-8.4 demands a fixture for every row of the nullable/strict table, but the fixture classes
+    (6 + 4) cannot cover the rows and one row is declared unreachable
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-003: AC-8.4 'one fixture for each row of the FR-008 table whose outcome\
+      \ is 200 with a null ... one fixture for each row whose outcome is M7'"
+  - artifact: "plan.md \xA7 8 FRESH3-003: classes projection-nulls (Count 6) and projection-refusals (Count\
+      \ 4); row 'lastEventId (Work Package) ... not separately reachable'"
+  - code: tests/contract/_mission_status_payloads.py Projector.strict / strict_list (requirementRefs,
+      trackerRefs, subtasks keys, authored.subtasks, ownedFiles all strict non-null)
+  claim: 'The table has about 25 rows. Null-outcome rows without a named fixture: reviewCycles[].feedbackReference/artifactPath,
+    workspace.laneBranch (separate from laneId), Work Package lastEventId (declared unreachable, so a
+    fixture cannot exist). M7-outcome rows without a named fixture among the four refusal fixtures: head
+    missionId/slug/targetBranch, wpId, requirementRefs, trackerRefs, authored.subtasks, subtasks map keys,
+    SubtaskEntry.id, review.latestResult.reference. AC-8.1 covers only the class-3 human fields. So AC-8.4
+    as worded is unsatisfiable (or is satisfied vacuously by the 10 named fixtures), which is the "untestable/vacuous
+    AC" failure the obligation was meant to remove.
+
+    '
+  remediation: "Either enumerate in AC-8.4 the exact fixtures (row -> fixture name) and size the two classes\
+    \ to match (add the missing nulls and the missing strict-list refusals), or reword AC-8.4 to \"one\
+    \ fixture for each row listed in its own table, rows marked 'not separately reachable' being pinned\
+    \ by a unit test of the mapper instead\". Keep a discovered-count guard (non-zero, equal to the row\
+    \ count) as \xA7 11 requires elsewhere.\n"
+- id: PLAN-OBLIG-005
+  lens: Obligations FRESH3-003 (ownership)
+  severity: 3
+  title: The projection-nulls / projection-refusals fixtures and AC-8.4 are owned by P9 only; P10 and
+    P11 exit gates do not name them
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-003 'Owner: P4 ... with the route phases P9, P10, P11 each for its\
+      \ members'"
+  - artifact: "plan.md \xA7 11 exit gates: P9 lists 'projection-nulls (getMission fixtures)'; P10 lists\
+      \ AC-2.1..2.6, AC-9.x, wp-prompt-bytes; P11 lists AC-3.x, AC-10.x, AC-8.1; none lists AC-8.4 or\
+      \ projection-refusals"
+  claim: 'Nine of the ten new fixtures (everything except head-dates-nulled) exercise getWorkPackage or
+    getWorkPackageDetail (merge-target-branch-path, planning-branch-too-long, lane-id-fails-pattern, override-partial-junk-at,
+    reviewed-at-junk, all four projection-refusals). No phase gate that runs after those routes exist
+    requires them, so the obligation''s tests can be skipped without any phase going red; the "owner"
+    statement is a promise, not a gate.
+
+    '
+  remediation: "Add the relevant fixtures and \"AC-8.4 (this route's rows)\" to the exit gates of P10\
+    \ and P11, and to the \xA7 11 FR-008 row (currently \"route phases for class 1 to 3 outcomes\").\n"
+- id: PLAN-OBLIG-006
+  lens: Obligations FRESH3-003 (completeness of the table)
+  severity: 2
+  title: The nullable-versus-strict table omits the lane, verdict and artifact-reference members although
+    it claims "all rows"
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-003 table"
+  - code: tests/contract/_mission_status_payloads.py Projector.lane (raises ProjectionError for a lane
+      not in STATUS_LANES; returns None for NON_DISPLAY_LANES) used for history[].fromStatusLane / toStatusLane
+  - code: contracts/mission-status/schemas/HistoryEntry.yaml (toStatusLane $ref StatusLane, required,
+      non-null), Subtask.yaml / DependencyRef.yaml statusLane (nullable), ArtifactReference.yaml path
+      (required)
+  claim: 'FRESH3-003 asked for a table "per new-route strict field". Missing rows: history[].fromStatusLane
+    (nullable), history[].toStatusLane (non-null; the oracle''s lane() can return None for a non-display
+    lane, which breaks the contract and is exactly a "cannot be shown" case), SubtaskEntry/DependencyEntry
+    statusLane (nullable), reviewCycles[].verdict, ArtifactReference.path and ArtifactEntry.path (non-null
+    ArtifactPath; unrepresentable names are ineligible), review.latestResult.verdict. An implementer has
+    no stated outcome (null, 200 or M7) for an unrecognised or non-display lane in history.
+
+    '
+  remediation: 'Add the rows: toStatusLane non-null -> M7 and V18 (oracle None/raise); fromStatusLane
+    and the two statusLane members nullable -> null; verdict enums -> reducer-validated, cannot be unrepresentable;
+    artifact paths -> ineligible, never an error. Then the "all rows" claim is true.
+
+    '
+- id: PLAN-OBLIG-007
+  lens: Obligations FRESH3-004 (cross-reference)
+  severity: 3
+  title: D-73 narrows M13 to "WP*.md" candidate names, but the unamended FR-004 "File names" bullet says
+    the Work Package index answers 500 for any non-ASCII name met
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-004 (D-73, 'a non-candidate such as tasks/notes-\xE9.md is not refused');\
+      \ \xA7 14 S-4 lists FR-012, V15, AC-6.6, AC-4.8, AC-12.1, AC-14.4 but not FR-004"
+  - artifact: 'spec.md FR-004 ''File names (D-31)'': ''the artifact routes and the Work Package index
+      answer 500 ... when such a name is met, never omit it'''
+  claim: "After the fold, the spec states two rules: FR-004 (any non-pure-ASCII name met by the index\
+    \ is a 500) and FR-012 M13 / AC-6.6 (only a WP*.md candidate is a 500, a non-candidate is served).\
+    \ The narrowing is sound (both ends of a candidate are ASCII, so mangling cannot change candidate-ness),\
+    \ but the plan does not amend the sentence it contradicts, and AC-6.6's control (\"the non-candidate\
+    \ notes-\xE9.md does not refuse\") fails against FR-004 as written.\n"
+  remediation: 'Add an S-4 amendment to the FR-004 "File names" bullet: "...the Work Package index answers
+    500 when a candidate name (starting WP and ending .md) that is not pure ASCII is met (M13); names
+    that are not candidates are not part of the index and are never refused by it." Record the reasoning
+    (ends are ASCII) in the amendment.
+
+    '
+- id: PLAN-OBLIG-008
+  lens: Obligations FRESH3-004 (testability / ownership)
+  severity: 3
+  title: AC-6.6 is gated at P6 but needs the three routes (P9 to P11); the process leg's helper premise
+    is wrong
+  evidence:
+  - artifact: "plan.md \xA7 11 P6 exit gate 'AC-6.1 to AC-6.6'; P6 depends only on P5; routes land in\
+      \ P9, P10, P11"
+  - artifact: "plan.md \xA7 8 FRESH3-004 'WorkPackageIndexLocaleProcessTest (child JVM via the existing\
+      \ config.AppProcess helper, extended to pass LC_ALL; if the helper cannot pass an environment ...)';\
+      \ \xA7 Unverified item 5"
+  - code: 'services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/AppProcess.java:
+      package-private final class; launch(Path, Path, Map<String,String> environment, List, List) already
+      puts the environment'
+  claim: '(1) AC-6.6 asserts that getMission, getWorkPackage and getWorkPackageDetail each answer 500
+    source_unreadable with one diagnostic in a child JVM under LC_ALL=C. No route exists at P6, so the
+    P6 gate cannot run it; the only part P6 can prove is the index/stub leg. The route-level proof has
+    no owner (P9/P10/P11 gates do not name AC-6.6). (2) AppProcess already accepts an environment, so
+    "extended" and the "cannot pass an environment" fallback are moot, but the class is package-private
+    in test package config: a test named WorkPackageIndexLocaleProcessTest placed beside the index cannot
+    use it. The plan does not say where the test lives.
+
+    '
+  remediation: 'Split AC-6.6 ownership: the stub leg (NameEncoding/trustworthy stub, WorkPackageIndexLocaleTest)
+    at P6; the three-route child-JVM leg at P11 (after P9/P10 exist) or one leg per route in P9/P10/P11.
+    State that the process test lives in the config test package (or widen AppProcess visibility as a
+    stated testsupport change) and drop the "if the helper cannot pass an environment" branch.
+
+    '
+- id: PLAN-OBLIG-009
+  lens: Obligations FRESH3-005 (amendment reach)
+  severity: 2
+  title: The AC-21.1 assertions (executed floor, rows == failed, redCount) are not exempted for a "not
+    run" module or an absent_on_base module
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-005 AC-21.1/AC-21.3 amendment; \xA7 14 S-5 and S-12"
+  - artifact: 'spec.md AC-21.1: ''executed is at least a floor committed in the test ... the rows of a
+      module and base number exactly its failed'''
+  claim: 'The reword of item 2 and the ''zero rows, attribution: unclassified'' amendment are real decisions
+    and correct against the baseline text. But AC-21.1 as it stands asserts an executed floor and rows
+    == failed for every module of the record; a not-run module has executed 0 and failed unknown, and
+    S-12''s absent_on_base has executed 0. The amended spec leaves the generic assertions in force beside
+    the exception, so a literal test fails on the very record the plan prescribes (the plan''s own P0
+    test list covers only ''not run module with rows'').
+
+    '
+  remediation: 'Extend the S-5/S-12 wording: "the executed floor, the rows == failed check and the redCount
+    sum apply to modules that were run; a module recorded not run or absent_on_base is exempt from them
+    and is checked by the zero-rows / attribution / issue assertions instead." Add a P0 control: a not-run
+    module with a nonzero floor passes, a run module with 0 executed fails.
+
+    '
+- id: PLAN-OBLIG-010
+  lens: Obligations FRESH3-006 (fixture validity)
+  severity: 2
+  title: The git-entry-symlink fixture must point at an existing target or the V7 divergence is stale
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-006 (fixtures directory-symlink and git-entry-symlink from PROVISION_PLAN\
+      \ link lines; 'the manifest check that V7's two outcomes differ')"
+  - code: src/specify_cli/workspace/context.py ResolvedWorkspace.exists (checks .git entry existence,
+      following links); oracle uses Path.exists
+  claim: 'The oracle returns true for a .git symlink only when its target exists; a dangling link gives
+    false on both sides, so the Java strictness would not diverge and the V7 entry would fail the AC-14.4
+    ''stale entry'' check. The plan does not say what the link points to.
+
+    '
+  remediation: 'State in the fixture row that git-entry-symlink links to an existing file or directory
+    inside the fixture (provisioned by the plan), and add a negative control with a dangling link whose
+    oracle and Java outcomes agree (false).
+
+    '
+- id: PLAN-OBLIG-011
+  lens: Obligations FRESH3-007 (deviation D-76)
+  severity: 2
+  title: D-76 deviation is sound but leaves AC-7.4 un-amended, the reflection test is name-based, and
+    the NFR-002 sentence presumes the unresolved E-1
+  evidence:
+  - artifact: "plan.md \xA7 8 FRESH3-007 (D-76), test list; \xA7 14 S-7, S-13, E-1"
+  - artifact: spec.md FRESH3-007 remedy names AC-2.1/AC-7.4; FR-009 ('the body that FrontmatterManager.read
+      returns' of the authored file)
+  claim: 'Verified: promptMarkdown is the body of the authored (frontmatter) file, which is the winning
+    file the builder captures, so single-pass capture is equivalent to the preferred second read, and
+    the arithmetic (1 MiB buffer + 2 MiB decoded + 2 MiB body + 6.3 MB escaped JSON, about 11 MiB) recomputes.
+    Remaining defects: (a) AC-7.4 (instrumentation complete), which the obligation names, gets no wording,
+    so the ''one READ per file'' assertion lives only in AC-2.1; (b) the ''no component of IndexedWorkPackage
+    is a body'' test inspects a String named body/prompt or a byte[], which a String named ''text'' evades;
+    the access-set count is the real guard, so the reflection test adds little; (c) the amended NFR-002
+    text says the call ''passes the admission gate'', which is operator-gated (E-1) and may be declined,
+    leaving the two texts contradictory.
+
+    '
+  remediation: 'Add one clause to AC-7.4 ("a Work Package file is read once per request"); replace the
+    name-based reflection test with a component-type allowlist (no String/byte[]/CharSequence component
+    beyond named frontmatter fields) or drop it in favour of the count test; write the NFR-002 sentence
+    in two forms (gated / ungated) keyed to the E-1 outcome so tasks do not wait.
+
+    '
+- id: PLAN-OBLIG-012
+  lens: Obligations FRESH3-003 (cross-reference)
+  severity: 2
+  title: AC-14.4 still reads "each row V1 to V18" after V19 is added; S-3 says only "AC-14.4 map"
+  evidence:
+  - artifact: spec.md AC-14.4 first clause 'one knownDivergence entry for each row V1 to V18 above'
+  - artifact: "plan.md \xA7 14 S-3; \xA7 8 FRESH3-003 ('AC-14.4's row-to-entry map gains M7 to V18 and\
+      \ M14 to V19')"
+  claim: 'The plan extends the row-to-entry map but not the opening clause that fixes the entry count
+    at V1..V18, so the amended spec would require 18 entries while the manifest holds 19 (and the stale-entry
+    check would then be ambiguous).
+
+    '
+  remediation: "List \"AC-14.4 first clause: V1 to V19\" in S-3 (and \"V1 to V19\" is already used in\
+    \ plan \xA7 3, so only the spec side needs the edit).\n"

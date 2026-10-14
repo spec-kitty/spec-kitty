@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: refuted
+    reason: WP02 has 10 subtasks (the stated maximum) and 404 lines (inside 200-500), so it breaks no guideline limit; it is already the plan's own P1a split and the behaviour-preserving seam is one reviewable unit, so the split is taste, not a defect.
+  - id: TASKS-DECOMP-002
+    verdict: refuted
+    reason: WP09 sits at the 10-subtask maximum with a 325-line prompt, mirrors plan phase P5 as one unit, and the proposed split is optional preference with no concrete guideline breach shown.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: WP13-WP16 depend on WP12 and each edits its records via named edits (wps.yaml T082 says route WPs amend their route's records), which guidelines.md Dependency Hygiene calls a smell to fix, not annotate; fixable in wps.yaml by making WP12 final or moving records.
+  - id: TASKS-DECOMP-004
+    verdict: refuted
+    reason: The PR split is operator-ruled (E-8); the wps.yaml header already carries a WP-to-PR table, per-prompt line estimates exist, and plan.md section 11 already says generated and golden files are reviewed by regeneration command, so the remaining ask is a wrap-up/PR-description matter or an operator decision, not a tasks defect.
+  - id: TASKS-DECOMP-005
+    verdict: refuted
+    reason: The WP17-before-WP18 ordering is deliberately recorded as closing evidence last with F3 as an open fork for the operator (WP18 prompt says the gate is correct either way), and disjoint scopes (files) is not contradicted by an ordering dependency.
+  - id: TASKS-DECOMP-006
+    verdict: confirmed
+    reason: Verified stale phase-as-WP references (WP03 lines 80/95/96/242/243/272 say WP08 for P8 which is WP12 and WP05 for P5 which is WP09; WP02:148 and WP01:269/295 and WP18:133/197 likewise) against the wps.yaml numbering table; a pure prompt edit fixes it.
+  - id: TASKS-DECOMP-007
+    verdict: refuted
+    reason: Gate subtasks are explicitly allowed, all counts are within the 10 maximum, the cited T079 is a JaCoCo count line not a conditional (evidence wrong), and the remaining confirm-only subtasks are minor DoD style with no concrete harm.
+  - id: TASKS-DECOMP-008
+    verdict: confirmed
+    reason: WP08 depends on WP07, owns only R/conformance/resolved-state/**, and its subtasks T052/T053 are named edits to WP07's generator, manifest and floors (WP04 comment also says WP07 and WP08 append as named edits), the same Dependency Hygiene smell, fixable in wps.yaml by merging or giving WP08 its own files.

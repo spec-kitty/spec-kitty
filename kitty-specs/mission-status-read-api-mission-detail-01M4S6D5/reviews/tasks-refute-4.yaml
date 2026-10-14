@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 4
+verdicts:
+  - id: TASKS-COVER-006
+    verdict: confirmed
+    reason: WP18 T126 step 5 lists no includePrompt=true target and AC-9.3 appears in no WP18 text, while WP14 lines 154/171/273 explicitly defer the multi-route guard flow to WP18 and plan section 11 assigns it to P13.
+  - id: TASKS-COVER-007
+    verdict: confirmed
+    reason: grep of wps.yaml and tasks/WP*.md finds no C-003, C-009, C-010 or SC-008 in any requirement_refs, and NFR-003/NFR-004 are declared only on a subset of WPs although the plan row says every route phase.
+  - id: TASKS-COVER-008
+    verdict: confirmed
+    reason: The section 5 terminology grep command appears only in WP01, WP09 and WP12 prompts (not WP05, WP11, WP13-16); WP13-16 only carry a prose statement that the grep stays empty, with no run step in the gate.
+  - id: TASKS-COVER-009
+    verdict: confirmed
+    reason: WP04 line 161 itself calls the history duplicate/arbitration semantics a gap for the orchestrator, WP16 item 2 records the 404-versus-400 order consequence of E-5, and ProjectHeaderMaterialisation.NOT_COPIED (line 38) really names SYMLINK_PLAN not PROVISION_PLAN while WP10 and WP07 assume PROVISION_PLAN.
+  - id: TASKS-COVER-010
+    verdict: confirmed
+    reason: WP11 line 218 states AC-6.5 planted controls have no owned home and uses nested classes instead of the ArchitectureControlsTest fixture pattern, and WP05/WP03/WP14 each record out-of-map additions that a wps.yaml owned_files edit would settle.
+  - id: TASKS-COVER-011
+    verdict: confirmed
+    reason: All 18 WP titles carry [PR A]/[PR B] and 133 distinct subtask headings exist; the cited ruling applications (WP14 gate test, WP05/WP12 parse, WP06 same-commit) are present, and no contradicting evidence was found.
+  - id: TASKS-GREEN-001
+    verdict: confirmed
+    reason: PortLevelClassSetTest lines 78-91 require every conformance.port class to depend on PortSourceSelector or PortFixtures and PortSubsetSecondLegTest lines 93-94 require every id in portlevel-tests.txt to open a fixture on both legs, Fixture exposes only MissionStatusQuery, and WP13/WP14 route port legs through PlainCaller with new ids appended while no plan, wps.yaml or WP text mentions PortSourceSelector, PortFixtures or PortSubsetSecondLegTest.
+  - id: TASKS-GREEN-002
+    verdict: confirmed
+    reason: WP10 T071 step 2 treats ClassNotFoundException as an empty route and its Risks section concedes a typo is caught only by WP18's ServedRoutesCompleteTest, while WP13 line 191 forbids creating that test before WP18 and no WP13-16 subtask asserts its own provider was loaded.

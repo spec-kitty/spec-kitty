@@ -1,0 +1,266 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-FRESH-001
+    lens: ruling-conformance
+    severity: 4
+    title: "AC-1.7 and rows C3-C5 make an unusable sibling that sorts first deny a healthy Mission, contradicting the cited #5529 ruling and the existing resolver"
+    evidence:
+      - artifact: "spec.md § Edge Cases bullet 1; § FR-012 rows C3, C4, C5; § AC-1.7; § FR-014 divergence V9; design-decisions.md D-7"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/reviews/analyze.ruling.md § 2026-10-11 item 1: an id that matches NO readable Mission answers by the first such fault"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java:202-224 (resolve records the first fault, keeps scanning, returns on a readable match; the fault decides only when nothing matches)"
+    claim: >-
+      The spec says the lookup behaves "exactly as #5529's WP06 ruling" but then defines it as stopping at the first directory that holds the id or is
+      unusable, so a Mission whose id IS held by a readable directory answers 500/404 when a broken sibling sorts before it (AC-1.7 first leg, V9 "404 or 500").
+      The ruling and the existing Java resolve() say the opposite: a readable match wins, and the fault decides only when no readable Mission matches the id.
+      As written, one half-written meta.json denies every later Mission's detail, work package and artifact routes (the Reflexivity concern the spec raises for
+      OQ-1) and builds a rule that contradicts the code the spec says it reuses ("one resolver", D-7).
+    remediation: >-
+      Restate C3-C5, the Edge Cases bullet, AC-1.7 and V9 to the ruling: scan all directories in byte order, remember the first fault, return the first readable
+      match; apply the fault (L9 404 path_refused, L7 500 meta_unparseable, unreadable 500 mission_dir_unreadable) only when no readable Mission holds the id.
+      AC-1.7 then needs the two legs (sibling before and after) to both answer 200, plus a third fixture with an unknown id next to the broken sibling that
+      answers by the fault. Keep V9 as a divergence from the oracle for the third fixture only.
+  - id: SPEC-FRESH-002
+    lens: internal-consistency
+    severity: 3
+    title: "Duplicate-Mission-id diagnostic needs a scan past the first match, which AC-1.7 forbids"
+    evidence:
+      - artifact: "spec.md § OQ-5; § AC-1.5; § FR-012 row C6 (mission_id_duplicate on each lookup that meets the second directory)"
+      - artifact: "spec.md § AC-1.7 (the lookup stops at the first Mission directory that holds the id or is unusable; a sibling after the requested Mission answers 200)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java:202-212 (returns at the first match)"
+    claim: >-
+      A lookup that stops at the first match never meets the second directory, so C6/OQ-5 cannot emit mission_id_duplicate; a lookup that continues must also
+      read the meta.json of every later sibling, and the spec does not say what a later unusable sibling does (AC-1.7 says 200, silent). The three statements
+      cannot all hold and no AC pins the interaction (duplicate plus later broken sibling).
+    remediation: >-
+      Decide one scan rule in FR-001/FR-012: after the first match the scan continues only to detect a duplicate id; faults of later siblings are ignored (or
+      logged) and never change the response. State it in C6, AC-1.5 and AC-1.7, and add one fixture (match, duplicate, then an unusable sibling) that asserts
+      200, one mission_id_duplicate and no fault.
+  - id: SPEC-FRESH-003
+    lens: read-fence
+    severity: 3
+    title: "Per-route access sets omit LANES_JSON and the coordination resolver classes that getMission, getWorkPackage and detail legitimately touch"
+    evidence:
+      - artifact: "spec.md § FR-011 'The per-route access sets' paragraph; § AC-11.1"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver.java:105 (reads lanes.json to classify the topology when meta.json stores none)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java:99-106 (LANES_JSON, WORKTREES_DIR, COORD_MISSION_DIR, COORD_META are existing classes used to resolve the read directory)"
+    claim: >-
+      The head of getMission and the ledger of all three Mission routes come from the same resolver the overview uses, which reads LANES_JSON (topology
+      classification) and stats WORKTREES_DIR, COORD_ROOT, COORD_MISSION_DIR and COORD_META to choose the read directory. The spec grants every route only
+      SPECS_DIR, MISSION_DIR, MISSION_META (plus LEDGER) and grants LANES_JSON only to getWorkPackageDetail. AC-11.1 ("any access outside the set of its route
+      fails") would be red on a legitimate flow for getMission and getWorkPackage, or the implementer will widen the sets silently.
+    remediation: >-
+      List the resolver classes exhaustively for every Mission-scoped route: SPECS_DIR, MISSION_DIR, MISSION_META, LANES_JSON (classification only),
+      WORKTREES_DIR, COORD_ROOT, COORD_MISSION_DIR, COORD_META, LEDGER, PROJECT_ROOT as the existing allowlist uses them. Say that the artifact routes use only
+      the primary-directory resolution. Add a flow fixture with an absent stored topology and a coord-routed Mission so AC-11.1 exercises them.
+  - id: SPEC-FRESH-004
+    lens: architecture
+    severity: 3
+    title: "FR-007 says the outbound port is generic, while FR-006 and FR-019 put Work Package decoding, the artifact walk, classifier and content read in the adapter"
+    evidence:
+      - artifact: "spec.md § FR-007 ('carries no Work Package, artifact or governance vocabulary'); § AC-7.3"
+      - artifact: "spec.md § FR-006 ('an adapter part that lists, reads and decodes and an application part that applies the id rule'); § FR-019 ('no numeric gate covers the new adapter code (frontmatter decoder, artifact walk, classifier, content read)'); § Key Entities (outbound ports: MissionEventSource and the text-read port)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:123-160 (rule 2: application is technology-free; rule 4: filesystem adapter reaches only port.out and domain)"
+      - code: "services/mission-status-api/build.gradle.kts:356-376 (JaCoCo CLASS rules cover only domain.* and application.*)"
+    claim: >-
+      A port of three generic primitives (list names, stat, capped read) cannot hand a decoded Work Package file or an artifact listing to the application, so
+      either a second, route-shaped outbound port exists (not in Key Entities, contradicting AC-7.3's 'route-specific type' rule and FR-013's 'everything
+      happens behind the port') or the walk, the eligibility and kind rules and the id rule are application logic over the generic port. FR-019 settles it the
+      opposite way by naming the classifier, walk and decoder as adapter code that no coverage gate reaches, which moves the highest-risk parity logic out of
+      the 90 percent class gate (charter: more rigour for core logic than glue). The layering is therefore ambiguous in a way that changes which WP owns what.
+    remediation: >-
+      State in FR-006/FR-007 which package owns each piece: generic IO (list, stat, capped read, link refusal) in adapter.out.filesystem; YAML frontmatter
+      decoding in the codec sub-package or a named port; the eligibility rule, ArtifactKind classifier, bounded-heap listing, id rule and redaction in
+      application/domain, tested by the class gate. If a second outbound port is intended, name it in Key Entities and AC-13.5, and rewrite FR-019 so the
+      adapter-only list shrinks to genuine IO.
+  - id: SPEC-FRESH-005
+    lens: ac-falsifiability
+    severity: 3
+    title: "AC-14.4 cannot pass on the spec's own inventory (M10 and A8 have no divergence row) and V3/V4 pin an oracle outcome no golden carries"
+    evidence:
+      - artifact: "spec.md § AC-14.4 (fails when a Java-only refusal path has no entry); § FR-012 rows M10 and A8; § FR-014 V1-V13; § D-34"
+      - code: "src/specify_cli/status/wp_metadata.py:732-743 (wp_task_files: tasks_dir.is_dir() false for a regular file returns [], and a link to a directory is followed); tests/contract/_mission_status_detail.py:158 (index_work_packages uses it)"
+    claim: >-
+      Row M10 (tasks/ is a file or a link: Java 500) is Java-only because the oracle returns an empty index or follows the link; row A8 (non-UTF-8 locale: 500) is
+      Java-only; neither is in V1-V13, so AC-14.4 is red by construction. Separately, D-34 makes the generator index-fed, so the committed golden for V3/V4
+      equals Java; the 'oracle outcome' column (lists a duplicate twice, lists a symlink) is then produced by no executed code, and 'an entry's two outcomes are
+      equal' checks only text.
+    remediation: >-
+      Add V14 (M10: oracle empty index or link followed, Java 500 source_unreadable) and V15 (A8: Java-only 500 under a non-UTF-8 locale). For V3/V4 require the
+      generator to also run the oracle's default read_authored_files path on those fixtures and store that outcome in the manifest entry, and make AC-14.4 fail
+      when the stored default-path outcome is not reproducible by the live oracle.
+  - id: SPEC-FRESH-006
+    lens: fixture-provisioning
+    severity: 3
+    title: "Golden classes that need symlinks, .git entries and lane worktrees have no provisioning rule"
+    evidence:
+      - artifact: "spec.md § FR-014 V1, V4, V7 and the classes phases-matrix, wp-malformed-frontmatter, worktree-states; § AC-6.1 (symlink named WP06-l.md); § AC-10.3; § NFR-007"
+      - code: "tests/contract/_mission_status_conformance.py:15-18 and :116-127 (a committed tree has no .git; symlinks are created at test time only for javaOnly classes through SYMLINK_PLAN)"
+    claim: >-
+      The spec marks only artifacts-links as created at test time. V1, V4 and V7 need the ORACLE to see a symlinked spec.md, a symlinked WP file and a symlinked
+      or husk lane worktree, and worktree-states needs .worktrees/<slug>-lane-a/.git (git cannot track a path named .git; Windows cannot track symlinks,
+      NFR-007). The existing generator provisions symlinks only for java-only classes, so the golden-parity classes named here cannot be built as written.
+    remediation: >-
+      Add to FR-014 a provisioning rule for the golden classes: a per-fixture plan (extend SYMLINK_PLAN and a worktree plan) applied identically by the
+      generator before the oracle runs and by the Java harness at test time, with the committed tree holding only the plan; state that the corresponding
+      golden rows are generated from that provisioned tree, and amend GOLDEN_FILES/CLASS_FLOORS to say so.
+  - id: SPEC-FRESH-007
+    lens: ac-falsifiability
+    severity: 3
+    title: "AC-21.1 asks a test to prove completeness and ordering it cannot observe"
+    evidence:
+      - artifact: "spec.md § FR-021; § AC-21.1 ('a row for each red test of the targeted modules'; 'committed before the first Work Package is claimed'; Control: one row removed fails); § AC-21.3"
+    claim: >-
+      A unit test can check the file's shape, the two shas and a signature per row. It cannot know which tests are red without executing the targeted
+      suites (AC-21.3 says not to run the reality module twice), so 'a row for each red test' and the one-row-removed control are unfalsifiable; and 'committed
+      before the first claim' is a history fact no test asserts. The test also lives in tests/contract/ permanently, reading a mission trace that becomes frozen
+      at merge.
+    remediation: >-
+      Restate AC-21.1 as what is checkable: the file parses against a schema, holds both shas (resolvable by git cat-file), every row has id, base sha and
+      normalised signature, and a row count equals a 'redCount' field the capture step wrote from the real run (control: removing a row breaks the equality).
+      Move the ordering check to a review checklist item (first WP commit is a descendant of the baseline commit, verified by git merge-base in the review
+      brief), not an AC.
+  - id: SPEC-FRESH-008
+    lens: charter
+    severity: 3
+    title: "C-011 observable ('no change to an existing test file') cannot hold for the surfaces C-011 names"
+    evidence:
+      - artifact: "spec.md § C-011 (surfaces: ArchitectureRules, the conformance generator; observable: no change to an existing test file in that commit)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:45 (a test-source file); tests/contract/_mission_status_conformance.py (test-side generator)"
+    claim: >-
+      Tidying ArchitectureRules.java (src/test) or _mission_status_conformance.py necessarily edits an existing test-side file, so the campsite commit either
+      violates its own observable or skips two of the five named surfaces. Charter Standing Order 2 asks for behaviour-preserving tidy-first, not for these
+      files to be untouchable.
+    remediation: >-
+      Reword the observable to 'no change to an assertion or expected value of an existing test; refactors of test support code are allowed and the existing
+      tests pass unchanged', and define it checkably (the diff of the campsite commit holds no changed assert/expected line).
+  - id: SPEC-FRESH-009
+    lens: internal-consistency
+    severity: 2
+    title: "Three different things are 'first': baseline record, campsite pass and the FR-020 reduction"
+    evidence:
+      - artifact: "spec.md § C-011 ('the first Work Package is a behaviour-preserving campsite pass'); § FR-021 ('before the first Work Package'); § Assumptions (FR-020 'belongs in the first work package'); design-decisions.md D-22 ('goes first in the plan')"
+    claim: >-
+      C-011 fixes the first WP as the campsite pass, while Assumptions and D-22 place FR-020 in the first WP/first in the plan. Both cannot be first, and the
+      baseline (FR-021) precedes both.
+    remediation: >-
+      Order explicitly in one place: baseline record, then campsite WP, then FR-020 as the first functional WP. Update Assumptions and the D-22 wording
+      (append an addendum in the tracer) to match.
+  - id: SPEC-FRESH-010
+    lens: read-fence
+    severity: 2
+    title: "ARTIFACT_DIR is 'below the primary directory', but the artifact walk must LIST the primary directory itself"
+    evidence:
+      - artifact: "spec.md § FR-011 table rows ARTIFACT_DIR and MISSION_DIR usage; § Read scope and precedence"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java:49 (MISSION_DIR permits STAT and REALPATH only)"
+    claim: >-
+      The first list call of listArtifacts is on kitty-specs/<mission>/ itself. As specified it is neither ARTIFACT_DIR (a directory 'below') nor a MISSION_DIR
+      LIST (not a permitted mode), so the walk fails the fence on its first access, or the implementer widens MISSION_DIR for every scope.
+    remediation: >-
+      Define ARTIFACT_DIR as the primary directory and every directory below it under scope ARTIFACT (STAT, LIST), keep MISSION_DIR unchanged under AUTHORED, and
+      add the root listing to AC-11.2 as the green half of the ARTIFACT_DIR control and a LIST of MISSION_DIR under AUTHORED as its red half.
+  - id: SPEC-FRESH-011
+    lens: fail-loud
+    severity: 2
+    title: "Oversize lanes.json (1 MiB) and review-cycle file (262144) have caps in FR-011 but no outcome, row or provisional mark"
+    evidence:
+      - artifact: "spec.md § FR-011 table (LANES_JSON 1 MiB, WP_CYCLE_FILE 262144); § FR-003 Workspace and Review cycles; § FR-012 row M4; § 'Wall-clock bounds and figures'"
+    claim: >-
+      M4 lists WP files over 1 MiB and tasks.md over 4 MiB but not these two caps, and FR-003 says only that an unparseable cycle file is an entry with null
+      members. What an over-cap lanes.json or cycle file does is left to the implementer, against FR-012's 'no path returns null as success', and the two
+      figures are new yet absent from the provisional list.
+    remediation: >-
+      Add to M4: lanes.json over 1 MiB and a review-cycle file over 262144 bytes (or state a cycle file is an entry with null reviewedAt/reviewer and a
+      diagnostic), give each a fixture in AC-3.x, and add both figures to the provisional-figures sentence.
+  - id: SPEC-FRESH-012
+    lens: oracle-parity
+    severity: 2
+    title: "FR-006 omits invalid-UTF-8 Work Package files, which the oracle skips"
+    evidence:
+      - artifact: "spec.md § FR-006 steps 2-5; § AC-6.1 corpus list"
+      - code: "tests/contract/_mission_status_detail.py:167 (UnicodeDecodeError is skipped); src/specify_cli/frontmatter.py:116 (read_text with utf-8-sig)"
+    claim: >-
+      Step 3 says the text is 'decoded as UTF-8' but no step says a file that is not valid UTF-8 is skipped with wp_file_skipped, and AC-6.1 has no such case.
+      A Java decoder that throws 500 or replaces bytes passes the written corpus and diverges from the oracle on real data.
+    remediation: >-
+      Add to step 3/4 'bytes that are not strict UTF-8 skip the file' and add a lone 0xC3 file and an overlong-sequence file to the AC-6.1 corpus (oracle outcome:
+      skipped).
+  - id: SPEC-FRESH-013
+    lens: ac-falsifiability
+    severity: 2
+    title: "AC-5.6 and AC-3.7 say a credential 'prefix' is refused, but the patterns need full-length tokens; committed token fixtures also trip public secret scanners"
+    evidence:
+      - artifact: "spec.md § AC-5.6 ('each of the prefixes ghp_, ... AKIA, ASIA'); § AC-3.7; § AC-9.1; § C-006"
+      - code: "contracts/tools/leak_patterns.py:112-115 (gh[pousr]_ followed by 36+ characters; github_pat_ 40+; AKIA/ASIA plus 16)"
+    claim: >-
+      Read literally the AC (a file holding 'ghp_') is a near miss that answers 200, so a fixture author following the AC fails its own test or writes a
+      weaker corpus. Fixtures holding full-length synthetic tokens in a public repository are flagged by secret scanners and by C-006 reviewers.
+    remediation: >-
+      Say 'a token of each pattern at its minimum length' and name the min lengths; require the 422 fixtures to be assembled at test time from fragments
+      (golden holds no content for a 422), and keep the near-miss rows at length minus one.
+  - id: SPEC-FRESH-014
+    lens: internal-consistency
+    severity: 2
+    title: "Row M4 applies detail-only conditions to getMission and getWorkPackage while AC-1.6 demands a fixture for each row"
+    evidence:
+      - artifact: "spec.md § FR-012 rows M1-M7 ('same' = getMission, getWorkPackage, detail), row M4; § AC-1.6; § AC-2.6; § FR-011 per-route sets"
+    claim: >-
+      tasks.md is read, review-cycle directories listed and .worktrees stat-ed only on getWorkPackageDetail (FR-011), so M4's tasks.md, cycle-directory and
+      .worktrees conditions cannot occur on getMission or getWorkPackage; AC-1.6/AC-2.6 ('one fixture for each row ... for getMission/getWorkPackage') are
+      either unsatisfiable or satisfied vacuously. Row M2/M3's 'same' also covers getWorkPackage with the head 'as the overview item', which getWorkPackage
+      does not serve.
+    remediation: >-
+      Split M4 per route (getMission/getWorkPackage: tasks/ unlistable, WP file unreadable or oversize; detail: all of M4), and word M2 as 'the ledger is the
+      overview's' without the head wording for getWorkPackage. Make AC-1.6 and AC-2.6 refer to the per-route subset.
+  - id: SPEC-FRESH-015
+    lens: charter
+    severity: 2
+    title: "Rules 13 and 14 'recorded exemptions' are an allowlist of existing violations with no issue, owner or exit date"
+    evidence:
+      - artifact: "spec.md § AC-13.1 ('the one recorded exemption'), § AC-13.2 ('the second recorded exemption'); design-decisions.md D-29"
+      - artifact: ".kittify/charter/charter.md § Standing Order 5 and Burn-down Policy (a): a transient allowlist is priced debt with an issue, an owner and an exit date"
+    claim: >-
+      EventData/EventsController (domain.projection use, own diagnostic) and Subscription.next (checked exception) are kept alive as known violations of the new
+      rules' intent. Called 'exemptions' they are debt by the charter's definition, yet none carries an issue, owner or date.
+    remediation: >-
+      Either drop the word and say the rules are scoped to the new operations (no list, nothing priced), or file one tracker issue for the events adapter and
+      Subscription, name its owner and drain date in AC-13.1/13.2, and record it in the tracer.
+  - id: SPEC-FRESH-016
+    lens: nfr
+    severity: 2
+    title: "NFR-002 heap bound ignores per-request copies and the cache growth FR-020 causes"
+    evidence:
+      - artifact: "spec.md § NFR-002 ('a request holds at most one file content at a time'; 64 MB JVM growth with 100 concurrent content reads held at once); § FR-020; § D-21"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ProjectionCache.java:15-24 (keeps the whole StatusSnapshot for every Mission, keyed by LedgerStamp)"
+    claim: >-
+      One content response holds the capped bytes, the decoded string, the redacted string and the serialised JSON at once (several times 262145 bytes), so 100
+      requests held together can exceed 64 MB; the 'one file content' claim is about reads, not about the request. Independently FR-020 adds the full ordered
+      history and subtask map of every Work Package to the snapshot the always-on cache keeps for every Mission, and no NFR bounds that growth.
+    remediation: >-
+      Restate the invariant as 'one capped read buffer', show the per-request arithmetic and set the figure from it (still provisional); add an NFR/AC that the
+      cache heap for a 500-Mission fixture grows by at most a stated amount after FR-020, or that history is derived per request from the lines instead of cached.
+  - id: SPEC-FRESH-017
+    lens: stale-statements
+    severity: 1
+    title: "Tracer and spec still say five decision cards and a 'cursor-keyed' cache"
+    evidence:
+      - artifact: "design-decisions.md D-25 ('Five ... (DC-1 to DC-5)'); traces/approach.md ('five decision cards'); spec.md § Contract change candidates (DC-1 to DC-6); § D-21 text in design-decisions.md ('cursor-keyed ProjectionCache')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ProjectionCache.java:16-27 (keyed by LedgerStamp, per Mission)"
+    claim: >-
+      DC-6 was added by the fold, so D-25 and approach.md undercount; the cache is keyed by the ledger stamp, not the cursor (D-21 and the 'a cache key for them
+      is not the cursor' reasoning).
+    remediation: >-
+      Append an addendum entry (the tracers are append-only) saying six cards and that the key is LedgerStamp; no spec change needed beyond using 'ledger-stamp-keyed'.
+  - id: SPEC-FRESH-018
+    lens: scope
+    severity: 1
+    title: "NFR-006 adds prose to docs/, which C-004's exact write set does not list"
+    evidence:
+      - artifact: "spec.md § NFR-006 ('Prose added to the README and docs/'); § C-004 ('exactly ... A diff outside this list is a defect')"
+    claim: >-
+      C-004 enumerates the write set as exact and omits docs/, while NFR-006 anticipates docs prose.
+    remediation: >-
+      Remove 'docs/' from NFR-006 or add the specific docs file to C-004.

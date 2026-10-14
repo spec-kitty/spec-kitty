@@ -1,0 +1,36 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+verifier: R5a
+round: 2
+mission: mission-status-read-api-mission-detail-01M4S6D5
+validate_only: "finalize-tasks --validate-only: validation_passed, 18 WPs, 18 lanes, planning lane WP04, no unreferenced SC; only ownership glob warnings for not-yet-created files"
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: "WP10 now covers the accessor only through an injected ServedRoutes.of(List.of(planted)) and a subset-of-four-names assertion on the default registry, and forbids any empty-default assertion. No red tip at WP13+."
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: "WP12 T085 and the Beans green condition now state the test loads only DetailInfrastructureWiring and asserts the two positive beans; the negative inbound-interface assertion is demoted to a reviewer check."
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: "WP17 T123(d) widens nothing (pin keeps tag rule only); WP18 Gate P says RATIO and CEILING are not pin-checked for its classes. Recorded clearly as DV-1 with its rationale (Nfr004HeapMedianTest, Nfr009CacheGrowthTest would turn red); no red tip."
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: "WP14 WorkPackageServedRoute serves the resolved-state getWorkPackage goldens (DV-2); WP18 T131 defines the floor over golden-bearing fixtures with a rule for golden-less Java-only classes (artifacts-links, lookup-faults, projection-refusals) and a control; WP16 enumerates artifacts-* fixtures with a golden. Minor residual: WP16 says 'where WP07 committed a golden, read the manifest', acceptable since the T131 rule is by golden presence."
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: "OO-5 in wps.yaml states the cause and the orchestrator action (merge target branch into the WP05 lane after WP04 is done, repeat for WP07/WP08 if needed); WP05, WP07 and WP08 each carry a 'test -f' stop-and-report precondition."
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: "WP18 T128 step 2 now spells work-packages, matching the contract and WP14/WP15; no 'workPackages' literal remains."
+  - id: TASKS-FRESH-007
+    status: resolved
+    reason: "WP13 now says 19 fixtures throughout (matrix test, served-route registration, T092), names marker-row-without-event-id as the D-98 marker row feeding lifecycleTypes, matching WP07 and plan S-20."
+  - id: TASKS-FRESH-008
+    status: resolved
+    reason: "WP10 states DEFINED_RULE_COUNT is 14 with the dependency-chain reason; the hedge is gone."
+  - id: TASKS-FRESH-009
+    status: resolved
+    reason: "WP12 T085 pins IncludePrompt.parse(List<String>) returning Optional<Boolean> (empty = refused), no exception type and no extra ProblemAdvice handler; WP14 consumes exactly that and ProblemMapper.invalidParameter(). Recorded as DV-3."
+summary: "All nine round-1 findings (TASKS-FRESH-001..009) are resolved in the current wps.yaml and prompts: the two permanent-test PR A invariants (WP10 accessor, WP12 beans) are now tip-stable, the perf-pin widening is withdrawn (DV-1), resolved-state goldens are served by WP14 with an explicit golden-less exemption rule (DV-2), the planning-lane data-model.md gap has an orchestrator action plus test -f preconditions (OO-5), and the cross-reference slips (work-packages path, 19 fixtures, 14 rules, Optional<Boolean> form, DV-3) are corrected. Deviations and open obligations DV-1..3 and OO-1..5 are each stated with options and a recommendation or pinned form, and none leaves a red tip. finalize-tasks --validate-only passes (18 WPs, 18 lanes, WP04 in the planning lane). No new defects found in the checked passages."

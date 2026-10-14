@@ -1,0 +1,45 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: D-108/S-11/E-2 make the conformance-module fallback the default (verified in repo - that module is corpus-marked, in _CORPUS_MARKED_MODULES and deselected in packs.yml), so P0 writes no out-of-set file and the registry test never goes red; the native-leg LC_ALL line is dropped.
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: P4/P4b now own the manifest surface partition, the paired Java census (GoldenSuiteTest on-disk assertion via allClasses, DetailManifestCensusTest) and Gate G, and P7 uses ServedRoute providers so unwired routes are not red; verified ConformanceTree.classes()/fixtures() are manifest-driven and GoldenSuiteTest is the only on-disk walker.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: P2, P4 and P5 now depend on P3 (P3 depends on P3a and P1), so the graph, the Order-of-work text and the concurrent sets all agree with D-44.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: P6 Depends-on now lists P3 and its row states it uses WpId from P3.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: ArtifactPaths, ArtifactKinds, ArtifactKind and Eligibility moved to P5 (scope, tests, section 13, traceability), consumed by P6, P11 and P12, all of which depend on P5 transitively or directly.
+  - id: PLAN-FRESH-005
+    status: resolved
+    reason: P3's first commit adds Nfr009CacheGrowthTest and a pinned corpus option in MissionCorpus (both in P3 scope), base figure taken in a scratch worktree via perfTest --tests; verified perfTest exists, includes only tag perf, and MissionCorpus#ledger yields 1-12 WPs so a new option is indeed needed.
+  - id: PLAN-FRESH-006
+    status: resolved
+    reason: MetaReadCountTest split into one class per route phase and the shared-file table gained per-route-class, OutOfScopeRoutesTest, MissionCorpus and other rows with single owners.
+  - id: PLAN-FRESH-007
+    status: resolved
+    reason: Section 6 item 2 and S-12 list every absent-on-A module and file (re-verified with git cat-file against the literal base A sha - exactly the stated set is absent), record absent_on_base with executed 0, and add the two record-test controls.
+  - id: PLAN-FRESH-008
+    status: resolved
+    reason: The replacement grep was run on this checkout and prints nothing, matching the stated expectation, and the Jackson Feature identifiers no longer match.
+  - id: PLAN-FRESH-009
+    status: resolved
+    reason: D-116 and a section 9 table row record that exactly three inline strict decoders exist (verified by newDecoder grep), why they are not consolidated, and that StrictUtf8 owns all new reads.
+  - id: PLAN-FRESH-010
+    status: unresolved
+    remaining_severity: 2
+    reason: Graph edges, creator phrases and the ContractDriftProbe/nested-build ownership (P2) are fixed, but the P2 go/no-go paragraph in section 11 still says hand-DTO records are "owned by the route phase that maps them (the P10 row for WorkPackage ...)", contradicting D-111, the P2 row and the shared-file table where P2 owns them all; delete or reword that sentence.
+  - id: PLAN-FRESH-011
+    status: resolved
+    reason: P10 now carries a T7 case (owned-file-pattern-leak), the FR-019 row says P13 only, section 9 says no production file beyond the three classes, and the corpus size is 609 (verified by git ls-files).
+  - id: PLAN-FRESH-012
+    status: resolved
+    reason: Header, section 6, section 11 and D-114 consistently state P0 is an orchestrator-run precondition outside the WP list and the tasks stage starts at P1, matching C-011 and FR-021.

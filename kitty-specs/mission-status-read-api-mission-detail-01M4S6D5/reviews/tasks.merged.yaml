@@ -1,0 +1,438 @@
+schema: review-merged/v1
+phase: tasks
+mission: mission-status-read-api-mission-detail-01M4S6D5
+note: 'R2 mechanical concatenation; no dedup applied beyond exact id; overlapping claims (wrong WP numbers: DECOMP-006, ORDER-003, COVER-002, GREEN-003; stale unowned prose: COVER-001, ORDER-004, DECOMP-009) are kept as separate entries and confirmed/refuted individually'
+findings:
+- id: TASKS-DECOMP-001
+  lens: Decomposition (single concern, reviewable in one sitting)
+  severity: 3
+  title: WP02 bundles five separable concerns across 48 owned files, 10 subtasks, a 48 KB prompt
+  evidence:
+  - artifact: 'wps.yaml WP02 (owned_files: 48 entries; subtasks T009..T018)'
+  - artifact: tasks/WP02-stream-seam-behind-inbound-port.md (404 lines, the longest prompt; 10 subtasks = the stated maximum)
+  - artifact: packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md:25 (target 3-7 subtasks, 200-500 lines); tasks-outline/prompt.md:84-86 (maximum 10)
+  claim: 'WP02 mixes (a) making the raw feed application-internal (T010), (b) the projected StreamEvent/EventProjection vocabulary (T011, T012), (c) admission and shutdown behind the port (T013), (d) request vocabulary (T014), (e) reducing EventsController (T015), and (f) a ten-file type-level retype of existing tests (T016). A reviewer must hold the whole stream seam, the HTTP adapter and ten retyped suites in one head, and the behaviour-preserving claim (no assertion changed) is only checkable across all of it at once. It sits at the hard ceiling with two of the 10 subtasks being a gate (T018) and a plain-caller test (T017).
+
+    '
+  remediation: 'Split into WP02a (T009-T012 plus the T016 retype, which must stay with the symbol moves it follows, plus the T015 controller reduction) and WP02b (T013 admission/shutdown, T014 request vocabulary, T017 PlainStreamCallerTest, JaCoCo line, gate). WP02b depends on WP02a. Renumber downstream; both stay in PR A. Alternatively record in wps.yaml why it must be one reviewable unit and cap review to commit-by-commit order (T010, T011/T012, T013, T014, T015, T016).
+
+    '
+- id: TASKS-DECOMP-002
+  lens: Decomposition (single concern, reviewable in one sitting)
+  severity: 3
+  title: WP09 joins two independent concerns (text-read port plus fence, and redaction plus artifact classification) in 42 files and ~2000 new lines
+  evidence:
+  - artifact: wps.yaml WP09 subtasks T056..T065 (10) and owned_files (42 entries)
+  - artifact: 'tasks/WP09-... Subtask list: ~1970 new lines estimated across eight files'
+  - artifact: 'wps.yaml WP09 comment ''Chokepoint: Allowlist, AllowlistAccess, AllowlistPassThrough and the README allowlist fence change in this one WP so the fence amendment is atomic'''
+  claim: 'The atomicity argument covers only the fence (T057-T060, T063, T065: TextSource, FilesystemTextSource, SafeFiles.readCapped, AllowlistAccess, Allowlist ten PathClass/eleven ENTRIES, guards). T061 (ArtifactPaths, ArtifactKinds, ArtifactKind, Eligibility) and T062 (TextScreen, LeakClasses.credential, nine DiagnosticCode values, parity test) touch other packages and have no ordering dependency on TextSource. Together they exceed a one-sitting review and the WP is the largest hand-written block in PR A.
+
+    '
+  remediation: 'Split in two WPs, both depending on WP05 only: WP09a fence (T056-T060, T063, T064, gate: port, adapter, Allowlist, README parity, no-uncapped/no-unbounded guards) and WP09b domain rules and redaction (T061, T062, its JaCoCo domain line). WP10/WP11/WP12/WP16 then depend on whichever they consume (Eligibility, TextScreen on WP09b; TextSource on WP09a). The Allowlist amendment stays atomic inside WP09a.
+
+    '
+- id: TASKS-DECOMP-003
+  lens: Decomposition (a split that separates a thing from its own test / ownership smell)
+  severity: 3
+  title: WP12 owns 21 read-model records that the four route WPs then edit; guideline smell (a WP editing a dependency's owned files) is annotated, not fixed
+  evidence:
+  - artifact: 'wps.yaml WP12 owned_files (51 entries incl. 21 domain/readmodel/detail records) and WP13..WP16 headers: ''named edits to the eight P8 records this route owns the shape of'''
+  - artifact: tasks/WP13 T092, WP14 T099, WP15 T110, WP16 T117 (named edits of WP12-owned records)
+  - artifact: 'packs/built-in/missions/mission-steps/software-dev/tasks/guidelines.md ''Dependency Hygiene'': ''A WP must not depend on a sibling whose owned files it also edits - that is a decomposition smell to fix, not annotate.'''
+  - artifact: 'wps.yaml WP14/WP15/WP16 headers: concurrent lanes each make named edits to OutOfScopeRoutesTest (WP13), R/portlevel-tests.txt (WP05) and jacoco-class-floor.properties (WP01), ''serialised by merge order'''
+  claim: 'WP12 shapes 21 records ''from the contract schemas'' with no consumer in PR A, and each route WP (which depends on WP12) then edits the records of its own route. The record is separated from the code that gives it meaning, a reviewer of WP12 cannot judge the shape, and the three concurrent route lanes (WP14/15/16) all hit the same three shared files, so merge order and recounts become a manual step in each.
+
+    '
+  remediation: 'Either (a) make WP12 final: state in WP12 and in WP13-WP16 that the records are complete from the contract schemas and route WPs add NO edit to them (delete the ''named edits to the P8 records'' lines and subtask text T092/T099/T110/T117), or (b) keep only the types the four ports need to compile in WP12 and move each route''s records to its route WP''s owned_files (shape and tests together). For the shared files, add one line in the wps.yaml header assigning the merge order WP14 -> WP15 -> WP16 so the lanes cannot race.
+
+    '
+- id: TASKS-DECOMP-004
+  lens: PR readability (PR A / PR B split)
+  severity: 3
+  title: PR A is not a diff a human can read in a sitting and the plan gives no size estimate, review order or seam; PR A to PR B is roughly 286 to 75 owned entries
+  evidence:
+  - artifact: 'wps.yaml owned_files counts: WP01..WP12 = 17+48+18+1+31+6+28+1+42+18+25+51 = 286 entries; WP13..WP18 = 13+10+18+15+8+11 = 75'
+  - artifact: plan.md:630 'Hand-written Java will exceed what is readable in one sitting once tests are counted; generated, count and golden files are reviewed by regeneration command, not by line'
+  - artifact: 'tasks prompts: WP09 ~1970, WP11 ~1705, WP12 ~1702 new lines (the ''~N lines'' estimates in each prompt)'
+  claim: 'The operator ruled two PRs (E-8), so the count of two is not the defect. The defect is that the split point was chosen by phase (P8|P9), not by reviewable size: PR A holds 12 WPs, 3 of them near 2000 lines, plus a behaviour-preserving refactor, an ArchUnit overhaul, a contract spike, a Python oracle extension, a Java harness and the fence amendment, none of which is served by a route. Nothing tells the PR A reviewer in what order to read it, which parts are generated, or what the diff size is.
+
+    '
+  remediation: 'Without reopening E-8: add to wps.yaml header (and thus the PR A description via tasks.md/plan) a reading order by WP with per-WP line estimates (hand-written vs generated), mark generated sets (R/conformance/**, jacoco floors) as review-by-command, and ask the operator whether a stacked intra-PR seam (commits grouped WP01-WP06 behaviour-preserving foundation | WP07-WP12 detail groundwork) is acceptable for review. Escalate to the operator as a decision if the estimate for PR A exceeds the size a maintainer will review (the P13 split below shows the plan already splits work on this basis).
+
+    '
+- id: TASKS-DECOMP-005
+  lens: PR readability (check of the P13 two-WP split)
+  severity: 2
+  title: P13 split is sound but justified by the wrong rule, and WP18 carries an acknowledged false dependency on WP17
+  evidence:
+  - artifact: wps.yaml header 'Phase P13 is split in two WPs ... for the 10-subtask maximum and PR readability; both depend on P9..P12' and WP17 comment 'Both depend on P9 to P12 and have disjoint scopes'
+  - artifact: 'wps.yaml WP18 dependencies [WP13..WP17]; tasks/WP18-... ''Plan defects'' item 1: ''WP17 is a dependency of this WP but nothing in this WP''s tests needs it''; open fork F3'
+  claim: 'WP17 (7 subtasks) and WP18 (8) are each reviewable and split along a clean seam (CI/native/docs/Python pins vs Java tests), so the split holds. But the header justifies it by the 10-subtask maximum (a combined P13 would be 15 subtasks, true) while the comments say the scopes are disjoint and then WP18 is serialised after WP17 on a dependency its own prompt says is unneeded. The contradiction survives into the generated dependency graph and forces WP18 to wait for the slowest CI work for no technical reason.
+
+    '
+  remediation: 'Resolve F3 now in the manifest: either drop WP17 from WP18''s dependencies (the prompt already says the gate is correct either way) or keep it and rewrite the header comment and WP18 text to say the order is a deliberate ''closing evidence last'' ordering, not technical. Either way, delete ''disjoint scopes'' from one of the two places.
+
+    '
+- id: TASKS-DECOMP-006
+  lens: Prompt-file quality (stale cross-references)
+  severity: 3
+  title: Prompts name the wrong WP for phase numbers (P8 read as WP08, P5 as WP05, P7 as WP07)
+  evidence:
+  - artifact: 'tasks/WP03-... lines 80, 96, 242, 243, 251, 272: ''WP08 (P8) extends this WP''s files with rules 15 and 16'', ''14 + 2 (WP08) = 16'', ''the rest is WP08''; line 80 ''WP05 (P5) adds one control (A2cByteBuffer)'''
+  - artifact: 'tasks/WP02-... line 148: ''AdmissionGate (WP08/P8 ...)'''
+  - artifact: 'tasks/WP01-... lines 269, 295: ''DEFINED_RULE_COUNT ... raised by WP03 and later WP08'', ''turns red after WP05 or WP08'''
+  - artifact: tasks/WP18-... line 133 'WP08's AdmissionGateTest'; line 197 'PlainCaller, DetailFixture, HttpHarness#startWith are WP07's'
+  - artifact: 'wps.yaml numbering table: P8 = WP12, P5 = WP09, P7 = WP10, P3 = WP05, P4b = WP08, P4 = WP07'
+  claim: 'WP08 is the resolved-state goldens WP; the AdmissionGate, rules 15/16 and PlainCaller are WP12, the A2cByteBuffer control and the 15 PathClass/11 ENTRIES/8 DiagnosticCode growth are WP09, and the harness (DetailFixture, startWith) is WP10. The WP numbering was reordered topologically after the prompts used plan phase names, so these cross-references point an implementer or reviewer (who will use the references to find the named edit owner or the thing to rebase on) at the wrong lane.
+
+    '
+  remediation: 'Replace each reference: WP03:80/96/242/243/251/272 WP08 -> WP12 and WP05 -> WP09; WP02:148 WP08 -> WP12; WP01:269 WP08 -> WP12, WP01:295 ''WP05 or WP08'' -> ''WP09 or WP12''; WP18:133 WP08 -> WP12; WP18:197 ''WP07''s'' -> ''WP10''s (DetailFixture, startWith) and WP12''s (PlainCaller)''. Then grep every prompt for bare WPnn mentions next to a phase gloss and check against the numbering table.
+
+    '
+- id: TASKS-DECOMP-007
+  lens: No padding / no vacuous subtasks
+  severity: 2
+  title: Gate, review-pass and confirm-only subtasks, and conditional 'if' subtasks, inflate subtask counts beyond the 3-7 target
+  evidence:
+  - artifact: 'wps.yaml: 17 of 18 WPs end in a ''Gate:'' subtask (T008, T018, T025, T036, T043, T051, T055, T065, T072, T080, T089, T097, T104, T111, T118, T125, T133)'
+  - artifact: wps.yaml WP04 T029 'Review pass'; WP07 T049 'Confirm the P0 baseline-record tests ... stay green and unchanged'; WP05 T034 'confirm ProjectionCache.java and OverviewDeriver stay unchanged'
+  - artifact: wps.yaml WP17 T121 'NativePerfTest NFR-002 scenario if it runs the scenario', T123 'edit MissionStatusApplicationHints only on a miss'; WP11 T079 'named edit of MissionStatusApplicationHints only on a proven native miss'
+  - artifact: 8 of 18 WPs carry 8-10 subtasks (WP01 8, WP02 10, WP07 8, WP09 10, WP11 8, WP12 9, WP13 8, WP18 8) against the 3-7 target
+  claim: 'A gate is a validation step, which the guideline allows, but T029/T049/T034 produce no file or test; they are Definition-of-Done lines in the form of subtasks. The ''if/only on a miss'' subtasks have no implementable deliverable until a condition is met. Together they push 8 WPs over the target without any recorded justification and hide that WP04 and WP08 are nearly empty.
+
+    '
+  remediation: 'Fold T029 into the WP04 DoD, T049 into the WP07 gate T051, T034 into T033; move the conditional MissionStatusApplicationHints edits (T079, T123, T088) from subtask text into the WP''s ''Named edits'' list (they already appear there), and state in the WP17 prompt whether NativePerfTest is in or out. Record in the wps.yaml header which WPs deliberately exceed 7 and why.
+
+    '
+- id: TASKS-DECOMP-008
+  lens: Decomposition (WP that edits its dependency's owned files)
+  severity: 2
+  title: WP08 is a thin WP whose three substantive subtasks are named edits to WP07-owned files
+  evidence:
+  - artifact: 'wps.yaml WP08 header: ''T052 ... (named edit of the P4 generator)'', ''T053 Named edits to P4''s manifest.json ... and the resolved-state floor line in both Python CLASS_FLOORS and Java DETAIL_CLASS_FLOORS''; owned_files is only R/conformance/resolved-state/**'
+  - artifact: wps.yaml WP08 depends_on WP07; tasks/WP08-... 200 lines, 4 subtasks
+  claim: 'WP08 owns generated output only and edits the generator, manifest and census owned by WP07 (its dependency): the same smell as finding 003, in miniature. The census floor and the generator hook for resolved-state are separated from the census test that proves them.
+
+    '
+  remediation: 'Either merge WP08 into WP07 (WP07 then has 12 subtasks, so first fold its gate/confirm subtasks per finding 007), or give WP08 its own files so it edits nothing of WP07''s: a separate resolved-state generator module and a separate ResolvedStateManifestCensusTest owned by WP08, leaving WP07''s generator, manifest.json and DETAIL_CLASS_FLOORS unchanged.
+
+    '
+- id: TASKS-DECOMP-009
+  lens: Prompt-file quality
+  severity: 2
+  title: WP13-WP16 'Plan defects found' still ask the orchestrator to grant ownership that wps.yaml and the frontmatter already grant
+  evidence:
+  - artifact: tasks/WP13-... Plan defects item 1; WP14 item 1; WP15 item 1; WP16 item 1 ('Port-level test class has no owner in the write map ... the orchestrator should confirm, or add the pattern ... before finalize-tasks')
+  - artifact: 'wps.yaml lines 1047, 1105, 1174, 1235 and each prompt''s owned_files/create_intent: MissionDetailPortLegsTest, WorkPackagePortLegsTest, WorkPackageDetailPortLegsTest, ArtifactPortLegsTest are owned and create_intent-listed'
+  claim: 'The defect text is out of date against the manifest and, read literally, sends the WP agent to ask the orchestrator for something already given or to make an ''out-of-map addition'' it is already mapped to. It also reads as an open planning gap to the reviewer.
+
+    '
+  remediation: 'Replace each item with a one-line note ''resolved: owned by this WP in wps.yaml'' (or delete it), keeping item 2 and 3 of WP13 which are still live.
+
+    '
+- id: TASKS-DECOMP-010
+  lens: Prompt-file quality (canonical structure and tasks.md contract)
+  severity: 2
+  title: Manifest-versus-plan contradiction on the PR column; create_intent exists only in the prompt frontmatter
+  evidence:
+  - artifact: plan.md:632 'tasks.md states the split and carries a PR column, A or B, for every Work Package'
+  - artifact: wps.yaml header lines 2-3, 'tasks.md ... keeps no header, no PR column and no comment from this file'; titles carry [PR A]/[PR B] instead
+  - artifact: wps.yaml header 'wps.yaml is the only authority' versus create_intent present in tasks/WP01-WP07, WP09-WP16, WP18 frontmatter and absent from wps.yaml; WP08 and WP17 have none (validate-only passes because their literal owned paths exist)
+  claim: 'The plan requires a PR column in tasks.md that the generator cannot emit; the title tag is a workaround, never recorded as a plan deviation. Separately, create_intent (read by finalize from the prompt frontmatter) is a second source of truth that wps.yaml does not mirror, so a later wps.yaml-only edit leaves the two inconsistent (SK-310: edits after bootstrap are inert).
+
+    '
+  remediation: 'Record the [PR A]/[PR B] title tag as the deliberate realisation of the plan''s PR column (one sentence in wps.yaml header and a plan amendment note). Either mirror create_intent in wps.yaml or add a header line stating that create_intent lives in the prompt frontmatter and is derived from the new files of each WP.
+
+    '
+- id: TASKS-DECOMP-011
+  lens: Prompt-file quality (formatting)
+  severity: 1
+  title: Prompt H1 title is truncated and uses inconsistent dash glyphs
+  evidence:
+  - artifact: 'tasks/WP01-... H1 ''# Work Package Prompt: WP01 - [PR A] P1 Campsite: extract lookup, read model and head projection'' versus frontmatter title ending ''(C-011); starts after the #5529 re-cut''; WP13-WP16 H1 use an en dash, WP01-WP12/WP17/WP18 a hyphen'
+  claim: Cosmetic only; profile section, frontmatter keys, owned_files, dependencies, subtasks and requirement_refs all match wps.yaml for all 18 WPs, no plan_concern_refs key, no home path or username anywhere.
+  remediation: Use one dash glyph (the README template uses an en dash) and either the full title or a consistent truncation rule.
+- id: TASKS-ORDER-001
+  lens: 'Dependencies correct / lane lineage (mission lens: external dependencies and stacking)'
+  severity: 4
+  title: WP05 depends only on the planning_artifact WP04, so its lane starts without any of WP01..WP03's code
+  evidence:
+  - artifact: 'wps.yaml WP05 dependencies: [WP04]; WP04 dependencies: [WP03]; WP04 is the only planning_artifact WP (lane-planning)'
+  - artifact: 'plan.md section 11 Depends-on column: P3 depends on ''P3a (and so P1, P1a and P1b)'' - the plan relies on transitivity'
+  - code: src/specify_cli/lanes/compute.py:1105-1126 (lane_deps built from DIRECT WP dependencies only; the planning lane is its own node)
+  - code: src/specify_cli/lanes/branch_naming.py:560-600 (lane_branch_name('lane-planning') returns the target branch, not a kitty/mission-... lane branch)
+  - code: src/specify_cli/lanes/worktree_allocator.py:1602-1672 (_merge_dependency_lane_tips merges only the lane's direct depends_on_lanes; a dependency on the planning lane merges the target branch, which holds no lane-a/b/c commit)
+  - code: src/specify_cli/lanes/implement_support.py:757-795 (planning claim waives code-lane ancestry, so WP04 never pulls WP01..WP03 either)
+  - artifact: 'reproduced read-only: compute_lanes on the 18 WP frontmatters gives lane-d (WP05) depends_on_lanes=(''lane-planning'',) while lane-planning depends on lane-c; lane-f (WP07), lane-h (WP09), lane-e (WP06) all inherit only from lane-d'
+  claim: 'finalize computes one lane per WP, but lane-d (WP05) has lane-planning as its only dependency lane. The planning lane lives in the root checkout on the target branch, so merging it into lane-d''s worktree brings in no commit from lane-a (WP01 campsite), lane-b (WP02 stream seam) or lane-c (WP03 ArchUnit gates). Every later PR A lane (WP06, WP07, WP08, WP09, WP10, WP11, WP12) descends from lane-d, so the whole mission would be implemented on a tree without the campsite, the port seam and the generalised gates, until consolidation. WP05 would then recount the JaCoCo domain line, edit ServiceWiring/ProjectionCache neighbours, and run Gate G / CoupledSymbolsShapeTest against a tree that lacks WP01..WP03, and the final lane merges conflict. The sequencing D-44 (campsite, then the first functional change) is stated in the plan but not enforced in the lane graph.
+
+    '
+  remediation: 'Before finalize-tasks bootstraps (SK-310: owned_files/dependency edits after bootstrap are inert), give WP05 dependencies [WP03, WP04] in wps.yaml (and the WP05 frontmatter and the header table), so lane-d depends on lane-c as well as lane-planning and _merge_dependency_lane_tips brings in the lane-a..c chain. Re-run the read-only compute_lanes/finalize --validate-only check and confirm lane-d lists both lane-c and lane-planning. Alternatively (not preferred) record in WP05 a precondition that the orchestrator consolidates lanes a..c into the target branch before WP05 is claimed.
+
+    '
+- id: TASKS-ORDER-002
+  lens: Write scopes / lane computation (claims about lanes)
+  severity: 2
+  title: WP08 says it 'shares WP07's lane'; finalize computes 18 distinct lanes (WP07 = lane-f, WP08 = lane-g)
+  evidence:
+  - artifact: 'tasks/WP08-p4b-resolved-state-goldens.md ''Pull request and dependencies'' line 1: ''WP08 shares WP07''s lane (it depends on it and edits its files by named edit)'''
+  - artifact: 'plan.md section 11 shared-file table: ''P4b depends on P4, so it shares P4''s lane'''
+  - artifact: 'finalize-tasks --validate-only: lanes_preview count 18, collapse_report total_merges 0; compute_lanes: lane-f=(WP07), lane-g=(WP08) depends on lane-f'
+  claim: 'No lane is shared: the manifest has disjoint owned_files and a dependency edge, which yields a separate lane that merges lane-f''s tip. The statement is false and suggests WP08 reuses WP07''s worktree (and that the pair cannot run concurrently with anything that touches the same files).
+
+    '
+  remediation: 'Reword WP08 to ''WP08 runs in its own lane (lane-g) after WP07; its workspace merges WP07''s approved tip; the named edits to WP07-owned files apply on top of that tip''. Do not rely on lane sharing in plan section 11 prose either.
+
+    '
+- id: TASKS-ORDER-003
+  lens: Dependencies correct (cross-references through the WP numbering)
+  severity: 2
+  title: Stale or wrong WP numbers when prompts name the owner of a class or file (Plan-phase numbers were not translated)
+  evidence:
+  - artifact: 'tasks/WP03-... Dependents line: ''WP08 (P8) extends this WP''s files ... WP05 (P5) adds one control (A2cByteBuffer)''; P8 is WP12 and P5 is WP09'
+  - artifact: 'tasks/WP02-... (Mechanisms bullet): ''AdmissionGate (WP08/P8 ...)'' ; AdmissionGate is WP12'
+  - artifact: tasks/WP17-... 'ProvisionPlan (WP07, T/testsupport/ProvisionPlan)' ; the Java ProvisionPlan is WP10 (WP07 owns only the Python PROVISION_PLAN)
+  - artifact: 'tasks/WP17-... T-subtask on oracle methods: ''detail oracle module of WP04 (tests/contract/_mission_status_detail.py, exists after WP04)''; WP04 is the documentation-only mapping WP; the oracle is WP07''s and the file already exists in the checkout (tests/contract/_mission_status_detail.py)'
+  - artifact: 'tasks/WP18-... T129: ''PlainCaller (WP07 ...)'' (WP12), ''that file [portlevel-tests.txt] is owned by WP03'' (WP05); T129 Validation: ''WP08''s AdmissionGateTest'' (WP12); T-permission subtask: ''PermissionCaseCoverageTest (WP07)'' (WP10)'
+  claim: 'Eight cross-references name the wrong WP. They were written against plan phase labels or an earlier numbering. An implementer or reviewer who follows them looks in (or asks) the wrong WP, and WP18''s statement of who owns portlevel-tests.txt would wrongly point to WP03.
+
+    '
+  remediation: 'Correct each reference: WP03 -> ''WP12 (P8)'' and ''WP09 (P5)''; WP02 -> WP12; WP17 ProvisionPlan -> WP10 and detail oracle -> WP07 (file exists today); WP18 PlainCaller -> WP12, portlevel-tests.txt owner -> WP05, AdmissionGateTest -> WP12, PermissionCaseCoverageTest -> WP10. Then grep each prompt once for ''WP[0-9][0-9]'' next to a class name against the owned_files table (a mechanical check).
+
+    '
+- id: TASKS-ORDER-004
+  lens: Write scopes (named edits stated and out-of-map)
+  severity: 2
+  title: Prompts still describe files as unowned that wps.yaml already owns (WP05 LineKind, WP13-WP16 port-level test classes)
+  evidence:
+  - artifact: 'tasks/WP05-... Pull request and dependencies item 4 and ''Plan defects found'' item 1: ''J/domain/model/LineKind.java is owned by no WP ... the one out-of-map edit this WP may add'''
+  - artifact: 'wps.yaml WP05 owned_files (line 426): ''.../domain/model/LineKind.java'' is owned'
+  - artifact: 'tasks/WP13 ''Plan defects'' item 1, WP14 item 1, WP15 item 1, WP16 item 1: ''Port-level test class has no owner in the write map ... justified out-of-map addition'''
+  - artifact: 'wps.yaml owned_files: conformance/port/MissionDetailPortLegsTest.java (WP13, line 1047), WorkPackagePortLegsTest.java (WP14), WorkPackageDetailPortLegsTest.java (WP15), ArtifactPortLegsTest.java (WP16)'
+  claim: 'The orchestrator has since put these files into owned_files, but the prompts keep the old ''out-of-map, ask the orchestrator to add the pattern'' text. A worker following it would write a commit message claiming an out-of-map edit for an owned file (and WP05 may stop to ask), and a reviewer applying ''named edits must be out-of-map'' sees a contradiction between the prompt and the manifest.
+
+    '
+  remediation: 'Delete or rewrite those Plan-defect items as resolved (WP05: LineKind.java is in owned_files, edit it normally; WP13..WP16: the PortLegsTest class is owned, only the append to R/portlevel-tests.txt is a named edit of WP05''s file) and drop the ''Only if T033 proves it unavoidable'' hedge and the out-of-map bullet in WP05.
+
+    '
+- id: TASKS-ORDER-005
+  lens: Write scopes (chokepoints serialise)
+  severity: 2
+  title: Plan claims concurrent appends to R/portlevel-tests.txt 'merge by keeping every line'; git will conflict, and WP13..WP16 are concurrent
+  evidence:
+  - artifact: 'plan.md shared-file table row R/portlevel-tests.txt: ''concurrent appends merge by keeping every line'''
+  - code: .gitattributes:12 and :34 (only kitty-specs/**/traces/*.md has a merge driver; R/portlevel-tests.txt and jacoco-class-floor.properties carry no merge=union)
+  - artifact: 'lane graph: lane-l (WP13) and lane-o (WP16) are concurrent; WP14/WP15 concurrent with each other and with WP16; WP11 (PR A) concurrent with WP16'
+  - artifact: 'tasks/WP13..WP16 ''Concurrent lanes'' risk: ''Mitigation: rebase, re-read, recount on the merged tree'' (no instruction for portlevel-tests.txt or OutOfScopeRoutesTest conflict resolution)'
+  claim: 'Two lanes appending different lines at the end of the same text file produce a textual conflict in a three-way merge. The prompts'' mitigation covers the JaCoCo recount (D-145) but not how to resolve the portlevel list and OutOfScopeRoutesTest removals; the second-merged lane (and the orchestrator at consolidation) hits an unplanned conflict on chokepoint files.
+
+    '
+  remediation: 'In WP13..WP16 (and WP11 for jacoco) state the resolution rule: on conflict keep the union of id lines, re-run PortLevelClassSetTest and PortLevelIdsTest; for OutOfScopeRoutesTest keep the intersection of the remaining paths (remove every path any lane removed). Or serialise by merge order explicitly in tasks (orchestrator merges WP13, WP14, WP15, WP16 in that order, each rebasing). Do not claim silent merging.
+
+    '
+- id: TASKS-ORDER-006
+  lens: Mission lens - external dependencies and stacking (tasks.md carriers)
+  severity: 2
+  title: tasks.md (titles only) will carry '#5529' for WP01 and the PR letter only; PR B's base and the '#5533 stacks on PR A' rule appear in no title
+  evidence:
+  - artifact: 'wps.yaml header: ''tasks.md ... keeps no header, no PR column and no comment from this file''; only titles survive'
+  - artifact: 'titles: WP01 ''[PR A] P1 Campsite ... starts after the #5529 re-cut''; WP12 ''[PR A] P8 ...''; WP13 ''[PR B] P9 getMission (FR-001)'''
+  - artifact: 'plan.md ''Phase-to-PR map'': ''tasks.md states the split and carries a PR column''; the generated tasks.md has no such column'
+  claim: 'The three statements (PR A stacks on #5529; PR B stacks on PR A and cannot merge before it; #5533''s Java work stacks on PR A) are in every WP body and the wps.yaml header, but a reader of the generated tasks.md sees only the letters [PR A]/[PR B] and WP01''s #5529 note. The one place the orchestrator reads for ordering at a glance omits the PR B base and the #5533 anchor point.
+
+    '
+  remediation: 'Before finalize (titles are overwritten from wps.yaml): make the WP12 title end ''...; last WP of PR A, #5533 stacks here'' and the WP13 title ''[PR B] P9 getMission (FR-001); PR B opens here, stacked on PR A'' (keep within title length). No other change is needed; the bodies already carry the full text.
+
+    '
+- id: TASKS-ORDER-007
+  lens: Write scopes (named-edit accounting)
+  severity: 2
+  title: WP18 T129 leaves the portlevel id of AdmissionGatePortLevelTest undecided with no authority to write it
+  evidence:
+  - artifact: 'tasks/WP18-... T129 step 1: ''registered with an id in R/portlevel-tests.txt only if the file''s convention requires it''; Plan defects item 2: ''no authorisation exists ... report a PortLevelClassSetTest failure rather than editing the list'''
+  - artifact: 'plan.md shared-file table: portlevel-tests.txt writers are P3, P1a, P9..P12 only (no P13)'
+  claim: 'Whether the class needs an id is knowable (it is in application.query, not conformance.port) but the prompt leaves it open and forbids the only fix if it is needed. The outcome would be a red PortLevelClassSetTest at the last WP with no sanctioned remedy.
+
+    '
+  remediation: 'Decide now: either state that AdmissionGatePortLevelTest is not a @PortLevelTest and carries no id (drop the conditional), or add R/portlevel-tests.txt as a WP18 named edit (append-only). Verify against the annotation/scan rule of PortLevelClassSetTest in the re-cut tree at the next design step.
+
+    '
+- id: TASKS-ORDER-008
+  lens: Write scopes (named-edit accounting)
+  severity: 1
+  title: wps.yaml header comment calls ci-router.yml/test_contracts_workflows.py named edits while they are in WP07's owned_files
+  evidence:
+  - artifact: 'wps.yaml WP07 comment (line ~512): ''ci-router.yml and test_contracts_workflows.py are written only if AC-14.6 demands''; listed under ''Named edits'' but present in owned_files (lines 571-572)'
+  claim: 'Wording inconsistency; owning shared CI files conditionally in a PR A WP also leaves WP17 (plan: ci-router one line ''only if required'') with no stated way to touch ci-router.yml.'
+  remediation: Move the two items out of the 'Named edits' list in the WP07 comment and prompt into a 'conditional owned files' note, and add a one-line statement in WP17 that a ci-router change, if needed, is a named edit of WP07's file.
+- id: TASKS-COVER-001
+  lens: plan defects reported by WP authors (stale after wps.yaml was fixed)
+  severity: 3
+  title: Four "Plan defects found" items claim an ownership gap that wps.yaml already closes, so the prompt contradicts its own owned_files
+  evidence:
+  - artifact: tasks/WP13 § Plan defects found item 1; WP14 item 1; WP15 item 1; WP16 item 1 (port-level test class 'has no owner in the write map', 'justified out-of-map addition')
+  - artifact: 'wps.yaml owned_files: WP13 owns conformance/port/MissionDetailPortLegsTest.java, WP14 WorkPackagePortLegsTest.java, WP15 WorkPackageDetailPortLegsTest.java, WP16 ArtifactPortLegsTest.java (and the same paths are in each prompt''s frontmatter owned_files)'
+  - artifact: tasks/WP05 § Plan defects found item 1 and Context line 93 (LineKind.java 'is owned by no WP', 'out-of-map edit'); wps.yaml WP05 owned_files lists domain/model/LineKind.java
+  claim: The WP authors reported gaps (port-level legs class, LineKind carrier record) that the manifest already fixes. An implementer reading the prompt will treat an owned file as an out-of-map edit, write a "justified exception" in the commit message, and a reviewer will wonder whether the ownership map was breached. WP13..16 also tell the orchestrator to "add the pattern before finalize-tasks (SK-310)", which is already done.
+  remediation: Edit WP05, WP13, WP14, WP15, WP16 to state that the file is in owned_files (delete the out-of-map wording and the orchestrator request from "Plan defects found"; keep only the portlevel-tests.txt append as the named edit). No plan decision needed.
+- id: TASKS-COVER-002
+  lens: file references real / dependency citations
+  severity: 3
+  title: Stale phase-number-as-WP-number citations point implementers at the wrong work package
+  evidence:
+  - artifact: 'tasks/WP18 § T129 step 1: ''PlainCaller (WP07 ...)'', ''that file [portlevel-tests.txt] is owned by WP03''; § T129 Validation: ''WP08''s AdmissionGateTest''; § T130/T131: ''PermissionCaseCoverageTest (WP07)'', ''ConformanceTree surface partition, WP04'', ''providers created with their routes (WP04, WP07, ...)'''
+  - artifact: 'tasks/WP02 context: ''AdmissionGate (WP08/P8 ...)''; tasks/WP03 context line 21 and Dependents: ''WP08 (P8) extends this WP''s files'', ''WP05 (P5)'', and the arithmetic ''14 + 2 (WP08) = 16''; tasks/WP17: ''testsupport classes of WP07'', ''detail oracle module of WP04 (exists after WP04)'''
+  - artifact: 'wps.yaml owned_files: PlainCaller, AdmissionGate, DetailInfrastructureWiring are WP12 (P8); PermissionCaseCoverageTest, ServedRoute, testsupport are WP10 (P7); portlevel-tests.txt is WP05; ConformanceTree and the golden classes are WP07/WP08; WP04 is planning-only. tests/contract/_mission_status_detail.py already exists in this checkout.'
+  claim: The prompts mix plan phase numbers with WP numbers (P8 is WP12, P7 is WP10, P3 is WP05, P4 is WP07). An implementer told that WP08 owns AdmissionGateTest or that WP03 owns portlevel-tests.txt looks in the wrong work package for the helper or for the file to rebase on. WP18 T129 also says "three gated operations (48 in all)" before correcting to four in the next sentence.
+  remediation: Replace the cited WP ids with the owners in wps.yaml (list in evidence); in WP18 T129 write "each of the four gated operations (64 calls)". Run a repo-wide grep of each prompt for "WP0x (Px)" patterns after the edit.
+- id: TASKS-COVER-003
+  lens: test task for every gate named in plan section 5
+  severity: 3
+  title: WP17 edits the workflow and CI scripts but its gate list omits the four architectural workflow tests plan section 5 names; WP08 omits the corpus trigger completeness test
+  evidence:
+  - artifact: 'plan.md section 5 command block: ''tests/architectural/test_ci_corpus_trigger_completeness.py test_no_duplicate_suite_execution.py test_workflow_coherence.py test_module_shard_registry.py'' (the CI pins and the router)'
+  - artifact: 'tasks/WP17 T123 Validation (line ~137) and T126 hygiene list (line ~165): tests/ci/* only, plus terminology, layer rules, archive freeze, parity script; none of the four architectural workflow tests. grep for test_workflow_coherence over all prompts: zero hits; test_module_shard_registry and test_no_duplicate_suite_execution: zero hits'
+  - artifact: 'tasks/WP08 (edits CLASS_FLOORS in tests/contract/test_mission_status_conformance.py, a corpus-marked module): no run of test_ci_corpus_trigger_completeness.py (only WP07 names it)'
+  - code: tests/architectural/test_workflow_coherence.py, test_module_shard_registry.py, test_no_duplicate_suite_execution.py, test_ci_corpus_trigger_completeness.py exist in this checkout
+  claim: The workflow file mission-status-api.yml, scripts/ci/mission_status_*.py and the registry are exactly what those tests police (a silent double run is the defect class plan section 5 names under packs-gate). WP17 can pass every listed gate and still turn CI red on the retargeted PR.
+  remediation: Add the four architectural tests to WP17 T123/T126 validation and the Definition of done; add test_ci_corpus_trigger_completeness.py to WP08 T-gate (it edits a corpus-marked module).
+- id: TASKS-COVER-004
+  lens: file references real (visibility)
+  severity: 3
+  title: Eligibility must be public for three consumers in other packages but WP09 never says so
+  evidence:
+  - artifact: tasks/WP09 § T061 step 4 (Eligibility.java in application.query.artifact, no visibility stated)
+  - artifact: tasks/WP15 step 6 and Plan defects item 2 ('if package-private ... stop and report, do not edit it'); WP11 uses Eligibility from application.query.index (WP09 line 116); WP16 uses it from application.query.artifact
+  claim: WP15 (application.query.detail) and WP11 (application.query.index) are in other packages than Eligibility (application.query.artifact). If WP09 writes it package-private, two PR A/PR B WPs stop on a file they do not own. Plan section 13 settles the packages but not the modifier.
+  remediation: In WP09 T061 step 4 write "public final class Eligibility (consumed from application.query.index and application.query.detail)" and add the same to its acceptance list; delete the stop-and-report branch from WP15.
+- id: TASKS-COVER-005
+  lens: rulings and layout applied (E-1)
+  severity: 2
+  title: WP16 still counts three heavy operations; E-1 makes four
+  evidence:
+  - artifact: 'tasks/WP16 Context line 84: ''they are two of the three heavy operations (FR-022)'''
+  - artifact: 'plan.md section 14, E-1: ''the fourth heavy operation''; plan section 13 ''Admission gate (four heavy operations)''; tasks/WP14 line 78 and WP18 T129 step 2 say four'
+  claim: Pre-ruling wording (spec D-64 era). It does not change what WP16 builds but it is the sentence a reviewer uses to check that the gate set is complete.
+  remediation: Change to "two of the four heavy operations (FR-022, E-1)".
+- id: TASKS-COVER-006
+  lens: every AC traceable to a WP subtask with an observable check
+  severity: 2
+  title: AC-9.3 is assigned to P13 by the plan traceability table but no WP18 subtask names it
+  evidence:
+  - artifact: 'plan.md section 11 traceability: ''FR-009, AC-9.1 to AC-9.4 | P10 (exact bytes, README), P13 (guard flow)'''
+  - artifact: 'tasks/WP18 T126 step 5 (HostOriginRig.TARGETS extended with the five detail routes, AC-17.1): no includePrompt=true target; grep AC-9 in WP18 finds no AC-9.3'
+  - artifact: 'tasks/WP14 T104 and Plan defects item 2: WP14 tests AC-9.3 for its own route at controller level and says WP18 owns the multi-route flow'
+  claim: WP14 and WP18 each assume the other holds the full guard flow. As written the Host/Origin guard is exercised on getWorkPackage with includePrompt=true only by WP14's controller test; the shared flow rig (zero reads recorded through EntryCounting for the prompt variant) is nobody's.
+  remediation: In WP18 T126 step 5 add a target "getWorkPackage?includePrompt=true" with the AC-9.3 assertion (403 request_refused, no prompt byte, zero port reads; accepted Host gives 200 with bytes) and add AC-9.3 to WP18 requirement coverage text; or state in WP14 that AC-9.3 is entirely WP14's and drop it from the plan row.
+- id: TASKS-COVER-007
+  lens: requirement_refs wrong or missing
+  severity: 2
+  title: C-003, C-009, C-010 and SC-008 appear in no requirement_refs; NFR-003/NFR-004 omitted from WP14, WP15, WP16
+  evidence:
+  - artifact: 'union of wps.yaml requirement_refs (all 18 WPs): missing C-003, C-009, C-010; SC-008 absent; plan traceability row ''NFR-003, NFR-004 | P13 canary / digest; every route phase (goldens)''; NFR-003 only WP02/WP09/WP13/WP18 and NFR-004 only WP02/WP07/WP13/WP17/WP18'
+  - artifact: 'plan.md traceability ''C-001 to C-011'': C-003 phases, C-009 charter Q2, C-010 untouched; ''SC-008 Reflexivity checks'''
+  claim: The remaining 40 FR/NFR/C ids are covered. These three constraints and SC-008 are claimed by the plan but have no subtask with a check, so finalize-tasks' coverage output will show them uncovered. NFR-003/004 are checked by goldens and canary in every route WP (WP14 canary AC-8.3, WP15/16 goldens) but not declared.
+  remediation: 'Add C-003 to WP13 (scope: five operations only; a check that no Drift/Ops route is added, which OutOfScopeRoutesTest provides), C-010 and C-009 to WP17 (Definition of done: git diff touches no .kittify/charter path), SC-008 to WP17 (README divergence note V-list is its only check, say so), NFR-003 and NFR-004 to WP14, WP15, WP16.'
+- id: TASKS-COVER-008
+  lens: test task for every gate (NFR-006 and NFR-007 hygiene)
+  severity: 2
+  title: The NFR-006 terminology grep is run only by WP01, WP02, WP04, WP07, WP09, WP12, WP17; the route WPs that add main Java never run it
+  evidence:
+  - artifact: 'plan.md section 5 command: grep -rnE ''(^|[^A-Za-z])[Ff]eatures?([^A-Za-z]|$)|feature_'' services/mission-status-api/src/main services/mission-status-api/README.md'
+  - artifact: 'tasks/WP13, WP14, WP15 (Plan: terminology hit only in a Mission-vs-feature note), WP16, WP05, WP11: no terminology grep step in the gate; WP02,03,09-16,18 add files but run the Windows-filename guard only via Gate P tracked-path scan (explicit guard in WP01, WP04-WP08 only)'
+  claim: 'NFR-006 is a review-enforced grep with no test (plan section 5: the terminology test scans src/tests/docs only). The WPs that create the controllers, mappers and DTO names are the ones that can introduce a feature alias, and they never run the grep. NFR-007 is covered by the Gate P scan, so only the terminology half is open.'
+  remediation: Add the section 5 terminology grep to the Definition of done of WP05, WP11, WP12, WP13, WP14, WP15, WP16 (expect empty), as WP01 does.
+- id: TASKS-COVER-009
+  lens: plan defects needing an orchestrator or plan decision
+  severity: 3
+  title: Reported plan defects that cannot be closed by editing wps.yaml or a prompt alone
+  evidence:
+  - artifact: 'tasks/WP04 § Plan defects found item 1 and section 7 of data-model.md: history semantics for a duplicate event_id and for a row the reducer''s rollback arbitration drops (oracle history_entries includes every to_lane row; reduce_parsed de-duplicates and arbitrates); no fixture pins it (AC-20.3)'
+  - artifact: 'tasks/WP16 § Plan defects found item 2: ill-formed missionId plus malformed path answers 404 (E-5 makes the controller map first), FR-005 orders the path check (400) before the Mission lookup; AC-5.2 runs only with a valid Mission'
+  - artifact: 'tasks/WP17 § Plan defects found item 1 (perf-class pin clause generic only) and item 3 (D-145 jacoco equality repair has no writer in PR B); tasks/WP13-16 item 2 / 3 (MissionStatusApplicationHints: only P6, P8 and P13 may edit)'
+  - code: services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ProjectHeaderMaterialisation.java:38 (NOT_COPIED names SYMLINK_PLAN, not PROVISION_PLAN), cited by tasks/WP10 Plan defects
+  claim: 'Four items need a ruling. (1) History semantics: choose "every to_lane row, like the oracle" or "reduced rows", then add a resolved-state fixture with a duplicate-id row and a lost-arbitration row; without it Java and Python diverge on exactly those ledgers and no golden catches it. (2) The 404-over-400 order for an ill-formed id plus bad path is a consequence of E-5, so it is a spec amendment (record it in the S-list) or a binding decision that the oracle''s corpus does not pin it. (3) Whether PR B may edit MissionStatusApplicationHints and the jacoco counts after PR A (owner decision on the shared-file table). (4) PROVISION_PLAN must stay at the fixture top level: WP07 must be told so, because the copy step belongs to a #5529 test-support file no WP of this mission owns.'
+  remediation: Orchestrator rules each item and records it in plan section 14; then (1) add the two fixtures to WP08 (class resolved-state) and a sentence to WP04/WP05, (2) add a clause to WP16 and the spec-fold list, (3) add MissionStatusApplicationHints and jacoco-class-floor.properties as named edits of WP13..WP16 and WP17/WP18 in wps.yaml header, (4) add a one-line constraint to WP07 T044 step 5.
+- id: TASKS-COVER-010
+  lens: plan defects fixable by editing wps.yaml or WP prompts
+  severity: 2
+  title: 'Reported defects that need only a manifest or prompt edit before finalize-tasks (SK-310: owned_files edits after bootstrap are inert)'
+  evidence:
+  - artifact: 'tasks/WP05 § Plan defects item 2: Nfr009CacheGrowthTest history-less control cannot use package-private ProjectionCache from package perf; the plan''s ''test-tree hook in application.query'' is not an owned path (WP05 owns main ProjectionCache.java, perf/Nfr009CacheGrowthTest.java, perf/MissionCorpus.java)'
+  - artifact: 'tasks/WP11 § Plan defects item 2: AC-6.5 planted controls (12a codec referencing a port.out interface, 12c application referencing the codec) have no owned home; WP11 owns no T/architecture/fixture path; pattern is ArchitectureControlsTest (owned by WP01)'
+  - artifact: tasks/WP03 § Plan defects item 1 (tooling-friction.md append), WP06 item 3 / WP11 (research.md), WP15/WP16 item 4/6 (PermissionCaseFloorTest id split), WP17 item 2 (tests/ci/test_mission_status_readme.py is in the owned glob), WP18 item 4 (PerfBudgets not owned)
+  claim: Each is solvable inside the manifest. The nested-class workaround for AC-6.5 gives weaker planted controls than the fixture pattern the spec names; the NFR-009 control built from public API measures the same payload but is not the plan's hook.
+  remediation: '(a) WP05: add T/application/query/ProjectionCacheHistoryProbe.java to owned_files and create_intent, or have WP05 widen nothing and keep the public-API variant (already recorded in design-decisions). (b) WP11: add named edit of ArchitectureControlsTest with two planted fixtures under T/architecture/fixture/ (owned paths added to WP11, disjoint from WP12 names). (c) Add M/traces/tooling-friction.md to WP03 named edits in the wps.yaml header; fix the PermissionCaseFloorTest id split as 2+2 (WP15 two, WP16 two) in both prompts; accept WP17''s tests/ci/test_mission_status_readme.py; keep PerfBudgets as test-class constants.'
+- id: TASKS-COVER-011
+  lens: rulings and layout applied
+  severity: 1
+  title: Verified clean - E-1, E-5, E-7, E-8, E-9, D-131 are applied; no wrong or missing paths found in the cited checkout names
+  evidence:
+  - artifact: 'E-1: WP14 line 78 + WorkPackageQueryServiceGateTest asserts both directions; WP16, WP15 gate; WP13 explicitly ungated. E-5: WP05 WpId.parse (WpIdTest), WP12 MissionId.parse (MissionIdParseTest, MissionId.java in owned_files), WP13-16 adapters call both parses; rule 16 clause c scoped to the four new interfaces only (WP12 line 288). E-9: WP06 T042 same commit. E-7: WP05, WP11, WP12, WP17 name the local runs. E-8: all 18 titles carry [PR A]/[PR B]; WP01-12 A, WP13-18 B; dependencies match plan Depends-on column for P1..P13.'
+  - artifact: 'finalize-tasks --validate-only: validation_passed, wp_count 18. Frontmatter title, dependencies, requirement_refs, owned_files, subtasks equal wps.yaml for all 18 WPs; subtask ids T001..T133 unique and contiguous, each has its ''### Subtask'' heading; max 10 per WP. All owned main-source paths follow the side-first tree with interface-only port roots and dto/ and exceptions/ subpackages (no flat application/port or domain/overview names outside ''checkout name'' mentions). Every spec AC id except AC-21.1..21.3 (P0 precondition by ruling) appears in at least one WP.'
+  claim: Recorded so the orchestrator knows these lenses were checked and passed. Nit - WP01 plan-defect note counts the twelve probe paths as 8+4; correct.
+  remediation: None.
+- id: TASKS-GREEN-001
+  lens: per-WP self-contained green (existing gates the new port-level legs trip)
+  severity: 4
+  title: Port-level detail legs (WP13..WP16, and WP05 T034) go through PlainCaller, which two existing gates reject, so the first PR B route tip is red
+  evidence:
+  - artifact: tasks/WP13-get-mission.md § T096 step 2 (port-level legs 'obtain the port through WP12's PlainCaller'); same in WP14 § T103 step 2, and the equivalent in WP15 and WP16; WP05 § T034 step 2 (new @PortLevelTest ids in Ac5ReductionTest)
+  - artifact: wps.yaml owned_files WP13..WP16 (T/conformance/port/*PortLegsTest.java); no WP owns or names an edit of testsupport/PortSourceSelector.java, Fixture.java or PortFixtures.java
+  - code: services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/PortLevelClassSetTest.java:78-91 (every class in conformance.port must depend on PortSourceSelector or PortFixtures)
+  - code: services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/PortSubsetSecondLegTest.java:93-94 (every listed id must open a fixture through the selector on both the in-memory and the filesystem leg)
+  - code: services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/Fixture.java:10-13 (Fixture exposes only MissionStatusQuery and diagnostics, so a selector fixture cannot carry a detail port)
+  claim: The WP13..WP16 prompts add classes to conformance.port that never touch PortSourceSelector or PortFixtures and that open no selector fixture. PortLevelClassSetTest (an architectural gate) and PortSubsetSecondLegTest (runs every listed id on both sources and requires each to open a fixture) both fail on such a class. The prompts only mention PortLevelClassSetTest as a set-equality check, never these two rules, and grep of plan.md, wps.yaml and the WPs finds no mention of PortSourceSelector or PortSubsetSecondLegTest. PR B's first route tip (WP13) and every later tip are therefore red as specified. WP05's new AC-20 port-level ids have the same exposure if they call the reducer directly instead of opening a selector fixture.
+  remediation: Decide the mechanism in wps.yaml and the four route WPs. Either (a) extend the selector path (WP10 owns it as a named edit of testsupport PortSourceSelector, Fixture and PortFixtures so a spec can yield a detail port built by DetailFixture on both legs, with the filesystem leg using FilesystemTextSource) and have every *PortLegsTest open its port through PortFixtures, or (b) keep the detail legs out of conformance.port and portlevel-tests.txt (for example under application/query, as WP18 does for AdmissionGatePortLevelTest) and state that no id is appended. Add PortLevelClassSetTest and PortSubsetSecondLegTest to the Gate G named-test list of WP05 and WP13..WP16 so the first red is caught in the WP.
+- id: TASKS-GREEN-002
+  lens: baseline honesty and silent-success (empty-set iteration without a count guard)
+  severity: 3
+  title: A mistyped or missing ServedRoute provider name leaves DetailGoldenSuiteTest green with zero comparisons from WP13 to WP17; the guard arrives only in WP18
+  evidence:
+  - artifact: tasks/WP10-java-harness-detail-classes-provisioning.md § T071 step 2 (ServedRoutes loads providers by Class.forName and treats ClassNotFoundException as an empty route) and Risks ('Class loading by name hides a typo ... WP18's ServedRoutesCompleteTest is the catch')
+  - artifact: tasks/WP13-get-mission.md § T094 (registering this provider is 'the red-to-green step of these fixtures'); WP14 T102, WP15 T109, WP16 T117 say the same
+  - artifact: tasks/WP18-full-flow-port-level-coverage-perf.md § T131 item 3 (ServedRoutesCompleteTest, first appears in PR B at WP18)
+  claim: Each route WP states that registering its provider is its red-to-green step, but a provider whose class name or package is wrong is silently an empty route, so the golden suite passes without comparing a single fixture. Nothing in WP13..WP17 asserts that the WP's own provider was found and served a non-empty fixture set. The WP13..WP16 tip gates and their reviewers can therefore approve a route that no golden ever exercised, and the defect surfaces only at WP18.
+  remediation: In WP10 add to ServedRoutes a test-visible accessor of the providers actually loaded, and in each of WP13..WP16 add a small test of its own provider (for example MissionDetailServedRouteTest) asserting that ServedRoutes loaded it and that it serves exactly the fixture ids the WP lists (count and names, not a bare non-zero). Keep ServedRoutesCompleteTest in WP18 as the whole-set floor.
+- id: TASKS-GREEN-003
+  lens: no forward references / stale cross-references between WPs
+  severity: 2
+  title: WP01, WP02, WP03 and WP18 use plan phase numbers as WP numbers, naming the wrong owner of a shared file or rule count
+  evidence:
+  - artifact: tasks/WP01-campsite-lookup-read-model-head-projection.md § Self-contained green ('DEFINED_RULE_COUNT stays 12 (raised by WP03 and later WP08)') and Risks ('turns red after WP05 or WP08')
+  - artifact: tasks/WP02-stream-seam-behind-inbound-port.md § T012-T013 area ('AdmissionGate (WP08/P8 ...)')
+  - artifact: tasks/WP03-generalised-inbound-adapter-gates.md § Dependents, § Rule numbering ('14 + 2 (WP08) = 16'), § Self-contained green ('16 at WP08'; 'WP08/WP05 additions to these same files'), § Concurrent edits ('WP05 (control) and WP08 (rules 15/16)')
+  - artifact: tasks/WP18-full-flow-port-level-coverage-perf.md § T129 ('WP08's AdmissionGateTest', 'file is owned by WP03', 'PlainCaller (WP07 ...)') and § T131 ('PermissionCaseCoverageTest (WP07)')
+  - artifact: 'wps.yaml header table: P8 is WP12, P5 is WP09, P3 is WP05, P4b is WP08, P7 is WP10; portlevel-tests.txt is owned by WP05'
+  claim: The wps.yaml numbering put P3a and P3 before P2 and P7 before P6, but several prompts kept the plan's P-numbers as WP numbers. A reader following 'WP08 adds rules 15 and 16' lands on the resolved-state goldens WP; 'owned by WP03' for portlevel-tests.txt points at the wrong lane for the append rule. Behaviour is unaffected, but the named-edit and merge-rule statements that the self-contained-green sections rely on name the wrong WP.
+  remediation: 'Replace in those four prompts: WP08 (P8) with WP12, WP05 (P5) with WP09, WP07 (PermissionCaseCoverageTest, PlainCaller, DetailFixture, HttpHarness#startWith) with WP10 or WP12 as appropriate, and the portlevel-tests.txt owner WP03 with WP05. Grep every WP prompt for ''WPnn (Pnn)'' pairs and check against the wps.yaml table before finalize-tasks.'
+- id: TASKS-GREEN-004
+  lens: baseline captured before the first change
+  severity: 2
+  title: 'WP01 guards the #5529 re-cut with an executable BLOCKED check but states the P0 baseline precondition only in prose'
+  evidence:
+  - artifact: 'tasks/WP01-campsite-lookup-read-model-head-projection.md § External dependency (bullet at line 80): the grep guard covers only application/query paths; baseline-red.yaml and test_baseline_record_* are named but never checked'
+  - artifact: wps.yaml WP01 header comment ('P0 is an orchestrator precondition ... its record must exist before this WP is claimed')
+  - code: 'kitty-specs/mission-status-read-api-mission-detail-01M4S6D5/traces/ holds approach.md, design-decisions.md, tooling-friction.md only; no baseline-red.yaml; tests/contract/test_mission_status_conformance.py has no test_baseline_record_* (expected: the orchestrator has not run P0 yet)'
+  claim: The baseline is the evidence every later red-first and behaviour-preserving claim leans on. If the orchestrator claims WP01 before P0, the agent has no instruction to stop, and the first change lands on an unrecorded base. WP07 T049 only confirms the tests 'stay green' later.
+  remediation: 'Add to WP01 T001 a second BLOCKED guard next to the re-cut grep: test -f on traces/baseline-red.yaml and a grep -c of test_baseline_record_ in tests/contract/test_mission_status_conformance.py that must be at least 1; record the baseline commit sha in the first commit message.'
+- id: TASKS-GREEN-005
+  lens: silent-success (assumption-skipped legs with no count guard on the leg that can run them)
+  severity: 2
+  title: Real-permission and UTF-8 legs skip by assumption and the skip report is informational, so no gate shows they ran on the Linux non-root CI leg
+  evidence:
+  - artifact: wps.yaml T041 (hook copies build/reports/not-run.txt to GITHUB_STEP_SUMMARY, else stdout), T067, T068
+  - artifact: tasks/WP18-full-flow-port-level-coverage-perf.md § T131 item 2 (PermissionCaseFloorTest counts annotated ids over production tests, not executed legs)
+  - artifact: tasks/WP17-ci-native-nightly-readme.md (no step asserts the not-run list is empty on the ubuntu leg)
+  claim: The floors count that both legs of each @PermissionCase exist, not that they executed. If the runner were root or the locale not UTF-8, every real-permission and non-ASCII case would pass as skipped and the AC-4.3, AC-4.7 and AC-10.3 evidence would be vacuous while CI stays green.
+  remediation: In WP17 add a CI step (or a gate-check subcommand in scripts/ci/mission_status_gate_checks.py with its test) that fails the Linux test leg when build/reports/not-run.txt is non-empty, with the Windows and root exceptions listed explicitly; or have PermissionCaseFloorTest read the JUnit result of the leg and require executed, not skipped, for the four ids on Linux.
+- id: TASKS-GREEN-006
+  lens: floors and counts (ownership of the D-145 equality comparison)
+  severity: 1
+  title: Three WPs assign the final JaCoCo equality comparison to different WPs
+  evidence:
+  - artifact: tasks/WP09-primitives-text-read-port-fence-redaction.md § Self-contained green ('WP18 compares the file with the command once (D-145)')
+  - artifact: tasks/WP17-ci-native-nightly-readme.md § T125 step 3 (WP17 performs the equality comparison) and Plan defects found 3
+  - artifact: tasks/WP18-full-flow-port-level-coverage-perf.md § T133 step 1 ('run only if WP17 has not already recorded it')
+  claim: The floor itself is a minimum (build.gradle.kts jacocoScopeCheck, lines 431-434), so an understated count stays green and no tip goes red; but the stated owner of the equality check differs between WP09, WP17 and WP18, and WP17 notes no writer may correct a mismatch in PR B.
+  remediation: 'State once in wps.yaml: WP17 T125 runs the comparison, WP18 re-runs it, and a mismatch is fixed by a named edit of the properties file by the WP that found it (add that named edit to WP17 and WP18).'

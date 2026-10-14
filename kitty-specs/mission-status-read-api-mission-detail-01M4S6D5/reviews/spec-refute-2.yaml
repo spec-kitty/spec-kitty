@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-GOV-009
+    verdict: confirmed
+    reason: Charter Standing Order 2 requires a distinct preceding campsite pass on touched surfaces and a grep of spec.md and the mission artifacts finds no campsite or tidy step or recorded reason for none.
+  - id: SPEC-GOV-010
+    verdict: refuted
+    reason: The spec already marks Phase as not the glossary phase, writes nothing under docs/context (C-004 limits writes), and the contract terms are frozen (C-001), so no Contextive sync is triggered and the omission has no concrete consequence.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: FR-011 says the classifier tries specific classes first and ARTIFACT_* last, Allowlist.classify returns the first match, so a READ of spec.md classifies as PLANNING_FILE (STAT only) while AC-5.2 requires spec.md to be 200 and AC-11.2 requires a READ of spec.md to be red.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: AC-13.1 bars adapter.in.http from domain.projection but EventData and EventsController in that package import LeakClasses and Projector, so rule 13 as worded is red on the unchanged tree and the spec states no exemption.
+  - id: SPEC-ARCH-003
+    verdict: refuted
+    reason: A test-time fence is the inherited #5529 design (AllowlistPassThrough is by design), and the spec already defends the caller-supplied path with the artifact-path regex, per-component lstat and AC-5.2 and AC-7.2, so a runtime decorator is a design preference rather than a spec defect.
+  - id: SPEC-ARCH-004
+    verdict: refuted
+    reason: The recorded slug already goes through FilesystemMissionEventSourceMeta.isSafeSlug, which falls back to the directory name for any slug that is not one safe segment, so a separator or dot-dot slug cannot reach the worktree path composition.
+  - id: SPEC-ARCH-005
+    verdict: refuted
+    reason: Operator decision Q3 binds the guard as loopback plus Host and Origin, and constraints for the later MCP mission are outside this mission's scope (C-003, Out of Scope), so the finding merely disagrees with a binding decision.
+  - id: SPEC-ARCH-006
+    verdict: confirmed
+    reason: FR-005 mandates 400 for non-UTF-8 malformed paths and FR-013 puts decoding rules behind the port while FR-005 says decoded at the HTTP layer, yet AC-5.2 has no invalid-byte-sequence or plus row and ProblemAdvice has no handler for a missing required parameter, leaving the split unassigned.

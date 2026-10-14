@@ -1,0 +1,258 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-GOV-001
+    lens: Scope (frozen C-004 write set)
+    severity: 4
+    title: Plan widens the frozen C-004 write set (packs.yml, corpus-trigger registry test, native-leg LC_ALL) and applies it with only an "awareness" flag
+    evidence:
+      - artifact: "plan.md section 14, S-11 and E-2 (owner operator, awareness, Blocking No, interim 'Applied as written in S-11'); section 11 P0 write scope; section 12 environment row; S-16"
+      - artifact: "spec.md C-004: 'The write set outside it is exactly: ... A diff outside this list is a defect.' It lists the workflow only as the nightly-corpus job, the native --floor and --request-floor"
+      - artifact: "traces/design-decisions.md D-82 ('two one-line edits to the C-004 write set ... Adopted')"
+    claim: >-
+      C-004 is a closed list whose breach is a stated defect. The plan adds .github/workflows/packs.yml and
+      tests/architectural/test_ci_corpus_trigger_completeness.py (S-11), and S-16/section 12 add an LC_ALL environment line to the
+      native smoke legs of mission-status-api.yml, which C-004 does not list (it names the nightly-corpus job and the two floors only).
+      The plan marks this "awareness", non-blocking, "Applied as written", and the tracer records it as "Adopted". A closed constraint is
+      therefore edited by the planner with no operator-decision flag, and P0 (the first phase) already writes both out-of-set files, so the
+      defect lands in the first commit before anyone can rule.
+    remediation: >-
+      Reclassify E-2 as a decision (owner operator, blocks P0's two out-of-set files and P13's native-leg environment line) and state the
+      fallback that stays inside C-004 if declined (for example an unmarked-module-safe home inside tests/contract that the existing
+      Packs deselect already covers, or the baseline test appended to the conformance module). Extend S-11 to name the native-leg LC_ALL
+      line explicitly. Change D-82 from "Adopted" to "Adopted pending the operator's word".
+  - id: PLAN-GOV-002
+    lens: Directive (NO_FULL_HEAVY_SUITES_IN_MISSION)
+    severity: 4
+    title: Plan certifies NO_FULL_HEAVY_SUITES as Pass while making ./gradlew check, nativeCompile nativeTest and nativeSmoke the per-phase exit gates
+    evidence:
+      - artifact: "plan.md Charter Check row NO_FULL_HEAVY_SUITES_IN_MISSION ('Pass. Section 5 lists targeted files only'); section 5 'Exact local commands' (./gradlew --no-daemon check '# phase exit gate: everything the jvm job runs', nativeCompile nativeTest 'phases P6, P11, P12, P13', nativeSmoke 'phase P13'); section 11 exit gates for P1, P5 ('./gradlew check')"
+      - code: "services/mission-status-api/build.gradle.kts: tasks.named(\"check\") dependsOn perfTest, nativeTagJvmTest, kitTest, jacocoTestCoverageVerification, jacocoScopeCheck (comment: 'check depends on perfTest')"
+      - artifact: ".kittify/charter/charter.md 'No full heavy-suite runs in mission work': never run a performance/stress/timing suite or an e2e/full-integration suite; run targeted files and the owning module's fast tier; exception only on an explicit operator request"
+    claim: >-
+      The service's check task includes the performance suite (perfTest) and the kit/nested-build tests, and the native tasks build a
+      GraalVM image and replay the smoke set. The charter forbids implementers, reviewers and the orchestrator from running a
+      performance or e2e suite during implement, review and closeout. The plan's own gate list tells every phase to run exactly that,
+      and the charter row above it says the plan only lists targeted files. The self-certification is false and the written command is
+      a charter violation (rubric 5 edge; rated 4 because it is a plan instruction not yet executed and the fix is local).
+    remediation: >-
+      Replace the per-phase exit gate by the targeted surface already named per phase in section 11 (./gradlew test --tests for the
+      classes the phase adds or touches, the named ArchUnit and golden classes, jacocoTestCoverageVerification and jacocoScopeCheck
+      only), and state that check, perfTest, nativeCompile, nativeTest and nativeSmoke belong to CI (jvm and native jobs). If the
+      operator wants a local full check or the P13 perf ratio tests run locally, make that an explicit operator-decision escalation
+      (new E-7), not a default. Correct the Charter Check row.
+  - id: PLAN-GOV-003
+    lens: Baseline (record integrity under history compaction)
+    severity: 4
+    title: Base B of baseline-red.yaml is a commit of this mission branch, which charter compaction rewrites, so the git cat-file -e check of AC-21.1 goes red after the PR is prepared
+    evidence:
+      - artifact: "plan.md section 6 step 1 (B = 'the design-base tip at capture ... today HEAD 62a5caec4'), section 5 gate 'tests (contract tools)' (fetch-depth 0 'for the git cat-file -e of AC-21.1'), section 11 'Compact the history before the draft PR (charter, mission-wrap-up-sequence)'"
+      - artifact: "spec.md AC-21.1 ('Two base shas are present and resolve (git cat-file -e)')"
+      - code: "git log: 62a5caec4 is 'docs(spec): carry round-3 spec findings as plan obligations ...', a commit on the mission branch, not on main or on the #5529 refs"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-359: SHA evidence 'goes stale as soon as consolidation squashes the lane, and again when history is compacted'"
+    claim: >-
+      The record test asserts that both recorded shas resolve in CI. Base A (the first parent of 58cd71ec9) is on main and stays
+      resolvable. Base B is the tip of this very branch at capture. The charter requires compacting the mission history before the
+      draft PR (plan section 11 repeats it), and the PR is stacked on a branch that will itself be rebased or squashed when #5529
+      lands. After either, sha B no longer exists in the PR merge ref, so test_mission_status_baseline_record.py fails permanently
+      in 'tests (contract tools)'. The plan never says what happens at compaction, and the only 'ordering' check it describes
+      (git merge-base --is-ancestor, section 6) breaks the same way.
+    remediation: >-
+      Choose B as a sha that survives the stack (the #5529 lane-b tip 4dc35c7d5 or a commit that is an ancestor of the PR base) and
+      say so, or make the test verify only base A by git cat-file and verify B by a recorded tree-hash and date with a typed
+      'unreachable after rewrite' outcome that is non-vacuous (a copy with a malformed sha still fails). Add a step to the closeout:
+      re-run --check and the record test after compaction. Move the merge-base ordering check to before compaction and say that.
+  - id: PLAN-GOV-004
+    lens: Scope (no new pattern where the #5529 one serves)
+    severity: 3
+    title: Inbound ports take raw String identifiers (E-5/S-9) where #5529's port already carries a typed MissionId, and FR-013 is amended with an awareness flag only
+    evidence:
+      - artifact: "plan.md section 14 S-9 and E-5 ('operator (awareness)'), section 13 Ports ('MissionDetailQuery#mission(String missionId)', 'WorkPackageQuery#workPackage(String missionId, String wpId, boolean includePrompt)'), traces D-78"
+      - artifact: "spec.md FR-013: 'Their parameters are typed values (a Mission id, a Work Package id, a boolean, a relative path)'"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/in/StreamScope.java record OneMission(MissionId missionId); adapter/in/http/EventsController.java builds new MissionId(missionId) at the edge"
+    claim: >-
+      The #5529 inbound port already takes the domain value type MissionId, constructed at the controller edge, and the same
+      value-object style is what FR-013 asks for. The plan departs to strings so that 'an MCP adapter repeats no rule', which
+      replaces the repository's own pattern with a new one and rewrites an FR-013 sentence, yet it is recorded as an awareness item
+      and 'Adopted'. Strings in the port also make the 404-versus-400 decision leak into every adapter's test surface (rows C2 and W1).
+    remediation: >-
+      Either keep the typed values (WpId and a MissionId whose constructor performs the lenient parse and yields a typed
+      'ill-formed' that the port maps to not_found, so the rule still lives once), or promote E-5 to a decision (operator,
+      blocks P8) that states the rejected typed alternative and why the existing MissionId pattern does not serve. Mark D-78
+      'pending'.
+  - id: PLAN-GOV-005
+    lens: Campsite scope / Baseline ordering
+    severity: 3
+    title: P0 is listed as a work-package candidate with a functional write set although the spec makes the baseline a precondition and the campsite the first Work Package
+    evidence:
+      - artifact: "plan.md header ('phase (P0 to P13) is a work-package candidate'), section 6 ('run once as phase P0 before any Work Package is claimed'), section 9 ('A distinct, behaviour-preserving FIRST work package (phase P1)'), section 11 P0 row (writes tests/contract/test_mission_status_baseline_record.py, packs.yml, the registry test)"
+      - artifact: "spec.md C-011: 'a recorded precondition, not a Work Package' for the baseline; 'the first Work Package is a behaviour-preserving campsite pass'; 'a reviewer rejects a functional change that precedes it'"
+    claim: >-
+      If the tasks stage maps P0 to a WP file, WP01 is a functional change (a new test, a CI deselect, a registry entry) that
+      precedes the campsite, which C-011 says a reviewer rejects. If P0 is not a WP, the plan does not say who commits its
+      files, under which claim or review, or how its out-of-Mission files avoid the 'agents never write outside a claim' rule. Section
+      6 says an orchestrator-run 'Sonnet implementer' writes the test outside any WP.
+    remediation: >-
+      State in section 11 how P0 is carried: either (a) split P0 into the precondition capture (records under M/traces only,
+      orchestrator, no WP) and a baseline-test WP that is explicitly ordered after P1 and before P3, or (b) keep one precondition
+      commit and say that C-011's 'functional' means product code, with the ordering rationale recorded as a decision for the
+      operator. Add it to the tasks-stage mapping rule ('P0 is never WP01').
+  - id: PLAN-GOV-006
+    lens: Campsite scope (behaviour-preserving, domain-matched)
+    severity: 2
+    title: The campsite extraction folds in the duplicate-detection continuation, which is new behaviour with no caller until P9, and section 9 also says the campsite adds no file beyond two classes while P1 adds two test classes
+    evidence:
+      - artifact: "plan.md section 9 item 1 ('MissionLookup (the scan of resolve, split as D-58 says into the probe-free lookup find(MissionId) ... and the optional continuation that detects a second readable directory with the id)'), section 9 intro ('adds no file beyond the two extracted classes'), section 11 P1 write scope (MissionLookupTest, OverviewReaderTest)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java private resolve/probed: no duplicate detection exists today"
+      - artifact: "spec.md C-011 and D-58: resolve becomes findMission followed by probed 'without a change of behaviour'; mission_id_duplicate is a new diagnostic added in P5"
+    claim: >-
+      The existing resolve has no duplicate scan, and mission_id_duplicate is a DiagnosticCode that P5 adds. Landing the continuation
+      in P1 puts a new capability into the 'behaviour-preserving' commit, unused by any caller and untestable end to end until P9 (dead
+      code at the campsite point-cut, which the charter forbids reviewers to accept). The 'no file beyond two classes' sentence also
+      contradicts the P1 write scope.
+    remediation: >-
+      Keep P1 to the probe-free find and the unchanged probed composition; move the continuation to P9 with its diagnostic and fixture.
+      Reword section 9 to 'two extracted classes and their focused tests, plus the split of ArchitectureRules'.
+  - id: PLAN-GOV-007
+    lens: Ledger (SK-357) / Scope (write-scope disjointness)
+    severity: 3
+    title: Concurrent phases are declared 'disjoint' but share globs and files, which the finalize-tasks lane computation (SK-357) will collapse or reject
+    evidence:
+      - artifact: "plan.md section 11 table header 'Write scope (disjoint from concurrent phases)' and 'Concurrent sets: after P1, P2 || P3 || P4 || P5'; P3 scope 'T/domain/**', 'T/adapter/out/filesystem/codec/**', 'R/jacoco-class-floor.properties'; P5 scope 'T/domain/projection/**', 'T/adapter/out/filesystem/**', 'R/jacoco-class-floor.properties'"
+      - artifact: "plan.md section 11 chokepoints: P10 || P11 (and P12) each edit OutOfScopeRoutesTest, R/portlevel-tests.txt, R/jacoco-class-floor.properties"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-357 (open): finalize-tasks puts any overlapping owned_files pair in one lane; workaround 'one owner per shared file, every other writer records a named out-of-map edit'"
+    claim: >-
+      T/domain/** contains T/domain/projection/**, and T/adapter/out/filesystem/** contains T/adapter/out/filesystem/codec/**, so P3 and P5
+      overlap as written, and both own the class-floor file. P10, P11 and P12 are concurrent yet share three files. The plan relies
+      on 'rebase and state your edit', but the tool's overlap check and lane computation work on owned_files, so the tasks stage will
+      either refuse the manifest (validate_no_overlap) or collapse the 'parallel' phases into one lane, and the ledger entry that
+      predicts this is not cited.
+    remediation: >-
+      Make the globs disjoint (P3 'T/domain/reducer/**' and 'T/domain/model/**'; P5 'T/adapter/out/filesystem/*' excluding codec), assign
+      each shared file (class-floor file, portlevel-tests.txt, OutOfScopeRoutesTest, README) one owner per SK-357's workaround with
+      the others as named out-of-map edits, and cite SK-357 in the Charter Check and the risks table.
+  - id: PLAN-GOV-008
+    lens: Scope (write-scope completeness)
+    severity: 3
+    title: Adding SourceFault.Kind.FILE_UNREADABLE forces edits to two exhaustive switches in ChangeFeed.java, which no phase owns
+    evidence:
+      - artifact: "plan.md section 11 P5 ('SourceFault.Kind.FILE_UNREADABLE and the exhaustive-switch updates it forces'; scope lists MissionStatusService and OverviewReader only), 'Every path of the section 13 tree is owned by exactly one phase above'"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/ChangeFeed.java metaStageCode and ledgerStageCode switch over SourceFault.Kind with no default (cases VANISHED, PATH_REFUSED, META_UNPARSEABLE, DIR_UNREADABLE, LEDGER_UNREADABLE)"
+      - code: "application/MissionStatusService.java switches at the lines handling VANISHED/DIR_UNREADABLE (resolve fault mapping and the stream fault mapping)"
+    claim: >-
+      A new enum constant breaks compilation of both ChangeFeed switches. ChangeFeed.java is a #5529 file in no phase scope and is
+      not in the C-005 coupled list, so the 'owned by exactly one phase' claim is false and the P5 implementer must edit outside
+      the declared scope or the reviewer must reject the diff. It is also a behavioural choice (which stream diagnostic a
+      FILE_UNREADABLE maps to) that is not decided anywhere.
+    remediation: >-
+      Add ChangeFeed.java to P5's scope with a stated mapping for FILE_UNREADABLE in both switches (and its stream legs in MissionStatusService),
+      add it to the C-005 re-read list, and add a test that proves the stream answers for the three existing routes are unchanged.
+  - id: PLAN-GOV-009
+    lens: Directive (Pre-existing Failure Reporting Rule)
+    severity: 3
+    title: Section 6 says an unclassified red blocks the dependent claim and also that it never gates, and the record does not capture the command run the charter requires in the issue
+    evidence:
+      - artifact: "plan.md section 6 paragraph 1 ('is unclassified, is not accepted as baseline, blocks the claim that depends on it') versus 'How a failure is told apart' ('it never gates this mission's per-PR checks'); FRESH3-005 / D-74"
+      - artifact: ".kittify/charter/charter.md 'Pre-existing Failure Reporting Rule': the agent MUST open a GitHub issue (command run, failure summary, why pre-existing) before treating failures as accepted baseline or continuing past them"
+      - artifact: "plan.md section 6 step 4 (row fields: test id, base sha, normalised signature, issue; no command field)"
+    claim: >-
+      The charter forbids continuing past a pre-existing failure until the issue exists. Item 3 of the plan's own rule lets a red in the
+      not-run reality module be 'attributed neither way' and 'never gate', which is continuing past it, and the sentence two lines up
+      says it blocks. An implementer or reviewer cannot tell which applies, and a detail-route regression that only shows in the
+      reality module would pass unclassified (Standing Order 9: do not hide a red).
+    remediation: >-
+      Say one thing: such a red halts the claims that depend on it (review approval and the readiness statement) until the orchestrator files the
+      issue with the operator's OK and the entry is recorded; it does not fail the per-PR job (which excludes the module) but it is
+      reported in the PR body. Add a 'command' field to each module record and require it in the AC-21.1 test so the filed issue
+      can state the command run.
+  - id: PLAN-GOV-010
+    lens: PR shape / Scope (#5533 coupling)
+    severity: 3
+    title: Section 7 and E-3 speak of a 'P5 merge' and a #5533 PR based on this branch, which the one-draft-PR shape cannot produce, and the 4000-line split seam is proposed without a decision flag
+    evidence:
+      - artifact: "plan.md section 7 ('Its Java work packages land after phase P5'), section 7.1 ('stable from the P5 merge'), section 7.4 ('#5533's Java PR rebases on this mission's P5 merge'), E-3 ('operator, #5533 planner ... Blocking: No'), section 11 'One PR, readability' (split seam after P8 if about 4,000 lines)"
+      - artifact: "spec.md Clarifications 2 and D-54: one draft PR stacked on #5529, no agent pushes, opens or retargets; C-005: #957 cannot merge before #5529"
+    claim: >-
+      With one draft PR that cannot merge before #5529, nothing 'merges' at P5. The stability promise to #5533 ('a change after P5
+      merges needs a note in both missions and the operator's word') has no event to bind to, and the recommended base of #5533's Java
+      PR is a mid-series commit of an unpushed, to-be-compacted branch (see PLAN-GOV-003). The split-seam recommendation (two
+      PRs) changes the ruled PR shape and the primitives' delivery order for #5533 and is not flagged as an operator decision. This
+      is drift toward #5533's plan rather than a #957 requirement.
+    remediation: >-
+      Restate the seam stability as 'from the commit that lands P5 on this branch, as recorded in design-decisions.md', delete the
+      claim about the base of #5533's PR (or make it an operator-decision item with owner the operator and #5533's planner),
+      and either drop the split-seam recommendation or flag it as a decision that departs from D-54.
+  - id: PLAN-GOV-011
+    lens: Ledger
+    severity: 2
+    title: Ledger entries that the tasks and approval stages will hit are not cited (SK-357, SK-300, SK-361, SK-356)
+    evidence:
+      - artifact: "plan.md Charter Check (cites SK-310, SK-351, SK-353, SK-355, SK-363 only)"
+      - artifact: "SPEC-KITTY-LEDGER.md SK-357 (lane collapse on overlapping owned_files), SK-300 (approval gate demands issue-matrix rows), SK-361 (an '#NN' reference is classed as a gating issue), SK-356 (plan_concern_refs must match IC-##)"
+    claim: >-
+      The plan cites five entries but not the four that govern its tasks and approval stage: it lists many '#NNNN' references (#5838,
+      #5927, #6116, #5528), names shared-file chokepoints, and a plan-concern heading convention is not stated. Each of those has a
+      recorded workaround that the orchestrator needs before finalize-tasks.
+    remediation: >-
+      Add a short 'Ledger entries in force for the tasks stage' list to the Charter Check naming SK-357 (owner per shared file), SK-300 and
+      SK-361 (issue-matrix rows and issue-verdict not-applicable for non-issue '#NN' text), and SK-356 (use IC-## headings or none).
+  - id: PLAN-GOV-012
+    lens: Directive (red-first)
+    severity: 2
+    title: "The claim that every phase starts with committed failing acceptance tests is false for P0, P1, P2, P4 and P7, and the reviewer instruction is not satisfiable there"
+    evidence:
+      - artifact: "plan.md section 11 Test strategy ('Every phase starts with committed failing acceptance tests; the reviewer verifies red on the phase base and green on its tip'), Charter Check Standing order 4 row; P1 'behaviour-preserving', P0 (records), P2 (spike), P4 (generator that writes goldens)"
+    claim: >-
+      A behaviour-preserving campsite cannot be red on its base, a baseline capture and a build spike have no failing acceptance
+      test of the product, and the oracle phase produces the goldens the later phases go red against. A reviewer told to verify
+      red on base will either reject the phase or sign a vacuous red.
+    remediation: >-
+      State the red-first form per phase: P1 'existing tests unchanged and green on base and tip, no assertion changed'; P0 and P4 'the
+      record and golden tests are red on a copy with a row, module or byte removed' (already in the plan); P2 'the drift-probe
+      mutation is red'; P7 'harness tests red against the unwired suite'. Reserve 'red on the phase base' for P3 and P5 to P13.
+  - id: PLAN-GOV-013
+    lens: Scope (escalation hygiene)
+    severity: 2
+    title: E-1 describes FR-022 as 'operator-ruled' while D-64 records that the operator did not rule on the gate's behaviour, and D-85 is 'Adopted' while E-1 proceeds by default
+    evidence:
+      - artifact: "plan.md section 14 E-1 ('an operator-ruled requirement shape (D-64)'; interim 'Without a word the plan proceeds with the gate')"
+      - artifact: "traces/design-decisions.md D-64 ('Queuing instead of refusing is behaviour the operator did not rule on; it is recorded here as this specification's decision'), D-85 ('Recommended, not ruled ... Adopted pending the operator's word')"
+    claim: >-
+      The record misstates who decided FR-022, which makes the widening look like an amendment of an operator ruling (it is a
+      spec decision) and makes the 'default adopted' interim sound authorised. A proceed-by-default on a requirement widening
+      is also the self-authorised exception the operator has warned against.
+    remediation: >-
+      Rewrite E-1's reason as 'a fourth heavy operation widens FR-022, a requirement the specification decided (D-64)'; keep the
+      interim only if it is reversible by one line (as stated) and say P10's gate wiring does not start until the word or a
+      recorded default timeout set by the orchestrator.
+  - id: PLAN-GOV-014
+    lens: Scope (no new pattern where the #5529 one serves)
+    severity: 2
+    title: Derivations go to a new domain.derive package although #5529 keeps its derivers beside their read models in domain.overview
+    evidence:
+      - artifact: "plan.md section 1 layers table (domain.derive: PhaseDeriver, ReadinessDeriver, LaneNames, ... 'barred to the controllers by rule 13'), section 13 rule 13"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/overview/ holds OverviewDeriver, ProjectHeaderDeriver, ProgressCalculator beside the records MissionOverview and MissionPage; rule 13's own wording already distinguishes 'a non-record class of domain.overview (a deriver)'"
+    claim: >-
+      The repository already has a way to keep derivers and records in one package while keeping controllers off the derivers
+      (a non-record class test). The plan instead adds two domain packages (detail, derive), a second home for derivers, and widens
+      the rules to name them. Not wrong, but two homes for one concept is the drift the 'single canonical authority' principle asks the
+      plan to avoid, and the plan does not justify it.
+    remediation: >-
+      Either place the new derivers in domain.detail and reuse the 'non-record class' wording of rule 13, or add a one-line decision
+      (in design-decisions) saying why domain.overview cannot grow, and keep OverviewDeriver where it is.
+  - id: PLAN-GOV-015
+    lens: Terminology
+    severity: 1
+    title: The plan uses 'phase' for work-package candidates (P0 to P13) in the same document that defines a Mission's own phases (PhaseDeriver, MissionPhase)
+    evidence:
+      - artifact: "plan.md header ('In this plan phase (P0 to P13) is a work-package candidate'), section 13 '**Phases (FR-001).** PhaseDeriver ...', section 11 'Phasing'; domain.detail MissionPhase, PhaseName, PhaseStatus"
+    claim: >-
+      One word names two things (a delivery unit and a Mission lifecycle phase) in a document whose reviewers search for either. No
+      glossary term is violated and no Feature alias is present (the grep claim holds), but the reader of section 13 must infer the sense.
+    remediation: >-
+      Call the delivery units 'steps' or 'slices' (S0 to S13) or keep 'phase' and write 'Mission phase' for the lifecycle sense
+      everywhere in sections 1, 8, 11 and 13.

@@ -1,0 +1,17 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 5
+verdicts:
+  - id: TASKS-GREEN-003
+    verdict: confirmed
+    reason: WP01/WP02/WP03/WP18 name WP08 for P8 rules 15/16 and AdmissionGate (P8 is WP12; WP08 is P4b), WP05 for P5 (WP09) and WP03 for the portlevel-tests.txt owner (WP05), contradicting the wps.yaml table.
+  - id: TASKS-GREEN-004
+    verdict: refuted
+    reason: WP01 line 80 already states in the same bullet that the WP cannot start until the P0 baseline record is committed, so the instruction exists and the precondition is an orchestrator-owned step; the missing executable check is hardening, not a defect.
+  - id: TASKS-GREEN-005
+    verdict: refuted
+    reason: Plan section on permission-denied fixtures deliberately makes the not-run report informational ("No workflow step is added") and every case also has an always-running fault-injection leg, so AC evidence is not vacuous; UTF-8 is pinned by LC_ALL in CI.
+  - id: TASKS-GREEN-006
+    verdict: confirmed
+    reason: WP09 names WP18 as the D-145 comparer, WP17 T125 performs it, WP18 T133 runs it only if WP17 has not, and WP17 itself records that no WP is authorised to repair a mismatch in PR B.

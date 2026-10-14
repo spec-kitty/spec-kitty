@@ -1,0 +1,162 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-FRESH3-001
+    lens: behaviour-preservation / existing tests (P1a)
+    severity: 4
+    title: P1a moves the stream projection diagnostic from the Spring logging consumer to the fixture service's recorder, which turns CanaryScanTest red; the plan claims the canary tests stay green and unedited
+    evidence:
+      - artifact: "plan.md § 15.2 (table row 'One projection_refused diagnostic per dropped frame ... pinned by StreamFaultTest, the canary tests of NFR-003'), § 15.5 (closed edit list), § 11 P1a exit gate"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java: send() and sendTruncation() call the controller's own Consumer<Diagnostic> (the Spring bean config.LoggingDiagnostics) on a ProjectionError"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/flow/CanaryScanTest.java lines 126-140 and 148-164: StreamRig.over(built) then assertThat(output.getAll()).contains('code=projection_refused mid8=...') and a count of three such log lines"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/FilesystemFixtureFactory.java and FixtureHandles.java: the fixture service is built with handles.recorder() (a list-adding consumer, no logging) as its diagnostics consumer"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/stream/StreamFaultTest.java: contains no projection_refused assertion, so it does not pin the behaviour the plan says it pins"
+    claim: >
+      After P1a the projection (and its refusal diagnostic) runs inside EventProjection in the service. Under HttpHarness/StreamRig the service is the fixture's own, whose diagnostics consumer is the in-memory recorder, not the application's logging consumer. The three assertions of CanaryScanTest that read the captured log for 'code=projection_refused mid8=' therefore go red, and Gate G (the whole test task) is red at the P1a tip. The plan's 'pinned by' column names StreamFaultTest (which does not test it) and 'the canary tests' as unchanged and green, and the closed edit list of 15.5 does not contain CanaryScanTest or any plumbing that tees the fixture service's diagnostics to the logger. This is a behaviour regression only visible in the test harness, but the contract of 'no existing assertion changes' cannot be met as written.
+    remediation: >
+      Add the diagnostics plumbing to the P1a test-support edits: FilesystemFixtureFactory (P1a owns it) builds the fixture service with a consumer that records and also writes the same path-free log line as LoggingDiagnostics (or StreamRig installs it), so CanaryScanTest stays byte-for-byte unchanged. Name CanaryScanTest in the P1a exit gate and in the 'pinned by (unchanged)' column, and correct the StreamFaultTest attribution. Alternatively list CanaryScanTest as a tenth named edit that reads the recorded diagnostics, and say that this changes where an assertion reads from (a C-011 reviewer judgement).
+  - id: PLAN-FRESH3-002
+    lens: existing tests that must be edited (P1a)
+    severity: 3
+    title: RefusalRowsTest is declared unchanged and in the P1a gate, but it implements MissionStatusQuery anonymously and cannot compile after the port change
+    evidence:
+      - artifact: "plan.md § 15.5 ('Unchanged (no edit at all): ... adapter/in/http/rest/RefusalRowsTest'), § 15.2 (row 'Every connect-time refusal' lists RefusalRowsTest), § 11 P1a row ('the nine files'), Unverified 17"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/rest/RefusalRowsTest.java lines 180-195: anonymous 'new MissionStatusQuery() { ... public ChangeBatch changesSince(...) ...; public Subscription subscribe(...) ... }'"
+    claim: >
+      P1a changes changesSince to return StreamBatch and adds the abstract endStreams(). The anonymous class declares the old ChangeBatch return type and has no endStreams(), so the test source set does not compile. The file is not among the nine named edits (the grep for port.in.Change/ChangeBatch/StreamSignal/Subscription/changesSince over src/test finds ten files, the plan names nine), and 15.5 and 15.2 say it is not edited at all and is a pin of the P1a gate. Unverified 17 only anticipates unnamed files, not one that the plan itself lists as untouched.
+    remediation: >
+      Add RefusalRowsTest to the named type-level edits (return type StreamBatch and an endStreams() body; no assertion changes), fix the 'nine' count to ten and remove the file from the 'Unchanged' list and from the 'pinned by (unchanged)' column. Optionally make endStreams() a default no-op on MissionStatusQuery to shrink the churn, and say so.
+  - id: PLAN-FRESH3-003
+    lens: ruling A3 item 1 (projected, sealed StreamEvent)
+    severity: 3
+    title: StreamEvent.LogTruncated has a component named reason although the same section forbids any member named reason and PortLeakCanaryTest asserts it
+    evidence:
+      - artifact: "plan.md § 15.3 row StreamEvent: 'LogTruncated(String missionId, String reason, long detectedAtOffset, StreamCursor resetCursor) ... No member named reason, reviewRef, reasonSource or claimAgent exists anywhere in the type'"
+      - artifact: "plan.md § 7.5 row 13 and § 15.6 (PortLeakCanaryTest 'asserts ... that no returned type has a member named like a raw field')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventData.java: the log-truncated frame carries 'reason' on the wire (StreamSignal.Truncated.reason().wire())"
+    claim: >
+      The wire member is legitimately called reason, but the plan makes the Java record component the same name and then specifies a canary test and a type-level invariant that forbids exactly that name. As written either PortLeakCanaryTest is red at the tip or the test must carve out LogTruncated, which defeats the 'no member named like a raw field' guard.
+    remediation: >
+      Name the component something else in the port type (for example truncationCause, holding the existing wire word) and let EventData write it under the wire key 'reason'; keep the canary guard for the four raw names without exceptions. Update 15.3, 7.5 row 13 and D-120 accordingly.
+  - id: PLAN-FRESH3-004
+    lens: write scopes / classes owned by nobody
+    severity: 3
+    title: No phase owns the HTTP test harness extension that installs a recorded detail stack, so route and flow tests have no way to assert recorded accesses over HTTP
+    evidence:
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/HttpHarness.java run(): registers only a MissionStatusQuery override (fixtureQuery, primary); every other bean comes from the production wiring over mission-status.project-root"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/flow/CanaryScanTest.java and ReadOnlyFlowTest: existing flows use HttpHarness.start(built) so that the fixture's recording allowlist seam is in the request path"
+      - artifact: "plan.md § 11 phase rows P7 (detail-aware FixtureFactory = T/testsupport/FixtureFactory.java, port-level), P9-P12 and P13 write scopes (T/adapter/in/http/{flow,hostorigin}/**, DetailRoutesFlowTest), and the shared-file table row 'T/testsupport/http/{SpyQuery,StreamRig}.java, T/testsupport/FilesystemFixtureFactory.java | P1a | none'"
+    claim: >
+      The detail controllers get their services from DetailInfrastructureWiring and the per-route wiring classes, built over the production event source and TextSource; none of that goes through the fixture's RecordingAllowlistAccess. AC-11.1 (full flow records no extra access), AC-16 (read-only), AC-17 (guards) and the HTTP golden/recorded-access tests of P9-P13 therefore need HttpHarness (and FilesystemFixtureFactory.Built / FixtureHandles) to install the fixture-built MissionDetailQuery, WorkPackageQuery, WorkPackageDetailQuery, ArtifactQuery and TextSource beans. HttpHarness appears in no write scope or shared-file row, and FilesystemFixtureFactory is listed with 'other writers: none'. The first phase that needs it (P9) cannot edit it without leaving its owned_files, which SK-357 makes inert after bootstrap.
+    remediation: >
+      Name the owner and the named-edit writers: let P7 own T/testsupport/http/HttpHarness.java and the FixtureHandles/Built extension (it already builds the detail-aware stack), add the file to the shared-file table, and list P9-P13 as users, not editors. Change the FilesystemFixtureFactory row from 'none' to P7 (additive).
+  - id: PLAN-FRESH3-005
+    lens: ArchUnit rule 13 (port package split, PKG ruling)
+    severity: 3
+    title: Rule 13 is defined differently in section 13 and section 15.4, and the stricter reading is red on production nested enums
+    evidence:
+      - artifact: "plan.md § 13 rule 13 row ('a class in port.in/port.out itself is an interface; every class of dto is not an exception; every Throwable under port.. resides in exceptions; no other subpackage') versus § 15.4 item 5 table row 'Rule 13' ('exceptions holds only Throwables')"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/in/StreamRefused.java (nested enum Kind) and application/port/out/SourceFault.java (nested Kind); plan § 7.1 row 6 adds TextFault.Kind"
+      - artifact: "plan.md § 11 P1b row: planted controls are DtoInRoot, ExceptionInRoot, ExceptionInDto only"
+    claim: >
+      Section 15.4 adds the clause 'exceptions holds only Throwables'. Taken literally every nested Kind enum of StreamRefused, SourceFault and TextFault is a non-Throwable class that resides in port.in.exceptions or port.out.exceptions (ArchUnit sees nested classes in the package of the outer class), so the production run of rule 13 is red at P1b. Section 13 omits the clause, so the two definitions disagree, and neither has a planted control for 'a data type in an exceptions package'. The 'interfaces only' clause has the same nested-type exposure for any enum or record nested in a root interface.
+    remediation: >
+      Fix one definition (section 13 and 15.4 identical) and state that nested classes are judged by their outermost class. Add the control 'record in port.in.exceptions' (red on rule 13 only) with a non-zero scanned count for the exceptions subpackages, or drop the clause.
+  - id: PLAN-FRESH3-006
+    lens: ArchUnit controls / P8 gate
+    severity: 3
+    title: P8 adds rules 14 and 15 but no conforming skeleton members, while the existing skeleton test requires every rule to scan at least one skeleton class
+    evidence:
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureControlsTest.java theConformingSkeletonKeepsAllTwelveRulesGreenAndEveryRuleScansAClass: for every rule of ArchitectureRules.all(FIXTURE_ROOT, ...) asserts rule.scanned(skeleton) > 0 and no violation"
+      - artifact: "plan.md § 11 P8 write scope: only the planted fixtures R14Controller, R15Spring, R15IoException are listed under T/architecture/fixture; § 13 rule 14 subject adapter.in.http.detail.., rule 15 subject the named detail interfaces and domain.detail.."
+      - artifact: "plan.md § 11 P1b row, by contrast, adds the conforming members port.in.dto.Value, port.in.exceptions.Refusal and config.ProblemErrorController for rules 13 and 3b"
+    claim: >
+      With the fixture root, rule 14 scans fixture.adapter.in.http.detail.. and rule 15 scans fixture classes with the named interface names; the skeleton has neither, so scanned(skeleton) is 0 and the skeleton test is red at P8 (or the plan silently relies on a subject defined so that it matches the existing skeleton, which it does not say). The production 'non-zero scanned count' the plan cites is a different assertion.
+    remediation: >
+      Add conforming skeleton classes to the P8 scope and to the SKELETON list (a detail controller in fixture.adapter.in.http.detail that only calls fixture.application.port.in.* and a conforming detail query interface with a domain.detail-style result), or state how the subject predicates are parameterised so the existing skeleton scans at least one class.
+  - id: PLAN-FRESH3-007
+    lens: rule numbering / DEFINED_RULE_COUNT / spec amendments
+    severity: 2
+    title: Stale or contradictory rule-numbering text after the insertion of rule 13
+    evidence:
+      - artifact: "plan.md § 11 shared-file table row 'T/architecture/ArchitectureRules.java': P1b 'rule ids and DEFINED_RULE_COUNT unchanged' versus § 11 P1b row, § 13 and § 15.4 ('DEFINED_RULE_COUNT 12 to 13 at P1b')"
+      - artifact: "plan.md Charter Check row 'Architectural alignment': 'rules 1 to 12 keep their ids ..., rules 14 and 15 added' (no rule 13)"
+      - artifact: "plan.md § 13 paragraph after the rule table: 'Rule 13's subject stays adapter.in.http.detail..' (that is rule 14)"
+      - artifact: "plan.md § 13 rule 14 text: 'depend ... only on application.port.in' while the controllers need port.in.dto and port.in.exceptions (rule 3 uses application.port.in..)"
+      - artifact: "spec.md AC-6.5: 'with the text of every existing rule unchanged (the only rule additions of this mission are rules 13 and 14)'; plan § 14 S-25 renumbers but does not amend this sentence although the ruling changes the text of rules 1, 2 and 3"
+    claim: >
+      The shared-file row tells the P1b implementer that DEFINED_RULE_COUNT does not change, the opposite of the phase row and ArchitectureRulesTest's guard; rule 13 is missing from the Charter Check line; the paragraph naming 'rule 13' means rule 14; rule 14 as written would exclude the dto/exceptions sub-packages the controllers must use; and AC-6.5 stays false after the spec fold because the plan changes rules 1, 2 and 3.
+    remediation: >
+      Correct the shared-file row (P1b: rule 13 added, count 13) and the Charter Check cell, rename the paragraph's rule number to 14, write rule 14 with application.port.in.., and extend S-25 (or S-22) with the AC-6.5 wording 'the text of rules 4 to 12 unchanged; rules 1 to 3 changed by ruling A3'.
+  - id: PLAN-FRESH3-008
+    lens: MCP transport-agnostic claim / section 7
+    severity: 2
+    title: Section 7.5 and 15.8 say a future inbound adapter reaches a Mission head through MissionReadModel#head, which rule 3 forbids and the visibility rules prevent
+    evidence:
+      - artifact: "plan.md § 7.5 row 15 ('application.MissionReadModel#find and #head ... package visibility') and § 15.8 ('any future inbound adapter reaches a Mission head only through MissionReadModel#head')"
+      - artifact: "plan.md § 13 and § 15.4: rule 3 lets an adapter.in.<x> depend only on application.port.in.., domain.. and itself; § 9: MissionReadModel is in application, its consumers are the detail services beside it"
+    claim: >
+      An MCP adapter in adapter.in.<x> cannot name application.MissionReadModel (rule 3) and the accessors are package-visible. The head is reachable by adapters only through the inbound ports (MissionDetailQuery and the others), not as a 'seam for #6116'. The sentence overstates the A3 item 4 result and would send the #6116 author to a class the architecture bans.
+    remediation: >
+      Reword 15.8 and the row in 7.5: the head projection is an application-internal seam that all inbound ports must use (enforced by HeadProjectionOwnershipTest); adapters reach heads only through the ports. Keep the stability promise for the application-side names only.
+  - id: PLAN-FRESH3-009
+    lens: write scopes / stale paths
+    severity: 2
+    title: Ownership gaps and one stale old-layout path in the P1a row
+    evidence:
+      - artifact: "plan.md § 11 P1a row: 'git mv of port/in/{Change,ChangeBatch} and renames of the raw StreamSignal and Subscription' (the re-cut path is port/in/dto/{Change,ChangeBatch}, § 15.1 and D-130)"
+      - artifact: "plan.md § 11 P1a write scope and shared-file table row for MissionStatusQuery: Subscription.java is not listed, although § 1 and § 15.3 keep the port interface Subscription (ProjectedSubscription implements it) and rename the raw one to FeedSubscription"
+      - artifact: "plan.md § Docs impact: 'one sentence that the stream projection, the stream cap and the shutdown registry belong to the inbound port' in the service README; the README owner is P13 and P1a's scope has no README line"
+      - artifact: "plan.md § 11 P1 write scope lists M/traces/approach.md while the shared-file table says the tracer files are append-only and not owned_files"
+    claim: >
+      'Rename the raw Subscription to FeedSubscription' read literally deletes the file the port still needs; nothing says who writes the surviving port interface. The git mv source path is the pre-re-cut one the plan elsewhere forbids. The README stream sentence has no phase, and P1 lists a tracer file in its write scope against the table's own rule. Under SK-357 each of these becomes a lane or owned_files surprise at finalize-tasks.
+    remediation: >
+      Write 'copy Subscription to FeedSubscription (raw), keep port/in/Subscription.java with StreamSignal from port/in/dto' and add the file to P1a; fix the path to port/in/dto; assign the README sentence to P13 (named in its README section list) or P1a as a named edit; remove approach.md from P1's owned list or mark it a named append.
+  - id: PLAN-FRESH3-010
+    lens: charter Standing Order 2 (campsite)
+    severity: 2
+    title: The 'surveyed and left alone' table omits the surfaces P1a and P3 rewrite, so the Charter Check claim 'a recorded reason for every surface left alone' is not met
+    evidence:
+      - artifact: "plan.md Charter Check row 'Standing order 2' and § 9 table 'Surveyed and left alone'"
+      - code: "wc -l: application/ChangeFeed.java 513 lines (P1a, retyped), adapter/out/filesystem/codec/RowClassifier.java 284 and LedgerLineDecoder.java 144 and domain/reducer/StatusReducer.java 176 (P3, new FR-020 members), adapter/in/http/EventsController.java 257 (P1a, rewritten), FilesystemMissionEventSourceProject.java 341"
+    claim: >
+      Standing Order 2 asks for a tidy-first step or a recorded reason on every surface the mission will touch. The table names MissionStatusService, the event-source helpers, Allowlist, SafeFiles, the generator and the workflow, but gives no row for ChangeFeed (the largest file in the module), EventsController, RowClassifier, LedgerLineDecoder or StatusReducer, which P1a and P3 change functionally. The only row mentioning LedgerLineDecoder is about its strict-UTF-8 helper. 'Java files in general' is a no-signal statement, not a per-surface reason.
+    remediation: >
+      Add one row per surface above (extract, or leave with a reason such as 'logic untouched, types renamed only' for ChangeFeed) to § 9 and to what P1 records in approach.md; if the scout would extract something from RowClassifier or StatusReducer before P3, make it a P1 item.
+  - id: PLAN-FRESH3-011
+    lens: PKG ruling (data types in port dto packages)
+    severity: 2
+    title: The stated convention says every data type a port exchanges lives in port dto, but the 22 domain.detail result types of the four inbound interfaces live in the domain with no carve-out stated
+    evidence:
+      - artifact: "plan.md § 1 ('every data type a port exchanges (records, sealed types, enums, static decoding helpers) lives in port/{in,out}/dto') and the layer table rows for domain.detail ('records and enums only: what the ports return') and application.port.in.dto"
+      - artifact: "plan.md D-130 and § 13 rule 13 (checks package layout only)"
+    claim: >
+      MissionDetailQuery, WorkPackageQuery, WorkPackageDetailQuery and ArtifactQuery return domain.detail records, which are port-exchanged data types by the sentence's own words. Precedent (MissionOverview, ProjectHeader) and FR-013 favour the domain placement, but the plan never says that domain read models are exempt from the rule, and rule 13 cannot catch either reading. A reviewer applying the operator's wording literally will reject P8.
+    remediation: >
+      Add one explicit sentence to § 1 and D-130: result types that are domain read models (as MissionOverview already is) stay in domain; the dto packages hold the port's own request, stream and I/O vocabulary. If the operator meant otherwise, move domain.detail to port.in.dto and adjust rule 14 and P8.
+  - id: PLAN-FRESH3-012
+    lens: behaviour preservation (EventProjection)
+    severity: 2
+    title: EventProjection.project(FeedSignal.Truncated) returns a non-optional StreamEvent, but the preserved behaviour drops the frame with a diagnostic when the projection is refused
+    evidence:
+      - artifact: "plan.md § 15.3 row EventProjection: 'Optional<StreamEvent> project(Change) and StreamEvent project(FeedSignal.Truncated) ... a ProjectionError writes one Diagnostic and yields no event'"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java sendTruncation(): catches ProjectionError, writes the diagnostic and sends nothing"
+    claim: >
+      The signature cannot express 'no event' for a truncation, yet the same row and 15.2 promise one diagnostic and no frame per refused projection, byte for byte. The implementer must either change the signature (and the Events list) or throw; a throw would end the pump, a change from the current drop-and-continue.
+    remediation: >
+      Make both overloads return Optional<StreamEvent> (or a list) and add the truncation-refusal case to EventProjectionTest.
+  - id: PLAN-FRESH3-013
+    lens: nits (stale statements and pin edits)
+    severity: 1
+    title: Small stale or understated statements
+    evidence:
+      - artifact: "plan.md § 12 row native-tag-floor: P13 edits 'the two --floor literals and that literal (native_test_count() == 3)'"
+      - code: "tests/ci/test_mission_status_api_build.py line 1006 (needle '--floor 3' in the native job check) and lines 1743-1748 (replace('--floor 3', ...) controls and native_floor_violations(text, 4))"
+      - artifact: "plan.md § 6 item 5: 'P1 (behaviour-preserving) lies between the design base and that commit' (P1a and P1b lie there too); § 15.7: P1a JaCoCo list omits the added StreamSignal$Events; traceability table has no row for the PKG ruling / rule 13 and its revert row"
+    claim: >
+      The pin edit P13 has to make is larger than described (an extra needle and three controls hard-code 3), P13 owns the file so it is a description gap only. The section 6 sentence predates P1a/P1b. The count list of 15.7 and the traceability and revert-fails tables do not mention StreamSignal$Events or rule 13 (D-130).
+    remediation: >
+      Reword the three places; add a revert-fails row 'put a record in port.in root or an exception in a dto package: rule 13 red' and a traceability row for D-130.

@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: green
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: TASKS-GREEN-001
+    lens: "per-WP self-contained green (existing gates the new port-level legs trip)"
+    severity: 4
+    title: "Port-level detail legs (WP13..WP16, and WP05 T034) go through PlainCaller, which two existing gates reject, so the first PR B route tip is red"
+    evidence:
+      - artifact: "tasks/WP13-get-mission.md § T096 step 2 (port-level legs 'obtain the port through WP12's PlainCaller'); same in WP14 § T103 step 2, and the equivalent in WP15 and WP16; WP05 § T034 step 2 (new @PortLevelTest ids in Ac5ReductionTest)"
+      - artifact: "wps.yaml owned_files WP13..WP16 (T/conformance/port/*PortLegsTest.java); no WP owns or names an edit of testsupport/PortSourceSelector.java, Fixture.java or PortFixtures.java"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/PortLevelClassSetTest.java:78-91 (every class in conformance.port must depend on PortSourceSelector or PortFixtures)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/PortSubsetSecondLegTest.java:93-94 (every listed id must open a fixture through the selector on both the in-memory and the filesystem leg)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/Fixture.java:10-13 (Fixture exposes only MissionStatusQuery and diagnostics, so a selector fixture cannot carry a detail port)"
+    claim: "The WP13..WP16 prompts add classes to conformance.port that never touch PortSourceSelector or PortFixtures and that open no selector fixture. PortLevelClassSetTest (an architectural gate) and PortSubsetSecondLegTest (runs every listed id on both sources and requires each to open a fixture) both fail on such a class. The prompts only mention PortLevelClassSetTest as a set-equality check, never these two rules, and grep of plan.md, wps.yaml and the WPs finds no mention of PortSourceSelector or PortSubsetSecondLegTest. PR B's first route tip (WP13) and every later tip are therefore red as specified. WP05's new AC-20 port-level ids have the same exposure if they call the reducer directly instead of opening a selector fixture."
+    remediation: "Decide the mechanism in wps.yaml and the four route WPs. Either (a) extend the selector path (WP10 owns it as a named edit of testsupport PortSourceSelector, Fixture and PortFixtures so a spec can yield a detail port built by DetailFixture on both legs, with the filesystem leg using FilesystemTextSource) and have every *PortLegsTest open its port through PortFixtures, or (b) keep the detail legs out of conformance.port and portlevel-tests.txt (for example under application/query, as WP18 does for AdmissionGatePortLevelTest) and state that no id is appended. Add PortLevelClassSetTest and PortSubsetSecondLegTest to the Gate G named-test list of WP05 and WP13..WP16 so the first red is caught in the WP."
+
+  - id: TASKS-GREEN-002
+    lens: "baseline honesty and silent-success (empty-set iteration without a count guard)"
+    severity: 3
+    title: "A mistyped or missing ServedRoute provider name leaves DetailGoldenSuiteTest green with zero comparisons from WP13 to WP17; the guard arrives only in WP18"
+    evidence:
+      - artifact: "tasks/WP10-java-harness-detail-classes-provisioning.md § T071 step 2 (ServedRoutes loads providers by Class.forName and treats ClassNotFoundException as an empty route) and Risks ('Class loading by name hides a typo ... WP18's ServedRoutesCompleteTest is the catch')"
+      - artifact: "tasks/WP13-get-mission.md § T094 (registering this provider is 'the red-to-green step of these fixtures'); WP14 T102, WP15 T109, WP16 T117 say the same"
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md § T131 item 3 (ServedRoutesCompleteTest, first appears in PR B at WP18)"
+    claim: "Each route WP states that registering its provider is its red-to-green step, but a provider whose class name or package is wrong is silently an empty route, so the golden suite passes without comparing a single fixture. Nothing in WP13..WP17 asserts that the WP's own provider was found and served a non-empty fixture set. The WP13..WP16 tip gates and their reviewers can therefore approve a route that no golden ever exercised, and the defect surfaces only at WP18."
+    remediation: "In WP10 add to ServedRoutes a test-visible accessor of the providers actually loaded, and in each of WP13..WP16 add a small test of its own provider (for example MissionDetailServedRouteTest) asserting that ServedRoutes loaded it and that it serves exactly the fixture ids the WP lists (count and names, not a bare non-zero). Keep ServedRoutesCompleteTest in WP18 as the whole-set floor."
+
+  - id: TASKS-GREEN-003
+    lens: "no forward references / stale cross-references between WPs"
+    severity: 2
+    title: "WP01, WP02, WP03 and WP18 use plan phase numbers as WP numbers, naming the wrong owner of a shared file or rule count"
+    evidence:
+      - artifact: "tasks/WP01-campsite-lookup-read-model-head-projection.md § Self-contained green ('DEFINED_RULE_COUNT stays 12 (raised by WP03 and later WP08)') and Risks ('turns red after WP05 or WP08')"
+      - artifact: "tasks/WP02-stream-seam-behind-inbound-port.md § T012-T013 area ('AdmissionGate (WP08/P8 ...)')"
+      - artifact: "tasks/WP03-generalised-inbound-adapter-gates.md § Dependents, § Rule numbering ('14 + 2 (WP08) = 16'), § Self-contained green ('16 at WP08'; 'WP08/WP05 additions to these same files'), § Concurrent edits ('WP05 (control) and WP08 (rules 15/16)')"
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md § T129 ('WP08's AdmissionGateTest', 'file is owned by WP03', 'PlainCaller (WP07 ...)') and § T131 ('PermissionCaseCoverageTest (WP07)')"
+      - artifact: "wps.yaml header table: P8 is WP12, P5 is WP09, P3 is WP05, P4b is WP08, P7 is WP10; portlevel-tests.txt is owned by WP05"
+    claim: "The wps.yaml numbering put P3a and P3 before P2 and P7 before P6, but several prompts kept the plan's P-numbers as WP numbers. A reader following 'WP08 adds rules 15 and 16' lands on the resolved-state goldens WP; 'owned by WP03' for portlevel-tests.txt points at the wrong lane for the append rule. Behaviour is unaffected, but the named-edit and merge-rule statements that the self-contained-green sections rely on name the wrong WP."
+    remediation: "Replace in those four prompts: WP08 (P8) with WP12, WP05 (P5) with WP09, WP07 (PermissionCaseCoverageTest, PlainCaller, DetailFixture, HttpHarness#startWith) with WP10 or WP12 as appropriate, and the portlevel-tests.txt owner WP03 with WP05. Grep every WP prompt for 'WPnn (Pnn)' pairs and check against the wps.yaml table before finalize-tasks."
+
+  - id: TASKS-GREEN-004
+    lens: "baseline captured before the first change"
+    severity: 2
+    title: "WP01 guards the #5529 re-cut with an executable BLOCKED check but states the P0 baseline precondition only in prose"
+    evidence:
+      - artifact: "tasks/WP01-campsite-lookup-read-model-head-projection.md § External dependency (bullet at line 80): the grep guard covers only application/query paths; baseline-red.yaml and test_baseline_record_* are named but never checked"
+      - artifact: "wps.yaml WP01 header comment ('P0 is an orchestrator precondition ... its record must exist before this WP is claimed')"
+      - code: "kitty-specs/mission-status-read-api-mission-detail-01M4S6D5/traces/ holds approach.md, design-decisions.md, tooling-friction.md only; no baseline-red.yaml; tests/contract/test_mission_status_conformance.py has no test_baseline_record_* (expected: the orchestrator has not run P0 yet)"
+    claim: "The baseline is the evidence every later red-first and behaviour-preserving claim leans on. If the orchestrator claims WP01 before P0, the agent has no instruction to stop, and the first change lands on an unrecorded base. WP07 T049 only confirms the tests 'stay green' later."
+    remediation: "Add to WP01 T001 a second BLOCKED guard next to the re-cut grep: test -f on traces/baseline-red.yaml and a grep -c of test_baseline_record_ in tests/contract/test_mission_status_conformance.py that must be at least 1; record the baseline commit sha in the first commit message."
+
+  - id: TASKS-GREEN-005
+    lens: "silent-success (assumption-skipped legs with no count guard on the leg that can run them)"
+    severity: 2
+    title: "Real-permission and UTF-8 legs skip by assumption and the skip report is informational, so no gate shows they ran on the Linux non-root CI leg"
+    evidence:
+      - artifact: "wps.yaml T041 (hook copies build/reports/not-run.txt to GITHUB_STEP_SUMMARY, else stdout), T067, T068"
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md § T131 item 2 (PermissionCaseFloorTest counts annotated ids over production tests, not executed legs)"
+      - artifact: "tasks/WP17-ci-native-nightly-readme.md (no step asserts the not-run list is empty on the ubuntu leg)"
+    claim: "The floors count that both legs of each @PermissionCase exist, not that they executed. If the runner were root or the locale not UTF-8, every real-permission and non-ASCII case would pass as skipped and the AC-4.3, AC-4.7 and AC-10.3 evidence would be vacuous while CI stays green."
+    remediation: "In WP17 add a CI step (or a gate-check subcommand in scripts/ci/mission_status_gate_checks.py with its test) that fails the Linux test leg when build/reports/not-run.txt is non-empty, with the Windows and root exceptions listed explicitly; or have PermissionCaseFloorTest read the JUnit result of the leg and require executed, not skipped, for the four ids on Linux."
+
+  - id: TASKS-GREEN-006
+    lens: "floors and counts (ownership of the D-145 equality comparison)"
+    severity: 1
+    title: "Three WPs assign the final JaCoCo equality comparison to different WPs"
+    evidence:
+      - artifact: "tasks/WP09-primitives-text-read-port-fence-redaction.md § Self-contained green ('WP18 compares the file with the command once (D-145)')"
+      - artifact: "tasks/WP17-ci-native-nightly-readme.md § T125 step 3 (WP17 performs the equality comparison) and Plan defects found 3"
+      - artifact: "tasks/WP18-full-flow-port-level-coverage-perf.md § T133 step 1 ('run only if WP17 has not already recorded it')"
+    claim: "The floor itself is a minimum (build.gradle.kts jacocoScopeCheck, lines 431-434), so an understated count stays green and no tip goes red; but the stated owner of the equality check differs between WP09, WP17 and WP18, and WP17 notes no writer may correct a mismatch in PR B."
+    remediation: "State once in wps.yaml: WP17 T125 runs the comparison, WP18 re-runs it, and a mismatch is fixed by a named edit of the properties file by the WP that found it (add that named edit to WP17 and WP18)."

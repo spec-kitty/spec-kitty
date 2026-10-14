@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 3
+verdicts:
+  - id: TASKS-ORDER-006
+    verdict: refuted
+    reason: Plan section 11 only requires tasks.md to state the split and map each WP to its PR, which the [PR A]/[PR B] title prefixes do (verified on WP01, WP12, WP13); the stacking text is in every WP body and nothing in plan or charter requires it in titles.
+  - id: TASKS-ORDER-007
+    verdict: refuted
+    reason: PortLevelClassSetTest scans only ..conformance.port.. and the portlevel-tests.txt grammar names only classes of that package, so AdmissionGatePortLevelTest in application.query needs no id and cannot turn the set test red; the claimed outcome is impossible.
+  - id: TASKS-ORDER-008
+    verdict: confirmed
+    reason: wps.yaml lines 509-513 list ci-router.yml and test_contracts_workflows.py under "Named edits (out-of-map; not in owned_files)" while lines 571-572 own them, and WP17 has no ci-router mention or owned entry despite plan line 171 allowing one line there.
+  - id: TASKS-COVER-001
+    verdict: confirmed
+    reason: WP13..16 frontmatter and wps.yaml (lines 1047, 1105, 1174, 1235) own the PortLegs classes and WP05 owns LineKind.java (line 426, frontmatter line 50), yet each prompt's Plan defects item 1 still calls them unowned out-of-map additions.
+  - id: TASKS-COVER-002
+    verdict: confirmed
+    reason: WP18 cites PlainCaller as WP07 and AdmissionGateTest as WP08 while wps.yaml puts them in WP12, PermissionCaseCoverageTest is WP10 not WP07, portlevel-tests.txt is WP05 not WP03, and WP02/WP03 cite WP08 for P8; WP18 line 126 also says three gated operations (48) before correcting to four.
+  - id: TASKS-COVER-003
+    verdict: confirmed
+    reason: plan.md line 283 names the four architectural workflow tests (all exist in tests/architectural) but grep over tasks/*.md finds only test_ci_corpus_trigger_completeness in WP07, none in WP17 which edits the workflow and CI scripts.
+  - id: TASKS-COVER-004
+    verdict: confirmed
+    reason: WP09 T061 step 4 states no visibility for Eligibility in application.query.artifact while WP11 (application.query.index) and WP15 (application.query.detail) use it cross-package, and WP15 line 165/282 admits the package-private stop-and-report branch.
+  - id: TASKS-COVER-005
+    verdict: confirmed
+    reason: WP16 line 84 says "two of the three heavy operations" whereas plan E-1, WP14 and WP18 T129 step 2 count four.

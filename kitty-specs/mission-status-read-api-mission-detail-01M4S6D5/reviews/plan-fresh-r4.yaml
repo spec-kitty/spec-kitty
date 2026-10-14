@@ -1,0 +1,158 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-FRESH4-001
+    lens: dependency-ordering
+    severity: 3
+    title: P7 exit gate names an inbound interface that only P8 creates
+    evidence:
+      - artifact: "plan.md section 11, row P7: HttpHarnessDetailTest (a stand-in MissionDetailQuery passed to startWith is the primary bean) and startWith registering MissionDetailQuery, WorkPackageQuery, WorkPackageDetailQuery, ArtifactQuery"
+      - artifact: "plan.md section 11, row P7 Depends-on is P3, P4, P4b, P5; row P8 Depends-on is P5, P7, P2 and P8 creates the four inbound interfaces, ArtifactPathInput and DetailRefusal"
+      - artifact: "plan.md section 11, concurrent sets: P8 runs after P7, so there is no P8-before-P7 order"
+    claim: >-
+      P7's own test and the harness description reference MissionDetailQuery and its three siblings, which are created in P8, and P8 depends on P7.
+      At the P7 tip the test cannot compile (or P7 would have to depend on P8, which closes a cycle). The exit gate of P7 (Gate G plus
+      HttpHarnessDetailTest) is therefore unsatisfiable as written, contradicting the "every phase leaves the branch green" rule of section 11.
+    remediation: >-
+      Either move HttpHarnessDetailTest (and its use of the four interface types) into P8's scope and gate, leaving P7 with a test that uses a
+      type that exists at the P7 tip (MissionStatusQuery, or a test-local interface in HttpHarnessDetailTest), or declare in startWith that
+      the key is a Class<?> and have the P7 test use a test-local stand-in interface. Update the P7 and P8 rows and the shared-file table.
+
+  - id: PLAN-FRESH4-002
+    lens: traceability
+    severity: 3
+    title: Rows T5 and T6 are first carried by getMission (P9) but their cases are assigned to P10
+    evidence:
+      - artifact: "plan.md section 8 FRESH3-003, owner paragraph: P9 owns head-dates-nulled (T1 to T4, T10); P10 owns T5 to T8 and T11 to T14; rule stated: the first route to carry row T7 owns its case"
+      - artifact: "plan.md section 8 FRESH3-003 table: T5 is wpId and dependencies[]; T6 is title, phaseLabel and other human members"
+      - code: "contracts/mission-status/schemas/WorkPackageSummary.yaml required members wpId, title, phaseLabel, dependencies, lastTransitionAt (the summary is what getMission lists)"
+      - artifact: "plan.md section 11, row P9 write scope and gate: MissionDetailQueryService, WorkPackageSummary; gate names only head-dates-nulled among the AC-8.4 fixtures"
+    claim: >-
+      getMission lists WorkPackageSummary, which carries wpId and dependencies (T5, strict, M7 on refusal) and title and phaseLabel (T6, human, M7 on a
+      leak substitution cannot remove). The plan's own placement rule gives the case to the first route that carries the member, but assigns T5/T6
+      fixtures (dependency-id-leak, the title/phaseLabel cases) to P10, which runs after P9. P9 ships MissionDetailMapper and the summary
+      projection with no case for two rows it carries, and its reviewer cannot verify them; the 18-row guard of P13 would be satisfied by
+      getWorkPackage's mapper alone, so a getMission summary that nulls or lets through a leaking title passes every gate.
+    remediation: >-
+      Add T5 and T6 (summary members) and T10 to P9's list of AC-8.4 cases and name a P9 fixture or mapper case for wpId, dependencies, title and
+      phaseLabel of the summary; keep P10 for the members only getWorkPackage carries. Make ProjectionRowCoverageTest assert the case per
+      (row, route mapper) pair, not per row.
+
+  - id: PLAN-FRESH4-003
+    lens: cross-mission-consistency
+    severity: 3
+    title: Section 7.4 says the ArchUnit rules need no change for #5533, but rules 3, 4, 13 and 14 now hard-code application.query and #5533 still plans the flat layout
+    evidence:
+      - artifact: "plan.md section 7.4 table row ArchUnit: No rule changes for this decision. Rules are rooted at ArchitectureRules.ROOT; #5533 runs the existing rules once per root"
+      - artifact: "plan.md section 1.1 ArchUnit scopes: rule 3 suffix becomes application.query.port.in.., rule 4 application.query.port.out..; section 13 rules 13 and 14 name application.query.port.. and application.query"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java lines 161 and 165: rules 3 and 4 build their allowed packages as p(root, \"application.port.in..\") and p(root, \"application.port.out..\")"
+      - artifact: "the #5533 specification (rehome-dashboard-read-surface, workspace commit cdce434a3) FR-017 gives the governance context application.port.in and application.port.out, and PD-7 names SourceFault in application.port.out and LeakClasses in domain.projection"
+    claim: >-
+      The plan's claim that #5533 runs the existing rules once per root holds only if the governance context takes the same side-first tree
+      (application.query.port.{in,out}, dto, exceptions). The rules are built from the root plus a fixed suffix, so a governance adapter.in.http that
+      depends on governance.application.port.in turns rule 3 red, and rule 13 and 14 scan nothing in that root. Neither section 7, E-3 nor the
+      decision record tells #5533's planner to adopt the CQRS names, and #5533's own text and its PD-7 still cite the flat names that section 7.1
+      replaced. The consistency of section 7 with the CQRS ruling is asserted for the seam table only.
+    remediation: >-
+      In 7.4 and E-3 state that the CQRS tree applies to the governance context too (its packages application.query.port.*), or that the rule
+      suffixes become parameters of ArchitectureRules.all; record a decision note in both missions' design-decisions naming #5533's FR-017 and PD-7
+      strings that the re-cut supersedes (application.port.out.SourceFault, domain.projection.LeakClasses and Projector).
+
+  - id: PLAN-FRESH4-004
+    lens: ownership
+    severity: 2
+    title: P7's detail-aware fixture is placed in FixtureFactory, the in-memory factory, but needs the scratch tree owned by FilesystemFixtureFactory
+    evidence:
+      - artifact: "plan.md section 11, row P7: the detail-aware FixtureFactory exposes the real FilesystemTextSource over the fixture's scratch tree, the recorder and the MissionReadModel; D-137: the detail bundle lives in P7's own FixtureFactory.java"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/FixtureFactory.java builds over InMemoryMissionEventSource with no scratch directory"
+      - code: "testsupport/FilesystemFixtureFactory.java holds the scratch root, ProjectHeaderMaterialisation, the AllowlistAccess seam and FixtureHandles#allowlistRecorder; HttpHarness#start and #startOver take FilesystemFixtureFactory.Built"
+      - artifact: "plan.md section 11 shared-file table: FilesystemFixtureFactory.java, FixtureHandles.java and StreamRig.java belong to P1a, other writers none"
+    claim: >-
+      The only fixture that has a file-system scratch tree, a recording allowlist seam and the Built type the harness accepts is FilesystemFixtureFactory,
+      which P1a owns with no other writer. Writing the detail bundle in FixtureFactory means either a second scratch-tree provisioning path (a second
+      applier, which the plan elsewhere forbids) or an undeclared edit of a P1a-owned file. The record the plan calls Built in D-137 is also ambiguous,
+      because two Built records exist (one per factory).
+    remediation: >-
+      Name the class: a new P7 file (for example DetailFixture) that composes FilesystemFixtureFactory.Built, its source and the handles'
+      allowlistRecorder with a FilesystemTextSource and a MissionReadModel, and state in D-137 and the shared-file table which Built the
+      "canonical constructors unchanged" sentence protects. Drop FixtureFactory.java from P7's write scope unless it really is edited.
+
+  - id: PLAN-FRESH4-005
+    lens: gates
+    severity: 2
+    title: Phases that edit files the tests/ci build pin reads do not run it, and the readiness list of pin-read files is incomplete
+    evidence:
+      - artifact: "plan.md section 11 preamble: a pin that reads a file a phase edits is that phase's gate; section 5 command list: run the pin in P2, P1a, P13 and every phase that edits a file this pin reads (readiness facts)"
+      - code: "tests/ci/test_mission_status_api_build.py ARCH_RULES_TEST is architecture/ArchitectureRulesTest.java and contract_package_violations requires the three rule-9 literals in its text; PERF_DIR scan requires @Tag(\"perf\") on every perf class that holds a test; HTTP_MAIN sub-directories are listed"
+      - artifact: "plan.md section 11 rows P1b and P8 (both rewrite ArchitectureRulesTest) and P3 (adds Nfr009CacheGrowthTest in the perf directory): exit gates omit tests/ci/test_mission_status_api_build.py"
+      - artifact: "plan.md Readiness facts, row Native floors: lists only the native-floor reads of the pin"
+    claim: >-
+      By the plan's own rule P1b, P8 and P3 must run the pin, but their gates do not, and the readiness facts name only the native-floor reads of it. A P1b rewrite of
+      ArchitectureRulesTest that drops a rule-9 literal, or a P3 perf class without the tag, goes red only at P13 or in CI.
+    remediation: >-
+      Extend the readiness row to the complete list of what the pin reads (ArchitectureRulesTest literals, application.properties defaults, the
+      EventsController needles, the http directory set, the perf directory, nativetags, nativesmoke, the workflow) and add the pin command to the exit
+      gates of P1b, P3 and P8.
+
+  - id: PLAN-FRESH4-006
+    lens: charter
+    severity: 2
+    title: Section 9 claims every functionally changed surface has a scout row, but the largest edited files have none
+    evidence:
+      - artifact: "plan.md section 9 table intro: Every surface a phase changes functionally has a row, or is the campsite itself (Standing Order 2; PLAN-FRESH3-010)"
+      - artifact: "plan.md section 11: P2 edits S/build.gradle.kts and three clauses of tests/ci/test_mission_status_api_build.py; P13 edits that pin again; P5 changes LeakClasses and DiagnosticCode; P8 changes ProblemMapper"
+      - code: "tests/ci/test_mission_status_api_build.py is 2737 lines; services/mission-status-api/build.gradle.kts is 452 lines; the section 9 table has rows for the conformance generator (781 lines), the compare script and the workflow but none for these"
+    claim: >-
+      Charter Standing Order 2 and C-011 ask for a recorded reason for every surface the scout leaves alone that a later phase edits. The sentence
+      that the table is complete is false for the 2737-line pin test (Sonar can analyse it: sonar.tests=tests), the Gradle script, ProblemMapper, LeakClasses
+      and DiagnosticCode; the "Java files in general" row states a method, not a reason per surface.
+    remediation: >-
+      Add rows for tests/ci/test_mission_status_api_build.py, S/build.gradle.kts, ProblemMapper, LeakClasses and DiagnosticCode (and AllowlistAccess
+      and AllowlistPassThrough if their edits go beyond additive), each with the scouted size and the reason, or narrow the sentence.
+
+  - id: PLAN-FRESH4-007
+    lens: stale-flat-path
+    severity: 2
+    title: The new-file-in-out-package pin still probes the flat application/port paths and nobody owns its update
+    evidence:
+      - code: "tests/ci/test_mission_status_api_build.py NEW_FILES_IN_OUT_PACKAGES probes application/port (main and test) and architecture/fixture/application/port; no other file of tests/, scripts/ or .github holds a flat package path"
+      - artifact: "plan.md section 15.7 Naming hygiene: application/query/port/out with its dto and exceptions subpackages, and the fixture trees below them, are not ignored (the existing port/out already relies on this)"
+      - artifact: "plan.md section 11 shared-file table: tests/ci/test_mission_status_api_build.py owner P13, P2 for three clauses only; the re-cut is #5529's"
+    claim: >-
+      After the re-cut the pin probes directories that no longer exist, so it stays green without testing the packages this mission fills with new files
+      (application/query/port/out/{dto,exceptions}, the P1b fixture trees). Plan section 15.7 relies on the guard it quietly stops exercising.
+    remediation: >-
+      List the probes in the C-005 pre-flight (string-literal sites) and give P13, or the re-cut, the edit: replace the three tuples with the
+      re-cut paths plus port/out/dto and port/out/exceptions and the fixture counterparts, with a control that fails on the old flat entries.
+
+  - id: PLAN-FRESH4-008
+    lens: shared-file-merge
+    severity: 1
+    title: Concurrent phases edit the same two jacoco count lines and the same portlevel list, and P1a names a file it does not own
+    evidence:
+      - artifact: "plan.md section 11 shared-file table: jacoco-class-floor.properties named edits by P6 and P8 (concurrent) and P10, P11, P12 (concurrent), each counted at the commit that adds the classes"
+      - artifact: "plan.md section 2 row jacoco: a stale or lowered count is not detected by design (floor semantics)"
+      - artifact: "plan.md section 11 row P1a lists R/portlevel-tests.txt (only if an id changes); the shared-file table owns it by P3 and lists P9 to P12 as other writers, not P1a"
+    claim: >-
+      Two concurrent lanes each write a count derived on their own tree; after merge the file understates the class count and jacocoScopeCheck
+      cannot notice, which weakens the non-vacuity guard silently. The P1a mention of portlevel-tests.txt is outside the table.
+    remediation: >-
+      Add to the table the merge rule "the later lane recounts with the section 2 command after every merge"; add P1a to the portlevel-tests.txt
+      writers or drop the mention.
+
+  - id: PLAN-FRESH4-009
+    lens: transport-agnostic-claim
+    severity: 1
+    title: The transport-agnostic claim holds for type references but the stream refusal vocabulary carries HTTP statuses
+    evidence:
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/in/StreamRefused.java Kind carries an int status (400, 409, 404) per value and a wire word"
+      - artifact: "plan.md section 15.3: StreamRefused gains a fixed detail (UNPARSEABLE_DETAIL); section 13 rule 16 subject excludes every Stream class"
+    claim: >-
+      Section 1 and 15.8 say an MCP adapter duplicates no rule and meets no transport type. True of imports (rules 2a, 9, 16), but the refusal that the
+      port throws carries an HTTP status code per kind and a problem-detail string, and rule 16 exempts the stream vocabulary from every check.
+    remediation: >-
+      Say so in section 1 (status is a port-neutral refusal class an adapter maps), or add a rule 16 clause that the stream vocabulary imports no
+      Spring or servlet type, as it already may not by rule 2a.

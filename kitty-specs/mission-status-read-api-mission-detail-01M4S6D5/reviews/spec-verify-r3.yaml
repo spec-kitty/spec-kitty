@@ -1,0 +1,40 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: "The decoder implementation sits directly in adapter.out.filesystem delegating to a port-free codec (FR-006, D-57), AC-6.5 asserts rules 4, 7, 12a-c unchanged with planted 12a/12c violations, and the cited rules match ArchitectureRules."
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: "The lookup is split into a probe-free findMission plus probed (Lookup bullet, D-58), AC-1.8 covers unchanged stream answers, no LEDGER access on artifact routes, and the duplicate scan priced in NFR-001 with a worst-case fixture."
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: "FR-004 defines the walk counter and exact boundary (100000 served, 100001 is 500), and AC-4.9 builds flat and nested fixtures whose counter arithmetic checks out to exactly 100000 and 100001."
+  - id: SPEC-FRESH2-004
+    status: resolved
+    reason: "D-60, FR-008, rows M7 and M12 and AC-8.1 now distinguish three outcomes (null subtask title, id-substituted dependency title, projection_refused for other human fields) with a fixture per field assembled at test time, consistent with Projector.human and the oracle."
+  - id: SPEC-FRESH2-005
+    status: resolved
+    reason: "AC-21.1 now asserts per-module executed (floor) and failed against row counts, module list equals the glob and redCount equals failed plus rows, and states honestly the one residual review item."
+  - id: SPEC-FRESH2-006
+    status: resolved
+    reason: "FR-021, AC-21.3 and the baseline section require an OPEN GitHub issue on every row and not-run module, name #5927, withdraw #3284 and route newly found reds through the orchestrator, matching the charter rule and ruling 3."
+  - id: SPEC-FRESH2-007
+    status: resolved
+    reason: "The cap claim is re-grounded in the refreshed base (readRegular at HEAD takes a required cap), cited by section title, and AC-3.9 is stated independent of #5529 via this mission's own text-read port cap."
+  - id: SPEC-FRESH2-008
+    status: resolved
+    reason: "FR-022 owns the admission gate in the application layer behind the inbound port, never refuses, is admitted by rules 2b and 2c as checked in ArchitectureRules, and AC-22.1 to AC-22.4 test it at the port with a planted bypass and the gate's own high-water mark."
+  - id: SPEC-FRESH2-009
+    status: resolved
+    reason: "AC-19.3 and D-65 keep jacocoScopeCheck floor semantics, raise counts by classes added and keep only the planted-untested-class control."
+  - id: SPEC-FRESH2-010
+    status: resolved
+    reason: "Every Route cell in the FR-012 table (M2, M3, M5, M6, M7) now lists getMission, getWorkPackage, detail explicitly, consistent with AC-1.6, AC-2.6 and AC-3.8."
+  - id: SPEC-FRESH2-011
+    status: resolved
+    reason: "The FR-014 table has a Count column with one rule in AC-14.3 (floor at least Count), phases-matrix 18 and wp-malformed-frontmatter 27 are named, and bad-sibling-unknown fixtures moved to Java-only class lookup-faults with V9."
+  - id: SPEC-FRESH2-012
+    status: resolved
+    reason: "FR-006 item 3 now reads a file whose bytes are not strict UTF-8 is skipped, and clause (b) correctly says application may depend on no library outside the JDK list of rule 2b."

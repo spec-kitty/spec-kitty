@@ -1,0 +1,148 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+reviewer: R5b-round-3
+summary: 'Fresh-eyes round 3 over wps.yaml and the 18 prompts, focused on the round-3 changes. Mechanical checks passed: frontmatter equals wps.yaml
+  for title, dependencies, owned_files, requirement_refs and subtasks in all 18 WPs; no exact or glob owned-file overlap; create_intent covers
+  every new literal owned path; every T001..T133 has a heading; finalize-tasks --validate-only passes with 18 lanes and WP04 the only planning
+  lane; no home paths; every spec FR/NFR/SC/C id is referenced; the 26 ProjectionRow pairs cover all 18 rows; the shared-bean move to WP13, the
+  single DetailRefusal handler and the OO-6 merge rule are consistent across the prompts apart from the findings below. Eight findings: WP14 tells
+  the mapper to use CodePoints.compare, a non-record domain.model class that rule 15 bars from adapter.in.http.detail, so PR B is red from WP14
+  (severity 4); the WP10 ServedRoute interface has no golden-file or request-key dimension although three providers serve one fixture against
+  different golden files and PR B WPs may not edit it (3); as a consequence two required golden sets (getMission of wp-malformed-frontmatter,
+  getWorkPackage of detail-planning-only) are registered by no provider and WP18 ServedRoutesCompleteTest cannot see it (3); and five lower items:
+  stale statements that WP16 injects the index/decoder beans, wiring context tests that cannot resolve their beans, a WP13 DoD that contradicts
+  the no-append rule, a WP16/WP17 README string contract, and small wording defects.'
+findings:
+- id: TASKS-FRESH3-001
+  lens: contradiction
+  severity: 4
+  title: WP14 tells the mapper to call CodePoints.compare, which rule 15 (WP12) forbids the mapper to depend on
+  evidence: 'tasks/WP14 T100 step 2: the mapper "writes that map from a pre-sorted structure (compare keys with `domain/model/CodePoints.compare`,
+    which exists at the checkout)"; T100 step 5 and the DoD add that controller and mapper depend "only on what rule 15 admits". tasks/WP12 T086
+    step 1 and plan section 13 row 15 define rule 15 for adapter.in.http.detail.. as admitting, from the domain, only "the records and enums of
+    domain.model, domain.readmodel.overview and domain.readmodel.detail". services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/CodePoints.java
+    is a `public final class` with a private constructor and a static method: neither a record nor an enum.'
+  claim: Following WP14 literally puts a dependency from WorkPackageMapper (adapter.in.http.detail) onto a non-record, non-enum class of domain.model.
+    Rule 15 (a non-vacuous rule, scanning the mapper once it exists) is then red on the production tree at WP14 tip, so Gate G fails and PR B
+    is red from WP14 on. The implementer must either break rule 15, add CodePoints to the rule (a WP12 edit nobody owns after PR A), or invent
+    another ordering mechanism, i.e. rework inside WP14 that the prompt does not describe.
+  remediation: 'Move the code-point ordering out of the mapper: have WorkPackageQueryService (application layer, allowed to use CodePoints) hand
+    the mapper the subtasks as an already ordered list of entries inside the WorkPackageView record (or add an explicit ordered-entries member),
+    and have the mapper only serialise that list with a small custom serializer that imports nothing outside rule 15. Delete the CodePoints sentence
+    from T100 step 2 and state the ordering owner in T099. Alternatively amend WP12 T086 rule 15 to name CodePoints as an admitted utility class
+    (and its fixture), before PR A is frozen.'
+- id: TASKS-FRESH3-002
+  lens: contradiction
+  severity: 3
+  title: WP10 ServedRoute cannot express which golden file or request a provider serves, and WP14 points at a Javadoc WP10 is never told to write
+  evidence: 'tasks/WP10 T071 step 1: ServedRoute is "Set<String> servedFixtureKeys() ... and byte[] bytesFor(String fixtureKey) (the raw body
+    the route produces for one fixture)"; step 3: DetailGoldenSuiteTest compares "the raw bytes equal the committed golden (`golden/` of the fixture)".
+    tasks/WP07 T044 step 5 fixes six golden files per class (get-mission.json, get-work-package.json, get-work-package-prompt.json, get-work-package-detail.json,
+    list-artifacts.json, get-artifact-content.json), each "a canonical-JSON object keyed by the request key". tasks/WP14 T102 step 1 says "read
+    its Javadoc for how a query parameter pair is expressed"; tasks/WP13 T094 says "read its Javadoc". grep of WP10 finds no requirement to document
+    either; WP10 T071 note: "this file is WP10''s and no PR B WP edits it".'
+  claim: One fixture (for example detail-populated) is served by three providers (WP13, WP14, WP15) and by one provider twice (with and without
+    includePrompt), each against a different golden file holding several request keys. The WP10 interface has one key set and one byte[] per key
+    and no golden-file or request-key dimension, so the golden to compare is undefined. WP10 will invent a shape; WP13..WP16 then either fit it
+    badly or must edit WP10 files they are forbidden to edit (a named edit not listed anywhere). Because WP18 ServedRoutesCompleteTest checks
+    only fixture-level service, a golden file that no provider registers is also invisible (see the next finding).
+  remediation: 'Specify the contract in WP10 T071: ServedRoute exposes, per served entry, a (goldenFileName, requestKey) pair or a composite key
+    such as "<class>/<fixture>#get-work-package-prompt.json", and bytesFor returns the exact bytes of that golden file. State the with/without-prompt
+    and multi-request-key conventions there, require the Javadoc, and make DetailGoldenSuiteTest select the golden by that name. Then rewrite
+    the "read its Javadoc" sentences in WP13/WP14 to cite the stated convention, and make ServedRoutesCompleteTest (WP18 T131) check (fixture,
+    golden file) coverage against the manifest.'
+- id: TASKS-FRESH3-003
+  lens: requirement-gap
+  severity: 3
+  title: 'Two golden sets the spec requires are registered by no ServedRoute: wp-malformed-frontmatter getMission goldens and detail-planning-only
+    getWorkPackage'
+  evidence: 'spec.md FR-014 table: `wp-malformed-frontmatter` goldens "getMission, getWorkPackage, getWorkPackageDetail (index-fed oracle)"; `detail-planning-only`
+    goldens "getMission, getWorkPackage". tasks/WP13 T094 step 1 registers detail-*, phases-matrix, projection-nulls head-dates-nulled, projection-refusals
+    dependency-id-leak, wp-duplicate-id, bad-sibling-before/after and lookup-faults, and names wp-malformed-frontmatter nowhere (grep: no hit
+    in WP13). tasks/WP14 T102 step 1 registers detail-populated, wp-duplicate-id, wp-malformed-frontmatter, wp-two-selectors, wp-prompt-bytes,
+    unicode-subtask-ids, resolved-state, and not detail-planning-only (no WP13..WP16 prompt mentions planning-only). spec AC-1.1 requires the
+    getMission bytes of "every fixture Mission of the detail golden set"; AC-2.1 every fixture Work Package.'
+  claim: 'The 28 getMission goldens of wp-malformed-frontmatter and the getWorkPackage golden of detail-planning-only are generated (WP07) and
+    checked by --check, but the Java suite never compares them. WP18 ServedRoutesCompleteTest (fixture-level, golden-bearing fixtures served by
+    "a provider") still passes because the same fixtures are served for another operation, so the hole is silent: AC-1.1 and AC-2.1 are met only
+    on paper, and a skipped-file or planning-only regression in getMission/getWorkPackage would not turn a golden red. The exact-fixture-key tests
+    (<Route>ServedRouteTest) would also pin the incomplete key lists as correct.'
+  remediation: Add wp-malformed-frontmatter (28 fixtures) to the getMission registration in WP13 T094 and detail-planning-only to the getWorkPackage
+    registration in WP14 T102 (and to the exact key lists of the two ServedRouteTest classes). Better, derive the expected registrations from
+    the manifest (class to golden files) in WP18 T131 so a missing (fixture, golden file) pair is red, as proposed in the ServedRoute finding.
+- id: TASKS-FRESH3-004
+  lens: lane-lineage
+  severity: 2
+  title: Header DV-6 and three prompts say WP16 injects the shared WorkPackageIndex and decoder beans, but WP16 has neither in its lane and does
+    not use them
+  evidence: 'wps.yaml DV-6: "WP14, WP15 and WP16 inject the bean". tasks/WP13 T093 step 3: "WP14, WP15 and WP16 inject this one and never declare
+    another". tasks/WP11 T075 step 5: decoders are injected by "WP13 to WP16"; T076 step 6: "WP14, WP15 and WP16 declare none and inject that
+    bean". wps.yaml WP16 dependencies are [WP06, WP09, WP10, WP12] (transitive closure lacks WP11 and WP13); tasks/WP16 header and dependency
+    bullet: "It needs neither the ledger nor the Work Package index (it does not depend on WP11 or WP13)... Do not reference any type of WP11,
+    WP13, WP14 or WP15".'
+  claim: The WorkPackageIndex class is created by WP11 and its bean by WP13; neither exists in WP16's lane. An implementer of WP16 who follows
+    WP13 T093 or DV-6 and injects the index bean cannot compile in its lane (forward reference), and a reviewer of WP16 who follows WP11 has a
+    rule to reject a correct WP16. The four texts disagree with WP16 and with each other.
+  remediation: Edit DV-6, WP13 T093 step 3, WP11 T075 step 5 and T076 step 6 to say WP14 and WP15 (and no other WP) inject the index bean, and
+    only WP13 and WP15 the decoder beans; WP16 injects neither.
+- id: TASKS-FRESH3-005
+  lens: contradiction
+  severity: 2
+  title: The new wiring context tests load a partial configuration that cannot resolve its own beans, and WP13 claims beans that WP11 and WP12
+    do not provide
+  evidence: 'tasks/WP13 T093 step 3: MissionDetailWiring builds MissionDetailQuery "from the MissionReadModel, that WorkPackageIndex bean, the
+    TextSource bean and the diagnostics Consumer<Diagnostic> that ServiceWiring, DecoderWiring and DetailInfrastructureWiring already provide";
+    its test loads "only MissionDetailWiring, DecoderWiring and DetailInfrastructureWiring (never the full application context)". tasks/WP11 T075
+    step 5: DecoderWiring declares "the two decoder beans ... and nothing else"; tasks/WP12 T085 step 5: DetailInfrastructureWiring has two beans
+    (TextSource, AdmissionGate), and its test "loads only DetailInfrastructureWiring". services/.../config/ServiceWiring.java (the MissionReadModel
+    and clock beans, and @EnableConfigurationProperties(MissionStatusProperties)) is not in either list.'
+  claim: The MissionDetailQuery bean needs MissionReadModel (ServiceWiring, WP01) and a Consumer<Diagnostic>, neither of which the three listed
+    configurations declare; FilesystemTextSource in WP12 needs the project root and an AllowlistAccess that only ServiceWiring-side properties
+    supply. The two tests as written fail at context start with NoSuchBeanDefinition, so the implementers must improvise test beans or load more
+    configuration than the prompts allow, a rework of both tests (WP12 is PR A, WP13 PR B) and a contradiction with the stated "never the full
+    application context".
+  remediation: State in WP12 T085 and WP13 T093 how the test supplies the missing collaborators (test-local @Bean stubs for MissionReadModel,
+    Consumer<Diagnostic>, MissionStatusProperties and AllowlistAccess, or an explicit @Import of ServiceWiring plus a project-root property) and
+    remove the claim that DecoderWiring and DetailInfrastructureWiring provide the diagnostics consumer.
+- id: TASKS-FRESH3-006
+  lens: contradiction
+  severity: 2
+  title: WP13 Definition of Done requires a port-level id to be appended although T096 and the header forbid any append
+  evidence: 'tasks/WP13 DoD: "T096: only the one line removed from `OutOfScopeRoutesTest`; port-level id appended and `PortLevelClassSetTest`
+    green; JaCoCo lines equal the command''s output". The same prompt T096 step 2: "Append no line to `R/portlevel-tests.txt`" and the header
+    PORT-LEVEL LEGS: "WP13..WP16 append nothing to it".'
+  claim: A reviewer or implementer who reads the DoD as the acceptance list appends an id for MissionDetailPortLegsTest to R/portlevel-tests.txt
+    (WP05's file). PortLevelClassSetTest/PortSubsetSecondLegTest then run that id on a selector fixture that cannot carry a detail port and turn
+    red, or the reviewer rejects a correct WP.
+  remediation: Replace the DoD item with "no line appended to R/portlevel-tests.txt; MissionDetailPortLegsTest exists outside conformance.port
+    and PortLevelClassSetTest and PortSubsetSecondLegTest are green and unchanged", as WP14 T103 and the WP14 DoD already say.
+- id: TASKS-FRESH3-007
+  lens: requirement-gap
+  severity: 2
+  title: 'The README locale sentence has a split contract: WP16 does not test the string WP17 requires'
+  evidence: 'tasks/WP16 T117 step 6: the sentence says the routes "need a UTF-8 file-name locale (`LC_ALL=C.UTF-8` or any installed UTF-8 locale;
+    it names `sun.jnu.encoding`)", and its own test ArtifactControllerReadmeLocaleTest asserts only `sun.jnu.encoding` and `LC_ALL`. tasks/WP17
+    T124 steps 3 and 5 and spec AC-18.1: tests/ci/test_mission_status_readme.py fails on a missing `UTF-8 locale`, and WP17 must "verify [the
+    sentence] exists, do not rewrite it; if one is missing, stop and report".'
+  claim: Nothing in WP16 forces the exact substring `UTF-8 locale`; "UTF-8 file-name locale" does not contain it. If WP16 words the sentence naturally,
+    WP17's README test is red at its own tip and WP17 is told to stop and escalate instead of fixing a sentence it does not own. The coincidence
+    that the suggested parenthesis contains the substring is not a gate.
+  remediation: Make WP16's ArtifactControllerReadmeLocaleTest assert the literal `UTF-8 locale` as well, and state the string in T117 step 6;
+    keep the WP17 check.
+- id: TASKS-FRESH3-008
+  lens: stale
+  severity: 1
+  title: 'Small wording defects: WP14 lacks FR-020, calls a fixture a class, and WP13..WP16 expect an empty NFR-006 grep that WP11 makes non-empty'
+  evidence: wps.yaml/WP14 requirement_refs omit FR-020 although WP14 T102 states that WorkPackageServedRoute is "the only server" of the resolved-state
+    goldens (FR-020/AC-20.1). WP14 T102 step 1 lists "the classes ... wp-prompt-bytes and unicode-subtask-ids", but unicode-subtask-ids is a fixture
+    of detail-populated (WP07 table, plan S-15). WP13 T097, WP14 T104, WP15 T111 and WP16 T118 run the NFR-006 grep and say "expect empty", while
+    plan section 5 says "later only the marked legacy literal `feature_slug`" and WP11 T075 (LanesCodec legacy detection) puts that literal in
+    S/src/main.
+  claim: Traceability lacks the route that proves FR-020 parity on the wire; the unicode-subtask-ids wording can send an implementer looking for
+    a class directory that does not exist; and four reviewers will see a non-empty grep at tips that contain WP11 and might treat the allowed
+    legacy hit as a defect or hide a real one.
+  remediation: Add FR-020 to WP14 requirement_refs (wps.yaml and frontmatter together); say "the fixture unicode-subtask-ids of detail-populated";
+    change the four greps to "expect only the marked legacy `feature_slug` literal of LanesCodec".

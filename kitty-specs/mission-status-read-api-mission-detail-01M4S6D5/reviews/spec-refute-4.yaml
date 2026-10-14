@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 4
+verdicts:
+  - id: SPEC-ARCH-015
+    verdict: refuted
+    reason: AC-11.3 says "including the new patterns (eleven lines, because PLANNING_FILE names two files)", which reads as the new entries only; the ambiguity is cosmetic.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: FR-011 classifies specific-first and gives the artifact routes only ARTIFACT_DIR/ARTIFACT_FILE while PLANNING_FILE is STAT-only, yet AC-5.2 requires spec.md to be 200, so the two requirement sets conflict.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: EventData imports domain.projection.LeakClasses and Projector, and Subscription.next declares InterruptedException, so rules 13 and 14 as written in AC-13.1/13.2 are red on existing code with no exemption in the spec.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: jacoco-class-floor.properties holds only domain=55 and application=44 class-count floors, so AC-19.3's per-class floor file listing every new class does not exist and its failure modes cannot occur.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: Oracle read_authored_files uses glob plus is_file (follows symlinks, no size cap) while the spec skips symlinked WP files and caps at 1 MiB, and AC-14.4 only catches divergences present in a fixture, so the inventory is incomplete.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: AC-3.1 generates goldens under NO_WORKTREES so the worktreePresent true rows have no oracle counterpart, and R-7 only defers the unreproducible resolution branches to the plan.
+  - id: SPEC-VERIFY-006
+    verdict: confirmed
+    reason: read_tasks_md decodes with plain utf-8 (BOM kept, CRLF untranslated) and the spec states newline/BOM rules only for WP files, with AC-3.4 listing no such case.
+  - id: SPEC-VERIFY-007
+    verdict: refuted
+    reason: OQ-1 is an explicitly flagged open question with a stated rationale, a wp_file_skipped diagnostic and named alternative, so the finding mostly disagrees with a documented, deliberate choice.

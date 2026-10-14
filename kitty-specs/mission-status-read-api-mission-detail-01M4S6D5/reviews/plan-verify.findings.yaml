@@ -1,0 +1,241 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-status-read-api-mission-detail-01M4S6D5
+profile_applied: >-
+  debugger-debbie in squad-delegate mode (one lens, no swarm). Directive 003 (decision documentation): every
+  unverified or contradicted claim is recorded with evidence. Directive 030 (test and typecheck quality gate): gates
+  and revert rows were checked for a producer-conformance control. Tactics: falsify the plan's gate and baseline
+  claims against the workflow files and pin tests; divergence matrix of plan claim versus checkout fact.
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Baseline honesty
+    severity: 4
+    title: AC-21.1 resolves base shas that compaction and the stack retarget make unreachable, so the record test goes red in CI or after merge
+    evidence:
+      - artifact: "plan.md section 6 step 1 (two bases) and section 11 'One PR, readability' (Compact the history before the draft PR); section 5 row 'tests (contract tools)' (fetch-depth 0 for the git cat-file -e of AC-21.1)"
+      - code: "git log 58cd71ec9: 'Merge #5529 lane-b (Mission Status Read API overview, unmerged) as the design base for #957' is a merge commit local to this branch, and fd866831a is likewise; origin/main is d082b1810 (the first parent). Neither is on main."
+      - code: ".github/workflows/ci-router.yml job tests-contract-tools: actions/checkout with fetch-depth 0 fetches only the history of the PR merge ref"
+    claim: >-
+      The record test must `git cat-file -e` two shas. Base A (d082b1810) is on main and durable. Base B is "the design-base tip at
+      capture, not earlier than merge fd866831a", i.e. a commit of this branch or of #5529's unmerged lane. The plan itself orders
+      a history compaction before the draft PR, and the PR is retargeted to main after #5529 lands (possibly squashed). After
+      either, base B no longer exists in the checkout of tests (contract tools) or of main, so a permanent corpus-marked test
+      fails with a "sha does not resolve" red that is attributable to nobody, on every later PR. The same holds for the AC-21.1
+      requirement that the record's module list equal "the glob at the capture sha": that glob can only be computed with
+      `git ls-tree <sha>`, which needs the same reachability. The spec wording "first parent of merge commit 58cd71ec9" also
+      cites a commit that will not survive compaction.
+    remediation: >-
+      Split the check: the existence check (`git cat-file -e`) applies only to shas on main (base A, recorded as the literal
+      d082b1810-style sha, never as "first parent of 58cd71ec9"); base B is recorded with its sha plus an `ephemeral: true` flag
+      and a description (the #5529 tip it carried), and the test asserts only that it is a 40-hex string that differs from base A.
+      Replace "module list equals the glob at the capture sha" with a module list committed in the test beside the executed
+      floors, plus a test that the live glob is a superset of it. State in S-12 / AC-21.1 that compaction rewrites base B and that
+      this is by design. Add a P0 exit command: after the planned compaction, run the baseline-record module again on the compacted tip.
+  - id: PLAN-VERIFY-002
+    lens: Gates (native floor)
+    severity: 4
+    title: The planned native-tag floor of 8 contradicts the existing pin test, and phases P6 to P12 would leave tests/ci red before P13
+    evidence:
+      - artifact: "plan.md section 12 table row 'native-tag-floor --floor' (3 to 8, 'the pin is edited in the same change'); section 11 chokepoints (mission-status-api.yml and tests/ci/test_mission_status_* are P13 alone); P6, P11, P12 add native-tagged tests"
+      - code: "tests/ci/test_mission_status_api_build.py NATIVE_TAGGED_DIR = TEST_JAVA / 'config' / 'nativetags'; native_test_count counts '@Test' lines only in files of that directory containing '@Tag(\"native\")'; native_floor_violations requires every --floor to equal that count"
+      - code: "scripts/ci/mission_status_gate_checks.py _count_executed counts executed JUnit testcase elements (a parameterised or dynamic test counts per invocation)"
+    claim: >-
+      (1) The pin equates the floor with the number of `@Test` methods under src/test/java/.../config/nativetags. The plan places
+      the new native-tagged tests in decoder, index and route test packages (P6: `T/application/index/**`, `T/adapter/out/filesystem/**`),
+      none of which the pin scans, so after the plan's edit to `--floor 8` the pin computes 3 and goes red; or, if the tests are
+      put under config/nativetags, that directory is in no phase's write scope. (2) Because P6, P11 and P12 add tagged tests
+      and only P13 edits the workflow and the pin, the pin is red (count 4 to 8 against floor 3) from P6 on, contradicting "every
+      phase leaves the branch green". (3) The pin counts `@Test` lines, the gate counts executed testcases; a `@ParameterizedTest`
+      native test (the natural form of "decoder valid and rejected") is counted 0 by the pin and N by the gate, so floor 8 can
+      be both too high for the pin and unreachable in a form the pin counts.
+    remediation: >-
+      Decide one rule and write it into section 12 and the phase write scopes: native-tagged tests live only in
+      config/nativetags (add `T/config/nativetags/**` to P6, P11 and P12), are plain `@Test` methods (no parameterised native
+      tests, stated in the WP prompts), and each of those phases raises `--floor` (both steps in mission-status-api.yml) and the
+      pin's expectation in its own commit (an explicit chokepoint exception for those two lines). Alternatively amend
+      `native_test_count` to scan the whole test tree and count executed-style, in P0 or P1. Add the command to run:
+      `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py -q` in every phase that tags a test.
+  - id: PLAN-VERIFY-003
+    lens: Gates (nightly-corpus)
+    severity: 4
+    title: The P13 exit gate requires a recorded workflow_dispatch of nightly-corpus, which cannot exist before the workflow reaches main; no local equivalent is given
+    evidence:
+      - artifact: "plan.md section 11 P13 exit gate ('one workflow_dispatch recorded for the nightly job (AC-14.5)'); Unverified 11 ('the first workflow_dispatch sets it'); section 5 row nightly-corpus (no command in the local block)"
+      - code: "git ls-tree origin/main .github/workflows/mission-status-api.yml services/mission-status-api returns nothing: the workflow and the service exist only on the unmerged #5529 lane"
+      - code: ".github/workflows/mission-status-api.yml job nightly-corpus: `if` allows schedule or workflow_dispatch only"
+    claim: >-
+      GitHub starts a workflow_dispatch run only for a workflow file that exists on the default branch. This workflow is
+      introduced by #5529, unmerged, and this mission is a draft stacked on it (C-005, D-54), so the dispatch AC-14.5 and the
+      P13 exit gate require cannot be performed before #5529 lands and the stack is retargeted; the schedule trigger likewise
+      cannot fire. The exit gate is therefore unachievable in the mission as planned, and the 45-minute provisional timeout and
+      the "no exemptions" claim over 588 Missions are never exercised pre-merge. Section 5 also gives no runnable local command
+      for the job, although it is the only full-corpus check (section 6 relies on it as such).
+    remediation: >-
+      Add to section 5 an exact local sequence: build the bundle (as in the Java block), `cd services/mission-status-api &&
+      ./gradlew --no-daemon bootJar`, start `java -jar build/libs/mission-status-api.jar --mission-status.project-root=<repo>
+      --mission-status.port=8787 &` capturing the PID, run `LC_ALL=C.UTF-8 .venv/bin/python scripts/ci/mission_status_corpus_compare.py
+      --base-url http://127.0.0.1:8787 --repo-root . --report <scratch>/nightly-report.json`, then `kill <pid>`; make that recorded
+      local run (counts of Missions and Work Packages compared, elapsed time) the P13 exit evidence, and move the workflow_dispatch to
+      an explicit post-merge item owned by the orchestrator, listed in Unverified. State that the nightly job is untested in CI at
+      PR time.
+  - id: PLAN-VERIFY-004
+    lens: Baseline honesty
+    severity: 3
+    title: "'Never gates this mission's per-PR checks' is false for the not-run reality module, and the corpus the module reads includes this mission's own files"
+    evidence:
+      - artifact: "plan.md section 6 'How a failure is told apart' ('a red in a module recorded not run ... never gates this mission's per-PR checks'); FRESH3-005 / D-74; section 5 row tests (corpus-blocking)"
+      - code: ".github/workflows/ci-router.yml job tests-corpus-blocking runs tests/contract/test_mission_status_reality.py and test_mission_status_payloads.py; router-gate `needs` lists tests-corpus-blocking; the job is selected by `corpus == true` (M/** and contracts/** edits)"
+    claim: >-
+      A red in the reality module turns tests (corpus-blocking) red and therefore router gate red on this very PR, so it does
+      gate it. The sentence is only true of the service gate and the Python pins, which the parenthesis names, but it is written
+      as a statement about per-PR checks. More importantly the reality module reads every Mission under kitty-specs/, which from
+      this PR on includes `kitty-specs/mission-status-read-api-mission-detail-01M4S6D5` and its traces (baseline-red.yaml,
+      data-model.md). A red it raises on one of this mission's files has no recorded signature, is "unclassified, attributed
+      neither to this mission nor to the baseline", and the nightly job that would catch it cannot run pre-merge (PLAN-VERIFY-003).
+      So the one check that exercises the mission's own Mission directory is made unattributable by the baseline policy.
+    remediation: >-
+      Capture the reality module's red set from CI instead of running it: record, for base A, the run id, conclusion and the
+      failing node ids with normalised signatures of `tests (corpus-blocking)` on the latest main run (`gh run view <id> --log-failed`),
+      with #5927 on each row, so a red on the PR is classified by comparison. Reword the sentence to "never gates the service
+      gate; it does gate router gate, where the comparison with the recorded main run decides". Add a P0 local check that the
+      Mission directory passes the reality module's per-Mission assertions (a targeted node id on this slug, not the whole module).
+  - id: PLAN-VERIFY-005
+    lens: Baseline honesty (record test non-vacuity)
+    severity: 3
+    title: The honest capture yields zero rows, so the 'copy with a row removed' control and a rows floor cannot be built from the record
+    evidence:
+      - artifact: "plan.md section 11 P0 (copy-with-a-row-removed, copy-with-a-module-removed, copy-with-an-issue-removed); 'Discovered-count guards' (lists 'the rows of baseline-red.yaml'); section 6 step 3 (reality module zero rows, no other known red)"
+      - code: "plan.md section 6 names #5927 as the one accepted baseline red, and it lives only in the not-run module"
+    claim: >-
+      #5927 is the only known baseline red and it is recorded `not run` with zero rows (FRESH3-005). If the other targeted
+      modules are green on both bases, baseline-red.yaml has no rows, so (a) a control "copy of the file with one row removed"
+      has nothing to remove and passes or errors vacuously, (b) "every row has an open issue" and "rows equal failed" hold
+      trivially, and (c) the discovered-count guard for rows either asserts a floor of zero (vacuous) or forces the capture to
+      contain a red it does not have.
+    remediation: >-
+      State in P0 that the controls operate on a synthetic record built inside the test (two rows, three modules) and that
+      the real file is checked with module-level floors (modules present, executed >= floor, issue on the not-run module), not a
+      row floor. Replace 'rows of baseline-red.yaml' in the discovered-count guard by 'modules of baseline-red.yaml'. Add the control
+      "synthetic record with rows: remove one row, expect red" explicitly.
+  - id: PLAN-VERIFY-006
+    lens: Permission-denied fixtures (D-32)
+    severity: 3
+    title: "D-32 'not run, precondition unmet' has no owner, no test, no reporting step, and a JUnit skip passes silently in check"
+    evidence:
+      - artifact: "plan.md FRESH3-004 test and revert ('reported not run: precondition unmet per D-32'); section 11 phase table and test strategy (D-32 is not otherwise mentioned); spec.md D-32 paragraph (line 224) and AC-4.3, AC-4.7, AC-10.3, AC-12.1"
+      - code: ".github/workflows/mission-status-api.yml jvm job: only `./gradlew --no-daemon check` plus artifact uploads; no step writes a skipped-test list to the job summary. rg 'precondition unmet|not run:' over services/mission-status-api/src/test and scripts/ci/mission_status_gate_checks.py finds no existing mechanism"
+    claim: >-
+      The spec requires every permission-denied case to run twice (fault injection always, real chmod only when the OS refuses),
+      and the real leg to be reported 'not run' in the job summary when the precondition fails (root runner, Windows). The plan
+      assigns no phase, helper, class name, or workflow change to this. A JUnit `assumeTrue` skip is shown green by `check`, so
+      on a root or Windows runner the (b) leg vanishes and the claim 'never as passed' is unenforced; nothing asserts that the
+      (a) leg exists for each case. In addition, the Python generator (P4, `PROVISION_PLAN`) gets no statement on unreadable-file
+      fixtures: if any golden is produced with `chmod`, running the generator as root produces a different golden from the
+      committed one (the oracle reads the file), so `--check` is user-dependent.
+    remediation: >-
+      Add to P7 a testsupport helper (for example `RealPermissionFixture.refusedForThisUser(path)`) used by every real-permission case, and to P13 a
+      step in the jvm job that parses build/test-results for skipped testcases of those classes, prints them to
+      $GITHUB_STEP_SUMMARY as 'not run: precondition unmet', and a `mission_status_gate_checks.py` subcommand asserting the
+      fault-injection leg count (a named floor). Declare in P4 that permission-denied rows are Java-only (like `projection-refusals`)
+      and never generated by chmod. Name the cases (AC-4.3, AC-4.7, AC-10.3, M-rows) in the P5, P11, P12 write scopes.
+  - id: PLAN-VERIFY-007
+    lens: Gates (completeness of local commands)
+    severity: 3
+    title: Section 5 omits the native-leg nativePerf and floor-binary steps and gives no local command for several included gates, without stating exclusion reasons
+    evidence:
+      - artifact: "plan.md section 5 table rows 'native x4' and 'Perf ratio tests' and the 'Exact local commands' block"
+      - code: ".github/workflows/mission-status-api.yml native job: steps 'Build the trivial native binary (the NFR-002 start-up floor)', 'Measure start-up, memory and threads of the built binary' (`./gradlew nativePerf -PnativeBinary=...`), 'Require the native test floor' (`mission_status_gate_checks.py native-tag-floor ... --floor 3`), and the strict-verification step (`./gradlew --dependency-verification strict bootJar testClasses`); gate job `digests ... --request-floor 49`"
+      - code: "services/mission-status-api/build.gradle.kts tasks nativePerf (NativePerfTest, tag native-binary) and perfTest (tag perf); check does not run nativePerf"
+    claim: >-
+      Section 5 says it re-verified the gate set and lists perf only as `perfTest` inside `check`. The native legs also run
+      `nativePerf`, which asserts the NFR-002 start-up ratio against a floor binary and NFR-004 memory and threads on the built
+      binary; this is a separate enforced gate that this mission can turn red (new routes, the about 11 MiB prompt path, ten
+      concurrent prompt requests added to the NFR-002 scenario by S-13) and it appears neither in the table nor in the local
+      commands nor in a phase exit gate (P13 says only 'all four native legs green'). The commands for native-tag-floor, for the
+      digests comparison (not runnable locally: needs four OS digests, which should be stated as the exclusion reason), and
+      for the strict dependency-verification step (relevant because P2 edits build.gradle.kts and the models) are missing from
+      the runnable block.
+    remediation: >-
+      Add rows and commands: `./gradlew --no-daemon nativePerf -PnativeBinary=<binary>` (after nativeCompile, with the
+      floor-binary variable set as in the workflow, or state the ceiling-only mode), `.venv/bin/python scripts/ci/mission_status_gate_checks.py
+      native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor <N>`, and
+      `./gradlew --no-daemon --dependency-verification strict bootJar testClasses`. State the digests comparison as 'excluded
+      locally: needs the four per-OS digest files; verified by the gate job only'. Say whether NativePerfTest is extended for the S-13
+      scenario in P13's write scope (`T/nativesmoke/**` or `T/perf/**`).
+  - id: PLAN-VERIFY-008
+    lens: Revert discipline
+    severity: 3
+    title: The revert-fails table maps no row to 21 acceptance criteria and to the new AC-2.7, AC-6.6, AC-8.4, although the Charter Check claims one per changed behaviour
+    evidence:
+      - artifact: "plan.md Charter Check row 'Standing order 4' ('a revert-fails test for every changed behaviour'); section 11 'Test strategy' table; section 14 S-15 (new AC-2.7), FRESH3-004 (new AC-6.6), FRESH3-003 (new AC-8.4)"
+      - code: "spec.md ACs listed with their own behaviour: AC-1.6, AC-2.1, AC-2.3 (id outside WP[0-9]{2,} is 404 with no file read), AC-2.4 (history in instant order), AC-2.6, AC-3.1, AC-3.6 (no READ of prompt or spec.md while artifactReferences is built), AC-3.7, AC-3.8, AC-3.9 (lanes.json cap), AC-4.1, AC-4.3 (readable agrees with content), AC-4.5 (links and root records), AC-4.6 (modifiedAt floor, not rounded), AC-4.7, AC-4.8, AC-5.9, AC-9.4"
+    claim: >-
+      Computing the AC ids named in the table's left column against the spec's AC list leaves AC-1.6, 2.1, 2.3, 2.4, 2.6, 3.1,
+      3.6 to 3.9, 4.1, 4.3, 4.5 to 4.8, 5.9 and 9.4 without a stated mutation, plus the three ACs the plan adds (2.7 code-point
+      order of the subtasks map, 6.6 locale refusal, 8.4 nulls). Several are distinct behaviours with an obvious mutation that
+      the golden suites may not catch (rounding of modifiedAt, text-order history, a size cap read earlier, an opened
+      prompt file in artifactReferences). Of the rows that are present, 'change one phase status in a golden' and 'perturb one
+      golden byte' test the comparator, not a reverted behaviour, and the rows for AC-16.x/17.x ('a write mode; a spawned
+      process') name no change to revert, only an absence property. The section's own rule says mutation rows are run once in a scratch
+      copy and reported in the PR; nothing makes them standing tests.
+    remediation: >-
+      Add one row per missing AC with a concrete mutation (for example AC-4.6: `Math.round` instead of floor; AC-2.4: sort
+      history by text; AC-2.3: read the Work Package file before validating the id; AC-3.6: open the prompt file in
+      ArtifactReferenceBuilder; AC-4.5: follow a symlinked directory; AC-2.7: UTF-16 order for subtasks). Mark each row 'standing'
+      (a named test that fails) or 'one-off mutation' and keep the one-off list short with its scratch-copy command. Fix the
+      Charter Check sentence to match.
+  - id: PLAN-VERIFY-009
+    lens: Gates (inclusion reasons)
+    severity: 2
+    title: The Contracts workflow is excluded for a false reason; release-readiness and ci-windows statements are imprecise for a PR based on the #5529 branch
+    evidence:
+      - artifact: "plan.md section 5 rows 'Contracts workflow (contracts.yml), docs-pages.yml, protect-main.yml' (No: 'Path lists exclude services/**; no contracts/** edit'), 'release-readiness.yml' (cutover-guard runs on M/**)"
+      - code: ".github/workflows/contracts.yml on.pull_request.paths includes 'tests/contract/**', 'pytest.ini', 'tests/conftest.py'; jobs verify-pins, python-checks, validate-bundle, lint, breaking-change, release-dry-run, negative-tests, contracts-gate"
+      - code: ".github/workflows/release-readiness.yml on.pull_request.branches: [main]; .github/workflows/ci-windows.yml on.pull_request.branches: [main]"
+    claim: >-
+      This diff edits tests/contract/** (the generator, the baseline-record test, the goldens' tests), so Contracts does run on
+      the PR; it passes over unchanged contracts, but the plan says 'No' and gives neither a command nor the reason it is safe.
+      Release Readiness `cutover-guard` and ci-windows trigger only for pull requests whose base is main; this PR's base is
+      the #5529 branch (D-54), so they do not run until the retarget, yet the plan says cutover-guard 'runs on M/**'. ci-windows is not
+      mentioned at all (its filter is src/** and a test list, so it is not selected, which is the verifiable reason).
+    remediation: >-
+      Correct the three rows: Contracts 'Yes (selected by tests/contract/**), passes over unchanged contracts; local:
+      `.venv/bin/python contracts/tools/leak_scan.py` and `layout_check.py` as a smoke'; release-readiness cutover-guard 'not run
+      while the PR base is not main; run after the retarget (and locally: the cutover-guard command)'; ci-windows 'not selected: filter is src/**'.
+  - id: PLAN-VERIFY-010
+    lens: Gates (request floor arithmetic)
+    severity: 2
+    title: The detail stage floor of 14 is not enumerable from the plan's own list ('the UTF-8 byte-order pair')
+    evidence:
+      - artifact: "plan.md section 12 table row requests.json stages (requestCountFloor 14, --request-floor 63)"
+      - code: "tests/ci/test_mission_status_api_build.py digest wiring: --request-floor must equal the sum of the stage floors of requests.json (currently 37 + 12 = 49)"
+    claim: >-
+      The enumeration gives getMission 2, getWorkPackage 4, getWorkPackageDetail 2, getArtifactContent 5 and listArtifacts
+      'the UTF-8 byte-order pair', which is one request if 'pair' means the two orderings of one listing and two if it means two
+      listings. The total is 14 or 15 and the gate value 63 or 64. A floor that is one too low lets a dropped request pass the
+      gate; one too high fails every leg.
+    remediation: >-
+      List the request ids of stage `detail` one per line in section 12 (method, path, expected status) and state N; the P13
+      exit command is the existing pin test run after editing both numbers.
+  - id: PLAN-VERIFY-011
+    lens: Coverage floors
+    severity: 2
+    title: Coverage is held only for domain and application classes; the plan does not say that adapter, config and wiring classes have none, and the floor-raise rule is review-only
+    evidence:
+      - artifact: "plan.md Charter Check row 'Architectural alignment' and section 11 chokepoints (jacoco-class-floor.properties raised by exactly the number each phase adds); NFR-005 traceability"
+      - code: "services/mission-status-api/build.gradle.kts jacocoTestCoverageVerification: three rules, includes only org.speckitty.missionstatus.domain.* and application.*; jacocoScopeFailures fails only when matched < floor"
+    claim: >-
+      FilesystemTextSource, YamlFrontmatterDecoder, JsonLanesDecoder, the codecs, the controllers and mappers and the wiring
+      classes (roughly a third of the new code by the section 13 tree) carry no floor; their fault branches (FILE_UNREADABLE,
+      DIR_UNREADABLE, over-cap race) are held only by whichever tests the phases happen to write. The plan does not state this,
+      so the reader of 'JaCoCo floors on every new class' may assume more than is enforced. Because the scope check is a lower bound,
+      a phase that adds ten classes and raises the floor by two stays green: the 'raise by exactly the number it adds' rule is
+      enforced by nothing but the review brief, which the plan also does not give a command for.
+    remediation: >-
+      Add a sentence to section 5 that adapter and config classes have no floor (spec NFR-005 scope) and name the tests that
+      hold the adapter fault branches (ListingTest-style fault injection per Kind). Add a phase exit command that counts classes per
+      pattern in build/reports/jacoco/test/jacocoTestReport.xml against the two properties lines (the xml `class` elements
+      that jacocoReportClassNames reads), so a forgotten raise is visible to the reviewer.

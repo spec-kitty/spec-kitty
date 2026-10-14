@@ -1,0 +1,109 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+reviewer: R5b-round-2
+summary: 'Fresh-eyes round 2 over wps.yaml and the 18 prompts. Mechanical checks passed: frontmatter equals wps.yaml for title, dependencies,
+  owned_files, requirement_refs and subtasks in all 18 WPs; no exact or glob owned-file overlap; create_intent agrees with the checkout; every
+  T001..T133 has a heading; finalize-tasks --validate-only passes with 18 lanes and WP04 the only planning lane; no home paths; requirement coverage
+  complete; the 26 ProjectionRow pairs cover all 18 rows and the 2+2 permission ids and the 49+14=63 request floor add up. Four findings remain:
+  the WorkPackageIndex has no owning bean or stated public visibility although WP13, WP14 and WP15 (two in parallel lanes) each construct services
+  from ''the existing index builder'' (likely duplicate-bean or divergent construction at the PR B tip, severity 4); WP12 demands exactly four
+  ProblemAdvice handlers while DV-3 and the single DetailRefusal handler leave nothing for three of them (severity 3); the WP11/WP12 concurrent
+  edits of ArchitectureControlsTest are missing from the header merge rule (2); and the D-145 equality that WP12 claims at PR A''s tip runs on
+  a lane without WP11 and has no owner on the merged tree (2).'
+findings:
+- id: TASKS-FRESH2-001
+  lens: contradiction
+  severity: 4
+  title: No WP creates or wires the shared WorkPackageIndex, yet WP13, WP14 and WP15 each build their service from an "existing" index bean
+  evidence: 'tasks/WP11 T075 and T076 define WorkPackageIndex (application.query.index, no visibility stated) with a static-looking build(MissionRef,
+    Optional<WpId>), and DecoderWiring (WP11 step 5, tasks/WP11 line 139) is described as "the two decoder beans" only. tasks/WP13 T093 says MissionDetailWiring
+    builds MissionDetailQuery "from the MissionReadModel, the index builder and the TextSource beans that ServiceWiring, DecoderWiring and DetailInfrastructureWiring
+    already provide"; WP14 T100 (WorkPackageWiring) and WP15 T108 (WorkPackageDetailWiring) say the same ("from beans that exist ... the index
+    builder") and each forbids editing ServiceWiring or DetailInfrastructureWiring. None of ServiceWiring (WP01), DecoderWiring (WP11) or DetailInfrastructureWiring
+    (WP12: only TextSource and AdmissionGate) provides a WorkPackageIndex bean.
+
+    '
+  claim: 'The index bean has no owner. WP14 and WP15 run in parallel lanes and WP13 in its own, so each implementer will, to make its own service
+    compile and its HTTP test boot, add a WorkPackageIndex @Bean (or a private factory) in its own wiring class. At the PR B merge that is either
+    a NoUniqueBeanDefinition / duplicate-bean failure in every full-context test and the native smoke start-up, or three divergent constructions
+    of the one component that FR-006 says is "the one place that defines what a Work Package is". Separately, WorkPackageIndex lives in application.query.index
+    and is constructed from config, so it (and its constructor) must be public; WP11 never says so (compare WP13 "public because config constructs
+    it" for the services).
+
+    '
+  remediation: 'Make WP11 own the bean: add a WorkPackageIndex @Bean (public class and constructor, built from TextSource, the two decoders, NameEncoding
+    and the diagnostics Consumer<Diagnostic>) to DecoderWiring or a new owned wiring class in WP11, record its construction in WP11 T075/T076
+    and its gate, and change WP13/WP14/WP15 wording from "the index builder" to "the WorkPackageIndex bean of WP11". Add a context test in WP11
+    asserting exactly one WorkPackageIndex bean.
+
+    '
+- id: TASKS-FRESH2-002
+  lens: contradiction
+  severity: 3
+  title: WP12 requires exactly four ProblemAdvice handlers, but DV-3 and the DetailRefusal design leave only one handler with anything to handle
+  evidence: 'tasks/WP12 T085 step 4: "add exactly four handlers: @ExceptionHandler(DetailRefusal.class) -> ProblemMapper.detail, the invalid_parameter
+    handler, the invalid_artifact_path handler (if separate from DetailRefusal.INVALID_ARTIFACT_PATH ...) and the detail source_unreadable handler";
+    the same four appear in wps.yaml (WP12 named edits), WP12 Definition of Done and Risks ("four handlers only"). But wps.yaml DV-3 and WP12
+    step 2 pin IncludePrompt.parse to Optional<Boolean> with "no exception type and no extra ProblemAdvice handler" (the controller answers ProblemMapper.invalidParameter()
+    itself), and Kind INVALID_ARTIFACT_PATH and SOURCE_UNREADABLE are ordinary DetailRefusal kinds already mapped by ProblemMapper.detail.
+
+    '
+  claim: 'There is no exception that an invalid_parameter handler can receive, and the invalid_artifact_path and source_unreadable "handlers"
+    would be second @ExceptionHandler methods for the same DetailRefusal type (Spring rejects an ambiguous mapping at context start-up) or dead
+    code. A literal "exactly four" implementer either breaks every full-context test at PR A''s tip or invents an exception type DV-3 forbids;
+    a reviewer cannot verify a "four handlers only" diff.
+
+    '
+  remediation: 'State the contract once: ProblemAdvice gains exactly one handler (DetailRefusal -> ProblemMapper.detail covering all eight kinds);
+    ProblemMapper gains detail() and invalidParameter(). Remove the invalid_parameter, invalid_artifact_path and source_unreadable handler wording
+    from WP12 T085 step 4, the wps.yaml named-edit line, the Definition of Done and Risks, and replace the "exactly four" check with "ProblemAdvice
+    diff adds the DetailRefusal handler only".
+
+    '
+- id: TASKS-FRESH2-003
+  lens: ordering
+  severity: 2
+  title: WP11 and WP12 both edit ArchitectureControlsTest concurrently, but the wps.yaml shared-file merge rule does not cover it
+  evidence: 'wps.yaml header "SHARED-FILE MERGE ORDER" names only jacoco-class-floor.properties, OutOfScopeRoutesTest and the detail records.
+    tasks/WP11 named edits: "ArchitectureControlsTest (owned by WP03): exactly two Control rows ... WP12 edits it concurrently, so the lane merged
+    second rebases and re-reads"; tasks/WP12 T086 step 2 edits the same file (controls for ids 15 and 16, the count of 16, the SKELETON list).
+    WP11 and WP12 have no dependency on each other (lanes are separate).
+
+    '
+  claim: 'The rule is only in one prompt and rests on "re-reads"; neither the header nor WP12 names the file as shared with WP11, and the file
+    has no merge driver. The two edits touch the same Control list and the SKELETON/contiguity guard, so a textual or semantic conflict (for example
+    a count assertion computed on one lane''s rows) appears at the PR A merge with no stated resolution rule. WP11''s extra named edit is itself
+    an unrecorded departure from the plan shared-file table (stated only in the WP11 prompt, not in the wps.yaml deviations).
+
+    '
+  remediation: 'Add ArchitectureControlsTest (and ArchitectureRulesTest if WP11 touches it) to the wps.yaml shared-file list with a rule (keep
+    the union of Control rows; re-run the contiguity guard on the merged tree), mention it in WP12 T086, and list the WP11 row addition among
+    the header deviations.
+
+    '
+- id: TASKS-FRESH2-004
+  lens: tip-stability
+  severity: 2
+  title: The D-145 JaCoCo equality "on this tip" in WP12 T088 is evaluated on a lane that lacks WP11, so it is false at PR A's real tip and nothing
+    re-checks it there
+  evidence: 'wps.yaml and tasks/WP12 T088 step 2: "the two lines of the file equal the command''s output on this tip", also advertised as "PR
+    A''s tip" (plan section 11: "the D-145 equality comparison ... is also P8''s gate"). WP12 depends on WP09, WP10, WP06 and not on WP11 (WP11
+    depends on WP09, WP07, WP05, WP06, WP10); the PR A tip exists only after the orchestrator merges both lanes. WP11''s gate only says "recount
+    if WP12 merged first". WP13, the first PR B WP, only does a "named edit" recount.
+
+    '
+  claim: 'The comparison recorded by WP12 is true for WP12''s own lane, not for PR A''s tip. If WP11 merges second, the second-merged lane''s
+    WP is the only place that can recount, and WP11 T079/T080 carries no equality comparison or commit-message record; if WP12 merges second,
+    WP12 T088 runs on a lane that did not yet contain WP11''s classes. The plan''s promise (the equality at PR A''s tip is a P8 gate) is therefore
+    not realised by a step anyone owns on the merged tree, and PR A can reach review with a stale count that floor semantics cannot see.
+
+    '
+  remediation: 'Give the merged-tip comparison an owner: either make WP12 depend on WP11 (or the reverse) so the second WP always sees the other''s
+    classes, or add to both WP11 T079/T080 and WP12 T088 an explicit step "after the orchestrator merges the other lane, re-run the section 2
+    command on the merged tree and record the equality in the merge commit", and state in T088 that the recorded comparison is for the merged
+    tree.
+
+    '

@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 8
+verdicts:
+  - id: PLAN-VERIFY-005
+    verdict: refuted
+    reason: The claim is conditional on the other modules being green, and the plan's own P0 control "not run module with rows" and the "issue 3284 refused" case already imply synthetic records, so no concrete vacuity is shown.
+  - id: PLAN-VERIFY-006
+    verdict: confirmed
+    reason: Spec D-32 requires a job-summary "not run" report and a fault-injection leg per case, yet plan.md mentions D-32 only in two incidental places (FRESH3-004, open item 5) with no phase, helper, or workflow step, and mission-status-api.yml has no such reporting.
+  - id: PLAN-VERIFY-007
+    verdict: confirmed
+    reason: The workflow runs nativePerf (line 240), native-tag-floor and strict verification on the native legs, but plan.md section 5 never names nativePerf and gives no local command for these steps.
+  - id: PLAN-VERIFY-008
+    verdict: confirmed
+    reason: Charter Check claims a revert-fails test for every changed behaviour, but the section 11 table has no row for AC-4.6, AC-2.3, AC-3.6, AC-4.5 and others, and AC-4.6 appears nowhere in plan.md.
+  - id: PLAN-VERIFY-009
+    verdict: confirmed
+    reason: contracts.yml pull_request paths include tests/contract/**, which this diff edits, so the plan's "No ... path lists exclude services/**" is a false reason, and release-readiness is limited to base main while the PR base is the stacked branch.
+  - id: PLAN-VERIFY-010
+    verdict: confirmed
+    reason: The stage enumeration sums to 13 plus an ambiguous "UTF-8 byte-order pair" for listArtifacts, so 14 versus 15 (and 63 versus 64) is not derivable from the listed requests.
+  - id: PLAN-VERIFY-011
+    verdict: refuted
+    reason: The plan and Charter Check already scope the floors to new domain and application classes (matching build.gradle.kts and spec NFR-005), so no overclaim is evidenced and the remaining point is a style preference.
+  - id: PLAN-OBLIG-001
+    verdict: confirmed
+    reason: Spec D-58 says the ledger routes apply probed after the probe-free lookup, which with the existing probed stamp yields 4 warm and 5 cold, while plan FRESH3-002 pins 3 and 4 without stating that the head-derivation stamp is the probe.

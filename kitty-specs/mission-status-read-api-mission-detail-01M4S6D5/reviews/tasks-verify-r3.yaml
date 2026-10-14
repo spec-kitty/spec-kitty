@@ -1,0 +1,35 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+verifier: R5a
+round: 3
+mission: mission-status-read-api-mission-detail-01M4S6D5
+validate_only: 'finalize-tasks --validate-only: validation_passed, 18 WPs, 18 lanes, planning lane WP04, no unreferenced SC'
+summary: 'All four round-2 fresh findings are resolved. The WorkPackageIndex now has a single owner (WP13 MissionDetailWiring, DV-6) with a public WP11 constructor, injection-only use in WP14/WP15, no use
+  in WP16, and a WP18 uniqueness guard; every other shared bean also has one owner. The ProblemAdvice handler count is reconciled as one handler via DV-4 and DV-3, the ArchitectureControlsTest concurrent
+  edit is covered by a union and recount rule (DV-5), and OO-6 yields a valid D-145 equality on PR A''s merged tip by merging WP11 first and WP11''s lane into WP12 before T088. finalize-tasks --validate-only
+  passes with 18 WPs and 18 lanes. One minor non-blocking residual: WP13''s wiring context test must supply test beans for MissionReadModel and the diagnostics consumer.'
+results:
+- id: TASKS-FRESH2-001
+  status: resolved
+  reason: 'DV-6 and WP13 T093 give MissionDetailWiring the one WorkPackageIndex bean (TextSource from WP12, FrontmatterDecoder from WP11); WP11 makes the class and constructor public and declares no bean;
+    WP14 and WP15 (both depend on WP13) inject it and forbid a second; WP16 depends on neither WP11 nor WP13 and does not use the index. WP18 SharedBeansUniqueTest guards exactly one of each shared bean.
+    Other shared beans each have one owner: MissionReadModel (WP01 ServiceWiring), FrontmatterDecoder and LanesDecoder (WP11 DecoderWiring), TextSource and AdmissionGate (WP12 DetailInfrastructureWiring),
+    each query bean (its own route WP). No red tip. Minor residual, not blocking: WP13''s context test loads only three wiring classes yet the query bean needs MissionReadModel and the diagnostics consumer
+    from ServiceWiring, so the implementer must supply test beans for those.'
+- id: TASKS-FRESH2-002
+  status: resolved
+  reason: 'DV-4 records the deviation clearly: one DetailRefusal handler maps all eight kinds, including INVALID_ARTIFACT_PATH and SOURCE_UNREADABLE, plus ProblemMapper.detail() and invalidParameter();
+    it states the reason (a second handler would be ambiguous, invalid_parameter has no exception) and that the plan''s four names are all served. WP12 T085, Definition of Done, Risks and the wps.yaml named
+    edits now say exactly ONE handler, consistent with DV-3. The deviation is a clear statement rather than an options-and-recommendation fork, but it is a plan-reading choice with no alternative that stays
+    green, and no red tip results.'
+- id: TASKS-FRESH2-003
+  status: resolved
+  reason: The wps.yaml SHARED-FILE header now names ArchitectureControlsTest (WP11 and WP12 concurrently; ArchitectureRulesTest and ArchitectureRules WP12 only) with a union-of-Control-rows rule, a recount
+    of the 16 count and the SKELETON list on the merged tree by the lane merged second, and DV-5 records the WP11 edit. WP11 and WP12 prompts both cite the rule.
+- id: TASKS-FRESH2-004
+  status: resolved
+  reason: 'OO-6 and the D-145 JACOCO EQUALITY paragraph make WP11 merge first, WP12 the last PR A WP, and WP12 merges WP11''s lane into its own workspace before T088, so the section 2 command runs on a
+    tree carrying WP01..WP11 plus WP12, which is PR A''s tip; the commit message records the comparison and tree sha. Valid: the merged workspace contains exactly PR A''s content, WP11''s recount is explicitly
+    lane-local, a properties conflict is resolved by rewriting from the command, and if WP11 is not approved WP12 stops and reports. The alternative (WP11 into WP12 dependencies) is stated and rejected
+    with the plan Depends-on reason; the recommendation is the chosen rule. WP11 T079, its Green condition and WP12 T088 agree. No red tip.'

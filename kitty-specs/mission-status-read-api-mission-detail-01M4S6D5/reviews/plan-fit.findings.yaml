@@ -1,0 +1,213 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: mission-status-read-api-mission-detail-01M4S6D5
+profile: architect-alphonso
+findings:
+  - id: PLAN-FIT-001
+    lens: spec fidelity / deviation handling
+    severity: 3
+    title: S-13 (gate getWorkPackage with includePrompt=true) amends FR-022 and NFR-002 only and leaves AC-22.1 to AC-22.4, FR-004 and the NFR-002 scenario contradicting it
+    evidence:
+      - artifact: "plan.md § 14 S-13 and E-1; § 13 Admission gate; traces/design-decisions.md D-85"
+      - artifact: "spec.md FR-022 (three heavy operations), AC-22.1 (16 calls to each of the three operations, 48 in all), AC-22.2 (getWorkPackage must still complete during the block), AC-22.4, FR-004 Bounds sentence, NFR-002 scenario"
+    claim: >-
+      S-13 widens the heavy set to four operations (getWorkPackage with includePrompt=true) and says it needs only FR-022 and NFR-002 text. But
+      AC-22.2 explicitly lists getWorkPackage as an operation that must NOT wait behind the gate, AC-22.1 counts 48 calls over three operations, and FR-004
+      names the three heavy routes. After the spec-fold as written, the spec contradicts itself and the gate test of P8/P10 has two readings. E-1 also calls
+      FR-022 "an operator-ruled requirement shape (D-64)"; D-64 itself says the queuing behaviour is the specification's own decision, not an operator
+      ruling. The deviation is flagged and has an owner (the operator), which is right, but its amendment list is incomplete and its justification overstated.
+    remediation: >-
+      Extend S-13 to name every spec element it changes: AC-22.1 (add the includePrompt=true variant, 64 calls), AC-22.2 (getWorkPackage without a prompt is
+      ungated, with a prompt is gated), AC-22.4, the FR-004 "heavy routes" sentence and the NFR-002 scenario. Reword E-1 to say D-64 is a specification
+      decision reported to the operator, not an operator ruling. State the decline path (drop the includePrompt gating and amend NFR-002 to say prompt
+      requests are ungated) in the same list.
+
+  - id: PLAN-FIT-002
+    lens: spec fidelity / phase-to-AC traceability
+    severity: 3
+    title: P8 exit gate claims AC-22.1 to AC-22.3 but no heavy service exists until P10/P11/P12
+    evidence:
+      - artifact: "plan.md § 11 phase table, row P8 (exit gate lists AC-22.1 to AC-22.3; write scope has AdmissionGate, AdmissionGateTest, PlainCaller only) versus rows P10, P11, P12 which own WorkPackageService, WorkPackageDetailService, ArtifactService"
+      - artifact: "spec.md AC-22.1 ('16 concurrent calls to each of the three operations through the port'), AC-22.3 (planted bypass of 'one port implementation')"
+    claim: >-
+      AC-22.1 to AC-22.3 are acceptance tests at the inbound port over the real heavy operations, with a latch in the source and a bypass variant of a port
+      implementation. In P8 none of those implementations exists (P8 depends on P5 and P7 only). The P8 gate can only unit-test AdmissionGate in isolation,
+      which is not what the AC states, so the AC is either vacuous at P8 or untestable and the plan's traceability ("FR-022, AC-22.1 to AC-22.4: P8
+      AdmissionGate; P13 HTTP leg") leaves the real port-level test with no owner.
+    remediation: >-
+      Split the ACs: P8 owns the AdmissionGate unit test (permit count, fairness, release in finally, high-water accessor); the port-level legs of AC-22.1 to
+      AC-22.3 are owned by the last of P10, P11, P12 (state which, e.g. P12) and appended to the plain-caller harness, with the planted-bypass variant
+      there. Update the P8 exit gate, the traceability row and the revert-fails row accordingly.
+
+  - id: PLAN-FIT-003
+    lens: spec fidelity / requirement coverage
+    severity: 3
+    title: AC-6.4 and the SK-353 decision have no plan element; the ledger entry is read but never resolved
+    evidence:
+      - artifact: "plan.md Charter Check (lists SK-353 among the ledger entries read); § 11 traceability row 'FR-006, AC-6.1 to AC-6.6' (no nightly or SK-353 element); § 5 nightly-corpus row; § Risks (R-14 to R-25, no SK-353 or R-10 carry-over)"
+      - artifact: "spec.md AC-6.4 ('the SK-353 Missions ... are served as the oracle serves them or refused with projection_refused; whichever is chosen is recorded as a design decision and pinned by a fixture'); Risks R-10; Ledger accounting SK-353"
+    claim: >-
+      The string 'AC-6.4' occurs nowhere in the plan and SK-353 occurs only in a list of entries read. The spec requires a decision (serve as the oracle serves,
+      or refuse with projection_refused) pinned by a fixture, plus a nightly all-file comparison that names the first difference (file, side, class). The
+      27 wpm cases do not include a subtasks-as-mapping file, the decoder spike (P6) is not told to decide it, and the nightly extension in P13 is described
+      for routes, not for per-file decode classes. A mapping-shaped subtasks file would then be decided by whatever the YAML decoder happens to do.
+    remediation: >-
+      Add to the plan: (a) the SK-353 decision (recommended: refuse with projection_refused unless the spike proves identical decode), recorded as a new D-87 and
+      a numbered fixture (wpm-28 or a named fixture in class wp-malformed-frontmatter, with Count amended in the spec-fold); (b) an AC-6.4 element in P13
+      (per-Work-Package-file decode-class comparison in mission_status_corpus_compare.py, first difference named); (c) add AC-6.4 to the traceability row and
+      to the P6/P13 exit gates; (d) carry spec R-10 into the plan risk table.
+
+  - id: PLAN-FIT-004
+    lens: spec-vs-code claims
+    severity: 3
+    title: Meta-read counts for getWorkPackage and getWorkPackageDetail are asserted equal to getMission without saying those routes derive the head
+    evidence:
+      - artifact: "plan.md Readiness facts row 'Meta reads per request'; § 8 FRESH3-002 (three warm / four cold on getMission, getWorkPackage and getWorkPackageDetail); § 9 item 1 (OverviewReader owns overview(ref), ledger(ref, mid8), derive)"
+      - code: "MissionStatusService#overview (readMeta, then ledger), #ledger (source.stampLedger, source.readLedger on a miss); FilesystemMissionEventSource#readMeta (one read), #stampLedger and #readLedger (each call ledgerPath -> ReadDirResolver#resolve, which reads meta.json)"
+    claim: >-
+      Verified against the code: readMeta costs one meta.json read, and stampLedger and readLedger each cost one more through ReadDirResolver. So the matched
+      Mission costs lookup 1 + readMeta 1 + stampLedger 1 (+ readLedger 1 cold) = 3 warm / 4 cold only if the route calls OverviewReader.overview(ref). A route that
+      needs only the snapshot (getWorkPackage, getWorkPackageDetail do not need the head) and calls ledger(ref, mid8) directly costs 2 warm / 3 cold; a route that also
+      keeps the spec's separate ledger probe (FR-001 'the ledger routes then probe the ledger themselves') costs 4 / 5. The plan pins the AC-1.8(c) amendment to 'exactly'
+      three/four for all three routes and a revert test (MetaReadCountTest) on those numbers, but never states which OverviewReader entry each route calls or whether
+      the probe is separate, so the pinned number is a guess that is red-or-green depending on an unwritten design choice. The same choice decides whether a junk
+      lastTransitionAt of another Work Package turns getWorkPackage into an M3 500 (the plan's FRESH3-003 table row says whole-head M3 for the Work Package routes).
+    remediation: >-
+      In § 13 (or § 9) state per route which OverviewReader method is called (overview(ref) for getMission; ledger(ref, mid8) or overview(ref) for the two Work
+      Package routes) and that the ledger probe of FR-001 is the one inside ledger(), not an additional stampLedger. Then recompute the counts per route (getMission
+      3/4; the Work Package routes accordingly), amend the S-2 AC-1.8(c) wording per route, and make the FRESH3-003 M3 row match the choice.
+
+  - id: PLAN-FIT-005
+    lens: architecture fit / rule 13 consistency
+    severity: 3
+    title: The code-point-ordered subtasks serializer is placed in "the mapper", which rule 13 forbids from using CodePoints
+    evidence:
+      - artifact: "plan.md § 11 P2 go/no-go rule (b) ('the mapper emits it through a code-point-ordered list serializer'); § 13 rule 13 row (mappers depend only on records and enums of domain.model ... not domain.derive); S-15; D-86"
+      - code: "domain/model/CodePoints.java (static compare, a non-record class); config/MissionStatusApplicationJson#mapper (ORDER_MAP_ENTRIES_BY_KEYS sorts Map keys by String natural order, UTF-16)"
+    claim: >-
+      The UTF-16 versus code point claim is correct (Jackson's key ordering uses String natural order; Python's json sort_keys uses code points). But the remedy puts
+      the ordering logic in the contract mapper of adapter.in.http.detail, whose subject is rule 13: it may depend on records and enums of domain.model only, and
+      CodePoints is a utility class. Either the mapper breaks rule 13, or the planted-violation control of rule 13 must exempt it, which D-50 forbids (no exemption list).
+      Sorting in the application and handing the mapper a LinkedHashMap does not help because ORDER_MAP_ENTRIES_BY_KEYS re-sorts it in UTF-16 order.
+    remediation: >-
+      Say where the serializer lives: a ValueSerializer registered in config (like PinnedPercentage in MissionStatusApplicationJson) or in adapter.in.http outside the
+      rule 13 subject, with the comparison coming from domain via a type rule 13 admits, or have the application emit the subtasks as an ordered list of entries and a
+      single serializer write it as a JSON object. Add the choice to S-15 and to P10's write scope (the file is not in any phase scope today).
+
+  - id: PLAN-FIT-006
+    lens: plan internal consistency / PR shape (D-54)
+    severity: 3
+    title: 'The phrase P5 merge has no meaning under the single draft PR of D-54; the #5533 import seam is undefined'
+    evidence:
+      - artifact: "plan.md § 7 intro ('Its Java work packages land after phase P5', 'a change ... after P5 merges'), § 7.4 and E-3 ('based on this mission's branch from the P5 merge on'), § 11 'One PR, readability' (one draft PR, split after P8 only conditionally on 4,000 lines)"
+      - artifact: "traces/design-decisions.md D-54 (operator: stack on #5529, draft PR whose base is the branch carrying #5529; applies to #957 and #5533); spec.md C-005"
+    claim: >-
+      The plan promises #5533 stable seams 'from the P5 merge', but under D-54 this mission has one draft PR and cannot merge before #5529; there is no separate P5
+      merge unless the plan commits to the split seam, which it only recommends conditionally. E-3 additionally recommends a base for #5533's PR that differs from the
+      D-54 text (which stacks #5533 on #5529 as well). The deviation is flagged with an owner (operator), which is correct, but the stable-seam promise of § 7 depends on
+      an event the plan has not scheduled.
+    remediation: >-
+      Decide now whether P0 to P8 is a separate first PR (then say so in § 11 and E-3, and name the commit/branch #5533 imports), or replace 'P5 merge' by 'the P5 commit on
+      the mission branch, imported by commit, rebased when this PR is retargeted'. Put the question to the operator explicitly as E-3's blocking item, since it departs from
+      the literal D-54 text.
+
+  - id: PLAN-FIT-007
+    lens: plan vs process (baseline record)
+    severity: 3
+    title: Baseline base B (design-base tip) will be unreachable after history compaction or a squash of #5529, turning the AC-21.1 test red on main
+    evidence:
+      - artifact: "plan.md § 6 step 1 and 'Ordering is a review item' (record test keeps reading the file after merge; git cat-file -e of both shas); § 11 'Compact the history before the draft PR'"
+      - artifact: "spec.md AC-21.1 (two resolvable shas, base B 'not earlier than merge fd866831a'); git state: the design-base tip is reachable only from refs/remotes/m5529/lane-b and the mission branch"
+    claim: >-
+      Base A (first parent of 58cd71ec9) is on main. Base B is a commit of #5529's lane-b merged on this mission branch; the plan itself compacts the mission history before the PR,
+      and #5529 may land by squash, so B can vanish from every ref that main's CI fetches (fetch-depth 0 fetches reachable history only). The baseline-record test then fails
+      at git cat-file -e on every later run of 'tests (contract tools)'. The spec requires the check; the plan reproduces it without addressing the lifetime of the shas.
+    remediation: >-
+      In P0 record B as a commit that is on a ref that will exist (e.g. require B to be an ancestor of the branch the PR targets, and say what to do at retarget), or make the
+      test tolerate an unreachable B only when the record carries a 'sha reachable at capture' attestation plus the tree hash (git cat-file -e on the tree object is not enough
+      either). At minimum raise it as an escalation to the operator (new E-7) and amend AC-21.1 in S-12.
+
+  - id: PLAN-FIT-008
+    lens: plan internal consistency (phasing)
+    severity: 2
+    title: P5 is declared dependent on P4 and also concurrent with P4
+    evidence:
+      - artifact: "plan.md § 11 phase table row P5 ('Depends on P1, P4'); § 11 'Write-scope completeness and chokepoints' ('after P1, P2 || P3 || P4 || P5'); D-80 ('P2 to P5 run concurrently')"
+    claim: >-
+      The dependency column and the concurrency paragraph contradict each other; P7 ('after P5, P6 || P7') and the #5533 timing in § 7 depend on which one is right. The tasks
+      stage builds WP dependencies from the table.
+    remediation: >-
+      Decide whether P5 needs the P4 goldens (if only for P7's golden harness, drop P4 from P5's dependencies; if for AC-11.2 fixtures, remove P5 from the concurrent set) and make
+      the table, § 11 paragraph and D-80 agree.
+
+  - id: PLAN-FIT-009
+    lens: plan internal consistency (write scope)
+    severity: 2
+    title: 'The claim that every path of the section 13 tree is owned by exactly one phase is false for several classes'
+    evidence:
+      - artifact: "plan.md § 11 'Write-scope completeness' claim; § 1 layer table and § 13 tree (HistoryOrder in domain.derive); § 13 Ports text (ReviewCycleMeta, LanesResult); § 11 P2/P10 write scopes (adapter.in.http.dto records); § 7.1 row 10 (ArtifactLimits as a seam)"
+    claim: >-
+      domain.derive.HistoryOrder appears in the layer table and tree but in no phase's write scope; the hand DTO records of adapter.in.http.dto (certainly WorkPackage per the P2 rule) are
+      in no write scope (P2 owns only build.gradle.kts, ContractDriftProbe, its test and research.md); ReviewCycleMeta and LanesResult are named as port result types but are in neither the
+      layer table nor the tree nor P6's scope; ArtifactLimits is promised to #5533 as a stable seam from P5 (§ 7.1 row 10) while its phase is P12.
+    remediation: >-
+      Assign each to a phase (HistoryOrder to P3 or P10; dto records to P10; ReviewCycleMeta/LanesResult to P6 with the tree updated) and either move ArtifactLimits to P5 or drop it from § 7.1.
+
+  - id: PLAN-FIT-010
+    lens: spec-vs-code claims / fence classification
+    severity: 2
+    title: Fence description says the root status.events.jsonl is unclassified under both scopes; under AUTHORED it is the LEDGER class
+    evidence:
+      - artifact: "plan.md § 13 'Scope views of the fence (D-77)' last clause of the classification sentence; spec.md FR-011 'Read scope and precedence' (same wording, inherited)"
+      - code: "adapter/out/filesystem/Allowlist.java CLASSIFIERS entry PathClass.LEDGER 'kitty-specs/<seg>/status.events.jsonl'; ENTRIES first line '<read-dir>/status.events.jsonl'"
+    claim: >-
+      The plan says that under AUTHORED the existing classifier applies and, in the same paragraph, that the root status.events.jsonl is unclassified under both scopes. Under AUTHORED the
+      ledger routes read exactly that path as LEDGER. Implemented literally, Allowlist.classify(scope, ...) would stop the three ledger routes (and #5529's routes) from reading their
+      ledger. The AC-11.4 list in the spec correctly names only status.json variants.
+    remediation: >-
+      Reword to: under ARTIFACT the root status.events.jsonl and status.json (any case) are unclassified; under AUTHORED status.json variants are unclassified and the root status.events.jsonl
+      stays LEDGER at its exact name. Add the LEDGER-under-AUTHORED READ as the green twin in the AC-11.4/AC-11.2 control.
+
+  - id: PLAN-FIT-011
+    lens: spec-vs-code claims / phase derivation
+    severity: 2
+    title: lifecycleTypes taken from LineKind.Lifecycle is narrower than the oracle's rule
+    evidence:
+      - artifact: "plan.md § 11 P3 (StatusSnapshot gains lifecycleTypes, 'the reducer currently ignores lifecycle lines'); D-86; § 13 Phases"
+      - code: "adapter/out/filesystem/codec/RowClassifier#lifecycleOrIgnored (a row with event_type becomes Lifecycle only if the type is one of the seven forwarded types and event_id and timestamp are strings, else Ignored); domain/model/LifecycleEvent#isForwarded; StatusReducer#reduceLines (case Lifecycle -> ignored); tests/contract/_mission_status_payloads.py _lifecycle_types (any row whose event_type is a string)"
+    claim: >-
+      The claim that the reducer ignores lifecycle lines is correct. But the oracle collects every string event_type, while Java's classifier drops a PlanStarted/TasksCompleted row that lacks a
+      string event_id or timestamp to Ignored, so a phase would be pending in Java and in_progress or complete in the oracle for such a row. No fixture in phases-matrix covers a lifecycle row
+      without event_id/timestamp. Real ledgers carry both, so the divergence is dormant but unrecorded, in a plan whose point is parity.
+    remediation: >-
+      Either derive lifecycleTypes from the oracle's rule (any row with a string event_type among the six phase markers, independent of the forwarded classification) or add a fixture and a
+      knownDivergence entry for a marker row lacking event_id or timestamp.
+
+  - id: PLAN-FIT-012
+    lens: traceability
+    severity: 2
+    title: AC-15.2 (contract examples) and the Java-only lookup-faults class (V9) have no named phase element
+    evidence:
+      - artifact: "plan.md § 11 traceability rows 'FR-015, AC-15.1 to AC-15.3' (P2, P13 only), 'FR-001' (no lookup-faults); P4 and P7 class lists; P9 ('lookup fixtures')"
+      - artifact: "spec.md AC-15.2 (every example under contracts/mission-status/examples reproduced by a fixture or named as not reproduced), FR-014 class table row lookup-faults (Count 3), V9"
+    claim: >-
+      The command list in § 5 runs test_mission_status_examples.py, but no phase owns the AC-15.2 obligation to reference every example. The class lookup-faults is Java-only (no oracle golden), so P4 does
+      not own it, P7 does not list it, and only P9's 'lookup fixtures' phrase could cover it; its CLASS_FLOORS entry and the V9 manifest entry have no owner.
+    remediation: >-
+      Add AC-15.2 to P13 (or P12) with the example-to-fixture map, and add lookup-faults (3 fixtures, V9) to the P7 harness scope and to the discovered-count guards list.
+
+  - id: PLAN-FIT-013
+    lens: nit
+    severity: 1
+    title: Minor wrong names and an unmatched grep
+    evidence:
+      - artifact: "plan.md § 7.1 row 11 ('testsupport.RecordingAllowlistAccess'); Readiness facts ('NoUncappedReadTest allows openRead calls only in SafeFiles, the ledger source and AllowlistPassThrough'); § 5 grep -rniw 'feature'"
+      - code: "src/test/java/.../adapter/out/filesystem/RecordingAllowlistAccess.java; architecture/NoUncappedReadTest MAY_OPEN_FOR_READ (SafeFiles, FilesystemMissionEventSourceLedger, AllowlistPassThrough, AllowlistAccess)"
+    claim: >-
+      RecordingAllowlistAccess lives in the adapter.out.filesystem test package, not testsupport; MAY_OPEN_FOR_READ also lists AllowlistAccess; and grep -w 'feature' cannot match the
+      legacy token feature_slug (underscore is a word character), so the stated expectation of the grep is wrong (the legacy lanes detection in src/main will contain that literal).
+    remediation: >-
+      Correct the package, add AllowlistAccess to the list, and use grep -rniE 'feature' with an explicit allowance for the marked legacy literal.

@@ -1,0 +1,734 @@
+{
+  "version": 1,
+  "mission_slug": "mission-status-read-api-mission-detail-01M4S6D5",
+  "mission_id": "01M4S6D5JQ3ENNG81X4A1J5HSN",
+  "mission_branch": "kitty/mission-mission-status-read-api-mission-detail-01M4S6D5",
+  "target_branch": "issue-957-mission-status-read-api-mission-detail",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionHead.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionHeadProjection.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionLookup.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionReadModel.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionStatusQueryService.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/OverviewReader.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/ServiceWiring.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/MissionHeadProjectionTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/MissionLookupTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/MissionReadModelTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/OverviewReaderTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/CoupledSymbolsShapeTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/HeadProjectionOwnershipTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/HeadBypass.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/ReadModelSingletonTest.java",
+        "services/mission-status-api/src/test/resources/jacoco-class-floor.properties"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventData.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/ProblemAdvice.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/MissionStatusQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/Subscription.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamBatch.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamCursorText.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamEvent.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamRequest.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamScope.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/StreamSignal.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/exceptions/StreamCapacityReached.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/exceptions/StreamRefused.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/Change.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/ChangeBatch.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/ChangeFeed.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/EventProjection.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/FeedSignal.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/FeedSubscription.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/ProjectedSubscription.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/Resume.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/StreamAdmission.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/StreamSettings.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/stream/StreamSubscriber.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/MissionStatusProperties.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/StreamShutdown.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/Ac3ResumeAndBatchTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/BlankFinalLineCursorTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/ChangeFeedTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/EventProjectionTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/FilesystemMissionEventSourceAllowlistFlowTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/FilesystemMissionEventSourceStampTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/FixtureHandlesLoggingTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/PlainStreamCallerTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/PortLeakCanaryTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/PortTypesTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/RefusalRowsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamAdmissionTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamCursorTextTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamFx.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamRequestTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamScopeTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/StreamSettingsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/**/SubscribeConnectTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/FilesystemFixtureFactory.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/FixtureHandles.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/SpyQuery.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/StreamRig.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureControlsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRulesTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/PortExposesNoLedgerRowTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/adapter/in/other/UsesService.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/command/Writer.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/A2dForName.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/ReadsCommand.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/DtoInRoot.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/LeakyQuery.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/dto/ExceptionInDto.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/dto/Value.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/exceptions/RecordInExceptions.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/exceptions/Refusal.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/helpers/Stray.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/out/ExceptionInRoot.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/config/ProblemErrorController.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/config/RogueController.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/domain/D1cReflect.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/mission-status-read-api-mission-detail-01M4S6D5/data-model.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/LedgerLineDecoder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/RowClassifier.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/ProjectionCache.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/Assignment.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/HistoryRow.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/LedgerLine.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/LineKind.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/ReviewOverrideRecord.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/ReviewResultRecord.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/StatusEvent.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/StatusSnapshot.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/WpId.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/WpResolved.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/HistoryOrder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/reducer/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/LedgerLineDecoder*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/RowClassifier*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/port/Ac5ReductionTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/Assignment*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/HistoryRow*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/LedgerLine*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/ReviewOverrideRecord*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/ReviewResultRecord*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/StatusSnapshot*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/WpId*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/WpResolved*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/HistoryOrderTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/reducer/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/MissionCorpus.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/Nfr009CacheGrowthTest.java",
+        "services/mission-status-api/src/test/resources/portlevel-tests.txt"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-planning"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "services/mission-status-api/build.gradle.kts",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/ContractDriftProbe.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/dto/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/contract/ContractDriftNestedBuildTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/dto/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/build/PlantedClassCoverageNestedBuildTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/build/SkipReportNestedBuildTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/DetailManifestCensusTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/GoldenSuiteTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ConformanceTree.java",
+        "services/mission-status-api/src/test/resources/conformance/artifacts-links/**",
+        "services/mission-status-api/src/test/resources/conformance/artifacts-populated/**",
+        "services/mission-status-api/src/test/resources/conformance/artifacts-redaction/**",
+        "services/mission-status-api/src/test/resources/conformance/artifacts-refusals/**",
+        "services/mission-status-api/src/test/resources/conformance/artifacts-sort/**",
+        "services/mission-status-api/src/test/resources/conformance/cycles/**",
+        "services/mission-status-api/src/test/resources/conformance/detail-early/**",
+        "services/mission-status-api/src/test/resources/conformance/detail-planning-only/**",
+        "services/mission-status-api/src/test/resources/conformance/detail-populated/**",
+        "services/mission-status-api/src/test/resources/conformance/legacy-lanes-json/**",
+        "services/mission-status-api/src/test/resources/conformance/lookup-faults/**",
+        "services/mission-status-api/src/test/resources/conformance/manifest.json",
+        "services/mission-status-api/src/test/resources/conformance/phases-matrix/**",
+        "services/mission-status-api/src/test/resources/conformance/projection-nulls/**",
+        "services/mission-status-api/src/test/resources/conformance/projection-refusals/**",
+        "services/mission-status-api/src/test/resources/conformance/tasks-md/**",
+        "services/mission-status-api/src/test/resources/conformance/worktree-states/**",
+        "services/mission-status-api/src/test/resources/conformance/wp-duplicate-id/**",
+        "services/mission-status-api/src/test/resources/conformance/wp-malformed-frontmatter/**",
+        "services/mission-status-api/src/test/resources/conformance/wp-prompt-bytes/**",
+        "services/mission-status-api/src/test/resources/conformance/wp-two-selectors/**",
+        "tests/ci/test_contracts_workflows.py",
+        "tests/contract/_mission_status_conformance.py",
+        "tests/contract/test_mission_status_conformance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-planning"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistAccess.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistPassThrough.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemTextSource.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/NameEncoding.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/StrictUtf8.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/artifact/Eligibility.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/TextSource.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/BytesRead.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/DirListing.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/EntryStat.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/FileRef.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/ReadScope.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/RelativePath.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/TextRead.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/TextRefusal.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/dto/TextRefusals.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/exceptions/TextFault.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/DiagnosticCode.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/ArtifactKinds.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/ArtifactPaths.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactKind.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/redaction/LeakClasses.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/redaction/TextScreen.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistAccess*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/AllowlistReadmeParityTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemTextSource*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/NameEncoding*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/RecordingAllowlistAccess.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/StrictUtf8*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/artifact/Eligibility*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/port/out/dto/TextRefusalTableTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/port/out/exceptions/SourceFaultKindsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/NoUnboundedListingTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/NoUncappedReadTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/A2cByteBuffer.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/ArtifactKinds*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/ArtifactPaths*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/redaction/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/test/resources/conformance/resolved-state/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-f",
+        "lane-planning"
+      ],
+      "parallel_group": 6
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/DetailGoldenSuiteTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/ResolvedStateGoldenTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/ServedRoute.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/ServedRoutes.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/CapRaceInjector.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/DetailFixture.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/DetailFixtureTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/InMemoryTextSource.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/MetaReadCounter.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/PermissionCase.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/PermissionCaseCoverageTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ProjectionRow.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ProvisionPlan.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/RealPermissionFixture.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/RouteMarker.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/Utf8Host.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/HttpHarness.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/HttpHarnessDetailTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-f",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 7
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/JsonLanesDecoder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/YamlFrontmatterDecoder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/LanesCodec.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/ReviewCycleCodec.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/WpFrontmatterCodec.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/index/**",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/FrontmatterDecoder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/out/LanesDecoder.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/DecoderWiring.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/FrontmatterResult.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/LanesManifest.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/LanesResult.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/ReviewCycleMeta.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/WpMetadata.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/JsonLanesDecoder*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/YamlFrontmatterDecoder*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/LanesCodec*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/ReviewCycleCodec*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/WpFrontmatterCodec*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/index/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/adapter/out/filesystem/codec/C12aPortOut.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/index/A12cUsesCodec.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/FrontmatterResult*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/LanesManifest*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/LanesResult*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/ReviewCycleMeta*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/WpMetadata*Test.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 8
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/ProblemMapper.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/IncludePrompt.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/RawQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/AdmissionGate.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/ArtifactQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/MissionDetailQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/WorkPackageDetailQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/WorkPackageQuery.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/dto/ArtifactPathInput.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/port/in/exceptions/DetailRefusal.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/DetailInfrastructureWiring.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/MissionId.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactContent.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactEntry.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactListing.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactReference.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ArtifactReferences.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/DependencyEntry.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/MissionDetail.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/MissionPhase.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/OwnedFileEntry.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/PhaseBasis.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/PhaseName.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/PhaseStatus.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/Readiness.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ReviewCycleEntry.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/ReviewView.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/SubtaskEntry.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/SubtaskProgress.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/WorkPackageDetail.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/WorkPackageSummary.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/WorkPackageView.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/detail/WorkspaceView.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/ProblemMapper*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/IncludePrompt*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/RawQuery*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/AdmissionGateTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/adapter/in/http/detail/DetailController.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/adapter/in/http/detail/R15Controller.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/MissionDetailQuery.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/R16IoException.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/R16Spring.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/R16StringId.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/application/query/port/in/StreamSpring.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/domain/readmodel/derive/R15Deriver.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/fixture/domain/readmodel/detail/DetailValue.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/DetailInfrastructureWiring*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/MissionIdParseTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/detail/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/PlainCaller.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/PlainCallerTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 8
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/MissionDetailController.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/MissionDetailMapper.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/MissionDetailQueryService.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/MissionDetailWiring.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/PhaseDeriver.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/ReadinessDeriver.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/MissionDetail*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/rest/OutOfScopeRoutesTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/MissionDetail*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/portlegs/MissionDetailPortLegsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/MissionDetailWiring*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/MissionDetailServedRoute.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/MissionDetailServedRouteTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/PhaseDeriver*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/ReadinessDeriver*Test.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-i",
+        "lane-j",
+        "lane-k"
+      ],
+      "parallel_group": 9
+    },
+    {
+      "lane_id": "lane-o",
+      "wp_ids": [
+        "WP16"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/ArtifactController.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/ArtifactMapper.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/ArtifactQueryService.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/artifact/ArtifactLimits.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/artifact/ArtifactReader.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/artifact/ArtifactWalk.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/ArtifactWiring.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/Artifact*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/ArtifactMetaReadCountTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/ArtifactQueryService*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/artifact/ArtifactLimits*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/artifact/ArtifactReader*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/artifact/ArtifactWalk*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/portlegs/ArtifactPortLegsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/ArtifactServedRoute.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/ArtifactServedRouteTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-h",
+        "lane-i",
+        "lane-k"
+      ],
+      "parallel_group": 9
+    },
+    {
+      "lane_id": "lane-m",
+      "wp_ids": [
+        "WP14"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageController.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageMapper.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/WorkPackageQueryService.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/WorkPackageWiring.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageController*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageMapper*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/WorkPackageMetaReadCountTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/WorkPackageQueryService*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/portlegs/WorkPackagePortLegsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/WorkPackageServedRoute.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/WorkPackageServedRouteTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-l"
+      ],
+      "parallel_group": 10
+    },
+    {
+      "lane_id": "lane-n",
+      "wp_ids": [
+        "WP15"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageDetailController.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageDetailMapper.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/WorkPackageDetailQueryService.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/query/detail/**",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/WorkPackageDetailWiring.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/CycleNames.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/LaneNames.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/OwnedFilePatterns.java",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/readmodel/derive/TitleRows.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/detail/WorkPackageDetail*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/WorkPackageDetail*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/detail/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/portlegs/WorkPackageDetailPortLegsTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/WorkPackageDetailServedRoute.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/served/WorkPackageDetailServedRouteTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/CycleNames*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/LaneNames*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/OwnedFilePatterns*Test.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/readmodel/derive/TitleRows*Test.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-l"
+      ],
+      "parallel_group": 10
+    },
+    {
+      "lane_id": "lane-p",
+      "wp_ids": [
+        "WP17"
+      ],
+      "write_scope": [
+        ".github/workflows/mission-status-api.yml",
+        "scripts/ci/mission_status_*.py",
+        "services/mission-status-api/README.md",
+        "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/MissionStatusApplicationHints.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/nativetags/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/nativesmoke/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/readme/MissionStatusReadmeTest.java",
+        "services/mission-status-api/src/test/resources/nativesmoke/**",
+        "tests/ci/test_mission_status_*.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-l",
+        "lane-m",
+        "lane-n",
+        "lane-o"
+      ],
+      "parallel_group": 11
+    },
+    {
+      "lane_id": "lane-q",
+      "wp_ids": [
+        "WP18"
+      ],
+      "write_scope": [
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/contract/DetailResponseContractValidationTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/flow/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/hostorigin/**",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/rest/DetailRoutesFlowTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/AdmissionGatePortLevelTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/query/ProjectionRowCoverageTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/SharedBeansUniqueTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/WorkPackageIndexLocaleProcessTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/ServedRoutesCompleteTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/Nfr001DetailLatencyTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/Nfr002BoundedMemoryScenarioTest.java",
+        "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/PermissionCaseFloorTest.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-l",
+        "lane-m",
+        "lane-n",
+        "lane-o",
+        "lane-p"
+      ],
+      "parallel_group": 12
+    }
+  ],
+  "computed_at": "2026-10-13T18:58:36.318183+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "593eca270486e5325eaebe0aaf89ff802f4f2bb5"
+}

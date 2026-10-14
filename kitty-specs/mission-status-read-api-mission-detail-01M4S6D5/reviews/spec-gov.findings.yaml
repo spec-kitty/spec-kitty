@@ -1,0 +1,104 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-GOV-001
+    lens: "M1 operator-fidelity / Scope (true fork or settled?)"
+    severity: 3
+    title: "OQ-6 offers 'null subtask titles' as a contract-legal alternative; the contract itself settles that tasks.md is read"
+    evidence:
+      - artifact: "spec.md § Clarifications OQ-6 (line 63); traces/design-decisions.md D-11"
+      - code: "contracts/mission-status/schemas/Subtask.yaml:15-27 (title: 'Read from the work package's section of tasks.md'; null only 'when the task list gives none')"
+      - code: "tests/contract/_mission_status_detail.py:272-282 (read_tasks_md reads the content, capped at MAX_TASKS_MD_BYTES)"
+    claim: "OQ-6 frames a choice between reading tasks.md (4 MiB) and never reading it and serving null titles, calling the second 'contract-legal'. The contract's x-derived rule for Subtask.title says the title is read from the tasks.md section and is null only when the list gives none, so serving null for every Mission that has titles is a wrong answer, not a legal alternative. Q4 ('needs no process') does not forbid a file read. The real item is that the operator's read list is extended by one content read (TASKS_MD READ) and that extension needs ratification, not a fork with a null option. Left as an open fork it invites a plan that picks the cheap, wrong branch and loses parity on every Mission with subtasks."
+    remediation: "Move OQ-6 from 'open question with an alternative' to a stated, ratify-me decision: 'TASKS_MD is READ (4 MiB) on getWorkPackageDetail because Subtask.title is defined by tasks.md content; this extends the operator's list of reads by one class'. Delete the 'contract-legal null titles' alternative or state that it violates Subtask.yaml. Keep AC-3.4 and the TASKS_MD row of FR-011 as they are."
+  - id: SPEC-GOV-002
+    lens: "M1 operator-fidelity"
+    severity: 2
+    title: "The 'operator's list of reads' cited by OQ-6 and D-11 is not part of the verbatim Clarifications"
+    evidence:
+      - artifact: "spec.md § Clarifications Q4 (line 46) versus OQ-6 (line 63: 'The operator's list of reads names a stat of spec, plan and tasks')"
+      - artifact: "traces/design-decisions.md D-5 versus D-11 ('The operator named frontmatter, review-cycle files, a stat of spec/plan/tasks and a stat of .worktrees/<lane>')"
+    claim: "Q4 as recorded verbatim says only that changeState is always unknown and worktreePresent is a stat-only read. The list (frontmatter, review-cycle files, stat of spec/plan/tasks, stat of .worktrees) that OQ-6 and D-11 attribute to the operator appears nowhere in the binding record, so a reader cannot verify the baseline the new read classes are measured against, and the claim that TASKS_MD exceeds the ruling rests on an unrecorded source. (The Clarifications blocks themselves are identical in spec.md and design-decisions.md D-1..D-6; I could not compare them to the original operator input file, which is not in the repository.)"
+    remediation: "Either add the operator's read list verbatim as a further Standing/Q record (copied by script, as approach.md says the other blocks were) or cite its source (dispatch or readiness probe, by name and date) in OQ-6 and D-11 and say it is not an operator decision of the 2026-10-13 record."
+  - id: SPEC-GOV-003
+    lens: "M1 operator-fidelity / Directive (#5529 rulings are binding)"
+    severity: 3
+    title: "FR-012 C3 and DC-5 default to 404 not_found for a refused Mission directory, against the #5529 operator ruling the spec itself quotes in Edge Cases"
+    evidence:
+      - artifact: "spec.md § Edge Cases line 175 ('L9: 404 path_refused') versus FR-012 row C3 (line 370: 404 not_found, path_refused only in the log), AC-5.3 (line 280) and DC-5 (lines 542-545)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/reviews/analyze.ruling.md:49 ('A path refusal (L9) gives 404 with path_refused', operator)"
+    claim: "The operator ruling of #5529, which Clarifications make binding for this Mission, gives code path_refused on the 404. getMission and getWorkPackage use the generic Problem with a free 'code' string, so the ruling can be followed exactly on those two routes; only the coded routes (getWorkPackageDetail, the two artifact routes) are limited to not_found. The spec defaults all five routes to not_found, contradicting the ruling on two routes where it is implementable, and contradicts its own Edge Cases sentence. DC-5 is filed as a 'contract change candidate', but Options A and B involve no contract edit; it is a question of departing from a ruling, which should be explicit as such."
+    remediation: "State that getMission and getWorkPackage return 404 with code path_refused (the ruling), and that the three coded routes return not_found with path_refused in the log because their schemas allow nothing else; record that second half as the only departure. Reword DC-5 to the real question (follow the ruling where legal, and what to do on the coded routes) and make Edge Cases, C3 and AC-5.3 agree."
+  - id: SPEC-GOV-004
+    lens: "M1 operator-fidelity (Standing: transport-agnostic port)"
+    severity: 3
+    title: "FR-005 decodes 'path' at the HTTP layer while FR-013 puts path decoding rules behind the port"
+    evidence:
+      - artifact: "spec.md FR-005 (line 276: 'The path is decoded once at the HTTP layer and judged as decoded') versus FR-013 (line 402: 'path decoding rules that the contract fixes (path decoded once, the artifact-path rule) ... happens behind the port')"
+      - artifact: "spec.md AC-5.2 (line 279), AC-13.4 (line 407)"
+    claim: "The Standing record says the controller must hold no logic an MCP adapter would need to duplicate. The two requirements place the decode in different layers. A strict reading of FR-005 leaves percent-decoding, repeated-parameter and non-UTF-8 detection in the controller (an MCP resource URI would need its own copy), while FR-013 says it is behind the port. The plan cannot satisfy both, and AC-13.1 (ArchUnit) will not catch it because decoding is not a dependency."
+    remediation: "Split the rule: the HTTP adapter does only what is transport-specific (one percent-decode of the query value, and mapping a missing, repeated or undecodable value to a typed 'raw path invalid' input); the port takes a decoded String or a typed ArtifactPathInput, and the artifact-path rule (512 chars, segments, NUL, drive letter, and so on) is applied behind the port. Reword FR-005 and FR-013 to say the same thing and add a plain-Java caller case for an invalid path to AC-13.3."
+  - id: SPEC-GOV-005
+    lens: "Scope (blast radius) / Directive (shared edits listed, not summarised)"
+    severity: 3
+    title: "C-004 and the Reflexivity list of shared edits omit the CI and script surfaces that the ACs require editing"
+    evidence:
+      - artifact: "spec.md C-004 (line 477), Reflexivity (lines 549, 558: 'Landing adds files under services/ and tests/contract/ ... The shared edits are listed, not summarised') versus AC-14.5 (line 418), AC-19.1 (line 445), AC-14.6 (line 419)"
+      - code: "scripts/ci/mission_status_corpus_compare.py (exists; AC-14.5 extends it)"
+      - code: ".github/workflows/ci-router.yml:358 (mission-status src import filter that AC-14.6 may touch)"
+    claim: "AC-14.5 extends scripts/ci/mission_status_corpus_compare.py and the nightly run, AC-19.1 raises the native-test floor in a workflow, and AC-14.6 may touch the router filter and tests/ci pinning tests. None of scripts/ci, the nightly or native workflow files, or tests/ci is in C-004's allowed write set (kitty-specs mission dir, services/, tests/contract/), and the Reflexivity list that promises completeness leaves them out and says landing adds files only under services/ and tests/contract/. Shared CI files are exactly the surface other missions run on; an incomplete list defeats the stated purpose of the list."
+    remediation: "Extend C-004's write set and the Reflexivity list with every file the ACs touch: scripts/ci/mission_status_corpus_compare.py, the nightly workflow, the native workflow (--floor), ci-router.yml (conditional), tests/ci pinning tests, and the generator imports. Correct the sentence 'Landing adds files under services/ and tests/contract/'."
+  - id: SPEC-GOV-006
+    lens: "M1 (OQ-3) / Scope"
+    severity: 2
+    title: "OQ-3 is settled by the repo (ResolvedWorkspace.exists), and FR-010's 'not a link' rule is an unrecorded divergence from the oracle"
+    evidence:
+      - artifact: "spec.md OQ-3 (line 60), FR-010 (line 332), AC-10.3 (line 336), D-12"
+      - code: "src/specify_cli/workspace/context.py:262-274 (ResolvedWorkspace.exists: worktree_path.exists() then a .git entry check; follows links)"
+      - code: "contracts/mission-status/schemas/Workspace.yaml:48-54 (worktreePresent: the lane worktree exists on the serving host)"
+    claim: "The .git-entry requirement is the documented behaviour of ResolvedWorkspace.exists (husk, #1833) and two stats satisfy the operator's 'stat-only', so there is nothing for the operator to choose; listing it as open with a one-stat alternative that the contract's 'exists' semantics already rule out inflates the decision list. Separately, FR-010 and AC-10.3 require the lane directory to be 'a real directory (not a link)' and a symlinked directory to be false, while the oracle's Path.exists follows links and answers true. That stricter rule is not listed as a knownDivergence (D-19 covers only planning files), so the golden for a symlinked worktree has no recorded reason to differ."
+    remediation: "Record OQ-3 as a decision (D-12 already is) and drop it from the open list. Add the symlinked-lane-directory case to the knownDivergence list of FR-014/AC-14.4 beside D-19, with the oracle outcome and the Java assertion."
+  - id: SPEC-GOV-007
+    lens: "M1 (OQ/DC triage: true fork or settled?)"
+    severity: 2
+    title: "Several open questions and cards are not operator forks: DC-1 reopens binding Q3, OQ-5 and DC-2 are settled, DC-4 duplicates OQ-2, OQ-4 is a provisional figure"
+    evidence:
+      - artifact: "spec.md DC-1 (lines 516-521) versus Q3 (line 42) and R-11; OQ-5 (line 62); DC-2 (523-528); DC-4 (537-540) versus OQ-2 (59); OQ-4 (61)"
+      - code: "tests/contract/_mission_status_detail.py (index_missions first-in-name-order rule cited by OQ-5)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/LenientIntegerConverter.java:7-10 (the #5529 operator ruling the OQ-2 default departs from: non-integer treated as absent)"
+    claim: "Triage of OQ-1..OQ-6 and DC-1..DC-5: OQ-1 is a true fork (the oracle is internally inconsistent) and its default (shared index, skip plus diagnostic) is safe and documented. OQ-2 is a real fork but the spec should say plainly that its default departs from the #5529 operator ruling for lenient query parameters (and that 'invalid_parameter' is a code the contract does not define). OQ-3 is settled (see SPEC-GOV-006). OQ-4 is a numeric figure the spec already declares provisional, so it is a plan-time constant. OQ-5 adopts the oracle's rule plus one diagnostic, so there is nothing to rule. OQ-6 is settled by the contract (SPEC-GOV-001). DC-1 asks whether to relitigate Q3 (Options B and C contradict a binding ruling and Option A is the ruling); it is not a contract-change candidate. DC-2 is settled by #5529's precedent (Option A). DC-4 asks the same question as OQ-2 under a second id, so a ruling must be recorded twice. The result is a longer fork list than the operator has to rule, which hides OQ-1 and OQ-2, the two that matter."
+    remediation: "Keep OQ-1 and OQ-2 as the open forks (merge DC-4 into OQ-2, and cite the pageSize ruling in OQ-2). Re-file OQ-3, OQ-5, OQ-6, DC-2 as recorded decisions with rationale. Turn DC-1 into a plain risk note (R-11 already is one) and drop options B and C or label them 'outside Q3'. Move the OQ-4 figure into the provisional-figures paragraph."
+  - id: SPEC-GOV-008
+    lens: "Ledger"
+    severity: 2
+    title: "Ledger accounting omits SK-348, SK-291 and the second SK-310, all on behaviour the review-cycle and ownedFiles reads touch"
+    evidence:
+      - artifact: "spec.md § Ledger accounting (lines 588-595) and FR-003 Review cycles (line 248)"
+      - artifact: "SPEC-KITTY-LEDGER.md:94-110 (SK-348: review-cycle records for a lanes_with_coord Mission belong on the coordination partition per ADR 2026-08-03-1, yet are written to the primary checkout)"
+      - artifact: "SPEC-KITTY-LEDGER.md:15620-15632 (SK-291: a reopened WP reuses and overwrites the prior review-cycle-N.md and reuses the same pointer)"
+      - artifact: "SPEC-KITTY-LEDGER.md:15883 (second SK-310: finalize-tasks does not re-sync owned_files, so frontmatter owned files can disagree with wps.yaml)"
+    claim: "The spec reads cycles from the primary directory only (contract: 'primary planning surface only') and derives verdicts from a pointer match against ledger events. The ledger records that the ADR places these files on the coordination partition (so a coord Mission shows no cycles, or stranded ones) and that a pointer can be reused by two verdicts (SK-291), which interacts with the 'last status event whose reference equals the pointer' rule. Both change what a user sees and neither is mentioned. The ledger heading SK-310 is duplicated; the spec cites 'the first entry of that number' but not the second, which is on the owned files it serves."
+    remediation: "Add three bullets: SK-348 (cycle files on coordination are not shown by design of the contract; cite ADR 2026-08-03-1 and say the empty cycle list for coord Missions is expected, with an AC or fixture), SK-291 (state which verdict a reused pointer yields and pin it), second SK-310 (ownedFiles are served as authored in the frontmatter, which may be stale against wps.yaml; not corrected here). Use the numeric sort of headings when citing duplicates."
+  - id: SPEC-GOV-009
+    lens: "Directive (campsite cleaning)"
+    severity: 2
+    title: "No opening campsite-clean step for the surfaces the mission extends"
+    evidence:
+      - artifact: ".kittify/charter/charter.md:90-97 (Standing Order 2: campsite-clean the surfaces first, as a distinct preceding step)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java (397 lines)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:45 (DEFINED_RULE_COUNT = 12, 262 lines)"
+    claim: "The spec extends MissionStatusService, Allowlist, LeakClasses, ArchitectureRules, FilesystemMissionEventSourceProject (343 lines) and the conformance generator, and says nothing about the campsite scout the charter requires before changing them. The tracer files and squad cadence are present; the tidy-first step is not."
+    remediation: "Add a short process constraint (C-011): the first work package is a behaviour-preserving campsite pass over MissionStatusService, the filesystem source classes, Allowlist and ArchitectureRules, with a distinct commit, or a recorded reason for none."
+  - id: SPEC-GOV-010
+    lens: "Terminology"
+    severity: 2
+    title: "New domain terms and the overloaded 'Phase' are not reconciled with the glossary, and no gate or AC checks Contextive sync"
+    evidence:
+      - artifact: "spec.md Key Entities (lines 485-496: 'Phase ... Not the glossary phase', Read class, Work Package file index, Text-read port, Workspace) and NFR-006 (line 466)"
+      - code: "spec-kitty glossary list: 'phase' = 'Grouping container for mission primitives'; 'workspace' = 'Git worktree directory created for ...'; 'lane' = 'Work package lifecycle state'"
+      - artifact: "docs/context/contextive-glossaries.md:94-103 (generated Contextive files are CI-checked when glossary/** or src/specify_cli/** change)"
+    claim: "The contract's MissionPhase (specify..review) and Workspace (lane, branches, worktreePresent) do not match the glossary definitions, and the spec only says 'Not the glossary phase'. It does not say whether any term is added to docs/context (which, with C-004 and C-007, would be a write outside the allowed set and would trigger the Contextive check) or that none is. NFR-006 covers only the Feature ban."
+    remediation: "Add one sentence to Key Entities or NFR-006: either 'no glossary change; contract terms Phase and Workspace are used in the contract sense, disambiguated in the README' or 'terms X, Y are added to docs/context/<slug>.md and the Contextive files are regenerated', and extend C-004 accordingly. Add the README disambiguation of 'Phase' to FR-018."

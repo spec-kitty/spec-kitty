@@ -1,0 +1,150 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: unresolved
+    remaining_severity: 3
+    reason: "E-2 is now an operator decision with an in-C-004 fallback and the native-leg LC_ALL line is dropped (D-90, verified: NativeSmokeTest builds the ProcessBuilder), but the interim (E-2 unanswered) still commits the corpus-marked baseline-record module without its registry entry, which turns tests/architectural/test_ci_corpus_trigger_completeness.py::test_corpus_marked_modules_match_the_curated_registry red; the plan should default to the conformance-module fallback until E-2 is yes."
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: "Phase gates are now test --tests plus test jacocoTestCoverageVerification jacocoScopeCheck, and check/perfTest/kitTest/native tasks are CI-only, verified against build.gradle.kts where check dependsOn perfTest, nativeTagJvmTest, kitTest and both JaCoCo tasks; E-7 holds the local-run question (its single-measurement default needs the operator word before P13)."
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: "Base A is recorded as the literal sha d082b1810... (verified: a commit and an ancestor of origin/main), base B carries a tree hash plus ephemeral true with a typed unreachable_after_rewrite outcome, and the ordering check and re-run are placed before and after compaction."
+  - id: PLAN-GOV-004
+    status: resolved
+    reason: "E-5 is now an operator decision blocking P8 that states the typed alternative and the lenient-factory third option, with D-95 marked pending; the cited EventsController pattern (new MissionId in a try/catch of IllegalArgumentException) is true in the checkout."
+  - id: PLAN-GOV-007
+    status: resolved
+    reason: "Write scopes are file-precise for every concurrent pair, shared files have one owner and named edits in a table, SK-357 is cited in the Charter Check and R-27, and my own expansion of the section 13 tree against the phase scopes found no unowned or doubly-owned class."
+  - id: PLAN-GOV-008
+    status: resolved
+    reason: "SourceFault.Kind stays unchanged (five values verified in the checkout), the text port gets its own TextFault, and the four switch sites are correctly named (ChangeFeed#metaStageCode/ledgerStageCode, MissionStatusService#ledgerFault/omitted) and pinned by SourceFaultKindsTest."
+  - id: PLAN-GOV-010
+    status: resolved
+    reason: "Seam stability is restated as bound to recorded commits after compaction, the base recommendation for #5533 is withdrawn, and the PR split is only the operator's decision (E-8) departing from D-54."
+  - id: PLAN-GOV-011
+    status: resolved
+    reason: "The Charter Check now lists SK-357, SK-300, SK-361, SK-356 (and SK-353 via D-97) with their workarounds, and the ledger headings exist with the stated content."
+  - id: PLAN-GOV-012
+    status: resolved
+    reason: "Each phase row states its own red-first form (P1 unchanged-green, P0/P4/P4b copy-with-a-row-removed, P2 mutation targets, P3a none, P7 against the unwired suite) and the Charter Check and test strategy agree."
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: "D-91 gives the text port its own TextFault and leaves SourceFault and all four exhaustive switches untouched, so section 7.1 row 1's 'no Mission-status vocabulary' is now true."
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: "A public MissionReadModel holding MissionLookup, OverviewReader and the one ProjectionCache is built once in ServiceWiring (P1) with the six-argument public constructor kept, and MissionReadModelTest plus ReadModelSingletonTest pin the shared cache; the existing package-private cache and constructors match the checkout."
+  - id: PLAN-ARCH-006
+    status: resolved
+    reason: "The closed set is now the TextRefusal enum with the pure TextRefusals.of and a reflection TextRefusalTableTest, and VANISHED is added to the table with NOT_FOUND semantics."
+  - id: PLAN-ARCH-008
+    status: resolved
+    reason: "The regeneration command now copies the workflow's own hint verbatim (verified, bootJar included) and adds the strict verify command as the freshness check, with the -PnativeBinary caveat stated."
+  - id: PLAN-ARCH-009
+    status: resolved
+    reason: "A bounded AllowlistAccess#listNames(Path,int) with LIST recorder entry, NoUnboundedListingTest and a limit+2 directory test are specified in section 13, P5 and D-92 (the NameWindow result type is not placed in the layer inventory, a nit)."
+  - id: PLAN-ARCH-010
+    status: resolved
+    reason: "P5 now depends on P1 only and the concurrency paragraph is derived from the Depends-on column (D-87), so the two statements agree."
+  - id: PLAN-ARCH-011
+    status: resolved
+    reason: "ReviewCycleMeta and LanesResult are domain.model types in section 1, section 13 and P6's scope, and StrictUtf8 returns its own nested sealed Decoded type that FilesystemTextSource maps to TextRead."
+  - id: PLAN-ARCH-012
+    status: resolved
+    reason: "CoupledSymbolsShapeTest (P1, in Gate G) mechanically pins the visibility, constructors, SourceFault.Kind values and lower-bound counts, and the #5529 tip sha is recorded per phase by a git log command in section 5 and R-24."
+  - id: PLAN-ARCH-013
+    status: resolved
+    reason: "Section 7 records that the #5533 identifiers were checked at its workspace commit cdce434a3 (confirmed not resolvable in this repository, as the plan says) and that a change to them needs the note both missions require."
+  - id: PLAN-FIT-001
+    status: resolved
+    reason: "S-13 now names FR-022, AC-22.1 (64 calls), AC-22.2, AC-22.3, AC-22.4, the FR-004 Bounds sentence, the requirement row, NFR-002 and its scenario plus a decline path, and E-1 no longer calls D-64 an operator ruling."
+  - id: PLAN-FIT-002
+    status: resolved
+    reason: "P8 owns only the AdmissionGateTest unit contract and the port-level legs of AC-22.1 to AC-22.3 move to P13 with the planted bypass, with the traceability and revert-fails rows updated to match."
+  - id: PLAN-FIT-003
+    status: resolved
+    reason: "D-97 decides SK-353 as refuse with projection_refused pinned by fixture wpm-28 (Count 28, V20), P13 adds the per-Work-Package-file decode-class comparison, AC-6.4 is in the traceability row and exit gates, and R-26 carries spec R-10 (R-15 still says '27-case corpus', a nit)."
+  - id: PLAN-FIT-006
+    status: resolved
+    reason: "'P5 merge' is replaced by commit-bound seams recorded after compaction, with no separate P5 merge claimed and the split left to the operator (E-8)."
+  - id: PLAN-FIT-008
+    status: resolved
+    reason: "The Depends-on column is declared the only statement of order (D-87) and the table, the section 11 concurrency paragraph and D-80's replacement now agree."
+  - id: PLAN-FIT-009
+    status: resolved
+    reason: "HistoryOrder is P3's, the dto records belong to the route phases, ReviewCycleMeta and LanesResult are P6's, and ArtifactLimits is P12's and removed from the seam list; my mechanical check of the section 13 tree against the phase scopes found every class owned."
+  - id: PLAN-FIT-010
+    status: resolved
+    reason: "Section 13 and S-21 now say the root status.events.jsonl stays class LEDGER under AUTHORED and is unclassified only under ARTIFACT, matching Allowlist.java (LEDGER entry at kitty-specs/<seg>/status.events.jsonl), with the green-twin control added."
+  - id: PLAN-FIT-011
+    status: resolved
+    reason: "D-98 derives lifecycleTypes from a new nullable LedgerLine.eventType (the current RowClassifier.lifecycleOrIgnored drop is real), adds fixture marker-row-without-event-id and raises phases-matrix to Count 19."
+  - id: PLAN-FIT-013
+    status: resolved
+    reason: "RecordingAllowlistAccess is placed in adapter.out.filesystem (test source set, verified), AllowlistAccess is added to the open-for-read list (verified in NoUncappedReadTest), and the grep is now -rniE 'feature' with the legacy literal allowed."
+  - id: PLAN-SEQ-001
+    status: resolved
+    reason: "The cycle is broken by P3a (mapping only) then P4 (all classes but resolved-state), P4b (resolved-state), P3, with P5 starting after P1 and the concurrent sets rewritten from the Depends-on column."
+  - id: PLAN-SEQ-002
+    status: resolved
+    reason: "P2 is now in the Depends-on of P8, P9 and P12 (P10 and P11 follow P9) and the text states P2 must land before P8."
+  - id: PLAN-SEQ-003
+    status: resolved
+    reason: "Section 7.1 gains a 'Lands in' column (P5, P7 for the doubles, P8 for the bean) and 'primitives complete' is defined as the P8 commit."
+  - id: PLAN-SEQ-004
+    status: resolved
+    reason: "E-3 and section 7 no longer recommend a #5533 base, state that compaction precedes any published ref, that only the operator publishes, and that a published ref is frozen."
+  - id: PLAN-SEQ-006
+    status: resolved
+    reason: "Globs are replaced by file-precise lists, ProjectionCache is put in P3's scope as expected-unchanged (Entry holds the whole StatusSnapshot, verified) and P1 is told to leave it alone."
+  - id: PLAN-SEQ-007
+    status: resolved
+    reason: "R-16 and D-106 now treat #6122 and #5953 as spec/plan escalations before the P3/P6 freeze and a knownDivergence entry after, name the Java owner phases, and re-run gh pr list at P3 and P6."
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: "The record test splits the check (A must exist, B tolerated as unreachable_after_rewrite only when ephemeral with a matching tree hash), commits the module list in the test, and re-runs the record test and --check after compaction."
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "D-99 puts the five native-tagged plain @Test methods in config/nativetags in P13 alone with the two --floor literals and the pin literal edited in one commit, consistent with the tests/ci pin (native_test_count counts only @Test lines there and asserts == 3)."
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: "Section 5 gives the exact local nightly sequence (matches the workflow's own steps and the script's flags), makes the recorded run the P13 pre-merge evidence, moves workflow_dispatch to a post-merge orchestrator item and says the job is untested in CI at PR time (R-28)."
+  - id: PLAN-VERIFY-006
+    status: resolved
+    reason: "D-101 assigns RealPermissionFixture, @PermissionCase and PermissionCaseCoverageTest (named floor) to P7, a doLast report hook in build.gradle.kts to P2 with a TestKit nested-build test (T/build is in the kit source set), and declares permission rows Java-only so the generator never uses chmod."
+  - id: PLAN-VERIFY-007
+    status: resolved
+    reason: "Section 5 now lists nativePerf (with the floor-binary mode), native-tag-floor, the strict verification command, the digests step with its exclusion reason, and P13 owns NativePerfTest's extension under T/nativesmoke/**."
+  - id: PLAN-VERIFY-008
+    status: resolved
+    reason: "Rows are added for every AC the finding listed plus AC-2.7, 6.6 and 8.4 with concrete mutations, comparator controls are labelled as such, the rule 'standing unless marked (M)' is stated, and the Charter Check sentence matches."
+  - id: PLAN-VERIFY-009
+    status: resolved
+    reason: "Contracts is now 'Yes, selected by tests/contract/**' with the smoke commands, release-readiness cutover-guard is 'not run while the base is not main' and ci-windows is 'not selected', all matching the workflows' on.pull_request.branches and paths."
+  - id: PLAN-VERIFY-010
+    status: resolved
+    reason: "Section 12 lists the detail-stage requests d01 to d14 one per line with method, route and status, fixes N at 14 and the digests floor at 63 (49 + 14), and names the pin test as the exit command."
+  - id: PLAN-OBLIG-001
+    status: resolved
+    reason: "FRESH3-002 and D-104 fix the call sequence (find, duplicate continuation, OverviewReader.overview; never probed/stampLedger/readLedger directly) and the readiness facts add the probed() re-read; I confirmed the 3 warm / 4 cold arithmetic against MissionStatusService and the ledger source's per-call directory resolution."
+  - id: PLAN-OBLIG-003
+    status: resolved
+    reason: "MetaReadCountTest rows for getWorkPackage and getWorkPackageDetail are now in the P10 and P11 exit gates and in the FR-002/FR-003 traceability rows."
+  - id: PLAN-OBLIG-004
+    status: resolved
+    reason: "AC-8.4 is reworded to a mapper-level @ProjectionRow case per T1 to T18 row with a discovered-count guard of 18, route fixtures only where a row names one, and T11 pinned by its mapper case."
+  - id: PLAN-OBLIG-005
+    status: resolved
+    reason: "P10 and P11 exit gates now name the projection-nulls/projection-refusals fixtures and @ProjectionRow cases of their routes, P13 asserts the full count, and the FR-008 traceability row is updated."
+  - id: PLAN-OBLIG-007
+    status: resolved
+    reason: "S-4 amends the FR-004 'File names' bullet to the candidate-name-only rule with the both-ends-ASCII reasoning."
+  - id: PLAN-OBLIG-008
+    status: resolved
+    reason: "AC-6.6 ownership is split (stub leg P6, route stub cases P9 to P11, child-JVM leg P13 in T/config/ using the package-private AppProcess, which does accept an environment as verified), and the obsolete fallback branch is dropped."
+  - id: PLAN-OBLIG-012
+    status: resolved
+    reason: "S-3 now states AC-14.4's first clause reads 'each row V1 to V19' (V20 where D-97 adds it) with M7 to V18 and M14 to V19 in the map."

@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+verifier: R5a
+round: 4
+mission: mission-status-read-api-mission-detail-01M4S6D5
+validate_only: 'finalize-tasks --validate-only: validation_passed, 18 WPs, 18 lanes, planning lane WP04, no unreferenced SC'
+summary: 'All eight round-3 fresh findings are resolved. The mapper no longer touches CodePoints (DV-8, ordering owned by the application service, rule 15 names the non-record classes) and a sweep found no other route WP using a forbidden domain.model class. The ServedRoute contract is complete in WP10 (fixture and golden-file Entry pairs, OWNER partition, expectedEntries, ownershipProblems), every golden-bearing pair is claimed by exactly one provider and WP18 asserts it. Bean ownership, wiring-test stubs, the WP13 DoD, the three-literal README contract, FR-020 and the NFR-006 grep wording are fixed. The orchestrator rulings (OO-1 to OO-4, F1/E-12 no PR B edits of existing mission-dir files, WP17 Java README test) are applied consistently with no regression; frontmatter equals wps.yaml in all 18 WPs and finalize-tasks --validate-only passes with 18 lanes.'
+results:
+- id: TASKS-FRESH3-001
+  status: resolved
+  reason: 'DV-8 and WP12 T082/T086 make WorkPackageView.subtasks an ordered List<Map.Entry<String, Lane>> built by WorkPackageQueryService (application layer) under CodePoints.compare; WP14 T100 has the mapper serialise that list with a private static nested serializer and import no CodePoints or PyText, and rule 15 in WP12 names CodePoints, PyText and SupportedSchemaRange as non-admitted. Sweep: WP13/WP15/WP16 mappers and controllers use only MissionId/WpId (records), Lane (enum), RawQuery, IncludePrompt, DetailRefusal and port types; WP16 CodePoints use is in application.query.artifact (ArtifactWalk), WP15 PyText/CodePoints use is in application TitleRows. No route WP puts a non-record domain.model class in adapter.in.http.detail; no red tip.'
+- id: TASKS-FRESH3-002
+  status: resolved
+  reason: 'WP10 T071 now fixes the complete ServedRoute shape (fixture, golden file) Entry pairs, one request per request key of the golden, includePrompt variant as its own golden file, ServedRoutes.OWNER partition, expectedEntries and ownershipProblems; DetailGoldenSuiteTest selects the golden by Entry.goldenFile. WP13..WP16 cite T071 and state there is no Javadoc to read; each route test asserts goldenFiles()==OWNER row and served()==expectedEntries. DV-7 records it.'
+- id: TASKS-FRESH3-003
+  status: resolved
+  reason: 'Providers derive served() from ServedRoutes.expectedEntries(goldenFiles()), so every golden-bearing (fixture, golden file) pair (including wp-malformed-frontmatter get-mission.json and detail-planning-only get-work-package.json) is claimed by exactly one provider by the OWNER partition, and WP18 ServedRoutesCompleteTest asserts ownershipProblems empty over the six golden files (a pair no provider serves, or served twice, is red).'
+- id: TASKS-FRESH3-004
+  status: resolved
+  reason: 'DV-6, WP13 T093 step 3 and the WP14/WP15/WP16 wiring steps now say WP14 and WP15 inject the index bean, WP13 and WP15 the decoder beans, WP16 neither; WP16 header unchanged and consistent. The earlier WP11 T075/T076 lines that said WP16 no longer say so.'
+- id: TASKS-FRESH3-005
+  status: resolved
+  reason: 'WP13 T093 now states that neither DecoderWiring nor DetailInfrastructureWiring provides MissionReadModel or the diagnostics consumer and requires test-local @Bean stubs (MissionReadModel, recording Consumer<Diagnostic>, MissionStatusProperties for a TempDir root, AllowlistAccess) or an explicit named ServiceWiring import; the never-full-context rule is kept.'
+- id: TASKS-FRESH3-006
+  status: resolved
+  reason: 'WP13 DoD (T096 line) now reads: no line appended to R/portlevel-tests.txt; MissionDetailPortLegsTest outside conformance.port; PortLevelClassSetTest and PortSubsetSecondLegTest green and unchanged. Consistent with T096 step 2 and the header.'
+- id: TASKS-FRESH3-007
+  status: resolved
+  reason: 'One contract of three literals (UTF-8 locale, sun.jnu.encoding, LC_ALL) stated in WP16 T117 step 6 and risk 5, asserted by ArtifactControllerReadmeLocaleTest, kept by WP17 and asserted by the Java MissionStatusReadmeTest (WP17 T124, in create_intent); wps.yaml header records it.'
+- id: TASKS-FRESH3-008
+  status: resolved
+  reason: 'FR-020 added to WP14 requirement_refs (frontmatter equals wps.yaml, verified for all 18 WPs on title, dependencies, owned_files, requirement_refs, subtasks); the NFR-006 grep in WP14/WP15/WP16/WP13 now says expect only the marked legacy feature_slug literal of LanesCodec; unicode-subtask-ids is called a fixture of detail-populated in WP14.'
+regression_notes: []

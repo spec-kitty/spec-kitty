@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 3
+verdicts:
+  - id: PLAN-ARCH-002
+    verdict: refuted
+    reason: The port takes already-decoded strings and percent-decoding is a transport concern of the HTTP adapter; the claimed MCP divergence is speculation about a not-yet-existing adapter.
+  - id: PLAN-ARCH-003
+    verdict: refuted
+    reason: The plan assigns per-root rule re-runs and any new subjects to #5533 and rules 13/14 are this mission's own new rules; the generalisation failure is speculative about a later mission.
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: Plan makes OverviewReader package-private and owner of the one ProjectionCache while config wiring classes must build services needing it, and ServiceWiring/MissionStatusService code builds the cache internally; no wiring path is stated.
+  - id: PLAN-ARCH-005
+    verdict: refuted
+    reason: The claim rests on speculation about how #5533 will use the gate, NUL check and TextScreen; the plan's seams cover the primitives this mission delivers and the evidence is not a defect in the plan.
+  - id: PLAN-ARCH-006
+    verdict: confirmed
+    reason: Plan 7.1 row 6 lists VANISHED as a thrown SourceFault kind but 7.2 and the rest of the plan never map it, so the application's handling of that fault is undefined.
+  - id: PLAN-ARCH-007
+    verdict: refuted
+    reason: Plan D-69 explicitly decides stay with an allow-list and records E-3 coordination; the registry alternative rests on external PD-7 wording the finding does not substantiate and the plan states PD-7 names the allow-list option.
+  - id: PLAN-ARCH-008
+    verdict: confirmed
+    reason: Plan line 106 regeneration command omits bootJar while the workflow echo hint at line 178 includes it and the strict step runs bootJar.
+  - id: PLAN-ARCH-009
+    verdict: confirmed
+    reason: AllowlistAccess.listNames(Path) has no limit parameter and the plan lists only scoped(ReadScope) as the seam change while TextSource.list needs nameLimit and limitReached, leaving the bounded listing method unspecified.

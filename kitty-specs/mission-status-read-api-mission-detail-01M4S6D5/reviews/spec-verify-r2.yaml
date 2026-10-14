@@ -1,0 +1,58 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "Edge Cases, C3-C5, C7, AC-1.7 and V9 now state a readable match wins and the first fault decides only when nothing matches, matching MissionStatusService.resolve and the 2026-10-11 ruling, with before/after/unknown fixtures."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "OQ-5, C6, C7, AC-1.5 and AC-1.7 fix one scan rule (continue past the match only to detect a duplicate, later faults ignored) with a duplicate-then-broken fixture."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "FR-011 lists LANES_JSON, WORKTREES_DIR, COORD_* and LEDGER for the ledger routes, artifact routes use lookup classes only, and AC-11.1 adds absent-topology and coord-routed Missions."
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: "FR-006/FR-007/FR-019 and Key Entities now assign generic IO to the filesystem adapter, YAML to a named second port, and walk/classifier/id rules to application under the class gate."
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: "V14 (M10), V15 (A8) and V16-V18 were added, AC-14.4 maps each Java-only row to its entry, and V3/V4 store the generator-run default-path outcome checked by a live reproduction test."
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: "A provisioning-plan rule applied identically by generator and Java harness covers links, .git entries and worktrees, and GOLDEN_FILES/CLASS_FLOORS are amended."
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: "AC-21.1 now asserts schema, resolvable shas, per-row fields and a redCount equality, with ordering moved to a review checklist item."
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: "C-011 observable is reworded to forbid changed assertions, expected values or golden bytes while allowing test-support refactors."
+  - id: SPEC-FRESH-009
+    status: resolved
+    reason: "C-011 and Assumptions state one order (baseline, campsite WP, FR-020 as first functional WP) and D-44 amends D-22."
+  - id: SPEC-FRESH-010
+    status: resolved
+    reason: "ARTIFACT_DIR is now the primary directory itself under scope ARTIFACT, MISSION_DIR unchanged under AUTHORED, and AC-11.2 has the LIST red/green pair."
+  - id: SPEC-FRESH-011
+    status: resolved
+    reason: "M4/W3/M11 now cover the 1 MiB lanes.json and 262144-byte cycle-file caps with fixtures in AC-3.9 and V17, and the figures are in the provisional list."
+  - id: SPEC-FRESH-012
+    status: resolved
+    reason: "AC-6.1 now includes lone 0xC3, overlong and surrogate files skipped with wp_file_skipped, as the oracle does."
+  - id: SPEC-FRESH-013
+    status: resolved
+    reason: "AC-5.6 and AC-3.7 require minimum-length tokens assembled at test time with near misses one character short and no committed full token."
+  - id: SPEC-FRESH-014
+    status: resolved
+    reason: "M4 is split into M4a and M4b per route, M2 no longer claims a head for getWorkPackage, and AC-1.6, AC-2.6 and AC-3.8 name their row subsets."
+  - id: SPEC-FRESH-015
+    status: resolved
+    reason: "Rules 13 and 14 are scoped to the new operations with no exemption list, removing the unpriced-debt framing (D-50)."
+  - id: SPEC-FRESH-016
+    status: resolved
+    reason: "NFR-002 gives per-request arithmetic and a raised provisional figure, getArtifactContent joins the admission gate, and NFR-009/AC-20.5 bound cache growth from FR-020."
+  - id: SPEC-FRESH-017
+    status: resolved
+    reason: "Append-only addendum D-52 and the approach.md entry correct the card count to six and the LedgerStamp cache key."
+  - id: SPEC-FRESH-018
+    status: resolved
+    reason: "NFR-006 no longer names docs/, consistent with the C-004 write set."

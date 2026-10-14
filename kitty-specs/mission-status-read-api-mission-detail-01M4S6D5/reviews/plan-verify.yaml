@@ -1,0 +1,44 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-004
+    status: resolved
+    reason: P7 owns HttpHarness#startWith keyed by Class<?>, HttpHarnessDetailTest uses a test-declared interface so it compiles at the P7 tip, and the shared-file rows name P9-P13 as users only.
+  - id: PLAN-FRESH4-001
+    status: resolved
+    reason: P7 gate and scope now name no P8 type (D-139, D-140 sweep also moved the permission-floor, PlainCaller and RouteMarker dependencies), so the P7 -> P8 order holds with no cycle.
+  - id: PLAN-FRESH4-002
+    status: resolved
+    reason: Cases are owned per (row, route) pair (P9 7, P10 10, P11 9 = 26 over T1-T18, recounted and consistent with the P9/P10 gate rows, traceability and D-141), and ProjectionRowCoverageTest asserts the pairs.
+  - id: PLAN-FRESH4-003
+    status: resolved
+    reason: Section 7.4, E-3 and D-142 state that the governance root takes the side-first tree, name the superseded FR-017/PD-7 strings, and leave the recording of the note in the other mission to the orchestrator without contradicting the CQRS ruling.
+  - id: PLAN-FRESH4-004
+    status: resolved
+    reason: P7 adds a new DetailFixture composing FilesystemFixtureFactory.Built (one provisioning path, no P1a file edited, FixtureFactory.java dropped from scope), and D-139 names which Built the canonical-constructor sentence protects.
+  - id: PLAN-FRESH4-005
+    status: resolved
+    reason: The readiness row inventories every read of the pin with its writers, Gate P is defined as part of every Java phase exit gate, and P1b, P3 and P8 name it explicitly.
+  - id: PLAN-FRESH4-006
+    status: resolved
+    reason: Section 9 now has scouted-size rows with reasons for the pin, build.gradle.kts, ProblemMapper/ProblemAdvice, LeakClasses/DiagnosticCode and AllowlistAccess/AllowlistPassThrough, and the intro sentence is narrowed to production surfaces and pins.
+  - id: PLAN-FRESH4-007
+    status: resolved
+    reason: Step 3a of section 1.1 and D-143 give P1 the named edit of the NEW_FILES_IN_OUT_PACKAGES probes (re-cut paths with dto and exceptions plus a control failing on flat entries), and the shared-file row for the pin lists P1 as a writer.
+  - id: PLAN-FRESH4-008
+    status: resolved
+    reason: The shared-file table carries the recount merge rule for the two JaCoCo lines with a P13 equality check, and P1a is now listed as a named-edit writer of portlevel-tests.txt with PortLevelClassSetTest as the check.
+  - id: PLAN-FRESH4-009
+    status: resolved
+    reason: Section 1 and D-146 state the claim as type references plus a status-free new vocabulary with the StreamRefused.Kind status named as a limit (E-11, R-37), and rule 16 clause a now covers the stream vocabulary with a planted StreamSpring, consistent with the rule 16 row (StreamRefused is unchecked so clause b is unaffected).
+  - id: PLAN-VERIFY4-NIT-1
+    status: resolved
+    reason: D-147 item 1 supersedes the package-private wording of D-120 for Change and ChangeBatch.
+  - id: PLAN-VERIFY4-NIT-2
+    status: resolved
+    reason: DetailRefusal is stated to be a final unchecked exception extending RuntimeException with a nested Kind (D-147 item 2, P8 row).
+  - id: PLAN-VERIFY4-NIT-3
+    status: resolved
+    reason: The P1a grep gate now lists CoupledSymbolsShapeTest among its expected output (D-147 item 3, P1a row).

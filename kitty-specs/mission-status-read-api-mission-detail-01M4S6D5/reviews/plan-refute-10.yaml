@@ -1,0 +1,15 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 10
+verdicts:
+  - id: PLAN-OBLIG-010
+    verdict: refuted
+    reason: The plan's own stale-entry check (AC-14.4, FRESH3-006 revert) goes red on a dangling git-entry-symlink, so the omitted link target is caught by an existing guard and is not a plan defect.
+  - id: PLAN-OBLIG-011
+    verdict: refuted
+    reason: AC-7.4 is the generic instrumentation-completeness clause and the one-READ-per-file assertion is placed in AC-2.1, and S-13/E-1 already specify the declined-gate form of NFR-002 ("if declined NFR-002 must state that prompt requests are ungated"), so the claimed contradiction is handled.
+  - id: PLAN-OBLIG-012
+    verdict: confirmed
+    reason: spec.md AC-14.4 line 522 opens with "each row V1 to V18" and plan S-3 amends only "AC-14.4 map" (M14 to V19) without listing the opening clause, while plan section 3 and line 486 already count V1 to V19.

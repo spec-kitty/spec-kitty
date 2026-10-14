@@ -1,0 +1,30 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+  - id: PLAN-GOV-009
+    verdict: refuted
+    reason: Plan distinguishes blocking the dependent claim (section 6 para 1) from the per-PR gate (item 3, D-74), so the two sentences are reconcilable, and the missing command field is a stretch of the charter text.
+  - id: PLAN-GOV-010
+    verdict: confirmed
+    reason: Sections 7, 7.4, 7.1 and E-3 speak of a P5 merge and a base from P5 although D-54 rules one draft PR that cannot merge before #5529, and section 11 recommends a split seam without flagging it as departing from that ruling.
+  - id: PLAN-GOV-011
+    verdict: confirmed
+    reason: The ledger has SK-300, SK-356, SK-357 and SK-361 and plan.md cites none of them, while it lists shared-file chokepoints and many #NNNN references.
+  - id: PLAN-GOV-012
+    verdict: confirmed
+    reason: Section 11 and the ATDD-first row say every phase opens with failing acceptance tests verified red on the base, but P1 is stated as a behaviour-preserving campsite with every existing test unchanged, which cannot be red on its base.
+  - id: PLAN-GOV-013
+    verdict: refuted
+    reason: E-1 says "operator-ruled requirement shape" which can mean FR-022 as a requirement, and D-85 and E-1 both state the gate is recommended and adopted pending the operator's word, so no misstatement of who decided is shown.
+  - id: PLAN-GOV-014
+    verdict: refuted
+    reason: domain.overview does hold derivers but the finding itself concedes the plan is not wrong and a design preference between package layouts is not a defect in the artifact.
+  - id: PLAN-GOV-015
+    verdict: refuted
+    reason: The plan header explicitly defines phase as a work-package candidate, so the overload is already handled and no actual confusion is demonstrated.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: ChangeFeed.java has two exhaustive switches over SourceFault.Kind (metaStageCode, ledgerStageCode) with no default, plan section 11 P5 names the exhaustive-switch updates but its write scope lists only MissionStatusService and OverviewReader, and ChangeFeed appears nowhere in plan.md.

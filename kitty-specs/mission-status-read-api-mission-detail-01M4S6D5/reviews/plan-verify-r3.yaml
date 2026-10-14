@@ -1,0 +1,59 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-010
+    status: resolved
+    reason: >-
+      P4 now lists P3a and P6 lists P2 in Depends-on, the header and Unverified 3 name P3a as data-model.md creator, and all hand-DTO records, drift references and mutation targets are P2's (D-111) with no second owner left.
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      P2 has a named edit of the three red clauses of tests/ci/test_mission_status_api_build.py (HAND_DTO_RECORDS with controls), runs the pin in its exit gate, and S-23, E-9, the shared-file table and the Charter Check scope row record the C-004 widening.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >-
+      P6 now depends on P7 (P7 depends only on P3, P4, P4b, P5, so no cycle), the concurrent sets are re-derived to P6 with P8, and the stale P6-with-P7 statement is gone (D-126).
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >-
+      P1 owns OverviewReader#head returning MissionHead(overview, entry) from one pass (overview delegates, matching the checkout where overview() does readMeta, stamp, optional read), pins 2/3 and 3/4 read counts on the extracted path, and P9 to P11 repeat them on the real services.
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: >-
+      The go/no-go paragraph now says the hand-DTO records are owned by P2 (D-111) and a route phase adds nothing to adapter/in/http/dto, matching the P2 row, the P10 row and the shared-file table.
+  - id: PLAN-FRESH2-005
+    status: resolved
+    reason: >-
+      Seam row 5 now states the two ordered cap checks (open-handle size first with zero bytes read, then bytes read at most cap + 1 as the race guard, never an earlier size), consistent with the OVER_CAP row, AC-5.4 and AC-7.1.
+  - id: PLAN-FRESH2-006
+    status: resolved
+    reason: >-
+      The P5 row declares scoped(ReadScope) and listNames(Path, int) as default methods (overridden by AllowlistPassThrough and the recorder, pinned by a test) so the unowned ListingTest.Reversing still compiles, and D-129 records it.
+  - id: PLAN-FRESH2-007
+    status: resolved
+    reason: >-
+      Nfr009CacheGrowthTest now measures its own same-run history-less floor so CI's perfTest asserts the AC-20.5 growth without a recorded base, S-24 rewords the criterion, and E-7 and section 6 item 5 no longer leave not run as the silent default.
+  - id: PLAN-FRESH2-008
+    status: resolved
+    reason: >-
+      Section 5 adds the UTF-8 file-name locale precondition of Gate G with LC_ALL in the command lines, and P7's Utf8Host.assumeUtf8() records a not-run skip through the D-101 hook (stub-leg cases exempt), as D-128 states.
+  - id: PLAN-FRESH2-009
+    status: resolved
+    reason: >-
+      Section 7 now says DetailRefusal adds INVALID_ARTIFACT_PATH and SOURCE_UNREADABLE, that rows 1 to 10 plus the recorder land in P5 and the doubles in P7, that MissionRef is the only Mission vocabulary on the port, and that EntryKind is nested in EntryStat.
+  - id: PLAN-FRESH2-010
+    status: resolved
+    reason: >-
+      Allowlist is 199 lines (verified, wc -l), the finalize-tasks SK-310 is named, and the dead .gitattributes line is dropped from P4's scope and the CI row because the root conformance/** -text rule already covers it.
+  - id: PLAN-OPERATOR-A3
+    status: unresolved
+    remaining_severity: 3
+    reason: >-
+      All five items are implemented with phases (P1, P1a, P1b), scopes, gates, revert rows, JaCoCo notes, S-22 and D-118 attribution, and the claims about EventData, EventsController, Change, StreamSignal, StreamScope, StreamCursorText and rule 3 match the #5529 sources, but section 15.5 and the P1a gate list RefusalRowsTest as "no edit at all" while its anonymous MissionStatusQuery (line 176) returns port.in.ChangeBatch from changesSince and lacks endStreams(), so it cannot compile after P1a and it is in no phase's write scope (the closed list of nine is ten); secondary points for the same fold are that FilesystemFixtureFactory.fromTreeWithOrdering reflectively needs the package-private seven-argument MissionStatusService constructor taking a ProjectionCache, which the P1 MissionReadModel/ctor design never says to keep or pin, and that EventProjection#project(FeedSignal.Truncated) returns a bare StreamEvent although EventData.of(Truncated) can raise ProjectionError and the old controller dropped the frame with a diagnostic.
+  - id: RULING-PACKAGES
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      The package-split ruling is implemented in substance (sections 1, 7, 13, 15, P1a, P1b, P5, P8 use port/{in,out}/{dto,exceptions} only, rule 13 and D-130 carry the quoted attribution, no TextFault/TextRefusal/DetailRefusal/FileRef remains in a port root) but there are leftovers that contradict it: the shared-file row for ArchitectureRules.java (plan line 518) says P1b leaves "rule ids and DEFINED_RULE_COUNT unchanged" and D-124 says the count "stays 12 at P1b" while the P1b row, section 13 and D-130 say 12 to 13, section 13 line 700 still says "Rule 13's subject stays adapter.in.http.detail.." (it is rule 14), rule 13's fourth clause (no port subpackage other than dto and exceptions) has no planted control, the P1a scope still names the old path port/in/{Change,ChangeBatch} for the git mv and 15.1 cites application.port.in.dto.Change as what the checkout shows, and section 1's "every data type a port exchanges lives in dto" is not reconciled with the domain.detail and domain.model records the ports return.

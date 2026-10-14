@@ -1,0 +1,85 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: "Documented accepted risk: WP12 ships records complete with default no-edit, evidenced named edits only, merge order WP13->WP14->WP15->WP16 added in header and in WP13..WP16; making WP12 final is left to the orchestrator."
+  - id: TASKS-DECOMP-006
+    status: resolved
+    reason: "Mechanical scan of every prompt for WPnn next to a phase gloss finds no mismatch against the phase-to-WP table; WP03/WP02/WP01/WP18 now cite WP12, WP09, WP10 correctly."
+  - id: TASKS-DECOMP-008
+    status: resolved
+    reason: "WP08 prompt now states its own lane (lane-g after lane-f, verified by a compute_lanes run) and records the accepted named-edit risk with the reason merging would exceed the subtask maximum."
+  - id: TASKS-DECOMP-009
+    status: resolved
+    reason: "WP13..WP16 Plan defects item 1 now says Resolved: PortLegsTest is owned (wps.yaml and frontmatter), nothing asked of the orchestrator; live items kept."
+  - id: TASKS-DECOMP-010
+    status: resolved
+    reason: "wps.yaml header records the [PR A]/[PR B] tag as the realisation of the plan PR column (deviation for a plan amendment note) and states create_intent lives only in prompt frontmatter, derived from new literal owned paths."
+  - id: TASKS-DECOMP-011
+    status: resolved
+    reason: "All 18 H1 titles equal the frontmatter/wps.yaml title and use the single en dash glyph."
+  - id: TASKS-ORDER-001
+    status: resolved
+    reason: "WP05 depends on WP03 and WP04 in wps.yaml and frontmatter, header lane-lineage paragraph explains it, and finalize validate-only passes with 18 lanes."
+  - id: TASKS-ORDER-002
+    status: resolved
+    reason: "WP08 now says it runs in its own lane-g after lane-f; a compute_lanes run confirms WP07=lane-f, WP08=lane-g with no collapse."
+  - id: TASKS-ORDER-003
+    status: resolved
+    reason: "WP17 cites ProvisionPlan as WP10 and the detail oracle as WP07, WP18 cites PlainCaller/AdmissionGateTest as WP12, portlevel-tests.txt as WP05, PermissionCaseCoverageTest as WP10."
+  - id: TASKS-ORDER-004
+    status: resolved
+    reason: "WP05 states LineKind.java is in owned_files and WP13..WP16 mark the PortLegsTest classes owned; the out-of-map bullet and orchestrator-request hedge are gone."
+  - id: TASKS-ORDER-005
+    status: resolved
+    reason: "Header and WP13..WP16 state merge order WP13->WP14->WP15->WP16 with a conflict rule (OutOfScopeRoutesTest keeps the intersection, properties file rewritten from the section 2 command), and portlevel-tests.txt is no longer a shared file."
+  - id: TASKS-ORDER-008
+    status: resolved
+    reason: "Header and WP07 now list ci-router.yml/test_contracts_workflows.py as conditionally written owned files, and WP17 states a router change is a named edit of WP07 file."
+  - id: TASKS-COVER-001
+    status: resolved
+    reason: "WP05 and WP13..WP16 no longer call owned files out-of-map and no longer ask the orchestrator for patterns; only the portlevel append rule remains (and is now moot)."
+  - id: TASKS-COVER-002
+    status: resolved
+    reason: "Wrong WP ids replaced with the wps.yaml owners and WP18 T129 now says four gated operations (64 calls)."
+  - id: TASKS-COVER-003
+    status: resolved
+    reason: "WP17 T123/T125 and Definition of done name the four architectural workflow tests and WP08 runs test_ci_corpus_trigger_completeness.py."
+  - id: TASKS-COVER-004
+    status: resolved
+    reason: "WP09 T061 step 4 declares Eligibility public final with an acceptance test, and WP15 item 2 drops the stop-and-report branch."
+  - id: TASKS-COVER-005
+    status: resolved
+    reason: "WP16 now says the two artifact operations are two of the four heavy operations (FR-022, E-1)."
+  - id: TASKS-COVER-006
+    status: resolved
+    reason: "WP18 T126 step 5 adds the getWorkPackage?includePrompt=true AC-9.3 target (403 request_refused, no prompt byte, zero reads; 200 on accepted Host) and the Definition of done lists it; WP14 defers to it."
+  - id: TASKS-COVER-007
+    status: resolved
+    reason: "wps.yaml and frontmatter now carry C-003 on WP13, C-009/C-010/SC-008 on WP17, NFR-003/NFR-004 on WP14..WP16 with checks stated, and finalize reports no unreferenced SC."
+  - id: TASKS-COVER-008
+    status: resolved
+    reason: "WP05, WP11, WP13, WP14, WP15, WP16 each now run the NFR-006 terminology grep in their gate or Definition of done."
+  - id: TASKS-COVER-009
+    status: resolved
+    reason: "OO-1..OO-4 are stated in the wps.yaml header and the affected prompts (WP04/05/08, WP16, WP13..16, WP07/10) each with options and a recommendation, and the interim behaviour (do not invent fixtures, implement 404, no Hints edit, PROVISION_PLAN at fixture top level) creates no red tip."
+  - id: TASKS-COVER-010
+    status: resolved
+    reason: "WP11 owns the two AC-6.5 fixtures and the ArchitectureControlsTest rows as a named edit, WP03 lists the tooling-friction append, PermissionCaseFloorTest is split 2+2, the readme test is covered by the tests/ci glob, PerfBudgets stays test-local."
+  - id: TASKS-COVER-011
+    status: resolved
+    reason: "Verified-clean nit with no remediation required; still holds."
+  - id: TASKS-GREEN-001
+    status: resolved
+    reason: "Option b adopted (detail port-level legs in T/application/query/portlegs/, unlisted, WP05 alone appends ids to Ac5ReductionTest) with Gate G naming PortLevelClassSetTest and PortSubsetSecondLegTest; I read both tests and the chosen layout satisfies them, and the AC-13.5 deviation is flagged for the orchestrator."
+  - id: TASKS-GREEN-002
+    status: resolved
+    reason: "WP10 exposes a loaded() accessor and WP13..WP16 each own and run a <Route>ServedRouteTest asserting provider loaded plus exact fixture names and count, with ServedRoutesCompleteTest kept as the WP18 floor."
+  - id: TASKS-GREEN-003
+    status: resolved
+    reason: "Same stale phase-as-WP references corrected in WP01/WP02/WP03/WP18; the mechanical scan finds none left."
+  - id: TASKS-GREEN-006
+    status: resolved
+    reason: "Header states one owner (WP17 T125 compares, WP18 T133 re-runs, repair is a named edit of the properties file by the finder) and WP09, WP12, WP17, WP18 text now agree."

@@ -1,0 +1,54 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-OPERATOR-A3
+    status: resolved
+    reason: RefusalRowsTest is now the tenth named type-level edit (15.5, 15.2, P1a row, shared-file table, D-135, checkout grep confirms exactly ten files), the seven-argument service constructor is kept and pinned by CoupledSymbolsShapeTest, and both EventProjection overloads return Optional<StreamEvent> with a truncation-refusal case; only a stale "package-private" wording of D-120 remains in the trace, which the plan (public, R-36) overrides.
+  - id: RULING-PACKAGES
+    status: resolved
+    reason: The shared-file ArchitectureRules row, D-124 (superseded by D-131), the rule-14 paragraph numbering, the P1a git-mv path (port/in/dto), the 15.1 checkout citation, the fourth-clause control (Stray) and the domain read-model carve-out (section 1.1, D-132, E-10) are all fixed and then superseded consistently by the CQRS layout.
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: FixtureHandles#recorder() now also writes the LoggingDiagnostics line (the text matches config.LoggingDiagnostics at the checkout), FixtureHandlesLoggingTest pins the parity, CanaryScanTest is named unchanged in 15.2 and the P1a gate, and the StreamFaultTest attribution is corrected (D-134).
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: RefusalRowsTest is in the closed list of ten (return type StreamBatch plus an empty endStreams(), nothing else), the 'nine' counts are corrected in plan and S-22, and the grep over src/test confirms exactly those ten files.
+  - id: PLAN-FRESH3-003
+    status: resolved
+    reason: LogTruncated now carries truncationCause (wire key reason written by EventData) in 15.3, 7.5 row 13 and D-136, so the four-name PortLeakCanaryTest guard has no exception.
+  - id: PLAN-FRESH3-004
+    status: unresolved
+    remaining_severity: 3
+    reason: P7 now owns HttpHarness#startWith, but its gate HttpHarnessDetailTest passes "a stand-in MissionDetailQuery" while MissionDetailQuery is a P8 file (explicit P8 scope) and P8 depends on P7, so the P7 test source cannot compile and Gate G is red at the P7 tip; use a test-local stand-in interface or move that test to P9.
+  - id: PLAN-FRESH3-005
+    status: resolved
+    reason: Rule 13 has one definition (section 13, clauses a to d, outermost-class judgement, referenced from 15.4) with a planted control for every clause including RecordInExceptions and a non-zero scan of each subpackage.
+  - id: PLAN-FRESH3-006
+    status: resolved
+    reason: P8 adds the conforming skeleton members DetailController, MissionDetailQuery, DetailValue and R15Deriver and extends the SKELETON list, and P1b adds Value, Refusal and ProblemErrorController, so every rule scans a skeleton class.
+  - id: PLAN-FRESH3-007
+    status: resolved
+    reason: The shared-file row, Charter Check cell, rule-14-to-15 renumbering, rule 15 text (port.in.. incl. dto and exceptions) and S-25's AC-6.5 amendment are all consistent with the 12 to 14 (P1b) to 16 (P8) count.
+  - id: PLAN-FRESH3-008
+    status: resolved
+    reason: Section 1, 7.5 row 15 and 15.8 now state the head is an application-internal seam reached by adapters only through the inbound ports (rule 3 bars MissionReadModel), recorded in D-138.
+  - id: PLAN-FRESH3-009
+    status: resolved
+    reason: P1a copies Subscription to FeedSubscription and names the surviving port/in/Subscription.java and the port/in/dto git-mv source, the README stream sentence is assigned to P13, and approach.md is a named append in P1 consistent with the tracer-file rule.
+  - id: PLAN-FRESH3-010
+    status: resolved
+    reason: Section 9 now has a left-alone or campsite row with a reason for ChangeFeed, EventsController/EventData, StatusReducer, RowClassifier/LedgerLineDecoder and FilesystemMissionEventSourceProject, matching the file sizes at the checkout.
+  - id: PLAN-FRESH3-011
+    status: resolved
+    reason: Section 1.1, D-132 and E-10 state explicitly that domain read models returned by the ports stay in domain.readmodel and the dto packages hold only the port's own vocabulary, with the contrary-ruling fallout bounded.
+  - id: PLAN-FRESH3-012
+    status: resolved
+    reason: Both EventProjection overloads return Optional<StreamEvent>, a refused truncation writes one diagnostic and yields Events(List.of()), and EventProjectionTest gains the truncation-refusal case (15.3, P1a row, D-136).
+  - id: PLAN-FRESH3-013
+    status: resolved
+    reason: Section 12 lists the "--floor 3" needle, the native_test_count() == 3 literal and the hard-coded controls rewritten relative to the count, section 6 item 5 names P1, P1a and P1b, 15.7 counts StreamSignal$Events, and the traceability and revert-fails tables gained the rule 13 and layout-ruling rows.
+  - id: RULING-CQRS
+    status: resolved
+    reason: The plan uses the ruled tree throughout (mapping table of 1.1 matches every later section, scope, rule 3/4/13 to 16 string and the JaCoCo patterns that cross package separators; leak handling is in domain.redaction; application.command is only a test-fixture target for rule 14), and the grep sweep finds old flat paths only as quoted checkout names, the mapping table's left column and S-26's left column.

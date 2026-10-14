@@ -1,0 +1,74 @@
+{
+  "wp_id": "WP16",
+  "captured_at": "2026-10-14T09:04:15Z",
+  "base_branch": "25aa18414c1085a01da12d5bb4f01d1dd177c6a2",
+  "base_commit": "25aa18414c1085a01da12d5bb4f01d1dd177c6a2",
+  "test_runner": "custom",
+  "total": 12,
+  "passed": 0,
+  "failed": 12,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.status.test_drain_fanout.TestRepoScopedGateReadsTheEmittingRepo.test_fire_saas_fanout_publishes_for_the_emitting_repo_even_when_cwd_is_a_drain_off_repo",
+      "error": "AssertionError: Expected 'saas-handler' to have been called once. Called 0 times.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_drain_fanout.TestRepoScopedGateReadsTheEmittingRepo.test_fire_resolved_binding_fanout_reads_the_emitting_repo",
+      "error": "AssertionError: Expected 'resolved-binding-handler' to have been called once. Called 0 times.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_drain_fanout.TestRepoScopedGateReadsTheEmittingRepo.test_fire_lifecycle_saas_fanout_reads_the_emitting_repo",
+      "error": "AssertionError: Expected 'lifecycle-handler' to have been called once. Called 0 times.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_never_rewrites_existing_lanes_json",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_does_not_rebuild_lanes_when_execution_has_not_begun",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_reports_topology_manifest_mismatch_as_a_finding_not_a_crash",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_fails_closed_on_corrupt_event_log_without_partial_lanes",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_rebuild_is_idempotent_on_a_healthy_mission",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_locking_reentrancy_migration.test_project_event_log_lock_shares_the_same_reentrancy_contract",
+      "error": "AssertionError: assert False",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_handles_ownerless_wedged_mission_coherently",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_nfr002_detect_cure_parity_for_the_wedge_condition[execution_begun_no_lanes_json (#4758 wedge)-<lambda>-True]",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_write.test_the_non_repository_probe_pins_git_to_the_c_locale",
+      "error": "AssertionError: assert ([{'AI_AGENT': 'claude-code_2-1-296_agent', 'CLAUDECODE': '1', 'CLAUDE_CODE_CHILD_SESSION': '1', 'CLAUDE_CODE_ENTRYPOINT': 'cli', ...}, None, None] and False)",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}

@@ -1,0 +1,656 @@
+{
+  "event_count": 148,
+  "last_event_id": "01M4XDSHRZ57CYMMEJ1YM44J1K",
+  "materialized_at": "2026-10-14T14:41:49.856018+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-status-read-api-mission-detail-01M4S6D5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 18,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4VCWCK1M1J9M8TH9PJZKNS8",
+      "last_transition_at": "2026-10-13T19:47:25.409341+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Campsite done: MissionLookup, OverviewReader, MissionHeadProjection, MissionHead, MissionReadModel extracted; ArchitectureRules split; pin probe list rewritten; jacoco application=52. check 2377 tests green, native 3 green, smoke digest 15b1eb6a unchanged.",
+        "Review PASS (reviewer-renata): check 2377 green, native 3 + smoke digest 15b1eb6a unchanged, 311 pytest + 62 arch gates green, revert/mutation checks red; campsite rule held"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3051875,
+      "shell_pid_created_at": "1791919993.34",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4VGNDWMPJ5J5DZBEBM3DDS6",
+      "last_transition_at": "2026-10-13T20:53:31.668816+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "P1a stream seam behind the inbound port (A3 items 1-3): clean check 2440 tests green; native compile/test/smoke green, digest unchanged; tests/ci+conformance 311 passed; ruff clean",
+        "Reviewed c3c5e4cc0. gradlew check 2462 tests 0 fail; bundle fadf8a86; PortLeakCanaryTest red on 3ffc2a8ee base (2 fail) green at tip; mutations (WP_ID check, admit cap, release on failed subscribe, StreamRequest order) all red; nativeCompile/nativeTest/nativeSmoke ok digest 15b1eb6a unchanged; pytest 311 pass; ruff clean; no HTTP stream suite or tests/ci edited"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3391953,
+      "shell_pid_created_at": "1791924302.21",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4VXC4TTPBMZS83ENWB3VJAN",
+      "last_transition_at": "2026-10-14T00:35:38.970925+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rules 3/3b/1c/2d/13 generalised, 14 kept, PortExposesNoLedgerRowTest; fixtures red-first; gate check, native, pytest, ruff green; revert rows run in scratch",
+        "Cycle 2: F1-F4 fixed with one fixture per rule part (1b, 1c, 2b, 2c-virtual, 3-sibling, all four banned ledger types); 17 mutations caught; clean check green",
+        "Cycle 2: F1-F4 fixed; each of m04,m05,m06,m14,m16,m16b,m17 red only on its own control; m15 equivalent (1b/2b already forbid java.io); check 2485 tests 0 fail, native green, digest 15b1eb6a, pytest 311, arch 44, ruff clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3997535,
+      "shell_pid_created_at": "1791937062.41",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4VYJ1P4SN83YJDSNQ14Y8BJ",
+      "last_transition_at": "2026-10-14T00:56:20.932608+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-020 mapping written (data-model.md, 255 lines, sections 1-8); terminology, windows-filename, archive-root guards pass (125 passed). Findings for review: Java StatusReducer omits the seed payload fold (A4) that now matters for agent and review_result; claimAgent/actor str() divergences recorded in section 7.",
+        "Re-verified 25+ rules vs events 10.4.4 diary.py, reducer.py, wp_view.py, oracle; 38 scratch probes agree (A4 seed fold, annotation order/no dedup, str coercions, OO-1 history, subtask Lane decode, override sentinel); S8 26 pairs = 7+10+9 consistent with spec T1-T18/AC-8.4; terminology, windows-filenames, archive-root gates 125 passed; no home paths/feature word."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4185840,
+      "shell_pid_created_at": "1791939181.49",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4W71F0YBPF1VQMCPRVYNZX2",
+      "last_transition_at": "2026-10-14T03:24:34.718692+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "P3 FR-020 resolved state: records, carriers, fold with seed payload fold, HistoryOrder, tests with Python-oracle-derived expectations, check/native green; see report",
+        "Cycle 2: R1 fixed by profiling (HistoryOrder stamp parse per comparison dominated the resolved fold); 10 alternating pairs, tip cold median 110.2 ms vs base 106.8, ratio 54.2 vs 55.0, 0 of 10 over 70; N2 fixed; smoke digest 15b1eb6a unchanged.",
+        "Cycle 2 APPROVE at 704d876d9. R1 resolved: 8 alternating pairs, cold ratio median base 53.9 / tip 50.3, 0 of 8 over 70 both sides (worst 60.3 tip, 60.0 base), load 2-5 on 24 cpus. Perf changes behaviour-neutral (Instants differential test + 6 mutations caught). clean check 2588 tests green; native smoke digest 15b1eb6a unchanged; pytest 311; ruff clean; arch 131; N2 fixed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 393967,
+      "shell_pid_created_at": "1791947123.01",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WAM6PV19G1MVHWKF847J6J",
+      "last_transition_at": "2026-10-14T04:27:14.523635+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Contract models (55 names), WorkPackage hand record, ContractDriftProbe (28 refs), skip report hook, planted-class coverage test; E-9 pin clauses in the build commit; research.md moved to the planning branch (1c601fc3d)",
+        "APPROVE. Pin 162 green at each of 6 lane commits; models list 55 = closure of 7 ops (+4 _1 dups); only dto.WorkPackage hand (promptMarkdown:null, UTF-16 subtask order shown by tests); mutations red (JsonInclude, probe ref, hook, coverage floor, missing record); clean check 2616 test green, kitTest 4 classes green, strict verification green, native digest 15b1eb6a.. ; perfTest Nfr001 cold-call miss = load noise (load 17-19), unrelated"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 554692,
+      "shell_pid_created_at": "1791950227.53",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WCAZCBPVP16KQ5QQP4BDRD",
+      "last_transition_at": "2026-10-14T04:57:09.259046+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "P4 done: generator + 20 detail/artifact classes (135 fixtures, goldens, manifest knownDivergences V1-V25), paired Java census, tracer entries. Gates: gradle clean check + nativeCompile/nativeTest/nativeSmoke green (2569 test, 3 kit, 3 native-tag, 18 perf, 3 native, 1 smoke; digest 15b1eb6a unchanged); pytest 144 conformance, 620 in the pinned set; ruff clean. data-model.md section 9 is drafted in the scratchpad for the orchestrator (planning artifact).",
+        "Cycle 2: divergence_problems refuses a pending resolved-state marker once a resolved-state class exists (F1 remedy a); control test added",
+        "Cycle 2 APPROVE: F1 fixed (7d58213dd) — pending knownDivergence marker refused once a resolved-state class exists; control test red when neutralised; --check 0 diffs; 378 pytest passed; ruff clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WENXV7QM94KEYAVWK5WBPH",
+      "last_transition_at": "2026-10-14T05:38:05.287831+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "21 resolved-state fixtures + goldens, V21-V25 filled, floors 21 in both maps; --check 0 diffs; Gradle check, nativeTest, nativeSmoke green (digest unchanged). data-model section 10 drafted in scratchpad (not committed, planning file).",
+        "Review passed: --check 326 files 0 diffs; 380 py tests + 147 corpus green; gradle clean check 2569 tests 0 fail (DetailManifestCensusTest 5); nativeCompile/nativeTest/nativeSmoke green; bundle fadf8a86; pending-marker control goes red when neutralised; spot-checked 8 fixtures against real readers"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 799224,
+      "shell_pid_created_at": "1791955674.11",
+      "subtasks": {
+        "T052": "done",
+        "T053": "done",
+        "T054": "done",
+        "T055": "done"
+      }
+    },
+    "WP09": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WA9CMW4PH0V5Z3EYQ8976P",
+      "last_transition_at": "2026-10-14T04:21:20.156792+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T056-T065 done: 8 feature commits + tracer. clean check green (2696 tests, 0 failures), jacoco floors 78/100, nativeCompile nativeTest (3/3) nativeSmoke green digest 15b1eb6a unchanged, pin+conformance pytest 311 passed, ruff clean. Deviations: re-pinned ValueObjectsTest, RecordingAllowlistAccessTest, FilesystemMissionEventSourceAllowlistFlowTest (stale controls).",
+        "Review passed (reviewer-renata). Seams match plan 7.1/7.2 (diffed). Revert checks red: StrictUtf8 REPORT->REPLACE, cap+2, no handle-size check, total>cap+1, credential always false, PLANNING_FILE readable, status.json exclusion dropped, WP_FILE widened, unbounded listing, listNames override removed, rule 2b opened to java.nio (A2cByteBuffer control). clean check: test/jacocoVerification/jacocoScopeCheck/kitTest/nativeTagJvmTest green (domain=78, application=100); perfTest NFR-001 red once at load 21 beside my mutation runs, green on rerun at load 12. nativeCompile+nativeTest+nativeSmoke green, digest 15b1eb6a...e2e979 (49 requests). pytest 311 passed + 266 arch/ci passed; ruff clean. Non-blocking: negative nameLimit unbounded; AC-11.4 wording vs COORD_META STAT."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 607435,
+      "shell_pid_created_at": "1791951022.53",
+      "subtasks": {
+        "T056": "done",
+        "T057": "done",
+        "T058": "done",
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done",
+        "T065": "done"
+      }
+    },
+    "WP10": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WH8X9VGN11G1CTFJBRQJF0",
+      "last_transition_at": "2026-10-14T06:23:24.475985+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Java harness for the detail classes and provisioning: ProvisionPlan (six verbs), doubles, DetailFixture, HttpHarness#startWith, detail golden harness, resolved-state goldens. check green (2810 tests), native smoke digest unchanged, 380 pytest, ruff clean. V25 pinned as a Java refusal (see D-P7-1).",
+        "Approved. Gradle clean check green (2810 tests, 0 failed, 0 skipped under UTF-8), nativeCompile/nativeTest/nativeSmoke green with digest 15b1eb6a...e979, bundle fadf8a86...0effd, pytest 380 passed, 3 touched-path arch gates 52 passed, ruff clean. 9 reviewer mutations all red; LC_ALL=C skips reported in not-run.txt. Non-blocking: ProvisionPlan write through a final-component link (link x @outside/f then write x) escapes the scratch root; untested."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 882738,
+      "shell_pid_created_at": "1791958291.52",
+      "subtasks": {
+        "T066": "done",
+        "T067": "done",
+        "T068": "done",
+        "T069": "done",
+        "T070": "done",
+        "T071": "done",
+        "T072": "done"
+      }
+    },
+    "WP11": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WMM0QQMZ3X93FC6C417ZEC",
+      "last_transition_at": "2026-10-14T07:21:54.167245+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Decoders (YAML 1.2 codecs, ports, adapters, wiring) and the Work Package index: clean check green (3053 + 18 + 3 tests), native compile/test/smoke green with digest 15b1eb6a unchanged, pytest 380 passed, ruff clean; research.md section drafted in the scratchpad (planning file).",
+        "Review passed: oracle parity re-run independently (3550/3550 real WP files, 200-sample + 690 synthetic: 657 identical, 12 oracle shell_pid escapes skipped, 21 policy refusals each in D-P6-2/R-15; 1287-case own set found only 2 unrecorded double-quoted escapes refused); 7 revert checks red; clean check 3085 tests green; native compile/test/smoke green digest 15b1eb6a..e979; pytest 380 pass, ruff clean, terminology arch gate pass. Minor: FILE_CAP_BYTES value unpinned by literal (WP18 NFR-002 backstops)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP11:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1017982,
+      "shell_pid_created_at": "1791961819.4",
+      "subtasks": {
+        "T073": "done",
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done"
+      }
+    },
+    "WP12": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WQNPZJR0FMF0RZGQFDAFB4",
+      "last_transition_at": "2026-10-14T08:15:15.442899+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "PR A tip work: ports, 21 records, AdmissionGate (public seam), rules 15/16, Problem mapping, wiring; JaCoCo 121/118 equal to the plan command on the merged tree; check, native, smoke digest unchanged",
+        "Cycle 2: F1 RawQuery ASCII-hex-only (8248b73ca), F2 duplicate tracer entries dropped (25910a056). clean check, nativeTest, nativeSmoke digest 15b1eb6a...e979, pytest 380, ruff clean; JaCoCo 121/118 unchanged.",
+        "Cycle 2 PASS: F1 RawQuery ASCII-hex only (revert to Character.digit turns RawQueryTest red; superscript/Devanagari rows refused); F2 WP09 entries once each, no line lost vs both parents; clean check green, JaCoCo 121/118, nativeSmoke digest 15b1eb6a...e979, pytest 380 passed, ruff clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP12:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1198537,
+      "shell_pid_created_at": "1791965215.65",
+      "subtasks": {
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done",
+        "T085": "done",
+        "T086": "done",
+        "T087": "done",
+        "T088": "done",
+        "T089": "done"
+      }
+    },
+    "WP13": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WVY6TWPD6DMKYBEKF6WJGK",
+      "last_transition_at": "2026-10-14T09:29:48.124777+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP13 getMission done; Gate G, Gate P, pytest set, ruff and native compile/test/smoke green; see report for deviations",
+        "Review passed (reviewer-renata). check green 3294+18+11+3 tests; nativeTest/nativeSmoke green digest 15b1eb6a..e979; JaCoCo domain=125 application=119 equals command; goldens perturbed x6 red; revert 133/159 red, survivors structural; mutations N3/phase-order/extra-read red; pytest 380 pass; ruff clean. Non-blocking: stream control pins 3 cold not spec's 2 and name inverted; AC-8.4 'zero diagnostics' needs fold (D-P9-5); stale shell Javadoc in MissionDetailWiring."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP13:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1451786,
+      "shell_pid_created_at": "1791968851.71",
+      "subtasks": {
+        "T090": "done",
+        "T091": "done",
+        "T092": "done",
+        "T093": "done",
+        "T094": "done",
+        "T095": "done",
+        "T096": "done",
+        "T097": "done"
+      }
+    },
+    "WP14": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4X19G4YDT8TABDVWNVR91NA",
+      "last_transition_at": "2026-10-14T11:03:20.990873+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "getWorkPackage and promptMarkdown: service, controller, mapper, served route, README section; Gate G 3459 JVM tests green, native smoke digest unchanged; see hand-off for deviations",
+        "Cycle 2 F1: T12 leak fixture is valid JSON; M3 row pins projection_refused; clean check, native smoke 15b1eb6a..e979, pytest 380, ruff, arch gates green",
+        "Cycle 2 PASS at c0d69dc4b: fixture PROVISION_PLAN valid JSON, leak shape kept, scan clean, conformance --check 0 differences; M3 row pins projection_refused and goes red with fixture reverted (2 fails); t12 non-last covered; native: getMission 200 lastEventId null, getWorkPackage 500 projection_refused, smoke 15b1eb6a..e979; clean check 3459 tests 0 fail, bundle fadf8a86..0effd; pytest 380, arch gates 48, ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP14:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T098": "done",
+        "T099": "done",
+        "T100": "done",
+        "T101": "done",
+        "T102": "done",
+        "T103": "done",
+        "T104": "done"
+      }
+    },
+    "WP15": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4X43W49MDTWCTJZN4FXFRXK",
+      "last_transition_at": "2026-10-14T11:52:42.377866+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "getWorkPackageDetail: 66 goldens byte-equal, 4 knownDivergence fixtures have own tests, Gate G/P green, native replay 24/24 equal",
+        "Cycle 2: F1 pinned (mutant killed), F2 file order via HistoryRow.lineNumber, F3 out-of-range cycle refuses 500 source_unreadable; gates green, smoke digest unchanged",
+        "Cycle 3: F5 fixed, V26 declared in the knownDivergence manifest (089b6714f); conformance 147 passed, tests/ci+conformance 380 passed, clean check green (census 5/5), nativeTestCompile green",
+        "Cycle 3 approve: V26 manifest entry (GENERATED, fixtures [], pinned test exists); manifest diff one entry, --check 0 differences/326 files; EXPECTED_ENTRY_IDS range(1,27), removing V26 turns the divergence test red in scratch worktree; 380 py tests, ruff clean; gradle clean check green (rerun after a load-induced nested-build timeout); nativeCompile/nativeTest/nativeSmoke green, digest 15b1eb6a..."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP15:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T105": "done",
+        "T106": "done",
+        "T107": "done",
+        "T108": "done",
+        "T109": "done",
+        "T110": "done",
+        "T111": "done"
+      }
+    },
+    "WP16": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4WXE1YE6RHMFBFWGQNW1DP1",
+      "last_transition_at": "2026-10-14T09:55:55.982057+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Artifact routes implemented; gate G, check, native compile/test, smoke digest unchanged; lane-local jacoco application=131",
+        "Cycle 2: F1 fixed. sizeBytes served as Long for ArtifactEntry and ArtifactContent (scoped post-generation rewrite, no contract change, no clamp). Red-first tests added; clean check, native, pytest, ruff green; smoke digest unchanged.",
+        "Cycle 2 PASS: F1 closed. sizeBytes Long via scoped doLast (diff -r: only the 2 files, only sizeBytes lines); guard fails loud on partial shape change, total miss caught by compileJava; UP-TO-DATE rerun keeps Long; 3 GiB sparse served as 3221225472 via native binary; mapper-clamp mutant reds 3 tests; clean check green (3268 test + kitTest incl. ContractDriftNested 4/4), jacoco 121/131, nativeTest+nativeSmoke green digest 15b1eb6a..e979, pytest 384 + arch 44, ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP16:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1655276,
+      "shell_pid_created_at": "1791971134.83",
+      "subtasks": {
+        "T112": "done",
+        "T113": "done",
+        "T114": "done",
+        "T115": "done",
+        "T116": "done",
+        "T117": "done",
+        "T118": "done"
+      }
+    },
+    "WP17": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4X91T1D60NJ3E3146ZYNERE",
+      "last_transition_at": "2026-10-14T13:18:57.581770+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: native 8 tests + floor 8; smoke stage detail 14 reqs, floor 63, digest 56d8ef40 (JVM = native); NotRunListener; LC_ALL on jvm/nightly/smoke child; README+test; compare script +5 routes+decode class; D-145 130/140; nightly local run not run (operator word)",
+        "APPROVE. D-145 130/140 equal to floor file; clean check green (perfTest Nfr001 cold-call miss under load 8.9, green on re-run); native digest 56d8ef40...f7ac, 63 requests, 20 starts, 8 native tests; NotRunListener probed in scratch (3 lines; none without service file); revert of workflow+script reds 33 pins; folds: FilesystemTextSourceTest assume-before-write, record AC-14.5 not run."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP17:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2480390,
+      "shell_pid_created_at": "1791983915.93",
+      "subtasks": {
+        "T119": "done",
+        "T120": "done",
+        "T121": "done",
+        "T122": "done",
+        "T123": "done",
+        "T124": "done",
+        "T125": "done"
+      }
+    },
+    "WP18": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4XDSHRZ57CYMMEJ1YM44J1K",
+      "last_transition_at": "2026-10-14T14:41:49.856018+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP18 tests only: T126-T133 done, 8 commits, Gate G 4563 tests green, JaCoCo 130/140 equal, smoke digest 56d8ef40...7ac (63 requests) unchanged, perfTest green on an idle machine. Drafts in scratchpad wp18-drafts.md.",
+        "Review passed: test-only (20 files, all src/test), ob12 pin red at 4MiB (2 tests), ob13/17 subtraction manifest-derived, dropped-pair red, native+smoke digest 56d8ef40 OK, pytest 408+, ruff clean. Non-blocking: listArtifacts ratio limit 45 thin (observed 33/41/54 under load 6-8); 3 head models unprobed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP18:20261014",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2747795,
+      "shell_pid_created_at": "1791987821.68",
+      "subtasks": {
+        "T126": "done",
+        "T127": "done",
+        "T128": "done",
+        "T129": "done",
+        "T130": "done",
+        "T131": "done",
+        "T132": "done",
+        "T133": "done"
+      }
+    }
+  }
+}

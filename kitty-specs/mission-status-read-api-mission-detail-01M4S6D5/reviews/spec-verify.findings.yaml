@@ -1,0 +1,240 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Coverage / M3 read fence
+    severity: 4
+    title: FR-011 specific-first classes and per-route access sets forbid the reads that FR-004 and FR-005 require
+    evidence:
+      - artifact: "spec.md § FR-011 (class table, 'The classifier tries the specific classes first', 'per-route access sets')"
+      - artifact: "spec.md § AC-5.2 control 'spec.md is 200'; AC-4.1 lists tasks/WP01-x/review-cycle-1.md; AC-4.3 readable agrees with content"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java:99-113 (classifier is first-match over specific classes; MISSION_META and LANES_JSON already exist)"
+    claim: >-
+      FR-011 classifies a path into the most specific class and gives listArtifacts and getArtifactContent only ARTIFACT_DIR and ARTIFACT_FILE.
+      But spec.md is PLANNING_FILE (STAT only), tasks.md is TASKS_MD, tasks/WP*.md is WP_FILE, review-cycle files are WP_CYCLE_FILE, and meta.json
+      and lanes.json are the existing MISSION_META and LANES_JSON. None of those classes is in the artifact routes' set, and PLANNING_FILE forbids READ
+      outright (AC-11.2 requires a READ of spec.md to be red). Yet FR-005/AC-5.2 require spec.md to return 200, and FR-004 'readable' (AC-4.3) requires
+      reading every listed file, including the planning, WP and review-cycle files. A correct implementation of the artifact routes fails AC-11.1/11.2,
+      and one that passes the fence cannot serve the files the artifact ACs name. The two requirement sets cannot both be green.
+    remediation: >-
+      Decide the overlap explicitly: either ARTIFACT_FILE is the class of every eligible file for the artifact routes regardless of any more specific
+      class (classification becomes route-aware), or add the specific classes with READ to the artifact routes' sets with their cap of 262144.
+      Rewrite AC-11.1/11.2 so the controls stay meaningful (for example: a READ of spec.md is red during getMission and green during getArtifactContent),
+      and add a row to the FR-011 table for meta.json, lanes.json and nested status.events.jsonl on the artifact routes.
+
+  - id: SPEC-VERIFY-002
+    lens: M3 ArchUnit rule numbers
+    severity: 4
+    title: Proposed ArchUnit rules 13 and 14 are red on the existing main code
+    evidence:
+      - artifact: "spec.md § AC-13.1 (rule 13) and AC-13.2 (rule 14)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventData.java:16-17 (imports domain.projection.LeakClasses and Projector)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/EventsController.java:34-35 (imports LeakClasses, ProjectionError)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/port/in/Subscription.java:12 (StreamSignal next(Duration wait) throws InterruptedException)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java:45 (DEFINED_RULE_COUNT = 12, so 13 and 14 are the next free numbers)"
+    claim: >-
+      The rule numbering (12 defined, so 13 and 14) is right, but the rule bodies contradict the code they will run over. Rule 13 bars every class of
+      adapter.in.http from depending on domain.projection, yet EventData and EventsController, which exist today, depend on it. Rule 14 requires that no
+      public method of application.port.in declares a checked exception, yet Subscription.next declares InterruptedException. Both rules would be red on
+      day one, or the implementer must silently rewrite the events path of the unmerged lane (C-005) or weaken the rule until it passes. The spec says
+      neither.
+    remediation: >-
+      Scope rule 13 and 14 to the new types (a named subject: the three new controllers and the new port interfaces), or list the existing offenders as
+      an explicit, shrink-only exemption with a test that the list cannot grow, or state that the events path is refactored in this mission and add the
+      work to FR-013. Keep the planted-violation control.
+
+  - id: SPEC-VERIFY-003
+    lens: M3 JaCoCo / falsifiability
+    severity: 4
+    title: AC-19.3 describes a per-class floor file that does not exist, so its failure modes cannot occur
+    evidence:
+      - artifact: "spec.md § FR-019 and AC-19.3 ('per-class floor file lists every new class; a build with one floor lowered, or a new class with no floor, fails')"
+      - code: "services/mission-status-api/src/test/resources/jacoco-class-floor.properties:1-2 (domain=55, application=44)"
+      - code: "services/mission-status-api/build.gradle.kts:351-380 (CLASS-element rules at 0.90 line domain and application, 0.80 branch domain)"
+      - code: "services/mission-status-api/build.gradle.kts:398-417 (jacocoScopeFailures: the file holds the minimum number of classes a scope pattern must match)"
+    claim: >-
+      The file has two lines, one class-COUNT floor per scope pattern. It lists no class and holds no coverage floor. The coverage thresholds are the
+      fixed JaCoCo rules in the build script, applied to every class already. Consequences for AC-19.3: 'a new class with no floor fails' cannot happen
+      (a new class is covered by the pattern and just has to reach 0.90), and 'a lowered floor fails' is false for the file: lowering the count makes
+      the check weaker and nothing goes red. The AC as written is vacuous against the real mechanism.
+    remediation: >-
+      Restate AC-19.3 on what exists: the CLASS rules fail a new domain or application class under 0.90 line (domain branch 0.80), and the counts in the
+      properties file are raised to the new matched-class count in this mission. Add a falsifiable ratchet, for example a test that the committed
+      counts are not lower than the base branch values and equal the current matched count, and a planted untested class that turns the build red.
+      Note that adapter packages (the YAML frontmatter decoder, the artifact walk) have no JaCoCo rule, and say which gate covers them.
+
+  - id: SPEC-VERIFY-004
+    lens: M3 oracle parity (golden honesty)
+    severity: 3
+    title: The Java-versus-oracle divergence inventory is incomplete and the generator ignores the oracle's own files seam
+    evidence:
+      - artifact: "spec.md § FR-014 (knownDivergence list), D-9, D-19, D-20, DC-3"
+      - code: "tests/contract/_mission_status_payloads.py:910-920 (read_authored_files: tasks.glob('WP*.md') with path.is_file(), which follows a symlink and keeps every duplicate)"
+      - code: "tests/contract/_mission_status_payloads.py:960-968 (build_detail takes files=; the default path calls read_authored_files)"
+      - code: "tests/contract/_mission_status_artifacts.py:251-270 (index_missions skips a Mission with unreadable meta.json and follows symlinked directories)"
+      - code: "tests/contract/_mission_status_detail.py:149-173 (index_work_packages: eligibility, no size cap)"
+    claim: >-
+      Divergences the spec names: symlinked planning file, changeState, duplicate id on getMission. Divergences it builds but does not list: a symlinked
+      WP file (the oracle's getMission lists it, Java skips it); the 1 MiB WP-file cap (500) and the 100000-entry walk bound (the oracle has neither);
+      the C3 to C5 rows (Java answers 404/500 when a sibling Mission sorting earlier has a bad meta.json or a symlinked directory; the oracle's
+      index_missions skips them and answers 200); includePrompt 400. AC-14.4 only flags a divergence that shows up in an existing fixture, so an unlisted
+      one with no fixture is invisible. Separately, build_detail accepts files=, so the generator can pass index_work_packages output and get a real
+      oracle golden for the malformed, duplicate and two-selector classes; the spec instead records oracle 'raises' and a Java-only assertion, which makes
+      those goldens self-fulfilling. Also C4 makes a valid Mission's detail depend on the name order of unrelated siblings, with no AC for a broken sibling
+      sorting before versus after the requested Mission.
+    remediation: >-
+      Add a FR-014 table of every intentional Java/oracle delta (name, cause, fixture, oracle outcome, Java assertion), including the five above, and make
+      AC-14.4 fail when a Java refusal path exists with no entry. Specify that the generator feeds build_detail and build_work_package from
+      index_work_packages (files=) so duplicates and skipped files have a true oracle golden. Add an AC with a broken-meta sibling before and after the
+      requested Mission.
+
+  - id: SPEC-VERIFY-005
+    lens: M3 worktreePresent
+    severity: 3
+    title: worktreePresent true has no oracle counterpart; golden host and oracle branches are unspecified
+    evidence:
+      - artifact: "spec.md § FR-010, OQ-3, D-12, D-20, AC-3.1, AC-10.3, R-7"
+      - code: "tests/contract/_mission_status_detail.py:108-115 and 466-478 (HostCapability has independent git and worktrees flags; _lane_worktree returns None when host.worktrees is false)"
+      - code: "src/specify_cli/workspace/context.py:261-276 (ResolvedWorkspace.exists uses Path.exists, which follows symlinks, then requires the .git entry)"
+    claim: >-
+      The claim about the rule is right (a husk without .git is absent). But the goldens are generated under NO_WORKTREES, where the oracle answers
+      worktreePresent false for every Work Package, so the 'directory and .git present: true' rows of AC-10.3 and the worktree-states class are asserted
+      by Java alone, and D-20 declares only changeState as a divergence. HostCapability(git=False, worktrees=True) is possible and keeps changeState
+      unknown, so a real parity golden for the true rows exists but is not used. The oracle also follows a symlinked directory or .git (Path.exists) while
+      Java refuses a link, and resolve_workspace_for_wp has owned-checkout and persisted-context branches the stat rule cannot reproduce; R-7 defers the
+      list of cases to the plan.
+    remediation: >-
+      State that worktree-states goldens are generated with HostCapability(git=False, worktrees=True) on fixtures whose resolution is a plain
+      lane worktree, and list the symlink rows and the non-reproducible resolution branches as knownDivergence now. Make the false rows run under both
+      hosts.
+
+  - id: SPEC-VERIFY-006
+    lens: M3 oracle parity (tasks.md title_rows)
+    severity: 3
+    title: AC-3.4 corpus omits the Python text semantics that tasks.md parsing depends on
+    evidence:
+      - artifact: "spec.md § FR-003 Subtasks, AC-3.4; contrast FR-006 item 3 and D-13 (newline translation stated only for WP files)"
+      - code: "tests/contract/_mission_status_detail.py:272-286 (read_tasks_md decodes bytes with utf-8, so a BOM stays and CRLF is not translated)"
+      - code: "tests/contract/_mission_status_detail.py:245-268 and 183-215 (split on \\n only; str.strip, \\bWP\\d{2,}\\b and T\\d{3,} use Unicode whitespace, word boundary and digits)"
+    claim: >-
+      Frontmatter and body get an explicit newline and BOM rule, tasks.md gets none. The oracle keeps a leading BOM (which breaks the first heading
+      match), keeps \\r on CRLF files, and relies on Python strip/\\d/\\b semantics. Java's String.strip, ASCII-only \\d and \\b, BufferedReader line
+      splitting and Files.readString differ, so a plausible implementation diverges on CRLF, BOM, NBSP/U+0085/U+2028 and non-ASCII digits. AC-3.4 lists
+      eight cases and none covers these, so the parity ACs would pass for a wrong decoder.
+    remediation: >-
+      State the tasks.md decoding rule (UTF-8 strict, BOM kept, split on \\n only, Python whitespace and digit classes) and add AC-3.4 cases: CRLF file,
+      BOM file, NBSP and U+0085 around a row, an Arabic-Indic digit in a subtask id and in a WP token, and a lone \\r inside a title.
+
+  - id: SPEC-VERIFY-007
+    lens: Silent-success
+    severity: 3
+    title: OQ-1 default answers 200 with a Work Package missing and a log-only signal, where the oracle is loud
+    evidence:
+      - artifact: "spec.md § OQ-1, FR-006 item 4 and 6, FR-012 row M5, AC-1.6, AC-12.3 (exempts M5)"
+      - code: "tests/contract/_mission_status_payloads.py:916-919 (read_authored_files has no except: a malformed file raises)"
+    claim: >-
+      The mission's own principle is 'never a quietly empty detail', but the built-until-ruled default drops an unusable WP file from workPackages and
+      signals it only in a server log line. The client sees a Mission with a Work Package silently absent; wpTotal (from the ledger) and the list can
+      disagree with no in-band marker. The oracle for getMission and getWorkPackage raises, i.e. it is loud. AC-12.3 then exempts exactly this row from the
+      no-silent-success test. The question is correctly flagged open but nothing makes the ruling a gate before the plan.
+    remediation: >-
+      Make OQ-1 a blocking decision before tasks. If skip-with-diagnostic stays, add an in-contract signal that is legal today (for example keep the
+      Work Package in the list is not possible; at minimum assert in a test that wpTotal minus listed count equals the count of skipped-file
+      diagnostics) or default to 500 source_unreadable as the oracle does, and remove the AC-12.3 exemption.
+
+  - id: SPEC-VERIFY-008
+    lens: Silent-success
+    severity: 3
+    title: FR-012 omits stat and lstat failures for planning files, prompt lookup and absent versus unlistable tasks/
+    evidence:
+      - artifact: "spec.md § FR-012 row M4 (only tasks/ unlistable, WP file, tasks.md, cycle dir, .worktrees stat); FR-001 Phases; FR-003 Artifact references; FR-004 'An unreadable file is an entry with readable false'"
+      - code: "tests/contract/_mission_status_payloads.py:963 (build_detail uses Path.is_file(), which turns any OSError into false and so into pending/lifecycle fallthrough)"
+      - code: "tests/contract/_mission_status_artifacts.py:285-310 (is_eligible raises any non-absent OSError so the caller answers 500)"
+    claim: >-
+      The oracle's phase check swallows an OSError (permission denied on spec.md reads as 'not an artifact'), while the artifact eligibility rule raises.
+      The spec requires a failed .worktrees stat to be 500 but says nothing for a failed stat of spec.md, plan.md or tasks.md (phases), a failed
+      lstat during the prompt/spec reference lookup, or a tasks/ directory that is absent (empty, fine) versus a non-directory. An implementer
+      following the oracle returns a healthy 'pending' phase for an unreadable file. Also a file that is unreadable in the listing is readable:false with
+      no diagnostic and a vanished file is omitted with none, so the listing hides read faults.
+    remediation: >-
+      Add M-rows: non-absent stat failure of PLANNING_FILE or TASKS_MD on getMission, lstat failure in artifactReferences, tasks/ not a directory; each
+      500 source_unreadable with a diagnostic and a fixture (permission-denied needs the precondition in the next finding). Require one diagnostic per
+      listing entry set to readable:false for a fault (not for NUL/size/UTF-8/secret). Record the stat-swallowing oracle behaviour as a divergence.
+
+  - id: SPEC-VERIFY-009
+    lens: Falsifiability
+    severity: 3
+    title: FR-012 row W3 names an 'ambiguous Mission selector' that the ULID-only design cannot produce
+    evidence:
+      - artifact: "spec.md § FR-012 row W3; AC-12.1 ('every row above has its own fixture'); D-7; OQ-5"
+      - code: "tests/contract/_mission_status_detail.py:73 (_UNREADABLE includes MissionSelectorAmbiguous, a slug-handle concept)"
+    claim: >-
+      The row is copied from the oracle's exception tuple. Selection is by missionId only and a duplicate id serves the first directory (C6), so no
+      request reaches an ambiguous selector. AC-12.1 demands a fixture for every row, so this row cannot be satisfied and will either be silently
+      dropped or invented.
+    remediation: Delete 'an ambiguous Mission selector' from W3, or state the exact condition that Java can reach and add its fixture.
+
+  - id: SPEC-VERIFY-010
+    lens: Falsifiability
+    severity: 2
+    title: Several ACs are not machine-observable or have no stated failure
+    evidence:
+      - artifact: "spec.md § AC-8.2 ('each is reverted in turn in the review record'), AC-14.6 ('outcome recorded'), AC-19.4, AC-1.3 ('implement and review swap their evaluation order'), AC-14.2"
+      - code: "tests/contract/_mission_status_payloads.py:307-331 (derive_phase_status evaluates each phase independently; implement and review share no evaluation order)"
+    claim: >-
+      AC-8.2 is satisfied by a human note, not by a build. AC-14.6 and AC-19.4 name an outcome to be recorded or a gate that passes, with no red
+      condition. AC-1.3 and AC-14.2 say that swapping the evaluation order of implement and review turns a test red, but in the oracle the two are
+      independent functions of the lane counts, so no such swap has an observable; the real observables are the order of the phases array and the
+      order of the checks inside one phase.
+    remediation: >-
+      Turn AC-8.2 into a mutation or planted-regression test in the suite (a variant of the redaction that skips the check must fail AC-5.6). Give
+      AC-14.6 and AC-19.4 an explicit failing condition. Reword AC-1.3 and AC-14.2 to name the phases array order and the within-phase check order.
+
+  - id: SPEC-VERIFY-011
+    lens: Falsifiability
+    severity: 2
+    title: Permission-denied fixtures are vacuous when the runner is root
+    evidence:
+      - artifact: "spec.md § AC-4.3 (unreadable file, not on Windows), AC-10.3 (permission denied), AC-4.7"
+    claim: >-
+      A chmod 000 file or directory is readable by root, so on a root container the 'unreadable' fixtures answer 200 and the assertions either fail
+      spuriously or, if skipped, pass vacuously. The Windows exclusion is stated with 'the job summary says so', the root case is not.
+    remediation: >-
+      Add a fixture precondition (open the file as the test user and require EACCES) and report 'not run: precondition unmet' to the job summary, never
+      pass; or inject the fault through the recording port instead of the file system.
+
+  - id: SPEC-VERIFY-012
+    lens: Coverage
+    severity: 2
+    title: Fixture class names in AC-3.1 do not map to the FR-014 class list; getWorkPackage has no corpus coverage
+    evidence:
+      - artifact: "spec.md § AC-3.1 (populated, no-cycles, null-workspace, planning-lane, ...) versus FR-014 fixture classes (detail-populated, cycles, tasks-md, worktree-states, ...)"
+      - artifact: "spec.md § AC-14.5 and SC-002 (getMission, getWorkPackageDetail, listArtifacts, getArtifactContent; getWorkPackage absent); AC-14.5 'No exemption' versus its derived refused list"
+      - code: "tests/contract/test_mission_status_conformance.py:327-342 (top-level directory set must equal CLASS_TAGS plus data files, each class has a floor)"
+    claim: >-
+      The existing conformance test pins the directory set and a floor per class, so the new class names and floors must be exact, but AC-3.1 uses
+      eleven names that FR-014 does not list, which makes AC-14.3's per-class expected count impossible to compute. The nightly comparison omits
+      getWorkPackage (FR-002) entirely. AC-14.5 says 'no exemption' and then defines a refused list, which is an exemption.
+    remediation: >-
+      Use one vocabulary: list the final class names and the golden files per route in FR-014, and extend CLASS_TAGS, CLASS_FLOORS and GOLDEN_FILES
+      explicitly. Add getWorkPackage (with and without prompt) to AC-14.5 and SC-002. Reword 'no exemption' to 'the refused list is the only exemption'.
+
+  - id: SPEC-VERIFY-013
+    lens: Baseline honesty
+    severity: 2
+    title: Baseline capture is a process step with no acceptance criterion, owner or stable signature
+    evidence:
+      - artifact: "spec.md § Baseline and verification honesty items 1 to 5; D-24"
+      - code: "tests/contract/test_mission_status_reality.py (the module the spec says is red with 240-second timeouts and KeyError 'findings')"
+    claim: >-
+      The method is sound and #3284 and #5927 are acknowledged, but no AC or work-package gate requires the baseline file to exist, and the signature
+      (exception class plus first line) will contain timeouts, ids or paths and mismatch between runs, turning a pre-existing red into 'introduced' or
+      the reverse. Capturing two bases of the reality module costs two 10-minute caps and the spec does not say whether that is waived. #3284 is
+      named but no step says what to do with the full-suite red outside the targeted modules.
+    remediation: >-
+      Add an AC: traces/baseline-red.yaml exists before the first WP is claimed, with per-test id, normalised signature (strip numbers, paths and
+      ids) and base sha. State that the reality module may be recorded as 'not run: known timeout' with the issue id rather than executed twice,
+      and that #3284 is classified by id from the tracker, not re-run.

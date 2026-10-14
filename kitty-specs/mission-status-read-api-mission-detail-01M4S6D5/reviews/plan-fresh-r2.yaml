@@ -1,0 +1,182 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-read-api-mission-detail-01M4S6D5
+findings:
+  - id: PLAN-FRESH2-001
+    lens: gates-and-pins
+    severity: 4
+    title: "P2 (models list, hand DTO package) turns three tests/ci pins red; the pins belong to P13 and sit outside C-004"
+    evidence:
+      - artifact: "plan.md section 11, P2 row (extend the explicit models list; P2 writes every hand-DTO record into adapter.in.http.dto); shared-file table row 'tests/ci/test_mission_status_*.py | P13 | none'"
+      - artifact: "spec.md C-004 (tests/ci mission-status pinning tests only if the router or workflow edits require it)"
+      - code: "tests/ci/test_mission_status_api_build.py MODELS_LIST (line 53) and generation_violations (needle '\"models\" to \"<MODELS_LIST>\"', line 362)"
+      - code: "tests/ci/test_mission_status_api_build.py contract_package_violations (line ~1300: CONTRACT_MODE == 'generated' and 'dto' in http_dirs -> 'the hand-mode dto package must not be populated')"
+      - code: "services/mission-status-api/build.gradle.kts line 89 (the models list literal)"
+    claim: >-
+      The build pin hard-codes the exact eleven-model list and, in generated mode, forbids a populated adapter/in/http/dto
+      directory. P2 extends the list (first pin red at the P2 tip) and the plan itself says the WorkPackage model is
+      "certainly" a hand record in adapter.in.http.dto (second pin red). The plan gives P2 no write access to the pin
+      file (P13 is its only owner, "none" other writers), P2's exit gate does not run tests/ci, and C-004 admits tests/ci
+      pin edits only when a router or workflow edit requires them, which neither P2 change is. So the plan's "every phase
+      leaves the branch green" is false from P2 on, and the only way to green is an out-of-scope edit the plan neither
+      assigns nor declares as a spec amendment.
+    remediation: >-
+      Add a named edit for P2 on tests/ci/test_mission_status_api_build.py (MODELS_LIST, the dto-directory clause and the
+      CONTRACT_MODE semantics for a mixed generated plus hand mode), put the test file in P2's exit gate, and add an S row
+      widening C-004 to cover "pin edits that follow a build.gradle.kts models-list or hand-DTO change". Update the
+      shared-file table (owner P13, other writer P2) and the Charter Check scope row.
+
+  - id: PLAN-FRESH2-002
+    lens: sequencing
+    severity: 3
+    title: "P6 cannot reach its exit gate: AC-6.1 symlink and directory cases need P7's provisioning, and P6 does not depend on P7"
+    evidence:
+      - artifact: "plan.md section 11, P6 row (Depends on P5, P4, P3, P2; gate 'AC-6.1 to AC-6.5 (corpus wpm-01..28)') and P7 row (owns ProvisionPlan, the detail-aware FixtureFactory)"
+      - artifact: "plan.md section 11 'Concurrent sets': 'P6 || P7 once both are unblocked'"
+      - artifact: "spec.md AC-6.1 cases (22) a directory named WP05-d.md and (23) a symlink named WP06-l.md; D-42 (links are never committed, they are provisioned from a plan)"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/ProjectHeaderMaterialisation.java (the only existing plan applier runs SYMLINK_PLAN lines, the plan generalises it to PROVISION_PLAN in P4/P7)"
+    claim: >-
+      The Java side of the committed provisioning plan (link, gitentry, mtime lines) is applied by P7's
+      testsupport. P6's gate runs the whole wpm corpus against the oracle, including a symlinked Work Package file,
+      and the plan declares P6 and P7 concurrent. P6 therefore has no way to materialise cases 22 and 23 (or any
+      PROVISION_PLAN fixture) without either reaching into P7's files or writing a second applier, and the plan
+      lists neither.
+    remediation: >-
+      Either add P7 to P6's Depends-on column (P7 depends only on P3, P4, P4b, P5, so no cycle arises; P6 then moves
+      after P7 and the "P6 || P7" statement goes), or move ProvisionPlan and the minimal materialiser into P5 or P4
+      and shrink P7 accordingly. Re-derive the concurrent sets and re-run the scope check.
+
+  - id: PLAN-FRESH2-003
+    lens: seam-ownership
+    severity: 3
+    title: "No phase owns how the detail services obtain the reduced ledger entry without a fourth meta.json read"
+    evidence:
+      - artifact: "plan.md section 8 FRESH3-002 (call sequence fixed: find, duplicate continuation, OverviewReader.overview(ref), 'nothing else'; 3 reads warm, 4 cold)"
+      - artifact: "plan.md section 9 item 1 and D-93 (P1 is behaviour-preserving; MissionReadModel 'exposes the lookup and the head derivation')"
+      - artifact: "plan.md section 11 P1 and P9 write scopes; shared-file table (OverviewReader.java has no entry)"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/MissionStatusService.java lines 263-275 and 332-357 (overview(ref) returns Optional<MissionOverview>; the ProjectionCache.Entry is consumed inside; ledger(ref, mid8) is a second stampLedger plus meta resolution)"
+    claim: >-
+      getMission, getWorkPackage and getWorkPackageDetail need the per-Work-Package snapshot (StatusSnapshot
+      resolved map, lifecycleTypes, lane per WP), not only the MissionOverview head. The extracted overview(ref)
+      hands out the head only. A detail service that calls OverviewReader.ledger(ref, mid8) afterwards performs one more
+      stampLedger, hence one more ReadDirResolver meta read: 4 warm and 5 cold, which fails the pinned AC-1.8(c)
+      count. The needed combined accessor (head plus entry from one pass) is not in P1's behaviour-preserving
+      extraction, is not a named edit of P9, and OverviewReader.java is owned by P1 only.
+    remediation: >-
+      State the accessor in section 9 and D-93 (for example overview(ref) returning a record of head and Entry, with
+      the existing method delegating) and put it in P1 with its own meta-read-count control, or give P9 a named edit
+      of OverviewReader and MissionReadModel in the shared-file table. Add the 3/4 count assertion to the P9
+      gate on the real service, not only on the extracted /missions path.
+
+  - id: PLAN-FRESH2-004
+    lens: ownership
+    severity: 2
+    title: "Stale sentence in P2's go/no-go rule gives the hand-DTO records a second owner"
+    evidence:
+      - artifact: "plan.md section 11, paragraph 'P2's go/no-go rule (D-79)': 'The records are owned by the route phase that maps them (the P10 row for WorkPackage; ...)'"
+      - artifact: "plan.md P2 row ('P2 writes every hand-DTO record that decision names'), P10 row ('the hand WorkPackage DTO ... is P2's'), shared-file table row for J/adapter/in/http/dto/**, D-111"
+    claim: >-
+      D-111 moved every hand-DTO record, its drift reference and its mutation target to P2; the go/no-go paragraph still
+      says the route phase owns them. Two owners for adapter/in/http/dto/** is exactly the overlap SK-357 collapses
+      lanes over, and the tasks stage will pick whichever sentence it reads first.
+    remediation: >-
+      Rewrite the sentence to "owned by P2 (D-111); a route phase adds nothing to the directory".
+
+  - id: PLAN-FRESH2-005
+    lens: contract-vs-ac
+    severity: 2
+    title: "Seam 5 says the cap is enforced 'never by an earlier size', which contradicts AC-5.4 and the plan's own OVER_CAP row"
+    evidence:
+      - artifact: "plan.md section 7.1 row 5: 'The cap is enforced by bytes read (at most cap + 1), never by an earlier size'"
+      - artifact: "plan.md section 7.2 OVER_CAP row: 'more than cap bytes were read, or the open handle was larger'"
+      - artifact: "spec.md AC-5.4: 262145 bytes is 413 and 'the instrumented port records 0 bytes read for it'; AC-7.1: a size 100 at stat and 300000 at read is OverCap with at most cap + 1 bytes read"
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles.java readRegular (size of the open handle checked first, then bytes per chunk)"
+    claim: >-
+      Both checks are required: the open-handle size short-circuits with zero bytes read (AC-5.4), the byte count is
+      the race guard (AC-7.1). Seam 5 is the contract #5533 imports; read literally it tells the P5 implementer to
+      drop the handle-size check and read cap + 1 bytes of every oversize file, which fails AC-5.4.
+    remediation: >-
+      Reword row 5 to "enforced by the size of the open handle first (no byte read when it exceeds the cap) and by the
+      bytes actually read (at most cap + 1) as the race guard; never by a size read before the open".
+
+  - id: PLAN-FRESH2-006
+    lens: scope
+    severity: 2
+    title: "Adding abstract methods to AllowlistAccess breaks ListingTest.Reversing, a file no phase owns"
+    evidence:
+      - artifact: "plan.md section 1 / section 13 (AllowlistAccess gains scoped(ReadScope) and listNames(Path, int)); P5 write scope lists only Allowlist*, FilesystemTextSource, NameEncoding, SafeFiles, RecordingAllowlistAccess and parity tests"
+      - code: "services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/ListingTest.java line 29 (private static final class Reversing implements AllowlistAccess, implements the four current methods only)"
+    claim: >-
+      Unless the two new methods are declared default, ListingTest no longer compiles at the P5 tip, and the file is
+      in no phase scope or shared-file row. The plan states the interface change in three places but does not say
+      default versus abstract.
+    remediation: >-
+      Say in section 13 that scoped() and listNames(Path, int) are default methods (pass-through for scoped, delegating
+      for the bounded listing) or add ListingTest to P5's scope as a named edit. Extend CoupledSymbolsShapeTest's
+      note accordingly.
+
+  - id: PLAN-FRESH2-007
+    lens: weakened-ac
+    severity: 2
+    title: "AC-20.5 and NFR-009 are unevidenced by default: the base figure waits on an operator word, and CI has nothing to compare against"
+    evidence:
+      - artifact: "plan.md section 6 item 5, section 11 P3 row, E-7 'Interim behaviour': 'AC-20.5 and the P3 base figure are recorded not run: awaiting the operator ... CI cannot take the base figure'"
+      - artifact: "spec.md AC-20.5 and NFR-009 (growth over the same measurement taken on the base, recorded in traces/)"
+    claim: >-
+      With no word the mission ships P3's exit gate naming AC-20.5 while the AC cannot run, and the CI perfTest then
+      asserts only the 64 MB ceiling, not the growth over the base the spec defines. The plan flags the decision but
+      its default outcome quietly replaces a ratio acceptance criterion with an absolute one.
+    remediation: >-
+      Make the class measure its own same-run floor (the same corpus cached with the pre-FR-020 projection, or a
+      history-less entry) so CI can assert the growth without a recorded base, or state in section 14 that AC-20.5 is
+      verified only post-merge and add the S row that says so. Do not leave "not run" as the silent default.
+
+  - id: PLAN-FRESH2-008
+    lens: jvm-locale
+    severity: 2
+    title: "The JVM test leg and Gate G silently assume a UTF-8 sun.jnu.encoding; only the nightly job and the native smoke pin it"
+    evidence:
+      - artifact: "plan.md section 8 FRESH3-004 (AC-6.6 fixture tasks/WP01-é.md created at test time and served under a UTF-8 locale); section 12 and S-16 (LC_ALL set for the nightly and the smoke binary only); section 5 Gate G commands (no locale)"
+      - code: "services/mission-status-api/build.gradle.kts (test task sets no jnu or LC_ALL; grep for jnu, LC_ALL, file.encoding is empty)"
+    claim: >-
+      Tests that create or list non-ASCII file names (AC-6.6, the artifact sort corpus with UTF-8 byte order) depend on
+      the forked test JVM's locale. Under a POSIX locale file creation throws before the service is reached, so Gate G
+      goes red for a reason that is neither the mission's nor a baseline red. CI runners default to UTF-8, a local or
+      containerised gate run may not.
+    remediation: >-
+      Add "LC_ALL=C.UTF-8 (or an installed UTF-8 locale) must be set for Gate G" to section 5 and have the affected
+      tests skip with a recorded "not run: precondition unmet" (the D-101 pattern) when sun.jnu.encoding is not UTF-8
+      and the case is not the stub leg.
+
+  - id: PLAN-FRESH2-009
+    lens: terminology-and-doc-consistency
+    severity: 1
+    title: "Section 7 prose contradicts its own tables in three places"
+    evidence:
+      - artifact: "plan.md section 7.2 intro: 'so DetailRefusal carries no kind this table lacks' versus section 13 DetailRefusal kinds INVALID_ARTIFACT_PATH and SOURCE_UNREADABLE (not among the seven TextRefusal kinds; 7.2 itself says path validity is not a port kind)"
+      - artifact: "plan.md section 7 intro 'P7 (row 11)' versus 7.1 row 11 'recorder P5; doubles P7'"
+      - artifact: "plan.md 7.1 row 1: 'no route or Mission-status vocabulary' versus FileRef.MissionFile(MissionRef, RelativePath) (MissionRef is application.port.out Mission-status vocabulary); EntryKind (7.1 row 5) is named in no layer table or write scope"
+    claim: >-
+      Three small statements are false against the tables beside them. #5533 reads this section as its import
+      contract, so the wording matters more than usual.
+    remediation: >-
+      Fix the three sentences: "DetailRefusal adds INVALID_ARTIFACT_PATH and SOURCE_UNREADABLE to the TextRefusal
+      mapping", "rows 1 to 11 land in P5 except the test doubles of row 11, which land in P7", "MissionRef is the only
+      Mission vocabulary on the port", and list EntryKind in section 13 and P5's scope (or say it is nested).
+
+  - id: PLAN-FRESH2-010
+    lens: verification-nits
+    severity: 1
+    title: "Small checkout facts and citations that do not match"
+    evidence:
+      - code: "services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist.java is 199 lines; plan section 9 table says 190"
+      - artifact: "plan.md Charter Check cites ledger entry SK-310; SPEC-KITTY-LEDGER.md carries two SK-310 headings (plan completion guard; finalize-tasks owned_files re-sync), the plan does not say which"
+      - artifact: "plan.md section 11 P4 and section 1 CI row: '.gitattributes (one scoped line)'; .gitattributes already carries services/mission-status-api/src/test/resources/conformance/** -text, which covers every new fixture directory"
+    claim: >-
+      None changes a gate; all three invite a reader to chase something that is not there. The .gitattributes line may
+      be dead scope inside the frozen C-004 list.
+    remediation: >-
+      Correct the line count, name the intended SK-310 (the finalize-tasks one), and either state what the extra
+      .gitattributes line adds beyond the existing -text rule or drop it from P4's scope.

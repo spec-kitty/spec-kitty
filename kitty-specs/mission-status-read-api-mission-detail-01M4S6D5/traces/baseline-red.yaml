@@ -1,0 +1,103 @@
+# Baseline red set of the targeted Mission Status modules (FR-021, AC-21.1 to AC-21.3, plan section 6).
+# Captured once, before any Work Package, by the P0 precondition. Checked by
+# tests/contract/test_mission_status_conformance.py (test_baseline_record_*). Not hand-edited after capture.
+schema: mission-status-baseline-red/v1
+captured: "2026-10-13"
+capture_note: >-
+  Both bases were run in their own detached scratch worktree (git worktree add --detach), each removed afterwards.
+  Every targeted module that exists on a base was green there, so the red set of both bases is empty except the
+  reality module, which was not run (known timeout, #5927). No module disagreed between worktree and a plain clone
+  because no module was red; a plain clone was therefore not needed.
+bases:
+  A:
+    role: pre-existing on main
+    sha: d0c6ca61d87f1d92512bb45386351aae3be1eba5
+    ephemeral: false
+    description: origin/main that the re-cut of #5529 sits on
+  B:
+    role: pre-existing with #5529
+    sha: 7a1b6b960f008bdc6e31fc392bec2895a6b55529
+    tree: 537c1f8a4f029ecdbf56baafa8f8a0ff65f04de6
+    ephemeral: true
+    description: tip of the re-cut of #5529, which is the base of this branch; a commit of an unpushed branch that compaction and retarget rewrite
+runner:
+  python: ".venv/bin/python -m pytest <module> -q -p no:cacheprovider -rf (PWHEADLESS=1)"
+  corpus_selector: 'corpus-marked modules add -m "corpus and not windows_ci"; the tests/ci modules carry no corpus marker and run without a selector'
+  gradle: "cd services/mission-status-api && ./gradlew --offline --no-daemon check -PcontractBundle=<bundle> -PcontractBundleSha256=fadf8a869e9402306be3fc0a9fb8f3470b507a21ebfa645f0400d53fc2d0effd; executed and failed are read from build/test-results/test (the Gradle test task); kitTest, nativeTagJvmTest and perfTest were green too and are not counted"
+issues:
+  - number: 5927
+    issueState: OPEN
+    checked: "2026-10-13"
+    covers: tests/contract/test_mission_status_reality.py is red on main (240 s timeouts, KeyError 'findings', drift read answering 500)
+files_absent_on_base:
+  A:
+    - tests/contract/_mission_status_conformance.py
+    - scripts/ci/mission_status_corpus_compare.py
+    - scripts/ci/mission_status_gate_checks.py
+modules:
+  - module: tests/contract/test_mission_status_artifacts.py
+    kind: pytest
+    A: {status: run, executed: 138, failed: 0, rows: []}
+    B: {status: run, executed: 138, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_conformance.py
+    kind: pytest
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 54, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_contract_1_1.py
+    kind: pytest
+    A: {status: run, executed: 179, failed: 0, rows: []}
+    B: {status: run, executed: 179, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_detail.py
+    kind: pytest
+    A: {status: run, executed: 241, failed: 0, rows: []}
+    B: {status: run, executed: 241, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_drift.py
+    kind: pytest
+    A: {status: run, executed: 72, failed: 0, rows: []}
+    B: {status: run, executed: 72, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_examples.py
+    kind: pytest
+    A: {status: run, executed: 318, failed: 0, rows: []}
+    B: {status: run, executed: 318, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_ops.py
+    kind: pytest
+    A: {status: run, executed: 160, failed: 0, rows: []}
+    B: {status: run, executed: 160, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_payloads.py
+    kind: pytest
+    A: {status: run, executed: 172, failed: 0, rows: []}
+    B: {status: run, executed: 172, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_project.py
+    kind: pytest
+    A: {status: run, executed: 29, failed: 0, rows: []}
+    B: {status: run, executed: 29, failed: 0, rows: []}
+  - module: tests/contract/test_mission_status_reality.py
+    kind: pytest
+    status: "not run: known timeout"
+    attribution: unclassified
+    issue: 5927
+    reason: red on main (240 s timeouts, KeyError 'findings', drift read answering 500); two runs would cost two ten-minute caps (#5838), so it is run on neither base
+    rows: []
+  - module: tests/ci/test_mission_status_api_build.py
+    kind: pytest
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 160, failed: 0, rows: []}
+  - module: tests/ci/test_mission_status_corpus_compare.py
+    kind: pytest
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 31, failed: 0, rows: []}
+  - module: tests/ci/test_mission_status_gate_checks.py
+    kind: pytest
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 29, failed: 0, rows: []}
+  - module: tests/ci/test_mission_status_routing.py
+    kind: pytest
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 11, failed: 0, rows: []}
+  - module: gradle:services/mission-status-api:test
+    kind: gradle
+    A: {status: absent_on_base, executed: 0, failed: 0, rows: []}
+    B: {status: run, executed: 2315, failed: 0, rows: []}
+redCount:
+  A: 0
+  B: 0

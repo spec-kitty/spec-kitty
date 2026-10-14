@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-DECOMP-009
+    verdict: confirmed
+    reason: WP13 Plan defects item 1 still asks the orchestrator to add the port-level class pattern while wps.yaml lines 1047/1105/1174/1235 already own the four PortLegsTest classes.
+  - id: TASKS-DECOMP-010
+    verdict: confirmed
+    reason: plan.md:632 requires a tasks.md PR column that wps.yaml line 3 says cannot be emitted, and create_intent appears in 16 prompt frontmatters but nowhere in wps.yaml (count 0).
+  - id: TASKS-DECOMP-011
+    verdict: confirmed
+    reason: WP13 H1 uses an en dash while WP01 uses a hyphen, and H1 titles are truncated against frontmatter, though the finding itself rates it cosmetic.
+  - id: TASKS-ORDER-001
+    verdict: confirmed
+    reason: finalize preview shows 18 lanes with WP04 the only planning WP, compute.py builds lane_deps from direct deps only, _ordered_dependency_lanes merges only direct dependency lanes, and the planning claim waives code-lane ancestry, so lane-d never receives WP01..WP03 code.
+  - id: TASKS-ORDER-002
+    verdict: confirmed
+    reason: WP08 prompt line 42 says it shares WP07's lane while the validate-only preview lists 18 distinct lanes with no collapse merges.
+  - id: TASKS-ORDER-003
+    verdict: confirmed
+    reason: wps.yaml shows PlainCaller, AdmissionGate and AdmissionGateTest owned by WP12, ProvisionPlan and PermissionCaseCoverageTest by WP10, A2cByteBuffer by WP09 and portlevel-tests.txt by WP05, contradicting the WP03/WP02/WP17/WP18 prompt references.
+  - id: TASKS-ORDER-004
+    verdict: confirmed
+    reason: WP05 prompt calls LineKind.java owned by no WP while wps.yaml line 426 lists it, and WP13 Plan defects item 1 (same text in WP14-16) calls the owned PortLegsTest classes out-of-map.
+  - id: TASKS-ORDER-005
+    verdict: confirmed
+    reason: plan.md:598 claims concurrent appends merge by keeping every line but .gitattributes has no merge driver for portlevel-tests.txt, and WP13 only says later lane rebases and re-reads without a conflict resolution rule.
