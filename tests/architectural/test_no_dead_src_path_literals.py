@@ -138,14 +138,6 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
         "src/specify_cli/cli/commands/_auth_status.py": "#6164 removal history: the hidden hosted auth CLI entry was removed",
         "src/specify_cli/cli/commands/_auth_whoami.py": "#6164 removal history: the hidden hosted auth CLI entry was removed",
     },
-    "docs/context/team-kitty.md": {
-        "src/specify_cli/status/zeitgeist_bridge.py": "#6164 removal history: hosted-model doc names the removed status->zeitgeist bridge",
-        "src/specify_cli/zeitgeist_client/resolution.py": "#6164 removal history: hosted-model doc names the removed zeitgeist client",
-        "src/specify_cli/zeitgeist_client/transport.py": "#6164 removal history: hosted-model doc names the removed zeitgeist client",
-        "src/specify_cli/saas_client/auth.py": "#6164 removal history: hosted-model doc names the removed saas client",
-        "src/specify_cli/events/runtime_moments.py": "#6164 removal history: hosted-model doc names the removed runtime-moment producer",
-        "src/specify_cli/core/saas_sync_config.py": "#6164 removal history: hosted-model doc names the removed saas-sync config",
-    },
     "docs/development/reference/read-side-seam-classification.md": {
         "src/specify_cli/widen/state.py": "#6164 removal history: the widen package was removed with the frozen hosted surfaces",
     },

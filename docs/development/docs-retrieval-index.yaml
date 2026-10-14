@@ -10881,18 +10881,13 @@ pages:
   - path: "docs/context/team-kitty.md"
     title: "Context: Team Kitty and Zeitgeist"
     divio_type: "explanation"
-    abstract: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
+    abstract: "Glossary context for Team Kitty and Zeitgeist: the hosted surfaces were removed from open-core in #6164, what that leaves, and why 'sync' is a dead word."
     anchors:
-    - {slug: "the-one-paragraph-model", text: "The one-paragraph model", level: 2}
-    - {slug: "drain-the-client-side-opt-in", text: "Drain: the client-side opt-in", level: 2}
+    - {slug: "what-was-removed", text: "What was removed", level: 2}
+    - {slug: "what-stays", text: "What stays", level: 2}
     - {slug: "sync-is-dead", text: "\"Sync\" is dead", level: 2}
     - {slug: "canonical-vocabulary", text: "Canonical vocabulary", level: 2}
-    - {slug: "sequence-one-lane-transition", text: "Sequence: one lane transition", level: 2}
-    - {slug: "where-the-code-lives-cli", text: "Where the code lives (CLI)", level: 2}
-    - {slug: "where-the-code-lives-saas-and-relay", text: "Where the code lives (SaaS and relay)", level: 2}
-    - {slug: "what-spec-kitty-enable-saas-sync-still-gates-and-what-it-does-not", text: "What `SPEC_KITTY_ENABLE_SAAS_SYNC` still gates (and what it does not)", level: 2}
     - {slug: "stale-surfaces-you-will-meet", text: "Stale surfaces you will meet", level: 2}
-    - {slug: "sources", text: "Sources", level: 2}
   - path: "docs/context/technology-foundations.md"
     title: "Context: Technology Foundations"
     divio_type: "none"

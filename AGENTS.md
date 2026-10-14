@@ -70,25 +70,15 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ## ⚠️ CRITICAL: Team Kitty is "Multiplayer Mode" (consumer side) — build only on the open-core API
 
-**Team Kitty is re-framed as "Multiplayer Mode": the CONSUMER side of the open-core Mission Status Read API.** The direction splits the surface into a **producer** and a **consumer** side:
+**The hosted, sync and drain surfaces and their clients were removed from open-core in #6164.** The removed code is preserved in `spec-kitty/event-router` (PR #45). That covers `auth`, `issue-search`, `live-work`, `moments`, `routes` and `zeitgeist` CLI entries, `zeitgeist_client/`, `saas_client/`, the auth package, `core/hosted_posture.py` (the drain posture) and `status/zeitgeist_bridge.py`. Nothing hosted ships in this repository. Do not re-add, propose or extend hosted surfaces unless the operator explicitly asks, and do not point users or agent harnesses at them. The `spk-team-*` skills stay retired.
+
+What remains true ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md), Amendment 2026-10-12; its drain and hiding mechanics are now historical):
 
 - **Producer (open-core, being built now):** the Mission Status Read API — the stable entry point to ledger + event data that the free CLI exposes ([ADR `2026-10-01-2`](docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), Accepted). Not a hosted surface. See the Shared Package Boundary / Modularity SSOT sections for the extraction direction.
 - **Consumer ("Multiplayer Mode"):** the UI/multiplayer surfaces — mission-ui, the pack composer — that *consume* the producer API across its public contract boundary, never reaching into CLI internals.
+- **The produce seam stays:** `src/specify_cli/status/adapters.py` is the publish/subscribe surface for status events. Open-core registers no default handler, so every `fire_*` is a no-op until a transport owner registers one. Producing an event never depends on a drain.
 
-**The old blanket "do not build toward Team Kitty" rule is scoped-lifted** ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md), Amendment 2026-10-12). It no longer blocks:
-
-1. **Consumer-side UI/multiplayer built on the Mission Status Read API** (across its public contract).
-2. **The event-dispatch / produce-drain adapter seam** (`src/specify_cli/status/adapters.py`) — the publish/subscribe surface the produce/drain decoupling builds on.
-
-**Everything else hosted stays frozen unless the operator explicitly asks:** zeitgeist auth, the hosted **backend**, and the hosted SaaS surface. Do not propose or extend those, and do not point users or agent harnesses at them. Nothing hosted ships configured, and nothing hosted gates a release.
-
-What still ships, and how it is fenced ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)):
-
-- **Hosted interaction is off by default, behind two gates** ([ADR `2026-09-26-3`](docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)). Moments, Live Work and the relay commands need the drain posture (`src/specify_cli/core/hosted_posture.py`): `hosted.drain` in the repository's `.kittify/config.yaml` and `[hosted] drain` in the personal `config.toml` must both be true, and no environment variable can turn it on. Authentication and the SaaS-backed tracker calls need a configured endpoint instead (`SPEC_KITTY_SAAS_URL` or `config.toml [sync].server_url`, `src/specify_cli/auth/server_target.py`). Neither ships configured.
-- **The hosted CLI entries are hidden from listings.** `auth`, `issue-search`, `live-work`, `moments`, `routes` and `zeitgeist` (`_HOSTED_SURFACE_NAMES`, `src/specify_cli/cli/commands/__init__.py`) are missing from `--help`, completion and the CLI reference unless drain is on. They still run when invoked by name. `tracker` stays visible for its local providers (`beads`, `fp`).
-- **The `spk-team-*` skills are retired.** Do not add skill or command-template guidance that sends agents to Team Kitty.
-
-When work does touch the dormant hosted code, keep its model straight. The live transport is **Zeitgeist**, a volatile per-team relay: on every lane transition, with drain on, the CLI publishes one **moment** to the team's relay (`status/emit.py` → `status/adapters.py` → `status/zeitgeist_bridge.py` → `zeitgeist_client/`), bounded to one request with no queue and no retry. The old "sync" transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) was deleted on both sides in August 2026. Two "sync"-named environment variables still gate the moment path, and only at import: `SPEC_KITTY_SYNC_DISABLE` is the kill switch (a disarmed process registers no moment handler), and `SPEC_KITTY_SYNC_MINIMAL_IMPORT` is a deprecated alias of `SPEC_KITTY_NO_MOMENT_HANDLERS` that warns once (`moment_handlers_disabled_reason`, `src/specify_cli/core/env.py`; read by the import tail of `status/adapters.py`). Every other remaining "sync" identifier (`SPEC_KITTY_ENABLE_SAAS_SYNC`, the rest of `SPEC_KITTY_SYNC_*`, `sync_active()`, `OWNED_SYNC_UNSUPPORTED`) is residue that does **not** gate the moment path; never design against or "re-enable" sync. The full model is in [`docs/context/team-kitty.md`](docs/context/team-kitty.md).
+**"Sync" is residue vocabulary.** The old sync transport (daemon, offline queue, per-project consent, `api/v1/sync/*` ingress) is gone. Any remaining "sync" identifier is leftover naming: never design against or "re-enable" it. `spec-kitty charter sync` is unrelated (it syncs charter artifacts). One-way upgrade cleanup migrations are kept, for example `m_4_0_0_retired_hosted_target`, which deletes a stale `[sync].server_url` naming the retired `app.spec-kitty.ai`. Background: [`docs/context/team-kitty.md`](docs/context/team-kitty.md).
 
 ---
 
@@ -263,9 +253,9 @@ not any prose map:
 Every other module map (this file, `docs/architecture/00_landscape`, `04_implementation_mapping`,
 the demoted `05_ownership_map.md`) is a **derived view**; on conflict the enforced pair wins. The
 former self-declared authority `docs/architecture/05_ownership_manifest.yaml` was deleted (mission
-`post-convergence-governance-01M1TMPH`). `src/specify_cli/zeitgeist_client/` and `saas_client/` are
-**clients** of the upstream authoritative repos `spec-kitty/zeitgeist` + `spec-kitty/saas`
-(consumer code; API authored upstream) — see ADR
+`post-convergence-governance-01M1TMPH`). The former `zeitgeist_client/` and `saas_client/`
+clients were removed in #6164 (code preserved in `spec-kitty/event-router`); the earlier
+client-repo inversion is recorded in ADR
 `docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
 
 ## Commands
@@ -547,7 +537,7 @@ spec-kitty agent tasks status
 spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
-**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `validate.py`, `doctor.py`, `aggregate.py`, `lifecycle.py`, `lifecycle_events.py`, `tail_reader.py`, `views.py`, `preflight.py`, `work_package_lifecycle.py`, `zeitgeist_bridge.py` (status→Zeitgeist ephemeral-status seam), plus `wp_*` view/metadata helpers and migration utilities (`migrate_lifecycle_envelope.py`).
+**Package:** `src/specify_cli/status/` — `models.py`, `transitions.py`, `reducer.py`, `store.py`, `emit.py`, `lane_reader.py`, `bootstrap.py`, `validate.py`, `doctor.py`, `aggregate.py`, `lifecycle.py`, `lifecycle_events.py`, `tail_reader.py`, `views.py`, `preflight.py`, `work_package_lifecycle.py`, `adapters.py` (event produce seam, no default handler), plus `wp_*` view/metadata helpers and migration utilities (`migrate_lifecycle_envelope.py`).
 
 **Common operations:**
 ```python
@@ -696,7 +686,7 @@ Live GitHub Actions are part of that workflow. The reinstated lean modular CI (`
 
 ## Docker Mode Policy (`spec-kitty-saas`)
 
-The SaaS repository serves the hosted Team Kitty product, which is not actively supported (see the Team Kitty section above). This policy applies only when the operator explicitly asks for work there. When work touches `/spec-kitty-saas`, use two explicit Docker modes:
+The SaaS repository serves the hosted Team Kitty product, whose client surfaces were removed from this repository (see the Team Kitty section above). This policy applies only when the operator explicitly asks for work there. When work touches `/spec-kitty-saas`, use two explicit Docker modes:
 
 - **`dev-live`** (implementation/debug loops): `make docker-app-up-live`, `make docker-app-down-live`
 - **`prod-like`** (pre-merge gate): `make docker-app-up`, `make docker-auth-check` (required before merge), `make docker-app-down`
