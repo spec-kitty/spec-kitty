@@ -21,6 +21,7 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 - [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
 - [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI, and how to register it as a required status check.
+- [Consumer census: keep CI fan-out honest](consumer-census.md) — what the committed consumer census is, when its CI gates go red, and how to regenerate it and fix an unrouted consumer.
 - [Create a doctrine artifact](create-a-doctrine-artifact.md) — author a new doctrine artifact end to end, including the loose-contract asset kind.
 - [Create and activate a pack skill](create-a-pack-skill.md) — author a shared `skill`, set its namespace, activate it into each configured tool, and check it with `doctor skills`.
 - [How to enable the internal charter and skills](enable-the-internal-pack.md) — register `packs/internal`, project the `kitty-*` maintainer skills, verify them, and work around two known defects.

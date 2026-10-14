@@ -3752,6 +3752,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/consumer-census.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/contract-pinning.md
   tag: current
   divio_type: how-to

@@ -70,14 +70,14 @@ PROBE_GROUPS = frozenset({"any_src"})
 # ~2.8x its shard cost) because static analysis cannot tell a test that asserts on
 # the REAL shipped pack from one that drives the same entry point against a temp
 # project. That real-pack-vs-temp precision needs running the tests, which a
-# freshness-checked census build cannot do; full value-derivation is therefore a
-# tracked follow-up. In the meantime the hand sets are no longer blindly maintained:
+# freshness-checked census build cannot do; full value-derivation is therefore
+# not attempted (resolver coverage gaps are tracked in #6214). In the meantime the hand sets are no longer blindly maintained:
 # the committed consumer census (.github/ci-consumer-census.json) is the durable map
 # of which test module consumes which pack path, and
 # tests/architectural/test_consumer_census_routing.py reds when a consumed pack
 # sub-tree is unrouted (a new consumer) or when a historical pin's routing breaks —
 # instead of letting the gap reach ``main`` (#6166). ``derive_group_module_fanout``
-# computes the census's own answer for the derived-vs-hand analysis and the follow-up.
+# computes the census's own answer for the derived-vs-hand comparison (resolver coverage gaps: #6214).
 GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "mission_manifest": frozenset({"charter", "dossier", "specify_cli_runtime"}),
     # #6166 task A -- mission pack content beyond expected-artifacts.yaml (the mission-step
@@ -138,7 +138,7 @@ def derive_group_module_fanout(
     """The census's OWN answer for each fan-out group: the modules it records as
     consuming a path matching that group's router globs (and that are registry
     modules). This is the derived-vs-hand analysis input and the basis for the
-    full-value-derivation follow-up; it does NOT drive live routing today (see the
+    derived-vs-hand comparison; it does NOT drive live routing today (see the
     GROUP_MODULE_FANOUT comment on real-pack-vs-temp precision).
 
     The router globs are the independent path->group authority, so the derivation is

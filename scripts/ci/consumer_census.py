@@ -29,9 +29,11 @@ Two detection halves, because a pure grep misses the consumers that matter most:
 Module attribution reuses ``gate_selection`` (the one routing authority): a test
 file is attributed to the modules ``_modules_for_test_paths`` maps it to, and the
 module universe is ``_registry_module_names()`` — both read the registry/router at
-runtime, so a module-set change (e.g. #6164) flows through with no hardcoded list
-(NFR-002). The census is deterministic and offline (NFR-003): sorted output, a
-fixed enumeration of resolver surfaces, no network.
+runtime, so a module-set change (e.g. #6164) flows through without editing a module
+list (NFR-002). The runtime half is NOT open-ended, though: it replays a fixed set of
+resolver surfaces (``_RESOLVER_SURFACES``), so a reader that resolves pack content
+outside those surfaces is not seen until a surface is added for it (tracked in #6214).
+The census is deterministic and offline (NFR-003): sorted output, no network.
 
 Regenerate with ``python scripts/ci/consumer_census.py --write``; check drift with
 ``--check``.

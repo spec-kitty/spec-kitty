@@ -11117,6 +11117,14 @@ pages:
     - {slug: "handling-deletions-and-renames", text: "Handling deletions and renames", level: 2}
     - {slug: "after-compression", text: "After compression", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/consumer-census.md"
+    title: "Consumer census: keep CI fan-out honest"
+    divio_type: "how-to"
+    abstract: "What the committed consumer census is, when its CI gates go red, how to regenerate it with --write or --check, and how to fix an unrouted consumer."
+    anchors:
+    - {slug: "when-it-goes-red", text: "When it goes red", level: 2}
+    - {slug: "regenerate", text: "Regenerate", level: 2}
+    - {slug: "fix-an-unrouted-consumer-red", text: "Fix an unrouted-consumer red", level: 2}
   - path: "docs/development/how-to/contract-pinning.md"
     title: "Contract pinning workflow (`spec-kitty-events`)"
     divio_type: "how-to"
