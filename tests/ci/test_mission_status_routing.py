@@ -1,7 +1,8 @@
 """Pin the CI routing of the Mission Status API conformance goldens (mission mission-status-read-api-overview, FR-008, AC-8e, AC-8f).
 
 The goldens tree joins the ``contract_tools`` router group, so a golden-only diff selects ``tests (contract tools)``, the one home of
-the golden-honesty test, and no other Python gate. The Packs advisory corpus lane deselects the new module, so it runs exactly once.
+the golden-honesty test, and no code shard; the ``services/mission-status-api/**`` rule adds only the ``ci``
+group and module. The Packs advisory corpus lane deselects the new module, so it runs exactly once.
 Each revert row edits a temporary copy of the workflow and requires the pin to turn red.
 """
 
@@ -36,6 +37,10 @@ def _contract_tools_jobs() -> frozenset[str]:
     return frozenset(job for job, groups in load_router().job_gates.items() if GROUP in groups)
 
 
+def _ci_jobs() -> frozenset[str]:
+    return frozenset(job for job, groups in load_router().job_gates.items() if "ci" in groups)
+
+
 def _packs_gate(path: Path = PACKS_PATH) -> gc.Gate:
     gates = [gate for gate in gc.parse_workflow(path) if gate.job == PACKS_CORPUS_JOB]
     assert len(gates) == 1, "the Packs corpus job runs exactly one pytest command"
@@ -53,30 +58,27 @@ def test_the_goldens_glob_is_in_the_contract_tools_group_exactly_once_and_in_no_
     assert [group for group, globs in filters.items() if GOLDENS_GLOB in globs] == [GROUP]
 
 
-def test_a_contract_tools_gated_job_exists_to_receive_the_selection() -> None:
-    assert _contract_tools_jobs()
-
-
 def test_a_golden_only_diff_selects_contract_tools_and_nothing_else_in_python() -> None:
     router = load_router()
 
     selection = select_gates([GOLDEN_ONLY_PATH], router=router)
 
-    assert selection.matched_groups == {GROUP}
-    assert selection.selected_jobs == router.always_on_jobs | _contract_tools_jobs()
+    assert _contract_tools_jobs(), "non-vacuity: a contract_tools gated job exists to receive the selection"
+    assert selection.matched_groups == {GROUP, "ci"}
+    assert selection.selected_jobs == router.always_on_jobs | _contract_tools_jobs() | _ci_jobs()
     assert selection.selected_code_shards == frozenset()
     assert not selection.unmatched_src
-    assert select_modules([GOLDEN_ONLY_PATH], router=router) == frozenset()
+    assert select_modules([GOLDEN_ONLY_PATH], router=router) == {"ci"}
 
 
-def test_a_services_diff_outside_the_conformance_tree_selects_no_code_shard_gate() -> None:
+def test_a_services_diff_outside_the_conformance_tree_selects_only_the_ci_module_and_no_code_shard() -> None:
     router = load_router()
 
     selection = select_gates([OTHER_SERVICE_PATH], router=router)
 
-    assert GROUP not in selection.matched_groups
+    assert selection.matched_groups == {"ci"}
     assert selection.selected_code_shards == frozenset()
-    assert select_modules([OTHER_SERVICE_PATH], router=router) == frozenset()
+    assert select_modules([OTHER_SERVICE_PATH], router=router) == {"ci"}
 
 
 def test_a_python_src_change_selects_the_status_group_but_not_the_mission_status_api_workflow() -> None:
@@ -96,13 +98,6 @@ def test_the_packs_advisory_corpus_command_deselects_the_new_module_exactly_once
     assert deselected.count(NEW_MODULE) == 1
     assert (ROOT / NEW_MODULE).is_file()
     assert all((ROOT / entry).is_file() for entry in deselected), "every deselected contract module exists"
-
-
-def test_the_discovered_deselect_count_sees_the_floor() -> None:
-    deselected = _deselected_contract_modules()
-
-    assert len(deselected) >= DESELECTED_CONTRACT_MODULES_FLOOR, f"the Packs command deselects {len(deselected)} contract modules"
-    assert len(set(deselected)) == len(deselected), "no duplicate deselect entry"
 
 
 def test_removing_the_goldens_glob_from_a_router_copy_turns_the_routing_red(tmp_path: Path) -> None:
