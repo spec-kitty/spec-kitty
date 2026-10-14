@@ -32,7 +32,7 @@ from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import read_event_stream, read_events_raw
 from specify_cli.upgrade.metadata import ProjectMetadata
 from tests.contract._mission_status_memo import MemoEntry, ResolverMemo, memo_resolve
-from tests.contract._mission_status_payloads import enumerate_missions, read_project_name
+from tests.contract._mission_status_payloads import Projector, enumerate_missions, read_project_name
 
 OUTSIDE_ROOT = "read directory outside this checkout"
 HEALTHY = "healthy"
@@ -203,7 +203,8 @@ def build_project(repo_root: Path, memo: ResolverMemo, *, leak: ModuleType) -> P
         activity.append(_mission_activity(read_dir))
     schema_value = schema_version_of(repo_root)
     body = {
-        "name": read_project_name(repo_root),
+        # The slug is a strict field like every other served text: the Project never carries a path or a credential.
+        "name": Projector(leak, "project").strict(read_project_name(repo_root), "name", nullable=False),
         "missionCount": len(names),
         "specKittyVersion": project_version(repo_root, leak),
         "schemaVersion": schema_value,

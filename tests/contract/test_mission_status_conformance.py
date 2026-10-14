@@ -633,6 +633,9 @@ def projection_problems(fixtures: list[gen.Fixture], found: Mapping[str, Mapping
     instants = items_of(found.get("non-rfc3339-instants-nulled", {}))
     if not instants or any(instants[0][key] is not None for key in ("acceptedAt", "mergedAt", "discardedAt", "lastEventId")):
         problems.append("non-rfc3339-instants-nulled: an off-shape instant or event id is served")
+    named = found.get("project-name-refused", {})
+    if named.get(PROJECT, {}).get(REFUSAL, {}).get("exception") != "ProjectionError" or not items_of(named):
+        problems.append("project-name-refused: the project name was not refused while its Missions were served")
     refused = found.get("strict-field-refused", {}).get(MISSIONS, {})
     if refused.get(REFUSAL, {}).get("exception") != "ProjectionError":
         problems.append("strict-field-refused: the oracle did not refuse with ProjectionError")
@@ -770,7 +773,7 @@ def test_the_manifest_records_the_leak_patterns_file_by_sha256_and_the_python_ve
     assert manifest["leakPatternsSha256"] == gen.file_digest(committed)
     assert committed == gen.leak_patterns_bytes(tools)
     assert manifest["patternProbes"] == gen.pattern_probes(tools)
-    assert set(manifest["projectedFieldClasses"]) == {"missionId", "slug", "friendlyName", "targetBranch", "missionType", "nextAction"}
+    assert set(manifest["projectedFieldClasses"]) == {"missionId", "slug", "friendlyName", "targetBranch", "missionType", "nextAction", "name"}
     assert any(not probe["matches"] for probes in manifest["patternProbes"].values() for probe in probes), "a probe that matches nothing"
     assert any(probe["matches"] for probes in manifest["patternProbes"].values() for probe in probes)
 

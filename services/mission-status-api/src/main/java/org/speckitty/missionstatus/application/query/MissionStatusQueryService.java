@@ -118,13 +118,22 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     }
     List<MissionOverview> overviews = listing().stream().map(Pager.Entry::overview).toList();
     return ProjectHeaderDeriver.derive(
-        inputs.name(),
+        projectName(inputs.name()),
         inputs.specKittyVersion(),
         inputs.schemaVersion(),
         inputs.branchName(),
         leaks::strictHostPath,
         overviews.size(),
         overviews.stream().map(MissionOverview::lastActivityAt).toList());
+  }
+
+  /** {@code build_project}: the project slug is a strict field, so one that is not clean is refused like any other (the contract's Project never carries a path or a credential). */
+  private String projectName(String name) {
+    try {
+      return new Projector(leaks).strict(name, "name", false);
+    } catch (ProjectionError refused) {
+      throw refuse(DiagnosticCode.PROJECTION_REFUSED, Diagnostic.NONE, null);
+    }
   }
 
   @Override

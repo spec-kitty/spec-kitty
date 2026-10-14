@@ -156,7 +156,7 @@ CLASS_SPECS: tuple[ClassSpec, ...] = (
     ClassSpec("torn-final-line", "an unparseable and a valid-JSON unterminated last line", PARITY_GOLDEN),
     ClassSpec("crlf-and-listing", "CRLF counts equal LF counts with a different streamCursor, page order equals the contract order", PARITY_GOLDEN),
     ClassSpec("project-header", "the Project document for each HEAD and metadata shape", PARITY_GOLDEN),
-    ClassSpec("projection", "redaction tokens, a nulled strict field, off-shape instants served null and a refused strict field", PARITY_GOLDEN),
+    ClassSpec("projection", "redaction tokens, nulled strict fields and instants, a refused strict field and a refused project name", PARITY_GOLDEN),
     ClassSpec("secret-canaries", "canary values planted in config, metadata, meta.json and event payload text", PARITY_JAVA_ONLY),
     ClassSpec("symlink", "a symlinked ledger, a symlinked meta.json and a Mission directory symlink escaping the root", PARITY_JAVA_ONLY),
 )
@@ -176,6 +176,7 @@ PROJECTED_FIELD_CLASSES: Mapping[str, str] = {
     "nextAction": "human",
     "targetBranch": "strict",
     "missionType": "strict",
+    "name": "strict",
 }
 
 

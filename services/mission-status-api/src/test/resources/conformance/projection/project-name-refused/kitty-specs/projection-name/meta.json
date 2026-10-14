@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-27T10:00:00+00:00",
+  "friendly_name": "Fixture projection-name",
+  "mission_id": "01J5400000000000000000001Q",
+  "mission_number": null,
+  "mission_slug": "projection-name",
+  "mission_type": "software-dev",
+  "slug": "projection-name",
+  "target_branch": "main"
+}
