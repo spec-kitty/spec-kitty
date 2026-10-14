@@ -116,6 +116,39 @@ _SCAFFOLD_SPEC = """\
 """
 
 
+# A ``research``-mission spec that satisfies ``_has_substantive_research_spec``
+# (missions/_substantive.py): a populated 'Research Question & Scope' heading
+# with a bare '**Scope**:' line, a real Primary Research Question and In Scope
+# boundary, plus one substantive DR/AR/QR requirement each. The software-dev
+# ``_SUBSTANTIVE_SPEC`` (an FR table) is NOT research-substantive, so a research
+# mission's spec gate blocks on it before plan-template resolution runs — the
+# test below pins the plan-mapping resolution (#2689), so it needs a spec that
+# clears the research spec gate.
+_RESEARCH_SUBSTANTIVE_SPEC = """\
+# Research Spec — Test Mission
+
+## Research Question & Scope
+
+**Primary Research Question**: How do caching strategies affect CLI cold-start latency across repository sizes?
+
+**Scope**:
+
+- **In Scope**: Measuring cold-start latency for small and large repositories under three caching strategies.
+- **Out of Scope**: Network round-trips and remote-fetch latency.
+
+## Research Requirements
+
+### Data Collection Requirements
+- **DR-010**: Research MUST collect cold-start timings from ten representative repositories.
+
+### Analysis Requirements
+- **AR-010**: Findings MUST be synthesized into a latency-vs-size comparison with confidence intervals.
+
+### Quality Requirements
+- **QR-010**: All latency claims MUST be supported by at least three repeated measurements.
+"""
+
+
 _SUBSTANTIVE_PLAN = """\
 # Plan — Test Mission
 
@@ -539,7 +572,7 @@ def test_setup_plan_resolves_research_plan_template(tmp_path: Path) -> None:
     meta["mission_type"] = "research"
     meta_file.write_text(json.dumps(meta), encoding="utf-8")
 
-    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    (feature_dir / "spec.md").write_text(_RESEARCH_SUBSTANTIVE_SPEC, encoding="utf-8")
     _commit_file(
         tmp_path,
         str((feature_dir / "spec.md").relative_to(tmp_path)),
