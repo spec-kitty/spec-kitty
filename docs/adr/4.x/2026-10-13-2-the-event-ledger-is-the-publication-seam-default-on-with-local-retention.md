@@ -94,7 +94,7 @@ The CLI then writes from the package's models, not from its own `StatusEvent`:
 
 The `canonical-producer-exempt` markers (#1198, #1248, #1200) are retired once every persisted line validates against its row schema, and a producer gate checks persisted lines, not only payloads.
 
-**Release order (shared-package boundary).** The row schemas ship in a `spec-kitty-events` minor release first. The CLI then raises its floor (today `spec-kitty-events>=10.4.4,<11` in `pyproject.toml`) and extends `tests/contract/spec_kitty_events_consumer/` before any writer migrates. A row with no version marker reads as version 1 and is never rewritten, so committed history, and the archive freeze of [ADR 2026-10-11-1](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md), stay valid.
+**Release order (shared-package boundary).** The row schemas ship in a `spec-kitty-events` minor release first. The CLI then raises its floor (today `spec-kitty-events>=10.4.6,<11` in `pyproject.toml`) and extends `tests/contract/spec_kitty_events_consumer/` before any writer migrates. A row with no version marker reads as version 1 and is never rewritten, so committed history, and the archive freeze of [ADR 2026-10-11-1](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md), stay valid.
 
 The canonical 3.0.0 `Event` envelope stays the wire contract for anything that leaves the machine. The row schema is the contract for anything that reads the ledger.
 
