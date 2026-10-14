@@ -517,13 +517,32 @@ class ChangeFeedTest {
     try (Subscription subscription = unscoped(running)) {
       running.source.addMission(Fx.mission("gamma", Rows.GAMMA_ID, StreamFx.CREATED, null));
       running.source.injectUnexpected("gamma", Op.META);
-      running.clock.advance(Duration.ofSeconds(2));
-      running.executor.tick();
+      // Listed after gamma: discovered in the same listing, so a stray failure is contained to the Mission that threw.
+      running.source.addMission(Fx.mission("zeta", "01J04000000000000000000004", StreamFx.CREATED, Rows.status(Rows.id(61), Fx.T2, "WP01", "planned", "claimed")));
+      for (int listing = 0; listing < 2; listing++) {
+        running.clock.advance(Duration.ofSeconds(2));
+        running.executor.tick();
+      }
 
       append(running, "alpha", Rows.status(Rows.id(4), Fx.T2, "WP01", "in_progress", "for_review"));
 
+      assertThat(StreamFx.eventIds(StreamFx.changes(StreamFx.drain(subscription)))).as("the feed still ticks").containsExactly(Rows.id(61), Rows.id(4));
+      assertThat(running.handles.diagnostics()).as("reported once over two listings").containsExactly(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
+    }
+  }
+
+  @Test
+  void aStrayExceptionThatEscapesATickStepIsReportedAndTheNextTickStillDelivers() {
+    Fx fx = new Fx(StreamFx.twoMissions());
+    try (Subscription subscription = unscoped(fx)) {
+      fx.clock.advance(Duration.ofSeconds(2));
+      fx.clock.failNextRead(new IllegalStateException("stray"));
+      fx.executor.tick();
+
+      append(fx, "alpha", Rows.status(Rows.id(4), Fx.T2, "WP01", "in_progress", "for_review"));
+
       assertThat(StreamFx.eventIds(StreamFx.changes(StreamFx.drain(subscription)))).as("the feed still ticks").containsExactly(Rows.id(4));
-      assertThat(running.handles.diagnostics()).containsExactly(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
+      assertThat(fx.handles.diagnostics()).containsExactly(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
     }
   }
 

@@ -10,9 +10,15 @@ import java.time.ZoneOffset;
 public final class MutableClock extends Clock {
 
   private Instant now;
+  private RuntimeException nextFailure;
 
   public MutableClock(Instant start) {
     this.now = start;
+  }
+
+  /** The next read of the clock throws {@code failure} once: a fault nobody anticipated, inside a periodic task. */
+  public void failNextRead(RuntimeException failure) {
+    this.nextFailure = failure;
   }
 
   public void advance(Duration by) {
@@ -31,6 +37,11 @@ public final class MutableClock extends Clock {
 
   @Override
   public Instant instant() {
+    if (nextFailure != null) {
+      RuntimeException failure = nextFailure;
+      nextFailure = null;
+      throw failure;
+    }
     return now;
   }
 }

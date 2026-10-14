@@ -27,6 +27,12 @@ import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.c
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.Decoder;
 import org.speckitty.missionstatus.architecture.fixture.application.A2aUsesAdapter;
 import org.speckitty.missionstatus.architecture.fixture.application.A2bExecutors;
+import org.speckitty.missionstatus.architecture.fixture.application.A2cCommonPool;
+import org.speckitty.missionstatus.architecture.fixture.application.A2dAsync;
+import org.speckitty.missionstatus.architecture.fixture.application.A2eParallelStream;
+import org.speckitty.missionstatus.architecture.fixture.application.A2fParallel;
+import org.speckitty.missionstatus.architecture.fixture.application.A2gTimer;
+import org.speckitty.missionstatus.architecture.fixture.application.A2hAsyncOnOwnExecutor;
 import org.speckitty.missionstatus.architecture.fixture.application.A6UsesConfig;
 import org.speckitty.missionstatus.architecture.fixture.application.A8Jackson;
 import org.speckitty.missionstatus.architecture.fixture.application.A9GeneratedModel;
@@ -80,6 +86,11 @@ class ArchitectureControlsTest {
           new Control(1, D1cThread.class, Set.of(1)),
           new Control(2, A2aUsesAdapter.class, Set.of(2)),
           new Control(2, A2bExecutors.class, Set.of(2)),
+          new Control(2, A2cCommonPool.class, Set.of(2)),
+          new Control(2, A2dAsync.class, Set.of(2)),
+          new Control(2, A2eParallelStream.class, Set.of(2)),
+          new Control(2, A2fParallel.class, Set.of(2)),
+          new Control(2, A2gTimer.class, Set.of(2)),
           new Control(3, H3aInternal.class, Set.of(3)),
           new Control(3, H3bConfig.class, Set.of(3, 6)),
           new Control(4, F4UsesHttp.class, Set.of(4, 5)),
@@ -161,6 +172,14 @@ class ArchitectureControlsTest {
 
     assertThat(option.includes(com.tngtech.archunit.core.importer.Location.of(java.net.URI.create(base + "aotTest/org/x/Y__TestContext001.class")))).isFalse();
     assertThat(option.includes(com.tngtech.archunit.core.importer.Location.of(java.net.URI.create(base + "main/org/speckitty/missionstatus/domain/aotTest/PlantB.class")))).isTrue();
+  }
+
+  @Test
+  void anAsyncCallOnAnExecutorTheApplicationWasGivenKeepsRuleTwoGreen() {
+    List<Class<?>> classes = new ArrayList<>(SKELETON);
+    classes.add(A2hAsyncOnOwnExecutor.class);
+
+    assertThat(redRules(import_(classes))).isEmpty();
   }
 
   @Test

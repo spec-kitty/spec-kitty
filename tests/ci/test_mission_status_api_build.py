@@ -1450,3 +1450,11 @@ def test_codeowners_names_the_service_tree_with_the_contracts_owners() -> None:
 
 def test_the_workflow_file_count_stays_at_the_ceiling() -> None:
     assert len(list(WORKFLOWS_DIR.glob("*.yml"))) == WORKFLOW_FILE_COUNT
+
+
+def test_architecture_rule_nine_names_the_generator_packages() -> None:
+    # Rule 9 scans the packages the OpenAPI generator writes. It has no class-count check, so a typo in
+    # RULE_9_PACKAGES would make it scan nothing; tie its literals to the generator pins above.
+    rules = _text(SERVICE / "src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java")
+    for package in (API_PACKAGE, MODEL_PACKAGE, "org.speckitty.missionstatus.adapter.in.http.dto"):
+        assert f'"{package}"' in rules

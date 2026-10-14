@@ -31,6 +31,10 @@ class PortTypesTest {
 
   @Test
   void streamSettingsRefuseANonPositiveTickAndAnEmptyQueue() {
+    // data-model.md: a 500 ms poll, a 1 s re-list and a 1024-signal queue. DeterministicExecutor ignores delays, so nothing else pins them.
+    assertThat(StreamSettings.defaults().pollInterval()).isEqualTo(Duration.ofMillis(500));
+    assertThat(StreamSettings.defaults().relistInterval()).isEqualTo(Duration.ofSeconds(1));
+    assertThat(StreamSettings.defaults().queueCapacity()).isEqualTo(1024);
     assertThat(StreamSettings.defaults().withQueueCapacity(7).queueCapacity()).isEqualTo(7);
     assertThatThrownBy(() -> new StreamSettings(Duration.ZERO, Duration.ofSeconds(1), 1)).isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> new StreamSettings(Duration.ofMillis(-1), Duration.ofSeconds(1), 1)).isInstanceOf(IllegalArgumentException.class);
