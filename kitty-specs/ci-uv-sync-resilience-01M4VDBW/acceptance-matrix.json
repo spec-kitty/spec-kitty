@@ -1,0 +1,59 @@
+{
+  "mission_slug": "ci-uv-sync-resilience-01M4VDBW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_uv_sync_retry.py::test_transient_failure_is_retried_then_succeeds",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T21:04:47.480757+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_uv_sync_resilience.py::test_module_test_shards_enable_the_uv_cache",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T21:04:53.749259+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_uv_sync_retry.py::test_deterministic_failure_propagates_exit_code_after_cap",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T21:04:59.723055+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_uv_sync_resilience.py::test_module_test_shards_route_uv_sync_through_the_retry_helper",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T21:05:05.258785+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_uv_sync_resilience.py::test_all_three_module_test_shards_are_resilient",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T21:05:10.656407+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

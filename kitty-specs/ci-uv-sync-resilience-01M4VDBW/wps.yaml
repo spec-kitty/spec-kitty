@@ -1,0 +1,50 @@
+work_packages:
+  - id: WP01
+    title: "Shared bounded-retry install helper"
+    dependencies: []
+    owned_files:
+      - "scripts/ci/uv_sync_retry.py"
+      - "tests/ci/test_uv_sync_retry.py"
+    requirement_refs:
+      - FR-001
+      - FR-003
+      - NFR-001
+      - NFR-002
+      - C-003
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP01-retry-helper.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP02
+    title: "Wire resilience into the three module-test shards and pin it"
+    dependencies:
+      - WP01
+    owned_files:
+      - ".github/workflows/ci-router.yml"
+      - "tests/ci/test_uv_sync_resilience.py"
+    requirement_refs:
+      - FR-002
+      - FR-004
+      - FR-005
+      - NFR-003
+      - C-001
+      - C-002
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP02-wire-shard-resilience.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"

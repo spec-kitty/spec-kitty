@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "ci-uv-sync-resilience-01M4VDBW",
+  "mission_id": "01M4VDBW36JTSGVNVKKDDCTBTE",
+  "mission_branch": "issue-6191-ci-uv-sync-resilience",
+  "target_branch": "issue-6191-ci-uv-sync-resilience",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "scripts/ci/uv_sync_retry.py",
+        "tests/ci/test_uv_sync_resilience.py",
+        "tests/ci/test_uv_sync_retry.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-13T20:07:38.673681+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6417b0954803177124568cdf6759f5a9ac283516"
+}

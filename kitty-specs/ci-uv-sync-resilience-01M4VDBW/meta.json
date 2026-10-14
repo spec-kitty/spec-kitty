@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "f87af3cbf0d778d17f4a895bbc3226a6634ee1c4",
+  "created_at": "2026-10-13T19:56:01.850151+00:00",
+  "flattened": false,
+  "friendly_name": "CI uv-sync resilience for test-shard jobs",
+  "merged_at": "2026-10-13T21:07:21.167579+00:00",
+  "merged_commit": "f87af3cbf0d778d17f4a895bbc3226a6634ee1c4",
+  "mid8": "01M4VDBW",
+  "mission_id": "01M4VDBW36JTSGVNVKKDDCTBTE",
+  "mission_number": 231,
+  "mission_slug": "ci-uv-sync-resilience-01M4VDBW",
+  "mission_type": "software-dev",
+  "purpose_context": "The tests (docs) module-test shard in CI Router intermittently fails at its dependency-install step because of an isolated transient network download failure, not a lock or code defect. Because the required router gate depends on that shard, one flaky install blocks merges on main and on docs-selecting PRs. This mission hardens the shared module-shard install so a single transient download failure no longer reds the gate.",
+  "purpose_tldr": "Stop a transient uv sync download hiccup in a CI Router test shard from reddening the required router gate.",
+  "slug": "ci-uv-sync-resilience-01M4VDBW",
+  "status_phase": "1",
+  "target_branch": "issue-6191-ci-uv-sync-resilience",
+  "topology": "single_branch"
+}

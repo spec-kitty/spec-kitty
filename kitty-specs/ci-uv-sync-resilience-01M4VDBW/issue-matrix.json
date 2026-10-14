@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6191": {
+      "evidence_ref": "tests/ci/test_uv_sync_resilience.py + tests/ci/test_uv_sync_retry.py (green); .github/workflows/ci-router.yml shards hardened",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
