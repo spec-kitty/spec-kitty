@@ -898,6 +898,22 @@
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
     },
     {
+      "rule": "tests/ci/test_fleet_main.py::test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        516,
+        518
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
       "rule": "tests/ci/test_fleet_main.py::test_attempt_change_during_publication_refuses_stale_verdict",
       "file": "tests/ci/test_fleet_main.py",
       "scope": "test_attempt_change_during_publication_refuses_stale_verdict",
@@ -1137,7 +1153,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        846
+        848
       ],
       "dependency": false,
       "disposition": "none",
