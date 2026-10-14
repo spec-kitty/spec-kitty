@@ -275,6 +275,34 @@ class StatusReducerTest {
   }
 
   @Test
+  void aRollbackSeedThatDoesNotContinueTheLaneIsDroppedAnAppliedOneYieldsToARealEventAndAnApprovalFollowsItsSameAtTwin() {
+    // Oracle (10.4.6, #6061 R1/R2, events#87), checked against spec_kitty_events.diary.reduce_parsed.
+    // R1: the seed leaves in_review, the lane in force is planned (set by a real, non-rollback move), so it never reopens the work package.
+    List<StatusEvent> arriving =
+        List.of(
+            move("1", "2026-09-01T10:00:00Z", "WP01", Lane.PLANNED, Lane.CLAIMED),
+            move("2", "2026-09-01T10:00:01Z", "WP01", Lane.CLAIMED, Lane.PLANNED),
+            Events.seed("3", "2026-09-01T10:00:02Z", "WP01", Lane.IN_REVIEW, Lane.IN_PROGRESS, "{seed 3}"));
+    assertThat(reduce(arriving).workPackages().get("WP01").lane()).isEqualTo(Lane.PLANNED);
+    // R2: a seed that does continue the lane is applied, then yields to a later real step that is not its bare sibling approval.
+    List<StatusEvent> yielding =
+        List.of(
+            move("1", "2026-09-01T11:00:00Z", "WP02", Lane.FOR_REVIEW, Lane.IN_REVIEW),
+            Events.seed("2", "2026-09-01T11:01:00Z", "WP02", Lane.IN_REVIEW, Lane.PLANNED, "{seed 2}"),
+            move("3", "2026-09-01T11:02:00Z", "WP02", Lane.IN_PROGRESS, Lane.FOR_REVIEW));
+    assertThat(reduce(yielding).workPackages().get("WP02").lane()).isEqualTo(Lane.FOR_REVIEW);
+    // events#87: approved -> done shares its at with the approval and has the smaller event_id, yet follows it.
+    List<StatusEvent> twins =
+        List.of(
+            move("1", "2026-09-01T12:00:00Z", "WP03", Lane.FOR_REVIEW, Lane.IN_REVIEW),
+            move("3", "2026-09-01T12:01:00Z", "WP03", Lane.IN_REVIEW, Lane.APPROVED),
+            move("2", "2026-09-01T12:01:00Z", "WP03", Lane.APPROVED, Lane.DONE));
+    StatusSnapshot done = reduce(twins);
+    assertThat(done.workPackages().get("WP03").lane()).isEqualTo(Lane.DONE);
+    assertThat(done.lastEventId()).isEqualTo("2");
+  }
+
+  @Test
   void sameIdSeedsKeepTheCanonicalMinimumWhateverTheFileOrderAndARealRowKeepsTheFirst() {
     StatusEvent claimedSeed = Events.seed("S", T1, "WP01", Lane.PLANNED, Lane.CLAIMED, "{\"to_lane\": \"claimed\"}");
     StatusEvent blockedSeed = Events.seed("S", T1, "WP01", Lane.PLANNED, Lane.BLOCKED, "{\"to_lane\": \"blocked\"}");

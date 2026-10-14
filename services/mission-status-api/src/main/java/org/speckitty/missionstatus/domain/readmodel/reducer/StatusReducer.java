@@ -20,15 +20,16 @@ import org.speckitty.missionstatus.domain.model.StatusSnapshot;
 import org.speckitty.missionstatus.domain.model.WpState;
 
 /**
- * The port of the reduction {@code materialize_snapshot} runs: {@code spec_kitty_events.diary.reduce_parsed} 10.4.4 plus the
+ * The port of the reduction {@code materialize_snapshot} runs: {@code spec_kitty_events.diary.reduce_parsed} 10.4.6 plus the
  * cancellation-provenance and implementer projections of {@code reducer.py}. Steps: (1) deduplicate by {@code event_id}, first occurrence
  * in file order wins, except that rows which are all reconstruction seeds keep the canonical-minimum one (the two projections sort first,
  * then deduplicate); (2) sort by the injected ordering; (3) fold with rollback-aware precedence; (4) a separate annotation pass; (5) the
  * display lane counts (taken from the snapshot). It is pure: no clock, no I/O, no framework.
  *
- * <p>Ported from 10.4.0 to 10.4.4 (#5967, #4941, #6058): arm (ii) of the precedence drops an unforced, non-rollback transition whose
- * {@code from_lane} differs from the lane in force for every setter, except a seed that is not itself a rollback; and the same-id seed
- * dedup. The 10.4.3 seed payload fold (a seed that loses arm (ii) still fills the claim slots and {@code review_result} that no real event
+ * <p>Ported from 10.4.0 to 10.4.6 (#5967, #4941, #6058, #6061, #87): arm (ii) of the precedence drops an unforced, non-rollback transition whose
+ * {@code from_lane} differs from the lane in force for every setter; the reconstruction-seed exemptions (a rollback seed must continue the lane
+ * in force unless it meets its bare sibling approval, an applied rollback seed yields to a real event); the same-id seed dedup; and the order
+ * in which a real {@code approved -> X} follows its same-{@code at} approval. The 10.4.3 seed payload fold (a seed that loses arm (ii) still fills the claim slots and {@code review_result} that no real event
  * wrote) is not ported, because it writes only slots this service never serves; it touches none of the lane-setter slots.
  */
 public final class StatusReducer {
@@ -78,7 +79,7 @@ public final class StatusReducer {
     Map<String, WpState> states = new LinkedHashMap<>();
     for (StatusEvent event : sorted) {
       WpState current = states.get(event.wpId());
-      if (shouldApply(current, event, byId)) {
+      if (shouldApply(current, event, byId, sorted)) {
         states.put(event.wpId(), fold(event, current));
       }
     }
@@ -119,7 +120,42 @@ public final class StatusReducer {
       unique.add(allSeeds ? rows.stream().min(Comparator.comparing(StatusEvent::seedKey, CodePoints::compare)).orElseThrow() : rows.getFirst());
     }
     unique.sort(ordering);
-    return unique;
+    return approvedFollowsItsApproval(unique);
+  }
+
+  /**
+   * {@code _order_transitions} (10.4.6, spec-kitty-events#87): a real {@code approved -> X} that shares its {@code at} with a real
+   * {@code -> approved} of the same work package sorts after every other row of that {@code at}, whatever its {@code event_id}.
+   */
+  private static List<StatusEvent> approvedFollowsItsApproval(List<StatusEvent> sorted) {
+    Set<String> approvals = new HashSet<>();
+    for (StatusEvent event : sorted) {
+      if (event.toLane() == Lane.APPROVED && event.fromLane() != Lane.APPROVED && !event.isSeed()) {
+        approvals.add(event.wpId() + '\0' + event.at());
+      }
+    }
+    if (approvals.isEmpty()) {
+      return sorted;
+    }
+    List<StatusEvent> result = new ArrayList<>(sorted.size());
+    int start = 0;
+    while (start < sorted.size()) {
+      int end = start;
+      while (end < sorted.size() && sorted.get(end).at().equals(sorted.get(start).at())) {
+        end++;
+      }
+      List<StatusEvent> late = new ArrayList<>();
+      for (StatusEvent event : sorted.subList(start, end)) {
+        if (event.fromLane() == Lane.APPROVED && !event.isSeed() && approvals.contains(event.wpId() + '\0' + event.at())) {
+          late.add(event);
+        } else {
+          result.add(event);
+        }
+      }
+      result.addAll(late);
+      start = end;
+    }
+    return result;
   }
 
   private static boolean isRollback(StatusEvent event) {
@@ -128,28 +164,78 @@ public final class StatusReducer {
   }
 
   /**
-   * {@code _arbitrate_event}: rollback-aware precedence, in two arms. Arm (ii) enforces {@code from_lane} continuity against EVERY setter
-   * (10.4.2, #5967: a stale forward step after a cancel or after a reclaimed rework is dropped, not only one after a rollback), except
-   * that a reconstruction seed which is not a rollback yields to the recorded live lifecycle (10.4.3), and a rollback or a forced event
-   * always applies. It runs on the sorted, deduplicated rows, so the setter is the row the dedup kept.
+   * {@code _arbitrate_event}: rollback-aware precedence, in two arms. Arm (i) is the same-{@code at} verdict (a rollback beats a forward setter; a
+   * forward event never beats a rollback setter), arm (ii) enforces {@code from_lane} continuity against EVERY setter (10.4.2, #5967), unless the
+   * event is exempt. Reconstruction seeds are narrowed by 10.4.6 (#6061, rules R1 to R3): a rollback seed beats a forward setter only at its bare
+   * sibling approval and must otherwise continue the lane in force; an applied rollback seed yields to a real event; a seed never rides the
+   * forward-seed-setter exemption. It runs on the sorted, deduplicated rows, so the setter is the row the dedup kept.
    */
-  private static boolean shouldApply(WpState current, StatusEvent event, Map<String, StatusEvent> byId) {
+  private static boolean shouldApply(WpState current, StatusEvent event, Map<String, StatusEvent> byId, List<StatusEvent> all) {
     if (current == null) {
       return true;
     }
     StatusEvent setter = byId.get(current.lastEventId());
-    boolean setterIsRollback = setter != null && isRollback(setter);
-    boolean eventIsRollback = isRollback(event);
     if (current.lastTransitionAt().equals(event.at())) {
-      if (eventIsRollback && setter != null && !setterIsRollback) {
-        return true;
+      Boolean sameAt = sameTimestampVerdict(event, setter, all);
+      if (sameAt != null) {
+        return sameAt;
       }
-      if (setterIsRollback && !eventIsRollback) {
+    }
+    return setter == null || event.force() || event.fromLane() == current.lane() || continuityExempt(event, setter, all);
+  }
+
+  /** Arm (i): {@code TRUE} applies, {@code FALSE} drops, {@code null} abstains and leaves the event to arm (ii). */
+  private static Boolean sameTimestampVerdict(StatusEvent event, StatusEvent setter, List<StatusEvent> all) {
+    if (setter == null) {
+      return null;
+    }
+    if (isRollback(event)) {
+      if (isRollback(setter)) {
+        return null;
+      }
+      return !event.isSeed() || isBareSibling(setter, event, all) ? Boolean.TRUE : null;
+    }
+    return isRollback(setter) && !yieldsToReal(setter, event, all) ? Boolean.FALSE : null;
+  }
+
+  /** Arm (ii) exemptions ({@code _continuity_exempt}): whether the event may break {@code from_lane} continuity. */
+  private static boolean continuityExempt(StatusEvent event, StatusEvent setter, List<StatusEvent> all) {
+    if (isRollback(event)) {
+      return !event.isSeed() || isRollbackSeed(setter) || isBareSibling(setter, event, all);
+    }
+    if (event.isSeed()) {
+      return false;
+    }
+    return (setter.isSeed() && !isRollback(setter)) || yieldsToReal(setter, event, all);
+  }
+
+  private static boolean isRollbackSeed(StatusEvent event) {
+    return event.isSeed() && isRollback(event);
+  }
+
+  /**
+   * {@code _is_bare_sibling}: a non-rollback {@code -> approved} that left the lane the rollback seed left, and that no real event leaving
+   * {@code approved} follows in {@code (at, event_id)} order.
+   */
+  private static boolean isBareSibling(StatusEvent approval, StatusEvent seed, List<StatusEvent> all) {
+    if (isRollback(approval) || approval.toLane() != Lane.APPROVED || approval.fromLane() != seed.fromLane()) {
+      return false;
+    }
+    for (StatusEvent other : all) {
+      if (other.wpId().equals(approval.wpId())
+          && other.fromLane() == Lane.APPROVED
+          && !other.isSeed()
+          && (CodePoints.compare(other.at(), approval.at()) > 0
+              || (other.at().equals(approval.at()) && CodePoints.compare(other.eventId(), approval.eventId()) > 0))) {
         return false;
       }
     }
-    boolean setterIsDecision = setter != null && !(setter.isSeed() && !setterIsRollback);
-    return !(setterIsDecision && !eventIsRollback && !event.force() && event.fromLane() != current.lane());
+    return true;
+  }
+
+  /** {@code _yields_to_real}: an applied rollback seed holds the lane only against its bare sibling and against other seeds. */
+  private static boolean yieldsToReal(StatusEvent setter, StatusEvent event, List<StatusEvent> all) {
+    return isRollbackSeed(setter) && !event.isSeed() && !isBareSibling(event, setter, all);
   }
 
   /** {@code _wp_state_from_event}; the projections are filled in afterwards. */

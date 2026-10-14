@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-02T10:00:00+00:00",
+  "friendly_name": "Fixture seed-lane-authority",
+  "mission_id": "01J05000000000000000000005",
+  "mission_number": null,
+  "mission_slug": "seed-lane-authority",
+  "mission_type": "software-dev",
+  "slug": "seed-lane-authority",
+  "target_branch": "main"
+}

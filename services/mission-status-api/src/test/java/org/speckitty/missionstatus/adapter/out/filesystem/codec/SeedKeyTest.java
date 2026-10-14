@@ -9,7 +9,7 @@ import org.speckitty.missionstatus.domain.model.LineKind;
 import org.speckitty.missionstatus.domain.model.StatusEvent;
 
 /**
- * The seed marker and the canonical key of a reconstruction seed (spec-kitty-events 10.4.4: {@code _is_reconstruction_seed},
+ * The seed marker and the canonical key of a reconstruction seed (spec-kitty-events 10.4.6: {@code _is_reconstruction_seed},
  * {@code _canonical_key}). Each expected key is the live output of {@code json.dumps(StatusEvent.from_dict(row).to_dict(),
  * sort_keys=True, default=str)} for the row beside it, produced by the installed package.
  */
