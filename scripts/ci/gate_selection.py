@@ -21,6 +21,7 @@ Public API:
 from __future__ import annotations
 
 import fnmatch
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -30,12 +31,15 @@ from typing import Any
 import yaml
 
 __all__ = [
+    "DEFAULT_CENSUS_PATH",
     "DEFAULT_REGISTRY_PATH",
     "DEFAULT_ROUTER_PATH",
+    "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
     "PROBE_GROUPS",
     "GateSelection",
     "Router",
+    "derive_group_module_fanout",
     "load_router",
     "select_gates",
     "select_modules",
@@ -44,46 +48,93 @@ __all__ = [
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROUTER_PATH = _REPO_ROOT / ".github" / "workflows" / "ci-router.yml"
 DEFAULT_REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
+DEFAULT_CENSUS_PATH = _REPO_ROOT / ".github" / "ci-consumer-census.json"
 
 # The ``any_src`` filter row is the FR-004 fail-closed PROBE (matches any
 # ``src/**``), consumed only by the router's ``unmatched`` step. It is never a
 # routing group and is never gated on a job (contract Invariant 1).
 PROBE_GROUPS = frozenset({"any_src"})
 
-# Non-src routing groups that select registry modules they are not named after (#6125).
-# ``select_modules`` unions these modules in when the group matches. The group stays
-# non-src so it can never mask an unmapped ``src/**`` change (FR-004); every target must
-# be a registry module (pinned by tests/architectural/test_gate_selection_authority.py).
+# The non-src routing groups that FAN OUT to registry modules they are not named
+# after (#6125/#6166). ``select_modules`` unions a group's module set in when the
+# group matches. Each stays non-src so it can never mask an unmapped ``src/**``
+# change (FR-004); every target is a registry module (pinned by
+# tests/architectural/test_gate_selection_authority.py).
+#
+# These keys are the GLOB authority (which groups fan out — hand-authored in
+# ci-router.yml, GitHub Actions needs literal YAML, pinned by the transcription
+# guard). The MODULE SETS below stay human-validated: a blind derivation from the
+# census over-attributes widely-used resolver entry points (e.g. every module whose
+# tests reference ``_load_expected_artifact_manifest`` would join ``mission_manifest``,
+# ~2.8x its shard cost) because static analysis cannot tell a test that asserts on
+# the REAL shipped pack from one that drives the same entry point against a temp
+# project. That real-pack-vs-temp precision needs running the tests, which a
+# freshness-checked census build cannot do; full value-derivation is therefore a
+# tracked follow-up. In the meantime the hand sets are no longer blindly maintained:
+# the committed consumer census (.github/ci-consumer-census.json) is the durable map
+# of which test module consumes which pack path, and
+# tests/architectural/test_consumer_census_routing.py reds when a consumed pack
+# sub-tree is unrouted (a new consumer) or when a historical pin's routing breaks —
+# instead of letting the gap reach ``main`` (#6166). ``derive_group_module_fanout``
+# computes the census's own answer for the derived-vs-hand analysis and the follow-up.
 GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "mission_manifest": frozenset({"charter", "dossier", "specify_cli_runtime"}),
     # #6166 task A -- mission pack content beyond expected-artifacts.yaml (the mission-step
     # prompt/step contracts, per-type templates, mission.yaml, mission-runtime.yaml, actions/**,
-    # governance-profile.yaml, built_in_step_contracts/**). Every module whose tests read that
-    # content, so a pack edit runs them per-PR instead of selecting zero (the #6156 class).
-    #   charter            -- reads mission-step prompt.md BODIES + mission.yaml + templates and
-    #                         asserts on their content (tests/charter_offering prompt-walk/emptiness);
-    #                         also the action indexes, step contracts and governance profiles.
-    #   next               -- runtime-resolves the prompts (spec-kitty next) and reads prompt.md
-    #                         directly (tests/next discovery-step contract -- the #6156 break);
-    #                         reads mission-runtime.yaml (tests/next/test_plan_mission_runtime.py).
-    #   missions           -- (also) tests/missions/test_mission_type_profile_resolution.py
-    #                         loads the shipped governance-profile.yaml files.
-    #   missions           -- globs the real mission-steps prompt.md + loads mission.yaml.
-    #   execution_context  -- inherits tests/runtime (resolve_command -> mission-steps prompt.md).
-    #   dossier            -- reads expected-artifacts.yaml manifests (the #6153 class).
-    #   specify_cli_runtime-- owns src/charter/offering/missions/**; its tests read real manifests.
+    # governance-profile.yaml, built_in_step_contracts/**). Per-module evidence: the census
+    # ``via`` field (.github/ci-consumer-census.json).
     "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"}),
-    # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs):
-    #   charter   -- MissionTypeRepository.default over the shipped types (tests/charter*).
-    #   core_misc -- tests/core/test_mission_creation_identity.py loads default_missions_root()/"mission_types".
-    #   upgrade   -- tests/upgrade/test_activate_builtin_types_migration.py copies the shipped *.yaml.
+    # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs).
     "mission_type_definitions": frozenset({"charter", "core_misc", "upgrade"}),
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
-    # modules whose tests exercise it but that `cli` does not reach:
-    #   agent     -- tests/agent/test_commands.py imports specify_cli.cli.commands.lifecycle (the #6161 break).
-    #   core_misc -- tests/specify_cli/design imports the same lifecycle command module.
+    # modules whose tests exercise it but that `cli` does not reach (agent, core_misc).
     "cli_lifecycle": frozenset({"agent", "core_misc"}),
 }
+
+# The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
+# and the routing gate share one authority for "which groups are consumer fan-outs".
+FANOUT_GROUPS: frozenset[str] = frozenset(GROUP_MODULE_FANOUT)
+
+
+def derive_group_module_fanout(
+    *,
+    router: Router | None = None,
+    census_path: Path | None = None,
+    registry_path: Path | None = None,
+) -> dict[str, frozenset[str]]:
+    """The census's OWN answer for each fan-out group: the modules it records as
+    consuming a path matching that group's router globs (and that are registry
+    modules). This is the derived-vs-hand analysis input and the basis for the
+    full-value-derivation follow-up; it does NOT drive live routing today (see the
+    GROUP_MODULE_FANOUT comment on real-pack-vs-temp precision).
+
+    The router globs are the independent path->group authority, so the derivation is
+    not self-referential: a census path matching no group's globs lands in no set.
+    Resilient: a missing/malformed census yields an empty set per group (never a
+    crash), so importing this module never depends on the artifact existing yet.
+    """
+    router = router or load_router()
+    modules = _registry_module_names(registry_path)
+    result: dict[str, set[str]] = {group: set() for group in FANOUT_GROUPS}
+    try:
+        census = json.loads((census_path or DEFAULT_CENSUS_PATH).read_text(encoding="utf-8"))
+        census_modules = census["modules"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {group: frozenset() for group in FANOUT_GROUPS}
+
+    group_globs = {group: tuple(router.filters.get(group, ())) for group in FANOUT_GROUPS}
+    for module, data in census_modules.items():
+        if module not in modules or not isinstance(data, dict):
+            continue
+        for entry in data.get("consumes", ()):
+            path = entry.get("path") if isinstance(entry, dict) else None
+            if not path:
+                continue
+            for group, globs in group_globs.items():
+                if any(fnmatch.fnmatch(path, pattern) for pattern in globs):
+                    result[group].add(module)
+    return {group: frozenset(members) for group, members in result.items()}
+
 
 _GROUP_REF = re.compile(r"needs\.changes\.outputs\.([A-Za-z0-9_]+)")
 
