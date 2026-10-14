@@ -48,11 +48,13 @@ class ReplayGuardsTest {
     SmokeRequests requests = SmokeRequests.load();
     int base = requests.floor("base");
     int hostOrigin = requests.floor("hostOrigin");
-    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base - 1, "hostOrigin", hostOrigin))).isInstanceOf(AssertionError.class).hasMessageContaining("base");
-    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin - 1))).isInstanceOf(AssertionError.class).hasMessageContaining("hostOrigin");
-    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base))).isInstanceOf(AssertionError.class).hasMessageContaining("hostOrigin");
+    int detail = requests.floor("detail");
+    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base - 1, "hostOrigin", hostOrigin, "detail", detail))).isInstanceOf(AssertionError.class).hasMessageContaining("base");
+    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin - 1, "detail", detail))).isInstanceOf(AssertionError.class).hasMessageContaining("hostOrigin");
+    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin, "detail", detail - 1))).isInstanceOf(AssertionError.class).hasMessageContaining("detail");
+    assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin))).isInstanceOf(AssertionError.class).hasMessageContaining("detail");
     assertThatThrownBy(() -> Replay.requireFloors(requests, Map.of())).isInstanceOf(AssertionError.class).hasMessageContaining("base");
-    Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin));
+    Replay.requireFloors(requests, Map.of("base", base, "hostOrigin", hostOrigin, "detail", detail));
   }
 
   @Test

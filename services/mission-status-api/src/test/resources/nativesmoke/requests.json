@@ -5,6 +5,9 @@
     },
     "hostOrigin": {
       "requestCountFloor": 12
+    },
+    "detail": {
+      "requestCountFloor": 14
     }
   },
   "groups": [
@@ -567,6 +570,152 @@
           "headers": {
             "Origin": "http://127.0.0.1:<port>"
           }
+        }
+      ]
+    },
+    {
+      "stage": "detail",
+      "tree": "detail-populated/populated",
+      "requests": [
+        {
+          "id": "d01-get-mission",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:get-mission.json#-",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "d02-get-mission-not-found",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000009",
+          "expectedStatus": 404,
+          "expectedProblemCode": "not_found",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d03-get-work-package",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP01",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:get-work-package.json#WP01",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "d04-get-work-package-with-prompt",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP01?includePrompt=true",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:get-work-package-prompt.json#WP01",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "d05-include-prompt-invalid",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP01?includePrompt=1",
+          "expectedStatus": 400,
+          "expectedProblemCode": "invalid_parameter",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d06-get-work-package-not-found",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP99",
+          "expectedStatus": 404,
+          "expectedProblemCode": "not_found",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d07-get-work-package-detail",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP01/detail",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:get-work-package-detail.json#WP01",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "detail",
+      "tree": "legacy-lanes-json/legacy-lanes-json",
+      "requests": [
+        {
+          "id": "d08-detail-legacy-lanes-json",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/work-packages/WP01/detail",
+          "expectedStatus": 500,
+          "expectedGolden": "tree:get-work-package-detail.json#WP01",
+          "expectedProblemCode": "source_unreadable",
+          "expectedContentType": "application/problem+json"
+        }
+      ]
+    },
+    {
+      "stage": "detail",
+      "tree": "artifacts-populated/artifacts-populated",
+      "requests": [
+        {
+          "id": "d09-list-artifacts",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:list-artifacts.json#-",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "detail",
+      "tree": "artifacts-redaction/artifacts-redaction",
+      "requests": [
+        {
+          "id": "d10-artifact-content-redacted",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts/content?path=only-mail.md",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:get-artifact-content.json#only-mail.md",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "detail",
+      "tree": "artifacts-refusals/artifacts-refusals",
+      "requests": [
+        {
+          "id": "d11-artifact-secret",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts/content?path=secret.txt",
+          "expectedStatus": 422,
+          "expectedGolden": "tree:get-artifact-content.json#secret.txt",
+          "expectedProblemCode": "artifact_secret",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d12-artifact-not-text",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts/content?path=not-text-nul.dat",
+          "expectedStatus": 415,
+          "expectedGolden": "tree:get-artifact-content.json#not-text-nul.dat",
+          "expectedProblemCode": "artifact_not_text",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d13-artifact-repeated-path",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts/content?path=ok.md&path=meta.json",
+          "expectedStatus": 400,
+          "expectedProblemCode": "invalid_artifact_path",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "d14-artifact-missing",
+          "method": "GET",
+          "path": "/api/v1/missions/00000000000000000000000001/artifacts/content?path=missing.md",
+          "expectedStatus": 404,
+          "expectedGolden": "tree:get-artifact-content.json#missing.md",
+          "expectedProblemCode": "not_found",
+          "expectedContentType": "application/problem+json"
         }
       ]
     }

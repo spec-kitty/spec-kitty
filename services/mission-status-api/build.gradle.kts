@@ -54,7 +54,8 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.networknt.json.schema)
-    testRuntimeOnly(libs.junit.platform.launcher)
+    // testImplementation, not runtime only: NotRunListener (WP17) implements the launcher's TestExecutionListener.
+    testImplementation(libs.junit.platform.launcher)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -109,6 +110,29 @@ tasks.named<GenerateTask>("openApiGenerate") {
             "generateJsonSetterNullsAnnotations" to "false",
         ),
     )
+    // WP16 F1 (D-entry draft wp16c2): the contract types the two `sizeBytes` members `integer`, `minimum: 0`, with no format and no
+    // maximum, and the generator maps that to a 32-bit Integer; a file above 2 GiB would be served at a wrong number. A global
+    // `integer` -> Long type mapping would change every other integer member and the bytes of other routes, so the widening is scoped
+    // to exactly these two members by a rewrite after generation. The rewrite fails the build when the member is found but not every
+    // Integer occurrence of it was widened.
+    doLast {
+        val modelDir = layout.buildDirectory.dir("generated/openapi/src/main/java/org/speckitty/missionstatus/adapter/in/http/model").get().asFile
+        for (name in listOf("ArtifactEntry", "ArtifactContent")) {
+            val file = File(modelDir, "$name.java")
+            val before = file.readText()
+            val after = before
+                .replace("private Integer sizeBytes;", "private Long sizeBytes;")
+                .replace("sizeBytes(Integer sizeBytes)", "sizeBytes(Long sizeBytes)")
+                .replace("public Integer getSizeBytes()", "public Long getSizeBytes()")
+                .replace("public void setSizeBytes(Integer sizeBytes)", "public void setSizeBytes(Long sizeBytes)")
+                .replace(", Integer sizeBytes,", ", Long sizeBytes,")
+            // A contract that no longer has the member (the drift test renames it) is left to the probe's compile error.
+            check(!before.contains("private Integer sizeBytes;") || (!after.contains("Integer sizeBytes") && !after.contains("Integer getSizeBytes") && after.contains("Long sizeBytes"))) {
+                "$name.java: the sizeBytes widening did not apply to every Integer member; the generator output changed"
+            }
+            file.writeText(after)
+        }
+    }
 }
 
 sourceSets.main {

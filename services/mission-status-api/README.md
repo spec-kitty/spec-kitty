@@ -1,6 +1,6 @@
 # Mission status API
 
-A read-only, loopback-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews and a stream of changes. It serves `GET /api/v1/project`, `GET /api/v1/missions`, `GET /api/v1/events` (a server-sent change stream) and `GET /api/v1/openapi.yaml`, behind a Host and Origin guard that answers only to `127.0.0.1` and `localhost` on its own port. Every other path of the contract answers 404 by design (`OutOfScopeRoutesTest`). It reads a Mission's event log and the few files needed to find it, never writes to the project, takes no lock, starts no process and reads no git state beyond the one `HEAD` file. It is a detached service: no spec-kitty command starts it, and it is not part of the PyPI package. CI replays a golden request set against the native binary of four targets and compares the response digests, holds the performance budgets of NFR-001, NFR-002 and NFR-004, and can compare the service with the Python reference over the whole repository corpus in a nightly scheduled run (04:37 UTC) or a manually dispatched one (see Tests and Recorded divergences).
+A read-only, loopback-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews, a stream of changes, and the detail of one Mission, one Work Package and a Mission's artifacts. It serves `GET /api/v1/project`, `GET /api/v1/missions`, `GET /api/v1/events` (a server-sent change stream), the five detail routes under `GET /api/v1/missions/{missionId}` (see Routes and scope) and `GET /api/v1/openapi.yaml`, behind a Host and Origin guard that answers only to `127.0.0.1` and `localhost` on its own port. Every other path of the contract answers 404 by design (`OutOfScopeRoutesTest`). It reads a Mission's event log and the few files needed to find it, never writes to the project, takes no lock, starts no process and reads no git state beyond the one `HEAD` file. It is a detached service: no spec-kitty command starts it, and it is not part of the PyPI package. CI replays a golden request set against the native binary of four targets and compares the response digests, holds the performance budgets of NFR-001, NFR-002 and NFR-004, and can compare the service with the Python reference over the whole repository corpus in a nightly scheduled run (04:37 UTC) or a manually dispatched one (see Tests and Recorded divergences).
 
 ## How to run
 
@@ -27,14 +27,21 @@ Every request is checked before anything is read:
 
 ## Routes and scope
 
-The service answers exactly these routes and no others:
+The service answers exactly these nine routes and no others:
 
 - `GET /api/v1/project`: the project header.
 - `GET /api/v1/missions`: a page of Mission overviews.
 - `GET /api/v1/events`: the change stream (`text/event-stream`).
 - `GET /api/v1/openapi.yaml`: the contract document, bundled at build time from `contracts/mission-status` and served as it stands.
+- `GET /api/v1/missions/{missionId}` (`getMission`): the full overview of one Mission, with its phases, Lane counts and the Work Packages the Mission holds.
+- `GET /api/v1/missions/{missionId}/work-packages/{wpId}` (`getWorkPackage`): one Work Package, resolved from its authored file and the event log; `?includePrompt=true` adds its prompt text (see "Prompt text").
+- `GET /api/v1/missions/{missionId}/work-packages/{wpId}/detail` (`getWorkPackageDetail`): the owned files, artifact references, review cycles, dependencies and workspace of one Work Package.
+- `GET /api/v1/missions/{missionId}/artifacts` (`listArtifacts`): the readable files of a Mission directory, in the byte order of their UTF-8 names.
+- `GET /api/v1/missions/{missionId}/artifacts/content?path=<relative path>` (`getArtifactContent`): the text of one file, with host paths, addresses and credentials screened (a credential is refused with `422`, a file that is not text with `415`, an oversize one with `413`).
 
-Any other path is `404` once the Host and Origin check has passed. There is no generated or interactive API documentation. Detail routes (a single Mission or Work Package, artifacts, drift, Ops) are issue #957 and out of scope here.
+Any other path is `404` once the Host and Origin check has passed. There is no generated or interactive API documentation. Drift and Ops have no Java owner yet: nothing in this service answers for them. Governance (what the project's rules say a Mission must satisfy) is issue #5533, and it will be built on the read primitives of these routes (the Work Package index, the text-read port and the admission gate, see "Terms"), not beside them.
+
+The artifact routes and the Work Package index need a UTF-8 locale for file names (`LC_ALL=C.UTF-8` or any installed UTF-8 locale; the JVM reports it as `sun.jnu.encoding`): on a host whose file-name decoding is not UTF-8, a name that is not pure ASCII is answered `500` (`artifact_listing_unreadable` or `artifact_unreadable`) and is never omitted silently.
 
 ## Paging
 
@@ -167,6 +174,23 @@ The service is checked against the Python reducer on a curated golden set and, i
   - Ruling 3 (J4): `.kittify` must resolve inside the project root by real path; the oracle follows a link out of the root.
   - Single-remedy rulings (J6): an `at` or a `timestamp` that is not an instant drops the stream event with one `projection_refused` diagnostic; the oracle forwards the text.
 
+### Divergences of the detail routes
+
+The detail routes are checked against the same Python reference (`tests/contract/_mission_status_detail.py`) on the goldens of `conformance/`. The differences below are kept on purpose; each has a fixture or a test of its own, and the manifest's `knownDivergences` holds them with their cause. V1 to V19 belong to the Mission, Work Package and artifact routes, V20 to V26 and V28 to the resolved state of a Work Package.
+
+- V1: a symbolic link for `spec.md`, `plan.md` or `tasks.md` is not followed, so the phase falls through to the lifecycle events (the oracle follows the link). V2: a stat of a planning file that fails is `500 source_unreadable` (the oracle reads it as pending).
+- V3, V4: a duplicate Work Package id and a malformed or symlinked Work Package file follow the index rule (the first file wins, the others are skipped with `wp_file_skipped`), where the oracle's default read path lists a duplicate twice, raises on a malformed file and follows a link. V5: a Work Package file over 1 MiB is `500 source_unreadable` (the oracle serves it). V14: `tasks/` that is a file or a link is `500 source_unreadable`.
+- V6, V8: `changeState` is `unknown` (the service reads no git), and a workspace is resolved by the stat rule of FR-010 where the product consults a persisted context. V7: a `worktreePresent` directory or its `.git` that is a link is not present.
+- V9: a Mission-scoped request for an id no readable Mission holds answers by the first unusable sibling (`404` with `path_refused`, or `500`), where the oracle skips the sibling and answers a plain `404`.
+- V10: the artifact walk stops at 100000 entries (`500 artifact_listing_unreadable`). V11: a name with U+FFFD or invalid UTF-8 is not listed and never opened. V13: a file the content read cannot open is `500 artifact_unreadable`. V15 and V16: a host whose file-name encoding is not UTF-8, or a failed lstat of a path component, is `500` and never an omission. V17: `lanes.json` over 1 MiB and a review-cycle file over 262144 bytes are refused where the oracle has no cap.
+- V12: `includePrompt` that is not exactly `true` or `false` is `400 invalid_parameter`, where the oracle has no HTTP layer.
+- V18: a strict or human field that cannot be shown refuses the request (`500 projection_refused`, `source_unreadable` on the detail), where the oracle serves the stored text. V19: a head date (`acceptedAt`, `mergedAt`, `discardedAt`) that is not an instant is `null`, and the lifecycle status is derived without it.
+- V20 to V25 (D-159): subtasks written as mappings are refused (`projection_refused`); a float agent or actor, and a review verdict that is not text, are `null`; an annotation or override member that is a float, a list or an object makes the row unusable; a subtask status of `genesis` or `uninitialized`, and a history `eventId`, `at` or lane that is not text, are refused by the route mapper. V26: a review-cycle number above the integer range is `500 source_unreadable`. V28: a departure from `approved` stamped before a clock-ahead approval stays in text order, so the Work Package ends `approved` where the `spec-kitty-events` 10.5.1 reference ends at the departure's lane (until spec-kitty#6268 ports that rule).
+
+The event log and the Work Package files are read one after the other, not at one instant. A Work Package whose file changes between the two reads can show a lane from the log and fields from the newer file. The service takes no lock and never writes, so it does not close that window; a client that needs a consistent pair asks again.
+
+The stream projection, the stream cap and the shutdown registry belong to the inbound port and serve every adapter. The cap key `mission-status.stream.max-connections` and the README lines about it are unchanged.
+
 ## Release and binaries
 
 Native binaries for Linux x64, Linux arm64, macOS arm64 and Windows x64 are built by CI and attached to a GitHub release together with a `.sha256` file each. The maintainer cuts a release by pushing a tag of the form `mission-status-api-v<semver>`; nothing is published from a pull request, and this service is not on PyPI, not in the wheel and has no auto-update.
@@ -175,6 +199,12 @@ Native binaries for Linux x64, Linux arm64, macOS arm64 and Windows x64 are buil
 - Each binary has a `.sha256` file: it shows that a download matches what the build job produced, not where it was built; the attestation does that.
 - The binaries are unsigned: macOS Gatekeeper and Windows SmartScreen warn on first run. Verify a download against its `.sha256` file.
 - A release asset carries no Unix file mode. On Linux and macOS run `chmod +x <binary>` before the first start.
+
+## Prompt text
+
+`GET /api/v1/missions/{missionId}/work-packages/{wpId}?includePrompt=true` adds `promptMarkdown` to the Work Package: the body of its authored prompt file, the lines after the closing frontmatter delimiter joined by `\n`, so a CRLF or a lone CR reaches the client as LF. This is the one deliberate exception to the leak projection: every other text member of the same response has host paths and e-mail addresses replaced (`title` shows `[path]` where `promptMarkdown` keeps the path), but the prompt is served as authored, because the person who asks for it is asking for the file. The member is absent from the JSON (not null, not empty) unless the parameter is exactly `true`; `1`, `yes`, `TRUE`, an empty value or a repeated parameter is a `400 invalid_parameter` before any file is read.
+
+The guard is not the parameter. It is the loopback bind together with the Host and Origin check, which refuses a foreign `Host` or `Origin` with `403 request_refused` before anything is read, so a page on another site cannot read a prompt through the browser. A response with a prompt can hold about 11 MiB at its peak, so at most four of them are built at once; the rest wait their turn.
 
 ## Package layout
 
@@ -192,7 +222,7 @@ From this directory, with placeholders for what is yours:
 
 - `./gradlew check` runs the JVM tests, the architecture rules, the coverage floors and the replay of the native request set against the JVM service. The build needs the contract document as `-PcontractBundle=<file> -PcontractBundleSha256=<digest>`.
 - `./gradlew nativeCompile nativeTest` builds the native binary and runs the tests tagged for it.
-- `./gradlew nativeSmoke -PnativeBinary=<path of the built binary>` starts the binary and replays `src/test/resources/nativesmoke/requests.json` byte for byte against its goldens, in two stages: `base` (the golden set, every refusal code and an append-while-open stream round trip) and `hostOrigin` (the Host and Origin refusals and their accepted controls). It writes a digest of the response bodies; the four CI legs must write the same digest.
+- `./gradlew nativeSmoke -PnativeBinary=<path of the built binary>` starts the binary and replays `src/test/resources/nativesmoke/requests.json` byte for byte against its goldens, in three stages: `base` (the golden set, every refusal code and an append-while-open stream round trip), `hostOrigin` (the Host and Origin refusals and their accepted controls) and `detail` (the five detail routes: 200 answers compared with the committed goldens of `conformance/`, `includePrompt=true`, and representative refusals, a `404`, a `400`, a `415`, a `422` and a `500`). The binary is started with `LC_ALL=C.UTF-8` off Windows. It writes a digest of the response bodies; the four CI legs must write the same digest.
   The replay also counts the service's child processes before and after the requests and requires the count not to move; a child the binary already had when it became ready (on Windows, the console host) is not a process the replay started.
 - Performance budgets live in `src/test/java/org/speckitty/missionstatus/perf/PerfBudgets.java` (ADR 2026-10-05-2): the primary assertion is a ratio to a same-run floor; the absolute ceiling only stops a test from waiting unbounded and is amended by measurement, never by a retry. The NFR-001 warm p95 ceiling is 400 ms, amended from the initial 200 ms after two hosted 4-cpu runner measurements of 212 ms and 235 ms (load about 3.9, same-run ratio 27.75 against its limit of 40, so no regression).
 - `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py tests/ci/test_mission_status_gate_checks.py tests/ci/test_mission_status_routing.py tests/ci/test_mission_status_corpus_compare.py -q` from the repository root runs the Python pins on the build and the workflow.
@@ -206,5 +236,10 @@ Mission, Work Package, Lane, Tail cursor and `log_truncated` are the product's o
 - **reducer**: the code that folds a Mission's status events into one snapshot of Work Package lanes.
 - **status event**: one row of a Mission's event log that moves a Work Package between Lanes.
 - **`Diagnostic`**: the record written to the service log when a read hits a fault. It carries a stable code and a short Mission id and never a path.
+- **Work Package index**: the list of the Work Package files of one Mission (`tasks/WP*.md`), built once per request: the first file of an id wins, and an unusable file is skipped with the diagnostic `wp_file_skipped`.
+- **read scope**: what a read is made for, `AUTHORED` (the Work Package files, the planning files and the ledger side) or `ARTIFACT` (the artifact walk). The allowlist decides by the pair of scope and path.
+- **text-read port**: the interface (`TextSource`) behind every read of a file's text, implemented by `FilesystemTextSource`; every call carries its read scope.
+- **walk counter**: the count of entries an artifact walk has visited, bounded at 100000 (V10).
+- **admission gate**: the bound (`AdmissionGate`) on the heavy reads (a Work Package with its prompt, an artifact's content): at most four run at once and the rest wait their turn, in arrival order.
 - **overview read model**: the per-Mission summary the service derives from `meta.json` and the reduced event log.
 - **conformance golden**: a stored expected response that the service must reproduce byte for byte.

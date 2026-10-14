@@ -1575,11 +1575,11 @@ ROW_TO_ENTRY: Mapping[str, str] = {
     "A8": "V15",
 }
 # V19 is RETIRED, not reused and not renumbered: main's oracle fix (29d49cd77) nulls an off-shape head date before it derives the lifecycle, so row M14 no longer
-# diverges and `projection-nulls/head-dates-nulled` is an ordinary conformance case. V20 to V25 keep their numbers.
-# V26 and V27 are recorded by the route slice; V28 (the 10.5.1 approved-departure lift, spec-kitty#6268) is recorded here.
+# diverges and `projection-nulls/head-dates-nulled` is an ordinary conformance case. V20 to V26 keep their numbers.
+# V28 (the 10.5.1 approved-departure lift, spec-kitty#6268) is recorded by the base slice.
 RETIRED_ENTRY_IDS = frozenset({"V19"})
 RETIRED_ROWS = frozenset({"M14"})
-EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 26) if f"V{number}" not in RETIRED_ENTRY_IDS] + ["V28"]
+EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 27) if f"V{number}" not in RETIRED_ENTRY_IDS] + ["V28"]
 DETAIL_FIXTURE_TOTAL = 8 + 1 + 1 + 19 + 28 + 3 + 1 + 13 + 4 + 1 + 12 + 7 + 1 + 1 + 1 + 3 + 1 + 3 + 6 + 4
 
 
@@ -1592,7 +1592,7 @@ def divergence_problems(manifest: Mapping[str, Any]) -> list[str]:
     problems: list[str] = []
     entries = {entry["id"]: entry for entry in manifest.get(gen.KNOWN_DIVERGENCES_KEY, [])}
     if list(entries) != EXPECTED_ENTRY_IDS:
-        problems.append(f"the entry ids are {list(entries)}, not V1 to V25 and V28 without the retired {sorted(RETIRED_ENTRY_IDS)}")
+        problems.append(f"the entry ids are {list(entries)}, not V1 to V26 and V28 without the retired {sorted(RETIRED_ENTRY_IDS)}")
     for retired in RETIRED_ENTRY_IDS & set(entries):
         problems.append(f"{retired} is retired and must stay absent")
     for row in RETIRED_ROWS & set(ROW_TO_ENTRY):
@@ -1639,6 +1639,9 @@ def test_the_known_divergences_are_complete_distinct_and_pinned() -> None:
     mutated_missing = copy.deepcopy(manifest)
     mutated_missing[gen.KNOWN_DIVERGENCES_KEY] = [entry for entry in mutated_missing[gen.KNOWN_DIVERGENCES_KEY] if entry["id"] != "V9"]
     assert divergence_problems(mutated_missing), "deleting one entry turns the divergence test red"
+    mutated_v26 = copy.deepcopy(manifest)
+    mutated_v26[gen.KNOWN_DIVERGENCES_KEY] = [entry for entry in mutated_v26[gen.KNOWN_DIVERGENCES_KEY] if entry["id"] != "V26"]
+    assert divergence_problems(mutated_v26), "deleting the V26 entry turns the divergence test red"
     mutated_v28 = copy.deepcopy(manifest)
     mutated_v28[gen.KNOWN_DIVERGENCES_KEY] = [entry for entry in mutated_v28[gen.KNOWN_DIVERGENCES_KEY] if entry["id"] != "V28"]
     assert divergence_problems(mutated_v28), "deleting the V28 entry turns the divergence test red"

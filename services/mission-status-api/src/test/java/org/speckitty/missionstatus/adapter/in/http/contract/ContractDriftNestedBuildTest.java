@@ -81,7 +81,7 @@ class ContractDriftNestedBuildTest {
   static final List<Target> DETAIL_TARGETS =
       List.of(
           new Target("Actor", "tool", "new Actor().tool(\"claude\")"),
-          new Target("ArtifactContent", "sizeBytes", "new ArtifactContent().sizeBytes(1)"),
+          new Target("ArtifactContent", "sizeBytes", "new ArtifactContent().sizeBytes(1L)"),
           new Target("ArtifactEntry", "modifiedAt", "new ArtifactEntry().modifiedAt("),
           new Target("ArtifactListing", "truncated", "new ArtifactListing().truncated(false)"),
           new Target("ArtifactReference", "kind", "new ArtifactReference().kind(null)"),

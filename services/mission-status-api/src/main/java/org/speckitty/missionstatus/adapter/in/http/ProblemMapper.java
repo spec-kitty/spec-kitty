@@ -65,6 +65,30 @@ public final class ProblemMapper {
     };
   }
 
+  /**
+   * A refusal of an artifact route, with the exact Problem of the contract's {@code ArtifactRefusal} examples and of the Python goldens:
+   * the route's own {@code not_found} text, no trailing full stop, and {@code "type": "about:blank"}. This is the named edit of
+   * {@code ProblemMapper} that the artifact goldens force (D-P8-4); {@link #detail(DetailRefusal)} is unchanged and stays the text of
+   * the routes whose goldens do not force one. A kind that is not an artifact refusal gets the generic text.
+   */
+  public static ResponseEntity<ProblemBody> artifact(DetailRefusal refusal) {
+    DetailRefusal.Kind kind = refusal.kind();
+    return switch (kind) {
+      case NOT_FOUND -> artifact(kind, 404, "The artifact was not found", "No eligible artifact has this path in the Mission.");
+      case INVALID_ARTIFACT_PATH -> artifact(kind, 400, "The artifact path was refused", "The path is not a relative path of forward-slash segments.");
+      case ARTIFACT_TOO_LARGE -> artifact(kind, 413, "The artifact is too large", "The file is larger than 262144 bytes.");
+      case ARTIFACT_NOT_TEXT -> artifact(kind, 415, "The artifact is not text", "The file holds a NUL byte or is not valid UTF-8.");
+      case ARTIFACT_SECRET -> artifact(kind, 422, "The artifact holds a credential", "The file holds a credential, so its content is not served.");
+      case ARTIFACT_UNREADABLE -> artifact(kind, 500, "The artifact could not be read", "The file could not be read.");
+      case ARTIFACT_LISTING_UNREADABLE -> artifact(kind, 500, "The artifacts could not be listed", "The Mission directory could not be listed.");
+      case SOURCE_UNREADABLE -> detail(refusal);
+    };
+  }
+
+  private static ResponseEntity<ProblemBody> artifact(DetailRefusal.Kind kind, int status, String title, String detail) {
+    return respond(new ProblemBody(kind.wire(), detail, status, title, "about:blank"));
+  }
+
   private static ResponseEntity<ProblemBody> detail(DetailRefusal.Kind kind, int status, String title, String detail) {
     return respond(new ProblemBody(kind.wire(), detail, status, title));
   }
@@ -91,6 +115,25 @@ public final class ProblemMapper {
       case OUT_OF_RANGE, CONTENT_MISMATCH -> 409;
       case UNKNOWN_MISSION -> 404;
     };
+  }
+
+  /**
+   * A refusal of the Work Package detail route, with the exact Problem of the contract's {@code WorkPackageDetailRefusal} examples and of the
+   * Python goldens: the route's own texts, no trailing full stop, and {@code "type": "about:blank"}. This is the named edit of
+   * {@code ProblemMapper} that the golden of {@code getWorkPackageDetail} forces (D-P8-4); {@link #detail(DetailRefusal)} is unchanged and
+   * stays the text of the routes whose goldens do not force one. Only the two kinds of the route are answered here: a kind the route cannot
+   * throw gets the generic text.
+   */
+  public static ResponseEntity<ProblemBody> workPackageDetail(DetailRefusal refusal) {
+    return switch (refusal.kind()) {
+      case NOT_FOUND -> workPackageDetail(refusal.kind(), 404, "The work package was not found", "No work package with this identifier exists in the Mission.");
+      case SOURCE_UNREADABLE -> workPackageDetail(refusal.kind(), 500, "A source of the work package could not be read", "A file the detail is built from could not be read.");
+      default -> detail(refusal);
+    };
+  }
+
+  private static ResponseEntity<ProblemBody> workPackageDetail(DetailRefusal.Kind kind, int status, String title, String detail) {
+    return respond(new ProblemBody(kind.wire(), detail, status, title, "about:blank"));
   }
 
   private static String detailOf(StreamRefused.Kind kind) {

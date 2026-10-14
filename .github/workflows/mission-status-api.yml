@@ -113,9 +113,21 @@ jobs:
           echo "CONTRACT_BUNDLE_SHA256=$(tr -d '[:space:]' < "$RUNNER_TEMP/contract-bundle/openapi.yaml.sha256")" >> "$GITHUB_ENV"
       # `check`, never `test` alone (it would skip the JaCoCo rule). It also runs the standing tamper test, whose nested --offline build
       # reads the Gradle user home this outer build just filled: no step before it clears or bypasses that cache.
+      # LC_ALL=C.UTF-8 on this step only: the tests that read non-ASCII names need a UTF-8 file-name encoding, and without it they skip.
+      # A skip is green in `check`; each one is written to build/reports/not-run.txt, which the `test` task copies to this job's summary
+      # (the hook in build.gradle.kts) and the upload below keeps as an artifact.
       - name: Run the JVM gates
         working-directory: ${{ env.SERVICE_DIR }}
+        env:
+          LC_ALL: C.UTF-8
         run: ./gradlew --no-daemon check
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: not-run-jvm
+          path: ${{ env.SERVICE_DIR }}/build/reports/not-run.txt
+          if-no-files-found: ignore
+          overwrite: true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -323,10 +335,10 @@ jobs:
       # image has `python`, the Linux and macOS images have `python3`.
       - name: Require the native test floor
         if: ${{ !cancelled() && runner.os != 'Windows' }}
-        run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
+        run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 8
       - name: Require the native test floor (Windows)
         if: ${{ !cancelled() && runner.os == 'Windows' }}
-        run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
+        run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 8
       - name: Stage the binary and its checksum
         if: ${{ !cancelled() }}
         run: |
@@ -381,7 +393,7 @@ jobs:
           merge-multiple: true
           path: ${{ runner.temp }}/digests
       - name: Compare the four per-leg digests
-        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" --expected-count 4 --request-floor 49
+        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" --expected-count 4 --request-floor 63
 
   # --- WP15 ---
   # The release job (plan.md section 12, operator decision E-4). It runs only on a push of a mission-status-api-v*.*.* tag in the
@@ -527,7 +539,7 @@ jobs:
         working-directory: ${{ env.SERVICE_DIR }}
         run: |
           set -eu
-          java -jar build/libs/mission-status-api.jar --mission-status.project-root="$GITHUB_WORKSPACE" --mission-status.port=8787 > "$RUNNER_TEMP/service.log" 2>&1 &
+          LC_ALL=C.UTF-8 java -jar build/libs/mission-status-api.jar --mission-status.project-root="$GITHUB_WORKSPACE" --mission-status.port=8787 > "$RUNNER_TEMP/service.log" 2>&1 &
           echo "SERVICE_PID=$!" >> "$GITHUB_ENV"
       # The script polls the project route every 2 s for at most 60 s and exits non-zero when the service never answers.
       - name: Compare every Mission, Python against the service

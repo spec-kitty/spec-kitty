@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
@@ -47,6 +48,17 @@ class NativeSmokeTest {
     assertThat(file).exists();
   }
 
+  /**
+   * The locale of the child (FR-004, D-90): on a POSIX host the binary reads file names as UTF-8 only under a UTF-8 locale, and the
+   * runners differ, so the harness sets {@code LC_ALL=C.UTF-8} itself and no workflow line has to. Windows decodes names on its own and
+   * is left as it is.
+   */
+  static void applyLocale(Map<String, String> environment, boolean windows) {
+    if (!windows) {
+      environment.put("LC_ALL", "C.UTF-8");
+    }
+  }
+
   /** The binary as a child process: output goes to a log file that is only ever shown path-free, after a failure. */
   static final class BinaryProcess implements Replay.Running {
     private final Process process;
@@ -57,11 +69,12 @@ class NativeSmokeTest {
       this.root = projectRoot;
       try {
         this.log = Files.createTempFile("mission-status-smoke-", ".log");
-        this.process =
+        ProcessBuilder builder =
             new ProcessBuilder(binary.toString(), "--mission-status.project-root=" + projectRoot, "--mission-status.port=" + port)
                 .redirectErrorStream(true)
-                .redirectOutput(log.toFile())
-                .start();
+                .redirectOutput(log.toFile());
+        applyLocale(builder.environment(), Digest.osToken(System.getProperty("os.name")).equals("windows"));
+        this.process = builder.start();
       } catch (IOException failure) {
         throw new UncheckedIOException(failure);
       }

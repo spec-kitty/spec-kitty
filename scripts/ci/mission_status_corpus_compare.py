@@ -11,6 +11,14 @@ There is no exemption mechanism (operator decision E-10): ``IGNORED_FIELDS`` is 
 skips, allows or lowers anything, and the machine-readable report is only ever written, never read. Any differing field, one-sided
 Mission, service 500 or oracle refusal makes the exit code non-zero, and when both sides refuse the run still fails.
 
+Mission-detail extension (mission mission-status-read-api-mission-detail, WP17, AC-14.5 and AC-6.4): per Mission the script also
+compares ``getMission`` and the artifact listing; per Work Package of every Mission ``getWorkPackage`` (with and without
+``includePrompt=true``) and ``getWorkPackageDetail``; per file of each listing ``getArtifactContent``; and the decode class of every
+Work Package file (the oracle's frontmatter read against the service's outcome). A 200 is compared as raw bytes; a refusal is compared
+as the status and the Problem ``code`` (the human ``detail`` text is the service's own, D-P8-4). The only exemption is the refused list
+(``REFUSED_LIST``, E-10 of #5529): the Missions whose Work Package routes the oracle cannot answer the way the service does, derived
+by an independent scan of the tracked files and failing the run when the scan and the recorded list part.
+
 Exit codes: 0 every Mission is equal, 1 at least one difference or refusal, 2 the run could not do its job (no Mission, fewer than
 the recorded floor, a count that differs from the independent ``git ls-files`` count, an unusable URL, a service that never answers,
 an oracle that cannot be built).
@@ -25,6 +33,7 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import re
 import subprocess
 import sys
 import time
@@ -50,6 +59,23 @@ PAGE_SIZE = 200
 MAX_PAGES = 10_000
 IGNORED_FIELDS: frozenset[str] = frozenset()  # the comparison ignore-list: one constant, and empty (E-10)
 
+# The recorded floors of the detail comparison: counts of what was compared (zero matches, or a corpus that shrank, fails the run).
+WORK_PACKAGE_FLOOR = 3000
+LISTED_FILE_FLOOR = 10_000
+DECODED_FILE_FLOOR = 3000
+FLOORS: Mapping[str, int] = {"work_packages": WORK_PACKAGE_FLOOR, "listed_files": LISTED_FILE_FLOOR, "decoded_files": DECODED_FILE_FLOOR}
+
+# The refused list (AC-14.5): Mission directory -> the ledger entry that explains it. It is the ONLY exemption, it is derived again from
+# the tracked files by ``refused_scan`` on every run, and a run whose scan differs from this constant cannot do its job. A Mission is
+# added here only together with an entry in the Mission's decision record (D-97 for SK-353).
+SK_351 = "SK-351"  # a legacy lanes.json that read_lanes_json refuses
+SK_353 = "SK-353"  # subtasks written as mappings: the oracle stringifies them, the service refuses (D-97)
+REFUSED_LIST: Mapping[str, str] = {
+    "064-complete-mission-identity-cutover": SK_351,
+    "058-hybrid-prompt-and-shim-agent-surface": SK_353,
+}
+REFUSED_ROUTES = "getWorkPackage,getWorkPackageDetail,decode"
+
 MISSIONS_ROUTE = "/api/v1/missions"
 PROJECT_ROUTE = "/api/v1/project"
 LISTING_SLUG = "<listing>"
@@ -62,6 +88,7 @@ OUTCOME_EQUAL = "equal"
 OUTCOME_FIELD = "field"
 OUTCOME_ONE_SIDED = "one_sided"
 OUTCOME_REFUSAL = "refusal"
+OUTCOME_EXEMPT = "exempt"
 SIDE_PYTHON = "python"
 SIDE_SERVICE = "service"
 BYTES_FIELD = "<bytes>"
@@ -103,6 +130,54 @@ class ServiceClient(Protocol):
 
 
 @dataclass(frozen=True)
+class Expected:
+    """What the oracle answers for one request: a status and a body (a payload for 200, a Problem for a refusal), or the exception it raised."""
+
+    status: int
+    body: Mapping[str, Any] = field(default_factory=dict)
+    exception: str = ""
+
+
+@dataclass(frozen=True)
+class DecodeRecord:
+    """The outcome of the oracle's frontmatter read of one Work Package file (AC-6.4): ``decoded`` and the winner of its id, ``refused``, or ``shadowed``."""
+
+    file: str
+    wp_id: str | None
+    outcome: str
+
+
+DECODED = "decoded"
+REFUSED = "refused"
+SHADOWED = "shadowed"
+ABSENT = "absent"
+
+
+class DetailOracle(Protocol):
+    """The Python reference for the five detail routes and the decode class of the Work Package files, asked by Mission name."""
+
+    def mission_id(self, name: str) -> str | None: ...
+
+    def owns_mission_id(self, name: str) -> bool: ...
+
+    def mission_detail(self, name: str) -> Expected: ...
+
+    def work_package_ids(self, name: str) -> list[str]: ...
+
+    def work_package(self, name: str, wp_id: str, *, include_prompt: bool) -> Expected: ...
+
+    def work_package_detail(self, name: str, wp_id: str) -> Expected: ...
+
+    def artifact_listing(self, name: str) -> Expected: ...
+
+    def artifact_paths(self, name: str) -> list[str]: ...
+
+    def artifact_content(self, name: str, path: str) -> Expected: ...
+
+    def decode_records(self, name: str) -> list[DecodeRecord]: ...
+
+
+@dataclass(frozen=True)
 class Row:
     """The outcome for one Mission (or the listing, or the project): ``equal`` or a difference class."""
 
@@ -114,6 +189,9 @@ class Row:
     route: str = ""
     code: str = ""
     exception: str = ""
+    item: str = ""  # the Work Package id or the artifact path the row is about
+    file: str = ""  # the Work Package file (AC-6.4)
+    klass: str = ""  # the decode class pair, oracle then service (AC-6.4)
 
 
 @dataclass
@@ -122,6 +200,7 @@ class Report:
     lines: list[str] = field(default_factory=list)
     compared: int = 0
     exit_code: int = EXIT_PASS
+    counts: dict[str, int] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +365,8 @@ class HttpService:
 class PythonOracle:
     """The Python reference reader, built over one checkout."""
 
+    detail: DetailOracle | None = None  # set by open_oracle: the same oracle, asked about the detail routes
+
     def __init__(self, repo_root: Path, payloads: Any, project: Any, memo: Any, tools: Any) -> None:
         self._root, self._payloads, self._project, self._memo, self._tools = repo_root, payloads, project, memo, tools
 
@@ -311,6 +392,127 @@ class PythonOracle:
         return [dict(item) for item in self._payloads.order_overviews(overviews)]
 
 
+class PythonDetailOracle:
+    """The Python reference for the detail routes, composed from the conformance module, never re-implemented (spec FR-014)."""
+
+    def __init__(self, repo_root: Path, tools: Any, conformance: Any, artifacts: Any, detail: Any) -> None:
+        self._root, self._conf, self._art, self._det = repo_root, conformance, artifacts, detail
+        self._ctx = artifacts.ReaderContext(repo_root=repo_root, tools=tools)
+        self._host = detail.HostCapability(git=False, worktrees=True)  # the service reads no git; it stats lane worktrees
+        self._work_packages: dict[tuple[str, bool], dict[str, Any]] = {}
+        self._opened: dict[str, Any] = {}
+        self._listings: dict[str, Any] = {}
+
+    def _dir(self, name: str) -> Path:
+        return self._root / "kitty-specs" / name
+
+    def mission_id(self, name: str) -> str | None:
+        try:
+            raw = json.loads((self._dir(name) / "meta.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        value = raw.get("mission_id") if isinstance(raw, dict) else None
+        return value if isinstance(value, str) else None
+
+    def owns_mission_id(self, name: str) -> bool:
+        """False when another Mission directory also holds this ``mission_id`` and the id resolves to that one (a copied or backed-up
+        directory): a request by id is then about the other directory, so this directory has no route of its own to compare."""
+        mission_id = self.mission_id(name)
+        if mission_id is None:
+            return False
+        resolved = self._art.resolve_mission(self._ctx, mission_id)
+        return resolved is None or resolved.name == name
+
+    @staticmethod
+    def _raised(error: BaseException) -> Expected:
+        return Expected(500, exception=type(error).__name__)
+
+    def mission_detail(self, name: str) -> Expected:
+        try:
+            return Expected(200, self._conf.mission_detail_document(self._ctx, self._dir(name)))
+        except Exception as error:  # noqa: BLE001 - the oracle may raise anything; the class name is the evidence
+            return self._raised(error)
+
+    def _open(self, name: str) -> Any:
+        if name not in self._opened:
+            self._opened[name] = self._det.open_mission(self._ctx, self.mission_id(name) or "")
+        return self._opened[name]
+
+    def work_package_ids(self, name: str) -> list[str]:
+        opened = self._open(name)
+        return sorted(opened.index) if isinstance(opened, self._det.OpenedMission) else []
+
+    def work_package(self, name: str, wp_id: str, *, include_prompt: bool) -> Expected:
+        key = (name, include_prompt)
+        if key not in self._work_packages:
+            self._work_packages[key] = self._conf.work_package_documents(self._ctx, self._dir(name), include_prompt=include_prompt)
+        documents = self._work_packages[key]
+        document = documents.get(wp_id, documents.get(self._conf.MISSION_KEY))
+        if isinstance(document, dict) and set(document) == {"refusal"}:
+            return Expected(500, exception=str(document["refusal"]["exception"]))
+        return Expected(200, document) if document is not None else Expected(404, {"code": "not_found"})
+
+    def work_package_detail(self, name: str, wp_id: str) -> Expected:
+        opened = self._open(name)
+        try:
+            outcome = self._det.build_work_package_detail(
+                self._ctx, self.mission_id(name) or "", wp_id, self._host, opened=opened if isinstance(opened, self._det.OpenedMission) else None
+            )
+        except Exception as error:  # noqa: BLE001 - the oracle may raise anything; the class name is the evidence
+            return self._raised(error)
+        return Expected(outcome.status, outcome.body)
+
+    def _listing(self, name: str) -> Any:
+        if name not in self._listings:
+            self._listings[name] = self._art.list_artifacts(self._ctx, self.mission_id(name) or "")
+        return self._listings[name]
+
+    def artifact_listing(self, name: str) -> Expected:
+        try:
+            outcome = self._listing(name)
+        except Exception as error:  # noqa: BLE001 - the oracle may raise anything; the class name is the evidence
+            return self._raised(error)
+        return Expected(outcome.status, outcome.body)
+
+    def artifact_paths(self, name: str) -> list[str]:
+        try:
+            outcome = self._listing(name)
+        except Exception:  # noqa: BLE001 - a listing that raises has no paths; artifact_listing records the exception
+            return []
+        return [entry["path"] for entry in outcome.body.get("entries", [])] if outcome.status == self._art.OK else []
+
+    def artifact_content(self, name: str, path: str) -> Expected:
+        try:
+            outcome = self._art.read_content(self._ctx, self.mission_id(name) or "", [path])
+        except Exception as error:  # noqa: BLE001 - the oracle may raise anything; the class name is the evidence
+            return self._raised(error)
+        return Expected(outcome.status, outcome.body)
+
+    def decode_records(self, name: str) -> list[DecodeRecord]:
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+
+        tasks = self._dir(name) / "tasks"
+        files = sorted(path for path in tasks.glob("WP*.md") if path.is_file() and not path.is_symlink()) if tasks.is_dir() else []
+        opened = self._open(name)
+        winners = {wp_id: authored.name for wp_id, authored in opened.index.items()} if isinstance(opened, self._det.OpenedMission) else {}
+        records = []
+        for path in files:
+            try:
+                metadata, _body = read_authored_wp_frontmatter(path)
+            except Exception:  # noqa: BLE001 - any refusal of the frontmatter read is the class "refused"
+                records.append(DecodeRecord(path.name, wp_id_of_file(path.name), REFUSED))
+                continue
+            wp_id = metadata.work_package_id
+            records.append(DecodeRecord(path.name, wp_id, DECODED if winners.get(wp_id) == path.name else SHADOWED))
+        return records
+
+
+def wp_id_of_file(file_name: str) -> str | None:
+    """The Work Package id a file name starts with (``WP01-foundation.md`` is ``WP01``), or None."""
+    found = re.match(r"(WP[0-9]{2,})", file_name)
+    return found.group(1) if found else None
+
+
 @contextmanager
 def open_oracle(repo_root: Path, tools_root: Path | None = None) -> Iterator[PythonOracle]:
     """Build the oracle once.
@@ -320,12 +522,18 @@ def open_oracle(repo_root: Path, tools_root: Path | None = None) -> Iterator[Pyt
     """
     import pytest  # the oracle module imports pytest at module level, so it is installed whenever the oracle can run
 
+    from tests.contract import _mission_status_artifacts as artifacts
+    from tests.contract import _mission_status_conformance as conformance
+    from tests.contract import _mission_status_detail as detail
     from tests.contract import _mission_status_memo as memo
     from tests.contract import _mission_status_payloads as payloads
     from tests.contract import _mission_status_project as project
 
     with pytest.MonkeyPatch.context() as patch:
-        yield PythonOracle(repo_root, payloads, project, memo, payloads.load_contract_tools(patch, tools_root or repo_root))
+        tools = payloads.load_contract_tools(patch, tools_root or repo_root)
+        oracle = PythonOracle(repo_root, payloads, project, memo, tools)
+        oracle.detail = PythonDetailOracle(repo_root, tools, conformance, artifacts, detail)
+        yield oracle
 
 
 def independent_count(repo_root: Path) -> int:
@@ -336,6 +544,67 @@ def independent_count(repo_root: Path) -> int:
         check=True,
     )
     return sum(1 for path in result.stdout.split(b"\0") if path and path.count(b"/") == 2)
+
+
+def _tracked(repo_root: Path) -> list[str]:
+    result = subprocess.run(["git", "-C", str(repo_root), "ls-files", "-z", "--", "kitty-specs"], capture_output=True, check=True)
+    return [path.decode("utf-8", "surrogateescape") for path in result.stdout.split(b"\0") if path]
+
+
+def independent_work_package_files(repo_root: Path) -> int:
+    """The number of Work Package files as git lists them (``kitty-specs/<mission>/tasks/WP*.md``, directly under ``tasks/``)."""
+    count = 0
+    for path in _tracked(repo_root):
+        parts = path.split("/")
+        if len(parts) == 4 and parts[2] == "tasks" and re.fullmatch(r"WP.*\.md", parts[3]):
+            count += 1
+    return count
+
+
+def _frontmatter_subtasks(text: str) -> Any:
+    import yaml  # the fully synced environment carries it (the oracle imports it too); imported only when the scan runs
+
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    try:
+        front = yaml.safe_load(text[3:end] if end > 0 else text[3:])
+    except yaml.YAMLError:
+        return None
+    return front.get("subtasks") if isinstance(front, dict) else None
+
+
+def refused_scan(repo_root: Path) -> dict[str, str]:
+    """The Missions the refused list must hold, found from the tracked files and not from the oracle: a ``lanes.json`` of the legacy
+    shape (``feature_slug`` and no ``mission_slug``: SK-351) and a Work Package whose ``subtasks`` hold a mapping (SK-353)."""
+    found: dict[str, str] = {}
+    for path in _tracked(repo_root):
+        parts = path.split("/")
+        if len(parts) == 3 and parts[2] == "lanes.json":
+            try:
+                document = json.loads((repo_root / path).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(document, dict) and "feature_slug" in document and "mission_slug" not in document:
+                found.setdefault(parts[1], SK_351)
+        elif len(parts) == 4 and parts[2] == "tasks" and re.fullmatch(r"WP.*\.md", parts[3]):
+            try:
+                subtasks = _frontmatter_subtasks((repo_root / path).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(subtasks, list) and any(isinstance(entry, dict) for entry in subtasks):
+                found.setdefault(parts[1], SK_353)
+    return found
+
+
+def refused_list_problem(scanned: Mapping[str, str], recorded: Mapping[str, str] = REFUSED_LIST) -> str | None:
+    """None when the independent scan and the recorded list agree; else what parted (a Mission grew onto the list, or one fell off it)."""
+    if dict(scanned) == dict(recorded):
+        return None
+    grown = sorted(set(scanned) - set(recorded))
+    gone = sorted(set(recorded) - set(scanned))
+    changed = sorted(name for name in set(scanned) & set(recorded) if scanned[name] != recorded[name])
+    return f"the refused list and the independent scan part: not recorded {grown}, no longer found {gone}, other reason {changed}"
 
 
 # ---------------------------------------------------------------------------
@@ -467,14 +736,164 @@ def _compare_project(oracle: MissionOracle, service: ServiceClient) -> Row:
     return Row(PROJECT_SLUG, None, OUTCOME_EQUAL) if differing is None else Row(PROJECT_SLUG, None, OUTCOME_FIELD, field=differing)
 
 
+# ---------------------------------------------------------------------------
+# The detail routes (AC-14.5) and the decode class of the Work Package files (AC-6.4)
+# ---------------------------------------------------------------------------
+
+
+def _mission_route(mission_id: str) -> str:
+    return f"{MISSIONS_ROUTE}/{quote(mission_id, safe='')}"
+
+
+def _wp_route(mission_id: str, wp_id: str, suffix: str = "") -> str:
+    return f"{_mission_route(mission_id)}/work-packages/{quote(wp_id, safe='')}{suffix}"
+
+
+def _artifact_content_route(mission_id: str, path: str) -> str:
+    return f"{_mission_route(mission_id)}/artifacts/content?path={quote(path, safe='/')}"
+
+
+def _problem(reply: Reply) -> dict[str, Any]:
+    try:
+        body = json.loads(reply.body)
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def compare_answer(expected: Expected, reply: Reply, *, slug: str, mission_id: str | None, route: str, item: str = "") -> Row:
+    """One request: a 200 is compared as raw bytes; a refusal as the status and the Problem ``code``; an exception of the oracle as the
+    codes the evidenced pairs allow (``REFUSAL_CODES``)."""
+
+    def row(outcome: str, **fields: str) -> Row:
+        return Row(slug, mission_id, outcome, route=route, item=item, **fields)
+
+    if expected.exception:
+        problem = _problem(reply)
+        if reply.status != 200 and refusal_classes_agree({"refusal": {"exception": expected.exception}}, problem):
+            return row(OUTCOME_EQUAL)
+        return row(
+            OUTCOME_REFUSAL if reply.status == 0 else OUTCOME_FIELD, side=SIDE_SERVICE, field="refusal", code=problem_code(reply), exception=expected.exception
+        )
+    if expected.status == 200:
+        if reply.status != 200:
+            return row(OUTCOME_REFUSAL, side=SIDE_SERVICE, code=problem_code(reply))
+        differing = byte_field(canonical_bytes(expected.body), reply.body)
+        return row(OUTCOME_EQUAL) if differing is None else row(OUTCOME_FIELD, field=differing)
+    wanted = expected.body.get("code")
+    if reply.status != expected.status:
+        return row(OUTCOME_FIELD, side=SIDE_SERVICE, field="status", code=problem_code(reply))
+    if _problem(reply).get("code") != wanted:
+        return row(OUTCOME_FIELD, side=SIDE_SERVICE, field="code", code=problem_code(reply))
+    return row(OUTCOME_EQUAL)
+
+
+def _decode_rows(
+    detail: DetailOracle, service: ServiceClient, name: str, mission_id: str, records: Sequence[DecodeRecord], winners: set[str]
+) -> tuple[list[Row], int]:
+    """The decode class of each Work Package file: the oracle's frontmatter read against what the service answers for its id."""
+    rows: list[Row] = []
+    compared = 0
+    for record in records:
+        if record.outcome == SHADOWED or record.wp_id is None:
+            continue  # another file holds the id (the first wins, FR-006) or the name carries no id: no class of its own to compare
+        compared += 1
+        route = _wp_route(mission_id, record.wp_id)
+        reply = service.get(route)
+        service_class = DECODED if reply.status == 200 else ABSENT if reply.status == 404 else f"{REFUSED}:{problem_code(reply)}"
+        if record.outcome == REFUSED:
+            if record.wp_id in winners or service_class == ABSENT:
+                rows.append(Row(name, mission_id, OUTCOME_EQUAL, file=record.file, item=record.wp_id))
+            else:
+                rows.append(
+                    Row(name, mission_id, OUTCOME_FIELD, SIDE_SERVICE, route=route, file=record.file, item=record.wp_id, klass=f"{REFUSED}->{service_class}")
+                )
+            continue
+        if service_class != DECODED:
+            rows.append(Row(name, mission_id, OUTCOME_FIELD, SIDE_SERVICE, route=route, file=record.file, item=record.wp_id, klass=f"{DECODED}->{service_class}"))
+            continue
+        expected = detail.work_package(name, record.wp_id, include_prompt=False)
+        served = _problem(reply)
+        differing = (
+            None
+            if expected.status != 200
+            else first_difference({key: expected.body.get(key) for key in DECODED_MEMBERS}, {key: served.get(key) for key in DECODED_MEMBERS})
+        )
+        rows.append(
+            Row(name, mission_id, OUTCOME_EQUAL, file=record.file, item=record.wp_id)
+            if differing is None
+            else Row(
+                name, mission_id, OUTCOME_FIELD, SIDE_SERVICE, field=differing, route=route, file=record.file, item=record.wp_id, klass=f"{DECODED}->{DECODED}"
+            )
+        )
+    return rows, compared
+
+
+# The members of a Work Package that the frontmatter decoder produces; their first difference is the decode class difference of AC-6.4.
+DECODED_MEMBERS = ("wpId", "title", "authored", "ownedFiles")
+
+
+def _compare_mission_detail(detail: DetailOracle, service: ServiceClient, name: str, exempt: str | None) -> tuple[list[Row], dict[str, int]]:
+    """Every detail request of one Mission. An exempt Mission skips only its Work Package routes and its decode class, and says so."""
+    counts = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "exempt": 0, "duplicate_ids": 0}
+    mission_id = detail.mission_id(name)
+    if mission_id is None:
+        return [], counts  # no route can be asked; the overview refusal row of this Mission already fails the run
+    if not detail.owns_mission_id(name):
+        counts["duplicate_ids"] = 1  # the id resolves to another directory, whose own comparison covers the route (README: duplicate ids)
+        return [], counts
+    counts["missions"] = 1
+    rows = [compare_answer(detail.mission_detail(name), service.get(_mission_route(mission_id)), slug=name, mission_id=mission_id, route="getMission")]
+    rows.append(
+        compare_answer(
+            detail.artifact_listing(name), service.get(f"{_mission_route(mission_id)}/artifacts"), slug=name, mission_id=mission_id, route="listArtifacts"
+        )
+    )
+    for path in detail.artifact_paths(name):
+        counts["listed_files"] += 1
+        reply = service.get(_artifact_content_route(mission_id, path))
+        rows.append(compare_answer(detail.artifact_content(name, path), reply, slug=name, mission_id=mission_id, route="getArtifactContent", item=path))
+    if exempt is not None:
+        counts["exempt"] = 1
+        rows.append(Row(name, mission_id, OUTCOME_EXEMPT, route=REFUSED_ROUTES, code=exempt))
+        return rows, counts
+    ids = detail.work_package_ids(name)
+    for wp_id in ids:
+        counts["work_packages"] += 1
+        for route, expected, target in (
+            ("getWorkPackage", detail.work_package(name, wp_id, include_prompt=False), _wp_route(mission_id, wp_id)),
+            ("getWorkPackage?includePrompt=true", detail.work_package(name, wp_id, include_prompt=True), _wp_route(mission_id, wp_id) + "?includePrompt=true"),
+            ("getWorkPackageDetail", detail.work_package_detail(name, wp_id), _wp_route(mission_id, wp_id, "/detail")),
+        ):
+            rows.append(compare_answer(expected, service.get(target), slug=name, mission_id=mission_id, route=route, item=wp_id))
+    decode, compared = _decode_rows(detail, service, name, mission_id, detail.decode_records(name), set(ids))
+    counts["decoded_files"] = compared
+    return rows + decode, counts
+
+
+def compare_detail(detail: DetailOracle, service: ServiceClient, names: Sequence[str], refused: Mapping[str, str]) -> tuple[list[Row], dict[str, int]]:
+    """The detail comparison over every Mission; the counts say how much was compared (the non-vacuity floors read them)."""
+    rows: list[Row] = []
+    totals = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "exempt": 0, "duplicate_ids": 0}
+    for name in names:
+        mission_rows, counts = _compare_mission_detail(detail, service, name, refused.get(name))
+        rows.extend(mission_rows)
+        for key, value in counts.items():
+            totals[key] += value
+    return rows, totals
+
+
 def render_row(row: Row) -> str:
-    parts = [f"FAIL {row.outcome}"]
+    parts = [f"EXEMPT {row.outcome}" if row.outcome == OUTCOME_EXEMPT else f"FAIL {row.outcome}"]
     for label, value in (
         ("side", row.side),
         ("slug", row.slug),
         ("mission_id", row.mission_id or ""),
         ("field", row.field),
         ("route", row.route),
+        ("item", row.item),
+        ("file", row.file),
+        ("class", row.klass),
         ("code", row.code),
         ("exception", row.exception),
     ):
@@ -493,6 +912,15 @@ def _non_vacuity(names: Sequence[str], independent: int, floor: int) -> str | No
     return None
 
 
+def _detail_floor_problem(counts: Mapping[str, int], floors: Mapping[str, int], files: int | None) -> str | None:
+    for key, minimum in floors.items():
+        if counts.get(key, 0) < minimum:
+            return f"the detail comparison covered {counts.get(key, 0)} {key.replace('_', ' ')}, below the recorded floor of {minimum}"
+    if files is not None and counts.get("decoded_files", 0) + counts.get("shadowed_files", 0) > files:
+        return f"the decode class covered more Work Package files ({counts.get('decoded_files', 0)}) than git lists ({files})"
+    return None
+
+
 def compare_corpus(
     oracle: MissionOracle,
     service: ServiceClient,
@@ -500,8 +928,17 @@ def compare_corpus(
     independent_count: int,
     floor: int | None = None,
     page_size: int = PAGE_SIZE,
+    detail: DetailOracle | None = None,
+    refused: Mapping[str, str] | None = None,
+    floors: Mapping[str, int] | None = None,
+    work_package_files: int | None = None,
 ) -> Report:
-    """Compare every Mission of the oracle with the service. Nothing is excluded; any row that is not ``equal`` fails the run."""
+    """Compare every Mission of the oracle with the service. Nothing is excluded; any row that is not ``equal`` or ``exempt`` fails the run.
+
+    With ``detail`` the five detail routes and the decode class of the Work Package files are compared too; ``refused`` is the refused
+    list (the only exemption), ``floors`` the counts that must be reached, and ``work_package_files`` the independent git count of
+    the files the decode class must cover.
+    """
     report = Report()
     names = oracle.names()
     report.compared = len(names)
@@ -524,10 +961,20 @@ def compare_corpus(
         if order is not None:
             report.rows = [row for row in report.rows if not (row.mission_id == order.mission_id and row.outcome == OUTCOME_EQUAL)] + [order]
     report.rows.append(_compare_project(oracle, service))
-    failing = [row for row in report.rows if row.outcome != OUTCOME_EQUAL]
-    report.lines.extend(render_row(row) for row in failing)
+    if detail is not None:
+        detail_rows, report.counts = compare_detail(detail, service, names, refused or {})
+        report.rows.extend(detail_rows)
+        problem = _detail_floor_problem(report.counts, FLOORS if floors is None else floors, work_package_files)
+        if problem is not None:
+            report.lines.append(f"CANNOT {problem}")
+            report.exit_code = EXIT_CANNOT
+            return report
+    failing = [row for row in report.rows if row.outcome not in (OUTCOME_EQUAL, OUTCOME_EXEMPT)]
+    report.lines.extend(render_row(row) for row in report.rows if row.outcome == OUTCOME_EXEMPT or row in failing)
     equal = sum(1 for row in report.rows if row.outcome == OUTCOME_EQUAL)
     report.lines.append(f"compared {report.compared} Missions: {equal} rows equal, {len(failing)} rows not equal")
+    if report.counts:
+        report.lines.append("detail: " + ", ".join(f"{value} {key.replace('_', ' ')}" for key, value in report.counts.items()))
     report.exit_code = EXIT_DIFFERENCE if failing else EXIT_PASS
     return report
 
@@ -564,8 +1011,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_CANNOT
     try:
         count = independent_count(args.repo_root)
+        scanned = refused_scan(args.repo_root)
+        parted = refused_list_problem(scanned)
+        if parted is not None:
+            _say(f"CANNOT {parted}")
+            return EXIT_CANNOT
         with open_oracle(args.repo_root) as oracle:
-            report = compare_corpus(oracle, service, independent_count=count, floor=FLOOR)
+            if oracle.detail is None:
+                _say("CANNOT the oracle has no reader for the detail routes, so five of the routes would go uncompared")
+                return EXIT_CANNOT
+            report = compare_corpus(
+                oracle,
+                service,
+                independent_count=count,
+                floor=FLOOR,
+                detail=oracle.detail,
+                refused=scanned,
+                work_package_files=independent_work_package_files(args.repo_root),
+            )
     except (ImportError, OSError, subprocess.CalledProcessError) as error:
         _say(f"CANNOT the oracle or the independent count could not be built ({type(error).__name__})")
         return EXIT_CANNOT

@@ -343,8 +343,12 @@ class ResolvedStateGoldenTest {
   void v25ANonTextEventIdMakesJavaRefuseTheLedgerWhereTheOracleCarriesTheRawJsonValue() {
     TreeFixture fixture = fixture("history-event-id-not-text");
 
-    // today the codec classifies the row as unusable, so the reduction raises and no history is served; the manifest entry allows the str() form
-    // or a null refused by the mapper, never the number. Whoever makes Java serve "eventId": 424242 changes this test on purpose.
+    // D-P10-1 (decision of WP14, T12): the whole-ledger refusal stands. The codec classifies the row as unusable (a status row needs a text
+    // event_id), so the reduction raises and no history is served. A narrower refusal at the Work Package route would need the codec to carry
+    // the row with a non-text id into the fold, which the overview and the stream would then also serve where they refuse today; the manifest
+    // entry allows "a null refused by the mapper", and a refused Mission is a refusal. The routes answer ledger_unparseable
+    // (WorkPackageQueryServiceTest#v25..., WorkPackageQueryServiceDivergenceTest#v25...). The number is never served: whoever makes Java serve
+    // "eventId": 424242 changes this test on purpose.
     assertThatThrownBy(() -> reduce(fixture)).isInstanceOfSatisfying(UnreducibleLedgerException.class, refusal -> assertThat(refusal.lineNumber()).isEqualTo(2));
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> goldenHistory = (List<Map<String, Object>>) ((Map<String, Object>) golden(fixture).get("WP01")).get("history");

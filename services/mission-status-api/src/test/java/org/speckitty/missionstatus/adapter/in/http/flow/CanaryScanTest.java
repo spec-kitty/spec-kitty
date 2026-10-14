@@ -255,4 +255,52 @@ class CanaryScanTest {
       assertThat(new tools.jackson.databind.json.JsonMapper().readTree(response.text()).get("name").asString()).isEqualTo("fixture-project");
     }
   }
+
+  // ---- WP18 (T126, AC-8.3): the five detail routes -------------------------------------------------------------------------------
+
+  /**
+   * Canaries planted in a Work Package body and title, an artifact, {@code tasks.md} and {@code lanes.json}: no response and no log line of the
+   * detail flow carries one, EXCEPT the {@code promptMarkdown} of the request that asks for the prompt, where the path and the address must be
+   * found (the control that proves the scan can see them). Everything else of that response is scanned too.
+   */
+  @Test
+  void theDetailRoutesCarryNoCanaryExceptThePromptOfTheRequestThatAsksForIt(CapturedOutput output) throws Exception {
+    DetailFlow.Project project = DetailFlow.canaries();
+    org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+    List<String> scanned = new ArrayList<>();
+    String prompt = null;
+    try (var server = DetailFlow.start(project, marker)) {
+      for (DetailFlow.Answer answer : DetailFlow.run(server, marker, project)) {
+        if (answer.request().path().endsWith("includePrompt=true") && answer.status() == 200) {
+          var tree = new tools.jackson.databind.json.JsonMapper().readTree(answer.body());
+          prompt = tree.get("promptMarkdown").asString();
+          ((tools.jackson.databind.node.ObjectNode) tree).remove("promptMarkdown");
+          scanned.add(answer.everything().replace(answer.body(), tree.toString()));
+        } else {
+          scanned.add(answer.everything());
+        }
+      }
+    }
+    scanned.add(output.getAll());
+    List<String> canaries = List.of(DetailFlow.CANARY_PATH, DetailFlow.CANARY_ADDRESS, DetailFlow.CANARY_TOKEN, "CANARY-DETAIL-11", "canary-user", project.fixture().root().toString());
+
+    assertThat(prompt).as("the control: the prompt of the request that asks for it carries the body").isNotNull().contains(DetailFlow.CANARY_PATH).contains(DetailFlow.CANARY_ADDRESS);
+    assertThat(scanned.stream().mapToInt(String::length).sum()).as("the scan saw real content").isGreaterThan(3000);
+    for (String canary : canaries) {
+      for (String text : scanned) {
+        assertThat(text).as("canary " + (canary.length() > 30 ? "(a root)" : canary.substring(0, Math.min(8, canary.length())) + "...")).doesNotContain(canary);
+      }
+    }
+  }
+
+  @Test
+  void theDetailCanaryScanCanSeeACanaryInAResponseSoItIsNotVacuous() throws Exception {
+    DetailFlow.Project project = DetailFlow.canaries();
+    org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+    try (var server = DetailFlow.start(project, marker)) {
+      String everything = DetailFlow.run(server, marker, project).stream().map(DetailFlow.Answer::everything).collect(java.util.stream.Collectors.joining("\n"));
+
+      assertThat(everything).as("the unfiltered flow does contain the prompt, so a scan of it finds the planted path").contains(DetailFlow.CANARY_PATH);
+    }
+  }
 }

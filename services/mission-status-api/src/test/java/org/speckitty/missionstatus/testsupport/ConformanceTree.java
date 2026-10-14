@@ -137,7 +137,7 @@ public final class ConformanceTree {
     return classes().stream().filter(entry -> entry.tag().equals(tag)).flatMap(entry -> entry.fixtures().stream()).toList();
   }
 
-  /** The {@code knownDivergences} entries of the manifest (V1 to V25, V19 retired): id, cause, fixture, fixtures, oracleOutcome, javaAssertion, and for V3 and V4 defaultPathOutcomes. */
+  /** The {@code knownDivergences} entries of the manifest (V1 to V26, V19 retired): id, cause, fixture, fixtures, oracleOutcome, javaAssertion, and for V3 and V4 defaultPathOutcomes. */
   @SuppressWarnings("unchecked")
   public static List<Map<String, Object>> knownDivergences() {
     List<Map<String, Object>> entries = new ArrayList<>();

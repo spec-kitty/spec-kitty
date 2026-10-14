@@ -15,7 +15,7 @@ import org.speckitty.missionstatus.domain.readmodel.overview.Progress;
 import org.speckitty.missionstatus.domain.readmodel.overview.ProjectHeader;
 
 /** Domain values to the generated contract models. The timestamps stay the text the domain holds (the models type them as text). */
-final class ContractMapper {
+public final class ContractMapper {
 
   private ContractMapper() {}
 
@@ -35,7 +35,8 @@ final class ContractMapper {
     return new MissionOverviewPage(items, new PageInfo(page.nextPageCursor() != null, page.nextPageCursor(), page.pageSize()));
   }
 
-  static org.speckitty.missionstatus.adapter.in.http.model.MissionOverview overview(MissionOverview item) {
+  /** The overview item as the contract writes it; public so that the detail adapter writes the head of a Mission detail with this very conversion. */
+  public static org.speckitty.missionstatus.adapter.in.http.model.MissionOverview overview(MissionOverview item) {
     return new org.speckitty.missionstatus.adapter.in.http.model.MissionOverview(
         item.missionId().value(),
         item.mid8(),

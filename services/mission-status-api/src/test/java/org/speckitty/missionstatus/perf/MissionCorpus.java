@@ -9,6 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.speckitty.missionstatus.conformance.golden.served.MissionDetailServedRoute;
 import org.speckitty.missionstatus.testsupport.FilesystemFixtureFactory;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
 import org.speckitty.missionstatus.testsupport.Rows;
@@ -142,6 +143,98 @@ public final class MissionCorpus {
       }
     }
     return text.toString();
+  }
+
+  // ---- the NFR-001 detail shape (WP18; additive: spec(int), write(int) and their callers are untouched) --------------------------------
+
+  /** The folder name of the Mission the detail routes are timed on: it sorts before every generated Mission, so the duplicate scan reads all the others (AC-1.8 c). */
+  public static final String DETAIL_SLUG = "aaa-detail-perf";
+
+  /** The synthetic ULID of the detail Mission (26 characters of the ULID alphabet). */
+  public static final String DETAIL_ID = "01J00000000000000000000DET";
+
+  /** Work Package files of the detail Mission in the {@link DetailShape#FORTY_WORK_PACKAGES} shape. */
+  public static final int DETAIL_WORK_PACKAGES = 40;
+
+  /** Files below the detail Mission directory in the {@link DetailShape#THOUSAND_FILES} shape (the content file excluded). */
+  public static final int DETAIL_FILES = 1000;
+
+  /** The size of the content file of the {@link DetailShape#THOUSAND_FILES} shape: the cap of {@code getArtifactContent}. */
+  public static final int CONTENT_BYTES = 262_144;
+
+  /** The relative path of the content file. */
+  public static final String CONTENT_PATH = "big.md";
+
+  /** What the detail Mission holds. */
+  public enum DetailShape {
+    /** 40 Work Package files, a {@code tasks.md} and a {@code spec.md}: {@code getMission} and {@code getWorkPackageDetail}. */
+    FORTY_WORK_PACKAGES,
+    /** 1000 small files, one file of {@link #CONTENT_BYTES} bytes and a {@code spec.md}: {@code listArtifacts} and {@code getArtifactContent}. */
+    THOUSAND_FILES
+  }
+
+  /** Writes {@code count} generated Missions and, sorted before them all, the detail Mission of {@code shape}; returns the project root. */
+  public static Path writeDetail(int count, DetailShape shape) {
+    FixtureSpec base = spec(count);
+    List<FixtureSpec.Mission> missions = new ArrayList<>(base.missions());
+    StringBuilder ledger = new StringBuilder();
+    for (int p = 1; p <= DETAIL_WORK_PACKAGES; p++) {
+      ledger.append(Rows.status(Rows.id(800_000 + p), at(p), String.format("WP%02d", p), "planned", "claimed"));
+    }
+    missions.add(FixtureSpec.Mission.of(DETAIL_SLUG, Rows.meta(DETAIL_ID, DETAIL_SLUG, "2026-08-01T00:00:00+00:00"), ledger.toString()));
+    Path root = FilesystemFixtureFactory.fromSpec(new FixtureSpec(base.project(), missions)).root();
+    Path mission = root.resolve("kitty-specs").resolve(DETAIL_SLUG);
+    switch (shape) {
+      case FORTY_WORK_PACKAGES -> writeWorkPackages(mission, DETAIL_WORK_PACKAGES);
+      case THOUSAND_FILES -> {
+        writeFiles(mission, DETAIL_FILES);
+        writeText(mission.resolve(CONTENT_PATH), CONTENT_BYTES, "");
+      }
+    }
+    writeText(mission.resolve("spec.md"), 200, "");
+    return root;
+  }
+
+  /** {@code n} Work Package files {@code tasks/WPnn-perf.md} and a {@code tasks.md} that names a subtask for each. */
+  public static void writeWorkPackages(Path mission, int n) {
+    StringBuilder tasks = new StringBuilder();
+    for (int p = 1; p <= n; p++) {
+      String id = String.format("WP%02d", p);
+      String subtask = String.format("T%03d", p);
+      writeString(mission.resolve("tasks").resolve(id + "-perf.md"), MissionDetailServedRoute.workPackageFile(id, "Perf work package " + p, "subtasks: [" + subtask + "]") + "\nBody of " + id + ".\n");
+      tasks.append("## ").append(id).append("\n- [ ] ").append(subtask).append(" Subtask of ").append(id).append("\n");
+    }
+    writeString(mission.resolve("tasks.md"), tasks.toString());
+  }
+
+  /** {@code n} small markdown files below {@code files/}, in directories of 100. */
+  public static void writeFiles(Path mission, int n) {
+    for (int i = 0; i < n; i++) {
+      writeString(mission.resolve("files").resolve(String.format("d%02d", i / 100)).resolve(String.format("f%04d.md", i)), "File " + i + "\n");
+    }
+  }
+
+  /**
+   * A text file of exactly {@code bytes} bytes (ASCII): {@code head}, then filler lines, the last one cut to the size. The filler is a plain
+   * sentence, so it is neither a credential nor a path.
+   */
+  public static void writeText(Path file, int bytes, String head) {
+    String line = "A line of plain text that stands for the body of a long document.\n";
+    StringBuilder text = new StringBuilder(head);
+    while (text.length() < bytes) {
+      text.append(line);
+    }
+    text.setLength(bytes);
+    writeString(file, text.toString());
+  }
+
+  public static void writeString(Path file, String text) {
+    try {
+      Files.createDirectories(file.getParent());
+      Files.writeString(file, text, StandardCharsets.UTF_8);
+    } catch (IOException failure) {
+      throw new UncheckedIOException(failure);
+    }
   }
 
   private static String at(int minute) {

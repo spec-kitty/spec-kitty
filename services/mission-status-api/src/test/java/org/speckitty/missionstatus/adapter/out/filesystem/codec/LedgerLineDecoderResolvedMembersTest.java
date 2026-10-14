@@ -240,7 +240,7 @@ class LedgerLineDecoderResolvedMembersTest {
   @Test
   void everyRowWithAToLaneKeyAndAStringWorkPackageGetsAHistoryRowWhateverItsClassification() {
     HistoryRow fromStatus = line(status("\"reason\":\"why\",\"review_result\":{\"reviewer\":\"r\",\"verdict\":\"approved\",\"reference\":\"x\"}")).historyRow();
-    assertThat(fromStatus).isEqualTo(new HistoryRow("WP01", "E1", "2026-02-08T12:00:00+00:00", "planned", "claimed", Actor.ofText("claude"), false, "why", "approved"));
+    assertThat(fromStatus).isEqualTo(new HistoryRow("WP01", "E1", "2026-02-08T12:00:00+00:00", "planned", "claimed", Actor.ofText("claude"), false, "why", "approved", "x", 1L));
 
     LedgerLine nonLane = line(status("").replace("{", "{\"event_type\":\"DecisionX\","));
     assertThat(nonLane.kind()).isEqualTo(new LineKind.Ignored());

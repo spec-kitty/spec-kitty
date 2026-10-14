@@ -22,8 +22,10 @@ import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
  * fixture tree and so one start of the binary (a tree whose whole read is refused cannot share a start with golden-backed requests).
  * Every expected status, Problem code and golden is written in the file; nothing is derived at run time.
  *
- * <p>An {@code expectedGolden} is {@code tree:<file>} (a file of the fixture's own {@code golden/} directory), {@code smoke:<file>}
- * (a file of {@code nativesmoke/golden/}) or {@code contract} (the bundled contract document the service ships).
+ * <p>An {@code expectedGolden} is {@code tree:<file>} (a file of the fixture's own {@code golden/} directory), {@code tree:<file>#<key>}
+ * (the value of one request key of a detail golden, which holds one value per request key: the canonical bytes of that value, or of its
+ * {@code body} member when the value is the {@code {"body", "status"}} envelope), {@code smoke:<file>} (a file of
+ * {@code nativesmoke/golden/}) or {@code contract} (the bundled contract document the service ships). No second copy of a golden is made.
  */
 final class SmokeRequests {
 
@@ -172,7 +174,7 @@ final class SmokeRequests {
   }
 
   Optional<TreeFixture> tree(String id) {
-    return ConformanceTree.fixtures().stream().filter(fixture -> fixture.key().equals(id)).findFirst();
+    return java.util.stream.Stream.concat(ConformanceTree.fixtures().stream(), ConformanceTree.detailFixtures().stream()).filter(fixture -> fixture.key().equals(id)).findFirst();
   }
 
   /** The golden bytes an {@code expectedGolden} names, or null when the file is absent. */
@@ -182,7 +184,7 @@ final class SmokeRequests {
         return contractBytes;
       }
       if (spec.startsWith("tree:")) {
-        return tree == null ? null : ConformanceTree.golden(tree, spec.substring("tree:".length()));
+        return tree == null ? null : treeGolden(tree, spec.substring("tree:".length()));
       }
       if (spec.startsWith("smoke:")) {
         try (InputStream in = SmokeRequests.class.getResourceAsStream("/nativesmoke/golden/" + spec.substring("smoke:".length()))) {
@@ -193,6 +195,24 @@ final class SmokeRequests {
     } catch (IOException failure) {
       throw new UncheckedIOException(failure);
     }
+  }
+
+  /** {@code <file>} is the whole golden file; {@code <file>#<key>} is the canonical bytes of one request key's value (its {@code body} for an envelope). */
+  @SuppressWarnings("unchecked")
+  private static byte[] treeGolden(TreeFixture tree, String reference) {
+    int hash = reference.indexOf('#');
+    if (hash < 0) {
+      return ConformanceTree.golden(tree, reference);
+    }
+    byte[] file = ConformanceTree.golden(tree, reference.substring(0, hash));
+    if (file == null || !(CanonicalJson.parse(file) instanceof Map<?, ?> byKey) || !byKey.containsKey(reference.substring(hash + 1))) {
+      return null;
+    }
+    Object value = byKey.get(reference.substring(hash + 1));
+    if (value instanceof Map<?, ?> envelope && envelope.size() == 2 && envelope.containsKey("body") && envelope.containsKey("status")) {
+      value = ((Map<String, Object>) envelope).get("body");
+    }
+    return CanonicalJson.toBytes(value);
   }
 
   /** The bytes of the bundled contract document the service ships, from the main resources on the test classpath. */

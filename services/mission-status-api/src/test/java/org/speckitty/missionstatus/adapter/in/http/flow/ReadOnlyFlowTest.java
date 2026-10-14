@@ -125,4 +125,81 @@ class ReadOnlyFlowTest {
       }
     }
   }
+
+  // ---- WP18 (T126, AC-16.1 to AC-16.3): the five detail routes -------------------------------------------------------------------
+
+  /** The detail flow over a project: the answers with the clock neutralised, through the four fixture-built services. */
+  private static List<String> detailFlow(DetailFlow.Project project, org.speckitty.missionstatus.testsupport.RouteMarker marker, org.speckitty.missionstatus.testsupport.http.HttpHarness server) {
+    return DetailFlow.run(server, marker, project).stream().map(DetailFlow.Answer::everything).toList();
+  }
+
+  @Test
+  void ac16aNoOpenOfTheDetailFlowIsAnythingButReadOnlyAndAWriteInjectedIntoTheRecorderTurnsItRed() {
+    DetailFlow.Project project = DetailFlow.noTopology();
+    org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+    try (var server = DetailFlow.start(project, marker)) {
+      detailFlow(project, marker, server);
+      RecordingAllowlistAccess recorder = server.allowlistRecorder();
+
+      assertThat(recorder.accesses()).as("the detail flow touched files").isNotEmpty();
+      assertThat(recorder.accesses()).allSatisfy(access -> assertThat(access.mode().readOnly()).as(access.toString()).isTrue());
+      assertThat(recorder.violations()).isEmpty();
+
+      recorder.record(project.fixture().root().resolve("kitty-specs/alpha/tasks/WP01-one.md"), Allowlist.OpenMode.WRITE);
+      assertThat(recorder.violations()).as("positive control: one write turns the check red").hasSize(1);
+    }
+  }
+
+  @Test
+  void ac16bTheFingerprintOfTheDetailProjectIsIdenticalBeforeAndAfterTheFlowLinksAndRefusedFilesIncluded() throws Exception {
+    DetailFlow.Project project = DetailFlow.noTopology();
+    Path root = project.fixture().root();
+    org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+    try (var server = DetailFlow.start(project, marker)) {
+      List<String> before = Fingerprint.of(root);
+      assertThat(before).as("the project holds a refused file (a credential)").anyMatch(entry -> entry.contains("leaky.md"));
+      if (before.stream().noneMatch(entry -> entry.startsWith("L "))) {
+        org.junit.jupiter.api.Assumptions.abort("symbolic links cannot be made here: the fingerprint of links is not exercised");
+      }
+
+      List<String> answers = detailFlow(project, marker, server);
+
+      assertThat(answers).anySatisfy(answer -> assertThat(answer).contains("artifact_secret"));
+      assertThat(Fingerprint.of(root)).as("content hash, listing including .lock and temporary names, modification times").isEqualTo(before);
+
+      Files.writeString(root.resolve("kitty-specs/alpha/.lock"), "x");
+      assertThat(Fingerprint.of(root)).as("positive control: a stray .lock changes the fingerprint").isNotEqualTo(before);
+    }
+  }
+
+  private static List<String> detailFlowWithDrain(Boolean drain) throws Exception {
+    DetailFlow.Project project = DetailFlow.noTopology();
+    Path root = project.fixture().root();
+    if (drain != null) {
+      Path personal = Files.createDirectories(root.getParent().resolve("personal"));
+      Files.writeString(personal.resolve("config.toml"), "[hosted]\ndrain = " + drain + "\n");
+      Files.writeString(root.resolve("config.toml"), "[hosted]\ndrain = " + drain + "\n");
+      Path config = root.resolve(".kittify/config.yaml");
+      Files.writeString(config, Files.readString(config) + "hosted:\n  drain: " + drain + "\n");
+    }
+    org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+    try (var server = DetailFlow.start(project, marker)) {
+      List<String> answers = detailFlow(project, marker, server);
+      assertThat(server.allowlistRecorder().accesses()).as("no recorded read of config.toml").noneMatch(access -> access.path().endsWith("config.toml"));
+      return answers;
+    }
+  }
+
+  @Test
+  void ac16cEveryDetailAnswerIsByteIdenticalWithTheDrainKeysBothTrueBothFalseAndBothAbsent() throws Exception {
+    List<String> on = detailFlowWithDrain(true);
+    List<String> off = detailFlowWithDrain(false);
+    List<String> absent = detailFlowWithDrain(null);
+
+    assertThat(on).hasSize(DetailFlow.requests(DetailFlow.noTopology()).size()).hasSameSizeAs(off).hasSameSizeAs(absent);
+    for (int i = 0; i < on.size(); i++) {
+      assertThat(on.get(i)).as("answer " + i + " drain on / off").isEqualTo(off.get(i));
+      assertThat(on.get(i)).as("answer " + i + " drain on / absent").isEqualTo(absent.get(i));
+    }
+  }
 }

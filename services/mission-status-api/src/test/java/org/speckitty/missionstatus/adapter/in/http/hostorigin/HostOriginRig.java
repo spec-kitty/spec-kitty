@@ -15,8 +15,27 @@ import org.speckitty.missionstatus.testsupport.http.StreamRig;
  */
 final class HostOriginRig implements AutoCloseable {
 
+  /** The Mission of the planted-canary tree, whose id the detail targets name. */
+  static final String MISSION = "/api/v1/missions/01J6000000000000000000001W";
+
+  /** The request path of the prompt variant (AC-9.3): the one request of the five detail routes that serves a Work Package body. */
+  static final String PROMPT_TARGET = MISSION + "/work-packages/WP01?includePrompt=true";
+
   /** The five request targets of AC-9b/9c: three routes, the contract document and an unknown path (a refusal, never a 404). */
-  static final List<String> TARGETS = List.of("/api/v1/project", "/api/v1/missions", "/api/v1/events", "/api/v1/openapi.yaml", "/api/v1/nowhere-at-all");
+  static final List<String> OVERVIEW_TARGETS = List.of("/api/v1/project", "/api/v1/missions", "/api/v1/events", "/api/v1/openapi.yaml", "/api/v1/nowhere-at-all");
+
+  /** The five detail routes and the prompt variant (WP18, AC-17.1, AC-9.3): the same refusals, the same zero reads. */
+  static final List<String> DETAIL_TARGETS =
+      List.of(
+          MISSION,
+          MISSION + "/work-packages/WP01",
+          MISSION + "/work-packages/WP01/detail",
+          MISSION + "/artifacts",
+          MISSION + "/artifacts/content?path=spec.md",
+          PROMPT_TARGET);
+
+  /** Every request target of AC-9b/9c: the overview targets, then the detail ones. */
+  static final List<String> TARGETS = java.util.stream.Stream.concat(OVERVIEW_TARGETS.stream(), DETAIL_TARGETS.stream()).toList();
 
   private final StreamRig rig;
   final EntryCounting.Counter counter;

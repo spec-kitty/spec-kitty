@@ -17,6 +17,7 @@ import java.util.OptionalLong;
 import org.speckitty.missionstatus.testsupport.CanonicalJson;
 import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
 import org.speckitty.missionstatus.testsupport.ProjectHeaderMaterialisation;
+import org.speckitty.missionstatus.testsupport.ProvisionPlan;
 
 /**
  * The replay: for every group, materialise its tree into a fresh project root, start the service on a free loopback port, send each
@@ -76,6 +77,9 @@ final class Replay {
       try {
         Path projectRoot = Files.createDirectory(scratch.resolve("project"));
         ProjectHeaderMaterialisation.materialise(tree.dir(), projectRoot);
+        // Modification times, links and the files assembled from fragments (a credential, a NUL file) exist only after the plan ran, so
+        // the listing bytes agree on every leg. A leg that cannot make a link skips (never passes) and says so in the not-run report.
+        ProvisionPlan.apply(tree.dir(), projectRoot);
         int port = freePort();
         try (Running running = launcher.start(projectRoot, port)) {
           awaitReady(port, running);

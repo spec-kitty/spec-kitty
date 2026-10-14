@@ -521,6 +521,17 @@ KNOWN_DIVERGENCES: tuple[Mapping[str, Any], ...] = (
         "javaAssertion": "its str() when Java reproduces it, else null, and refused by the mapper (T12, T13)",
     },
     {
+        "id": "V26",
+        "cause": "a review-cycle file whose number is above the int range (WP15 F3)",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "the oracle's cycle name pattern is unbounded: it lists the cycle and serves its number",
+        "javaAssertion": (
+            "500 source_unreadable with one diagnostic "
+            "(WorkPackageDetailCyclesTest#aCycleNumberTooLargeForTheServedIntegerRefusesTheRequestInsteadOfDroppingTheCycle)"
+        ),
+    },
+    {
         "id": "V28",
         "cause": (
             "spec-kitty-events 10.5.1 sorts a departure from approved after the clock-ahead approval it followed (spec-kitty#4941); "

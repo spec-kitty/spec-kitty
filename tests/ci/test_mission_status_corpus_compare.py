@@ -60,6 +60,8 @@ def _overview(number: int, **changes: Any) -> dict[str, Any]:
 class FakeOracle:
     """The Python side: overviews by Mission name, an exception per refusing Mission, and a project document."""
 
+    detail: Any = None
+
     def __init__(self, overviews: list[dict[str, Any]], refusing: Mapping[str, Exception] | None = None, project: Any = None) -> None:
         self.documents = {item["slug"]: item for item in overviews}
         self.refusing = dict(refusing or {})
@@ -379,10 +381,14 @@ def test_main_writes_the_report_and_returns_the_exit_code(cc: ModuleType, tmp_pa
     service.items = [dict(item, wpTotal=77) for item in service.items]
     from contextlib import nullcontext
 
+    oracle.detail = FakeDetail(cc, [])
     monkeypatch.setattr(cc, "open_oracle", lambda root: nullcontext(oracle))
     monkeypatch.setattr(cc, "HttpService", lambda base_url, **_: service)
     monkeypatch.setattr(cc, "independent_count", lambda root: 2)
+    monkeypatch.setattr(cc, "refused_scan", lambda root: dict(cc.REFUSED_LIST))
+    monkeypatch.setattr(cc, "independent_work_package_files", lambda root: 0)
     monkeypatch.setattr(cc, "FLOOR", 1)
+    monkeypatch.setattr(cc, "FLOORS", {})
     report = tmp_path / "report.json"
     code = cc.main(["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(report)])
     assert code == FAIL
@@ -473,3 +479,411 @@ def test_the_canonical_sample_tells_the_three_json_knobs_apart() -> None:
     reference = _conformance_module().canonical_json
     for label, variant in variants.items():
         assert any(variant(document) != reference(document) for document in CANONICAL_SAMPLE), label
+
+
+# --- the detail routes and the decode class of the Work Package files (WP17, AC-14.5, AC-6.4) ---------------------------------------
+
+
+class FakeDetail:
+    """The Python side of the detail routes: per Mission name an id, Work Package payloads, artifacts and decode records.
+
+    A Mission is ``(name, wps, files, records)``: ``wps`` maps a Work Package id to its payload, ``files`` maps an artifact path to its
+    content, ``records`` is the list of ``(file, wp_id, outcome)`` the frontmatter read gave.
+    """
+
+    def __init__(self, cc: ModuleType, missions: list[tuple[str, dict[str, dict[str, Any]], dict[str, str], list[tuple[str, str | None, str]]]]) -> None:
+        self.cc = cc
+        self.missions = {name: (wps, files, records) for name, wps, files, records in missions}
+        self.refusing: dict[str, Any] = {}  # (route, name, item) -> Expected, for a refusal the oracle gives
+        self.shadowed: set[str] = set()  # Missions whose id resolves to another directory
+
+    def mission_id(self, name: str) -> str | None:
+        return f"{ULID_BASE}{sorted(self.missions).index(name) + 1:02d}"[-26:] if name in self.missions else None
+
+    def owns_mission_id(self, name: str) -> bool:
+        return name not in self.shadowed
+
+    def _expected(self, route: str, name: str, item: str, ok: dict[str, Any]) -> Any:
+        return self.refusing.get((route, name, item)) or self.cc.Expected(200, ok)
+
+    def mission_detail(self, name: str) -> Any:
+        return self._expected("getMission", name, "", {"missionId": self.mission_id(name), "slug": name, "wpTotal": len(self.missions[name][0])})
+
+    def work_package_ids(self, name: str) -> list[str]:
+        return sorted(self.missions[name][0])
+
+    def work_package(self, name: str, wp_id: str, *, include_prompt: bool) -> Any:
+        payload = dict(self.missions[name][0][wp_id])
+        if include_prompt:
+            payload["promptMarkdown"] = f"# Body of {wp_id}\n"
+        return self._expected("getWorkPackage?includePrompt=true" if include_prompt else "getWorkPackage", name, wp_id, payload)
+
+    def work_package_detail(self, name: str, wp_id: str) -> Any:
+        return self._expected("getWorkPackageDetail", name, wp_id, {"wpId": wp_id, "ownedFiles": []})
+
+    def artifact_listing(self, name: str) -> Any:
+        return self._expected("listArtifacts", name, "", {"entries": [{"path": path} for path in sorted(self.missions[name][1])]})
+
+    def artifact_paths(self, name: str) -> list[str]:
+        return sorted(self.missions[name][1])
+
+    def artifact_content(self, name: str, path: str) -> Any:
+        return self._expected("getArtifactContent", name, path, {"path": path, "content": self.missions[name][1][path]})
+
+    def decode_records(self, name: str) -> list[Any]:
+        return [self.cc.DecodeRecord(file, wp_id, outcome) for file, wp_id, outcome in self.missions[name][2]]
+
+
+class DetailService(FakeService):
+    """The service side: the overview routes of ``FakeService`` and the detail routes answered from the same truth as ``FakeDetail``.
+
+    ``changes`` maps a route (path and query) to a replacement: a ``Reply``, or a dict that is served as a 200 document.
+    """
+
+    def __init__(self, cc: ModuleType, items: list[dict[str, Any]], detail: FakeDetail, changes: Mapping[str, Any] | None = None) -> None:
+        super().__init__(cc, items)
+        self.detail = detail
+        self.changes = dict(changes or {})
+        self.by_id = {detail.mission_id(name): name for name in detail.missions}
+
+    def get(self, route: str) -> Any:
+        self.routes.append(route)
+        if route in self.changes:
+            change = self.changes[route]
+            return change if isinstance(change, self.cc.Reply) else self.cc.Reply(200, self.cc.canonical_bytes(change))
+        parts = urlsplit(route)
+        pieces = parts.path.split("/")
+        if len(pieces) < 5 or pieces[3] != "missions" or pieces[4] not in self.by_id:
+            if len(pieces) >= 5 and pieces[3] == "missions" and pieces[4] not in ("",):
+                return self._problem(404, "not_found")
+            return super().get(route)
+        name, tail = self.by_id[pieces[4]], pieces[5:]
+        wps, files, _ = self.detail.missions[name]
+        if not tail:
+            return self._served(self.detail.mission_detail(name))
+        if tail == ["artifacts"]:
+            return self._served(self.detail.artifact_listing(name))
+        if tail == ["artifacts", "content"]:
+            path = parse_qs(parts.query)["path"][0]
+            return self._served(self.detail.artifact_content(name, path)) if path in files else self._problem(404, "not_found")
+        if tail[0] == "work-packages" and len(tail) in (2, 3) and tail[1] in wps:
+            if len(tail) == 3:
+                return self._served(self.detail.work_package_detail(name, tail[1]))
+            return self._served(self.detail.work_package(name, tail[1], include_prompt="includePrompt=true" in parts.query))
+        return self._problem(404, "not_found")
+
+    def _served(self, expected: Any) -> Any:
+        if expected.status == 200:
+            return self.cc.Reply(200, self.cc.canonical_bytes(expected.body))
+        return self._problem(expected.status, expected.body.get("code", "projection_refused"))
+
+    def _problem(self, status: int, code: str) -> Any:
+        return self.cc.Reply(status, json.dumps({"code": code, "status": status, "title": "x"}).encode())
+
+
+def _mission(name: str, wps: tuple[str, ...] = ("WP01", "WP02"), files: tuple[str, ...] = ("spec.md", "plan.md")) -> tuple[Any, ...]:
+    payloads = {wp: {"wpId": wp, "title": f"Title {wp}", "authored": {"model": "sonnet"}, "ownedFiles": ["src/a.py"]} for wp in wps}
+    records = [(f"{wp}-fixture.md", wp, "decoded") for wp in wps]
+    return name, payloads, {path: f"text of {path}" for path in files}, records
+
+
+def _detail_world(
+    cc: ModuleType, changes: Mapping[str, Any] | None = None, count: int = 2, missions: list[Any] | None = None
+) -> tuple[FakeOracle, FakeDetail, DetailService]:
+    oracle, service = _twin(cc, count)
+    detail = FakeDetail(cc, missions if missions is not None else [_mission(f"mission-{number:02d}") for number in range(1, count + 1)])
+    oracle.detail = detail
+    return oracle, detail, DetailService(cc, service.items, detail, changes)
+
+
+def _run_detail(cc: ModuleType, oracle: FakeOracle, detail: FakeDetail, service: Any, **options: Any) -> Any:
+    options.setdefault("floors", {})
+    return cc.compare_corpus(oracle, service, independent_count=len(oracle.names()), floor=1, detail=detail, **options)
+
+
+def _route(detail: FakeDetail, name: str, tail: str) -> str:
+    return f"/api/v1/missions/{detail.mission_id(name)}{tail}"
+
+
+def test_identical_detail_sides_pass_and_every_route_is_counted(cc: ModuleType) -> None:
+    oracle, detail, service = _detail_world(cc)
+    report = _run_detail(cc, oracle, detail, service)
+    assert report.exit_code == PASS, report.lines
+    assert report.counts == {"missions": 2, "work_packages": 4, "listed_files": 4, "decoded_files": 4, "exempt": 0, "duplicate_ids": 0}
+    routes = {row.route for row in report.rows if row.outcome == "equal" and row.route}
+    assert {"getMission", "listArtifacts", "getArtifactContent", "getWorkPackage", "getWorkPackage?includePrompt=true", "getWorkPackageDetail"} <= routes
+    # both forms of the prompt request, the detail and the content were really asked
+    asked = " ".join(service.routes)
+    assert "includePrompt=true" in asked and "/detail" in asked and "/artifacts/content?path=spec.md" in asked
+
+
+@pytest.mark.parametrize(
+    ("route_name", "tail", "document", "field"),
+    [
+        ("getMission", "", {"missionId": "x", "slug": "mission-01", "wpTotal": 99}, "missionId"),
+        ("listArtifacts", "/artifacts", {"entries": [{"path": "spec.md"}]}, "entries[0].path"),
+        ("getArtifactContent", "/artifacts/content?path=spec.md", {"path": "spec.md", "content": "changed"}, "content"),
+        ("getWorkPackage", "/work-packages/WP01", {"wpId": "WP01", "title": "Changed", "authored": {"model": "sonnet"}, "ownedFiles": ["src/a.py"]}, "title"),
+        ("getWorkPackage?includePrompt=true", "/work-packages/WP01?includePrompt=true", {"wpId": "WP01", "promptMarkdown": "other"}, "authored"),
+        ("getWorkPackageDetail", "/work-packages/WP01/detail", {"wpId": "WP01", "ownedFiles": ["src/b.py"]}, "ownedFiles[0]"),
+    ],
+)
+def test_a_planted_difference_on_each_detail_route_is_named_by_route_item_and_field(
+    cc: ModuleType, route_name: str, tail: str, document: dict[str, Any], field: str
+) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    mission_id = detail.mission_id("mission-01")
+    service = _detail_world(cc, changes={f"/api/v1/missions/{mission_id}{tail}": document})[2]
+    report = _run_detail(cc, oracle, detail, service)
+    assert report.exit_code == FAIL
+    rows = [row for row in report.rows if row.outcome == "field" and row.route == route_name]
+    assert len(rows) == 1, report.lines
+    assert rows[0].slug == "mission-01" and rows[0].field == field
+    assert f"route={route_name}" in _said(report) and "slug=mission-01" in _said(report)
+
+
+def test_a_detail_route_the_service_refuses_where_the_oracle_answers_names_the_service_and_the_code(cc: ModuleType) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    refused = cc.Reply(500, json.dumps({"code": "source_unreadable"}).encode())
+    service = _detail_world(cc, changes={_route(detail, "mission-02", "/work-packages/WP02/detail"): refused})[2]
+    report = _run_detail(cc, oracle, detail, service)
+    assert report.exit_code == FAIL
+    assert "side=service" in _said(report) and "code=source_unreadable" in _said(report) and "route=getWorkPackageDetail" in _said(report)
+
+
+def test_a_refusal_is_compared_as_status_and_problem_code_and_not_as_text(cc: ModuleType) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    detail.refusing[("getWorkPackageDetail", "mission-01", "WP01")] = cc.Expected(404, {"code": "not_found", "detail": "the oracle's own wording"})
+    agree = cc.Reply(404, json.dumps({"code": "not_found", "detail": "the service's own wording"}).encode())
+    route = _route(detail, "mission-01", "/work-packages/WP01/detail")
+    assert _run_detail(cc, oracle, detail, _detail_world(cc, changes={route: agree})[2]).exit_code == PASS
+    wrong_code = cc.Reply(404, json.dumps({"code": "other"}).encode())
+    report = _run_detail(cc, oracle, detail, _detail_world(cc, changes={route: wrong_code})[2])
+    assert report.exit_code == FAIL and "field=code" in _said(report)
+    wrong_status = cc.Reply(500, json.dumps({"code": "not_found"}).encode())
+    assert "field=status" in _said(_run_detail(cc, oracle, detail, _detail_world(cc, changes={route: wrong_status})[2]))
+    assert _run_detail(cc, oracle, detail, _detail_world(cc, changes={route: {"wpId": "WP01"}})[2]).exit_code == FAIL
+
+
+def test_an_exception_of_the_oracle_agrees_only_with_the_problem_codes_its_class_allows(cc: ModuleType) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    detail.refusing[("getMission", "mission-01", "")] = cc.Expected(500, exception="ProjectionError")
+    route = _route(detail, "mission-01", "")
+    good = cc.Reply(500, json.dumps({"code": "projection_refused"}).encode())
+    assert _run_detail(cc, oracle, detail, _detail_world(cc, changes={route: good})[2]).exit_code == PASS
+    for bad in (cc.Reply(500, json.dumps({"code": "source_unreadable"}).encode()), cc.Reply(200, cc.canonical_bytes({"missionId": "x"}))):
+        report = _run_detail(cc, oracle, detail, _detail_world(cc, changes={route: bad})[2])
+        assert report.exit_code == FAIL and "exception=ProjectionError" in _said(report)
+
+
+def test_the_decode_class_names_the_file_the_side_and_the_class_pair(cc: ModuleType) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    absent = cc.Reply(404, json.dumps({"code": "not_found"}).encode())
+    service = _detail_world(cc, changes={_route(detail, "mission-01", "/work-packages/WP01"): absent})[2]
+    report = _run_detail(cc, oracle, detail, service)
+    rows = [row for row in report.rows if row.file and row.outcome != "equal"]
+    assert report.exit_code == FAIL and len(rows) == 1
+    assert (rows[0].file, rows[0].side, rows[0].klass, rows[0].item) == ("WP01-fixture.md", "service", "decoded->absent", "WP01")
+    assert "file=WP01-fixture.md" in _said(report) and "side=service" in _said(report) and "class=decoded->absent" in _said(report)
+
+
+def test_the_decode_class_reports_a_decoded_field_that_differs_and_a_file_the_service_decodes_but_the_oracle_refused(cc: ModuleType) -> None:
+    mission = _mission("mission-01", wps=("WP01",))
+    mission[3].append(("WP05-broken.md", "WP05", "refused"))
+    oracle, detail, plain = _detail_world(cc, count=1, missions=[mission])
+    assert _run_detail(cc, oracle, detail, plain).exit_code == PASS  # the refused file is absent on the service, as the oracle has it
+    served = {"wpId": "WP05", "title": "decoded after all", "authored": {}, "ownedFiles": []}
+    service = _detail_world(cc, changes={_route(detail, "mission-01", "/work-packages/WP05"): served}, count=1, missions=[mission])[2]
+    service.by_id = dict(plain.by_id)
+    report = _run_detail(cc, oracle, detail, service)
+    rows = [row for row in report.rows if row.klass]
+    assert report.exit_code == FAIL and [row.klass for row in rows] == ["refused->decoded"]
+    changed = {"wpId": "WP01", "title": "Title WP01", "authored": {"model": "opus"}, "ownedFiles": ["src/a.py"]}
+    service = _detail_world(cc, changes={_route(detail, "mission-01", "/work-packages/WP01"): changed}, count=1, missions=[mission])[2]
+    report = _run_detail(cc, oracle, detail, service)
+    decode = [row for row in report.rows if row.klass == "decoded->decoded"]
+    assert len(decode) == 1 and decode[0].field == "authored.model" and decode[0].file == "WP01-fixture.md"
+
+
+def test_a_shadowed_file_has_no_class_of_its_own(cc: ModuleType) -> None:
+    mission = _mission("mission-01", wps=("WP01",))
+    mission[3].append(("WP01-copy.md", "WP01", "shadowed"))
+    oracle, detail, service = _detail_world(cc, count=1, missions=[mission])
+    report = _run_detail(cc, oracle, detail, service)
+    assert report.exit_code == PASS and report.counts["decoded_files"] == 1
+
+
+def test_the_refused_list_is_the_only_exemption_and_skips_only_the_work_package_routes_and_the_decode_class(cc: ModuleType) -> None:
+    oracle, detail, _ = _detail_world(cc)
+    changes = {
+        _route(detail, "mission-01", "/work-packages/WP01"): {"wpId": "WP01", "title": "differs"},
+        _route(detail, "mission-01", "/work-packages/WP01/detail"): cc.Reply(500, b"{}"),
+    }
+    service = _detail_world(cc, changes=changes)[2]
+    assert _run_detail(cc, oracle, detail, service).exit_code == FAIL  # without the list the differences fail the run
+    report = _run_detail(cc, oracle, detail, service, refused={"mission-01": cc.SK_353})
+    assert report.exit_code == PASS, report.lines
+    assert report.counts["exempt"] == 1 and report.counts["work_packages"] == 2  # the exempt Mission's two Work Packages are not counted
+    assert "EXEMPT exempt" in _said(report) and "slug=mission-01" in _said(report) and "code=SK-353" in _said(report)
+    # the exemption does not reach getMission, the listing or the content
+    changed = _detail_world(cc, changes={_route(detail, "mission-01", ""): {"missionId": "x"}})[2]
+    assert _run_detail(cc, oracle, detail, changed, refused={"mission-01": cc.SK_351}).exit_code == FAIL
+
+
+def test_the_refused_list_is_pinned_to_the_two_ledger_entries(cc: ModuleType) -> None:
+    assert dict(cc.REFUSED_LIST) == {"064-complete-mission-identity-cutover": "SK-351", "058-hybrid-prompt-and-shim-agent-surface": "SK-353"}
+    assert cc.refused_list_problem(dict(cc.REFUSED_LIST)) is None
+    grown = cc.refused_list_problem({**cc.REFUSED_LIST, "100-new-mission": "SK-353"})
+    assert grown is not None and "100-new-mission" in grown and "not recorded" in grown
+    gone = cc.refused_list_problem({"064-complete-mission-identity-cutover": "SK-351"})
+    assert gone is not None and "058-hybrid-prompt-and-shim-agent-surface" in gone
+    other = cc.refused_list_problem({**cc.REFUSED_LIST, "064-complete-mission-identity-cutover": "SK-353"})
+    assert other is not None and "other reason" in other
+
+
+def test_the_independent_scan_finds_a_legacy_lanes_json_and_subtasks_written_as_mappings(cc: ModuleType, tmp_path: Path) -> None:
+    from tests.contract import _mission_status_payloads as helper
+
+    helper.git_init(tmp_path)
+    helper.write_fixture_mission(tmp_path, "plain-mission", work_packages={"WP01": {"subtasks": ["T001"]}}, lanes={"mission_slug": "plain-mission", "lanes": []})
+    helper.write_fixture_mission(tmp_path, "legacy-lanes", meta={"mission_id": helper.fixture_ulid(2)}, lanes={"feature_slug": "legacy-lanes", "lanes": []})
+    helper.write_fixture_mission(
+        tmp_path, "mapped-subtasks", meta={"mission_id": helper.fixture_ulid(3)}, work_packages={"WP01": {"subtasks": [{"id": "T001", "title": "x"}]}}
+    )
+    helper.commit_all(tmp_path)
+    assert cc.refused_scan(tmp_path) == {"legacy-lanes": "SK-351", "mapped-subtasks": "SK-353"}
+    assert cc.independent_work_package_files(tmp_path) == 2
+
+
+def test_an_untracked_file_is_not_part_of_the_independent_scan(cc: ModuleType, tmp_path: Path) -> None:
+    from tests.contract import _mission_status_payloads as helper
+
+    helper.git_init(tmp_path)
+    helper.write_fixture_mission(tmp_path, "plain-mission", work_packages={"WP01": {}})
+    helper.commit_all(tmp_path)
+    helper.write_fixture_mission(tmp_path, "later-mission", meta={"mission_id": helper.fixture_ulid(2)}, work_packages={"WP01": {"subtasks": [{"id": "T001"}]}})
+    assert cc.refused_scan(tmp_path) == {}
+    assert cc.independent_work_package_files(tmp_path) == 1
+
+
+def test_a_detail_comparison_that_covers_less_than_the_recorded_floor_cannot_do_its_job(cc: ModuleType) -> None:
+    oracle, detail, service = _detail_world(cc)
+    assert _run_detail(cc, oracle, detail, service, floors={"work_packages": 4, "listed_files": 4, "decoded_files": 4}).exit_code == PASS
+    for key in ("work_packages", "listed_files", "decoded_files"):
+        report = _run_detail(cc, oracle, detail, service, floors={key: 5})
+        assert report.exit_code == CANNOT and "below the recorded floor of 5" in _said(report)
+
+
+def test_the_recorded_detail_floors_are_not_lowered_and_an_empty_detail_corpus_fails(cc: ModuleType) -> None:
+    assert (cc.WORK_PACKAGE_FLOOR, cc.LISTED_FILE_FLOOR, cc.DECODED_FILE_FLOOR) == (3000, 10_000, 3000)
+    oracle, detail, service = _detail_world(cc, missions=[_mission("mission-01", wps=(), files=()), _mission("mission-02", wps=(), files=())])
+    report = cc.compare_corpus(oracle, service, independent_count=2, floor=1, detail=detail)
+    assert report.exit_code == CANNOT and "below the recorded floor" in _said(report)
+
+
+def test_the_decode_class_cannot_cover_more_files_than_git_lists(cc: ModuleType) -> None:
+    oracle, detail, service = _detail_world(cc)
+    assert _run_detail(cc, oracle, detail, service, work_package_files=4).exit_code == PASS
+    report = _run_detail(cc, oracle, detail, service, work_package_files=3)
+    assert report.exit_code == CANNOT and "more Work Package files" in _said(report)
+
+
+def test_main_refuses_a_detail_oracle_that_is_missing_and_a_refused_list_that_parted(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+
+    oracle, service = _twin(cc, 2)
+    monkeypatch.setattr(cc, "HttpService", lambda base_url, **_: service)
+    monkeypatch.setattr(cc, "independent_count", lambda root: 2)
+    monkeypatch.setattr(cc, "independent_work_package_files", lambda root: 0)
+    monkeypatch.setattr(cc, "open_oracle", lambda root: nullcontext(oracle))
+    arguments = ["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(tmp_path / "r.json")]
+    monkeypatch.setattr(cc, "refused_scan", lambda root: {**cc.REFUSED_LIST, "100-new-mission": "SK-353"})
+    assert cc.main(arguments) == CANNOT  # the scan found a Mission the decision record does not hold
+    monkeypatch.setattr(cc, "refused_scan", lambda root: dict(cc.REFUSED_LIST))
+    assert cc.main(arguments) == CANNOT  # no detail reader on the oracle: five routes would go uncompared
+    assert not (tmp_path / "r.json").exists()
+
+
+def _replay_service(cc: ModuleType, oracle: Any, items: list[dict[str, Any]], project: Any) -> Any:
+    """A service that answers every route with the real oracle's own answer: the real oracle must then agree with itself, route by route."""
+
+    class Replay(FakeService):
+        def get(self, route: str) -> Any:
+            parts = urlsplit(route)
+            pieces = parts.path.split("/")
+            if len(pieces) < 5 or pieces[3] != "missions":
+                return super().get(route)
+            detail = oracle.detail
+            name = next(name for name in oracle.names() if detail.mission_id(name) == pieces[4])
+            tail = pieces[5:]
+            if not tail:
+                expected = detail.mission_detail(name)
+            elif tail == ["artifacts"]:
+                expected = detail.artifact_listing(name)
+            elif tail == ["artifacts", "content"]:
+                expected = detail.artifact_content(name, parse_qs(parts.query)["path"][0])
+            elif len(tail) == 3:
+                expected = detail.work_package_detail(name, tail[1])
+            else:
+                expected = detail.work_package(name, tail[1], include_prompt="includePrompt=true" in parts.query)
+            if expected.status != 200:
+                return cc.Reply(expected.status, json.dumps({"code": expected.body["code"]}).encode())
+            return cc.Reply(200, cc.canonical_bytes(expected.body))
+
+    return Replay(cc, items, project=project)
+
+
+def test_the_real_detail_oracle_agrees_with_a_service_that_replays_it_over_a_scratch_repository(cc: ModuleType, tmp_path: Path) -> None:
+    from tests.contract import _mission_status_payloads as helper
+
+    helper.git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("project:\n  slug: fixture\n", encoding="utf-8")
+    helper.write_fixture_mission(
+        tmp_path,
+        "alpha-mission",
+        work_packages={"WP01": {"subtasks": ["T001"], "owned_files": ["src/app/**"]}, "WP02": {}},
+        planning_files=["spec.md", "plan.md"],
+    )
+    helper.write_fixture_mission(
+        tmp_path, "beta-mission", meta={"mission_id": helper.fixture_ulid(2), "created_at": "2026-09-02T10:00:00+00:00"}, work_packages={"WP01": {}}
+    )
+    (tmp_path / "kitty-specs" / "beta-mission" / "tasks" / "WP09-broken.md").write_text(
+        "---\nwork_package_id: WP09\nmystery_key: 1\n---\n\nbody\n", encoding="utf-8"
+    )
+    helper.commit_all(tmp_path)
+    with cc.open_oracle(tmp_path, REPO_ROOT) as oracle:
+        detail = oracle.detail
+        records = {name: [(record.file, record.wp_id, record.outcome) for record in detail.decode_records(name)] for name in oracle.names()}
+        assert records["alpha-mission"] == [("WP01-fixture.md", "WP01", "decoded"), ("WP02-fixture.md", "WP02", "decoded")]
+        assert records["beta-mission"] == [("WP01-fixture.md", "WP01", "decoded"), ("WP09-broken.md", "WP09", "refused")]
+        assert detail.work_package_ids("alpha-mission") == ["WP01", "WP02"]
+        assert detail.artifact_paths("alpha-mission") == sorted(detail.artifact_paths("alpha-mission")) and "spec.md" in detail.artifact_paths("alpha-mission")
+        ordered = oracle.order([oracle.overview(name) for name in oracle.names()])
+        service = _replay_service(cc, oracle, ordered, oracle.project())
+        report = cc.compare_corpus(
+            oracle,
+            service,
+            independent_count=cc.independent_count(tmp_path),
+            floor=2,
+            detail=detail,
+            floors={"work_packages": 3, "listed_files": 6, "decoded_files": 4},
+            work_package_files=cc.independent_work_package_files(tmp_path),
+        )
+    assert report.exit_code == PASS, report.lines
+    assert report.counts["work_packages"] == 3 and report.counts["decoded_files"] == 4
+
+
+def test_the_work_package_id_of_a_file_name_is_its_prefix(cc: ModuleType) -> None:
+    assert cc.wp_id_of_file("WP01-foundation.md") == "WP01"
+    assert cc.wp_id_of_file("WP120.md") == "WP120"
+    assert cc.wp_id_of_file("notes.md") is None
+
+
+def test_a_mission_whose_id_resolves_to_another_directory_has_no_route_of_its_own_and_is_counted(cc: ModuleType) -> None:
+    oracle, detail, service = _detail_world(cc)
+    detail.shadowed.add("mission-02")
+    report = _run_detail(cc, oracle, detail, service)
+    assert report.exit_code == PASS
+    assert report.counts["duplicate_ids"] == 1 and report.counts["missions"] == 1 and report.counts["work_packages"] == 2
+    assert "1 duplicate ids" in _said(report)

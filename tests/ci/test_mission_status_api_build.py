@@ -1160,7 +1160,7 @@ def step_content_violations(text: str) -> list[str]:
     if "--offline" in jvm_runs or re.search(r"rm\s+-\S*\s+\S*\.gradle", jvm_runs):
         found.append("the jvm job must not clear the Gradle cache or run offline before check (NEWA-001)")
     native_runs = "\n".join(_runs(jobs.get("native", {})))
-    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", "--floor 3", "test-results/test-native"):
+    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", f"--floor {native_test_count()}", "test-results/test-native"):
         if needle not in native_runs:
             found.append(f"the native job must contain {needle!r}")
     for name, job in jobs.items():
@@ -1713,7 +1713,17 @@ def test_the_bind_guard_pin_turns_red_when_a_listener_or_the_file_is_missing() -
 
 TEST_JAVA = SERVICE / "src" / "test" / "java" / "org" / "speckitty" / "missionstatus"
 NATIVE_TAGGED_DIR = TEST_JAVA / "config" / "nativetags"
-REAL_NATIVE_TESTS = ("NativeVirtualThreadProbeTest", "NativeJsonSseRoundTripTest", "NativeContractResourceTest")
+REAL_NATIVE_TESTS = (
+    "NativeVirtualThreadProbeTest",
+    "NativeJsonSseRoundTripTest",
+    "NativeContractResourceTest",
+    # WP17 (AC-19.1): the Work Package decoder, the artifact content route and the detail assembly, in the native image.
+    "NativeWorkPackageDecoderValidTest",
+    "NativeWorkPackageDecoderRejectedTest",
+    "NativeArtifactContentOkTest",
+    "NativeArtifactContentUnprocessableTest",
+    "NativeWorkPackageDetailTest",
+)
 
 
 def native_tag_violations(sources: dict[str, str]) -> list[str]:
@@ -1767,6 +1777,10 @@ SKELETON_DIRS = (
 )
 
 
+REQUEST_STAGES = ("base", "hostOrigin", "detail")
+DETAIL_STAGE_REQUESTS = 14
+
+
 def requests_file_violations(text: str) -> list[str]:
     try:
         document = json.loads(text)
@@ -1775,8 +1789,8 @@ def requests_file_violations(text: str) -> list[str]:
     found: list[str] = []
     stages = document.get("stages") if isinstance(document, dict) else None
     groups = document.get("groups") if isinstance(document, dict) else None
-    if not isinstance(stages, dict) or "base" not in stages or "hostOrigin" not in stages:
-        return ["requests.json must declare the stages base and hostOrigin"]
+    if not isinstance(stages, dict) or any(name not in stages for name in REQUEST_STAGES):
+        return ["requests.json must declare the stages base, hostOrigin and detail"]
     if not isinstance(groups, list) or not groups:
         return ["requests.json has no group (a replay of nothing)"]
     counted: dict[str, int] = {}
@@ -1799,9 +1813,11 @@ def requests_file_violations(text: str) -> list[str]:
             found.append(f"stage {name} has no integer requestCountFloor")
         elif counted.get(name, 0) < floor:
             found.append(f"stage {name}: {counted.get(name, 0)} request(s) are below the floor of {floor} (a group was dropped, or the floor was raised)")
-    for name in ("base", "hostOrigin"):
+    for name in REQUEST_STAGES:
         if stages[name].get("requestCountFloor") != counted.get(name, 0):
             found.append(f"the {name} floor is not exactly the number of {name} requests")
+    if stages["detail"].get("requestCountFloor") != DETAIL_STAGE_REQUESTS:
+        found.append(f"the detail stage must hold exactly {DETAIL_STAGE_REQUESTS} requests (the five detail routes, 200s and refusals)")
     return found
 
 
@@ -1893,8 +1909,8 @@ def native_floor_violations(text: str, tests: int) -> list[str]:
     if len(floors) != 2:
         found.append(f"expected the floor on both the POSIX and the Windows step, found {len(floors)}")
     found += [f"--floor {value} is not the {tests} native-tagged tests of the source" for value in floors if value != tests]
-    if tests < 3:
-        found.append("the native-tagged tests fell below the three real ones")
+    if tests < len(REAL_NATIVE_TESTS):
+        found.append(f"the native-tagged tests fell below the {len(REAL_NATIVE_TESTS)} real ones")
     return found
 
 
@@ -1944,6 +1960,18 @@ def test_the_requests_pin_turns_red_for_a_dropped_group_a_raised_floor_or_an_emp
     no_host_origin = json.loads(_text(REQUESTS_JSON))
     no_host_origin["groups"] = [group for group in no_host_origin["groups"] if group["stage"] != "hostOrigin"]
     assert requests_file_violations(json.dumps(no_host_origin))
+    no_detail = json.loads(_text(REQUESTS_JSON))
+    no_detail["groups"] = [group for group in no_detail["groups"] if group["stage"] != "detail"]
+    assert requests_file_violations(json.dumps(no_detail))
+    no_detail_stage = json.loads(_text(REQUESTS_JSON))
+    del no_detail_stage["stages"]["detail"]
+    assert requests_file_violations(json.dumps(no_detail_stage))
+    detail_group_dropped = json.loads(_text(REQUESTS_JSON))
+    detail_group_dropped["groups"] = [group for group in detail_group_dropped["groups"] if group["tree"] != "legacy-lanes-json/legacy-lanes-json"]
+    assert requests_file_violations(json.dumps(detail_group_dropped))
+    detail_floor_lowered = json.loads(_text(REQUESTS_JSON))
+    detail_floor_lowered["stages"]["detail"]["requestCountFloor"] -= 1
+    assert requests_file_violations(json.dumps(detail_floor_lowered))
     assert requests_file_violations("{}") and requests_file_violations("not json")
     assert requests_file_violations(json.dumps({"stages": document["stages"], "groups": []}))
 
@@ -2000,16 +2028,110 @@ def test_the_smoke_replays_the_binary_the_compile_step_produced() -> None:
 
 
 def test_the_native_floor_is_the_number_of_native_tagged_tests() -> None:
-    assert native_test_count() == 3
+    # One plain @Test per class: a @ParameterizedTest counts 0 here and its executed cases count in the gate, so the floor would drift.
+    assert native_test_count() == len(REAL_NATIVE_TESTS)
     assert native_floor_violations(_workflow_text(), native_test_count()) == []
 
 
 def test_the_native_floor_pin_turns_red_for_a_lowered_or_a_stale_floor() -> None:
     text = _workflow_text()
-    assert native_floor_violations(text.replace("--floor 3", "--floor 2"), 3)
-    assert native_floor_violations(text.replace("--floor 3", "--floor 1", 1), 3)
-    assert native_floor_violations(text, 4)
-    assert native_floor_violations(text, 2)
+    count = native_test_count()
+    literal = f"--floor {count}"
+    # a replace of a literal that does not occur is a no-op, and a violation asserted after a no-op would pass for the wrong reason
+    assert text.count(literal) == 2
+    assert native_floor_violations(text.replace(literal, f"--floor {count - 1}"), count)
+    assert native_floor_violations(text.replace(literal, f"--floor {count - 2}", 1), count)
+    assert native_floor_violations(text, count + 1)
+    assert native_floor_violations(text, count - 1)
+
+
+# --- WP17 ---------------------------------------------------------------------------------------------------------------------------
+# The detail stage of the smoke, the UTF-8 locale of the jobs that need it (D-90: the native legs get theirs from the test harness, so no
+# environment line is written on them), and the skip report of the JVM job (every precondition skip is visible, never silent).
+
+LOCALE = "LC_ALL=C.UTF-8"
+
+
+def _step_run_and_env(step: dict[str, object]) -> str:
+    return f"{step.get('run', '')}\n{step.get('env', '')}"
+
+
+def locale_violations(text: str) -> list[str]:
+    jobs = _jobs(_wf(text))
+    found: list[str] = []
+    nightly = [step for step in _steps(jobs.get("nightly-corpus", {})) if "java -jar build/libs/mission-status-api.jar" in str(step.get("run", ""))]
+    if len(nightly) != 1:
+        found.append(f"the nightly-corpus job must have exactly one step that starts the jar, found {len(nightly)}")
+    elif f"{LOCALE} java -jar" not in str(nightly[0].get("run", "")):
+        found.append(f"the nightly-corpus step that starts the service must run `{LOCALE} java -jar ...`")
+    gates = [step for step in _steps(jobs.get("jvm", {})) if "./gradlew --no-daemon check" in str(step.get("run", ""))]
+    if len(gates) != 1:
+        found.append(f"the jvm job must have exactly one `check` step, found {len(gates)}")
+    elif (gates[0].get("env") or {}).get("LC_ALL") != "C.UTF-8":
+        found.append("the jvm job's `check` step must run under LC_ALL=C.UTF-8 (the non-ASCII name tests skip under a C locale)")
+    for step in _steps(jobs.get("native", {})):
+        if "LC_ALL" in _step_run_and_env(step) or "LC_ALL" in str(step.get("with", "")):
+            found.append(f"the native step {step.get('name') or step.get('uses')!r} sets LC_ALL (the smoke harness decides it for the child, D-90)")
+    if "LC_ALL" in str(jobs.get("native", {}).get("env", "")) or "LC_ALL" in str(_wf(text).get("env", "")):
+        found.append("LC_ALL must not be set on the native job or on the whole workflow")
+    return found
+
+
+def skip_report_violations(text: str) -> list[str]:
+    steps = _steps(_jobs(_wf(text)).get("jvm", {}))
+    uploads = [
+        step
+        for step in steps
+        if str(step.get("uses", "")).startswith("actions/upload-artifact@") and str((step.get("with") or {}).get("path", "")).endswith("build/reports/not-run.txt")
+    ]
+    found: list[str] = []
+    if len(uploads) != 1:
+        return [f"the jvm job must upload build/reports/not-run.txt exactly once, found {len(uploads)}"]
+    options = uploads[0].get("with") or {}
+    if uploads[0].get("if") != "always()":
+        found.append("the not-run upload must run `if: always()` (a red check must still surface its skips)")
+    if options.get("if-no-files-found") != "ignore":
+        found.append("the not-run upload must set if-no-files-found: ignore (no skip writes no file)")
+    return found
+
+
+def test_the_nightly_service_and_the_jvm_gates_run_under_a_utf8_locale_and_no_native_step_sets_one() -> None:
+    assert locale_violations(_workflow_text()) == []
+
+
+def test_the_locale_pin_turns_red_when_a_line_is_dropped_or_moved_onto_a_native_leg() -> None:
+    text = _workflow_text()
+    nightly = "          LC_ALL=C.UTF-8 java -jar build/libs/mission-status-api.jar"
+    assert text.count(nightly) == 1
+    assert locale_violations(text.replace(nightly, "          java -jar build/libs/mission-status-api.jar"))
+    jvm = "        env:\n          LC_ALL: C.UTF-8\n        run: ./gradlew --no-daemon check\n"
+    assert text.count(jvm) == 1
+    assert locale_violations(text.replace(jvm, "        run: ./gradlew --no-daemon check\n"))
+    native = "        run: ./gradlew --no-daemon nativeCompile nativeTest\n"
+    assert text.count(native) == 1
+    assert locale_violations(text.replace(native, "        env:\n          LC_ALL: C.UTF-8\n" + native))
+    assert locale_violations("")
+
+
+def test_the_jvm_job_keeps_the_skip_report_as_an_artifact_even_when_the_check_is_red() -> None:
+    assert skip_report_violations(_workflow_text()) == []
+    text = _workflow_text()
+    name = "          name: not-run-jvm\n          path: ${{ env.SERVICE_DIR }}/build/reports/not-run.txt\n          if-no-files-found: ignore\n"
+    assert text.count(name) == 1
+    assert skip_report_violations(text.replace(name, name.replace("ignore", "error")))
+    moved = name.replace("path: ${{ env.SERVICE_DIR }}/build/reports/not-run.txt", "path: ${{ env.SERVICE_DIR }}/build/reports/elsewhere.txt")
+    assert moved != name and skip_report_violations(text.replace(name, moved))
+    always = "        if: always()\n        with:\n          name: not-run-jvm\n"
+    assert text.count(always) == 1
+    assert skip_report_violations(text.replace(always, "        with:\n          name: not-run-jvm\n"))
+    assert skip_report_violations("")
+
+
+def test_the_gradle_hook_copies_the_skip_report_to_the_job_summary_and_a_listener_writes_it_for_every_aborted_test() -> None:
+    build = _text(SERVICE / "build.gradle.kts")
+    assert "reports/not-run.txt" in build and "GITHUB_STEP_SUMMARY" in build
+    listener = SERVICE / "src" / "test" / "resources" / "META-INF" / "services" / "org.junit.platform.launcher.TestExecutionListener"
+    assert _text(listener).split() == ["org.speckitty.missionstatus.testsupport.NotRunListener"]
 
 
 def test_the_digest_file_keys_are_the_ones_the_gate_helper_reads() -> None:

@@ -111,7 +111,7 @@ public final class LedgerLineDecoder {
     } catch (PythonJson.Invalid notJson) {
       return new LedgerLine(number, digest, length, new LineKind.Malformed(MalformedReason.NOT_JSON));
     }
-    return new LedgerLine(number, digest, length, RowClassifier.classify(document), RowClassifier.eventType(document), RowClassifier.historyRow(document));
+    return new LedgerLine(number, digest, length, RowClassifier.classify(document), RowClassifier.eventType(document), RowClassifier.historyRow(document, number));
   }
 
   private static TailClassification classifyTail(byte[] bytes, int tailStart) {

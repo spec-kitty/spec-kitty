@@ -37,7 +37,38 @@ class RequestsFileTest {
   @Test
   void theHostOriginFloorIsExactlyTheNumberOfItsRequests() {
     assertThat(requests.floor("hostOrigin")).isPositive().isEqualTo(requests.requestCount("hostOrigin"));
-    assertThat(requests.floorSum()).isEqualTo(requests.floor("base") + requests.floor("hostOrigin"));
+    assertThat(requests.floorSum()).isEqualTo(requests.floor("base") + requests.floor("hostOrigin") + requests.floor("detail"));
+  }
+
+  /** WP17 (AC-19.2): the five detail routes are replayed byte for byte on every leg, so the file holds a stage for them. */
+  @Test
+  void theDetailStageReplaysEveryDetailRouteWithItsRefusalsAndItsFloorEqualsItsRequests() {
+    assertThat(requests.floor("detail")).isEqualTo(14).isEqualTo(requests.requestCount("detail"));
+    assertThat(requests.floorSum()).as("the digests step's --request-floor").isEqualTo(63);
+    List<SmokeRequests.Request> stage =
+        requests.groups().stream().filter(group -> group.stage().equals("detail")).flatMap(group -> group.requests().stream()).toList();
+    String mission = "/api/v1/missions/00000000000000000000000001";
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).isEqualTo(mission));
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).isEqualTo(mission + "/work-packages/WP01"));
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).isEqualTo(mission + "/work-packages/WP01?includePrompt=true"));
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).isEqualTo(mission + "/work-packages/WP01/detail"));
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).isEqualTo(mission + "/artifacts"));
+    assertThat(stage).anySatisfy(r -> assertThat(r.path()).startsWith(mission + "/artifacts/content?path="));
+    assertThat(stage.stream().map(SmokeRequests.Request::expectedStatus).distinct()).contains(200, 400, 404, 415, 422, 500);
+    assertThat(stage.stream().map(SmokeRequests.Request::expectedProblemCode)).contains("invalid_parameter", "invalid_artifact_path", "source_unreadable", "artifact_secret", "artifact_not_text");
+    assertThat(stage.stream().filter(r -> r.expectedStatus() == 200)).hasSize(6).allSatisfy(r -> assertThat(r.expectedGolden()).startsWith("tree:"));
+  }
+
+  /** A golden is a reference into the committed tree and never a second copy: one request key of a detail golden is addressed with a hash. */
+  @Test
+  void aGoldenReferenceNamesOneRequestKeyOfTheCommittedDetailGoldenAndAMissingKeyIsAProblem() {
+    var tree = requests.tree("detail-populated/populated").orElseThrow();
+    assertThat(SmokeRequests.golden("tree:get-work-package-detail.json#WP01", tree, null)).isNotNull();
+    assertThat(SmokeRequests.golden("tree:get-work-package-detail.json#WP404", tree, null)).isNull();
+    assertThat(SmokeRequests.golden("tree:get-mission.json#-", tree, null)).isNotNull();
+    String missingKey =
+        "{\"stages\":{\"detail\":{\"requestCountFloor\":1}},\"groups\":[{\"stage\":\"detail\",\"tree\":\"detail-populated/populated\",\"requests\":[{\"id\":\"a\",\"method\":\"GET\",\"path\":\"/api/v1/project\",\"expectedStatus\":200,\"expectedGolden\":\"tree:get-work-package-detail.json#WP404\"}]}]}";
+    assertThat(SmokeRequests.parse(missingKey.getBytes(StandardCharsets.UTF_8)).problems()).anyMatch(p -> p.contains("WP404"));
   }
 
   @Test

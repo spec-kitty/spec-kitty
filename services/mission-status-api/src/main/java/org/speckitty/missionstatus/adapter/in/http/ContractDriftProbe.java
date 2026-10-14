@@ -63,7 +63,7 @@ final class ContractDriftProbe {
   }
 
   static ArtifactContent artifactContent() {
-    return new ArtifactContent().sizeBytes(1);
+    return new ArtifactContent().sizeBytes(1L);
   }
 
   static ArtifactEntry artifactEntry() {

@@ -60,6 +60,23 @@ class NoProcessStartTest {
     assertThat(events).as("no " + EVENT + " during the three routes, the contract document and a stream round trip").isEmpty();
   }
 
+  /** AC-10.2: the five detail routes, with their refusals, start no process either (no helper to read a file, list a directory or locate a worktree). */
+  @Test
+  void theDetailFlowStartsNoProcess(@TempDir Path dir) throws Exception {
+    List<RecordedEvent> events =
+        record(
+            dir,
+            () -> {
+              DetailFlow.Project project = DetailFlow.noTopology();
+              org.speckitty.missionstatus.testsupport.RouteMarker marker = org.speckitty.missionstatus.testsupport.RouteMarker.create();
+              try (var server = DetailFlow.start(project, marker)) {
+                assertThat(DetailFlow.run(server, marker, project)).as("the flow answered").hasSizeGreaterThanOrEqualTo(15);
+              }
+            });
+
+    assertThat(events).as("no " + EVENT + " during the five detail routes and their refusals").isEmpty();
+  }
+
   @Test
   void positiveControlAProcessStartedInTheSameKindOfRecordingIsSeen(@TempDir Path dir) throws Exception {
     List<RecordedEvent> events =

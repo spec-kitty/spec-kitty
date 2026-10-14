@@ -81,11 +81,12 @@ final class RowClassifier {
    * Each member is the stored text (a non-text value its Python {@code str()} when Java reproduces it, else null); the lane texts are not
    * validated here, the route mapper shows or refuses them.
    */
-  static HistoryRow historyRow(Object document) {
+  static HistoryRow historyRow(Object document, long lineNumber) {
     if (!(document instanceof Map<?, ?> row) || !row.containsKey("to_lane") || !(row.get("wp_id") instanceof String wpId)) {
       return null;
     }
     String verdict = row.get("review_result") instanceof Map<?, ?> result ? storedText(result.get("verdict")) : null;
+    String reference = row.get("review_result") instanceof Map<?, ?> result && result.get("reference") instanceof String text ? text : null;
     return new HistoryRow(
         wpId,
         storedText(row.get("event_id")),
@@ -95,7 +96,9 @@ final class RowClassifier {
         actor(row.get("actor")),
         Boolean.TRUE.equals(row.get("force")),
         storedText(row.get("reason")),
-        verdict);
+        verdict,
+        reference,
+        lineNumber);
   }
 
   /** The stored value as text: null stays null (the oracle shows none), a string is itself, the rest its Python {@code str()} or null. */
