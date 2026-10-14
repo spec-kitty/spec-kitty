@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-12'
+updated: '2026-10-14'
 ---
 # Changelog
 
@@ -57,6 +57,7 @@ this section at publish._
 - **`spec-kitty doctor charter-packs` and the org lint cover glossary packs, skills and assets** (#5996). **Before:** they scanned only the eight original kinds. **After:** they scan every layered kind, so an existing org pack may surface new findings.
 
 ### Fixed
+- **Agent profiles no longer read as local edits under Git for Windows' `core.autocrlf=true`** (#6235). **Before:** the drift check hashed the raw on-disk bytes against the LF manifest hash, so every tracked profile a CRLF checkout rewrote read as drift — a fresh clone's `spec-kitty upgrade --project --yes` exited 1 with phantom "local edits", `doctor tool-surfaces` reported drift, and the repair had to be repeated after any git operation that rewrote a profile. **After:** a profile whose content differs from the LF render only in line endings is recognised as git-clean and left untouched, so `upgrade` exits 0 and `doctor` reports no drift; a genuine edit still requires consent. Mirrors the #5576 / #5593 fix on the agent-profile surface it did not reach.
 - **Claude plugin bundle repair now works from the project root** (#5843). `doctor tool-surfaces --kind plugin-manifest --fix` skips informational unsupported native-config entries instead of treating `<unsupported>` as a source file; selected staging and validation give the same result from any working directory.
 - **`spec-kitty implement --recover` now works when a coordination mission's worktree has not been checked out** (#5410). Recovery materializes the declared local coordination branch before scanning status, then reports or repairs crashed sessions as usual.
 - **`consolidate --resume` preserves cleanup choices** (#5439). **Before:** resuming without `--keep-branch` could delete lane and mission branches kept by the interrupted run. **After:** resume reuses the original branch and worktree cleanup choices and refuses conflicting flags.

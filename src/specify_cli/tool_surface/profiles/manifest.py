@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from kernel.text_decode import normalize_newlines
 from specify_cli.skills.manifest_store import fingerprint, fingerprint_file
 
 from ..model import NativeAgentProfile
@@ -43,8 +44,45 @@ def hash_content(content: str) -> str:
 
 
 def hash_file(path: Path) -> str:
-    """Return the SHA-256 hex digest of the file at ``path``."""
+    """Return the SHA-256 hex digest of the file at ``path`` (raw on-disk bytes)."""
     return str(fingerprint_file(path))
+
+
+def hash_file_normalized(path: Path) -> str | None:
+    """Return the SHA-256 of the file's UTF-8 content with line endings
+    normalized to LF (CRLF/CR -> LF), matching how the canonical render is
+    hashed (:func:`hash_content`).
+
+    Returns ``None`` when the file cannot be read as UTF-8 text -- a genuinely
+    non-text or unreadable profile, which is never a line-ending-only match.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    return hash_content(normalize_newlines(text))
+
+
+def file_matches_hash(path: Path, expected_hash: str, *, raw_hash: str | None = None) -> bool:
+    """True when the file at ``path`` matches ``expected_hash`` byte-for-byte, or
+    after line-ending normalization (CRLF/CR -> LF).
+
+    The canonical profile render is hashed as LF (:func:`hash_content`), but Git
+    for Windows' default ``core.autocrlf=true`` checks tracked text out with CRLF
+    line endings. A managed profile that differs from the render only in line
+    endings is Git-clean (``git diff`` is empty) and must not read as drift
+    (#6235) -- the same class PR #5593 fixed in Git's terms for the ``implement``
+    planning-artifact filter (#5576), on a surface that fix did not reach.
+
+    The raw comparison is tried first (reused via ``raw_hash`` when the caller
+    already observed it, e.g. ``FileState.sha256``) so the common LF path never
+    re-reads the file.
+    """
+    raw = raw_hash if raw_hash is not None else hash_file(path)
+    if raw == expected_hash:
+        return True
+    normalized = hash_file_normalized(path)
+    return normalized is not None and normalized == expected_hash
 
 
 class ProfileManifest:

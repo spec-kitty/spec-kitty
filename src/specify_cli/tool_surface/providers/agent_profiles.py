@@ -69,7 +69,7 @@ from ..operations import (
 from ..profiles._paths import confined_path, observe_node, observe_tree
 from ..profiles.amazon_q_renderer import FORMAT_AMAZON_Q_AGENT
 from ..profiles.capability_matrix import HARNESS_CAPABILITY_MATRIX, is_research_gap
-from ..profiles.manifest import ProfileManifest, hash_content, hash_file, manifest_path_for
+from ..profiles.manifest import ProfileManifest, file_matches_hash, hash_content, manifest_path_for
 from ..profiles.projection import PreparedProfileBatch, PreparedProjection, ProfileProjector
 from ..profiles.renderers import get_renderer, native_name_violation
 from ..repair import RepairResult, _is_init_upgrade_auto_repairable
@@ -348,7 +348,7 @@ class AgentProfilesProvider:
             return self._research_gap_status(instance)
         if not instance.path.exists():
             return self._missing_status(instance)
-        if instance.file_hash is not None and hash_file(instance.path) != instance.file_hash:
+        if instance.file_hash is not None and not file_matches_hash(instance.path, instance.file_hash):
             return self._drift_status(instance)
         return SurfaceStatus(instance=instance, state=STATE_PRESENT)
 
@@ -700,10 +700,10 @@ class _ProfileBatch:
             self.preserve(path, "Profile manifest identity does not authorize this path")
             return
         if state.kind == "file":
-            if original is None and state.sha256 != item.native.file_hash:
+            if original is None and not file_matches_hash(path, item.native.file_hash, raw_hash=state.sha256):
                 self.preserve(path, "Unknown profile content; no adoption authority")
                 return
-            if original is not None and state.sha256 != original.file_hash:
+            if original is not None and not file_matches_hash(path, original.file_hash, raw_hash=state.sha256):
                 relative = path.relative_to(self.inputs.root.path).as_posix()
                 if relative not in self.inputs.consent.overwrite_paths:
                     self.preserve(path, "Managed profile drift requires exact-path consent", drift=True)
@@ -712,12 +712,21 @@ class _ProfileBatch:
         owners = tuple(p.native.tool_key for p in group)
         mode = state.mode if state.kind == "file" else 0o644
         after = FileState("file", sha256=item.native.file_hash, mode=mode)
-        if state.kind == "absent" or state.sha256 != after.sha256:
+        if state.kind == "absent" or not file_matches_hash(path, after.sha256, raw_hash=state.sha256):
             self.contents[path] = item.content
             self.effect(path, after, owners, proof, "Install prepared native profile")
         else:
+            # A profile whose bytes differ from the LF render only in line endings
+            # (a CRLF checkout under ``core.autocrlf=true``) is Git-clean and left
+            # untouched -- no phantom rewrite that would re-churn on every upgrade (#6235).
             self.dispositions.append(
-                Disposition(PROVIDER_KEY, self.inputs.root.root_id, path.relative_to(self.inputs.root.path).as_posix(), "unchanged", "Native profile bytes match")
+                Disposition(
+                    PROVIDER_KEY,
+                    self.inputs.root.root_id,
+                    path.relative_to(self.inputs.root.path).as_posix(),
+                    "unchanged",
+                    "Native profile content matches",
+                )
             )
         # A shared alias must not replace a retained logical manifest owner.
         native = replace(item.native, tool_key=original.tool_key) if original and original.tool_key not in owners else item.native
@@ -735,7 +744,7 @@ class _ProfileBatch:
             return
         if state.kind == "absent":
             self.manifest.remove(path)
-        elif state.kind == "file" and state.sha256 == entry.file_hash:
+        elif state.kind == "file" and file_matches_hash(path, entry.file_hash, raw_hash=state.sha256):
             self.effect(
                 path,
                 FileState("absent"),

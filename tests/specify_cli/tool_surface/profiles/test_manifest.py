@@ -11,8 +11,10 @@ from specify_cli.tool_surface.profiles.manifest import (
     MANIFEST_FILENAME,
     PROJECTION_VERSION,
     ProfileManifest,
+    file_matches_hash,
     hash_content,
     hash_file,
+    hash_file_normalized,
     manifest_path_for,
 )
 
@@ -71,6 +73,52 @@ def test_hash_file_matches_canonical_fingerprint(tmp_path: Path) -> None:
     f = tmp_path / "x.md"
     f.write_text("hello", encoding="utf-8")
     assert hash_file(f) == fingerprint(b"hello")
+
+
+def test_hash_file_normalized_folds_crlf_and_cr_to_lf(tmp_path: Path) -> None:
+    lf = hash_content("one\ntwo\n")
+    crlf = tmp_path / "crlf.md"
+    crlf.write_bytes(b"one\r\ntwo\r\n")
+    cr = tmp_path / "cr.md"
+    cr.write_bytes(b"one\rtwo\r")
+    assert hash_file_normalized(crlf) == lf
+    assert hash_file_normalized(cr) == lf
+    # Raw bytes differ (the pre-#6235 comparison would have flagged drift).
+    assert hash_file(crlf) != lf
+
+
+def test_hash_file_normalized_returns_none_for_non_utf8(tmp_path: Path) -> None:
+    binary = tmp_path / "bin.md"
+    binary.write_bytes(b"\xff\xfe not utf-8 \x00")
+    assert hash_file_normalized(binary) is None
+
+
+def test_file_matches_hash_raw_crlf_and_genuine_difference(tmp_path: Path) -> None:
+    expected = hash_content("one\ntwo\n")
+    # Byte-for-byte LF match (the common Linux/macOS path).
+    lf = tmp_path / "lf.md"
+    lf.write_bytes(b"one\ntwo\n")
+    assert file_matches_hash(lf, expected)
+    # CRLF checkout (core.autocrlf=true): line-ending-only difference still matches (#6235).
+    crlf = tmp_path / "crlf.md"
+    crlf.write_bytes(b"one\r\ntwo\r\n")
+    assert file_matches_hash(crlf, expected)
+    # A genuine content edit saved with CRLF is NOT a match (stays drift).
+    edited = tmp_path / "edited.md"
+    edited.write_bytes(b"one\r\nTWO\r\n")
+    assert not file_matches_hash(edited, expected)
+    # A non-UTF-8 file never matches an LF text hash.
+    binary = tmp_path / "bin.md"
+    binary.write_bytes(b"\xff\xfe\x00")
+    assert not file_matches_hash(binary, expected)
+
+
+def test_file_matches_hash_reuses_observed_raw_hash_without_rereading(tmp_path: Path) -> None:
+    # The fast path trusts a caller-supplied raw hash (e.g. FileState.sha256) and
+    # never re-reads the file when the raw bytes already match.
+    expected = hash_content("body\n")
+    missing = tmp_path / "gone.md"  # does not exist on disk
+    assert file_matches_hash(missing, expected, raw_hash=expected)
 
 
 def test_record_and_get_hash(tmp_path: Path) -> None:
