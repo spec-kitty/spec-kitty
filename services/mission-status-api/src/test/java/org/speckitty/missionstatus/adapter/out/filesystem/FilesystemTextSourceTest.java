@@ -75,8 +75,8 @@ class FilesystemTextSourceTest {
 
   @Test
   void readTextReturnsTheTextAndItsByteSize() throws IOException {
-    Files.writeString(primary.resolve("café.md"), "café", StandardCharsets.UTF_8);
     assumeTrue("UTF-8".equals(System.getProperty("sun.jnu.encoding")));
+    Files.writeString(primary.resolve("café.md"), "café", StandardCharsets.UTF_8);
     assertThat(source.readText(at("café.md"), 100, ReadScope.ARTIFACT)).isEqualTo(new TextRead.Text("café", 5));
   }
 
