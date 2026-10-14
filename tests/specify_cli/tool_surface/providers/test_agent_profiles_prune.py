@@ -118,6 +118,33 @@ def test_fix_prunes_deactivated_profile_file_and_manifest_entry(tmp_path: Path) 
     assert f"{_UNRELATED_BUILTIN_ID}.md" in names_after
 
 
+def test_fix_prunes_crlf_checkout_of_deactivated_orphan_6235(tmp_path: Path) -> None:
+    """#6235: a de-activated orphan checked out CRLF (git-clean) is pruned, not retained as drift.
+
+    Under ``core.autocrlf=true`` the orphan's bytes are CRLF while its manifest
+    hash is LF. The prune compare must recognise it as the recorded content
+    (line-ending normalized) and remove it, exactly as it does for an LF orphan;
+    it must not fall through to "retain ownership record" as phantom drift.
+    """
+    pack_root = _write_org_pack(tmp_path)
+    _write_config(tmp_path, pack_root, activated=None)
+    _run_fix(tmp_path)
+
+    org_file = tmp_path / ".claude" / "agents" / f"{_ORG_ANALYST_ID}.md"
+    assert org_file.exists()
+    lf_bytes = org_file.read_bytes()
+    assert b"\r\n" not in lf_bytes, "the canonical render is LF"
+    # Simulate a Git checkout under core.autocrlf=true: CRLF on disk, content unchanged.
+    org_file.write_bytes(lf_bytes.replace(b"\n", b"\r\n"))
+
+    # De-activate the org agent, then re-run --fix (a prune pass over the orphan).
+    _write_config(tmp_path, pack_root, activated=[_UNRELATED_BUILTIN_ID])
+    _run_fix(tmp_path)
+
+    assert not org_file.exists(), "a git-clean CRLF orphan must be pruned, not retained as drift"
+    assert f"{_ORG_ANALYST_ID}.md" not in _manifest_output_names(tmp_path)
+
+
 def test_fix_does_not_prune_unrelated_user_file(tmp_path: Path) -> None:
     """A user-authored ``.claude/agents`` file not in the manifest is never pruned."""
     pack_root = _write_org_pack(tmp_path)
