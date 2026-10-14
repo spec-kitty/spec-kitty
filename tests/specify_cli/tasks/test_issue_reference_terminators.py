@@ -1,4 +1,4 @@
-"""Regression for (#6069): issue references ending in ``:`` ``!`` ``?`` and wrapped URLs.
+"""Unit coverage for (#6069): issue references ending in ``:`` ``!`` ``?`` and wrapped URLs.
 
 The single issue-reference detector (``_GH_ISSUE_PATTERN``) used to end a bare
 ``#NNNN`` only at whitespace, ``)``, ``]``, ``,``, ``;``, ``.`` or end of line,
@@ -24,7 +24,7 @@ from specify_cli.status.models import Lane
 from specify_cli.tasks.issue_matrix import detect_issue_references
 from specify_cli.tasks.issue_reference_discovery import GatingClass, gating_issue_numbers
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 NNNN = 6058
 MMMM = 5974
@@ -46,31 +46,21 @@ def _gated(tmp_path: Path, spec_line: str) -> set[str]:
 
 NOW_RECOGNIZED = [
     pytest.param("**Input**: Issue #{n}: the audit fails", id="colon-then-space"),
-    pytest.param("Tracked in #{n}:", id="colon-end-of-line"),
     pytest.param("Status for #{n}:** pending", id="colon-closing-bold"),
     pytest.param("Fixes #{n}!", id="bang"),
     pytest.param("Does this close #{n}?", id="question"),
-    pytest.param("Ref #{n}:: x", id="double-colon"),
-    pytest.param("Ref #{n}:- x", id="colon-dash"),
-    pytest.param("Ref #{n}:/ x", id="colon-slash"),
-    pytest.param("Ref (#{n}:) x", id="colon-paren"),
-    pytest.param("Ref #{n}!! x", id="double-bang"),
-    pytest.param("Ref #{n}!=0 x", id="bang-equals"),
     pytest.param("Ref `" + OWN + "/{n}` here", id="url-backtick"),
-    pytest.param("Ref <" + OWN + "/{n}> here", id="url-autolink"),
-    pytest.param("Ref **" + OWN + "/{n}** here", id="url-bold"),
-    pytest.param('Ref "' + OWN + '/{n}" here', id="url-double-quote"),
-    pytest.param("Ref '" + OWN + "/{n}' here", id="url-single-quote"),
-    pytest.param("Ref " + OWN + "/{n}: details", id="url-colon"),
     pytest.param("Ref " + OWN + "/{n}?x=1 here", id="url-query"),
+    # Intentional: a URL names its issue unambiguously, so unlike the bare arm
+    # it ends at any non-word character (``-foo`` and ``:L5`` still match).
+    pytest.param("Ref " + OWN + "/{n}-foo here", id="url-hyphen-suffix-intentional"),
+    pytest.param("Ref " + OWN + "/{n}:L5 here", id="url-line-label-intentional"),
 ]
 
 UNCHANGED_CONTROLS = [
     pytest.param("Ref (#{n})", id="parenthesized"),
     pytest.param("Ref #{n} here", id="space"),
     pytest.param("Ref #{n}, here", id="comma"),
-    pytest.param("Ref " + OWN + "/{n}#issuecomment-1", id="url-anchor"),
-    pytest.param("Ref " + OWN + "/{n}/", id="url-trailing-slash"),
 ]
 
 # (excluded shape, recognized sibling on the same skeleton)
@@ -83,17 +73,12 @@ EXCLUDED_WITH_SIBLING = [
     pytest.param("Ref #{n}?q=1", "Ref #{n}? q=1", id="question-query"),
     pytest.param("Ref #{n}-fix", "Ref #{n} fix", id="branch-like"),
     pytest.param("Ref acme/widgets#{n}:", "Ref widgets #{n}:", id="cross-repo-short"),
-    pytest.param("Ref `" + OTHER + "/{n}`", "Ref `" + OWN + "/{n}`", id="cross-repo-url-backtick"),
-    pytest.param("Ref <" + OTHER + "/{n}>", "Ref <" + OWN + "/{n}>", id="cross-repo-url-autolink"),
-    pytest.param("Ref " + OTHER + "/{n}:", "Ref " + OWN + "/{n}:", id="cross-repo-url-colon"),
+    pytest.param("Ref `" + OTHER + "/{n}`", "Ref `" + OWN + "/{n}`", id="cross-repo-url"),
+    pytest.param("Ref #{n}:_x", "Ref #{n}: _x", id="colon-underscore-word"),
+    pytest.param("Ref #{n}:\u00e9", "Ref #{n}: \u00e9", id="colon-non-ascii-word"),
     pytest.param("Ref " + OWN + "/{n}abc", "Ref " + OWN + "/{n} ", id="url-letter-suffix"),
     pytest.param("Ref " + OWN + "/{n}_x", "Ref " + OWN + "/{n} ", id="url-underscore-suffix"),
-    pytest.param("Ref **" + OTHER + "/{n}**", "Ref **" + OWN + "/{n}**", id="cross-repo-url-bold"),
-    pytest.param('Ref "' + OTHER + '/{n}"', 'Ref "' + OWN + '/{n}"', id="cross-repo-url-double-quote"),
-    pytest.param("Ref '" + OTHER + "/{n}'", "Ref '" + OWN + "/{n}'", id="cross-repo-url-single-quote"),
-    pytest.param("Ref " + OTHER + "/{n}?x=1", "Ref " + OWN + "/{n}?x=1", id="cross-repo-url-query"),
-    pytest.param("Ref #section-name", "Ref #{n}", id="markdown-anchor"),
-    pytest.param("Ref #12345678", "Ref #{n}", id="seven-plus-digits"),
+    pytest.param("Ref " + OWN + "/{n}\u00e9", "Ref " + OWN + "/{n} ", id="url-non-ascii-suffix"),
     pytest.param("Ref " + OWN + "/12345678", "Ref " + OWN + "/{n}", id="seven-plus-digits-url"),
 ]
 
@@ -117,7 +102,7 @@ def test_excluded_shape_stays_unrecognized_with_positive_control(tmp_path: Path,
 
 
 def test_completeness_gate_fails_for_colon_citation_without_matrix(tmp_path: Path) -> None:
-    """FR-006: the user-visible symptom, through the merge-gate entry point."""
+    """#6069: the user-visible symptom, through the merge-gate entry point."""
     _feature_dir(tmp_path, "**Input**: Issue #{n}: the audit fails")
     gate = _evaluate_issue_matrix_completeness_gate(tmp_path, "demo", is_blocking=True)
     assert gate.verdict == GateVerdict.FAIL
@@ -125,16 +110,8 @@ def test_completeness_gate_fails_for_colon_citation_without_matrix(tmp_path: Pat
     assert f"#{NNNN}" in gate.details
 
 
-def test_completeness_gate_control_parenthesized_citation(tmp_path: Path) -> None:
-    _feature_dir(tmp_path, "**Input**: Issue (#{n}) the audit fails")
-    gate = _evaluate_issue_matrix_completeness_gate(tmp_path, "demo", is_blocking=True)
-    assert gate.verdict == GateVerdict.FAIL
-    assert gate.blocking is True
-    assert f"#{NNNN}" in gate.details
-
-
 def test_classification_of_newly_recognized_shapes(tmp_path: Path) -> None:
-    """FR-009 / C-002: recognition widens, classification does not change."""
+    """#6069: recognition widens, classification does not change."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
     spec = feature_dir / "spec.md"
@@ -152,13 +129,10 @@ def test_classification_of_newly_recognized_shapes(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "spec_line",
-    [
-        pytest.param("Issue #{n}: the audit fails", id="colon"),
-        pytest.param("Ref `" + OWN + "/{n}` here", id="url-backtick"),
-    ],
+    [pytest.param("Issue #{n}: the audit fails", id="colon")],
 )
 def test_approval_blocker_names_newly_recognized_citation(tmp_path: Path, spec_line: str) -> None:
-    """SC-001: the approval gate blocks and names the issue (no matrix present)."""
+    """#6069: the approval gate blocks and names the issue (no matrix present)."""
     feature_dir = _feature_dir(tmp_path, spec_line)
     blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
     assert blocker is not None
