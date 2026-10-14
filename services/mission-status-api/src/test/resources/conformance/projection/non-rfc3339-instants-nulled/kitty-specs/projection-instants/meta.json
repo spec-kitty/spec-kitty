@@ -1,0 +1,13 @@
+{
+  "accepted_at": "2026-09-01T10:00:00",
+  "created_at": "2026-09-26T10:00:00+00:00",
+  "discarded_at": "2026-09-01",
+  "friendly_name": "Fixture projection-instants",
+  "merged_at": "20260901T100000Z",
+  "mission_id": "01J5300000000000000000001P",
+  "mission_number": null,
+  "mission_slug": "projection-instants",
+  "mission_type": "software-dev",
+  "slug": "projection-instants",
+  "target_branch": "main"
+}

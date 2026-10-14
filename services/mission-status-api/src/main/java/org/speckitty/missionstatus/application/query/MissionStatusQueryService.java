@@ -423,17 +423,9 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     }
   }
 
-  /** The text when it reads as an instant (the shape {@code createdAt} is held to), else null: the contract declares {@code date-time}. */
+  /** The text when it is an instant with an offset (the shape {@code createdAt} is held to), else null: the contract declares RFC 3339 {@code date-time}. */
   private static String instantOrNull(String text) {
-    if (text == null) {
-      return null;
-    }
-    try {
-      Instants.parse(text);
-      return text;
-    } catch (InvalidInstantException unusable) {
-      return null;
-    }
+    return text != null && Instants.hasOffset(text) ? text : null;
   }
 
   // ---- diagnostics -----------------------------------------------------------------------------------------------------------

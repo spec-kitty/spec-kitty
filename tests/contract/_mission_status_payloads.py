@@ -115,6 +115,7 @@ WP_ID_PATTERN: str = _WP_ID_SCHEMA["pattern"]
 WP_ID_MAX_LENGTH: int = _WP_ID_SCHEMA["maxLength"]
 _WP_ID = re.compile(WP_ID_PATTERN)
 _MISSION_ID = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+_RFC3339_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:[Zz]|[+-]\d{2}:\d{2})$")
 _SENTINELS = frozenset({"__resolved_model_absent__", "__resolved_profile_absent__", "__resolved_profile_version_absent__", "__resolved_provider_absent__"})
 _PATH_TOKEN = "[path]"
 _EMAIL_TOKEN = "[email]"
@@ -850,13 +851,7 @@ def _optional_text(value: Any) -> str | None:
 
 def _instant_or_none(value: str | None) -> str | None:
     """A served ``date-time`` member: the text when it reads as an instant, else null (AC-9g, a nullable strict field)."""
-    if value is None:
-        return None
-    try:
-        parse_iso(value)
-    except ValueError:
-        return None
-    return value
+    return value if value is not None and _is_dated(value) else None
 
 
 # ---------------------------------------------------------------------------
@@ -991,7 +986,12 @@ def _review_result(state: Mapping[str, Any], projector: Projector, where: str) -
 
 
 def _is_dated(value: str) -> bool:
-    """True when ``value`` reads as an instant with an offset, the form the contract shows a time in."""
+    """True when ``value`` is an RFC 3339 instant: extended format, a ``T`` separator and an offset (``Z`` or ``+HH:MM``), the form the contract shows a time in.
+
+    ``fromisoformat`` alone also takes a bare date, a space separator, ``+HHMM`` and basic format, which the service nulls, so the shape is checked first.
+    """
+    if _RFC3339_SHAPE.match(value) is None:
+        return False
     try:
         return parse_iso(value).tzinfo is not None
     except ValueError:

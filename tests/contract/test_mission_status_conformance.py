@@ -630,6 +630,9 @@ def projection_problems(fixtures: list[gen.Fixture], found: Mapping[str, Mapping
     nulled = items_of(found.get("nullable-strict-field-nulled", {}))
     if not nulled or nulled[0]["missionType"] is not None:
         problems.append("nullable-strict-field-nulled: the nullable strict field is not null")
+    instants = items_of(found.get("non-rfc3339-instants-nulled", {}))
+    if not instants or any(instants[0][key] is not None for key in ("acceptedAt", "mergedAt", "discardedAt", "lastEventId")):
+        problems.append("non-rfc3339-instants-nulled: an off-shape instant or event id is served")
     refused = found.get("strict-field-refused", {}).get(MISSIONS, {})
     if refused.get(REFUSAL, {}).get("exception") != "ProjectionError":
         problems.append("strict-field-refused: the oracle did not refuse with ProjectionError")
