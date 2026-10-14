@@ -372,8 +372,8 @@ class ReadDirResolverTest {
   }
 
   @Test
-  void aDeclaredMid8ThatIsNotASafePathSegmentNeverReachesTheFileSystem() throws IOException {
-    for (String hostile : List.of("../../outside", "a/b", "..", ".", "a\\\\b")) {
+  void aDeclaredMid8ThatIsNotASafePathSegmentOnAnyPlatformNeverReachesTheFileSystem() throws IOException {
+    for (String hostile : List.of("../../outside", "a/b", "..", ".", "a\\\\b", "a:b", "a<b", "a>b", "a\\\"b", "a|b", "a?b", "a*b", "a\\u0001b", "a\\u007fb")) {
       meta("{\"mid8\":\"" + hostile + "\",\"topology\":\"coord\",\"coordination_branch\":\"b\"}");
       recorder.clear();
       Resolution resolution = resolver.resolve(NAME);

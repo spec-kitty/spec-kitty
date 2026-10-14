@@ -40,9 +40,17 @@ public final class SafeFiles {
     this.access = access;
   }
 
-  /** A single path segment: no separator, no dot segment, no NUL, not empty. Names from the outside never reach a path otherwise. */
+  /**
+   * A single path segment: no separator, no dot segment, not empty, and none of the characters Windows forbids in a name
+   * ({@code < > : " | ? *} and the control characters, NUL included), so that {@code Path.resolve} cannot throw an
+   * {@code InvalidPathException} on any platform. Names from the outside never reach a path otherwise.
+   */
   static boolean isSafeSegment(String segment) {
-    return !segment.isEmpty() && !segment.equals(".") && !segment.equals("..") && segment.indexOf('/') < 0 && segment.indexOf('\\') < 0 && segment.indexOf('\0') < 0;
+    return !segment.isEmpty() && !segment.equals(".") && !segment.equals("..") && segment.chars().noneMatch(SafeFiles::isForbiddenInSegment);
+  }
+
+  private static boolean isForbiddenInSegment(int c) {
+    return c < ' ' || c == 0x7f || "/\\<>:\"|?*".indexOf(c) >= 0;
   }
 
   /** The project root as configured (not resolved). */
