@@ -7,29 +7,23 @@ public final class StreamRefused extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
-  /** The refusal kinds, with the HTTP status the contract fixes for each. */
+  /** The refusal kinds. The HTTP status of each is the adapter's to map. */
   public enum Kind {
-    NEGATIVE("negative", 400),
-    MISALIGNED("misaligned", 400),
-    CURSOR_WITHOUT_MISSION("cursor_without_mission", 400),
-    OUT_OF_RANGE("out_of_range", 409),
-    CONTENT_MISMATCH("content_mismatch", 409),
-    UNKNOWN_MISSION("unknown_mission", 404);
+    NEGATIVE("negative"),
+    MISALIGNED("misaligned"),
+    CURSOR_WITHOUT_MISSION("cursor_without_mission"),
+    OUT_OF_RANGE("out_of_range"),
+    CONTENT_MISMATCH("content_mismatch"),
+    UNKNOWN_MISSION("unknown_mission");
 
     private final String wire;
-    private final int status;
 
-    Kind(String wire, int status) {
+    Kind(String wire) {
       this.wire = wire;
-      this.status = status;
     }
 
     public String wire() {
       return wire;
-    }
-
-    public int status() {
-      return status;
     }
   }
 

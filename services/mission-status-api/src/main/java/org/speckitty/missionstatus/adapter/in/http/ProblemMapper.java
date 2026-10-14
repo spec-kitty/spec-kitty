@@ -32,7 +32,7 @@ public final class ProblemMapper {
 
   /** A stream refusal; the status follows the kind. {@code detail} is the fixed text for the kind unless the caller passes its own. */
   public static ResponseEntity<ProblemBody> stream(StreamRefused refusal, String detail) {
-    return respond(new ProblemBody(refusal.code(), detail != null ? detail : detailOf(refusal.kind()), refusal.kind().status(), "The stream request was refused."));
+    return respond(new ProblemBody(refusal.code(), detail != null ? detail : detailOf(refusal.kind()), statusOf(refusal.kind()), "The stream request was refused."));
   }
 
   public static ResponseEntity<ProblemBody> stream(StreamRefused refusal) {
@@ -52,6 +52,15 @@ public final class ProblemMapper {
   /** An unexpected failure: a generic 500 that says nothing about the cause. */
   public static ResponseEntity<ProblemBody> unexpected() {
     return respond(new ProblemBody("internal_error", null, 500, HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase()));
+  }
+
+  /** The status the contract fixes for each refusal kind. */
+  private static int statusOf(StreamRefused.Kind kind) {
+    return switch (kind) {
+      case NEGATIVE, MISALIGNED, CURSOR_WITHOUT_MISSION -> 400;
+      case OUT_OF_RANGE, CONTENT_MISMATCH -> 409;
+      case UNKNOWN_MISSION -> 404;
+    };
   }
 
   private static String detailOf(StreamRefused.Kind kind) {

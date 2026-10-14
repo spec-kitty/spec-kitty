@@ -49,7 +49,6 @@ class SubscribeConnectTest {
     StreamRefused refused = refusal(fx, StreamScope.mission(UNKNOWN), Optional.empty());
 
     assertThat(refused.kind()).isEqualTo(StreamRefused.Kind.UNKNOWN_MISSION);
-    assertThat(refused.kind().status()).isEqualTo(404);
     assertThat(fx.handles.diagnostics()).isEmpty();
   }
 
@@ -159,7 +158,6 @@ class SubscribeConnectTest {
     StreamRefused refused = refusal(fx, StreamScope.all(), Optional.of(StreamCursor.start()));
 
     assertThat(refused.kind()).isEqualTo(StreamRefused.Kind.CURSOR_WITHOUT_MISSION);
-    assertThat(refused.kind().status()).isEqualTo(400);
     assertThatThrownBy(() -> fx.service.changesSince(StreamScope.all(), Optional.of(StreamCursor.start()))).isInstanceOf(StreamRefused.class);
   }
 
@@ -171,7 +169,6 @@ class SubscribeConnectTest {
     StreamRefused refused = refusal(fx, StreamScope.mission(ALPHA), Optional.of(new StreamCursor(size + 1, StreamCursor.start().invariant())));
 
     assertThat(refused.kind()).isEqualTo(StreamRefused.Kind.OUT_OF_RANGE);
-    assertThat(refused.kind().status()).isEqualTo(409);
     assertThat(refused.code()).isEqualTo("out_of_range");
   }
 
@@ -182,7 +179,6 @@ class SubscribeConnectTest {
     StreamRefused refused = refusal(fx, StreamScope.mission(ALPHA), Optional.of(new StreamCursor(7, StreamCursor.start().invariant())));
 
     assertThat(refused.kind()).isEqualTo(StreamRefused.Kind.MISALIGNED);
-    assertThat(refused.kind().status()).isEqualTo(400);
   }
 
   @Test
@@ -193,7 +189,6 @@ class SubscribeConnectTest {
     StreamRefused refused = refusal(fx, StreamScope.mission(ALPHA), Optional.of(new StreamCursor(right.offset(), StreamCursor.digestOf(new byte[] {1}))));
 
     assertThat(refused.kind()).isEqualTo(StreamRefused.Kind.CONTENT_MISMATCH);
-    assertThat(refused.kind().status()).isEqualTo(409);
   }
 
   @Test

@@ -71,19 +71,6 @@ class PortTypesTest {
   }
 
   @Test
-  void theStatusOfEachRefusalIsTheOneTheContractFixes() {
-    assertThat(List.of(StreamRefused.Kind.values()))
-        .extracting(StreamRefused.Kind::wire, StreamRefused.Kind::status)
-        .containsExactlyInAnyOrder(
-            org.assertj.core.groups.Tuple.tuple("negative", 400),
-            org.assertj.core.groups.Tuple.tuple("misaligned", 400),
-            org.assertj.core.groups.Tuple.tuple("cursor_without_mission", 400),
-            org.assertj.core.groups.Tuple.tuple("out_of_range", 409),
-            org.assertj.core.groups.Tuple.tuple("content_mismatch", 409),
-            org.assertj.core.groups.Tuple.tuple("unknown_mission", 404));
-  }
-
-  @Test
   void anUnavailableReadNamesTheCodeAndNothingElse() {
     MissionStatusUnavailable unavailable = new MissionStatusUnavailable(new Diagnostic(DiagnosticCode.LEDGER_TORN_TAIL, "01J01000", 3));
 
