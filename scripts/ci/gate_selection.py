@@ -105,6 +105,8 @@ DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]] = {
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
 # and the routing gate share one authority for "which groups are consumer fan-outs".
+# This is the census-scoped set only; select_modules routes GROUP_MODULE_FANOUT and
+# DEPENDENCY_MODULE_FANOUT together, so iterate both when you need every fan-out.
 FANOUT_GROUPS: frozenset[str] = frozenset(GROUP_MODULE_FANOUT)
 
 # Modules the census derives for a fan-out group but the hand set deliberately does NOT
