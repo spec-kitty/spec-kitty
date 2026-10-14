@@ -277,9 +277,6 @@ class DetailResponseContractValidationTest {
       UNPROBED.put(name, "a model of listMissions, a route of PR A, not one of the five detail operations");
     }
     UNPROBED.put("Problem", "the shared Problem; every refusal model of the five operations extends it and is probed by its own code enum");
-    for (String name : List.of("MissionProgress", "StatusLaneCounts", "StreamCursor")) {
-      UNPROBED.put(name, "a member model of the shared Mission head (PR A), reached through the MissionOverview and MissionDetail references");
-    }
   }
 
   @Test
