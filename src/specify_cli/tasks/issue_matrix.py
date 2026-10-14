@@ -124,19 +124,25 @@ _SCAFFOLD_NON_GATING_VERDICT = "not-applicable"
 _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 
 # Match ``#NNNN`` GH issue references with 2-6 digits, requiring a non-word
-# leading boundary (start-of-line, whitespace, ``(``, ``[``) and a non-word
-# trailing boundary (whitespace, ``)``, ``]``, ``,``, ``;``, ``.``, EOL); OR
+# leading boundary (start-of-line, whitespace, ``(``, ``[``) and a trailing
+# boundary (whitespace, ``)``, ``]``, ``,``, ``;``, ``.``, EOL, or one of
+# ``:`` ``!`` ``?`` that is NOT itself followed by a word character -- so
+# ``Issue #1234: title``, ``#1234!`` and ``#1234?`` match while the line
+# reference ``#1234:45`` / ``#1234:L5`` and ``#1234?x`` do not, #6069); OR
 # a GitHub issue URL (``https://github.com/<owner>/<repo>/issues/<n>``,
 # owner/repo captured for the Python-side same-repo/cross-repo split below
 # -- FR-012, #1738). Anchored to ``/issues/`` ONLY -- a ``/pull/`` URL is
-# never treated as an issue reference. The URL arm's trailing boundary
-# additionally admits ``#`` (an anchor, e.g. ``#issuecomment-...``) and a
-# trailing ``/`` so those are captured rather than silently dropped.
+# never treated as an issue reference. The URL arm ends the number at ANY
+# non-word character (``(?!\w)``, #6069): that covers a closing backtick,
+# ``>``, ``*``, quote, ``:`` or ``?`` as well as ``#`` (an anchor, e.g.
+# ``#issuecomment-...``) and a trailing ``/``, so none is silently dropped.
 #
 # This deliberately rejects:
 #   * markdown anchor links like ``#section-name`` (alphabetical, not 2-6 digits)
 #   * heading markers like ``# Title`` (no digits)
 #   * tiny one-digit refs like ``#1`` (too few digits)
+#   * line references like ``#1234:45`` and ``#1234:L5`` (a ``:``/``!``/``?``
+#     directly followed by a word character is not a terminator)
 #   * runs of seven-plus digits (out of GitHub's typical issue-number range)
 #   * ``/pull/<n>`` URLs (a PR is not an issue)
 #
@@ -147,10 +153,10 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 # the named group ``url_number`` instead, since ``owner``/``repo`` must be
 # captured first to mirror the URL's own left-to-right shape.
 _GH_ISSUE_PATTERN = re.compile(
-    r"(?:^|\s|\(|\[)#(\d{2,6})(?=\s|\)|\]|,|;|\.|$)"
+    r"(?:^|\s|\(|\[)#(\d{2,6})(?=\s|\)|\]|,|;|\.|[:!?](?!\w)|$)"
     r"|"
     r"https?://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/issues/"
-    r"(?P<url_number>\d{2,6})(?=\s|\)|\]|,|;|\.|#|/|$)",
+    r"(?P<url_number>\d{2,6})(?!\w)",
     re.MULTILINE,
 )
 
