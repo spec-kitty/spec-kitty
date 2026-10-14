@@ -15,7 +15,7 @@ date: '2026-10-14'
 
 **Technical Story:**
 - Operator ruling, 2026-10-14 (quoted under Context).
-- It builds on [ADR 2026-10-13-2](2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md) (pub, ledger, sub; a versioned row contract in `spec-kitty-events`). It amends that record's D-1 row list: the lifecycle row kind is retired, not given its own schema (see the Amendments note added there).
+- It builds on [ADR 2026-10-13-2](2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md) (pub, ledger, sub; a versioned row contract in `spec-kitty-events`). It amends that record's D-1 row list: the lifecycle row kind is retired, not given its own schema (see the Amendments note added there). It also settles how D-1's "versioned row schema" and the operator's "canonical events only" fit: they are one contract, not two (D-3 below).
 - It builds on the produce side of [ADR 2026-10-01-2](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), D-6: the read API stays a pull over the committed ledger, and this record names the one thing that writes that ledger.
 - It keeps [ADR 2026-02-09-3](../2.x/2026-02-09-3-event-log-merge-semantics.md) (event-log merge semantics) unchanged. The writer changes, but the log keeps its merge and reduction rules.
 - It keeps [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md) unchanged: hosted surfaces stay frozen.
@@ -111,6 +111,16 @@ The domain calls an entry point and knows nothing else: not the row format, not 
   - a payload version per event type, for every family the bridge writes. `status`, `project_lifecycle` and `mission_next` have none today. `spec-kitty-events` adds them; their field placement and name are that package's call.
 - Consumers decide whether to support one version or several. The producer makes no promise to emit an old version for a consumer that has not upgraded. Compatibility is carried by the version marker and the package's versioning rules (`contracts/versioning-and-compatibility.md`).
 
+### D-3a: the ledger row is the canonical event in its persisted form, so there is no second row schema
+
+ADR 2026-10-13-2 D-1 asks for a versioned schema for each ledger row kind, published in `spec-kitty-events`. The operator now says the writer writes canonical `spec-kitty-events` events only. Both texts hold under one reading, and this record adopts it:
+
+- **The row schema D-1 asks for is the persisted form of a canonical event, and `spec-kitty-events` publishes it.** A ledger row is one canonical event: the package's row envelope (`event_id`, `event_type`, `schema_version`, timestamp and ordering fields, aggregate identity) around the package's typed payload for that `event_type`. "One schema per row kind" therefore means one published schema per event type, owned by `spec-kitty-events`, never a CLI-owned row shape beside it.
+- **The row's `schema_version` is D-1's row-level version marker.** No separate `row_version` field is added. The payload version of D-3 travels with the payload.
+- **The persisted row is not the full 3.0.0 wire envelope.** ADR 2026-10-13-2 rejected writing 3.0.0 envelopes into the ledger (its "canonical 3.0.0 envelopes in the ledger" option), and that rejection stands. The wire envelope adds required transport and causality fields (`build_id`, `node_id`, `lamport_clock`, `correlation_id`, `project_uuid`; `models.py:110-140`) that the local rows do not carry today. Turning a row into a wire envelope is a mechanical mapping that `spec-kitty-events` defines and ships, so the event is the same canonical event on disk and on the wire. The CLI-side canonicalizer goes away (D-4).
+
+**Open question, with a default.** Should `spec-kitty-events` later make the row envelope and the wire envelope one schema? Default: no. Keep two envelopes over one set of typed payloads, both published by `spec-kitty-events`, until a consumer needs the transport fields on disk.
+
 ### D-4: the internal lifecycle events are retired
 
 Both internal lifecycle-event modules go. `status/lifecycle_events.py` is removed with its `"5.0.0"` local envelope, its `LIFECYCLE_EVENT_TYPES` and `LOCAL_ONLY_LIFECYCLE_EVENT_TYPES` sets and the CLI-side envelope rewrite for the hosted relay. `retrospective/lifecycle_events.py` is removed with its integer-versioned rows; the retrospective facts are written as the canonical `spec-kitty-events` retrospective events (`RETROSPECTIVE_SCHEMA_VERSION`). Each lifecycle fact (project initialized, Mission created, specify, plan and tasks started and completed, work package created, reviewer self-approval, Mission reopened, follow-up recorded) is written as the canonical `spec-kitty-events` event for it. A fact with no canonical event yet gets one in `spec-kitty-events` first (a minor release under its rules) before the CLI writes it. No new internal event type is added in the meantime.
@@ -147,6 +157,7 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 
 #### What must stay true during the migration
 
+- **One contract, two envelopes.** Event-router and other consumers read ledger rows against the `spec-kitty-events` row-envelope schema plus the payload schema for each event type (D-3a). They do not read against a CLI schema or the 3.0.0 wire envelope. A consumer that also takes events from the wire uses the package's row-to-wire mapping.
 - **Existing logs.** Committed `status.events.jsonl`, `decisions.events.jsonl` and `.kittify/canonical-events.jsonl` rows are never rewritten. Readers keep accepting every historical shape: unversioned rows read as version 1 (ADR 2026-10-13-2 D-1), and `"5.0.0"` lifecycle rows stay readable as legacy. Only new rows use the canonical shape, so a Mission's log can hold both. The merge driver installed for these files keeps working on mixed logs. The archive freeze compares reducer outcomes, not bytes, so it still holds.
 - **Reducer duality.** The bridge changes who writes, not how logs are reduced. Two reducers still ship: the Lamport wrapper `materialize_snapshot` (`status/reducer.py:373-377`, ADR 2026-02-09-3) and the wall-clock `reduce_parsed` (`status/reducer.py:17`, `:176-181`). The consolidation gates keep reading through the Lamport wrapper (`consolidation/reconciliation.py::build_approved_wp_set`, :1442). #4941 stays open, and nothing here resolves it.
 - **Consolidation gates.** The approval-stamp bound, per-WP attribution, the reconciliation claim, the coordination status-surface guard and the origin-freshness gate read status events. They read `policy_metadata.lane_head`, `review_result`, `force`, `evidence` and actor provenance. The canonical status event carries each of these, so the gates' verdicts do not change. If a field changes form, the gate migrates in the same change. The `lane_head` probe stays a port the adapter fills; the domain never runs git to stamp it.
@@ -165,7 +176,7 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 ### Open questions (each with a default)
 
 1. **Where the port and the bridge live.** Default: the port in `src/runtime/` next to `RuntimeEventEmitter`; the bridge adapter in `src/specify_cli/events/`.
-2. **Payload version placement and name.** Default: a version field on each typed payload, named and placed by `spec-kitty-events`, snake_case like `schema_version`.
+2. **Payload version placement and name.** Default: a version field on each typed payload, named and placed by `spec-kitty-events`, snake_case like `schema_version`. The row's own `schema_version` is the row-envelope version (D-3a).
 3. **Do the file layouts change?** Default: no. The bridge writes the same files (`status.events.jsonl` per Mission, `.kittify/canonical-events.jsonl` for project facts, the run journal, `decisions.events.jsonl`); it does not merge them into one ledger file.
 4. **Is the Mission state a projection of events?** Default: the run snapshot (`engine.py:132`) and `status.json` become projections rebuilt by consumers from the ledger; `meta.json` stays authored configuration.
 5. **Consumer failure reporting.** Default: a pending asynchronous consumer is reported by `spec-kitty doctor` and rerun by an explicit command, never silently retried in a loop.

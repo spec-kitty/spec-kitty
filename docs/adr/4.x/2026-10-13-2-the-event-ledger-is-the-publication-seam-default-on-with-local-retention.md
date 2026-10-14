@@ -225,5 +225,7 @@ The default numbers above are a proposal for the operator to confirm.
 
 ## Amendments
 
+## Amendments
+
 - **2026-10-14:** the hosted surfaces this ADR fences were removed from open-core by #6164; the code is preserved in spec-kitty/event-router.
-- **Amended by [ADR 2026-10-14-1](2026-10-14-1-event-native-core-one-canonical-event-writer.md)** (an event-native core with one canonical event writer). D-1's row list loses the lifecycle row: the internal lifecycle events are retired, and their facts are written as canonical `spec-kitty-events` events. One module, the EventBridge, writes every row D-1 lists. D-2 and D-3 are unchanged.
+- **Amended by [ADR 2026-10-14-1](2026-10-14-1-event-native-core-one-canonical-event-writer.md)** (an event-native core with one canonical event writer). D-1's row list loses the lifecycle row: the internal lifecycle events are retired, and their facts are written as canonical `spec-kitty-events` events. One module, the EventBridge, writes every row D-1 lists. D-1's row schema is read as the persisted form of a canonical `spec-kitty-events` event: the package's row envelope, whose `schema_version` is the row-level version marker, around the typed payload. It is not a second, CLI-owned schema, and it is not the 3.0.0 wire envelope (ADR 2026-10-14-1, D-3a). D-2 and D-3 are unchanged.
