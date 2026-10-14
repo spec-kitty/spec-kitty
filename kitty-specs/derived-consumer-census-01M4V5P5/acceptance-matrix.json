@@ -1,0 +1,109 @@
+{
+  "mission_slug": "derived-consumer-census-01M4V5P5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/consumer_census.py build_census(); tests/ci/test_consumer_census.py::test_census_is_non_empty_and_well_formed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "static-import scan (incl. importlib strings); tests/ci/test_consumer_census.py::test_agent_consumes_lifecycle_via_static_import",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "runtime audit-hook capture; tests/ci/test_consumer_census.py::test_next_consumes_the_mission_step_prompt_at_runtime + test_runtime_capture_finds_a_grep_invisible_read",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "committed .github/ci-consumer-census.json; tests/ci/test_consumer_census.py::test_committed_census_matches_a_rebuild + test_cli_check_passes",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_consumer_census_routing.py::test_no_census_pack_consumer_is_unrouted + test_historical_pin_is_recorded_and_routed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_consumer_census_routing.py::test_planted_unrouted_consumer_is_caught",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_consumer_census_routing.py::test_historical_pin_is_recorded_and_routed + test_pin_is_red_without_its_routing_glob (3 pins, red-first)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "gate_selection.derive_group_module_fanout(); tests/ci/test_fanout_derivation.py (derived kept as analysis; GROUP_MODULE_FANOUT census-guarded, full derivation -> #6189)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/consumer_census_cost.py; kitty-specs/.../analysis/cost-delta.md; tests/ci/test_consumer_census_cost.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "charter within-module selection carved to #6189 (cost-delta.md records the 7-shard long pole); permitted carve",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-10-13T19:42:10.564508+00:00",
+      "notes": "Verified by the mission test surface (#6173)."
+    }
+  ],
+  "negative_invariants": []
+}

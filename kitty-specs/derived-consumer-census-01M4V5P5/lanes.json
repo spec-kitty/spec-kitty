@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "derived-consumer-census-01M4V5P5",
+  "mission_id": "01M4V5P59X9YRN25QXRHGPVVAZ",
+  "mission_branch": "issue-6173-derived-consumer-census",
+  "target_branch": "issue-6173-derived-consumer-census",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/ci-consumer-census.json",
+        "scripts/ci/consumer_census.py",
+        "scripts/ci/consumer_census_cost.py",
+        "scripts/ci/gate_selection.py",
+        "tests/architectural/test_consumer_census_routing.py",
+        "tests/ci/test_consumer_census.py",
+        "tests/ci/test_consumer_census_cost.py",
+        "tests/ci/test_fanout_derivation.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-13T17:53:26.840269+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1d3e95a8504b44548a814c399f7ccc99e6ef0ccb"
+}
