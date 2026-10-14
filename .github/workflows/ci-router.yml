@@ -565,6 +565,7 @@ jobs:
               # Not a src file: the Mission Status API conformance goldens and fixtures. A golden-only diff runs `tests (contract tools)`,
               # the one home of the golden-honesty test (tests/ci/test_mission_status_routing.py).
               - 'services/mission-status-api/src/test/resources/conformance/**'
+              - 'scripts/ci/mission_status_corpus_compare.py'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).

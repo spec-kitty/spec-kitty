@@ -58,6 +58,14 @@ def test_the_goldens_glob_is_in_the_contract_tools_group_exactly_once_and_in_no_
     assert [group for group, globs in filters.items() if GOLDENS_GLOB in globs] == [GROUP]
 
 
+def test_the_corpus_compare_script_is_in_the_contract_tools_group_exactly_once_and_in_no_other_group() -> None:
+    script = "scripts/ci/mission_status_corpus_compare.py"
+    filters = load_router().filters
+
+    assert filters[GROUP].count(script) == 1
+    assert [group for group, globs in filters.items() if script in globs] == [GROUP]
+
+
 def test_a_golden_only_diff_selects_contract_tools_and_nothing_else_in_python() -> None:
     router = load_router()
 
