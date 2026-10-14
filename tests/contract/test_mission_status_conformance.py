@@ -132,12 +132,8 @@ def ledger_rows(path: Path) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Machinery: canonical writer, ignore-list, deterministic provisioning
+# Machinery: canonical writer, deterministic provisioning
 # ---------------------------------------------------------------------------
-
-
-def test_the_comparison_ignore_list_is_empty() -> None:
-    assert gen.MissionStatusIgnoreList == ()
 
 
 def test_the_canonical_writer_sorts_keys_packs_separators_and_keeps_utf8() -> None:
@@ -697,14 +693,19 @@ def test_a_trivial_golden_carrying_the_right_tag_fails_its_class(tag: str, fixtu
 # ---------------------------------------------------------------------------
 
 
-def test_editing_one_golden_value_in_a_temp_copy_turns_the_comparison_red(generated: dict[Path, bytes], tmp_path: Path) -> None:
+def test_an_edited_stale_or_missing_golden_in_a_temp_copy_is_reported(generated: dict[Path, bytes], tmp_path: Path) -> None:
     scratch = copy_conformance(tmp_path / "copy")
     assert gen.differences(scratch, generated) == [], "control: the unedited copy is clean"
-    target = scratch / gen.CONFORMANCE_DIR / "interleaved" / "two-missions" / gen.GOLDEN_DIR / MISSIONS
-    document = json.loads(target.read_text(encoding="utf-8"))
+    golden_dir = scratch / gen.CONFORMANCE_DIR / "interleaved" / "two-missions" / gen.GOLDEN_DIR
+    document = json.loads((golden_dir / MISSIONS).read_text(encoding="utf-8"))
     document["items"][0]["wpTotal"] += 1
-    target.write_bytes(gen.canonical_bytes(document))
-    assert any("two-missions" in problem for problem in gen.differences(scratch, generated))
+    (golden_dir / MISSIONS).write_bytes(gen.canonical_bytes(document))
+    (golden_dir / "extra.json").write_text("{}", encoding="utf-8")
+    (golden_dir / PROJECT).unlink()
+    problems = gen.differences(scratch, generated)
+    assert any(problem.startswith("differs:") and "two-missions" in problem for problem in problems)
+    assert any(problem.startswith("stale:") for problem in problems)
+    assert any(problem.startswith("missing:") for problem in problems)
 
 
 def test_monkeypatching_one_derivation_helper_turns_the_goldens_red(
@@ -715,15 +716,6 @@ def test_monkeypatching_one_derivation_helper_turns_the_goldens_red(
     assert gen.golden_bytes_of(fixture, tools)[MISSIONS] == committed, "control"
     monkeypatch.setattr(payloads, "derive_lifecycle_status", lambda *arguments: "active")
     assert gen.golden_bytes_of(fixture, tools)[MISSIONS] != committed
-
-
-def test_a_stale_or_missing_golden_file_is_reported(generated: dict[Path, bytes], tmp_path: Path) -> None:
-    scratch = copy_conformance(tmp_path / "copy")
-    stale = scratch / gen.CONFORMANCE_DIR / "interleaved" / "two-missions" / gen.GOLDEN_DIR / "extra.json"
-    stale.write_text("{}", encoding="utf-8")
-    (scratch / gen.CONFORMANCE_DIR / "interleaved" / "two-missions" / gen.GOLDEN_DIR / PROJECT).unlink()
-    problems = gen.differences(scratch, generated)
-    assert any(problem.startswith("stale:") for problem in problems) and any(problem.startswith("missing:") for problem in problems)
 
 
 # ---------------------------------------------------------------------------

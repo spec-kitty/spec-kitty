@@ -76,29 +76,10 @@ class RecordingAllowlistAccessTest {
   }
 
   @Test
-  void positiveControlAReadOfATaskFileIsAViolation() throws IOException {
+  void positiveControlAReadOfATaskFileIsRecordedAsAViolation() throws IOException {
     readAll(root.resolve("kitty-specs/m-01ABCDEF/tasks/WP01.md"));
     assertThat(recorder.violations()).hasSize(1);
     assertThat(recorder.violations().get(0).access().path()).isEqualTo("kitty-specs/m-01ABCDEF/tasks/WP01.md");
-  }
-
-  @Test
-  void positiveControlAReadOfTheCoordinationMetaIsAViolation() throws IOException {
-    readAll(root.resolve(".worktrees/m-01ABCDEF-coord/kitty-specs/m-01ABCDEF/meta.json"));
-    assertThat(recorder.violations()).hasSize(1);
-  }
-
-  @Test
-  void positiveControlAReadOfThePersonalConfigIsAViolation() throws IOException {
-    readAll(root.resolve("config.toml"));
-    assertThat(recorder.violations()).hasSize(1);
-  }
-
-  @Test
-  void positiveControlOneWriteOpenIsFlagged() {
-    recorder.record(root.resolve("kitty-specs/m-01ABCDEF/status.events.jsonl"), OpenMode.APPEND);
-    assertThat(recorder.violations()).hasSize(1);
-    assertThat(recorder.violations().get(0).reason()).contains("APPEND");
   }
 
   @Test

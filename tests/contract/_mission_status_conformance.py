@@ -76,7 +76,8 @@ PARITY_JAVA_ONLY = "java-only"
 TAG_JAVA_ONLY = "javaOnly"
 TAG_KNOWN_DIVERGENCE = "knownDivergence"
 
-# The comparison ignore-list (spec FR-008, "Comparison scope"): one named constant, empty, asserted empty by a test.
+# The comparison ignore-list (spec FR-008, "Comparison scope"): one named constant, empty. `differences()` compares whole documents and
+# never consults it; the Java side asserts its own empty constant (CanonicalJsonTest, GoldenSuiteTest).
 MissionStatusIgnoreList: tuple[str, ...] = ()
 
 # Git is deterministic and offline: a fixed identity, an empty global configuration, no system configuration, no remote.

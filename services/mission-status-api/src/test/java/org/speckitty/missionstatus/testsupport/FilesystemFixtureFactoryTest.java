@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -218,11 +217,12 @@ class FilesystemFixtureFactoryTest {
   }
 
   @Test
-  void theManifestFixturesAreAllDiscovered() {
-    Map<String, Integer> counts = new java.util.TreeMap<>();
-    ConformanceTree.classes().forEach(entry -> counts.put(entry.tag(), entry.fixtures().size()));
-
-    assertThat(counts).containsEntry("malformed-rows", 12).containsEntry("project-header", 9).containsEntry("interleaved", 4);
-    assertThat(ConformanceTree.resolverCases()).hasSize(34);
+  void theFixturesOnDiskAndTheResolverCasesAreExactlyTheOnesTheManifestCounts() throws IOException {
+    for (ConformanceTree.ClassEntry entry : ConformanceTree.classes()) {
+      try (var directories = Files.list(ConformanceTree.root().resolve(entry.tag()))) {
+        assertThat(directories.filter(Files::isDirectory).count()).as(entry.tag()).isEqualTo(entry.fixtures().size());
+      }
+    }
+    assertThat(ConformanceTree.resolverCases()).hasSameSizeAs((java.util.List<?>) ConformanceTree.manifest().get("resolverCaseIds"));
   }
 }

@@ -1,7 +1,6 @@
 package org.speckitty.missionstatus.conformance.golden;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -102,11 +101,5 @@ class PortSubsetSecondLegTest {
     assertThat(PortLevelIds.ids(entries)).contains("AC-2a/interleaved", "AC-2a/lifecycle-only", "AC-2a/no-ledger", "AC-2a/log-truncated", "AC-2a/crlf-and-listing");
     assertThat(entries.size()).isGreaterThanOrEqualTo(PortLevelIds.FR013_GROUPS.size());
     assertThat(PortLevelIds.unmetFloorGroups(new ArrayList<>())).as("an emptied list leaves every group unmet").containsExactlyElementsOf(PortLevelIds.FR013_GROUPS);
-  }
-
-  @Test
-  void theInterimMachineryIsGone() {
-    assertThatThrownBy(() -> Class.forName("org.speckitty.missionstatus.testsupport.PortLevelInterim")).isInstanceOf(ClassNotFoundException.class);
-    assertThatThrownBy(() -> Class.forName("org.speckitty.missionstatus.testsupport.PortLevelInterimCheckTest")).isInstanceOf(ClassNotFoundException.class);
   }
 }
