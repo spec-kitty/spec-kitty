@@ -3750,7 +3750,30 @@ pages:
     - {slug: "publication-a-second-toggle-for-local-subscribers", text: "Publication: a second toggle for local subscribers", level: 3}
     - {slug: "retention-one-policy-for-every-log", text: "Retention: one policy for every log", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
-    - {slug: "amendment-2026-10-14", text: "Amendment 2026-10-14", level: 2}
+    - {slug: "amendments", text: "Amendments", level: 2}
+  - path: "docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md"
+    title: "ADR: an event-native core with one canonical event writer behind a domain port"
+    divio_type: "none"
+    abstract: "One EventBridge module writes only spec-kitty-events contract events; the run loop calls its port; git and filesystem effects become internal consumers."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "current-state-origin-main-566b20b9", text: "Current state (`origin/main`, 566b20b9)", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-one-canonical-event-writer-the-eventbridge", text: "D-1: one canonical event writer, the EventBridge", level: 3}
+    - {slug: "d-2-the-domain-depends-on-a-port-not-on-the-writer", text: "D-2: the domain depends on a port, not on the writer", level: 3}
+    - {slug: "d-3-contract-events-only-latest-version-every-event-versioned", text: "D-3: contract events only, latest version, every event versioned", level: 3}
+    - {slug: "d-3a-the-ledger-row-is-the-canonical-event-in-its-persisted-form-so-there-is-no-second-row-schema", text: "D-3a: the ledger row is the canonical event in its persisted form, so there is no second row schema", level: 3}
+    - {slug: "d-4-the-internal-lifecycle-events-are-retired", text: "D-4: the internal lifecycle events are retired", level: 3}
+    - {slug: "d-5-git-and-filesystem-effects-are-internal-consumers", text: "D-5: git and filesystem effects are internal consumers", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "open-questions-each-with-a-default", text: "Open questions (each with a default)", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-producer-gate-over-twelve-writers", text: "A producer gate over twelve writers", level: 3}
+    - {slug: "canonicalize-only-at-the-outbound-edge", text: "Canonicalize only at the outbound edge", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
