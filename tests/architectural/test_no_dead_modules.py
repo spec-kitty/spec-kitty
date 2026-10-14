@@ -340,8 +340,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # `specify_cli.status.migrate_lifecycle_envelope` was removed from
         # Category 7 above -- it now has a real src/ caller: this module.)
         "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
-        # (The hosted-target + hosted-endpoint-session-backfill migrations that
-        # lived here were removed from open-core with the hosted surface, #6164.)
+        # #6164: the one-way retired-hosted-target cleanup migration is kept
+        # (self-contained, no hosted imports); it is auto-discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register, never imported.
+        "specify_cli.upgrade.migrations.m_4_0_0_retired_hosted_target",
+        # (m_4_0_0rc5_hosted_endpoint_session_backfill was removed with the
+        # hosted surface, #6164: it wrote a hosted endpoint.)
         # single-branch-topology-honesty-01M3M22V WP03 (#5100 IC-02): re-stamps
         # a single_branch mission whose lanes.json has a code lane to
         # topology: lanes (Invariant T-1 repair). Auto-discovered via
