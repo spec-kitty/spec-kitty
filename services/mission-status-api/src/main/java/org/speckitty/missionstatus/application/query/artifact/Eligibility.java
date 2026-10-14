@@ -18,11 +18,29 @@ public final class Eligibility {
   private static final String STATUS_JSON = "status.json";
   private static final String LEDGER = "status.events.jsonl";
 
+  private static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows");
+
   private Eligibility() {}
 
   /** Whether {@code path} is, at the Mission directory's root, the ledger or the materialised status (any case): never an artifact. */
   public static boolean isRootRecord(String path) {
-    String lower = path.toLowerCase(Locale.ROOT);
+    return isRootRecord(path, WINDOWS);
+  }
+
+  /**
+   * Windows drops a trailing dot or space from a file name, so {@code status.json.} opens the root status record: on Windows those are
+   * dropped before the comparison. Elsewhere they are distinct files, as in the Python oracle.
+   */
+  public static boolean isRootRecord(String path, boolean windowsNames) {
+    String name = path;
+    if (windowsNames) {
+      int end = name.length();
+      while (end > 0 && (name.charAt(end - 1) == '.' || name.charAt(end - 1) == ' ')) {
+        end--;
+      }
+      name = name.substring(0, end);
+    }
+    String lower = name.toLowerCase(Locale.ROOT);
     return lower.equals(STATUS_JSON) || lower.equals(LEDGER);
   }
 
