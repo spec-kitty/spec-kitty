@@ -49,6 +49,18 @@ NOW_RECOGNIZED = [
     pytest.param("Status for #{n}:** pending", id="colon-closing-bold"),
     pytest.param("Fixes #{n}!", id="bang"),
     pytest.param("Does this close #{n}?", id="question"),
+    # #6239: wrapped bare refs.  One row per boundary character; a row whose
+    # leading and trailing wrapper are the same character kills both mutants.
+    pytest.param("Ref `#{n}` here", id="backtick-wrapped"),
+    pytest.param("Open `see #{n}` here", id="backtick-trailing-only"),
+    pytest.param("**#{n}** is open", id="bold-wrapped"),
+    pytest.param("**Issue #{n}**", id="star-trailing-only"),
+    pytest.param("_Fixes #{n}_", id="underscore-trailing"),
+    pytest.param('Fixes #{n}" x', id="double-quote"),
+    pytest.param("Fixes #{n}' x", id="single-quote"),
+    pytest.param("| #{n}| x |", id="pipe"),
+    pytest.param("(Fixes #{n}\u2014x)", id="em-dash"),
+    pytest.param("Fixes #{n}\u2013x", id="en-dash"),
     pytest.param("Ref `" + OWN + "/{n}` here", id="url-backtick"),
     pytest.param("Ref " + OWN + "/{n}?x=1 here", id="url-query"),
     # Intentional: a URL names its issue unambiguously, so unlike the bare arm
@@ -79,8 +91,20 @@ EXCLUDED_WITH_SIBLING = [
     pytest.param("Ref " + OWN + "/{n}abc", "Ref " + OWN + "/{n} ", id="url-letter-suffix"),
     pytest.param("Ref " + OWN + "/{n}_x", "Ref " + OWN + "/{n} ", id="url-underscore-suffix"),
     pytest.param("Ref " + OWN + "/{n}\u00e9", "Ref " + OWN + "/{n} ", id="url-non-ascii-suffix"),
+    # #6239: the widened boundaries must not let these in.
+    pytest.param("Ref #{n}_x", "Ref #{n}_ x", id="underscore-word"),
+    pytest.param("Ref #{n}/fix", "Ref #{n} /fix", id="trailing-slash-not-list"),
+    pytest.param("Ref docs/#{n}", "Ref docs #{n}", id="leading-slash-after-word"),
+    pytest.param("Ref &#{n};", "Ref #{n};", id="html-entity"),
+    pytest.param("Ref C#{n}", "Ref C #{n}", id="word-before-hash"),
     pytest.param("Ref #12345678", "Ref #{n}", id="seven-plus-digits"),
     pytest.param("Ref " + OWN + "/12345678", "Ref " + OWN + "/{n}", id="seven-plus-digits-url"),
+]
+
+
+SLASH = [
+    pytest.param("Ref #{n}/#{m}", {f"#{NNNN}", f"#{MMMM}"}, id="slash-list"),
+    pytest.param("Ref acme/widgets#{n} and #{m}", {f"#{MMMM}"}, id="cross-repo-shorthand-stays-out"),
 ]
 
 
@@ -92,6 +116,12 @@ def test_terminated_citation_is_gating(tmp_path: Path, spec_line: str) -> None:
 @pytest.mark.parametrize("spec_line", UNCHANGED_CONTROLS)
 def test_previously_recognized_shapes_still_gate(tmp_path: Path, spec_line: str) -> None:
     assert _gated(tmp_path, spec_line) == GATES
+
+
+@pytest.mark.parametrize(("spec_line", "expected"), SLASH)
+def test_slash_list_recognizes_every_item(tmp_path: Path, spec_line: str, expected: set[str]) -> None:
+    """#6239: ``#N/#M`` cites both; a ``/`` after a repo word does not."""
+    assert _gated(tmp_path, spec_line) == expected
 
 
 @pytest.mark.parametrize(("excluded", "sibling"), EXCLUDED_WITH_SIBLING)

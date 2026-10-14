@@ -124,12 +124,17 @@ _SCAFFOLD_NON_GATING_VERDICT = "not-applicable"
 _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 
 # Match ``#NNNN`` GH issue references with 2-6 digits, requiring a non-word
-# leading boundary (start-of-line, whitespace, ``(``, ``[``) and a trailing
-# boundary (whitespace, ``)``, ``]``, ``,``, ``;``, ``.``, EOL, or one of
-# ``:`` ``!`` ``?`` that is NOT itself followed by a word character -- so
-# ``Issue #1234: title``, ``#1234!`` and ``#1234?`` match while the line
-# reference ``#1234:45`` / ``#1234:L5`` and ``#1234?x`` do not, #6069); OR
-# a GitHub issue URL (``https://github.com/<owner>/<repo>/issues/<n>``,
+# leading boundary (start-of-line, whitespace, ``(``, ``[``, a backtick, ``*``,
+# or a ``/`` that directly follows a digit so ``#12/#13`` lists both items but
+# ``owner/repo#12`` stays out -- though the second item of
+# ``owner/repo#12/#13`` is read as a same-repo ref, a known edge, #6239) and a trailing boundary (whitespace,
+# ``)``, ``]``, ``,``, ``;``, ``.``, EOL, a closing wrapper -- backtick, ``*``,
+# ``"``, ``'``, ``|`` -- an em or en dash, ``_`` or one of ``:`` ``!`` ``?``
+# that is NOT itself followed by a word character, or a ``/`` directly before
+# the next ``#`` of a slash list -- so ``Issue #1234: title``, ``**#1234**``,
+# ``_Fixes #1234_`` and ``#1234`` followed by an em dash match while the line
+# reference ``#1234:45`` / ``#1234:L5``, ``#1234?x`` and ``#1234_x`` do not, #6069,
+# #6239); OR a GitHub issue URL (``https://github.com/<owner>/<repo>/issues/<n>``,
 # owner/repo captured for the Python-side same-repo/cross-repo split below
 # -- FR-012, #1738). Anchored to ``/issues/`` ONLY -- a ``/pull/`` URL is
 # never treated as an issue reference. The URL arm ends the number at ANY
@@ -139,10 +144,10 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 #
 # The two arms deliberately differ. The URL arm ends at any non-word
 # character because a URL names its issue unambiguously, so
-# ``.../issues/12:L5`` and ``.../issues/12-foo`` match. The bare arm ends
-# only at whitespace, ``) ] , ; .`` or ``:!?`` not followed by a word
-# character, so ``#12:45`` and ``#12-fix`` stay out. Bare refs wrapped as
-# ``\`#N\```, ``**#N**``, ``#N"``, ``#N—`` or ``#N|`` are still not recognized.
+# ``.../issues/12:L5`` and ``.../issues/12-foo`` match. The bare arm is an
+# allow-list: a hyphen, ``:``/``!``/``?`` before a word character, ``_``
+# before a word character, ``<``, ``>`` and ``=`` are not terminators, so
+# ``#12:45``, ``#12-fix`` and ``#12_x`` stay out.
 #
 # This deliberately rejects:
 #   * markdown anchor links like ``#section-name`` (alphabetical, not 2-6 digits)
@@ -150,6 +155,7 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 #   * tiny one-digit refs like ``#1`` (too few digits)
 #   * line references like ``#1234:45`` and ``#1234:L5`` (a ``:``/``!``/``?``
 #     directly followed by a word character is not a terminator)
+#   * cross-repo shorthand like ``owner/repo#1234`` (a ``/`` leads only after a digit)
 #   * runs of seven-plus digits (out of GitHub's typical issue-number range)
 #   * ``/pull/<n>`` URLs (a PR is not an issue)
 #
@@ -160,7 +166,8 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 # the named group ``url_number`` instead, since ``owner``/``repo`` must be
 # captured first to mirror the URL's own left-to-right shape.
 _GH_ISSUE_PATTERN = re.compile(
-    r"(?:^|\s|\(|\[)#(\d{2,6})(?=\s|\)|\]|,|;|\.|[:!?](?!\w)|$)"
+    r"(?:^|\s|\(|\[|[`*]|(?<=\d)/)#(\d{2,6})"
+    r"(?=\s|\)|\]|,|;|\.|[`*\"'|\u2014\u2013]|[:!?_](?!\w)|/(?=#)|$)"
     r"|"
     r"https?://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/issues/"
     r"(?P<url_number>\d{2,6})(?!\w)",
