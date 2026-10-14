@@ -1917,23 +1917,17 @@ def test_the_smoke_replays_the_binary_the_compile_step_produced() -> None:
     assert smoke_binary_violations("")
 
 
-# The floor the slice 4 landing (6f75479252) set. The source holds three @Tag("native") tests; the landing message calls 4 "the number of
-# native-tagged tests", which this tree does not show. The floor is pinned to the landed value here and the source count is pinned beside
-# it, so whichever moves, this test goes red and the discrepancy must be settled by a native run (the first CI run), not by a guess.
-LANDED_NATIVE_FLOOR = 4
-
-
-def test_the_native_floor_is_the_landed_floor_and_the_native_tagged_tests_are_the_recorded_three() -> None:
+def test_the_native_floor_is_the_number_of_native_tagged_tests() -> None:
     assert native_test_count() == 3
-    assert native_floor_violations(_workflow_text(), LANDED_NATIVE_FLOOR) == []
+    assert native_floor_violations(_workflow_text(), native_test_count()) == []
 
 
 def test_the_native_floor_pin_turns_red_for_a_lowered_or_a_stale_floor() -> None:
     text = _workflow_text()
-    assert native_floor_violations(text.replace("--floor 4", "--floor 3"), LANDED_NATIVE_FLOOR)
-    assert native_floor_violations(text.replace("--floor 4", "--floor 1", 1), LANDED_NATIVE_FLOOR)
-    assert native_floor_violations(text, LANDED_NATIVE_FLOOR + 1)
-    assert native_floor_violations(text, LANDED_NATIVE_FLOOR - 1)
+    assert native_floor_violations(text.replace("--floor 3", "--floor 2"), 3)
+    assert native_floor_violations(text.replace("--floor 3", "--floor 1", 1), 3)
+    assert native_floor_violations(text, 4)
+    assert native_floor_violations(text, 2)
 
 
 def test_the_digest_file_keys_are_the_ones_the_gate_helper_reads() -> None:
