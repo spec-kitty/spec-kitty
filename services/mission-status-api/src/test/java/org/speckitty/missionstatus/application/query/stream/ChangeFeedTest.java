@@ -1,6 +1,7 @@
 package org.speckitty.missionstatus.application.query.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.speckitty.missionstatus.application.query.StreamFx.ALPHA;
 import static org.speckitty.missionstatus.application.query.StreamFx.BETA;
 
@@ -483,17 +484,47 @@ class ChangeFeedTest {
   }
 
   @Test
-  void aNewMissionWhoseMetaCannotBeReadIsReportedOnceAndNotRetried() {
+  void aNewMissionWhoseMetaCannotBeReadIsReportedOnceAndWatchedOnceItBecomesReadable() {
     Fx fx = new Fx(StreamFx.twoMissions());
     try (Subscription subscription = unscoped(fx)) {
-      fx.source.addMission(FixtureSpec.Mission.of("gamma", "{broken", null));
+      String row = Rows.status(Rows.id(60), Fx.T2, "WP01", "planned", "claimed");
+      fx.source.addMission(FixtureSpec.Mission.of("gamma", "{broken", row));
       for (int i = 0; i < 3; i++) {
         fx.clock.advance(Duration.ofSeconds(2));
         fx.executor.tick();
       }
       assertThat(StreamFx.drain(subscription)).isEmpty();
+      assertThat(fx.handles.diagnostics()).containsExactly(new Diagnostic(DiagnosticCode.META_UNPARSEABLE, Diagnostic.NONE, null));
+
+      fx.source.replaceMeta("gamma", Rows.meta(Rows.GAMMA_ID, "gamma", StreamFx.CREATED).getBytes(StandardCharsets.UTF_8));
+      fx.clock.advance(Duration.ofSeconds(2));
+      fx.executor.tick();
+
+      assertThat(StreamFx.eventIds(StreamFx.changes(StreamFx.drain(subscription)))).containsExactly(Rows.id(60));
     }
-    assertThat(fx.handles.diagnostics()).containsExactly(new Diagnostic(DiagnosticCode.META_UNPARSEABLE, Diagnostic.NONE, null));
+  }
+
+  @Test
+  void aStrayExceptionWhileDiscoveringOrConnectingNeitherSilencesTheTickNorLeaksAWatch() {
+    Fx fx = new Fx(StreamFx.twoMissions());
+    fx.source.addMission(Fx.mission("gamma", Rows.GAMMA_ID, StreamFx.CREATED, Rows.status(Rows.id(60), Fx.T2, "WP01", "planned", "claimed")));
+    fx.source.injectUnexpected("gamma", Op.META);
+
+    assertThatThrownBy(() -> unscoped(fx)).isInstanceOf(IllegalStateException.class);
+    assertThat(fx.service.feed().watchCount()).as("the watches of the refused connect are collected").isZero();
+
+    Fx running = new Fx(StreamFx.twoMissions());
+    try (Subscription subscription = unscoped(running)) {
+      running.source.addMission(Fx.mission("gamma", Rows.GAMMA_ID, StreamFx.CREATED, null));
+      running.source.injectUnexpected("gamma", Op.META);
+      running.clock.advance(Duration.ofSeconds(2));
+      running.executor.tick();
+
+      append(running, "alpha", Rows.status(Rows.id(4), Fx.T2, "WP01", "in_progress", "for_review"));
+
+      assertThat(StreamFx.eventIds(StreamFx.changes(StreamFx.drain(subscription)))).as("the feed still ticks").containsExactly(Rows.id(4));
+      assertThat(running.handles.diagnostics()).containsExactly(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
+    }
   }
 
   @Test

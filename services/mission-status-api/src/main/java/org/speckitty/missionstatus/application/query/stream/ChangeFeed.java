@@ -93,6 +93,8 @@ public final class ChangeFeed {
   private final ReentrantLock lock = new ReentrantLock();
   private final Map<MissionRef, Watch> watches = new LinkedHashMap<>();
   private final Set<MissionRef> known = new HashSet<>();
+  /** Missions whose failed discovery was already reported: a retry on the next listing stays quiet, so a permanent fault logs once. */
+  private final Set<MissionRef> skippedReported = new HashSet<>();
   private final Set<StreamSubscriber> subscribers = new LinkedHashSet<>();
   private ScheduledFuture<?> tickTask;
   private Instant lastListing;
@@ -139,7 +141,11 @@ public final class ChangeFeed {
     if (watch == null) {
       // A Mission that no unscoped subscriber has discovered yet, while one listens, is watched from offset 0 so that subscriber still
       // receives every row of it; this subscriber's floor is the end of the ledger now (R-3).
-      end = joinOffset(ref, unscopedListening() && known.add(ref));
+      boolean replay = unscopedListening() && !known.contains(ref);
+      end = joinOffset(ref, replay);
+      if (replay) {
+        known.add(ref);
+      }
       watch = watches.get(ref);
     } else {
       end = watch.offset;
@@ -182,9 +188,11 @@ public final class ChangeFeed {
       StreamSubscriber subscriber = new StreamSubscriber(this, new StreamScope.All(), settings.queueCapacity());
       List<Diagnostic> skipped = new ArrayList<>();
       for (MissionRef ref : listed) {
-        boolean undiscovered = known.add(ref);
+        boolean undiscovered = !known.contains(ref);
         try {
           subscriber.floor(ref, joinOffset(ref, undiscovered && othersListening));
+          // Known only once the watch exists: a Mission that could not be watched is found again by the next listing.
+          known.add(ref);
         } catch (Skipped notWatched) {
           skipped.add(notWatched.diagnostic());
         }
@@ -194,6 +202,9 @@ public final class ChangeFeed {
       }
       attach(subscriber);
       return new UnscopedConnect(subscriber, skipped);
+    } catch (RuntimeException refused) {
+      gc();
+      throw refused;
     } finally {
       lock.unlock();
     }
@@ -313,6 +324,7 @@ public final class ChangeFeed {
     watches.values().removeIf(watch -> subscribers.stream().noneMatch(subscriber -> wants(subscriber, watch)));
     if (subscribers.stream().noneMatch(subscriber -> subscriber.scope() instanceof StreamScope.All)) {
       known.clear();
+      skippedReported.clear();
       listingFailed = false;
       lastListing = null;
     }
@@ -352,10 +364,22 @@ public final class ChangeFeed {
   void tick() {
     lock.lock();
     try {
-      pollAll();
-      listIfDue();
+      guarded(this::pollAll);
+      guarded(this::listIfDue);
     } finally {
       lock.unlock();
+    }
+  }
+
+  /**
+   * A failure nobody anticipated must not end the tick for good: an exception that escapes a task of {@code scheduleWithFixedDelay}
+   * cancels every later run, and every open stream would go silent. It is reported once (without a value) and the schedule goes on.
+   */
+  private void guarded(Runnable step) {
+    try {
+      step.run();
+    } catch (RuntimeException stray) {
+      diagnostics.accept(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
     }
   }
 
@@ -514,12 +538,30 @@ public final class ChangeFeed {
     }
     listingFailed = false;
     for (MissionRef ref : listed) {
-      if (known.add(ref) && !watches.containsKey(ref)) {
-        try {
-          poll(createWatch(ref, true));
-        } catch (Skipped notWatched) {
-          diagnostics.accept(notWatched.diagnostic());
-        }
+      if (!known.contains(ref)) {
+        discover(ref);
+      }
+    }
+  }
+
+  /** A listed Mission nobody has seen: watched from offset 0, and known only once that worked, so a failure is retried by the next listing. */
+  private void discover(MissionRef ref) {
+    if (watches.containsKey(ref)) {
+      known.add(ref);
+      return;
+    }
+    try {
+      Watch watch = createWatch(ref, true);
+      known.add(ref);
+      skippedReported.remove(ref);
+      poll(watch);
+    } catch (Skipped notWatched) {
+      if (skippedReported.add(ref)) {
+        diagnostics.accept(notWatched.diagnostic());
+      }
+    } catch (RuntimeException stray) {
+      if (skippedReported.add(ref)) {
+        diagnostics.accept(new Diagnostic(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null));
       }
     }
   }
