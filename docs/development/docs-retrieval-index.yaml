@@ -13493,6 +13493,11 @@ pages:
     anchors:
     - {slug: "pages", text: "Pages", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/operations/internal-hosted-readiness.md"
+    title: "Internal Hosted-Readiness Mode (Removed)"
+    divio_type: "how-to"
+    abstract: "Internal hosted-readiness mode was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
   - path: "docs/operations/logged-out-teamspace.md"
     title: "Recovery: Logged out on a connected teamspace"
     divio_type: "none"

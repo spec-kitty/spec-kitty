@@ -4682,6 +4682,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/internal-hosted-readiness.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/logged-out-teamspace.md
   tag: current
   divio_type: none
