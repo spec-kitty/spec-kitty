@@ -2094,6 +2094,9 @@ def perf_workflow_violations(text: str) -> list[str]:
         found.extend(_floor_step_violations(steps[floor]))
     if "steps.floor.outputs.floor" not in text:
         found.append("the floor step result is not shown in the job summary")
+    outcome_step = next((step for step in steps if "Show the floor build outcome" in step), "")
+    if 'steps.floor.outputs.floor }}" != "built"' not in outcome_step or "::warning::NFR-002 start-up ratio UNMEASURED" not in outcome_step:
+        found.append("a floor that did not build must be annotated as an UNMEASURED start-up ratio (NFR-002), not only echoed")
     summary_step = next((step for step in steps if "perf-summary-" in step and "Show the performance summary" in step), "")
     if "exit 1" not in summary_step or "::error::" not in summary_step:
         found.append("a leg whose nativePerf wrote no performance summary must fail (zero executed tests must not read as green)")
@@ -2160,6 +2163,9 @@ def test_the_workflow_pin_turns_red_for_a_removed_step_a_lost_binary_property_or
     assert perf_workflow_violations(text.replace('matrix.exe }}")" >> "$GITHUB_ENV"', 'matrix.exe }}")" >> /dev/null', 1))
     assert perf_workflow_violations(text.replace("cygpath -m", "cygpath -w", 1))
     assert perf_workflow_violations(text.replace("native-image.cmd", "native-image"))
+    assert perf_workflow_violations(text.replace('runner.os }}" = "Windows" ]; then native_image=', 'runner.os }}" = "Linux" ]; then native_image=', 1))
+    assert perf_workflow_violations(text.replace("::warning::NFR-002 start-up ratio UNMEASURED", "NFR-002 start-up ratio UNMEASURED", 1))
+    assert perf_workflow_violations(text.replace('if [ "${{ steps.floor.outputs.floor }}" != "built" ]; then', "if false; then", 1))
     assert perf_workflow_violations(text.replace('on ${{ matrix.target }}"\n            exit 1\n', 'on ${{ matrix.target }}"\n            true\n', 1))
     assert perf_workflow_violations(text.replace("::error::nativePerf wrote", "nativePerf wrote", 1))
     assert perf_workflow_violations(text.replace("steps.floor.outputs.floor", "steps.other.outputs.floor"))

@@ -34,6 +34,12 @@ import org.speckitty.missionstatus.domain.model.WpState;
  */
 public final class StatusReducer {
 
+  /**
+   * The {@code spec-kitty-events} release whose {@code reduce_parsed} this class ports. {@code ManifestCouplingTest} holds it equal to the
+   * version the conformance goldens were generated with, so a {@code uv.lock} bump of the oracle cannot land without a port review.
+   */
+  public static final String PORTED_EVENTS_VERSION = "10.4.6";
+
   private static final String[] SYNTHETIC_PREFIXES = {"Force move to ", "move-task: "};
   private static final Set<Lane> ROLLBACK_TARGETS = Set.of(Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS);
 

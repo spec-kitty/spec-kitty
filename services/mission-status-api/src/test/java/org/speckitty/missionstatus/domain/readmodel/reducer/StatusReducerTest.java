@@ -303,6 +303,47 @@ class StatusReducerTest {
   }
 
   @Test
+  void eachSeedLaneAuthorityExemptionAndTheSeedBlindApprovalOrderMatchTheOracle() {
+    // Oracle (10.4.6 reduce_parsed, #6061 R1-R3, events#87); each case goes red when exactly one exemption or ordering clause is reverted.
+    String t0 = "2026-09-01T09:00:00Z";
+    String t1 = "2026-09-01T10:00:00Z";
+    String t2 = "2026-09-01T10:01:00Z";
+    String t3 = "2026-09-01T10:02:00Z";
+    // R1, arm (i): at the same at, a rollback seed beats a forward setter only when that setter is its bare sibling approval.
+    assertThat(lane(move("1", t1, "WP01", Lane.PLANNED, Lane.CLAIMED), Events.seed("2", t1, "WP01", Lane.IN_REVIEW, Lane.PLANNED, "{s}")))
+        .as("R1 arm (i)").isEqualTo(Lane.CLAIMED);
+    // R2, arm (i): an applied rollback seed does not beat a same-at real event.
+    assertThat(lane(Events.seed("1", t1, "WP01", Lane.IN_REVIEW, Lane.PLANNED, "{s}"), move("2", t1, "WP01", Lane.PLANNED, Lane.CLAIMED)))
+        .as("R2 arm (i)").isEqualTo(Lane.CLAIMED);
+    // R1, arm (ii): a rollback seed keeps its authority over an earlier rollback seed ...
+    assertThat(lane(Events.seed("1", t1, "WP01", Lane.IN_REVIEW, Lane.PLANNED, "{s}"), Events.seed("2", t2, "WP01", Lane.IN_REVIEW, Lane.IN_PROGRESS, "{t}")))
+        .as("R1 rollback seed after rollback seed").isEqualTo(Lane.IN_PROGRESS);
+    // ... and over its bare sibling approval that came first.
+    assertThat(lane(move("1", t1, "WP01", Lane.IN_REVIEW, Lane.APPROVED), Events.seed("2", t2, "WP01", Lane.IN_REVIEW, Lane.PLANNED, "{s}")))
+        .as("R1 rollback seed after its bare sibling").isEqualTo(Lane.PLANNED);
+    // R3: a forward seed never rides the forward-seed-setter exemption.
+    assertThat(lane(Events.seed("1", t1, "WP01", Lane.PLANNED, Lane.CLAIMED, "{s}"), Events.seed("2", t2, "WP01", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "{t}")))
+        .as("R3").isEqualTo(Lane.CLAIMED);
+    // An approval a real approved -> X later follows is settled, not a bare sibling: the seed loses, the rework step is dropped, the exit applies.
+    assertThat(
+            lane(
+                move("1", t1, "WP01", Lane.IN_REVIEW, Lane.APPROVED),
+                Events.seed("2", t1, "WP01", Lane.IN_REVIEW, Lane.PLANNED, "{s}"),
+                move("3", t2, "WP01", Lane.PLANNED, Lane.CLAIMED),
+                move("4", t3, "WP01", Lane.APPROVED, Lane.DONE)))
+        .as("settled approval").isEqualTo(Lane.DONE);
+    // events#87 reorders only a REAL exit after a REAL approval: a seed exit, or a seed approval, keeps its event_id order.
+    assertThat(lane(move("0", t0, "WP01", Lane.FOR_REVIEW, Lane.IN_REVIEW), Events.seed("1", t1, "WP01", Lane.APPROVED, Lane.DONE, "{s}"), move("2", t1, "WP01", Lane.IN_REVIEW, Lane.APPROVED)))
+        .as("seed exit not reordered").isEqualTo(Lane.APPROVED);
+    assertThat(lane(move("0", t0, "WP01", Lane.FOR_REVIEW, Lane.IN_REVIEW), move("1", t1, "WP01", Lane.APPROVED, Lane.DONE), Events.seed("2", t1, "WP01", Lane.IN_REVIEW, Lane.APPROVED, "{s}")))
+        .as("seed approval not reordered").isEqualTo(Lane.APPROVED);
+  }
+
+  private static Lane lane(StatusEvent... events) {
+    return reduce(List.of(events)).workPackages().get("WP01").lane();
+  }
+
+  @Test
   void sameIdSeedsKeepTheCanonicalMinimumWhateverTheFileOrderAndARealRowKeepsTheFirst() {
     StatusEvent claimedSeed = Events.seed("S", T1, "WP01", Lane.PLANNED, Lane.CLAIMED, "{\"to_lane\": \"claimed\"}");
     StatusEvent blockedSeed = Events.seed("S", T1, "WP01", Lane.PLANNED, Lane.BLOCKED, "{\"to_lane\": \"blocked\"}");

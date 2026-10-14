@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.speckitty.missionstatus.domain.model.SupportedSchemaRange;
+import org.speckitty.missionstatus.domain.readmodel.reducer.StatusReducer;
 import org.speckitty.missionstatus.domain.redaction.LeakClasses;
 import org.speckitty.missionstatus.testsupport.CanonicalJson;
 import org.speckitty.missionstatus.testsupport.ConformanceTree;
@@ -45,8 +46,9 @@ class ManifestCouplingTest {
   }
 
   @Test
-  void theSpecKittyEventsVersionIsReadForInformationOnly() {
-    assertThat(ConformanceTree.manifest().get("specKittyEventsVersion")).isInstanceOf(String.class).asString().matches("[0-9]+\\.[0-9]+\\.[0-9]+");
+  void theReducerPortsTheSpecKittyEventsVersionTheGoldensWereGeneratedWith() {
+    // The oracle moved 10.4.4 -> 10.4.6 with no existing golden changing, so only this pin made the stale port visible (#6061, events#87).
+    assertThat(ConformanceTree.manifest().get("specKittyEventsVersion")).isEqualTo(StatusReducer.PORTED_EVENTS_VERSION);
   }
 
   // ---- AC-6e ----------------------------------------------------------------------------------------------------------------
