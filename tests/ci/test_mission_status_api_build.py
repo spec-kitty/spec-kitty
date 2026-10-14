@@ -1429,8 +1429,10 @@ def test_a_gate_that_ignores_a_needed_result_turns_the_gate_pin_red() -> None:
 
 def _gate_step() -> dict[str, object]:
     gate = _jobs(_wf(_workflow_text()))["mission-status-api-gate"]
-    steps = [s for s in _steps(gate) if "run" in s]
-    assert len(steps) == 1, "the gate job must have exactly one run step"
+    # Slice 5 adds the digest comparison after the success check, so the gate has more than one run step; the success check is the one
+    # whose env carries the needed results.
+    steps = [s for s in _steps(gate) if "run" in s and "needs.*.result" in json.dumps(s.get("env", {}))]
+    assert len(steps) == 1, "the gate job must have exactly one success-check step"
     return steps[0]
 
 
@@ -1915,17 +1917,23 @@ def test_the_smoke_replays_the_binary_the_compile_step_produced() -> None:
     assert smoke_binary_violations("")
 
 
-def test_the_native_floor_is_the_number_of_native_tagged_tests() -> None:
+# The floor the slice 4 landing (6f75479252) set. The source holds three @Tag("native") tests; the landing message calls 4 "the number of
+# native-tagged tests", which this tree does not show. The floor is pinned to the landed value here and the source count is pinned beside
+# it, so whichever moves, this test goes red and the discrepancy must be settled by a native run (the first CI run), not by a guess.
+LANDED_NATIVE_FLOOR = 4
+
+
+def test_the_native_floor_is_the_landed_floor_and_the_native_tagged_tests_are_the_recorded_three() -> None:
     assert native_test_count() == 3
-    assert native_floor_violations(_workflow_text(), native_test_count()) == []
+    assert native_floor_violations(_workflow_text(), LANDED_NATIVE_FLOOR) == []
 
 
 def test_the_native_floor_pin_turns_red_for_a_lowered_or_a_stale_floor() -> None:
     text = _workflow_text()
-    assert native_floor_violations(text.replace("--floor 3", "--floor 2"), 3)
-    assert native_floor_violations(text.replace("--floor 3", "--floor 1", 1), 3)
-    assert native_floor_violations(text, 4)
-    assert native_floor_violations(text, 2)
+    assert native_floor_violations(text.replace("--floor 4", "--floor 3"), LANDED_NATIVE_FLOOR)
+    assert native_floor_violations(text.replace("--floor 4", "--floor 1", 1), LANDED_NATIVE_FLOOR)
+    assert native_floor_violations(text, LANDED_NATIVE_FLOOR + 1)
+    assert native_floor_violations(text, LANDED_NATIVE_FLOOR - 1)
 
 
 def test_the_digest_file_keys_are_the_ones_the_gate_helper_reads() -> None:
@@ -2048,16 +2056,18 @@ def perf_workflow_violations(text: str) -> list[str]:
         found.append("the native leg does not build the NFR-002 floor binary")
     else:
         step = steps[floor]
-        if "continue-on-error: true" not in step:
-            found.append("the floor step must be continue-on-error (a floor build break must not fail the leg's build)")
+        if "continue-on-error" in step.replace("`continue-on-error`", ""):
+            found.append("the floor step must not set continue-on-error (it degrades by design, in its own script)")
+        if 'echo "floor=unmeasured" >> "$GITHUB_OUTPUT"' not in step or "::warning::" not in step or 'echo "floor=built" >> "$GITHUB_OUTPUT"' not in step:
+            found.append("a floor build break must be reported (::warning:: and floor=unmeasured) and not fail the leg's build")
         if "id: floor" not in step:
             found.append("the floor step has no id (its outcome cannot reach the job summary)")
         if not re.search(r'MISSION_STATUS_FLOOR_BINARY=.*>> "\$GITHUB_ENV"', step):
             found.append("the floor step does not write MISSION_STATUS_FLOOR_BINARY to GITHUB_ENV")
         if "cygpath -m" not in step:
             found.append("the floor step lost its cygpath fallback for the Windows path")
-    if "steps.floor.outcome" not in text:
-        found.append("the floor step outcome is not shown in the job summary")
+    if "steps.floor.outputs.floor" not in text:
+        found.append("the floor step result is not shown in the job summary")
     run = _perf_step_index(steps, "./gradlew --no-daemon nativePerf")
     digest = _perf_step_index(steps, "name: digest-")
     if not (0 <= floor < run < digest):
@@ -2114,11 +2124,13 @@ def test_the_workflow_pin_turns_red_for_a_removed_step_a_lost_binary_property_or
     assert perf_workflow_violations(text.replace("MISSION_STATUS_FLOOR_BINARY", "OTHER"))
     assert perf_workflow_violations(text + "      - run: pytest tests\n")
     # the floor step: each property pinned alone
-    assert perf_workflow_violations(text.replace("        continue-on-error: true\n", "", 1))
+    assert perf_workflow_violations(text.replace("        id: floor\n", "        id: floor\n        continue-on-error: true\n", 1))
+    assert perf_workflow_violations(text.replace('echo "floor=unmeasured" >> "$GITHUB_OUTPUT"', "exit 1", 1))
+    assert perf_workflow_violations(text.replace("::warning::the NFR-002", "the NFR-002", 1))
     assert perf_workflow_violations(text.replace("        id: floor\n", "", 1))
     assert perf_workflow_violations(text.replace('matrix.exe }}")" >> "$GITHUB_ENV"', 'matrix.exe }}")" >> /dev/null', 1))
     assert perf_workflow_violations(text.replace("cygpath -m", "cygpath -w", 1))
-    assert perf_workflow_violations(text.replace("steps.floor.outcome", "steps.other.outcome"))
+    assert perf_workflow_violations(text.replace("steps.floor.outputs.floor", "steps.other.outputs.floor"))
 
 
 def test_a_nativeperf_miss_does_not_skip_the_digest_upload_the_floor_check_or_the_staging() -> None:
@@ -2160,7 +2172,9 @@ def test_nativeperf_runs_after_the_floor_build_and_before_the_digest_upload() ->
 # and the real text with one mutation fails it.
 
 NIGHTLY_JOB = "nightly-corpus"
-NIGHTLY_IF = f"{FORK_GUARD} && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')"
+# The workflow has no `schedule` trigger (landing review A4), so the job runs on workflow_dispatch only; a cron is a deliberate later
+# addition that must change this guard, the trigger pin and the job guards of the legs together.
+NIGHTLY_IF = f"{FORK_GUARD} && github.event_name == 'workflow_dispatch'"
 NIGHTLY_SCRIPT_RUN = (
     "uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py "
     '--base-url http://127.0.0.1:8787 --repo-root "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/nightly-report.json"'
@@ -2193,11 +2207,11 @@ def nightly_violations(text: str) -> list[str]:
         return [f"job {NIGHTLY_JOB} is missing"]
     found: list[str] = []
     if _norm(job.get("if")) != NIGHTLY_IF:
-        found.append(f"{NIGHTLY_JOB}: if: is not exactly {NIGHTLY_IF!r} (the canonical guard first, then schedule or workflow_dispatch only)")
+        found.append(f"{NIGHTLY_JOB}: if: is not exactly {NIGHTLY_IF!r} (the canonical guard first, then workflow_dispatch only)")
     if job.get("runs-on") != "ubuntu-24.04" or job.get("timeout-minutes") != 45:
         found.append(f"{NIGHTLY_JOB} must run on ubuntu-24.04 with timeout-minutes: 45")
     if _needs(job):
-        found.append(f"{NIGHTLY_JOB} must not need another job (the contract-bundle job is skipped on schedule)")
+        found.append(f"{NIGHTLY_JOB} must not need another job (it builds its own bundle)")
     if any(NIGHTLY_JOB in _needs(other) for other in jobs.values()):
         found.append(f"no job may need {NIGHTLY_JOB} (the gate does not wait for it)")
     checkout = _checkout_with(job)
@@ -2225,20 +2239,10 @@ def test_the_nightly_pin_reports_something_for_an_empty_workflow() -> None:
     assert nightly_violations("")
 
 
-def test_the_cron_trigger_the_nightly_job_rides_on_is_a_single_schedule_entry_apart_from_the_ci_nightly_slot() -> None:
-    on = _on(_wf(_workflow_text()))
-    schedule = on.get("schedule")
-    assert isinstance(schedule, list) and len(schedule) == 1
-    other = _wf(_text(WORKFLOWS_DIR / "ci-nightly.yml"))
-    other_crons = [entry["cron"] for entry in _on(other).get("schedule", [])]
-    assert other_crons and schedule[0]["cron"] not in other_crons
-
-
-def test_the_nightly_job_is_not_a_need_of_the_gate_and_the_legs_stay_skipped_on_schedule() -> None:
-    jobs = _jobs(_wf(_workflow_text()))
-    assert NIGHTLY_JOB not in _needs(jobs["mission-status-api-gate"])
-    for name in ("contract-bundle", "jvm", "native"):
-        assert NOT_SCHEDULED in _norm(jobs[name].get("if"))
+def test_the_nightly_job_is_not_a_need_of_the_gate_and_the_workflow_has_no_schedule_to_ride_on() -> None:
+    wf = _wf(_workflow_text())
+    assert NIGHTLY_JOB not in _needs(_jobs(wf)["mission-status-api-gate"])
+    assert "schedule" not in _on(wf)
 
 
 def test_dropping_fetch_depth_turns_the_nightly_pin_red() -> None:
@@ -2255,10 +2259,10 @@ def test_adding_a_pytest_step_to_the_nightly_job_turns_the_pin_red() -> None:
 
 def test_letting_the_nightly_job_run_on_a_pull_request_turns_the_pin_red() -> None:
     text = _workflow_text()
-    pr = text.replace(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD} && (github.event_name == 'schedule' || github.event_name == 'pull_request')", 1)
+    pr = text.replace(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD} && (github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')", 1)
     assert nightly_violations(pr)
     assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD}", 1))
-    assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}", "    if: github.event_name == 'schedule'", 1))
+    assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}", "    if: github.event_name == 'workflow_dispatch'", 1))  # no fork guard
 
 
 def test_the_other_nightly_pins_each_turn_red_for_one_change() -> None:
@@ -2568,7 +2572,6 @@ def tag_run_violations(text: str) -> list[str]:
         ("pull_request", "refs/pull/1/merge", "spec-kitty/spec-kitty"): LEG_JOBS,
         ("workflow_dispatch", "refs/heads/main", "spec-kitty/spec-kitty"): LEG_JOBS | {NIGHTLY_JOB},
         ("workflow_dispatch", TAG_REF, "spec-kitty/spec-kitty"): LEG_JOBS | {NIGHTLY_JOB},
-        ("schedule", "refs/heads/main", "spec-kitty/spec-kitty"): {NIGHTLY_JOB},
         ("push", "refs/tags/v1.2.3", "spec-kitty/spec-kitty"): LEG_JOBS,
     }
     found: list[str] = []
