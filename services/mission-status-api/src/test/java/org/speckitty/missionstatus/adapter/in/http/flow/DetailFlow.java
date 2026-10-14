@@ -60,7 +60,25 @@ public final class DetailFlow {
               tryLink(root.resolve("kitty-specs/alpha/linked.md"), Path.of("spec.md"));
               tryLink(root.resolve("kitty-specs/alpha/linked-dir"), Path.of("notes"));
             });
+    // the fixture is a copy of the tree just written, with fresh modification times: pin them after the copy
+    pinMtimes(fixture.root(), PINNED_MTIME);
     return new Project("no-topology", fixture, DetailRoute.ID, "alpha");
+  }
+
+  /** The instant the committed conformance fixtures use; every file of a flow fixture carries it, so no two fixtures differ by a second boundary. */
+  static final java.time.Instant PINNED_MTIME = java.time.Instant.parse("2026-09-21T14:13:20Z");
+
+  /** Sets the modification time of every regular file and directory under the root (links are not followed). */
+  static void pinMtimes(Path root, java.time.Instant at) {
+    try (var walk = Files.walk(root)) {
+      for (Path path : (Iterable<Path>) walk::iterator) {
+        if (!Files.isSymbolicLink(path)) {
+          Files.setLastModifiedTime(path, java.nio.file.attribute.FileTime.from(at));
+        }
+      }
+    } catch (java.io.IOException failure) {
+      throw new java.io.UncheckedIOException(failure);
+    }
   }
 
   /** A symbolic link where the platform allows one (the flow holds links so the fingerprint sees them); nothing happens where it does not. */
