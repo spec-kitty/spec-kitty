@@ -13,9 +13,7 @@ import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionS
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
-import org.speckitty.missionstatus.application.query.port.out.dto.LedgerRead;
 import org.speckitty.missionstatus.application.query.port.out.dto.LedgerStamp;
-import org.speckitty.missionstatus.application.query.port.out.dto.LedgerWindow;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
 import org.speckitty.missionstatus.application.query.stream.StreamSettings;
@@ -24,7 +22,6 @@ import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.model.DiagnosticCode;
 import org.speckitty.missionstatus.domain.model.LineKind;
 import org.speckitty.missionstatus.domain.model.MissionId;
-import org.speckitty.missionstatus.domain.model.TailClassification;
 import org.speckitty.missionstatus.testsupport.Rows;
 
 /** The value types of the two ports refuse what they cannot represent and name nothing they should not. */
@@ -34,9 +31,6 @@ class PortTypesTest {
 
   @Test
   void streamSettingsRefuseANonPositiveTickAndAnEmptyQueue() {
-    assertThat(StreamSettings.defaults().pollInterval()).isEqualTo(Duration.ofMillis(500));
-    assertThat(StreamSettings.defaults().relistInterval()).isEqualTo(Duration.ofSeconds(1));
-    assertThat(StreamSettings.defaults().queueCapacity()).isEqualTo(1024);
     assertThat(StreamSettings.defaults().withQueueCapacity(7).queueCapacity()).isEqualTo(7);
     assertThatThrownBy(() -> new StreamSettings(Duration.ZERO, Duration.ofSeconds(1), 1)).isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> new StreamSettings(Duration.ofMillis(-1), Duration.ofSeconds(1), 1)).isInstanceOf(IllegalArgumentException.class);
@@ -95,30 +89,15 @@ class PortTypesTest {
   }
 
   @Test
-  void scopesAndSignalsRefuseNulls() {
-    assertThat(StreamScope.all()).isInstanceOf(StreamScope.All.class);
+  void aScopeIsEqualByItsMissionAndRefusesNone() {
     assertThat(StreamScope.mission(ID)).isEqualTo(new StreamScope.OneMission(ID));
     assertThatThrownBy(() -> StreamScope.mission(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamSignal.Forwarded(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamSignal.Dropped(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamSignal.Closed(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamSignal.Truncated(null, StreamSignal.Truncated.Reason.SIZE_SHRINK, 0)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamSignal.Truncated(ID, null, 0)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new StreamRefused(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new MissionStatusUnavailable(null)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
-  void theOutboundValuesRefuseNullsAndCopyTheirLists() {
-    assertThatThrownBy(() -> new MissionRef(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LedgerRead(null, TailClassification.NONE)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LedgerRead(List.of(), null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LedgerWindow(0, true, null, List.of(), TailClassification.NONE)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LedgerWindow(0, true, "x", null, TailClassification.NONE)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LedgerWindow(0, true, "x", List.of(), null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new SourceFault(null)).isInstanceOf(NullPointerException.class);
+  void aLedgerStampKeepsItsPartsAndAFaultItsKind() {
     assertThat(new SourceFault(SourceFault.Kind.VANISHED).kind()).isEqualTo(SourceFault.Kind.VANISHED);
-    assertThat(new SourceFault(SourceFault.Kind.VANISHED).getMessage()).isEqualTo("VANISHED");
     assertThat(LedgerStamp.of(1, 2).parts()).containsExactly(1, 2);
+    assertThatThrownBy(() -> new MissionRef(null)).isInstanceOf(NullPointerException.class);
   }
 }

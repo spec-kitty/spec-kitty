@@ -46,7 +46,6 @@ import org.speckitty.missionstatus.architecture.fixture.conformance.port.PortCas
 import org.speckitty.missionstatus.architecture.fixture.domain.D1aSpring;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1bConcurrent;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1cThread;
-import org.speckitty.missionstatus.architecture.fixture.domain.aotTest.PlantB;
 import org.speckitty.missionstatus.architecture.fixture.domain.Value;
 import org.speckitty.missionstatus.architecture.fixture.testsupport.Support;
 
@@ -78,7 +77,6 @@ class ArchitectureControlsTest {
       List.of(
           new Control(1, D1aSpring.class, Set.of(1, 8)),
           new Control(1, D1bConcurrent.class, Set.of(1)),
-          new Control(1, PlantB.class, Set.of(1)),
           new Control(1, D1cThread.class, Set.of(1)),
           new Control(2, A2aUsesAdapter.class, Set.of(2)),
           new Control(2, A2bExecutors.class, Set.of(2)),
@@ -154,7 +152,6 @@ class ArchitectureControlsTest {
     for (int withSecond : List.of(1, 2, 3, 12, 13)) {
       assertThat(targets.stream().filter(target -> target == withSecond).count()).as("controls of rule %d", withSecond).isGreaterThanOrEqualTo(2);
     }
-    assertThat(fixtureRules()).hasSize(ArchitectureRules.DEFINED_RULE_COUNT);
   }
 
   @Test

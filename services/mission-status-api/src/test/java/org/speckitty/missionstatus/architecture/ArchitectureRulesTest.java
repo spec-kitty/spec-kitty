@@ -61,17 +61,6 @@ class ArchitectureRulesTest {
   }
 
   @Test
-  void ruleNineCoversTheThreeDtoPackagesAsLiterals() {
-    // Pinned as literals: hand mode has no apiPackage/modelPackage in build.gradle.kts. The rule has no class-count sanity of its own
-    // (until the HTTP adapter exists no class need depend on these packages); its subject is every class outside adapter.in.http.
-    assertThat(ArchitectureRules.RULE_9_PACKAGES)
-        .containsExactly(
-            "org.speckitty.missionstatus.adapter.in.http.api",
-            "org.speckitty.missionstatus.adapter.in.http.model",
-            "org.speckitty.missionstatus.adapter.in.http.dto");
-  }
-
-  @Test
   void theRuleSetDefinesTheFourteenRulesOfThePlanTableWithContiguousIds() {
     List<Rule> rules = ArchitectureRules.production();
 

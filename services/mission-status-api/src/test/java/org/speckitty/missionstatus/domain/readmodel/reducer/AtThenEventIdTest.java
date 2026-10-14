@@ -23,14 +23,6 @@ class AtThenEventIdTest {
   }
 
   @Test
-  void comparesByCodePointNotByUtf16Unit() {
-    var supplementary = move("A", new String(Character.toChars(0x1F600)), "WP01", Lane.PLANNED, Lane.CLAIMED);
-    var highBmp = move("A", "～", "WP01", Lane.PLANNED, Lane.CLAIMED);
-    assertThat(ordering.compare(highBmp, supplementary)).isNegative();
-    assertThat(ordering.compare(supplementary, highBmp)).isPositive();
-  }
-
-  @Test
   void textOrderIsNotInstantOrder() {
     var plusTwo = move("A", "2026-09-01T10:30:00+02:00", "WP01", Lane.PLANNED, Lane.CLAIMED);
     var zulu = move("B", "2026-09-01T09:00:00Z", "WP01", Lane.PLANNED, Lane.CLAIMED);

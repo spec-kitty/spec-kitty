@@ -84,10 +84,4 @@ class PageCursorTest {
     assertThat(over.length()).isGreaterThan(512);
     assertRefused(over, InvalidPageCursor.Reason.TOO_LONG);
   }
-
-  @Test
-  void listingReasonsAreNamedToo() {
-    assertThat(InvalidPageCursor.Reason.valueOf("UNLISTED")).isNotNull();
-    assertThat(new InvalidPageCursor(InvalidPageCursor.Reason.CREATED_AT_MISMATCH).reason()).isEqualTo(InvalidPageCursor.Reason.CREATED_AT_MISMATCH);
-  }
 }

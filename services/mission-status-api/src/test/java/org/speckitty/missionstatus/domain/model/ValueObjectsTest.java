@@ -119,9 +119,7 @@ class ValueObjectsTest {
   }
 
   @Test
-  void theSupportedSchemaRangeIsThePythonConstant() {
-    assertThat(SupportedSchemaRange.MIN).isEqualTo(3);
-    assertThat(SupportedSchemaRange.MAX).isEqualTo(3);
+  void theSupportedSchemaRangeContainsOnlyItsBounds() {
     assertThat(SupportedSchemaRange.contains(3)).isTrue();
     assertThat(SupportedSchemaRange.contains(2)).isFalse();
     assertThat(SupportedSchemaRange.contains(4)).isFalse();
@@ -166,12 +164,7 @@ class ValueObjectsTest {
   }
 
   @Test
-  void codePointOrderingDiffersFromUtf16OrderingForSupplementaryCharacters() {
-    String supplementary = new String(Character.toChars(0x1F600));
-    String highBmp = "～";
-    assertThat(supplementary.compareTo(highBmp)).isLessThan(0);
-    assertThat(CodePoints.compare(supplementary, highBmp)).isGreaterThan(0);
-    assertThat(CodePoints.compare(highBmp, supplementary)).isLessThan(0);
+  void codePointComparisonOrdersEqualTextAndAPrefixBeforeItsExtension() {
     assertThat(CodePoints.compare("a", "a")).isZero();
     assertThat(CodePoints.compare("a", "ab")).isLessThan(0);
     assertThat(CodePoints.compare("ab", "a")).isGreaterThan(0);

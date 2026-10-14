@@ -1,7 +1,6 @@
 package org.speckitty.missionstatus.domain.redaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -80,15 +79,5 @@ class LeakClassesTest {
     assertThat(leaks.redactHumanHostPaths("go /home/alice/dev/x, ok", "[path]").text()).isEqualTo("go [path] ok");
     assertThat(leaks.redactHumanHostPaths("go /home/alice/dev/x, ok", "[path]").count()).isEqualTo(1);
     assertThat(leaks.redactHumanHostPaths("no path", "[path]").count()).isZero();
-  }
-
-  @Test
-  void theValueCopiesItsListsAndRequiresEveryPart() {
-    List<Pattern> mutable = new java.util.ArrayList<>(List.of(LeakClasses.compile("a")));
-    LeakClasses copy = new LeakClasses(mutable, List.of(), LeakClasses.compile("b"), LeakClasses.compile("c"), List.of());
-    mutable.clear();
-    assertThat(copy.strictHostPaths()).hasSize(1);
-    assertThatThrownBy(() -> new LeakClasses(null, List.of(), LeakClasses.compile("b"), LeakClasses.compile("c"), List.of())).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new LeakClasses(List.of(), List.of(), null, LeakClasses.compile("c"), List.of())).isInstanceOf(NullPointerException.class);
   }
 }

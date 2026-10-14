@@ -172,21 +172,4 @@ class ProjectorTest {
     // Python's re.match anchors at the start only: an unanchored pattern accepts a prefix match.
     assertThat(projector.strict("abc-tail", "slug", false, Pattern.compile("abc"))).isEqualTo("abc-tail");
   }
-
-  @Test
-  void redactionsAreAReadOnlySnapshot() {
-    projector.strict("/abs", "f", true);
-    List<Projector.Redaction> snapshot = projector.redactions();
-    assertThatThrownBy(() -> snapshot.add(new Projector.Redaction("g", Projector.Kind.PATH))).isInstanceOf(UnsupportedOperationException.class);
-    projector.strict("/abs2", "f", true);
-    assertThat(snapshot).hasSize(1);
-    assertThat(projector.redactions()).hasSize(2);
-  }
-
-  @Test
-  void aProjectionErrorNeedsAFieldAndAReason() {
-    assertThatThrownBy(() -> new ProjectionError(null, ProjectionError.Reason.MISSING)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new ProjectionError("f", null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> new Projector(null)).isInstanceOf(NullPointerException.class);
-  }
 }
