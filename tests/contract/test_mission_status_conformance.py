@@ -132,8 +132,13 @@ def ledger_rows(path: Path) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Machinery: canonical writer, deterministic provisioning
+# Machinery: canonical writer, ignore-list, deterministic provisioning
 # ---------------------------------------------------------------------------
+
+
+def test_the_comparison_ignore_list_is_empty() -> None:
+    """Spec FR-008 "Comparison scope" and WP07 subtask 3: one named constant per language, asserted empty by a test."""
+    assert gen.MissionStatusIgnoreList == ()
 
 
 def test_the_canonical_writer_sorts_keys_packs_separators_and_keeps_utf8() -> None:

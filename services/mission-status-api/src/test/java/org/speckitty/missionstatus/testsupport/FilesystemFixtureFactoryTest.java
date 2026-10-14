@@ -218,11 +218,19 @@ class FilesystemFixtureFactoryTest {
 
   @Test
   void theFixturesOnDiskAndTheResolverCasesAreExactlyTheOnesTheManifestCounts() throws IOException {
+    try (var classDirectories = Files.list(ConformanceTree.root())) {
+      assertThat(classDirectories.filter(Files::isDirectory).map(dir -> dir.getFileName().toString()).toList())
+          .as("class directories")
+          .containsExactlyInAnyOrderElementsOf(ConformanceTree.classes().stream().map(ConformanceTree.ClassEntry::tag).toList());
+    }
     for (ConformanceTree.ClassEntry entry : ConformanceTree.classes()) {
       try (var directories = Files.list(ConformanceTree.root().resolve(entry.tag()))) {
-        assertThat(directories.filter(Files::isDirectory).count()).as(entry.tag()).isEqualTo(entry.fixtures().size());
+        assertThat(directories.filter(Files::isDirectory).map(dir -> dir.getFileName().toString()).toList())
+            .as(entry.tag())
+            .containsExactlyInAnyOrderElementsOf(entry.fixtures().stream().map(ConformanceTree.TreeFixture::name).toList());
       }
     }
-    assertThat(ConformanceTree.resolverCases()).hasSameSizeAs((java.util.List<?>) ConformanceTree.manifest().get("resolverCaseIds"));
+    assertThat(ConformanceTree.resolverCases().stream().map(row -> row.get("id")).toList())
+        .containsExactlyInAnyOrderElementsOf((java.util.List<?>) ConformanceTree.manifest().get("resolverCaseIds"));
   }
 }

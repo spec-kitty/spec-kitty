@@ -107,9 +107,11 @@ def test_removing_the_goldens_glob_from_a_router_copy_turns_the_routing_red(tmp_
     assert text.count(needle) == 1, "control: the router names the glob once"
     broken.write_text(text.replace(needle, ""), encoding="utf-8")
 
+    assert GROUP in select_gates([GOLDEN_ONLY_PATH], router=load_router()).matched_groups, "control: the live router selects the group"
     selection = select_gates([GOLDEN_ONLY_PATH], router=load_router(broken))
 
-    assert selection.matched_groups != {GROUP}, "a router without the glob must select nothing for a golden-only diff"
+    # The services rule still matches the path (group ``ci``), so the pin is that contract_tools drops out, not that nothing matches.
+    assert GROUP not in selection.matched_groups, "a router without the glob must not select contract_tools for a golden-only diff"
 
 
 def test_removing_the_deselect_token_from_a_packs_copy_turns_the_pin_red(tmp_path: Path) -> None:
