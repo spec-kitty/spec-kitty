@@ -1083,8 +1083,14 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
+          # #6191: restore wheels from the uv cache instead of re-downloading every run.
+          enable-cache: true
+      # #6191: install in its own step. A multi-line run block is named after its first
+      # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Run tests
+        run: |
           uv run --frozen pytest tests/docs -q
 
   tests-e2e:
@@ -1102,8 +1108,14 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
+          # #6191: restore wheels from the uv cache instead of re-downloading every run.
+          enable-cache: true
+      # #6191: install in its own step. A multi-line run block is named after its first
+      # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Run tests
+        run: |
           uv run --frozen pytest tests/e2e -q
 
   # The corpus-marked node-ids that no other required job runs (D-13/D-22). Forty of them: the
@@ -1146,8 +1158,14 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
+          # #6191: restore wheels from the uv cache instead of re-downloading every run.
+          enable-cache: true
+      # #6191: install in its own step. A multi-line run block is named after its first
+      # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Run tests
+        run: |
           uv run --frozen pytest -rs -m "corpus and not windows_ci" \
             tests/acceptance/charter_pack_cutover/test_cli_surface.py \
             tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py \
