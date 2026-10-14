@@ -45,11 +45,11 @@ class DetailManifestCensusTest {
   /**
    * Retired divergence ids: reserved, never reused and never renumbered. V19 (a nullable head date that is not an instant) retired when main's oracle fix
    * (29d49cd77) began nulling an off-shape head date before it derives the lifecycle; {@code projection-nulls/head-dates-nulled} is now an ordinary conformance
-   * case. V20 to V26 keep their numbers. V28 is the 10.5.1 approved-departure lift that Java does not port until spec-kitty#6268.
+   * case. V20 to V27 keep their numbers. V28 is the 10.5.1 approved-departure lift that Java does not port until spec-kitty#6268.
    */
   private static final Set<String> RETIRED_ENTRY_IDS = Set.of("V19");
 
-  private static final Set<String> ENTRY_IDS = new TreeSet<>(Set.of("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V20", "V21", "V22", "V23", "V24", "V25", "V26", "V28"));
+  private static final Set<String> ENTRY_IDS = new TreeSet<>(Set.of("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V20", "V21", "V22", "V23", "V24", "V25", "V26", "V27", "V28"));
 
   /** The census over fixture names per tag: the tags equal the floors' keys and each class holds its floor. Empty when it holds. */
   static List<String> censusProblems(Map<String, List<String>> fixturesByTag, Map<String, Integer> floors) {

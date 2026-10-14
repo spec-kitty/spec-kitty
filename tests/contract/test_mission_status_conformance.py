@@ -1575,11 +1575,11 @@ ROW_TO_ENTRY: Mapping[str, str] = {
     "A8": "V15",
 }
 # V19 is RETIRED, not reused and not renumbered: main's oracle fix (29d49cd77) nulls an off-shape head date before it derives the lifecycle, so row M14 no longer
-# diverges and `projection-nulls/head-dates-nulled` is an ordinary conformance case. V20 to V26 keep their numbers.
-# V28 (the 10.5.1 approved-departure lift, spec-kitty#6268) is recorded by the base slice.
+# diverges and `projection-nulls/head-dates-nulled` is an ordinary conformance case. V20 to V27 keep their numbers.
+# V28 is the 10.5.1 approved-departure lift (spec-kitty#6268).
 RETIRED_ENTRY_IDS = frozenset({"V19"})
 RETIRED_ROWS = frozenset({"M14"})
-EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 27) if f"V{number}" not in RETIRED_ENTRY_IDS] + ["V28"]
+EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 29) if f"V{number}" not in RETIRED_ENTRY_IDS]
 DETAIL_FIXTURE_TOTAL = 8 + 1 + 1 + 19 + 28 + 3 + 1 + 13 + 4 + 1 + 12 + 7 + 1 + 1 + 1 + 3 + 1 + 3 + 6 + 4
 
 
@@ -1592,7 +1592,7 @@ def divergence_problems(manifest: Mapping[str, Any]) -> list[str]:
     problems: list[str] = []
     entries = {entry["id"]: entry for entry in manifest.get(gen.KNOWN_DIVERGENCES_KEY, [])}
     if list(entries) != EXPECTED_ENTRY_IDS:
-        problems.append(f"the entry ids are {list(entries)}, not V1 to V26 and V28 without the retired {sorted(RETIRED_ENTRY_IDS)}")
+        problems.append(f"the entry ids are {list(entries)}, not V1 to V28 without the retired {sorted(RETIRED_ENTRY_IDS)}")
     for retired in RETIRED_ENTRY_IDS & set(entries):
         problems.append(f"{retired} is retired and must stay absent")
     for row in RETIRED_ROWS & set(ROW_TO_ENTRY):

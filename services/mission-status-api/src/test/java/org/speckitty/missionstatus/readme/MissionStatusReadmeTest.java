@@ -65,7 +65,7 @@ class MissionStatusReadmeTest {
     for (int number = 1; number <= 19; number++) {
       assertThat(section).as("V" + number).containsPattern("\\bV" + number + "\\b");
     }
-    assertThat(section).contains("V20 to V25").contains("V26");
+    assertThat(section).contains("V20 to V25").contains("V26").contains("V27");
   }
 
   @Test

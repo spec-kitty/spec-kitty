@@ -144,10 +144,8 @@ public final class WorkPackageQueryService implements WorkPackageQuery {
     WpResolved resolved = snapshot.resolved().getOrDefault(id.value(), WpResolved.empty());
     Lane lane = state == null || !state.lane().isDisplay() ? null : state.lane();
 
-    String title = projector.human(metadata.title(), "title");
-    if (title == null) {
-      throw new ProjectionError("title", ProjectionError.Reason.MISSING);
-    }
+    // a file with no title shows its id (spec line 289, as dependencyTitle does); the oracle's null title is contract-invalid (V27)
+    String title = projector.human(metadata.title() != null ? metadata.title() : id.value(), "title");
     List<WpId> dependencies = dependencies(metadata.dependencies(), projector);
     Readiness readiness = ReadinessDeriver.derive(dependencies, snapshot.workPackages());
     List<Map.Entry<String, Lane>> subtasks = new ArrayList<>();

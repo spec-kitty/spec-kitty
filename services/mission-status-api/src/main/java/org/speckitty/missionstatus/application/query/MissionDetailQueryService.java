@@ -177,10 +177,8 @@ public final class MissionDetailQueryService implements MissionDetailQuery {
       throw refuse(DiagnosticCode.PROJECTION_REFUSED, mid8);
     }
     WpId id = file.id();
-    String title = projector.human(metadata.title(), "title");
-    if (title == null) {
-      throw new ProjectionError("title", ProjectionError.Reason.MISSING);
-    }
+    // a file with no title shows its id (spec line 289, as dependencyTitle does); the oracle's null title is contract-invalid (V27)
+    String title = projector.human(metadata.title() != null ? metadata.title() : id.value(), "title");
     List<WpId> dependencies = dependencies(metadata.dependencies(), projector);
     WpState state = snapshot.workPackages().get(id.value());
     Lane lane = state == null || !state.lane().isDisplay() ? null : state.lane();

@@ -532,6 +532,17 @@ KNOWN_DIVERGENCES: tuple[Mapping[str, Any], ...] = (
         ),
     },
     {
+        "id": "V27",
+        "cause": "a Work Package file with no title (squad C-S3b)",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "a null title, which the contract (title minLength 1) forbids",
+        "javaAssertion": (
+            "the Work Package id is the title, as the dependency title already is (spec line 289) "
+            "(TitleLessWorkPackageTest#theMissionSummaryOfATitleLessWorkPackageShowsItsId, #theWorkPackageViewOfATitleLessWorkPackageShowsItsId)"
+        ),
+    },
+    {
         "id": "V28",
         "cause": (
             "spec-kitty-events 10.5.1 sorts a departure from approved after the clock-ahead approval it followed (spec-kitty#4941); "
