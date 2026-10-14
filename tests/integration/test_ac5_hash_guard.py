@@ -88,12 +88,18 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     )
     # No lane/agent/shell_pid/tracker frontmatter fields -> the flag-ON mirror is
     # a no-op and the file must stay byte-stable across every driven action.
+    # T001 IS on the authored ``subtasks:`` roster (the canonical ownership
+    # source since #2816 IC-10). The #2513 rollback reset
+    # (``_mt_rollback_subtasks_reset``) and the review gate read only this
+    # roster: an empty roster would leave T001 untouched on a reject, so the
+    # subsequent ``mark-status T001 done`` would be a correct no-op
+    # (already-satisfied) and the proof-of-drive step would have no basis (#6243).
     (tasks_dir / "WP01-core.md").write_text(
         "---\n"
         "work_package_id: WP01\n"
         "title: Core\n"
         "agent: claude\n"
-        "subtasks: []\n"
+        "subtasks: [T001]\n"
         "tracker_refs: []\n"
         "dependencies: []\n"
         "---\n\n# WP01\n\n## Activity Log\n",
