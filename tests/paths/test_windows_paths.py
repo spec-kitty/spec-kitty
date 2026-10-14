@@ -66,11 +66,11 @@ def test_runtime_root_is_frozen() -> None:
 
 
 def test_get_runtime_config_toml_path_is_the_one_canonical_derivation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """DIRECTIVE_044: every "config.toml path" consumer (hosted_posture's
-    personal_config_path, auth.config's endpoint-unconfigured message,
-    auth.server_target's configured-URL reader, and the retired-target
-    migration) now derives from this one helper instead of re-deriving
-    ``get_runtime_root().base / "config.toml"`` independently."""
+    """DIRECTIVE_044: every "config.toml path" consumer derives from this one
+    helper instead of re-deriving ``get_runtime_root().base / "config.toml"``
+    independently. (The hosted consumers this once enumerated --
+    ``hosted_posture``/``auth`` and the retired-target migration -- were removed
+    with the hosted surfaces by #6164.)"""
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
     assert get_runtime_config_toml_path() == tmp_path / "config.toml"
     assert get_runtime_config_toml_path() == get_runtime_root().base / "config.toml"

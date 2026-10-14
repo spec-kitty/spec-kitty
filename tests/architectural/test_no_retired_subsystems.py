@@ -33,7 +33,33 @@ _RETIRED_PATHS = (
     "src/specify_cli/egress_consent.py",
     "src/specify_cli/cli/commands/sync.py",
     "src/specify_cli/cli/commands/_daemon_doctor.py",
-    "src/specify_cli/saas_client/admission.py",
+    # Frozen hosted / sync / drain surfaces removed from open-core (#6164).
+    "src/specify_cli/saas_client",
+    "src/specify_cli/zeitgeist_client",
+    "src/specify_cli/auth",
+    "src/specify_cli/live_work",
+    "src/specify_cli/widen",
+    "src/specify_cli/core/hosted_posture.py",
+    "src/specify_cli/core/saas_sync_config.py",
+    "src/specify_cli/core/toml_table.py",
+    "src/specify_cli/status/zeitgeist_bridge.py",
+    "src/specify_cli/events/runtime_moments.py",
+    "src/specify_cli/readiness/auth.py",
+    "src/specify_cli/readiness/render.py",
+    "src/specify_cli/tracker/saas_client.py",
+    "src/specify_cli/tracker/saas_service.py",
+    "src/specify_cli/tracker/saas_readiness.py",
+    "src/specify_cli/tracker/feature_flags.py",
+    "src/specify_cli/tracker/origin.py",
+    "src/specify_cli/tracker/origin_consumer.py",
+    "src/specify_cli/tracker/origin_models.py",
+    "src/specify_cli/tracker/discovery.py",
+    "src/specify_cli/tracker/ticket_context.py",
+    "src/specify_cli/cli/commands/auth.py",
+    "src/specify_cli/cli/commands/live_work.py",
+    "src/specify_cli/cli/commands/moments.py",
+    "src/specify_cli/cli/commands/routes.py",
+    "src/specify_cli/cli/commands/zeitgeist.py",
     "src/specify_cli/dossier/emitter_adapter.py",
     "src/specify_cli/dossier/drift_detector.py",
     # The whole package: after the D1 publish pipeline was retired only an
@@ -126,6 +152,28 @@ _BANNED_IMPORT_PREFIXES = (
     _SPECIFY_CLI + "dashboard",
     _SPECIFY_CLI + "cli.commands.dashboard",
     _SPECIFY_CLI + "charter_runtime.preflight.dashboard_warning",
+    # Frozen hosted / sync / drain surfaces removed from open-core (#6164).
+    _SPECIFY_CLI + "saas_client",
+    _SPECIFY_CLI + "zeitgeist_client",
+    _SPECIFY_CLI + "auth",
+    _SPECIFY_CLI + "live_work",
+    _SPECIFY_CLI + "widen",
+    _SPECIFY_CLI + "core.hosted_posture",
+    _SPECIFY_CLI + "core.saas_sync_config",
+    _SPECIFY_CLI + "core.toml_table",
+    _SPECIFY_CLI + "status.zeitgeist_bridge",
+    _SPECIFY_CLI + "events.runtime_moments",
+    _SPECIFY_CLI + "readiness.auth",
+    _SPECIFY_CLI + "readiness.render",
+    _SPECIFY_CLI + "tracker.saas_client",
+    _SPECIFY_CLI + "tracker.saas_service",
+    _SPECIFY_CLI + "tracker.saas_readiness",
+    _SPECIFY_CLI + "tracker.feature_flags",
+    _SPECIFY_CLI + "tracker.origin",
+    _SPECIFY_CLI + "tracker.origin_consumer",
+    _SPECIFY_CLI + "tracker.origin_models",
+    _SPECIFY_CLI + "tracker.discovery",
+    _SPECIFY_CLI + "tracker.ticket_context",
     "websockets",
     # Mission dead-port-disposition-01M1TZVN (FR-004): the mission-DSL v1 runtime and
     # its state-machine library are retired everywhere, not only on the mission_v1
@@ -410,6 +458,7 @@ def test_retired_path_guard_rejects_planted_fixture(tmp_path: Path) -> None:
     (tmp_path / "tests/cli/commands").mkdir(parents=True)
     (tmp_path / "tests/cli/commands/test_sync_status.py").write_text("", encoding="utf-8")
     assert _retired_path_violations(tmp_path) == [
+        "src/specify_cli/saas_client",
         "src/specify_cli/sync",
         "tests/cli/commands/test_sync_status.py",
     ]
@@ -419,7 +468,7 @@ def test_no_retired_import_targets_exist() -> None:
     assert _retired_import_violations(_REPO_ROOT) == []
 
 
-def test_import_guard_rejects_planted_fixture_and_keeps_saas_client(tmp_path: Path) -> None:
+def test_import_guard_rejects_planted_fixture_including_saas_client(tmp_path: Path) -> None:
     fixture = tmp_path / "src/specify_cli/cli/commands/planted.py"
     fixture.parent.mkdir(parents=True)
     retired_sync = _SPECIFY_CLI + "sync"
@@ -452,6 +501,7 @@ def test_import_guard_rejects_planted_fixture_and_keeps_saas_client(tmp_path: Pa
         retired_saas,
         retired_sync,
         "websockets.client",
+        _SPECIFY_CLI + "saas_client",
     }
 
 

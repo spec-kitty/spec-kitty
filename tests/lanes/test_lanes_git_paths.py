@@ -1,4 +1,4 @@
-"""Real-git quoted / non-ASCII path cases for the lanes, watcher and gitignore sites.
+"""Real-git quoted / non-ASCII path cases for the lanes and gitignore sites.
 
 Mission git-paths-are-data, WP04. Each site used to read git's display text
 (``status --porcelain`` quotes a path with a space; a rename reads ``a -> b``)
@@ -23,8 +23,6 @@ from specify_cli.lanes.checkout_occupancy import dirty_paths
 from specify_cli.lanes.consolidation import _make_merge_env, _unmerged_paths
 from specify_cli.lanes.for_review_gate import _has_qualifying_commit_since_claim_base
 from specify_cli.lanes.worktree_allocator import DirtyWorktreeError, _validate_worktree_clean
-from specify_cli.live_work.models import FileOperation
-from specify_cli.live_work.watcher import _collect_changes
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -215,37 +213,6 @@ class TestAutoRebaseStatusArtifacts:
         dirs, error = _staged_status_artifact_dirs(repo)
         assert dirs == set()
         assert error is not None and "staged deletion" in error
-
-
-class TestWatcherCollectChanges:
-    def test_quoted_untracked_path_is_a_create(self, repo: Path) -> None:
-        _write(repo, QUOTED)
-        assert _collect_changes(repo) == [(FileOperation.CREATE, QUOTED, None, 0, 0)]
-
-    def test_rename_with_spaces_reports_origin_path_and_destination(self, repo: Path) -> None:
-        _write(repo, "old name é.txt", "same content\n" * 5)
-        _commit_all(repo, "add")
-        _git(repo, "mv", "--", "old name é.txt", "new name é.txt")
-        assert _collect_changes(repo) == [(FileOperation.RENAME, "old name é.txt", "new name é.txt", 0, 0)]
-
-    def test_numstat_deltas_attach_to_quoted_tracked_path(self, repo: Path) -> None:
-        _write(repo, QUOTED, "one\n")
-        _commit_all(repo, "add")
-        _write(repo, QUOTED, "one\ntwo\nthree\n")
-        assert _collect_changes(repo) == [(FileOperation.EDIT, QUOTED, None, 2, 0)]
-
-    def test_non_repository_yields_nothing(self, tmp_path: Path) -> None:
-        plain = tmp_path / "plain"
-        plain.mkdir()
-        assert _collect_changes(plain) == []
-
-    def test_numstat_failure_keeps_operations_without_deltas(self, tmp_path: Path) -> None:
-        # Unborn HEAD: ``git status`` works, ``git diff HEAD --numstat`` fails.
-        unborn = tmp_path / "unborn"
-        unborn.mkdir()
-        _git(unborn, "init", "-q", "-b", "main")
-        _write(unborn, "fresh.txt", "a\nb\n")
-        assert _collect_changes(unborn) == [(FileOperation.CREATE, "fresh.txt", None, 0, 0)]
 
 
 class TestGitignoreTrackedPaths:

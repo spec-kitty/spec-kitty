@@ -13,10 +13,8 @@ from rich.table import Table
 from specify_cli.agent_utils import status as status_module
 from specify_cli.cli.console import CliConsole
 from specify_cli.cli.commands import glossary as glossary_module
-from specify_cli.cli.commands import routes as routes_module
 from specify_cli.core import git_ops
 from specify_cli.status import Lane
-from specify_cli.widen.interview_helpers import render_widen_hint_if_present
 
 
 SAFE_TEXT = "Zoë Ölafsdóttir 日本語 🐱"
@@ -45,27 +43,6 @@ def _assert_clean(output: str) -> None:
     assert b"]0;x" not in emitted
 
 
-def test_human_strings_are_sanitized_before_markup(monkeypatch: pytest.MonkeyPatch) -> None:
-    console, buffer = _console()
-    monkeypatch.setattr(routes_module, "console", console)
-
-    routes_module._print_routes(
-        {
-            "admitted": True,
-            "team": HOSTILE_TEXT,
-            "relay_url": HOSTILE_TEXT,
-            "repository": {
-                "host": "github.com",
-                "slug": HOSTILE_TEXT,
-                "repo_key": HOSTILE_TEXT,
-            },
-            "credential": {"token_kind": HOSTILE_TEXT, "expires_at": HOSTILE_TEXT},
-        }
-    )
-
-    _assert_clean(buffer.getvalue())
-
-
 def test_nested_rich_renderables_are_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
     console, buffer = _console()
     monkeypatch.setattr(status_module, "console", console)
@@ -85,12 +62,6 @@ def test_nested_rich_renderables_are_sanitized(monkeypatch: pytest.MonkeyPatch) 
         parallel_info={"ready_wps": [], "parallel_groups": []},
     )
 
-    _assert_clean(buffer.getvalue())
-
-
-def test_external_interview_hint_is_sanitized() -> None:
-    console, buffer = _console()
-    render_widen_hint_if_present(f"[WIDEN-HINT] {HOSTILE_TEXT}", console)
     _assert_clean(buffer.getvalue())
 
 

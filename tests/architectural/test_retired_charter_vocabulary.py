@@ -240,7 +240,10 @@ _C004_NAMES: tuple[str, ...] = ("doctrine-daphne", "DIRECTIVE_039")
 #: ``git diff --name-only --no-renames --diff-filter=D fcf7a827..HEAD`` filtered to the
 #: living surfaces (renames count as deletions; their new paths are scanned).
 #: 2459 - 67 = 2392.
-_FILE_FLOOR = 2392
+#: #6164 removed the frozen hosted/sync/drain surfaces (src packages + their test
+#: suites tests/auth, tests/zeitgeist_client, tests/live_work, …); re-floored to the
+#: new measured living-surface count.
+_FILE_FLOOR = 2369
 
 
 @dataclass(frozen=True)

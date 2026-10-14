@@ -30,11 +30,13 @@ as transactionally complete as the ticket-less flow's scaffold commit.
 for this guard.)
 
 Drives the real production entry point ``create_mission_core`` over a real git
-repository with the real ``consume_pending_origin_impl`` consumer registered;
-only the outer SaaS call inside ``bind_mission_origin`` is replaced (no
-network / consent-gate dependency) with a fake that performs the SAME local
-write (``set_origin_ticket``) the real implementation performs after its SaaS
-call succeeds — so the reproduced symptom is the real symptom, not a stand-in.
+repository. The hosted ticket-origin consumer that once shipped
+(``tracker.origin_consumer.consume_pending_origin_impl``) was removed from
+open-core (#6164), so the pending-origin dispatch is exercised through a
+stand-in consumer registered on the SAME ``core/adapters.py`` registry; its
+bind step performs the SAME local write (``set_origin_ticket``) the real
+implementation performed after a successful bind — so the core post-bind
+commit guard under test fires on exactly the real symptom.
 
 NOTE: mission-create trips the "inside a worktree" guard when the test
 process itself runs from a git worktree checkout (the CI lane checks the
@@ -54,6 +56,29 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+import yaml
+
+
+def _read_pending_origin(repo_root: Path) -> dict[str, Any] | None:
+    """Read ``.kittify/pending-origin.yaml`` (inlined: the hosted
+    ``tracker.ticket_context`` read/clear helpers were removed from open-core
+    with the ticket-origin staging surface, #6164). Test-only."""
+    path = repo_root / ".kittify" / "pending-origin.yaml"
+    if not path.exists():
+        return None
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _clear_pending_origin(repo_root: Path) -> None:
+    """Remove ``.kittify/pending-origin.yaml`` after the stand-in consumer binds
+    it (inlined for the same reason as :func:`_read_pending_origin`)."""
+    path = repo_root / ".kittify" / "pending-origin.yaml"
+    if path.exists():
+        path.unlink()
+
 
 from mission_runtime import MissionTopology
 from specify_cli.core.adapters import (
@@ -61,7 +86,6 @@ from specify_cli.core.adapters import (
     reset_origin_consumer,
 )
 from specify_cli.core.mission_creation import create_mission_core
-from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 
 from tests._factories import provision_test_charter
 
@@ -136,12 +160,11 @@ def _fake_bind_mission_origin(
     resource_id: str | None = None,
     client: Any = None,
 ) -> tuple[dict[str, Any], bool]:
-    """Stand-in for ``tracker.origin.bind_mission_origin`` that skips the SaaS
-    call (steps 1-3 of the real function) but performs the SAME local write
-    (step 5, ``set_origin_ticket``) the real implementation performs after its
-    SaaS call succeeds. This reproduces the real symptom under test — a
-    disk-only meta.json write with no accompanying commit — without a network
-    dependency.
+    """Stand-in bind that skips the (removed) hosted origin-binding call but
+    performs the SAME local write (``set_origin_ticket``) the real
+    implementation performed after a successful bind. This reproduces the real
+    symptom under test — a disk-only meta.json write with no accompanying
+    commit — without a network dependency.
     """
     from specify_cli.mission_metadata import set_origin_ticket
 
@@ -158,6 +181,47 @@ def _fake_bind_mission_origin(
     return updated_meta, False
 
 
+def _bind_mission_origin(**kwargs: Any) -> tuple[dict[str, Any], bool]:
+    """Bind seam the stand-in consumer delegates to (tests patch this)."""
+    raise NotImplementedError
+
+
+def _stub_pending_origin_consumer(
+    repo_root: Path,
+    feature_dir: Path,
+    meta: dict[str, Any],
+) -> tuple[bool, bool, str | None, dict[str, Any]]:
+    """Stand-in ``PendingOriginConsumer`` replacing the removed
+    ``tracker.origin_consumer.consume_pending_origin_impl``. Reads the staged
+    pending origin and delegates the bind to the ``_bind_mission_origin`` seam,
+    preserving the real dispatch + post-bind commit contract the guard under
+    test exercises in ``create_mission_core``.
+    """
+    from types import SimpleNamespace
+
+    pending = _read_pending_origin(repo_root)
+    if not pending:
+        return False, False, None, meta
+
+    candidate = SimpleNamespace(
+        external_issue_id=str(pending.get("issue_id") or ""),
+        external_issue_key=str(pending.get("issue_key") or ""),
+        title=str(pending.get("title") or ""),
+        url=str(pending.get("url") or ""),
+    )
+    try:
+        updated_meta, _ = _bind_mission_origin(
+            feature_dir=feature_dir,
+            candidate=candidate,
+            provider=str(pending.get("provider") or "").strip().lower(),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return True, False, str(exc), meta
+
+    _clear_pending_origin(repo_root)
+    return True, True, None, updated_meta
+
+
 def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> None:
     """(squad) mission create's ticket-first flow leaves NO uncommitted changes
     once origin binding succeeds — meta.json's post-bind write is committed,
@@ -166,10 +230,10 @@ def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> N
     _init_git_repo(tmp_path)
     _write_pending_origin(tmp_path)
 
-    register_pending_origin_consumer(consume_pending_origin_impl)
+    register_pending_origin_consumer(_stub_pending_origin_consumer)
     try:
         with patch(
-            "specify_cli.tracker.origin.bind_mission_origin",
+            f"{__name__}._bind_mission_origin",
             side_effect=_fake_bind_mission_origin,
         ):
             result = create_mission_core(
@@ -226,10 +290,10 @@ def test_pending_origin_bind_failure_does_not_trigger_extra_commit(
     _init_git_repo(tmp_path)
     _write_pending_origin(tmp_path)
 
-    register_pending_origin_consumer(consume_pending_origin_impl)
+    register_pending_origin_consumer(_stub_pending_origin_consumer)
     try:
         with patch(
-            "specify_cli.tracker.origin.bind_mission_origin",
+            f"{__name__}._bind_mission_origin",
             side_effect=RuntimeError("saas bind rejected"),
         ):
             result = create_mission_core(

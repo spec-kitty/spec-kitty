@@ -1,12 +1,11 @@
-"""Tests for ``tracker_egress_verdict`` after Channel 1 (hosted-sync consent) retired (#5).
+"""Tests for ``tracker_egress_verdict`` after the hosted destination was removed (#6164).
 
-Replaces the coverage lost when ``tests/sync/tracker/test_tracker_egress_verdict_3108.py`` and
-``test_tracker_egress_refusal_3108.py`` were deleted with the sync transport -- both pinned the
-old two-channel (``_JOIN``) behaviour and imported ``specify_cli.egress``/``specify_cli.sync``,
-which no longer exist. This file pins the single-channel replacement: Channel 2 (the project's
-own committed ``tracker.egress`` key) is two-way at ``LOCAL_SUBPROCESS`` and narrowing-only at
-``HOSTED_SERVICE`` -- it may refuse a hosted request, but a ``permitted`` value or its absence
-can never grant one; that always falls through to the authenticated-session default.
+Channel 1 (hosted-sync consent) retired earlier (#5); the hosted destination itself
+(``HOSTED_SERVICE``) was then removed from open-core with the hosted tracker surface (#6164),
+leaving one destination. This file pins the surviving channel: Channel 2 (the project's own
+committed ``tracker.egress`` key) is two-way at ``LOCAL_SUBPROCESS`` -- ``refused`` refuses,
+``permitted`` grants, and absence/illegal/unreadable all refuse (inability to determine consent
+is never consent).
 """
 
 from __future__ import annotations
@@ -55,37 +54,6 @@ class TestLocalSubprocessIsTwoWay:
     def test_no_root_refuses(self) -> None:
         verdict = tracker_egress_verdict(None, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers="issue-1")
         assert verdict.refused is True
-
-
-class TestHostedServiceIsNarrowingOnly:
-    """A committed ``tracker.egress`` key may refuse a hosted request; it may never grant one."""
-
-    def test_refused_key_still_refuses(self, tmp_path: Path) -> None:
-        _write_egress(tmp_path, "refused")
-        verdict = tracker_egress_verdict(tmp_path, destination=EgressDestination.HOSTED_SERVICE, identifiers="issue-1")
-        assert verdict.refused is True
-        assert verdict.refusing_channels == frozenset({CHANNEL_2})
-
-    def test_fault_value_still_refuses(self, tmp_path: Path) -> None:
-        _write_egress(tmp_path, "sometimes")
-        verdict = tracker_egress_verdict(tmp_path, destination=EgressDestination.HOSTED_SERVICE, identifiers="issue-1")
-        assert verdict.refused is True
-        assert verdict.refusing_channels == frozenset({CHANNEL_2})
-
-    def test_permitted_key_does_not_grant_but_does_not_block(self, tmp_path: Path) -> None:
-        _write_egress(tmp_path, "permitted")
-        verdict = tracker_egress_verdict(tmp_path, destination=EgressDestination.HOSTED_SERVICE, identifiers="issue-1")
-        assert verdict.refused is False
-
-    def test_absent_key_falls_through_to_permit(self, tmp_path: Path) -> None:
-        verdict = tracker_egress_verdict(tmp_path, destination=EgressDestination.HOSTED_SERVICE, identifiers="issue-1")
-        assert verdict.refused is False
-        assert verdict.refusing_channels == frozenset()
-
-    def test_no_root_falls_through_to_permit(self) -> None:
-        """No checkout to read Channel 2 out of -- nothing left to narrow with."""
-        verdict = tracker_egress_verdict(None, destination=EgressDestination.HOSTED_SERVICE, identifiers="issue-1")
-        assert verdict.refused is False
 
 
 def test_never_raises_on_unreadable_config(tmp_path: Path) -> None:

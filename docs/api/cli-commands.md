@@ -173,162 +173,138 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
  Validate mission readiness before merging to main.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                                 TEXT              Mission slug to  │
-│                                                             accept           │
-│ --mode                                    TEXT              Acceptance mode: │
-│                                                             auto, pr, local, │
-│                                                             or checklist     │
-│                                                             [default: auto]  │
-│ --actor                                   TEXT              Name to record   │
-│                                                             as the           │
-│                                                             acceptance actor │
-│ --test                                    TEXT              Validation       │
-│                                                             command executed │
-│                                                             (repeatable)     │
-│ --json                                                      Emit JSON        │
-│                                                             instead of       │
-│                                                             formatted text   │
-│ --lenient                                                   Skip strict      │
-│                                                             metadata         │
-│                                                             validation and   │
-│                                                             downgrade        │
-│                                                             missing          │
-│                                                             path-convention  │
-│                                                             checks to        │
-│                                                             warnings         │
-│ --no-commit                                                 Report           │
-│                                                             acceptance       │
-│                                                             readiness        │
-│                                                             without writing  │
-│                                                             metadata or      │
-│                                                             status changes   │
-│ --diagnose                                                  Diagnose         │
-│                                                             acceptance       │
-│                                                             blockers without │
-│                                                             writing metadata │
-│                                                             or matrix        │
-│                                                             artifacts        │
-│ --allow-fail                                                Return checklist │
-│                                                             even when issues │
-│                                                             remain           │
-│ --normalize-enco…      --no-normalize…                      Repair           │
-│                                                             acceptance-arti… │
-│                                                             encoding         │
-│                                                             (Windows-1252/L… │
-│                                                             -> UTF-8) before │
-│                                                             validating.      │
-│                                                             [default:        │
-│                                                             no-normalize-en… │
-│ --owned-checkout                          PATH              Run against an   │
-│                                                             owned checkout:  │
-│                                                             a linked         │
-│                                                             checkout that    │
-│                                                             owns this        │
-│                                                             mission. Refuses │
-│                                                             the repository   │
-│                                                             root checkout,   │
-│                                                             lane worktrees   │
-│                                                             and coordination │
-│                                                             worktrees.       │
-│ --origin-check                            [enforce|warn|of  Refuse (enforce, │
-│                                           f]                the default) or  │
-│                                                             only warn (warn) │
-│                                                             when the         │
-│                                                             mission's status │
-│                                                             evidence is      │
-│                                                             behind or        │
-│                                                             unreachable on   │
-│                                                             its remote; off  │
-│                                                             contacts nothing │
-│                                                             and accepts      │
-│                                                             stale evidence.  │
-│                                                             Overrides        │
-│                                                             SPEC_KITTY_ORIG… │
-│                                                             --no-commit and  │
-│                                                             --diagnose       │
-│                                                             always warn.     │
-│ --merge-commit                            SHA               With --mode pr:  │
-│                                                             record this PR   │
-│                                                             merge commit as  │
-│                                                             the mission's    │
-│                                                             post-merge       │
-│                                                             review baseline. │
-│                                                             The commit is    │
-│                                                             verified against │
-│                                                             git before       │
-│                                                             anything is      │
-│                                                             written — it     │
-│                                                             must carry       │
-│                                                             kitty-specs/<sl… │
-│                                                             its first parent │
-│                                                             must not, and it │
-│                                                             must have landed │
-│                                                             on the target    │
-│                                                             branch. Every    │
-│                                                             landing shape    │
-│                                                             additionally     │
-│                                                             needs            │
-│                                                             --attest-first-… │
-│ --target-branch                           TEXT              With             │
-│                                                             --merge-commit:  │
-│                                                             the branch the   │
-│                                                             PR merged into   │
-│                                                             (the PR's base   │
-│                                                             branch).         │
-│                                                             Defaults to the  │
-│                                                             mission's        │
-│                                                             declared         │
-│                                                             target_branch,   │
-│                                                             else the         │
-│                                                             repository's     │
-│                                                             primary branch.  │
-│ --attest-first-l…                                           With             │
-│                                                             --merge-commit:  │
-│                                                             attest that the  │
-│                                                             supplied         │
-│                                                             commit's first   │
-│                                                             parent is the    │
-│                                                             pre-landing      │
-│                                                             target tip — for │
-│                                                             a two-parent     │
-│                                                             merge commit,    │
-│                                                             that the merge   │
-│                                                             was performed ON │
-│                                                             the target       │
-│                                                             branch (an       │
-│                                                             internal merge   │
-│                                                             fast-forwarded   │
-│                                                             onto the target  │
-│                                                             is               │
-│                                                             graph-identical, │
-│                                                             and its first    │
-│                                                             parent is an     │
-│                                                             implementation   │
-│                                                             commit); for a   │
-│                                                             single-parent    │
-│                                                             landing (squash  │
-│                                                             or corpus-first  │
-│                                                             stack), that it  │
-│                                                             was the first    │
-│                                                             commit of the    │
-│                                                             landing.         │
-│                                                             Required for     │
-│                                                             every landing    │
-│                                                             shape: git       │
-│                                                             cannot prove     │
-│                                                             either, and a    │
-│                                                             wrong anchor     │
-│                                                             silently         │
-│                                                             under-scans the  │
-│                                                             dead-code gate.  │
-│                                                             The attestation  │
-│                                                             is recorded in   │
-│                                                             pr_merge_eviden… │
-│                                                             never presented  │
-│                                                             as a git proof.  │
-│ --help             -h                                       Show this        │
-│                                                             message and      │
-│                                                             exit.            │
+│ --mission                                    <str>       Mission slug to     │
+│                                                          accept              │
+│ --mode                                       <str>       Acceptance mode:    │
+│                                                          auto, pr, local, or │
+│                                                          checklist           │
+│                                                          [default: auto]     │
+│ --actor                                      <str>       Name to record as   │
+│                                                          the acceptance      │
+│                                                          actor               │
+│ --test                                       <str>       Validation command  │
+│                                                          executed            │
+│                                                          (repeatable)        │
+│ --json                                                   Emit JSON instead   │
+│                                                          of formatted text   │
+│ --lenient                                                Skip strict         │
+│                                                          metadata validation │
+│                                                          and downgrade       │
+│                                                          missing             │
+│                                                          path-convention     │
+│                                                          checks to warnings  │
+│ --no-commit                                              Report acceptance   │
+│                                                          readiness without   │
+│                                                          writing metadata or │
+│                                                          status changes      │
+│ --diagnose                                               Diagnose acceptance │
+│                                                          blockers without    │
+│                                                          writing metadata or │
+│                                                          matrix artifacts    │
+│ --allow-fail                                             Return checklist    │
+│                                                          even when issues    │
+│                                                          remain              │
+│ --normalize-encod…      --no-normalize-e…                Repair              │
+│                                                          acceptance-artifact │
+│                                                          encoding            │
+│                                                          (Windows-1252/Lati… │
+│                                                          -> UTF-8) before    │
+│                                                          validating.         │
+│                                                          [default:           │
+│                                                          no-normalize-encod… │
+│ --owned-checkout                             <path>      Run against an      │
+│                                                          owned checkout: a   │
+│                                                          linked checkout     │
+│                                                          that owns this      │
+│                                                          mission. Refuses    │
+│                                                          the repository root │
+│                                                          checkout, lane      │
+│                                                          worktrees and       │
+│                                                          coordination        │
+│                                                          worktrees.          │
+│ --origin-check                               <function>  Refuse (enforce,    │
+│                                                          the default) or     │
+│                                                          only warn (warn)    │
+│                                                          when the mission's  │
+│                                                          status evidence is  │
+│                                                          behind or           │
+│                                                          unreachable on its  │
+│                                                          remote; off         │
+│                                                          contacts nothing    │
+│                                                          and accepts stale   │
+│                                                          evidence. Overrides │
+│                                                          SPEC_KITTY_ORIGIN_… │
+│                                                          --no-commit and     │
+│                                                          --diagnose always   │
+│                                                          warn.               │
+│ --merge-commit                               SHA         With --mode pr:     │
+│                                                          record this PR      │
+│                                                          merge commit as the │
+│                                                          mission's           │
+│                                                          post-merge review   │
+│                                                          baseline. The       │
+│                                                          commit is verified  │
+│                                                          against git before  │
+│                                                          anything is written │
+│                                                          — it must carry     │
+│                                                          kitty-specs/<slug>… │
+│                                                          its first parent    │
+│                                                          must not, and it    │
+│                                                          must have landed on │
+│                                                          the target branch.  │
+│                                                          Every landing shape │
+│                                                          additionally needs  │
+│                                                          --attest-first-lan… │
+│ --target-branch                              <str>       With                │
+│                                                          --merge-commit: the │
+│                                                          branch the PR       │
+│                                                          merged into (the    │
+│                                                          PR's base branch).  │
+│                                                          Defaults to the     │
+│                                                          mission's declared  │
+│                                                          target_branch, else │
+│                                                          the repository's    │
+│                                                          primary branch.     │
+│ --attest-first-la…                                       With                │
+│                                                          --merge-commit:     │
+│                                                          attest that the     │
+│                                                          supplied commit's   │
+│                                                          first parent is the │
+│                                                          pre-landing target  │
+│                                                          tip — for a         │
+│                                                          two-parent merge    │
+│                                                          commit, that the    │
+│                                                          merge was performed │
+│                                                          ON the target       │
+│                                                          branch (an internal │
+│                                                          merge               │
+│                                                          fast-forwarded onto │
+│                                                          the target is       │
+│                                                          graph-identical,    │
+│                                                          and its first       │
+│                                                          parent is an        │
+│                                                          implementation      │
+│                                                          commit); for a      │
+│                                                          single-parent       │
+│                                                          landing (squash or  │
+│                                                          corpus-first        │
+│                                                          stack), that it was │
+│                                                          the first commit of │
+│                                                          the landing.        │
+│                                                          Required for every  │
+│                                                          landing shape: git  │
+│                                                          cannot prove        │
+│                                                          either, and a wrong │
+│                                                          anchor silently     │
+│                                                          under-scans the     │
+│                                                          dead-code gate. The │
+│                                                          attestation is      │
+│                                                          recorded in         │
+│                                                          pr_merge_evidence,  │
+│                                                          never presented as  │
+│                                                          a git proof.        │
+│ --help              -h                                   Show this message   │
+│                                                          and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -353,21 +329,21 @@ _Archive a terminal mission (operator-invoked only)._
 ## spec-kitty archive create
 
 ```
- Usage: spec-kitty archive create [OPTIONS] MISSION
+ Usage: spec-kitty archive create [OPTIONS] {mission}
 
  Archive a terminal mission (AM-1..AM-5).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission      TEXT  Mission selector (slug or mission_id). [required]    │
+│ *    mission      <str>  Mission selector (slug or mission_id). [required]   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --by              TEXT  Operator identity performing the archive          │
-│                            (required).                                       │
-│                            [required]                                        │
-│ *  --reason          TEXT  Why the mission is being archived (required).     │
-│                            [required]                                        │
-│    --json                  Emit the archive record as JSON.                  │
-│    --help    -h            Show this message and exit.                       │
+│ *  --by              <str>  Operator identity performing the archive         │
+│                             (required).                                      │
+│                             [required]                                       │
+│ *  --reason          <str>  Why the mission is being archived (required).    │
+│                             [required]                                       │
+│    --json                   Emit the archive record as JSON.                 │
+│    --help    -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -433,7 +409,7 @@ _Charter management commands_
 ## spec-kitty charter activate
 
 ```
- Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID]
+ Usage: spec-kitty charter activate [OPTIONS] [kind] [artifact_id]
 
  Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's
  preset.
@@ -449,67 +425,66 @@ _Charter management commands_
  A change to a customised key is refused without --force.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   kind             [KIND]         Activation kind (e.g. directive,           │
-│                                   agent-profile).                            │
-│   artifact_id      [ARTIFACT_ID]  Artifact ID to activate.                   │
+│   kind             <str>  Activation kind (e.g. directive, agent-profile).   │
+│   artifact_id      <str>  Artifact ID to activate.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade                                TEXT  Cascade activation scope:     │
-│                                                'all' for every referenced    │
-│                                                kind, or a comma-separated    │
-│                                                kind list (e.g.               │
-│                                                'agent-profile,tactic'). Omit │
-│                                                to skip cascade (referenced   │
-│                                                artifacts are reported as a   │
-│                                                warning).                     │
-│ --resynthesize      --no-resynthesize          Eagerly refresh the FULL      │
-│                                                derived bundle/DRG (bundle    │
-│                                                content hash + project DRG    │
-│                                                layer, not just the compiled  │
-│                                                catalog) after this           │
-│                                                activation via the EXISTING   │
-│                                                synthesize pipeline (the same │
-│                                                one `charter generate` +      │
-│                                                `charter synthesize` use).    │
-│                                                Default activation already    │
-│                                                recompiles                    │
-│                                                `catalog.references` on its   │
-│                                                own via `charter generate`'s  │
-│                                                own compile seam (see         │
-│                                                --no-compile to opt out of    │
-│                                                that lightweight recompile);  │
-│                                                --resynthesize goes further   │
-│                                                and reconciles the freshness  │
-│                                                signal to fresh immediately   │
-│                                                (NFR-001).                    │
-│                                                [default: no-resynthesize]    │
-│ --compile           --no-compile               Skip the default              │
-│                                                post-activation catalog       │
-│                                                recompile (FR-003): the fast  │
-│                                                config-only write from before │
-│                                                issue #4785's fix.            │
-│                                                `catalog.references` is left  │
-│                                                as-is and may go stale until  │
-│                                                a later `charter generate` or │
-│                                                `charter activate             │
-│                                                --resynthesize`.              │
-│                                                [default: compile]            │
-│ --preset                                 TEXT  Apply this activation preset  │
-│                                                of the pack with replace      │
-│                                                semantics instead of          │
-│                                                activating one artifact.      │
-│ --pack                                   TEXT  Pack whose preset --preset    │
-│                                                applies (built-in, an org     │
-│                                                pack name). Only with         │
-│                                                --preset.                     │
-│                                                [default: built-in]           │
-│ --force                                        Apply the preset even when it │
-│                                                changes a customised          │
-│                                                activation key. Only with     │
-│                                                --preset.                     │
-│ --json                                         Output the applied preset as  │
-│                                                JSON. Only with --preset.     │
-│ --help          -h                             Show this message and exit.   │
+│ --cascade                                <str>  Cascade activation scope:    │
+│                                                 'all' for every referenced   │
+│                                                 kind, or a comma-separated   │
+│                                                 kind list (e.g.              │
+│                                                 'agent-profile,tactic').     │
+│                                                 Omit to skip cascade         │
+│                                                 (referenced artifacts are    │
+│                                                 reported as a warning).      │
+│ --resynthesize      --no-resynthesize           Eagerly refresh the FULL     │
+│                                                 derived bundle/DRG (bundle   │
+│                                                 content hash + project DRG   │
+│                                                 layer, not just the compiled │
+│                                                 catalog) after this          │
+│                                                 activation via the EXISTING  │
+│                                                 synthesize pipeline (the     │
+│                                                 same one `charter generate`  │
+│                                                 + `charter synthesize` use). │
+│                                                 Default activation already   │
+│                                                 recompiles                   │
+│                                                 `catalog.references` on its  │
+│                                                 own via `charter generate`'s │
+│                                                 own compile seam (see        │
+│                                                 --no-compile to opt out of   │
+│                                                 that lightweight recompile); │
+│                                                 --resynthesize goes further  │
+│                                                 and reconciles the freshness │
+│                                                 signal to fresh immediately  │
+│                                                 (NFR-001).                   │
+│                                                 [default: no-resynthesize]   │
+│ --compile           --no-compile                Skip the default             │
+│                                                 post-activation catalog      │
+│                                                 recompile (FR-003): the fast │
+│                                                 config-only write from       │
+│                                                 before issue #4785's fix.    │
+│                                                 `catalog.references` is left │
+│                                                 as-is and may go stale until │
+│                                                 a later `charter generate`   │
+│                                                 or `charter activate         │
+│                                                 --resynthesize`.             │
+│                                                 [default: compile]           │
+│ --preset                                 <str>  Apply this activation preset │
+│                                                 of the pack with replace     │
+│                                                 semantics instead of         │
+│                                                 activating one artifact.     │
+│ --pack                                   <str>  Pack whose preset --preset   │
+│                                                 applies (built-in, an org    │
+│                                                 pack name). Only with        │
+│                                                 --preset.                    │
+│                                                 [default: built-in]          │
+│ --force                                         Apply the preset even when   │
+│                                                 it changes a customised      │
+│                                                 activation key. Only with    │
+│                                                 --preset.                    │
+│ --json                                          Output the applied preset as │
+│                                                 JSON. Only with --preset.    │
+│ --help          -h                              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -565,103 +540,103 @@ _Charter bundle validation commands._
  Render charter context for a specific workflow action.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --action                                TEXT  Workflow action                │
-│                                               (specify|plan|implement|revie… │
-│ --include                               TEXT  Fetch selector, e.g.           │
-│                                               agent-profile:<id>,            │
-│                                               template:<mission>/<name>,     │
-│                                               directive:<id>,                │
-│                                               section:<slug>.                │
-│ --mark-loaded       --no-mark-loaded          Persist first-load state       │
-│                                               [default: mark-loaded]         │
-│ --mission-type                          TEXT  Canonical mission type (e.g.   │
-│                                               documentation|research|plan|s… │
-│                                               for the action doctrine grain. │
-│                                               Required when rendering action │
-│                                               context from the repo root —   │
-│                                               without it, and without a      │
-│                                               mission's meta.json, the       │
-│                                               action grain is typeless and   │
-│                                               never inherits software-dev    │
-│                                               (#883).                        │
-│ --json                                        Output JSON.                   │
-│                                               `context_schema_version`       │
-│                                               stamps the top-level payload   │
-│                                               shape (#2787, tracking         │
-│                                               contract -- not yet frozen).   │
-│                                               `directives` is action-scoped; │
-│                                               `all_directives` and           │
-│                                               `project_charter` describe the │
-│                                               project-local charter, while   │
-│                                               `org_charter` describes        │
-│                                               imported org packs.            │
-│ --include-all                                 Escape hatch: materialise the  │
-│                                               entire reachable closure       │
-│                                               inline in the structured       │
-│                                               (--json) payload instead of    │
-│                                               the default progressive        │
-│                                               disclosure (requires eager,    │
-│                                               suggests linked). Output is a  │
-│                                               superset of the progressive    │
-│                                               render for the same grain.     │
-│ --help          -h                            Show this message and exit.    │
+│ --action                                <str>  Workflow action               │
+│                                                (specify|plan|implement|revi… │
+│ --include                               <str>  Fetch selector, e.g.          │
+│                                                agent-profile:<id>,           │
+│                                                template:<mission>/<name>,    │
+│                                                directive:<id>,               │
+│                                                section:<slug>.               │
+│ --mark-loaded       --no-mark-loaded           Persist first-load state      │
+│                                                [default: mark-loaded]        │
+│ --mission-type                          <str>  Canonical mission type (e.g.  │
+│                                                documentation|research|plan|… │
+│                                                for the action doctrine       │
+│                                                grain. Required when          │
+│                                                rendering action context from │
+│                                                the repo root — without it,   │
+│                                                and without a mission's       │
+│                                                meta.json, the action grain   │
+│                                                is typeless and never         │
+│                                                inherits software-dev (#883). │
+│ --json                                         Output JSON.                  │
+│                                                `context_schema_version`      │
+│                                                stamps the top-level payload  │
+│                                                shape (#2787, tracking        │
+│                                                contract -- not yet frozen).  │
+│                                                `directives` is               │
+│                                                action-scoped;                │
+│                                                `all_directives` and          │
+│                                                `project_charter` describe    │
+│                                                the project-local charter,    │
+│                                                while `org_charter` describes │
+│                                                imported org packs.           │
+│ --include-all                                  Escape hatch: materialise the │
+│                                                entire reachable closure      │
+│                                                inline in the structured      │
+│                                                (--json) payload instead of   │
+│                                                the default progressive       │
+│                                                disclosure (requires eager,   │
+│                                                suggests linked). Output is a │
+│                                                superset of the progressive   │
+│                                                render for the same grain.    │
+│ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter deactivate
 
 ```
- Usage: spec-kitty charter deactivate [OPTIONS] [KIND] [ARTIFACT_ID]
+ Usage: spec-kitty charter deactivate [OPTIONS] [kind] [artifact_id]
 
  Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   kind             [KIND]         Activation kind (e.g. directive,           │
-│                                   agent-profile).                            │
-│   artifact_id      [ARTIFACT_ID]  Artifact ID to deactivate.                 │
+│   kind             <str>  Activation kind (e.g. directive, agent-profile).   │
+│   artifact_id      <str>  Artifact ID to deactivate.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --cascade                                TEXT  Cascade deactivation scope:   │
-│                                                'all' for every               │
-│                                                exclusively-referenced kind,  │
-│                                                or a comma-separated kind     │
-│                                                list. Shared artifacts are    │
-│                                                never removed. Omit to        │
-│                                                deactivate only the named     │
-│                                                artifact.                     │
-│ --resynthesize      --no-resynthesize          Eagerly refresh the FULL      │
-│                                                derived bundle/DRG (bundle    │
-│                                                content hash + project DRG    │
-│                                                layer, not just the compiled  │
-│                                                catalog) after this           │
-│                                                activation via the EXISTING   │
-│                                                synthesize pipeline (the same │
-│                                                one `charter generate` +      │
-│                                                `charter synthesize` use).    │
-│                                                Default activation already    │
-│                                                recompiles                    │
-│                                                `catalog.references` on its   │
-│                                                own via `charter generate`'s  │
-│                                                own compile seam (see         │
-│                                                --no-compile to opt out of    │
-│                                                that lightweight recompile);  │
-│                                                --resynthesize goes further   │
-│                                                and reconciles the freshness  │
-│                                                signal to fresh immediately   │
-│                                                (NFR-001).                    │
-│                                                [default: no-resynthesize]    │
-│ --compile           --no-compile               Skip the default              │
-│                                                post-activation catalog       │
-│                                                recompile (FR-003): the fast  │
-│                                                config-only write from before │
-│                                                issue #4785's fix.            │
-│                                                `catalog.references` is left  │
-│                                                as-is and may go stale until  │
-│                                                a later `charter generate` or │
-│                                                `charter activate             │
-│                                                --resynthesize`.              │
-│                                                [default: compile]            │
-│ --help          -h                             Show this message and exit.   │
+│ --cascade                                <str>  Cascade deactivation scope:  │
+│                                                 'all' for every              │
+│                                                 exclusively-referenced kind, │
+│                                                 or a comma-separated kind    │
+│                                                 list. Shared artifacts are   │
+│                                                 never removed. Omit to       │
+│                                                 deactivate only the named    │
+│                                                 artifact.                    │
+│ --resynthesize      --no-resynthesize           Eagerly refresh the FULL     │
+│                                                 derived bundle/DRG (bundle   │
+│                                                 content hash + project DRG   │
+│                                                 layer, not just the compiled │
+│                                                 catalog) after this          │
+│                                                 activation via the EXISTING  │
+│                                                 synthesize pipeline (the     │
+│                                                 same one `charter generate`  │
+│                                                 + `charter synthesize` use). │
+│                                                 Default activation already   │
+│                                                 recompiles                   │
+│                                                 `catalog.references` on its  │
+│                                                 own via `charter generate`'s │
+│                                                 own compile seam (see        │
+│                                                 --no-compile to opt out of   │
+│                                                 that lightweight recompile); │
+│                                                 --resynthesize goes further  │
+│                                                 and reconciles the freshness │
+│                                                 signal to fresh immediately  │
+│                                                 (NFR-001).                   │
+│                                                 [default: no-resynthesize]   │
+│ --compile           --no-compile                Skip the default             │
+│                                                 post-activation catalog      │
+│                                                 recompile (FR-003): the fast │
+│                                                 config-only write from       │
+│                                                 before issue #4785's fix.    │
+│                                                 `catalog.references` is left │
+│                                                 as-is and may go stale until │
+│                                                 a later `charter generate`   │
+│                                                 or `charter activate         │
+│                                                 --resynthesize`.             │
+│                                                 [default: compile]           │
+│ --help          -h                              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -673,11 +648,11 @@ _Charter bundle validation commands._
  Fetch org Charter Pack(s) from their configured remote sources.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
-│                          configured packs).                                  │
-│ --dry-run                Show what would be fetched without contacting any   │
-│                          remote.                                             │
-│ --help     -h            Show this message and exit.                         │
+│ --pack             <str>  Fetch only the named pack (default: fetch all      │
+│                           configured packs).                                 │
+│ --dry-run                 Show what would be fetched without contacting any  │
+│                           remote.                                            │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -705,23 +680,36 @@ _Charter bundle validation commands._
    replace it with a regular runtime charter.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                               TEXT  Mission type for          │
-│                                                    template-set defaults     │
-│ --template-set                               TEXT  Override charter offering │
-│                                                    template set (must exist  │
-│                                                    in packaged charter       │
-│                                                    offering missions)        │
-│ --from-interview      --no-from-interview          Load interview answers if │
-│                                                    present                   │
-│                                                    [default: from-interview] │
-│ --profile                                    TEXT  Default profile when no   │
-│                                                    interview is available    │
-│                                                    [default: minimal]        │
-│ --force           -f                               Overwrite existing        │
-│                                                    charter bundle            │
-│ --json                                             Output JSON               │
-│ --help            -h                               Show this message and     │
-│                                                    exit.                     │
+│ --mission-type                               <str>   Mission type for        │
+│                                                      template-set defaults   │
+│ --template-set                               <str>   Override charter        │
+│                                                      offering template set   │
+│                                                      (must exist in packaged │
+│                                                      charter offering        │
+│                                                      missions)               │
+│ --from-interview      --no-from-interview            Load interview answers  │
+│                                                      if present              │
+│                                                      [default:               │
+│                                                      from-interview]         │
+│ --profile                                    <str>   Default profile when no │
+│                                                      interview is available  │
+│                                                      [default: minimal]      │
+│ --force           -f                                 Overwrite existing      │
+│                                                      charter bundle          │
+│ --json                                               Output JSON             │
+│ --owned-checkout                             <path>  Run against an owned    │
+│                                                      checkout: a linked      │
+│                                                      checkout that owns this │
+│                                                      mission. Refuses the    │
+│                                                      repository root         │
+│                                                      checkout, lane          │
+│                                                      worktrees and           │
+│                                                      coordination worktrees. │
+│ --mission-handle                             <str>   Mission identity owned  │
+│                                                      by the explicitly       │
+│                                                      selected checkout       │
+│ --help            -h                                 Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -733,20 +721,20 @@ _Charter bundle validation commands._
  Capture charter interview answers for later generation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                 TEXT  Mission type for charter defaults       │
-│                                      (default: software-dev)                 │
-│ --profile                      TEXT  Interview profile: minimal or           │
-│                                      comprehensive                           │
-│                                      [default: minimal]                      │
-│ --defaults                           Use deterministic defaults without      │
-│                                      prompts                                 │
-│ --selected-paradigms           TEXT  Comma-separated paradigm IDs override   │
-│ --selected-directives          TEXT  Comma-separated directive IDs override  │
-│ --available-tools              TEXT  Comma-separated tool IDs override       │
-│ --json                               Output JSON                             │
-│ --mission-slug                 TEXT  Mission slug for Decision Moment paper  │
-│                                      trail (optional)                        │
-│ --help                 -h            Show this message and exit.             │
+│ --mission-type                 <str>  Mission type for charter defaults      │
+│                                       (default: software-dev)                │
+│ --profile                      <str>  Interview profile: minimal or          │
+│                                       comprehensive                          │
+│                                       [default: minimal]                     │
+│ --defaults                            Use deterministic defaults without     │
+│                                       prompts                                │
+│ --selected-paradigms           <str>  Comma-separated paradigm IDs override  │
+│ --selected-directives          <str>  Comma-separated directive IDs override │
+│ --available-tools              <str>  Comma-separated tool IDs override      │
+│ --json                                Output JSON                            │
+│ --mission-slug                 <str>  Mission slug for Decision Moment paper │
+│                                       trail (optional)                       │
+│ --help                 -h             Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -758,14 +746,14 @@ _Charter bundle validation commands._
  Detect decay in charter artifacts via graph-native checks.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Scope lint to a specific mission slug        │
-│ --orphans                       Run only orphan checks                       │
-│ --contradictions                Run only contradiction checks                │
-│ --stale                         Run only staleness checks                    │
-│ --json                          Output findings as JSON                      │
-│ --severity                TEXT  Minimum severity (low/medium/high/critical)  │
-│                                 [default: low]                               │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>  Scope lint to a specific mission slug       │
+│ --orphans                        Run only orphan checks                      │
+│ --contradictions                 Run only contradiction checks               │
+│ --stale                          Run only staleness checks                   │
+│ --json                           Output findings as JSON                     │
+│ --severity                <str>  Minimum severity (low/medium/high/critical) │
+│                                  [default: low]                              │
+│ --help            -h             Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -844,7 +832,7 @@ _Mission type commands (activated types only)._
 ## spec-kitty charter new
 
 ```
- Usage: spec-kitty charter new [OPTIONS] KIND ID
+ Usage: spec-kitty charter new [OPTIONS] {kind} {ID}
 
  Scaffold a stub doctrine artifact YAML (FR-016).
 
@@ -853,20 +841,19 @@ _Mission type commands (activated types only)._
  first emit.  Refuses to overwrite an existing file.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             asset, directive, mission_step_contract,         │
-│                             paradigm, procedure, styleguide, tactic,         │
-│                             toolguide.                                       │
-│                             [required]                                       │
-│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
-│                             SCREAMING_SNAKE for directives).                 │
-│                             [required]                                       │
+│ *    kind      <str>  Artifact kind (singular): one of agent_profile, asset, │
+│                       directive, mission_step_contract, paradigm, procedure, │
+│                       styleguide, tactic, toolguide.                         │
+│                       [required]                                             │
+│ *    ID        <str>  Artifact identifier (kebab-case for most kinds;        │
+│                       SCREAMING_SNAKE for directives).                       │
+│                       [required]                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a Charter Pack directory instead of    │
-│                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/charter-packs/.                               │
-│ --help  -h            Show this message and exit.                            │
+│ --pack          <path>  Scaffold inside a Charter Pack directory instead of  │
+│                         the project layer. When omitted, the stub lands      │
+│                         under .kittify/charter-packs/.                       │
+│ --help  -h              Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -891,7 +878,7 @@ _Manage org Charter Pack authoring (init, validate)._
 ## spec-kitty charter org init
 
 ```
- Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
+ Usage: spec-kitty charter org init [OPTIONS] {pack_path}
 
  Scaffold a minimal org pack or render from a template.
 
@@ -911,29 +898,29 @@ _Manage org Charter Pack authoring (init, validate)._
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
-│                           charter pack tree.                                 │
-│                           [required]                                         │
+│ *    pack_path      <path>  Destination directory for the scaffold or        │
+│                             rendered charter pack tree.                      │
+│                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force                     Overwrite an existing pack directory.            │
-│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
-│                             optional #branch). When omitted, scaffolds the   │
-│                             minimal four-file pack.                          │
-│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
-│                             (required with --template).                      │
-│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
-│                             Distinct from PACK_PATH.                         │
-│ --branch              TEXT  Git ref when --template is a git URL (may also   │
-│                             be encoded in TEMPLATE).                         │
-│ --help        -h            Show this message and exit.                      │
+│ --force                      Overwrite an existing pack directory.           │
+│ --template            <str>  Local template directory or git URL (HTTPS/SSH; │
+│                              optional #branch). When omitted, scaffolds the  │
+│                              minimal four-file pack.                         │
+│ --org-name            <str>  Validated org/pack identity for {{ORG_NAME}}    │
+│                              (required with --template).                     │
+│ --local-path          <str>  Value for {{LOCAL_PATH}} (default: pack).       │
+│                              Distinct from PACK_PATH.                        │
+│ --branch              <str>  Git ref when --template is a git URL (may also  │
+│                              be encoded in TEMPLATE).                        │
+│ --help        -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter org validate
 
 ```
- Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
+ Usage: spec-kitty charter org validate [OPTIONS] {pack_path}
 
  Validate an org Charter Pack using schema and DRG checks (FR-006).
 
@@ -945,9 +932,9 @@ _Manage org Charter Pack authoring (init, validate)._
  Validation uses the runtime loader, which supplies pack provenance fields.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org Charter Pack directory to          │
-│                           validate.                                          │
-│                           [required]                                         │
+│ *    pack_path      <path>  Path to the org Charter Pack directory to        │
+│                             validate.                                        │
+│                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -985,7 +972,8 @@ _Charter pack management commands._
 ## spec-kitty charter pack assemble
 
 ```
- Usage: spec-kitty charter pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
+ Usage: spec-kitty charter pack assemble [OPTIONS] {output_path}
+                                         {input_packs}...
 
  Assemble multiple Charter Packs into a single distributable.
 
@@ -993,22 +981,22 @@ _Charter pack management commands._
  assembled output fails validation.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    output_path      PATH            Output directory for the assembled     │
-│                                       distributable pack.                    │
-│                                       [required]                             │
-│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
-│                                       assemble.                              │
-│                                       [required]                             │
+│ *    output_path      <path>  Output directory for the assembled             │
+│                               distributable pack.                            │
+│                               [required]                                     │
+│ *    input_packs      <path>  One or more input pack directories to          │
+│                               assemble.                                      │
+│                               [required]                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --conflicts-out          PATH  Write the conflict report to this path        │
-│                                (JSON).                                       │
-│ --force                        Resolve artifact-id conflicts by              │
-│                                last-pack-wins and drop duplicate DRG edges   │
-│                                silently.                                     │
-│ --json                         Emit machine-readable JSON instead of rich    │
-│                                text.                                         │
-│ --help           -h            Show this message and exit.                   │
+│ --conflicts-out          <path>  Write the conflict report to this path      │
+│                                  (JSON).                                     │
+│ --force                          Resolve artifact-id conflicts by            │
+│                                  last-pack-wins and drop duplicate DRG edges │
+│                                  silently.                                   │
+│ --json                           Emit machine-readable JSON instead of rich  │
+│                                  text.                                       │
+│ --help           -h              Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1047,7 +1035,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 ## spec-kitty charter pack asset path
 
 ```
- Usage: spec-kitty charter pack asset path [OPTIONS] ASSET_ID
+ Usage: spec-kitty charter pack asset path [OPTIONS] {ASSET_ID}
 
  Resolve an asset identifier to a filesystem path (fail-closed on miss).
 
@@ -1055,9 +1043,9 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  refusal exits non-zero with the offending id named (A-7 / NFR-006).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    asset_id      TEXT  Identifier of the asset to resolve (see `charter    │
-│                          pack asset list`).                                  │
-│                          [required]                                          │
+│ *    ASSET_ID      <str>  Identifier of the asset to resolve (see `charter   │
+│                           pack asset list`).                                 │
+│                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit machine-readable JSON instead of rich text.           │
@@ -1081,7 +1069,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 ## spec-kitty charter pack path
 
 ```
- Usage: spec-kitty charter pack path [OPTIONS] PACK
+ Usage: spec-kitty charter pack path [OPTIONS] {pack}
 
  Print a pack's root, or with --preset the preset file (FR-006).
 
@@ -1089,13 +1077,13 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  valid names.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack      TEXT  Pack name (built-in, an org pack name, or project).     │
-│                      [required]                                              │
+│ *    pack      <str>  Pack name (built-in, an org pack name, or project).    │
+│                       [required]                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --preset          TEXT  Print this preset's file instead of the pack root.   │
-│ --json                  Output as JSON.                                      │
-│ --help    -h            Show this message and exit.                          │
+│ --preset          <str>  Print this preset's file instead of the pack root.  │
+│ --json                   Output as JSON.                                     │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1126,19 +1114,30 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  is actually stale.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check            Do not write; regenerate into a temp directory and        │
-│                    compare the per-kind graph fragments against the          │
-│                    committed packs/built-in source. Exit 1 when stale        │
-│                    (operator-runnable freshness gate). Exit 0 when fresh.    │
-│ --json             Emit machine-readable JSON instead of rich text.          │
-│ --help   -h        Show this message and exit.                               │
+│ --check                      Do not write; regenerate into a temp directory  │
+│                              and compare the per-kind graph fragments        │
+│                              against the committed packs/built-in source.    │
+│                              Exit 1 when stale (operator-runnable freshness  │
+│                              gate). Exit 0 when fresh.                       │
+│ --pack-root          <path>  Regenerate the DRG fragments and pack manifest  │
+│                              for the BUILT-IN-level pack at this root        │
+│                              instead of the shipped built-in pack (e.g. a    │
+│                              vendored copy). The root must carry a pack.yaml │
+│                              declaring pack_level: built-in; org and project │
+│                              packs are refused. Applies to both the write    │
+│                              path and --check. Defaults to the built-in pack │
+│                              root, leaving the no-flag behaviour             │
+│                              byte-identical.                                 │
+│ --json                       Emit machine-readable JSON instead of rich      │
+│                              text.                                           │
+│ --help       -h              Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter pack validate
 
 ```
- Usage: spec-kitty charter pack validate [OPTIONS] PACK_PATH
+ Usage: spec-kitty charter pack validate [OPTIONS] {pack_path}
 
  Validate a Charter Pack against schema and DRG constraints.
 
@@ -1146,8 +1145,8 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  exit code) and 1 when at least one error is reported.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the Charter Pack directory to validate.    │
-│                           [required]                                         │
+│ *    pack_path      <path>  Path to the Charter Pack directory to validate.  │
+│                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit machine-readable JSON instead of rich text.           │
@@ -1212,21 +1211,21 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
      spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --topic                       TEXT  Structured topic selector: <kind>:<slug> │
-│                                     (project-local), <drg-urn>               │
-│                                     (built-in+project graph), or             │
-│                                     <interview-section-label>.               │
-│ --list-topics                       List valid structured topic selectors    │
-│                                     and exit.                                │
-│ --adapter                     TEXT  Adapter to use. 'generated' (default)    │
-│                                     validates agent-authored YAML under      │
-│                                     .kittify/charter/generated/. 'fixture'   │
-│                                     is offline/testing only.                 │
-│                                     [default: generated]                     │
-│ --skip-code-evidence                Skip code-reading evidence collection.   │
-│ --skip-corpus                       Skip best-practice corpus loading.       │
-│ --json                              Output JSON                              │
-│ --help                -h            Show this message and exit.              │
+│ --topic                       <str>  Structured topic selector:              │
+│                                      <kind>:<slug> (project-local),          │
+│                                      <drg-urn> (built-in+project graph), or  │
+│                                      <interview-section-label>.              │
+│ --list-topics                        List valid structured topic selectors   │
+│                                      and exit.                               │
+│ --adapter                     <str>  Adapter to use. 'generated' (default)   │
+│                                      validates agent-authored YAML under     │
+│                                      .kittify/charter/generated/. 'fixture'  │
+│                                      is offline/testing only.                │
+│                                      [default: generated]                    │
+│ --skip-code-evidence                 Skip code-reading evidence collection.  │
+│ --skip-corpus                        Skip best-practice corpus loading.      │
+│ --json                               Output JSON                             │
+│ --help                -h             Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1304,36 +1303,36 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  always preserved and reported, never a refusal.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --adapter                     TEXT  Adapter to use. 'generated' (default)    │
-│                                     validates agent-authored YAML under      │
-│                                     .kittify/charter/generated/. 'fixture'   │
-│                                     is offline/testing only.                 │
-│                                     [default: generated]                     │
-│ --dry-run                           Stage and validate artifacts but do not  │
-│                                     promote to live tree. Also reports the   │
-│                                     reconciliation delta --prune would       │
-│                                     remove. Wins over --prune when both are  │
-│                                     given (preview only, no write).          │
-│ --prune                             Remove on-disk content the current run   │
-│                                     no longer targets and list every         │
-│                                     deletion. Without this flag, that        │
-│                                     content is preserved (default) unless it │
-│                                     is orphaned (backing artifact deleted),  │
-│                                     which refuses instead of silently        │
-│                                     keeping a dangling reference.            │
-│ --json                              Output JSON                              │
-│ --skip-code-evidence                Skip code-reading evidence collection.   │
-│ --skip-corpus                       Skip best-practice corpus loading.       │
-│ --dry-run-evidence                  Print evidence summary and exit without  │
-│                                     running synthesis.                       │
-│ --help                -h            Show this message and exit.              │
+│ --adapter                     <str>  Adapter to use. 'generated' (default)   │
+│                                      validates agent-authored YAML under     │
+│                                      .kittify/charter/generated/. 'fixture'  │
+│                                      is offline/testing only.                │
+│                                      [default: generated]                    │
+│ --dry-run                            Stage and validate artifacts but do not │
+│                                      promote to live tree. Also reports the  │
+│                                      reconciliation delta --prune would      │
+│                                      remove. Wins over --prune when both are │
+│                                      given (preview only, no write).         │
+│ --prune                              Remove on-disk content the current run  │
+│                                      no longer targets and list every        │
+│                                      deletion. Without this flag, that       │
+│                                      content is preserved (default) unless   │
+│                                      it is orphaned (backing artifact        │
+│                                      deleted), which refuses instead of      │
+│                                      silently keeping a dangling reference.  │
+│ --json                               Output JSON                             │
+│ --skip-code-evidence                 Skip code-reading evidence collection.  │
+│ --skip-corpus                        Skip best-practice corpus loading.      │
+│ --dry-run-evidence                   Print evidence summary and exit without │
+│                                      running synthesis.                      │
+│ --help                -h             Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter validate
 
 ```
- Usage: spec-kitty charter validate [OPTIONS] PATH
+ Usage: spec-kitty charter validate [OPTIONS] {path}
 
  Validate project-layer doctrine artifacts against their schemas (FR-017).
 
@@ -1345,10 +1344,10 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  fails.  A per-file error report is printed for failures.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Artifact YAML file or a directory containing            │
-│                      project-layer doctrine artifacts (recurses into         │
-│                      per-kind subdirectories).                               │
-│                      [required]                                              │
+│ *    path      <path>  Artifact YAML file or a directory containing          │
+│                        project-layer doctrine artifacts (recurses into       │
+│                        per-kind subdirectories).                             │
+│                        [required]                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -1363,11 +1362,11 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  Display project configuration and asset resolution information.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --show-origin                Show where each resolved asset comes from (tier │
-│                              label + path)                                   │
-│ --mission      -m      TEXT  Mission to resolve assets for                   │
-│                              [default: software-dev]                         │
-│ --help         -h            Show this message and exit.                     │
+│ --show-origin                 Show where each resolved asset comes from      │
+│                               (tier label + path)                            │
+│ --mission      -m      <str>  Mission to resolve assets for                  │
+│                               [default: software-dev]                        │
+│ --help         -h             Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1385,8 +1384,8 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
  failure.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --strategy                                [merge|squash|r  Strategy for the  │
-│                                           ebase]           branch-integrati… │
+│ --strategy                                <merge|squash|r  Strategy for the  │
+│                                           ebase>           branch-integrati… │
 │                                                            step (git merge   │
 │                                                            of                │
 │                                                            mission→target):  │
@@ -1430,7 +1429,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            step; distinct    │
 │                                                            from local lane   │
 │                                                            consolidation)    │
-│ --target                                  TEXT             Target branch for │
+│ --target                                  <str>            Target branch for │
 │                                                            the               │
 │                                                            branch-integrati… │
 │                                                            step              │
@@ -1442,7 +1441,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            deterministic     │
 │                                                            JSON (dry-run     │
 │                                                            mode)             │
-│ --mission                                 TEXT             Mission slug when │
+│ --mission                                 <str>            Mission slug when │
 │                                                            merging from main │
 │                                                            branch            │
 │ --resume                                                   Resume an         │
@@ -1454,7 +1453,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            merge, cleaning   │
 │                                                            up state and      │
 │                                                            worktrees         │
-│ --context                                 TEXT             Unused            │
+│ --context                                 <str>            Unused            │
 │                                                            compatibility     │
 │                                                            flag              │
 │ --keep-workspace                                           Unused            │
@@ -1485,7 +1484,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            evidence in the   │
 │                                                            status log, never │
 │                                                            a silent bypass.  │
-│ --note                                    TEXT             Reason recorded   │
+│ --note                                    <str>            Reason recorded   │
 │                                                            as override       │
 │                                                            evidence when     │
 │                                                            using             │
@@ -1521,7 +1520,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            mission still     │
 │                                                            refuses before    │
 │                                                            any mutation.     │
-│ --attest-cancele…                         TEXT             Operator          │
+│ --attest-cancele…                         <str>            Operator          │
 │                                                            attestation       │
 │                                                            (repeatable, one  │
 │                                                            WP id each): the  │
@@ -1547,7 +1546,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            recorded durably  │
 │                                                            in the status     │
 │                                                            event log.        │
-│ --attest-approve…                         TEXT             Operator          │
+│ --attest-approve…                         <str>            Operator          │
 │                                                            attestation       │
 │                                                            (repeatable, one  │
 │                                                            WP id each): the  │
@@ -1565,7 +1564,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            commits made      │
 │                                                            after a recorded  │
 │                                                            approval.         │
-│ --attest-reason                           TEXT             What you checked, │
+│ --attest-reason                           <str>            What you checked, │
 │                                                            recorded with     │
 │                                                            --attest-cancele… │
 │                                                            or                │
@@ -1575,7 +1574,7 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            reason serves     │
 │                                                            every attestation │
 │                                                            of the run.       │
-│ --release-branch                          TEXT             With --abort      │
+│ --release-branch                          <str>            With --abort      │
 │                                                            (repeatable):     │
 │                                                            keep this branch  │
 │                                                            at its current    │
@@ -1598,15 +1597,15 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            released.         │
 │                                                            Requires          │
 │                                                            --release-reason. │
-│ --release-reason                          TEXT             Why the released  │
+│ --release-reason                          <str>            Why the released  │
 │                                                            branches are      │
 │                                                            kept, printed in  │
 │                                                            the --abort       │
 │                                                            report (required  │
 │                                                            with              │
 │                                                            --release-branch… │
-│ --origin-check                            [enforce|warn|o  Origin freshness  │
-│                                           ff]              check before      │
+│ --origin-check                            <function>       Origin freshness  │
+│                                                            check before      │
 │                                                            anything lands:   │
 │                                                            enforce (the      │
 │                                                            default) refuses  │
@@ -1693,9 +1692,10 @@ _Query workspace context information_
  spec-kitty context info --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --workspace  -w      TEXT  Workspace name (auto-detected if inside worktree) │
-│ --json                     Output in JSON format                             │
-│ --help       -h            Show this message and exit.                       │
+│ --workspace  -w      <str>  Workspace name (auto-detected if inside          │
+│                             worktree)                                        │
+│ --json                      Output in JSON format                            │
+│ --help       -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1745,11 +1745,11 @@ _Query workspace context information_
  --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp               TEXT  Work package code (e.g., WP01) [required]        │
-│    --mission          TEXT  Mission slug (e.g., 057-mission-name)            │
-│    --agent            TEXT  Agent name (default: 'unknown')                  │
-│    --json                   Output full JSON context (default: token only)   │
-│    --help     -h            Show this message and exit.                      │
+│ *  --wp               <str>  Work package code (e.g., WP01) [required]       │
+│    --mission          <str>  Mission slug (e.g., 057-mission-name)           │
+│    --agent            <str>  Agent name (default: 'unknown')                 │
+│    --json                    Output full JSON context (default: token only)  │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1767,9 +1767,9 @@ _Query workspace context information_
      spec-kitty context mission-show --context ctx-01HVXYZ... --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --context          TEXT  Context token (e.g., ctx-01HV...) [required]     │
-│    --json                   Output raw JSON                                  │
-│    --help     -h            Show this message and exit.                      │
+│ *  --context          <str>  Context token (e.g., ctx-01HV...) [required]    │
+│    --json                    Output raw JSON                                 │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1783,15 +1783,15 @@ _Diff-scoped fail-closed cut-over gate (pre-merge required check)._
  Diff-scoped fail-closed cut-over gate (pre-merge required check).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --base-ref            TEXT  Diff HEAD against the merge-base with this ref   │
-│                             to discover touched kitty-specs/<mission> paths  │
-│                             (e.g. origin/main).                              │
-│ --paths-from          PATH  Read already-known changed paths from this file  │
-│                             (one per line) instead of running git diff. Use  │
-│                             when the CI host already provides the diff (e.g. │
-│                             a PR file list).                                 │
-│ --json                      Emit the guard verdict as structured JSON.       │
-│ --help        -h            Show this message and exit.                      │
+│ --base-ref            <str>  Diff HEAD against the merge-base with this ref  │
+│                              to discover touched kitty-specs/<mission> paths │
+│                              (e.g. origin/main).                             │
+│ --paths-from          PATH   Read already-known changed paths from this file │
+│                              (one per line) instead of running git diff. Use │
+│                              when the CI host already provides the diff      │
+│                              (e.g. a PR file list).                          │
+│ --json                       Emit the guard verdict as structured JSON.      │
+│ --help        -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1800,22 +1800,22 @@ _Diff-scoped fail-closed cut-over gate (pre-merge required check)._
 _Dispatch a request to a governed Op (canonical surface)._
 
 ```
- Usage: spec-kitty dispatch [OPTIONS] REQUEST
+ Usage: spec-kitty dispatch [OPTIONS] {request}
 
  Dispatch a request to a governed Op (canonical surface).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    request      TEXT  Natural language request. The router picks the best  │
-│                         profile.                                             │
-│                         [required]                                           │
+│ *    request      <str>  Natural language request. The router picks the best │
+│                          profile.                                            │
+│                          [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile          TEXT  Optional profile ID. Bypasses the router — use when │
-│                          the request is ambiguous.                           │
-│ --json                   Output JSON payload                                 │
-│ --dry-run                Route the request and return the routing signal     │
-│                          without opening an Op or writing anything.          │
-│ --help     -h            Show this message and exit.                         │
+│ --profile          <str>  Optional profile ID. Bypasses the router — use     │
+│                           when the request is ambiguous.                     │
+│ --json                    Output JSON payload                                │
+│ --dry-run                 Route the request and return the routing signal    │
+│                           without opening an Op or writing anything.         │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1839,23 +1839,23 @@ _Common Docs retrieval commands_
 ## spec-kitty docs query
 
 ```
- Usage: spec-kitty docs query [OPTIONS] TERM
+ Usage: spec-kitty docs query [OPTIONS] {term}
 
  Query the Common Docs retrieval index for pages matching TERM.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    term      TEXT  Case-insensitive substring matched against title,       │
-│                      anchor text/slug, and abstract.                         │
-│                      [required]                                              │
+│ *    term      <str>  Case-insensitive substring matched against title,      │
+│                       anchor text/slug, and abstract.                        │
+│                       [required]                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                      Emit machine-readable JSON via plain print (no   │
-│                             Rich markup).                                    │
-│ --divio-type          TEXT  Restrict to pages of this Divio type             │
-│                             (tutorial|how-to|reference|explanation|none).    │
-│ --section             TEXT  Restrict to pages containing an anchor with this │
-│                             slug.                                            │
-│ --help        -h            Show this message and exit.                      │
+│ --json                       Emit machine-readable JSON via plain print (no  │
+│                              Rich markup).                                   │
+│ --divio-type          <str>  Restrict to pages of this Divio type            │
+│                              (tutorial|how-to|reference|explanation|none).   │
+│ --section             <str>  Restrict to pages containing an anchor with     │
+│                              this slug.                                      │
+│ --help        -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2104,22 +2104,23 @@ _Project health diagnostics_
      spec-kitty doctor coordination --mission 083-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix                            Repair coordination topology: materialize a │
-│                                  missing coordination worktree whose branch  │
-│                                  exists, remove stale `coordination_branch`  │
-│                                  keys for never-created branches (then       │
-│                                  `migrate backfill-topology`), and revert    │
-│                                  stranded coordination state.                │
-│ --json                           Machine-readable JSON output                │
-│ --check-staleness                Also report coord-branch-vs-target-branch   │
-│                                  staleness (Gap-1, FR-008): non-blocking,    │
-│                                  whether the coord branch is behind or has   │
-│                                  diverged from its mission's target_branch.  │
-│ --mission                  TEXT  Scope the checks to a single mission handle │
-│                                  (mission_id / mid8 / slug), resolved via    │
-│                                  the same resolver as `doctor                │
-│                                  mission-state`.                             │
-│ --help             -h            Show this message and exit.                 │
+│ --fix                             Repair coordination topology: materialize  │
+│                                   a missing coordination worktree whose      │
+│                                   branch exists, remove stale                │
+│                                   `coordination_branch` keys for             │
+│                                   never-created branches (then `migrate      │
+│                                   backfill-topology`), and revert stranded   │
+│                                   coordination state.                        │
+│ --json                            Machine-readable JSON output               │
+│ --check-staleness                 Also report coord-branch-vs-target-branch  │
+│                                   staleness (Gap-1, FR-008): non-blocking,   │
+│                                   whether the coord branch is behind or has  │
+│                                   diverged from its mission's target_branch. │
+│ --mission                  <str>  Scope the checks to a single mission       │
+│                                   handle (mission_id / mid8 / slug),         │
+│                                   resolved via the same resolver as `doctor  │
+│                                   mission-state`.                            │
+│ --help             -h             Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2189,12 +2190,13 @@ _Project health diagnostics_
      spec-kitty doctor decisions --mission my-mission-01ABCD --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission handle (mission_id / mid8 / slug)        │
-│                             [required]                                       │
-│    --json                   Machine-readable JSON output                     │
-│    --repair                 Rebuild decisions/index.json from the event log  │
-│                             (run offline; not against live decision traffic) │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission handle (mission_id / mid8 / slug)       │
+│                              [required]                                      │
+│    --json                    Machine-readable JSON output                    │
+│    --repair                  Rebuild decisions/index.json from the event log │
+│                              (run offline; not against live decision         │
+│                              traffic)                                        │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2246,12 +2248,12 @@ _Project health diagnostics_
      spec-kitty doctor identity --fail-on legacy,orphan
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                   Emit structured JSON output (suitable for CI)       │
-│ --mission          TEXT  Scope report to a single mission slug               │
-│ --fail-on          TEXT  Exit non-zero if any mission is in the given        │
-│                          state(s). Comma-separated list of: assigned,        │
-│                          pending, legacy, orphan.                            │
-│ --help     -h            Show this message and exit.                         │
+│ --json                    Emit structured JSON output (suitable for CI)      │
+│ --mission          <str>  Scope report to a single mission slug              │
+│ --fail-on          <str>  Exit non-zero if any mission is in the given       │
+│                           state(s). Comma-separated list of: assigned,       │
+│                           pending, legacy, orphan.                           │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2289,23 +2291,24 @@ _Project health diagnostics_
  Audit, repair, or TeamSpace-validate mission-state shapes.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --audit                            Run mission-state audit (required to      │
-│                                    proceed)                                  │
-│ --fix                              Repair mission-state artifacts in place   │
-│                                    and write a migration manifest            │
-│ --teamspace-dry-run                Synthesize canonical TeamSpace envelopes  │
-│                                    from local state and validate them        │
-│ --json                             Emit JSON report to stdout                │
-│ --mission                    TEXT  Scope to a single mission handle          │
-│ --fail-on                    TEXT  Exit 1 if findings meet a gate            │
-│                                    (error|warning|info|teamspace-blocker)    │
-│ --fixture-dir                PATH  Override scan root (for testing)          │
-│ --include-fixtures                 Audit the bundled mission-state survey    │
-│                                    fixtures                                  │
-│ --manifest-path              PATH  Path for --fix migration manifest         │
-│ --allow-dirty                      Allow --fix when relevant git paths are   │
-│                                    already dirty                             │
-│ --help               -h            Show this message and exit.               │
+│ --audit                              Run mission-state audit (required to    │
+│                                      proceed)                                │
+│ --fix                                Repair mission-state artifacts in place │
+│                                      and write a migration manifest          │
+│ --teamspace-dry-run                  Synthesize canonical TeamSpace          │
+│                                      envelopes from local state and validate │
+│                                      them                                    │
+│ --json                               Emit JSON report to stdout              │
+│ --mission                    <str>   Scope to a single mission handle        │
+│ --fail-on                    <str>   Exit 1 if findings meet a gate          │
+│                                      (error|warning|info|teamspace-blocker)  │
+│ --fixture-dir                <path>  Override scan root (for testing)        │
+│ --include-fixtures                   Audit the bundled mission-state survey  │
+│                                      fixtures                                │
+│ --manifest-path              <path>  Path for --fix migration manifest       │
+│ --allow-dirty                        Allow --fix when relevant git paths are │
+│                                      already dirty                           │
+│ --help               -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2333,13 +2336,13 @@ _Project health diagnostics_
      spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                   Emit structured JSON output (suitable for CI)       │
-│ --mission          TEXT  Scope report to a single mission slug               │
-│ --fail-on          TEXT  Exit non-zero if any mission is in the given        │
-│                          state(s). Comma-separated list of: resolved,        │
-│                          activated-unresolvable, unknown, typeless,          │
-│                          legacy-key-only, error.                             │
-│ --help     -h            Show this message and exit.                         │
+│ --json                    Emit structured JSON output (suitable for CI)      │
+│ --mission          <str>  Scope report to a single mission slug              │
+│ --fail-on          <str>  Exit non-zero if any mission is in the given       │
+│                           state(s). Comma-separated list of: resolved,       │
+│                           activated-unresolvable, unknown, typeless,         │
+│                           legacy-key-only, error.                            │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2351,12 +2354,12 @@ _Project health diagnostics_
  List orphan Op records; --close-stale sweeps stale ones closed as abandoned.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                        Machine-readable JSON output                   │
-│ --close-stale                 Close open Ops older than --threshold as       │
-│                               abandoned (closed_by=doctor_sweep)             │
-│ --threshold            FLOAT  Staleness threshold in hours (default 24; 0    │
-│                               closes all). Requires --close-stale.           │
-│ --help         -h             Show this message and exit.                    │
+│ --json                          Machine-readable JSON output                 │
+│ --close-stale                   Close open Ops older than --threshold as     │
+│                                 abandoned (closed_by=doctor_sweep)           │
+│ --threshold            <float>  Staleness threshold in hours (default 24; 0  │
+│                                 closes all). Requires --close-stale.         │
+│ --help         -h               Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2408,10 +2411,10 @@ _Project health diagnostics_
      spec-kitty doctor review-cycle-reconcile --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Scope to a single mission (mission_id / mid8 /      │
-│                          slug)                                               │
-│ --json                   Machine-readable JSON output                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Scope to a single mission (mission_id / mid8 /     │
+│                           slug)                                              │
+│ --json                    Machine-readable JSON output                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2538,11 +2541,11 @@ _Project health diagnostics_
  spec-kitty doctor tool-surfaces --tool codex --fix
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --kind          TEXT  Filter to surface kind(s), e.g. command-skill          │
-│ --tool          TEXT  Filter to a single configured tool key                 │
-│ --fix                 Repair missing or stale surfaces                       │
-│ --json                Machine-readable JSON output                           │
-│ --help  -h            Show this message and exit.                            │
+│ --kind          <str>  Filter to surface kind(s), e.g. command-skill         │
+│ --tool          <str>  Filter to a single configured tool key                │
+│ --fix                  Repair missing or stale surfaces                      │
+│ --json                 Machine-readable JSON output                          │
+│ --help  -h             Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2564,9 +2567,9 @@ _Project health diagnostics_
      spec-kitty doctor topology --mission 083-foo
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                   Emit structured JSON output (suitable for CI)       │
-│ --mission          TEXT  Scope report to a single mission slug               │
-│ --help     -h            Show this message and exit.                         │
+│ --json                    Emit structured JSON output (suitable for CI)      │
+│ --mission          <str>  Scope report to a single mission slug              │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2629,30 +2632,29 @@ _Event log tailing commands_
  4. Drive the core.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                 TEXT     Mission slug/handle whose              │
-│                                       status.events.jsonl to tail (no legacy │
-│                                       feature-alias flag, C-003).            │
-│                                       [required]                             │
-│    --json                             JSON output. Currently the only        │
-│                                       supported mode (accepted for parity    │
-│                                       with the issue's invocation and with   │
-│                                       `docs query --json`; no human-readable │
-│                                       mode exists, so this flag has no       │
-│                                       observable effect either way).         │
-│                                       [default: True]                        │
-│    --once                             Poll exactly once and exit -- no       │
-│                                       generator, no sleep, ever.             │
-│    --max-events              INTEGER  Stop the stream after emitting this    │
-│                                       many events/signals.                   │
-│    --from-offset             INTEGER  Resume from this byte offset in        │
-│                                       status.events.jsonl (FR-004/FR-013).   │
-│    --from-invariant          TEXT     Content invariant (SHA-256 hex digest) │
-│                                       paired with --from-offset for          │
-│                                       cross-restart content verification     │
-│                                       (FR-004/FR-013). Requires              │
-│                                       --from-offset; supplying this alone is │
-│                                       a usage error.                         │
-│    --help            -h               Show this message and exit.            │
+│ *  --mission                 <str>  Mission slug/handle whose                │
+│                                     status.events.jsonl to tail (no legacy   │
+│                                     feature-alias flag, C-003).              │
+│                                     [required]                               │
+│    --json                           JSON output. Currently the only          │
+│                                     supported mode (accepted for parity with │
+│                                     the issue's invocation and with `docs    │
+│                                     query --json`; no human-readable mode    │
+│                                     exists, so this flag has no observable   │
+│                                     effect either way).                      │
+│                                     [default: True]                          │
+│    --once                           Poll exactly once and exit -- no         │
+│                                     generator, no sleep, ever.               │
+│    --max-events              <int>  Stop the stream after emitting this many │
+│                                     events/signals.                          │
+│    --from-offset             <int>  Resume from this byte offset in          │
+│                                     status.events.jsonl (FR-004/FR-013).     │
+│    --from-invariant          <str>  Content invariant (SHA-256 hex digest)   │
+│                                     paired with --from-offset for            │
+│                                     cross-restart content verification       │
+│                                     (FR-004/FR-013). Requires --from-offset; │
+│                                     supplying this alone is a usage error.   │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2685,12 +2687,12 @@ _Glossary management commands_
  Display conflict history from event log.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission             TEXT  Filter conflicts by mission ID                   │
-│ --unresolved                Show only unresolved conflicts                   │
-│ --strictness          TEXT  Filter by effective strictness level (off,       │
-│                             medium, max)                                     │
-│ --json                      Output as JSON (machine-parseable)               │
-│ --help        -h            Show this message and exit.                      │
+│ --mission             <str>  Filter conflicts by mission ID                  │
+│ --unresolved                 Show only unresolved conflicts                  │
+│ --strictness          <str>  Filter by effective strictness level (off,      │
+│                              medium, max)                                    │
+│ --json                       Output as JSON (machine-parseable)              │
+│ --help        -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2702,41 +2704,42 @@ _Glossary management commands_
  List all terms in glossary.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --scope           TEXT  Filter by scope (mission_local, team_domain,         │
-│                         audience_domain, spec_kitty_core)                    │
-│ --status          TEXT  Filter by status (active, deprecated, draft)         │
-│ --json                  Output as JSON (machine-parseable)                   │
-│ --help    -h            Show this message and exit.                          │
+│ --scope           <str>  Filter by scope (mission_local, team_domain,        │
+│                          audience_domain, spec_kitty_core)                   │
+│ --status          <str>  Filter by status (active, deprecated, draft)        │
+│ --json                   Output as JSON (machine-parseable)                  │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty glossary resolve
 
 ```
- Usage: spec-kitty glossary resolve [OPTIONS] CONFLICT_ID
+ Usage: spec-kitty glossary resolve [OPTIONS] {conflict_id}
 
  Resolve a conflict asynchronously.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    conflict_id      TEXT  Conflict ID to resolve [required]                │
+│ *    conflict_id      <str>  Conflict ID to resolve [required]               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission ID for event log (auto-detected if omitted) │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission ID for event log (auto-detected if         │
+│                           omitted)                                           │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty glossary show
 
 ```
- Usage: spec-kitty glossary show [OPTIONS] TERM
+ Usage: spec-kitty glossary show [OPTIONS] {term}
 
  Render the entity page for a glossary term.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    term      TEXT  Term surface name or glossary URN (e.g.                 │
-│                      'deployment-target' or 'glossary:deployment-target')    │
-│                      [required]                                              │
+│ *    term      <str>  Term surface name or glossary URN (e.g.                │
+│                       'deployment-target' or 'glossary:deployment-target')   │
+│                       [required]                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -2746,14 +2749,14 @@ _Glossary management commands_
 ## spec-kitty glossary validate
 
 ```
- Usage: spec-kitty glossary validate [OPTIONS] PATH
+ Usage: spec-kitty glossary validate [OPTIONS] {path}
 
  Validate glossary seed file(s) against the schema.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Path to a glossary seed file (.yaml) or directory of    │
-│                      seed files                                              │
-│                      [required]                                              │
+│ *    path      <path>  Path to a glossary seed file (.yaml) or directory of  │
+│                        seed files                                            │
+│                        [required]                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output validation results as JSON                          │
@@ -2764,7 +2767,7 @@ _Glossary management commands_
 ## spec-kitty implement
 
 ```
- Usage: spec-kitty implement [OPTIONS] WP_ID
+ Usage: spec-kitty implement [OPTIONS] {wp_id}
 
  Internal — allocate or reuse the lane worktree for a work package.
 
@@ -2783,20 +2786,20 @@ _Glossary management commands_
  See FR-503 and D-4 in the 3.1.1 spec.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (for example, WP01) [required]         │
+│ *    wp_id      <str>  Work package ID (for example, WP01) [required]        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                                       TEXT  Mission slug (for      │
+│ --mission                                      <str>  Mission slug (for      │
 │                                                       example,               │
 │                                                       001-my-feature)        │
-│ --auto-commit               --no-auto-commit          Auto-commit status and │
+│ --auto-commit              --no-auto-commit           Auto-commit status and │
 │                                                       planning changes       │
 │                                                       (default: from project │
 │                                                       config)                │
 │ --json                                                Output in JSON format  │
 │ --recover                                             Recover from crashed   │
 │                                                       implementation session │
-│ --base                                          TEXT  Explicit base ref for  │
+│ --base                                         <str>  Explicit base ref for  │
 │                                                       the lane workspace     │
 │                                                       (default:              │
 │                                                       auto-detect). Use this │
@@ -2808,13 +2811,13 @@ _Glossary management commands_
 │                                                       the current target     │
 │                                                       branch tip, e.g.       │
 │                                                       --base main.           │
-│ --acknowledge-not-bul…                                Suppress the bulk-edit │
+│ --acknowledge-not-bu…                                 Suppress the bulk-edit │
 │                                                       inference warning when │
 │                                                       spec language          │
 │                                                       resembles a bulk edit  │
 │                                                       but the mission is not │
 │                                                       one.                   │
-│ --help                  -h                            Show this message and  │
+│ --help                 -h                             Show this message and  │
 │                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2822,7 +2825,7 @@ _Glossary management commands_
 ## spec-kitty init
 
 ```
- Usage: spec-kitty init [OPTIONS] [PROJECT_NAME]
+ Usage: spec-kitty init [OPTIONS] [project_name]
 
  Initialize a new Spec Kitty project.
 
@@ -2884,8 +2887,8 @@ _Glossary management commands_
  - Missions are selected per-feature during /spec-kitty.specify
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   project_name      [PROJECT_NAME]  Name for your new project directory      │
-│                                     (omit to initialize current directory)   │
+│   project_name      <str>  Name for your new project directory (omit to      │
+│                            initialize current directory)                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --non-interactive,--yes            Run without interactive prompts (suitable │
@@ -2893,20 +2896,20 @@ _Glossary management commands_
 │ --help                   -h        Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Selection ──────────────────────────────────────────────────────────────────╮
-│ --ai        TEXT  Comma-separated AI assistants (claude,codex,gemini,...)    │
+│ --ai        <str>  Comma-separated AI assistants (claude,codex,gemini,...)   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty intake
 
 ```
- Usage: spec-kitty intake [OPTIONS] [PATH]
+ Usage: spec-kitty intake [OPTIONS] [path]
 
  Ingest a plan document as a mission brief for /spec-kitty.specify.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   path      [PATH]  Path to plan document, or '-' to read from stdin. Omit   │
-│                     when using --show or --auto.                             │
+│   path      <str>  Path to plan document, or '-' to read from stdin. Omit    │
+│                    when using --show or --auto.                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --force            Overwrite existing brief.                                 │
@@ -2955,13 +2958,12 @@ _Query local invocation records._
  ``--json`` for machine-readable output.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile  -p      TEXT     Filter by profile ID (reads file content, not    │
-│                             filename)                                        │
-│ --limit    -n      INTEGER  Maximum number of records to return (default:    │
-│                             20)                                              │
-│                             [default: 20]                                    │
-│ --json                      Emit a JSON array instead of a table             │
-│ --help     -h               Show this message and exit.                      │
+│ --profile  -p      <str>  Filter by profile ID (reads file content, not      │
+│                           filename)                                          │
+│ --limit    -n      <int>  Maximum number of records to return (default: 20)  │
+│                           [default: 20]                                      │
+│ --json                    Emit a JSON array instead of a table               │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2992,17 +2994,17 @@ _Issue-matrix commands (structured issue-matrix.json)._
  (FR-013).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Scope to a single mission handle. Omit to migrate   │
-│                          all missions.                                       │
-│ --json                   Emit structured JSON output.                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Scope to a single mission handle. Omit to migrate  │
+│                           all missions.                                      │
+│ --json                    Emit structured JSON output.                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty lint
 
 ```
- Usage: spec-kitty lint [OPTIONS] [FILE_PATH]
+ Usage: spec-kitty lint [OPTIONS] [file_path]
 
  Run ruff and mypy on a file and report errors.
 
@@ -3012,8 +3014,8 @@ _Issue-matrix commands (structured issue-matrix.json)._
  from the harness JSON payload on stdin.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   file_path      [FILE_PATH]  File to lint/type-check; omit to read the path │
-│                               from a hook stdin payload                      │
+│   file_path      <path>  File to lint/type-check; omit to read the path from │
+│                          a hook stdin payload                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output in JSON format for AI agents                        │
@@ -3053,9 +3055,9 @@ _Issue-matrix commands (structured issue-matrix.json)._
      spec-kitty materialize --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug to materialise (all if omitted)        │
-│ --json                   Output a machine-readable JSON summary              │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug to materialise (all if omitted)       │
+│ --json                    Output a machine-readable JSON summary             │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3234,7 +3236,7 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                                                 needs                        │
 │                                                 --attest-first-landing-comm… │
 │                                                 [required]                   │
-│    --target-branch                      TEXT    The branch the PR merged     │
+│    --target-branch                      <str>   The branch the PR merged     │
 │                                                 into (the PR's base branch), │
 │                                                 for the landing check.       │
 │                                                 Defaults to the mission's    │
@@ -3774,8 +3776,6 @@ _Inspect mission types for this project._
 │            (auto-detects mission from cwd).                                  │
 │ info       Show details for a specific mission without                       │
 │            switching.                                                        │
-│ create     Fetch a tracker ticket and prepare it as a mission                │
-│            brief.                                                            │
 │ run        Start (or attach to) a runtime for a                              │
 │            project-authored custom mission definition.                       │
 │ close      Close a mission. Wraps FR-016 lifecycle teardown.                 │
@@ -3831,37 +3831,16 @@ _Inspect mission types for this project._
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (auto-detected from cwd if omitted)    │
-│ --discard                Discard the mission mid-flight: delete the          │
-│                          coordination branch + all lane branches and tear    │
-│                          down all worktrees. Without --discard, requires     │
-│                          that the mission has already been merged (no-op     │
-│                          cleanup otherwise).                                 │
-│ --force                  Skip the confirmation prompt when --discard is set. │
-│ --json                   Emit a JSON envelope instead of a rich panel.       │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty mission create
-
-```
- Usage: spec-kitty mission create [OPTIONS]
-
- Fetch a tracker ticket and prepare it as a mission brief.
-
- Writes the ticket content to .kittify/ticket-context.md so the LLM can
- read it and run /spec-kitty.specify. Records a pending origin so the
- mission-to-ticket link is established automatically when specify completes.
-
- Example:
-     spec-kitty mission create --from-ticket linear:PRI-42
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --from-ticket          TEXT  Tracker ticket reference in provider:KEY     │
-│                                 format (e.g. linear:PRI-42)                  │
-│                                 [required]                                   │
-│    --help         -h            Show this message and exit.                  │
+│ --mission          <str>  Mission slug (auto-detected from cwd if omitted)   │
+│ --discard                 Discard the mission mid-flight: delete the         │
+│                           coordination branch + all lane branches and tear   │
+│                           down all worktrees. Without --discard, requires    │
+│                           that the mission has already been merged (no-op    │
+│                           cleanup otherwise).                                │
+│ --force                   Skip the confirmation prompt when --discard is     │
+│                           set.                                               │
+│ --json                    Emit a JSON envelope instead of a rich panel.      │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3873,15 +3852,15 @@ _Inspect mission types for this project._
  Show currently active mission for a mission (auto-detects mission from cwd).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission follow-up
 
 ```
- Usage: spec-kitty mission follow-up [OPTIONS] HANDLE
+ Usage: spec-kitty mission follow-up [OPTIONS] {handle}
 
  Record a follow-up commit or PR against a mission (FR-001).
 
@@ -3894,26 +3873,26 @@ _Inspect mission types for this project._
  re-recording the same reference is a successful no-op.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
-│                        [required]                                            │
+│ *    handle      <str>  Mission handle: mission_id (ULID), mid8, or slug.    │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --commit          TEXT     40-hex commit SHA of the follow-up.               │
-│ --pr              INTEGER  Pull-request number of the follow-up.             │
-│ --json                     Emit a JSON envelope instead of a rich panel.     │
-│ --help    -h               Show this message and exit.                       │
+│ --commit          <str>  40-hex commit SHA of the follow-up.                 │
+│ --pr              <int>  Pull-request number of the follow-up.               │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission info
 
 ```
- Usage: spec-kitty mission info [OPTIONS] MISSION_NAME
+ Usage: spec-kitty mission info [OPTIONS] {mission_name}
 
  Show details for a specific mission without switching.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_name      TEXT  Mission name to display details for [required]  │
+│ *    mission_name      <str>  Mission name to display details for [required] │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -3943,7 +3922,7 @@ _Inspect mission types for this project._
 ## spec-kitty mission reopen
 
 ```
- Usage: spec-kitty mission reopen [OPTIONS] HANDLE
+ Usage: spec-kitty mission reopen [OPTIONS] {handle}
 
  Re-open a merged/closed mission, returning it to an actionable state (FR-002).
 
@@ -3959,42 +3938,42 @@ _Inspect mission types for this project._
  writes no event / no metadata change.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
-│                        [required]                                            │
+│ *    handle      <str>  Mission handle: mission_id (ULID), mid8, or slug.    │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --reason          TEXT  Why the mission is being re-opened (required,     │
-│                            audited).                                         │
-│                            [required]                                        │
-│    --json                  Emit a JSON envelope instead of a rich panel.     │
-│    --help    -h            Show this message and exit.                       │
+│ *  --reason          <str>  Why the mission is being re-opened (required,    │
+│                             audited).                                        │
+│                             [required]                                       │
+│    --json                   Emit a JSON envelope instead of a rich panel.    │
+│    --help    -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission run
 
 ```
- Usage: spec-kitty mission run [OPTIONS] MISSION_KEY
+ Usage: spec-kitty mission run [OPTIONS] {mission_key}
 
  Start (or attach to) a runtime for a project-authored custom mission
  definition.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
+│ *    mission_key      <str>  The reusable custom mission key. [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                   TEXT  Tracked mission slug. [required]        │
-│    --json         --no-json          Emit JSON envelope to stdout instead of │
-│                                      a rich panel.                           │
-│                                      [default: no-json]                      │
-│    --help     -h                     Show this message and exit.             │
+│ *  --mission                   <str>  Tracked mission slug. [required]       │
+│    --json         --no-json           Emit JSON envelope to stdout instead   │
+│                                       of a rich panel.                       │
+│                                       [default: no-json]                     │
+│    --help     -h                      Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission show
 
 ```
- Usage: spec-kitty mission show [OPTIONS] MISSION_TYPE_ID
+ Usage: spec-kitty mission show [OPTIONS] {mission_type_id}
 
  Show the fully resolved MissionType definition for this project (FR-017).
 
@@ -4006,8 +3985,8 @@ _Inspect mission types for this project._
  is not an activated type.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_type_id      TEXT  Mission type ID (e.g. software-dev).         │
-│                                 [required]                                   │
+│ *    mission_type_id      <str>  Mission type ID (e.g. software-dev).        │
+│                                  [required]                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -4020,13 +3999,13 @@ _Inspect mission types for this project._
 > **Deprecated**: this command is deprecated
 
 ```
- Usage: spec-kitty mission switch [OPTIONS] MISSION_NAME
+ Usage: spec-kitty mission switch [OPTIONS] {mission_name}
 
  (deprecated)
  [REMOVED] Switch active mission - this command was removed in v0.8.0.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_name      TEXT  Mission name (no longer supported) [required]   │
+│ *    mission_name      <str>  Mission name (no longer supported) [required]  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --force            (ignored)                                                 │
@@ -4056,8 +4035,6 @@ _Inspect mission types for this project._
 │            (auto-detects mission from cwd).                                  │
 │ info       Show details for a specific mission without                       │
 │            switching.                                                        │
-│ create     Fetch a tracker ticket and prepare it as a mission                │
-│            brief.                                                            │
 │ run        Start (or attach to) a runtime for a                              │
 │            project-authored custom mission definition.                       │
 │ close      Close a mission. Wraps FR-016 lifecycle teardown.                 │
@@ -4113,37 +4090,16 @@ _Inspect mission types for this project._
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (auto-detected from cwd if omitted)    │
-│ --discard                Discard the mission mid-flight: delete the          │
-│                          coordination branch + all lane branches and tear    │
-│                          down all worktrees. Without --discard, requires     │
-│                          that the mission has already been merged (no-op     │
-│                          cleanup otherwise).                                 │
-│ --force                  Skip the confirmation prompt when --discard is set. │
-│ --json                   Emit a JSON envelope instead of a rich panel.       │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty mission-type create
-
-```
- Usage: spec-kitty mission-type create [OPTIONS]
-
- Fetch a tracker ticket and prepare it as a mission brief.
-
- Writes the ticket content to .kittify/ticket-context.md so the LLM can
- read it and run /spec-kitty.specify. Records a pending origin so the
- mission-to-ticket link is established automatically when specify completes.
-
- Example:
-     spec-kitty mission create --from-ticket linear:PRI-42
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --from-ticket          TEXT  Tracker ticket reference in provider:KEY     │
-│                                 format (e.g. linear:PRI-42)                  │
-│                                 [required]                                   │
-│    --help         -h            Show this message and exit.                  │
+│ --mission          <str>  Mission slug (auto-detected from cwd if omitted)   │
+│ --discard                 Discard the mission mid-flight: delete the         │
+│                           coordination branch + all lane branches and tear   │
+│                           down all worktrees. Without --discard, requires    │
+│                           that the mission has already been merged (no-op    │
+│                           cleanup otherwise).                                │
+│ --force                   Skip the confirmation prompt when --discard is     │
+│                           set.                                               │
+│ --json                    Emit a JSON envelope instead of a rich panel.      │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4155,15 +4111,15 @@ _Inspect mission types for this project._
  Show currently active mission for a mission (auto-detects mission from cwd).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission-type follow-up
 
 ```
- Usage: spec-kitty mission-type follow-up [OPTIONS] HANDLE
+ Usage: spec-kitty mission-type follow-up [OPTIONS] {handle}
 
  Record a follow-up commit or PR against a mission (FR-001).
 
@@ -4176,26 +4132,26 @@ _Inspect mission types for this project._
  re-recording the same reference is a successful no-op.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
-│                        [required]                                            │
+│ *    handle      <str>  Mission handle: mission_id (ULID), mid8, or slug.    │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --commit          TEXT     40-hex commit SHA of the follow-up.               │
-│ --pr              INTEGER  Pull-request number of the follow-up.             │
-│ --json                     Emit a JSON envelope instead of a rich panel.     │
-│ --help    -h               Show this message and exit.                       │
+│ --commit          <str>  40-hex commit SHA of the follow-up.                 │
+│ --pr              <int>  Pull-request number of the follow-up.               │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission-type info
 
 ```
- Usage: spec-kitty mission-type info [OPTIONS] MISSION_NAME
+ Usage: spec-kitty mission-type info [OPTIONS] {mission_name}
 
  Show details for a specific mission without switching.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_name      TEXT  Mission name to display details for [required]  │
+│ *    mission_name      <str>  Mission name to display details for [required] │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -4225,7 +4181,7 @@ _Inspect mission types for this project._
 ## spec-kitty mission-type reopen
 
 ```
- Usage: spec-kitty mission-type reopen [OPTIONS] HANDLE
+ Usage: spec-kitty mission-type reopen [OPTIONS] {handle}
 
  Re-open a merged/closed mission, returning it to an actionable state (FR-002).
 
@@ -4241,42 +4197,42 @@ _Inspect mission types for this project._
  writes no event / no metadata change.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    handle      TEXT  Mission handle: mission_id (ULID), mid8, or slug.     │
-│                        [required]                                            │
+│ *    handle      <str>  Mission handle: mission_id (ULID), mid8, or slug.    │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --reason          TEXT  Why the mission is being re-opened (required,     │
-│                            audited).                                         │
-│                            [required]                                        │
-│    --json                  Emit a JSON envelope instead of a rich panel.     │
-│    --help    -h            Show this message and exit.                       │
+│ *  --reason          <str>  Why the mission is being re-opened (required,    │
+│                             audited).                                        │
+│                             [required]                                       │
+│    --json                   Emit a JSON envelope instead of a rich panel.    │
+│    --help    -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission-type run
 
 ```
- Usage: spec-kitty mission-type run [OPTIONS] MISSION_KEY
+ Usage: spec-kitty mission-type run [OPTIONS] {mission_key}
 
  Start (or attach to) a runtime for a project-authored custom mission
  definition.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_key      TEXT  The reusable custom mission key. [required]      │
+│ *    mission_key      <str>  The reusable custom mission key. [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                   TEXT  Tracked mission slug. [required]        │
-│    --json         --no-json          Emit JSON envelope to stdout instead of │
-│                                      a rich panel.                           │
-│                                      [default: no-json]                      │
-│    --help     -h                     Show this message and exit.             │
+│ *  --mission                   <str>  Tracked mission slug. [required]       │
+│    --json         --no-json           Emit JSON envelope to stdout instead   │
+│                                       of a rich panel.                       │
+│                                       [default: no-json]                     │
+│    --help     -h                      Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission-type show
 
 ```
- Usage: spec-kitty mission-type show [OPTIONS] MISSION_TYPE_ID
+ Usage: spec-kitty mission-type show [OPTIONS] {mission_type_id}
 
  Show the fully resolved MissionType definition for this project (FR-017).
 
@@ -4288,8 +4244,8 @@ _Inspect mission types for this project._
  is not an activated type.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_type_id      TEXT  Mission type ID (e.g. software-dev).         │
-│                                 [required]                                   │
+│ *    mission_type_id      <str>  Mission type ID (e.g. software-dev).        │
+│                                  [required]                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -4302,13 +4258,13 @@ _Inspect mission types for this project._
 > **Deprecated**: this command is deprecated
 
 ```
- Usage: spec-kitty mission-type switch [OPTIONS] MISSION_NAME
+ Usage: spec-kitty mission-type switch [OPTIONS] {mission_name}
 
  (deprecated)
  [REMOVED] Switch active mission - this command was removed in v0.8.0.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_name      TEXT  Mission name (no longer supported) [required]   │
+│ *    mission_name      <str>  Mission name (no longer supported) [required]  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --force            (ignored)                                                 │
@@ -4341,20 +4297,20 @@ _Inspect mission types for this project._
  --decision-id "input:review" --result success --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --agent                   TEXT  Agent name (required for advancing mode)     │
-│ --result                  TEXT  Result of previous step:                     │
-│                                 success|failed|blocked. If omitted, returns  │
-│                                 current state without advancing (query       │
-│                                 mode).                                       │
-│ --mission                 TEXT  Mission slug                                 │
-│ --json                          Output JSON decision only                    │
-│ --answer                  TEXT  Answer to a pending decision                 │
-│ --decision-id             TEXT  Decision ID (required if multiple pending)   │
-│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
-│                                 checkout that owns this mission. Refuses the │
-│                                 repository root checkout, lane worktrees and │
-│                                 coordination worktrees.                      │
-│ --help            -h            Show this message and exit.                  │
+│ --agent                   <str>   Agent name (required for advancing mode)   │
+│ --result                  <str>   Result of previous step:                   │
+│                                   success|failed|blocked. If omitted,        │
+│                                   returns current state without advancing    │
+│                                   (query mode).                              │
+│ --mission                 <str>   Mission slug                               │
+│ --json                            Output JSON decision only                  │
+│ --answer                  <str>   Answer to a pending decision               │
+│ --decision-id             <str>   Decision ID (required if multiple pending) │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4396,9 +4352,9 @@ _Operation history (git reflog)_
      spec-kitty ops log --verbose
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --limit    -n      INTEGER  Number of operations to show [default: 20]       │
-│ --verbose  -v               Show full operation IDs and details              │
-│ --help     -h               Show this message and exit.                      │
+│ --limit    -n      <int>  Number of operations to show [default: 20]         │
+│ --verbose  -v             Show full operation IDs and details                │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4509,18 +4465,16 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Accept a mission after all WPs are approved or done.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT                Mission slug [required]       │
-│ *  --actor                 TEXT                Actor identity [required]     │
-│    --origin-check          [enforce|warn|off]  Refuse (enforce, the default) │
-│                                                or only warn (warn) when the  │
-│                                                mission's status evidence or  │
-│                                                approved lanes are behind or  │
-│                                                unreachable on their remote;  │
-│                                                off contacts nothing and      │
-│                                                accepts stale evidence.       │
-│                                                Overrides                     │
-│                                                SPEC_KITTY_ORIGIN_CHECK.      │
-│    --help          -h                          Show this message and exit.   │
+│ *  --mission               <str>       Mission slug [required]               │
+│ *  --actor                 <str>       Actor identity [required]             │
+│    --origin-check          <function>  Refuse (enforce, the default) or only │
+│                                        warn (warn) when the mission's status │
+│                                        evidence or approved lanes are behind │
+│                                        or unreachable on their remote; off   │
+│                                        contacts nothing and accepts stale    │
+│                                        evidence. Overrides                   │
+│                                        SPEC_KITTY_ORIGIN_CHECK.              │
+│    --help          -h                  Show this message and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4535,21 +4489,21 @@ _Machine-contract API for external orchestrators (JSON-first)_
  full five-step composite and the response-shape contract.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission              TEXT  Mission slug [required]                      │
-│ *  --agent                TEXT  Agent/actor identity performing this call    │
-│                                 (required)                                   │
-│                                 [required]                                   │
-│ *  --answer               TEXT  The answer value to persist for the pending  │
-│                                 decision                                     │
-│                                 [required]                                   │
-│    --result               TEXT  Outcome of the current issuance: success |   │
-│                                 failed | blocked (required alongside         │
-│                                 --answer)                                    │
-│    --decision-id          TEXT  Run-snapshot pending decision id to answer   │
-│                                 (auto-resolved when omitted and exactly one  │
-│                                 decision is pending)                         │
-│    --policy               TEXT  Policy metadata JSON (required)              │
-│    --help         -h            Show this message and exit.                  │
+│ *  --mission              <str>  Mission slug [required]                     │
+│ *  --agent                <str>  Agent/actor identity performing this call   │
+│                                  (required)                                  │
+│                                  [required]                                  │
+│ *  --answer               <str>  The answer value to persist for the pending │
+│                                  decision                                    │
+│                                  [required]                                  │
+│    --result               <str>  Outcome of the current issuance: success |  │
+│                                  failed | blocked (required alongside        │
+│                                  --answer)                                   │
+│    --decision-id          <str>  Run-snapshot pending decision id to answer  │
+│                                  (auto-resolved when omitted and exactly one │
+│                                  decision is pending)                        │
+│    --policy               <str>  Policy metadata JSON (required)             │
+│    --help         -h             Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4570,11 +4524,11 @@ _Machine-contract API for external orchestrators (JSON-first)_
  (C-003 / #2647 -- see the SC-008 test).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│ *  --wp               TEXT  Work package ID [required]                       │
-│ *  --actor            TEXT  Actor identity [required]                        │
-│ *  --note             TEXT  History note to append [required]                │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│ *  --wp               <str>  Work package ID [required]                      │
+│ *  --actor            <str>  Actor identity [required]                       │
+│ *  --note             <str>  History note to append [required]               │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4586,11 +4540,11 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Read bounded canonical content and its exact revision (absent is explicit).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission              TEXT  Mission slug [required]                      │
-│ *  --kind                 TEXT  Registered authoring artifact kind           │
-│                                 [required]                                   │
-│    --artifact-id          TEXT  Declared package key or contract basename    │
-│    --help         -h            Show this message and exit.                  │
+│ *  --mission              <str>  Mission slug [required]                     │
+│ *  --kind                 <str>  Registered authoring artifact kind          │
+│                                  [required]                                  │
+│    --artifact-id          <str>  Declared package key or contract basename   │
+│    --help         -h             Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4602,13 +4556,13 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Submit design content through host placement, validators and commit authority.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT  Mission slug [required]                     │
-│ *  --request-json          TEXT  Closed bounded artifact batch JSON; '-'     │
-│                                  reads UTF-8 stdin                           │
-│                                  [required]                                  │
-│ *  --actor                 TEXT  Accountable author [required]               │
-│    --policy                TEXT  Policy metadata JSON (required)             │
-│    --help          -h            Show this message and exit.                 │
+│ *  --mission               <str>  Mission slug [required]                    │
+│ *  --request-json          <str>  Closed bounded artifact batch JSON; '-'    │
+│                                   reads UTF-8 stdin                          │
+│                                   [required]                                 │
+│ *  --actor                 <str>  Accountable author [required]              │
+│    --policy                <str>  Policy metadata JSON (required)            │
+│    --help          -h             Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4621,15 +4575,19 @@ _Machine-contract API for external orchestrators (JSON-first)_
  ``decisions/service.py.cancel_decision`` 1:1.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission              TEXT  Mission slug [required]                      │
-│ *  --decision-id          TEXT  Decision ledger entry ID (ULID) [required]   │
-│ *  --rationale            TEXT  Explanation of why (required) [required]     │
-│    --resolved-by          TEXT  Identity of the                              │
-│                                 resolving/deferring/canceling party (falls   │
-│                                 back to --actor)                             │
-│ *  --actor                TEXT  Actor identity [required]                    │
-│    --policy               TEXT  Policy metadata JSON (required)              │
-│    --help         -h            Show this message and exit.                  │
+│ *  --mission                 <str>  Mission slug [required]                  │
+│ *  --decision-id             <str>  Decision ledger entry ID (ULID)          │
+│                                     [required]                               │
+│ *  --rationale               <str>  Explanation of why (required) [required] │
+│    --resolved-by             <str>  Identity of the                          │
+│                                     resolving/deferring/canceling party      │
+│                                     (falls back to --actor)                  │
+│ *  --actor                   <str>  Actor identity [required]                │
+│    --policy                  <str>  Policy metadata JSON (required)          │
+│    --owned-checkout          <str>  Path to a linked owned checkout that     │
+│                                     owns this mission (single_branch only);  │
+│                                     omit for the repository-root checkout    │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4658,10 +4616,10 @@ _Machine-contract API for external orchestrators (JSON-first)_
  ``validate_feature_structure``'s shaping logic a second time.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                TEXT  Mission slug [required]                    │
-│    --include-tasks                Include tasks.md validation (matches the   │
-│                                   host CLI's own --include-tasks default)    │
-│    --help           -h            Show this message and exit.                │
+│ *  --mission                <str>  Mission slug [required]                   │
+│    --include-tasks                 Include tasks.md validation (matches the  │
+│                                    host CLI's own --include-tasks default)   │
+│    --help           -h             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4673,25 +4631,21 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Consolidate a lane-based mission into target.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT                Mission slug [required]       │
-│    --target                TEXT                Target branch to merge into   │
-│                                                (auto-detected from           │
-│                                                meta.json)                    │
-│    --strategy              TEXT                Merge strategy: merge,        │
-│                                                squash, or rebase             │
-│                                                [default: merge]              │
-│    --push                                      Push target branch after      │
-│                                                merge                         │
-│    --origin-check          [enforce|warn|off]  Refuse (enforce, the default) │
-│                                                or only warn (warn) when the  │
-│                                                mission's status evidence or  │
-│                                                approved lanes are behind or  │
-│                                                unreachable on their remote;  │
-│                                                off contacts nothing and      │
-│                                                accepts stale evidence.       │
-│                                                Overrides                     │
-│                                                SPEC_KITTY_ORIGIN_CHECK.      │
-│    --help          -h                          Show this message and exit.   │
+│ *  --mission               <str>       Mission slug [required]               │
+│    --target                <str>       Target branch to merge into           │
+│                                        (auto-detected from meta.json)        │
+│    --strategy              <str>       Merge strategy: merge, squash, or     │
+│                                        rebase                                │
+│                                        [default: merge]                      │
+│    --push                              Push target branch after merge        │
+│    --origin-check          <function>  Refuse (enforce, the default) or only │
+│                                        warn (warn) when the mission's status │
+│                                        evidence or approved lanes are behind │
+│                                        or unreachable on their remote; off   │
+│                                        contacts nothing and accepts stale    │
+│                                        evidence. Overrides                   │
+│                                        SPEC_KITTY_ORIGIN_CHECK.              │
+│    --help          -h                  Show this message and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4706,12 +4660,12 @@ _Machine-contract API for external orchestrators (JSON-first)_
  commands.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --provider-version            TEXT  Caller's provider version; returns       │
-│                                     CONTRACT_VERSION_MISMATCH if below       │
-│                                     minimum                                  │
-│ --require-capability          TEXT  Require a supported Python command       │
-│                                     before performing work                   │
-│ --help                -h            Show this message and exit.              │
+│ --provider-version            <str>  Caller's provider version; returns      │
+│                                      CONTRACT_VERSION_MISMATCH if below      │
+│                                      minimum                                 │
+│ --require-capability          <str>  Require a supported Python command      │
+│                                      before performing work                  │
+│ --help                -h             Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4724,15 +4678,19 @@ _Machine-contract API for external orchestrators (JSON-first)_
  ``decisions/service.py.defer_decision`` 1:1.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission              TEXT  Mission slug [required]                      │
-│ *  --decision-id          TEXT  Decision ledger entry ID (ULID) [required]   │
-│ *  --rationale            TEXT  Explanation of why (required) [required]     │
-│    --resolved-by          TEXT  Identity of the                              │
-│                                 resolving/deferring/canceling party (falls   │
-│                                 back to --actor)                             │
-│ *  --actor                TEXT  Actor identity [required]                    │
-│    --policy               TEXT  Policy metadata JSON (required)              │
-│    --help         -h            Show this message and exit.                  │
+│ *  --mission                 <str>  Mission slug [required]                  │
+│ *  --decision-id             <str>  Decision ledger entry ID (ULID)          │
+│                                     [required]                               │
+│ *  --rationale               <str>  Explanation of why (required) [required] │
+│    --resolved-by             <str>  Identity of the                          │
+│                                     resolving/deferring/canceling party      │
+│                                     (falls back to --actor)                  │
+│ *  --actor                   <str>  Actor identity [required]                │
+│    --policy                  <str>  Policy metadata JSON (required)          │
+│    --owned-checkout          <str>  Path to a linked owned checkout that     │
+│                                     owns this mission (single_branch only);  │
+│                                     omit for the repository-root checkout    │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4744,10 +4702,10 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Read bounded resolved templates, governance and required interview slots.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission               TEXT  Mission handle; omitted before creation        │
-│ --stage                 TEXT  specify | plan | tasks [default: specify]      │
-│ --mission-type          TEXT  Activated mission type before creation         │
-│ --help          -h            Show this message and exit.                    │
+│ --mission               <str>  Mission handle; omitted before creation       │
+│ --stage                 <str>  specify | plan | tasks [default: specify]     │
+│ --mission-type          <str>  Activated mission type before creation        │
+│ --help          -h             Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4765,8 +4723,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
  module comment above ``_tasks_are_finalized``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4778,9 +4736,9 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Check current canonical prerequisites without completing a lifecycle step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│ *  --stage            TEXT  specify | plan | tasks [required]                │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│ *  --stage            <str>  specify | plan | tasks [required]               │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4792,14 +4750,14 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Record incremental interview answers through the existing decision service.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission handle [required]                        │
-│ *  --stage            TEXT  specify | plan [required]                        │
-│ *  --answers          TEXT  JSON mapping of canonical question IDs to        │
-│                             nonempty answers                                 │
-│                             [required]                                       │
-│ *  --actor            TEXT  Actor identity [required]                        │
-│    --policy           TEXT  Required orchestrator policy JSON                │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission handle [required]                       │
+│ *  --stage            <str>  specify | plan [required]                       │
+│ *  --answers          <str>  JSON mapping of canonical question IDs to       │
+│                              nonempty answers                                │
+│                              [required]                                      │
+│ *  --actor            <str>  Actor identity [required]                       │
+│    --policy           <str>  Required orchestrator policy JSON               │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4811,8 +4769,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
  List WPs that are ready to start (planned and all deps approved or done).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4824,8 +4782,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Return the full state of a mission (all WPs, lanes, dependencies).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4837,13 +4795,13 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Query or advance exactly the same authority and lifecycle as native next.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission              TEXT  Mission handle [required]                    │
-│    --agent                TEXT  Agent required for advancement               │
-│    --result               TEXT  Prior result; omit for read-only query       │
-│    --answer               TEXT  Native pending decision answer               │
-│    --decision-id          TEXT  Native decision identity                     │
-│    --policy               TEXT  Policy JSON required for advancement         │
-│    --help         -h            Show this message and exit.                  │
+│ *  --mission              <str>  Mission handle [required]                   │
+│    --agent                <str>  Agent required for advancement              │
+│    --result               <str>  Prior result; omit for read-only query      │
+│    --answer               <str>  Native pending decision answer              │
+│    --decision-id          <str>  Native decision identity                    │
+│    --policy               <str>  Policy JSON required for advancement        │
+│    --help         -h             Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4856,17 +4814,21 @@ _Machine-contract API for external orchestrators (JSON-first)_
  exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission            TEXT  Mission slug [required]                        │
-│ *  --origin             TEXT  Origin flow: charter | specify | plan          │
-│                               [required]                                     │
-│ *  --input-key          TEXT  The input key this decision governs [required] │
-│ *  --question           TEXT  Human-readable question text [required]        │
-│    --step-id            TEXT  Interview step identifier                      │
-│    --slot-key           TEXT  Slot key (use when step_id unavailable)        │
-│    --options            TEXT  Candidate answers as a JSON array string       │
-│ *  --actor              TEXT  Actor identity [required]                      │
-│    --policy             TEXT  Policy metadata JSON (required)                │
-│    --help       -h            Show this message and exit.                    │
+│ *  --mission                 <str>  Mission slug [required]                  │
+│ *  --origin                  <str>  Origin flow: charter | specify | plan    │
+│                                     [required]                               │
+│ *  --input-key               <str>  The input key this decision governs      │
+│                                     [required]                               │
+│ *  --question                <str>  Human-readable question text [required]  │
+│    --step-id                 <str>  Interview step identifier                │
+│    --slot-key                <str>  Slot key (use when step_id unavailable)  │
+│    --options                 <str>  Candidate answers as a JSON array string │
+│ *  --actor                   <str>  Actor identity [required]                │
+│    --policy                  <str>  Policy metadata JSON (required)          │
+│    --owned-checkout          <str>  Path to a linked owned checkout that     │
+│                                     owns this mission (single_branch only);  │
+│                                     omit for the repository-root checkout    │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4884,9 +4846,9 @@ _Machine-contract API for external orchestrators (JSON-first)_
  does the same. Do not add fields ``setup_plan`` does not already return.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│    --policy           TEXT  Policy metadata JSON (required)                  │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│    --policy           <str>  Policy metadata JSON (required)                 │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4924,13 +4886,13 @@ _Machine-contract API for external orchestrators (JSON-first)_
  pattern, matching ``specify``/``plan``/``tasks``).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission             TEXT  Mission slug [required]                       │
-│    --input-file          TEXT  Markdown report path, or '-' to read the      │
-│                                report body from stdin                        │
-│                                [default: -]                                  │
-│    --agent               TEXT  Agent name that produced the analysis report  │
-│    --policy              TEXT  Policy metadata JSON (required)               │
-│    --help        -h            Show this message and exit.                   │
+│ *  --mission             <str>  Mission slug [required]                      │
+│    --input-file          <str>  Markdown report path, or '-' to read the     │
+│                                 report body from stdin                       │
+│                                 [default: -]                                 │
+│    --agent               <str>  Agent name that produced the analysis report │
+│    --policy              <str>  Policy metadata JSON (required)              │
+│    --help        -h             Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4951,17 +4913,21 @@ _Machine-contract API for external orchestrators (JSON-first)_
  validation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT  Mission slug [required]                     │
-│ *  --decision-id           TEXT  Decision ledger entry ID (ULID) [required]  │
-│ *  --final-answer          TEXT  The chosen answer (non-empty) [required]    │
-│    --other-answer                True if answer is a write-in                │
-│    --rationale             TEXT  Explanation of the choice                   │
-│    --resolved-by           TEXT  Identity of the                             │
-│                                  resolving/deferring/canceling party (falls  │
-│                                  back to --actor)                            │
-│ *  --actor                 TEXT  Actor identity [required]                   │
-│    --policy                TEXT  Policy metadata JSON (required)             │
-│    --help          -h            Show this message and exit.                 │
+│ *  --mission                 <str>  Mission slug [required]                  │
+│ *  --decision-id             <str>  Decision ledger entry ID (ULID)          │
+│                                     [required]                               │
+│ *  --final-answer            <str>  The chosen answer (non-empty) [required] │
+│    --other-answer                   True if answer is a write-in             │
+│    --rationale               <str>  Explanation of the choice                │
+│    --resolved-by             <str>  Identity of the                          │
+│                                     resolving/deferring/canceling party      │
+│                                     (falls back to --actor)                  │
+│ *  --actor                   <str>  Actor identity [required]                │
+│    --policy                  <str>  Policy metadata JSON (required)          │
+│    --owned-checkout          <str>  Path to a linked owned checkout that     │
+│                                     owns this mission (single_branch only);  │
+│                                     omit for the repository-root checkout    │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4979,9 +4945,9 @@ _Machine-contract API for external orchestrators (JSON-first)_
  1.2.0.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│ *  --wp               TEXT  Work package ID [required]                       │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│ *  --wp               <str>  Work package ID [required]                      │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5001,18 +4967,18 @@ _Machine-contract API for external orchestrators (JSON-first)_
  payload one layer beneath it.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT                     Mission slug [required]  │
-│ *  --mission-type          TEXT                     Mission type (e.g.,      │
+│ *  --mission               <str>                    Mission slug [required]  │
+│ *  --mission-type          <str>                    Mission type (e.g.,      │
 │                                                     software-dev)            │
 │                                                     [required]               │
-│    --topology              [single_branch|lanes|co  Create-time mission      │
-│                            ord|lanes_with_coord]    shape: single_branch |   │
+│    --topology              <single_branch|lanes|co  Create-time mission      │
+│                            ord|lanes_with_coord>    shape: single_branch |   │
 │                                                     lanes | coord |          │
 │                                                     lanes_with_coord.        │
 │                                                     Default: context-derived │
 │                                                     (matches the host CLI's  │
 │                                                     own --topology default). │
-│    --policy                TEXT                     Policy metadata JSON     │
+│    --policy                <str>                    Policy metadata JSON     │
 │                                                     (required)               │
 │    --help          -h                               Show this message and    │
 │                                                     exit.                    │
@@ -5027,11 +4993,11 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Composite transition: planned->claimed->in_progress (idempotent).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│ *  --wp               TEXT  Work package ID [required]                       │
-│ *  --actor            TEXT  Actor identity [required]                        │
-│    --policy           TEXT  Policy metadata JSON (required)                  │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│ *  --wp               <str>  Work package ID [required]                      │
+│ *  --actor            <str>  Actor identity [required]                       │
+│    --policy           <str>  Policy metadata JSON (required)                 │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5043,13 +5009,13 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Transition a WP from for_review to in_review (reviewer claims review).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission             TEXT  Mission slug [required]                       │
-│ *  --wp                  TEXT  Work package ID [required]                    │
-│ *  --actor               TEXT  Actor identity [required]                     │
-│    --policy              TEXT  Policy metadata JSON (required)               │
-│    --review-ref          TEXT  Review feedback reference (optional, not      │
-│                                required for for_review→in_review)            │
-│    --help        -h            Show this message and exit.                   │
+│ *  --mission             <str>  Mission slug [required]                      │
+│ *  --wp                  <str>  Work package ID [required]                   │
+│ *  --actor               <str>  Actor identity [required]                    │
+│    --policy              <str>  Policy metadata JSON (required)              │
+│    --review-ref          <str>  Review feedback reference (optional, not     │
+│                                 required for for_review→in_review)           │
+│    --help        -h             Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5065,9 +5031,9 @@ _Machine-contract API for external orchestrators (JSON-first)_
  raw dict verbatim, so this verb does the same.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│    --policy           TEXT  Policy metadata JSON (required)                  │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug [required]                         │
+│    --policy           <str>  Policy metadata JSON (required)                 │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5079,31 +5045,31 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Emit a single lane transition for a WP.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                             TEXT  Mission slug [required]       │
-│ *  --wp                                  TEXT  Work package ID [required]    │
-│ *  --to                                  TEXT  Target lane [required]        │
-│ *  --actor                               TEXT  Actor identity [required]     │
-│    --note                                TEXT  Reason/note for the           │
+│ *  --mission                            <str>  Mission slug [required]       │
+│ *  --wp                                 <str>  Work package ID [required]    │
+│ *  --to                                 <str>  Target lane [required]        │
+│ *  --actor                              <str>  Actor identity [required]     │
+│    --note                               <str>  Reason/note for the           │
 │                                                transition (required with     │
 │                                                --force out of in_review or   │
 │                                                approved)                     │
-│    --policy                              TEXT  Policy metadata JSON          │
+│    --policy                             <str>  Policy metadata JSON          │
 │                                                (required for run-affecting   │
 │                                                lanes)                        │
 │    --force                                     Force the transition          │
-│    --review-ref                          TEXT  Review reference              │
-│    --review-result-json                  TEXT  JSON structured review        │
+│    --review-ref                         <str>  Review reference              │
+│    --review-result-json                 <str>  JSON structured review        │
 │                                                outcome for transitions from  │
 │                                                in_review                     │
-│    --evidence-json                       TEXT  JSON string with done         │
+│    --evidence-json                      <str>  JSON string with done         │
 │                                                evidence                      │
 │    --subtasks-complete                         Whether required subtasks are │
 │                                                complete for                  │
 │                                                in_progress->for_review       │
-│    --implementation-evidence-p…                Whether implementation        │
+│    --implementation-evidence-…                 Whether implementation        │
 │                                                evidence exists for           │
 │                                                in_progress->for_review       │
-│    --help                        -h            Show this message and exit.   │
+│    --help                       -h             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5115,13 +5081,14 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Scaffold plan.md for a Mission.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission slug (e.g., 001-user-authentication) │
-│ --json                          Emit JSON result                             │
-│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
-│                                 checkout that owns this mission. Refuses the │
-│                                 repository root checkout, lane worktrees and │
-│                                 coordination worktrees.                      │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>   Mission slug (e.g.,                        │
+│                                   001-user-authentication)                   │
+│ --json                            Emit JSON result                           │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5159,14 +5126,14 @@ _Plugin bundle commands_
      spec-kitty plugin build --target claude-code --skip-validate
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --target                 TEXT  Plugin target (claude-code, codex).        │
-│                                   [required]                                 │
-│    --output-dir             PATH  Root directory under which the bundle is   │
-│                                   written.                                   │
-│                                   [default: dist/spec-kitty-plugins]         │
-│    --skip-validate                Skip the 'claude plugin validate --strict' │
-│                                   step.                                      │
-│    --help           -h            Show this message and exit.                │
+│ *  --target                 <str>   Plugin target (claude-code, codex).      │
+│                                     [required]                               │
+│    --output-dir             <path>  Root directory under which the bundle is │
+│                                     written.                                 │
+│                                     [default: dist/spec-kitty-plugins]       │
+│    --skip-validate                  Skip the 'claude plugin validate         │
+│                                     --strict' step.                          │
+│    --help           -h              Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5188,6 +5155,7 @@ _Manage invocation records._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Open:  spec-kitty dispatch "<request>"
+
  Close: spec-kitty profile-invocation complete --invocation-id <id> --outcome
  <outcome>
 ```
@@ -5205,16 +5173,16 @@ _Manage invocation records._
  Note: --evidence is rejected for records that are not execution records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --invocation-id  -i      TEXT  Invocation ULID to close [required]        │
-│ *  --outcome                TEXT  done | failed | abandoned [required]       │
-│    --evidence               TEXT  Path to evidence file (Tier 2 promotion)   │
-│    --artifact               TEXT  Path (repo-relative or absolute) or URL of │
-│                                   an artifact produced by this invocation.   │
-│                                   Repeatable.                                │
-│    --commit                 TEXT  Git commit SHA most directly produced by   │
-│                                   this invocation. Singular.                 │
-│    --json                         Output JSON payload                        │
-│    --help           -h            Show this message and exit.                │
+│ *  --invocation-id  -i      <str>  Invocation ULID to close [required]       │
+│ *  --outcome                <str>  done | failed | abandoned [required]      │
+│    --evidence               <str>  Path to evidence file (Tier 2 promotion)  │
+│    --artifact               <str>  Path (repo-relative or absolute) or URL   │
+│                                    of an artifact produced by this           │
+│                                    invocation. Repeatable.                   │
+│    --commit                 <str>  Git commit SHA most directly produced by  │
+│                                    this invocation. Singular.                │
+│    --json                          Output JSON payload                       │
+│    --help           -h             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5260,12 +5228,12 @@ _Manage and list agent profiles._
 ## spec-kitty profiles show
 
 ```
- Usage: spec-kitty profiles show [OPTIONS] PROFILE_ID
+ Usage: spec-kitty profiles show [OPTIONS] {profile_id}
 
  Show the full resolved definition of an agent profile (FR-013/014/015).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+│ *    profile_id      <str>  Profile ID to show. [required]                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output JSON object.                                        │
@@ -5286,11 +5254,11 @@ _Reconcile a mission dossier against its recorded snapshot (exit 0=parity, non-z
  non-zero=divergence).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug to reconcile against its recorded   │
-│                             snapshot                                         │
-│                             [required]                                       │
-│    --json                   Emit a machine-readable JSON result              │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug to reconcile against its recorded  │
+│                              snapshot                                        │
+│                              [required]                                      │
+│    --json                    Emit a machine-readable JSON result             │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5324,13 +5292,13 @@ _Regenerate the committed generated agent-command + skill fixtures from source (
  Scaffold research artifacts from the mission type's shipped templates.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission slug to target                       │
-│ --force                         Overwrite existing research artifacts        │
-│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
-│                                 checkout that owns this mission. Refuses the │
-│                                 repository root checkout, lane worktrees and │
-│                                 coordination worktrees.                      │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>   Mission slug to target                     │
+│ --force                           Overwrite existing research artifacts      │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5368,19 +5336,20 @@ _Author retrospective records for historical missions in bulk._
  Per-mission failures are NOT fatal; aggregate report shows them.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --since                  TEXT  Only consider missions completed on or after  │
-│                                this ISO date (default: 30 days ago)          │
-│ --until                  TEXT  Only consider missions completed on or before │
-│                                this ISO date (default: now)                  │
-│ --mission                TEXT  Restrict backfill to a single mission handle  │
-│ --dry-run                      Report what would be authored without writing │
-│ --emit-skipped                 Append a RetrospectiveSkipped event for       │
-│                                skipped missions                              │
-│ --emit-failures                Append RetrospectiveCaptureFailed events for  │
-│                                failed missions                               │
-│ --json                         Emit a single aggregate JSON object at the    │
-│                                end                                           │
-│ --help           -h            Show this message and exit.                   │
+│ --since                  <str>  Only consider missions completed on or after │
+│                                 this ISO date (default: 30 days ago)         │
+│ --until                  <str>  Only consider missions completed on or       │
+│                                 before this ISO date (default: now)          │
+│ --mission                <str>  Restrict backfill to a single mission handle │
+│ --dry-run                       Report what would be authored without        │
+│                                 writing                                      │
+│ --emit-skipped                  Append a RetrospectiveSkipped event for      │
+│                                 skipped missions                             │
+│ --emit-failures                 Append RetrospectiveCaptureFailed events for │
+│                                 failed missions                              │
+│ --json                          Emit a single aggregate JSON object at the   │
+│                                 end                                          │
+│ --help           -h             Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5397,16 +5366,16 @@ _Author a retrospective for one completed mission._
  and writes the record. Use --overwrite or --update to handle existing records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission            TEXT  Mission handle (mission_id, mid8, or           │
-│                               mission_slug)                                  │
-│                               [required]                                     │
-│    --overwrite                Replace an existing record (mutually exclusive │
-│                               with --update)                                 │
-│    --update                   Merge into an existing record (mutually        │
-│                               exclusive with --overwrite)                    │
-│    --json                     Emit structured JSON output instead of Rich    │
-│                               rendering                                      │
-│    --help       -h            Show this message and exit.                    │
+│ *  --mission            <str>  Mission handle (mission_id, mid8, or          │
+│                                mission_slug)                                 │
+│                                [required]                                    │
+│    --overwrite                 Replace an existing record (mutually          │
+│                                exclusive with --update)                      │
+│    --update                    Merge into an existing record (mutually       │
+│                                exclusive with --overwrite)                   │
+│    --json                      Emit structured JSON output instead of Rich   │
+│                                rendering                                     │
+│    --help       -h             Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5428,24 +5397,24 @@ _Cross-mission retrospective summary._
  No mutation is performed.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project                    PATH                    Project root (default:  │
+│ --project                    <path>                  Project root (default:  │
 │                                                      current working         │
 │                                                      directory)              │
 │ --json                                               Emit JSON to stdout     │
 │                                                      instead of Rich         │
 │                                                      rendering               │
-│ --json-out                   PATH                    Also write JSON to this │
+│ --json-out                   <path>                  Also write JSON to this │
 │                                                      file path               │
-│ --limit                      INTEGER RANGE           Top-N for ranked        │
+│ --limit                      <int range>             Top-N for ranked        │
 │                              [1<=x<=100]             sections (default: 20)  │
 │                                                      [default: 20]           │
-│ --since                      TEXT                    ISO-8601 date; only     │
+│ --since                      <str>                   ISO-8601 date; only     │
 │                                                      include missions        │
 │                                                      started on or after     │
 │                                                      DATE                    │
 │ --include-malformed                                  Include malformed       │
 │                                                      record detail in output │
-│ --filter                     TEXT                    Only show missions in   │
+│ --filter                     <str>                   Only show missions in   │
 │                                                      this record state       │
 │                                                      (has_findings|ran_no_f… │
 │ --help               -h                              Show this message and   │
@@ -5465,43 +5434,43 @@ _Cross-mission retrospective summary._
  dead-code scan step.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission handle (id, mid8, or slug).                 │
-│ --mode             TEXT  Review mode: 'lightweight' (consistency check only) │
-│                          or 'post-merge' (full release-gate contract).       │
-│                          Auto-detected from meta.json.baseline_merge_commit  │
-│                          when omitted.                                       │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission handle (id, mid8, or slug).                │
+│ --mode             <str>  Review mode: 'lightweight' (consistency check      │
+│                           only) or 'post-merge' (full release-gate           │
+│                           contract). Auto-detected from                      │
+│                           meta.json.baseline_merge_commit when omitted.      │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty safe-commit
 
 ```
- Usage: spec-kitty safe-commit [OPTIONS] FILES...
+ Usage: spec-kitty safe-commit [OPTIONS] {files}...
 
  Commit only the requested files via Spec Kitty's safe-commit path.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    files      FILES...  Files or directories to commit, relative to the    │
-│                           current worktree root or absolute. Directory       │
-│                           arguments expand to their contained                │
-│                           changed/untracked files with an explicit expansion │
-│                           report.                                            │
-│                           [required]                                         │
+│ *    files      <path>  Files or directories to commit, relative to the      │
+│                         current worktree root or absolute. Directory         │
+│                         arguments expand to their contained                  │
+│                         changed/untracked files with an explicit expansion   │
+│                         report.                                              │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message    -m      TEXT  Commit message. Repeat -m to add paragraphs    │
-│                               (joined by a blank line, the same way git      │
-│                               does).                                         │
-│                               [required]                                     │
-│    --to-branch          TEXT  Short branch name the commit must land on. The │
-│                               helper asserts HEAD matches this branch before │
-│                               staging. When omitted, the current HEAD branch │
-│                               is used (deprecated; --to-branch becomes       │
-│                               required in v3.3). This is the only            │
-│                               destination authority — no env-var inference.  │
-│    --json                     Output JSON                                    │
-│    --help       -h            Show this message and exit.                    │
+│ *  --message    -m      <str>  Commit message. Repeat -m to add paragraphs   │
+│                                (joined by a blank line, the same way git     │
+│                                does).                                        │
+│                                [required]                                    │
+│    --to-branch          <str>  Short branch name the commit must land on.    │
+│                                The helper asserts HEAD matches this branch   │
+│                                before staging. When omitted, the current     │
+│                                HEAD branch is used (deprecated; --to-branch  │
+│                                becomes required in v3.3). This is the only   │
+│                                destination authority — no env-var inference. │
+│    --json                      Output JSON                                   │
+│    --help       -h             Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5536,14 +5505,14 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ## spec-kitty spec-commit
 
 ```
- Usage: spec-kitty spec-commit [OPTIONS] FILES...
+ Usage: spec-kitty spec-commit [OPTIONS] {files}...
 
  Commit spec artifacts to the mission's resolved placement.
 
  SPEC is a primary/planning artifact: it lands on the mission's primary target
  branch for every topology. On an unprotected or flattened primary the commit
  is direct. On a PROTECTED primary the commit is refused (there is no fallback
- surface); recover by either creating/checking out a non-protected topic
+ surface); recover by either creating/checking out a non-protected feature
  branch ('spec-kitty agent mission create --start-branch <topic-branch>') or
  setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
  branch.
@@ -5551,54 +5520,55 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
  Pass individual FILES, not directories.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
-│                           paths). Must belong to the mission resolved via    │
-│                           --mission or the kitty-specs/<slug>/ path.         │
-│                           [required]                                         │
+│ *    files      <path>  Spec artifacts to commit (absolute or relative       │
+│                         paths). Must belong to the mission resolved via      │
+│                         --mission or the kitty-specs/<slug>/ path.           │
+│                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message         -m      TEXT  Commit message. Repeat -m to add          │
-│                                    paragraphs (joined by a blank line, the   │
-│                                    same way git does).                       │
-│                                    [required]                                │
-│    --mission                 TEXT  Mission slug (e.g. '001-my-mission').     │
-│                                    When omitted, the slug is derived from    │
-│                                    the first file argument's                 │
-│                                    kitty-specs/<slug>/ path.                 │
-│    --target-branch           TEXT  Short TARGET branch name for this Mission │
-│                                    (not the repository-root checkout).       │
-│                                    Passed to the commit router for placement │
-│                                    resolution and, on an --owned-checkout    │
-│                                    run, as the owned checkout's target       │
-│                                    override. No longer used for a            │
-│                                    post-commit fast-forward -- that          │
-│                                    best-effort advance was retired (FR-008). │
-│                                    Optional.                                 │
-│    --json                          Output JSON.                              │
-│    --owned-checkout          PATH  Run against an owned checkout: a linked   │
-│                                    checkout that owns this mission. Refuses  │
-│                                    the repository root checkout, lane        │
-│                                    worktrees and coordination worktrees.     │
-│    --help            -h            Show this message and exit.               │
+│ *  --message         -m      <str>   Commit message. Repeat -m to add        │
+│                                      paragraphs (joined by a blank line, the │
+│                                      same way git does).                     │
+│                                      [required]                              │
+│    --mission                 <str>   Mission slug (e.g. '001-my-mission').   │
+│                                      When omitted, the slug is derived from  │
+│                                      the first file argument's               │
+│                                      kitty-specs/<slug>/ path.               │
+│    --target-branch           <str>   Short TARGET branch name for this       │
+│                                      Mission (not the repository-root        │
+│                                      checkout). Passed to the commit router  │
+│                                      for placement resolution and, on an     │
+│                                      --owned-checkout run, as the owned      │
+│                                      checkout's target override. No longer   │
+│                                      used for a post-commit fast-forward --  │
+│                                      that best-effort advance was retired    │
+│                                      (FR-008). Optional.                     │
+│    --json                            Output JSON.                            │
+│    --owned-checkout          <path>  Run against an owned checkout: a linked │
+│                                      checkout that owns this mission.        │
+│                                      Refuses the repository root checkout,   │
+│                                      lane worktrees and coordination         │
+│                                      worktrees.                              │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty specify
 
 ```
- Usage: spec-kitty specify [OPTIONS] MISSION
+ Usage: spec-kitty specify [OPTIONS] {mission}
 
  Create a feature scaffold in kitty-specs/.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission      TEXT  Mission name or slug (e.g., user-authentication)     │
-│                         [required]                                           │
+│ *    mission      <str>  Mission name or slug (e.g., user-authentication)    │
+│                          [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type          TEXT                      Mission type (e.g.,        │
+│ --mission-type          <str>                     Mission type (e.g.,        │
 │                                                   software-dev, research)    │
-│ --topology              [single_branch|lanes|coo  Create-time mission shape: │
-│                         rd|lanes_with_coord]      single_branch | lanes |    │
+│ --topology              <single_branch|lanes|coo  Create-time mission shape: │
+│                         rd|lanes_with_coord>      single_branch | lanes |    │
 │                                                   coord | lanes_with_coord.  │
 │                                                   Coordination-bearing       │
 │                                                   shapes (coord,             │
@@ -5630,9 +5600,9 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
  Finalize tasks metadata after task generation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (e.g., 001-user-authentication)        │
-│ --json                   Emit JSON result                                    │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug (e.g., 001-user-authentication)       │
+│ --json                    Emit JSON result                                   │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5649,14 +5619,12 @@ _Task tracker commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ providers     List supported tracker providers, categorized by backend type. │
-│ discover      Discover bindable tracker resources under your installation.   │
-│ bind          Bind the current project to an issue tracker.                  │
-│ status        Show tracker binding and sync status.                          │
-│ list-tickets  Browse visible tickets for the resolved provider resource.     │
-│ unbind        Remove tracker binding for this project.                       │
-│ map           Work-package mapping commands                                  │
-│ sync          Tracker synchronization commands                               │
+│ providers  List supported tracker providers.                                 │
+│ bind       Bind the current project to a local issue tracker (beads, fp).    │
+│ status     Show tracker binding and sync status.                             │
+│ unbind     Remove tracker binding for this project.                          │
+│ map        Work-package mapping commands                                     │
+│ sync       Tracker synchronization commands                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5665,75 +5633,21 @@ _Task tracker commands_
 ```
  Usage: spec-kitty tracker bind [OPTIONS]
 
- Bind the current project to an issue tracker.
+ Bind the current project to a local issue tracker (beads, fp).
 
- For SaaS-backed providers (linear, jira, github, gitlab):
-   Uses discovery to find bindable resources automatically.
-   Use --bind-ref for CI/automation, --select N for non-interactive.
-   Needs a hosted Team Kitty sign-in (no longer actively supported).
-
- For local providers (beads, fp):
-   Requires --provider, --workspace, and --credential flags.
+ Requires --provider and --workspace; --credential supplies connector
+ credentials stored locally.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --provider                TEXT     Provider name (linear, jira, github,   │
-│                                       gitlab, beads, fp)                     │
-│                                       [required]                             │
-│    --bind-ref                TEXT     Binding reference for CI/automation    │
-│                                       (validates against host)               │
-│    --select                  INTEGER  Auto-select candidate by number        │
-│                                       (non-interactive)                      │
-│    --workspace               TEXT     Provider workspace/team/project        │
-│                                       identifier (local providers only)      │
-│    --ownership-mode          TEXT     Ownership mode: external_authoritative │
-│                                       | spec_kitty_authoritative |           │
-│                                       split_ownership                        │
-│    --field-owner             TEXT     Split ownership mapping: field=owner   │
-│                                       (local providers only)                 │
-│    --credential              TEXT     Provider credential key/value:         │
-│                                       key=value (local providers only)       │
-│    --help            -h               Show this message and exit.            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty tracker discover
-
-```
- Usage: spec-kitty tracker discover [OPTIONS]
-
- Discover bindable tracker resources under your installation.
-
- Lists all resources (projects, teams, boards) available for binding
- with the specified provider.  Each row is numbered 1-indexed to align
- with ``tracker bind --select N``.
-
- ``discover`` is explicitly the *pre-binding* command — it is how users
- find something to bind to — so it MUST NOT require an existing mission
- binding.  Requiring a binding here would make fresh bind flows
- impossible.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --provider          TEXT  Provider name [required]                        │
-│    --json                    Output as JSON                                  │
-│    --help      -h            Show this message and exit.                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty tracker list-tickets
-
-```
- Usage: spec-kitty tracker list-tickets [OPTIONS]
-
- Browse visible tickets for the resolved provider resource.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --provider          TEXT                       Tracker provider slug      │
-│                                                   [required]                 │
-│    --limit             INTEGER RANGE [1<=x<=100]  [default: 20]              │
-│    --json                                         Render tickets as a JSON   │
-│                                                   array                      │
-│    --help      -h                                 Show this message and      │
-│                                                   exit.                      │
+│ *  --provider                <str>  Provider name (beads, fp) [required]     │
+│    --workspace               <str>  Provider workspace/team/project          │
+│                                     identifier                               │
+│    --ownership-mode          <str>  Ownership mode: external_authoritative | │
+│                                     spec_kitty_authoritative |               │
+│                                     split_ownership                          │
+│    --field-owner             <str>  Split ownership mapping: field=owner     │
+│    --credential              <str>  Provider credential key/value: key=value │
+│    --help            -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5751,7 +5665,7 @@ _Work-package mapping commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ add   Add or update a WP-to-external issue mapping.                          │
-│ list  List tracker mappings.                                                 │
+│ list  List tracker mappings from the local SQLite database.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5762,17 +5676,14 @@ _Work-package mapping commands_
 
  Add or update a WP-to-external issue mapping.
 
- For local providers: stores the mapping in the local SQLite database.
-
- For SaaS-backed providers: this command is not available.  Manage
- mappings in the Spec Kitty dashboard instead.
+ Stores the mapping in the local SQLite database.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --wp-id                 TEXT  Work package ID (e.g., WP01) [required]     │
-│ *  --external-id           TEXT  External issue ID [required]                │
-│    --external-key          TEXT  External issue key                          │
-│    --external-url          TEXT  External issue URL                          │
-│    --help          -h            Show this message and exit.                 │
+│ *  --wp-id                 <str>  Work package ID (e.g., WP01) [required]    │
+│ *  --external-id           <str>  External issue ID [required]               │
+│    --external-key          <str>  External issue key                         │
+│    --external-url          <str>  External issue URL                         │
+│    --help          -h             Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5781,18 +5692,11 @@ _Work-package mapping commands_
 ```
  Usage: spec-kitty tracker map list [OPTIONS]
 
- List tracker mappings.
-
- For local providers: shows mappings from the local SQLite database.
-
- For SaaS-backed providers: shows SaaS-authoritative mappings from the
- control plane.
+ List tracker mappings from the local SQLite database.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --provider          TEXT  Read SaaS mappings by provider without requiring a │
-│                           bound project                                      │
-│ --json                    Render mappings as JSON                            │
-│ --help      -h            Show this message and exit.                        │
+│ --json            Render mappings as JSON                                    │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5801,18 +5705,15 @@ _Work-package mapping commands_
 ```
  Usage: spec-kitty tracker providers [OPTIONS]
 
- List supported tracker providers, categorized by backend type.
+ List supported tracker providers.
 
- SaaS-backed providers need a hosted Team Kitty sign-in, which is no
- longer actively supported (ADR 2026-10-06-1), and
- route sync operations through the Spec Kitty SaaS control plane.
-
- Local providers use direct connectors with locally stored credentials.
+ Local providers use direct connectors with locally stored credentials. The
+ former SaaS/hosted providers (linear, jira, github, gitlab) are no longer
+ supported (#6164) and are listed only to explain the refusal a bind for one
+ of them produces.
 
  This command is purely informational and prints the hard-coded provider
- categories.  It does **not** consult hosted readiness — ``tracker_callback``
- is the sole rollout gate for the tracker Typer app, which is all the
- gating this static output needs.
+ categories.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Render provider list as JSON                               │
@@ -5827,16 +5728,10 @@ _Work-package mapping commands_
 
  Show tracker binding and sync status.
 
- For SaaS-backed providers: displays identity path, sync state, and
- provider info from the SaaS control plane.
-
- For local providers: displays local cache statistics and configuration.
-
- With --all: shows installation-wide summary across all bindings
- (SaaS providers only).
+ Displays local cache statistics and configuration for the bound local
+ provider.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --all             Show installation-wide status (SaaS providers only)        │
 │ --json            Render status as JSON                                      │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -5855,9 +5750,11 @@ _Tracker synchronization commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ pull     Pull tracker updates into the local cache.                          │
-│ push     Push explicit mutations to the upstream provider.                   │
-│ run      Run pull+push synchronization in one operation.                     │
+│ pull     Pull tracker updates into the local cache via the direct connector. │
+│ push     Push local mutations to the upstream provider via the direct        │
+│          connector.                                                          │
+│ run      Run pull+push synchronization in one operation via the direct       │
+│          connector.                                                          │
 │ publish  Publish local tracker snapshot.                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -5869,11 +5766,8 @@ _Tracker synchronization commands_
 
  Publish local tracker snapshot.
 
- This command is not supported for SaaS-backed providers.  Use
- ``spec-kitty tracker sync push`` instead.
-
- For local providers: the facade will raise an error if this operation
- is not supported by the bound provider.
+ Local providers (beads/fp) have no snapshot-publish transport; the facade
+ raises a clean error directing the operator to ``tracker sync push``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Render publish result as JSON                              │
@@ -5886,17 +5780,12 @@ _Tracker synchronization commands_
 ```
  Usage: spec-kitty tracker sync pull [OPTIONS]
 
- Pull tracker updates into the local cache.
-
- For SaaS-backed providers: pulls items via the SaaS control plane.
- The response includes an identity_path and summary envelope.
-
- For local providers: pulls directly from the tracker API.
+ Pull tracker updates into the local cache via the direct connector.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --limit          INTEGER RANGE [1<=x<=10000]  [default: 100]                 │
-│ --json                                        Render sync result as JSON     │
-│ --help   -h                                   Show this message and exit.    │
+│ --limit          <int range> [1<=x<=10000]  [default: 100]                   │
+│ --json                                      Render sync result as JSON       │
+│ --help   -h                                 Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5905,26 +5794,12 @@ _Tracker synchronization commands_
 ```
  Usage: spec-kitty tracker sync push [OPTIONS]
 
- Push explicit mutations to the upstream provider.
-
- For SaaS-backed providers: requires --items-json with a JSON array of
- PushItem objects per the PRI-12 TrackerPushRequest contract.  Each item
- must have ``ref``, ``action``, and optionally ``patch`` / ``target_status``.
-
- For full bidirectional sync, use ``tracker sync run`` instead.
-
- For local providers: pushes directly to the tracker API using --limit.
+ Push local mutations to the upstream provider via the direct connector.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --limit               INTEGER RANGE              Max items (local providers  │
-│                       [1<=x<=10000]              only)                       │
-│                                                  [default: 100]              │
-│ --items-json          TEXT                       Path to JSON file with      │
-│                                                  PushItem[] array (SaaS      │
-│                                                  providers). Use '-' for     │
-│                                                  stdin.                      │
-│ --json                                           Render sync result as JSON  │
-│ --help        -h                                 Show this message and exit. │
+│ --limit          <int range> [1<=x<=10000]  Max items [default: 100]         │
+│ --json                                      Render sync result as JSON       │
+│ --help   -h                                 Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5933,17 +5808,12 @@ _Tracker synchronization commands_
 ```
  Usage: spec-kitty tracker sync run [OPTIONS]
 
- Run pull+push synchronization in one operation.
-
- For SaaS-backed providers: executes a full sync cycle via the SaaS
- control plane.
-
- For local providers: runs pull then push using direct connectors.
+ Run pull+push synchronization in one operation via the direct connector.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --limit          INTEGER RANGE [1<=x<=10000]  [default: 100]                 │
-│ --json                                        Render sync result as JSON     │
-│ --help   -h                                   Show this message and exit.    │
+│ --limit          <int range> [1<=x<=10000]  [default: 100]                   │
+│ --json                                      Render sync result as JSON       │
+│ --help   -h                                 Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5953,9 +5823,6 @@ _Tracker synchronization commands_
  Usage: spec-kitty tracker unbind [OPTIONS]
 
  Remove tracker binding for this project.
-
- For SaaS-backed providers this clears only local project configuration.
- Provider unlinking remains a SaaS dashboard action.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -6005,24 +5872,24 @@ _Tracker synchronization commands_
      spec-kitty upgrade --dry-run --json  # Machine-readable plan
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                     Preview changes without applying               │
-│ --force                       Skip confirmation prompts                      │
-│ --target                TEXT  Target version (defaults to current CLI        │
-│                               version)                                       │
-│ --json                        Output results as JSON                         │
-│ --plan-json                   Output the complete preview plan as JSON       │
-│ --verbose       -v            Show detailed migration information            │
-│ --no-worktrees                Skip upgrading worktrees                       │
-│ --cli                         Restrict to CLI guidance only; works outside   │
-│                               any project (FR-014)                           │
-│ --project                     Restrict to current-project compat +           │
-│                               migrations (FR-015)                            │
-│ --yes           -y            Non-interactive confirmation; alias for        │
-│                               --force (FR-017). Upgrade never runs the       │
-│                               mission-state repair; use `spec-kitty doctor   │
-│                               mission-state --fix`.                          │
-│ --no-nag                      Suppress upgrade-nag output explicitly         │
-│ --help                        Show this message and exit.                    │
+│ --dry-run                      Preview changes without applying              │
+│ --force                        Skip confirmation prompts                     │
+│ --target                <str>  Target version (defaults to current CLI       │
+│                                version)                                      │
+│ --json                         Output results as JSON                        │
+│ --plan-json                    Output the complete preview plan as JSON      │
+│ --verbose       -v             Show detailed migration information           │
+│ --no-worktrees                 Skip upgrading worktrees                      │
+│ --cli                          Restrict to CLI guidance only; works outside  │
+│                                any project (FR-014)                          │
+│ --project                      Restrict to current-project compat +          │
+│                                migrations (FR-015)                           │
+│ --yes           -y             Non-interactive confirmation; alias for       │
+│                                --force (FR-017). Upgrade never runs the      │
+│                                mission-state repair; use `spec-kitty doctor  │
+│                                mission-state --fix`.                         │
+│ --no-nag                       Suppress upgrade-nag output explicitly        │
+│ --help                         Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6038,13 +5905,13 @@ _Tracker synchronization commands_
  by replacing problematic characters with safe alternatives.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                     TEXT  Mission slug to validate                 │
-│ --fix                               Automatically fix encoding errors by     │
-│                                     sanitizing files                         │
-│ --all                               Check all features, not just one         │
-│ --backup       --no-backup          Create .bak files before fixing          │
-│                                     [default: backup]                        │
-│ --help     -h                       Show this message and exit.              │
+│ --mission                     <str>  Mission slug to validate                │
+│ --fix                                Automatically fix encoding errors by    │
+│                                      sanitizing files                        │
+│ --all                                Check all features, not just one        │
+│ --backup       --no-backup           Create .bak files before fixing         │
+│                                      [default: backup]                       │
+│ --help     -h                        Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6063,12 +5930,12 @@ _Tracker synchronization commands_
  to ensure canonical status state exists.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission            TEXT  Mission slug to validate                          │
-│ --fix                      Automatically repair metadata inconsistencies     │
-│ --all                      Check all features, not just one                  │
-│ --agent              TEXT  Agent name for activity log                       │
-│ --shell-pid          TEXT  Shell PID for activity log                        │
-│ --help       -h            Show this message and exit.                       │
+│ --mission            <str>  Mission slug to validate                         │
+│ --fix                       Automatically repair metadata inconsistencies    │
+│ --all                       Check all features, not just one                 │
+│ --agent              <str>  Agent name for activity log                      │
+│ --shell-pid          <str>  Shell PID for activity log                       │
+│ --help       -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6080,13 +5947,13 @@ _Tracker synchronization commands_
  Verify that the current environment matches Spec Kitty expectations.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug to verify                          │
-│ --json                       Output in JSON format for AI agents             │
-│ --check-files                Check mission file integrity [default: True]    │
-│ --check-tools                Check for installed development tools           │
-│                              [default: True]                                 │
-│ --diagnostics                Show detailed project diagnostics               │
-│ --help         -h            Show this message and exit.                     │
+│ --mission              <str>  Mission slug to verify                         │
+│ --json                        Output in JSON format for AI agents            │
+│ --check-files                 Check mission file integrity [default: True]   │
+│ --check-tools                 Check for installed development tools          │
+│                               [default: True]                                │
+│ --diagnostics                 Show detailed project diagnostics              │
+│ --help         -h             Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6112,39 +5979,39 @@ _Manage mission workflow definitions_
 ## spec-kitty workflow export
 
 ```
- Usage: spec-kitty workflow export [OPTIONS] WORKFLOW_ID OUTPUT
+ Usage: spec-kitty workflow export [OPTIONS] {workflow_id} {output}
 
  Export a resolvable workflow YAML file.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    workflow_id      TEXT  Workflow id to export. [required]                │
-│ *    output           PATH  Destination file or directory. [required]        │
+│ *    workflow_id      <str>   Workflow id to export. [required]              │
+│ *    output           <path>  Destination file or directory. [required]      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project-root          PATH  Project root used for .kittify workflow        │
-│                               discovery.                                     │
-│                               [default: .]                                   │
-│ --force                       Overwrite an existing destination file.        │
-│ --help          -h            Show this message and exit.                    │
+│ --project-root          <path>  Project root used for .kittify workflow      │
+│                                 discovery.                                   │
+│                                 [default: .]                                 │
+│ --force                         Overwrite an existing destination file.      │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty workflow import
 
 ```
- Usage: spec-kitty workflow import [OPTIONS] SOURCE
+ Usage: spec-kitty workflow import [OPTIONS] {source}
 
  Import a workflow YAML into `.kittify/overrides/workflows`.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    source      PATH  Workflow YAML file to import. [required]              │
+│ *    source      <path>  Workflow YAML file to import. [required]            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project-root          PATH  Project root that receives the workflow        │
-│                               override.                                      │
-│                               [default: .]                                   │
-│ --force                       Overwrite an existing workflow file.           │
-│ --help          -h            Show this message and exit.                    │
+│ --project-root          <path>  Project root that receives the workflow      │
+│                                 override.                                    │
+│                                 [default: .]                                 │
+│ --force                         Overwrite an existing workflow file.         │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6156,10 +6023,10 @@ _Manage mission workflow definitions_
  List workflow ids available to a project.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project-root          PATH  Project root used for .kittify workflow        │
-│                               discovery.                                     │
-│                               [default: .]                                   │
-│ --help          -h            Show this message and exit.                    │
+│ --project-root          <path>  Project root used for .kittify workflow      │
+│                                 discovery.                                   │
+│                                 [default: .]                                 │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

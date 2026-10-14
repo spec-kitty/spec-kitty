@@ -713,24 +713,16 @@ def test_plan_interview_persists_canonical_slug_across_handle_forms(
     from typer.testing import CliRunner
 
     from specify_cli.cli.commands import lifecycle
-    from specify_cli.widen.models import PrereqState
 
     monkeypatch.chdir(repo)
     # The seam under test is the interview block's mission-slug derivation;
-    # the plan scaffold itself is covered by the lifecycle/widen suites.
+    # the plan scaffold itself is covered by the lifecycle suite.
     # String form: lifecycle binds `agent.mission as agent_feature` (a
     # non-reexported module alias), so patch the canonical module attribute —
     # the SAME object lifecycle calls through — keeping mypy's
     # no-implicit-reexport check clean.
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.mission.setup_plan", lambda **_kw: None
-    )
-    # Keep the widen affordance offline (its setup is non-fatal by design).
-    monkeypatch.setattr(
-        "specify_cli.widen.check_prereqs",
-        lambda *_a, **_kw: PrereqState(
-            teamspace_ok=False, slack_ok=False, saas_reachable=False
-        ),
     )
 
     app = typer.Typer()

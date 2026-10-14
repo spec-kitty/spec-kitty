@@ -38,7 +38,6 @@ from tests.terminus.conftest import _git_out as git_out
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 RUNNER = CliRunner()
-_FANOUT_EDGE = "specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"
 _DONE_EVIDENCE = {"review": {"reviewer": "reviewer-renata", "verdict": "approved", "reference": "review-WP01"}}
 _UNPROTECTED_TARGET = "feature/retrospect-coord"
 _COMPLETED_AT = "2026-04-27T09:00:00+00:00"
@@ -74,8 +73,7 @@ def _completed_coord_mission(tmp_path: Path, *, target_branch: str = "main") -> 
 
 def _run(repo: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> Any:
     monkeypatch.chdir(repo)
-    with patch(_FANOUT_EDGE):
-        return RUNNER.invoke(retrospect_app, [*args, "--json"])
+    return RUNNER.invoke(retrospect_app, [*args, "--json"])
 
 
 def _run_create(repo: Path, slug: str, monkeypatch: pytest.MonkeyPatch) -> tuple[int, str, str]:
@@ -242,14 +240,13 @@ def test_fabricate_empty_record_writes_the_captured_event_to_the_coordination_su
     primary_log_before = (repo / events_rel).read_text(encoding="utf-8")
 
     monkeypatch.chdir(repo)
-    with patch(_FANOUT_EDGE):
-        _create_empty_retrospective_record(
-            repo_root=repo,
-            mission_id=mission.mission_id,
-            mission_slug=mission.slug,
-            feature_dir=repo / "kitty-specs" / mission.slug,
-            actor=ActorRef(kind="agent", id="agent"),
-        )
+    _create_empty_retrospective_record(
+        repo_root=repo,
+        mission_id=mission.mission_id,
+        mission_slug=mission.slug,
+        feature_dir=repo / "kitty-specs" / mission.slug,
+        actor=ActorRef(kind="agent", id="agent"),
+    )
 
     # The canonical (coordination) log gained exactly one RetrospectiveCaptured row.
     coord_log = (coord_root / events_rel).read_text(encoding="utf-8")

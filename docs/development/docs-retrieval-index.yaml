@@ -4244,7 +4244,6 @@ pages:
     - {slug: "spec-kitty-migrate-rewrite-opposed-by", text: "spec-kitty migrate rewrite-opposed-by", level: 2}
     - {slug: "spec-kitty-mission", text: "spec-kitty mission", level: 2}
     - {slug: "spec-kitty-mission-close", text: "spec-kitty mission close", level: 2}
-    - {slug: "spec-kitty-mission-create", text: "spec-kitty mission create", level: 2}
     - {slug: "spec-kitty-mission-current", text: "spec-kitty mission current", level: 2}
     - {slug: "spec-kitty-mission-follow-up", text: "spec-kitty mission follow-up", level: 2}
     - {slug: "spec-kitty-mission-info", text: "spec-kitty mission info", level: 2}
@@ -4255,7 +4254,6 @@ pages:
     - {slug: "spec-kitty-mission-switch", text: "spec-kitty mission switch", level: 2}
     - {slug: "spec-kitty-mission-type", text: "spec-kitty mission-type", level: 2}
     - {slug: "spec-kitty-mission-type-close", text: "spec-kitty mission-type close", level: 2}
-    - {slug: "spec-kitty-mission-type-create", text: "spec-kitty mission-type create", level: 2}
     - {slug: "spec-kitty-mission-type-current", text: "spec-kitty mission-type current", level: 2}
     - {slug: "spec-kitty-mission-type-follow-up", text: "spec-kitty mission-type follow-up", level: 2}
     - {slug: "spec-kitty-mission-type-info", text: "spec-kitty mission-type info", level: 2}
@@ -4320,8 +4318,6 @@ pages:
     - {slug: "spec-kitty-tasks", text: "spec-kitty tasks", level: 2}
     - {slug: "spec-kitty-tracker", text: "spec-kitty tracker", level: 2}
     - {slug: "spec-kitty-tracker-bind", text: "spec-kitty tracker bind", level: 2}
-    - {slug: "spec-kitty-tracker-discover", text: "spec-kitty tracker discover", level: 2}
-    - {slug: "spec-kitty-tracker-list-tickets", text: "spec-kitty tracker list-tickets", level: 2}
     - {slug: "spec-kitty-tracker-map", text: "spec-kitty tracker map", level: 2}
     - {slug: "spec-kitty-tracker-map-add", text: "spec-kitty tracker map add", level: 2}
     - {slug: "spec-kitty-tracker-map-list", text: "spec-kitty tracker map list", level: 2}

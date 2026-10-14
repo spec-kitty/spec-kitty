@@ -31,12 +31,11 @@
     "next": 0.826087,
     "lanes": 0.944444,
     "upgrade": 0.845238,
-    "cli": 0.887097,
+    "cli": 0.810345,
     "charter": 0.93253,
     "agent": 0.025316,
     "kernel": 1.0,
-    "glossary": 0.727273,
-    "auth": 0.956522
+    "glossary": 0.727273
   },
   "truly_dark_packages": [
     "charter.assets",
@@ -73,6 +72,7 @@
     "specify_cli.intake_sources",
     "specify_cli.missions.plan",
     "specify_cli.plan_validation",
+    "specify_cli.readiness",
     "specify_cli.session_presence.hooks",
     "specify_cli.state",
     "specify_cli.text_sanitization",

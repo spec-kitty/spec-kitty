@@ -289,7 +289,6 @@ modules:
   - src/specify_cli/charter_pack_synthesizer/**
   - src/specify_cli/status/**
   - src/specify_cli/tool_surface/**
-  - src/specify_cli/zeitgeist_client/**
   cov_targets:
   - specify_cli
   - glossary
@@ -316,7 +315,6 @@ modules:
   # ownership-boundary-preservation-01M32KEN: the new asset-preservation guard's
   # unit tests, claimed alongside its tool_surface sibling so they run per-PR.
   - tests/specify_cli/asset_preservation
-  - tests/zeitgeist_client
   # ci-coverage-honesty-01M3CZVN (WP02 T008/T010, FR-005/FR-009): enrol five
   # previously out-of-matrix trees into this aggregate row's per-PR execution so
   # the src packages they exercise leave the in-matrix-dark baseline. This row's
@@ -331,7 +329,6 @@ modules:
   # shard_count re-measured in T009 (capture_shard_timings.py --module core_misc).
   - tests/calibration
   - tests/specify_cli/config
-  - tests/specify_cli/live_work
   - tests/specify_cli/tasks_authoring
   - tests/specify_cli/bootstrap
   # single_branch topology honesty (#5100/#5115): the resolver-arm and
@@ -435,27 +432,11 @@ modules:
   shard_count: 1
   test_dirs:
   - tests/ci
-- module: auth
-  roots:
-  - src/specify_cli/auth/**
-  cov_targets:
-  - specify_cli.auth
-  tier: standard
-  # SECURITY-CRITICAL new-row-via-scrub (spec-kitty#4374 WP03 T011, Phase-S capped
-  # promotion set): the ONE new-row-via-scrub this mission's cap permits. Minted via
-  # tests/release/ci_retirement_scrub.json's `auth` group (roots/cov_targets mirrored
-  # verbatim, per test_registry_consumes_scrub_verbatim_no_divergent_rescrub). Parent-only
-  # test_dirs claim (tests/auth); the concurrency/integration/secure_storage/stress
-  # subdirs are covered by recursion, never listed separately (non-nesting guard).
-  # Verified NOT blocked by the registry's 20-reusable-workflow-ceiling comment: all
-  # modules[] rows share ONE `uses: ./.github/workflows/module-tests.yml` reference via
-  # strategy.matrix (ci-modules.yml:293-297) -- a 21st row is one more matrix cell, not a
-  # new `uses:` reference. Measured basis: scripts/ci/capture_shard_timings.py --module
-  # auth --write (see ci-shard-timings.json for run-id/duration) -- shard_count stays 1,
-  # far inside the 30m shard budget.
-  shard_count: 1
-  test_dirs:
-  - tests/auth
+# (The `auth` module row was removed: #6164 deleted the src/specify_cli/auth/**
+# package and the tests/auth suite with the frozen hosted/sync/drain surfaces,
+# so the row, its scrub group in tests/release/ci_retirement_scrub.json, and its
+# own_root_ratios entry in .github/ci-foreign-coverage-baseline.json are retired
+# together.)
 # OUT-OF-MATRIX INVENTORY (spec-kitty#4369). Every test-bearing directory under
 # tests/ that no modules[] row claims, each with the reason it is deliberately
 # outside the per-PR module matrix. Enforced by
@@ -686,14 +667,11 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/regression
   - tests/specify_cli/retrospect
   - tests/specify_cli/retrospective
-  - tests/specify_cli/saas_client
   - tests/specify_cli/session_presence
   - tests/specify_cli/shims
   - tests/specify_cli/skills
   - tests/specify_cli/tasks
   - tests/specify_cli/test_cli
-  - tests/specify_cli/tracker
-  - tests/specify_cli/widen
 
 - reason: >-
     Root-level mirror of the rootless tests/specify_cli/orchestrator_api tree (already

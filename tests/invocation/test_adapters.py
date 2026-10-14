@@ -13,7 +13,7 @@ not a fault.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -238,16 +238,12 @@ def test_no_saas_client_factory_is_registered_anywhere() -> None:
     if anyone registers one — which opens the propagator's egress path carrying
     ``request_text`` verbatim, the hazard FR-032 removed.
     """
-    mock_ws = MagicMock()
-    mock_ws.connected = True
-
-    mock_tm = MagicMock()
-    mock_tm.is_authenticated = True
-    mock_tm.get_current_session.return_value = MagicMock()
-    mock_tm._ws_client = mock_ws
-
-    with patch("specify_cli.auth.get_token_manager", return_value=mock_tm):
-        result = get_saas_client(_DUMMY_PATH)
+    # No token-manager scaffolding: the hosted ``specify_cli.auth`` surface was
+    # removed (#6164), and ``get_saas_client`` consults no token manager — it
+    # returns None purely because no factory is registered. That None is exactly
+    # the invariant under test, so the call stands alone (the former
+    # connected-token-manager mock could never change the outcome).
+    result = get_saas_client(_DUMMY_PATH)
 
     assert result is None, (
         "a SaaS-client factory is registered. That opens the invocation "

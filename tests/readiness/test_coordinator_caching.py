@@ -40,49 +40,17 @@ def _make_ctx(obj: Any = None) -> typer.Context:
     return ctx
 
 
-def test_A_hosted_enabled_cached_after_first_call(
+# Removed: test_A_hosted_enabled_cached_after_first_call. The hosted-enabled
+# coordinator path (SPEC_KITTY_ENABLE_SAAS_SYNC + the auth probe) was removed from
+# open-core (#6164): the coordinator is always disabled now, so there is no
+# enabled path to cache. The caching invariant itself is unchanged and is covered
+# by test_B/test_C below on the (now sole) disabled path.
+
+
+def test_B_disabled_path_caches_and_invokes_nag_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With SAAS sync enabled, calling evaluate_readiness twice invokes the upgrade UX once.
-
-    WS3 (issue #1092) routed the hosted-enabled path through the new
-    ``_invoke_upgrade_ux`` seam instead of the legacy ``_invoke_nag``
-    renderer. Caching invariants are unchanged: a second call returns
-    the same cached ReadinessResult instance and the seam fires exactly
-    once.
-    """
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
-
-    call_count = {"n": 0}
-
-    def _spy_invoke(ctx: typer.Context) -> None:
-        call_count["n"] += 1
-
-    monkeypatch.setattr(coord_module, "_invoke_upgrade_ux", _spy_invoke)
-    # Belt-and-suspenders: legacy _invoke_nag MUST NOT fire on hosted-enabled.
-    monkeypatch.setattr(
-        coord_module,
-        "_invoke_nag",
-        lambda ctx: pytest.fail(
-            "legacy _invoke_nag should not fire on hosted-enabled path"
-        ),
-    )
-
-    ctx = _make_ctx()
-    first = evaluate_readiness(ctx)
-    second = evaluate_readiness(ctx)
-
-    assert call_count["n"] == 1, f"expected 1 upgrade-ux call, got {call_count['n']}"
-    assert first is second, "second call should return cached result instance"
-    assert first.enabled is True
-
-
-def test_B_hosted_disabled_cached_after_first_call(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Without SAAS sync, the disabled path still caches and still invokes the nag exactly once."""
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    """The (now sole) disabled path still caches and invokes the upgrade nag exactly once."""
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
 
     call_count = {"n": 0}
@@ -105,7 +73,6 @@ def test_C_get_readiness_returns_same_instance_after_evaluate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """get_readiness returns the cached ReadinessResult by identity."""
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.setattr(sys, "argv", ["spec-kitty"])
     monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
 

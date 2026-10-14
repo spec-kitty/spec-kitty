@@ -36,13 +36,15 @@ Relatedly: **matching is always AST-structural, never substring.** ``cli/command
 mentions ``tracker_egress_verdict`` in two docstrings while holding zero imports and zero calls
 of it. Mentioning is not doing; a substring matcher mis-flags that file.
 
-**(c) Neither G4 nor G5 decides polarity for a new transport.** G5 **passes** when a third
-transport simply reuses ``HOSTED_SERVICE`` -- the argument is still a literal ``Attribute`` on
-the enum, the literal set is still the two members, and G5's per-site clause names only the sites
-that already exist. G4 fires (its exact counts move), but only as a *prompt* whose obvious
-resolution is to edit the expected numbers in this file. **A passing G5 is not an answered
-question about polarity.** That requirement lives in :class:`EgressDestination`'s own docstring
-(FR-004/FR-017) and nowhere else; see preconditions section 1.6(7) of the Mission handoff.
+**(c) Neither G4 nor G5 decides polarity for a new transport.** #6164: HOSTED_SERVICE /
+SaaSTrackerClient removed -- ``EgressDestination`` now has the single member ``LOCAL_SUBPROCESS``,
+so there is no longer a second transport to reuse. If a transport is re-added, G5 **passes** when
+it simply reuses an existing literal member -- the argument is still a literal ``Attribute`` on
+the enum and G5's per-site clause names only the sites that already exist. G4 fires (its exact
+counts move), but only as a *prompt* whose obvious resolution is to edit the expected numbers in
+this file. **A passing G5 is not an answered question about polarity.** That requirement lives in
+:class:`EgressDestination`'s own docstring (FR-004/FR-017) and nowhere else; see preconditions
+section 1.6(7) of the Mission handoff.
 
 **(d) Bundle B must UPDATE these counts, not let them fall to zero.** Sibling Bundle B moves
 ``tracker_egress_verdict``, ``EgressDestination`` and all of these call sites into
@@ -71,8 +73,8 @@ G1     ``factory.SUPPORTED_PROVIDERS`` is exactly ``("beads", "fp")``           
 G2     ``build_connector`` has exactly one call site, in ``_build_engine``          2
 G3     ``_build_engine``'s callers are exactly the three gated methods, and the     5
        gate is the first *executable* statement of each
-G4     exactly 5 enclosing functions and exactly 5 call expressions                 3
-G5     every ``destination`` is a literal member, and the per-site mapping holds    3
+G4     exactly 3 enclosing functions and exactly 3 call expressions                census
+G5     every ``destination`` is a literal member, and the per-site mapping holds    2
 G6     the verdict *body* never reads the provider (expected set empty)             2
 G7     the single-channel polarity table is exhaustive over every destination       1
        and fails closed on an unmapped value
@@ -83,11 +85,15 @@ G7 and G8 are additions beyond FR-015's G1-G6, each closing a gap routed here fr
 another work package. They are labelled distinctly so a reader is never misled about which
 guards FR-015 actually specifies.
 
-**SC-017's own accounting is unchanged and still holds: G4 kills three, G5 kills three, G6 kills
-the reintroduced provider read.** G1 (1 -> 3), G3 (3 -> 5) and G6 (1 -> 2) carry *additional*
-mutants added at review for holes measured after the spec was written -- G1's two silent-pass
-shapes, G3's two non-leading gate shapes, and G6's string-indirected read. None replaces a
-spec-named mutant; each is listed beside the one it supplements in its own test.
+**#6164: HOSTED_SERVICE / SaaSTrackerClient removed.** The hosted transport left open-core;
+``EgressDestination`` now has only ``LOCAL_SUBPROCESS``. The two hosted call sites
+(``SaaSTrackerClient._current_tracker_egress_verdict`` and the ``_check_sync_readiness`` CLI
+pre-flight) are gone, so G4's census is now 3/3 (and its mutant-folding, plus the retired
+physical-sink wiring test, moved to G5, which protects the same added-ungated-site surface). G5
+now kills two mutants: the dual-channel in-place literal-swap had nothing to swap and was retired
+with the hosted member. G1 (1 -> 3), G3 (3 -> 5) and G6 (1 -> 2) carry *additional* mutants added
+at review for holes measured after the spec was written -- G1's two silent-pass shapes, G3's two
+non-leading gate shapes, and G6's string-indirected read.
 
 Honest limits -- recorded, not papered over
 ----------------------------------------------
@@ -98,8 +104,10 @@ Honest limits -- recorded, not papered over
    a valid root for the *wrong project*, which is the cross-project substitution ``#3030``
    exists to close. That is prose. It is carried as a residual, and a Mission adding an
    automatic caller must re-check it by reading, because nothing here will fire.
-2. **Precondition 1.6(7) -- a third transport reusing ``HOSTED_SERVICE`` -- is not caught by G5
-   and only prompted by G4**, as spelled out in (c) above. Neither guard decides polarity.
+2. **Precondition 1.6(7) -- a re-added transport reusing an existing literal member -- is not
+   caught by G5 and only prompted by G4**, as spelled out in (c) above. Neither guard decides
+   polarity. (#6164: HOSTED_SERVICE / SaaSTrackerClient removed -- there is no second member to
+   reuse today; this limit applies only if a transport is re-added.)
 3. **G8 pins a census, not a prohibition.** It used to pin three documented ``patch.object``
    escape-hatch sites in ``tests/sync/tracker/test_local_service.py``; issue #5 deleted that file
    with the sync transport, so the pinned census is now EMPTY -- any ``_build_engine`` patch
@@ -940,43 +948,35 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "LocalTrackerService.sync_pull",
         "LocalTrackerService.sync_push",
         "LocalTrackerService.sync_run",
-        "SaaSTrackerClient._current_tracker_egress_verdict",
-        "_check_sync_readiness",
     }
 )
-#: Five, not four: ``cli/commands/tracker.py::_check_sync_readiness`` contributes its own audited
-#: call expression. This is a genuine contract cardinality (F12b KEEP, FR-007/#3108/#3030): each
-#: extra call expression is a new egress point that must be reviewed, so this number moves only
-#: with a real, audited egress-site change -- never to nudge a red run green. An implementer who
-#: reads "five call sites" as something derived rather than counted writes a renderer that loops
-#: over ``EgressDestination``, which G5 rejects because the loop variable is an ``ast.Name``, not
-#: a literal member.
+#: #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the hosted verdict helper
+#: (``SaaSTrackerClient._current_tracker_egress_verdict``) and the CLI pre-flight
+#: (``cli/commands/tracker.py::_check_sync_readiness``) were the two hosted call sites; both left
+#: open-core with the hosted surface, leaving the three local sync methods as the only egress
+#: points. Three, not five: each remaining call expression is a new local-egress point that must
+#: be reviewed, so this number moves only with a real, audited egress-site change -- never to nudge
+#: a red run green. An implementer who reads "three call sites" as something derived rather than
+#: counted writes a renderer that loops over ``EgressDestination``, which G5 rejects because the
+#: loop variable is an ``ast.Name``, not a literal member.
 #:
-#: **Re-pinned at issue-5-delete-sync-transport (2026-08-25):** the sixth enclosing function,
-#: ``sync doctor``'s ``_render_tracker_egress`` renderer (which called the verdict twice, once per
-#: destination row), was deleted with the sync transport -- 6/7 -> 5/5. The remaining chokepoint
-#: note stands: before ``_check_sync_readiness``'s audited call site existed (PR #3135), the hosted
-#: branch called ``_check_readiness(..., probe_reachability=True)`` as its first act -- issuing a
-#: real network HEAD probe *before* ``SaaSTrackerClient._request``'s own verdict gate ever ran. A
-#: refusing project's hosted-egress verdict is consulted there too, ahead of that probe, so
-#: "refusal precedes any HTTP attempt" holds at the CLI's own pre-flight and not only one layer
-#: below it. This is precisely the kind of new call site this guard exists to catch when it is
-#: *not* audited -- it is audited (this comment, plus the guard's own re-pinned census), so the
-#: guard's job here is only to keep the numbers honest, not to raise an alarm.
-EXPECTED_CALL_EXPRESSION_COUNT = 5
+#: **History (counts since superseded):** re-pinned 6/7 at PR #3135 when ``_check_sync_readiness``
+#: gained its own audited call site, then 5/5 at issue-5-delete-sync-transport when ``sync
+#: doctor``'s ``_render_tracker_egress`` renderer was deleted with the sync transport, and now 3/3
+#: at #6164 when the two hosted sites left with the hosted surface.
+EXPECTED_CALL_EXPRESSION_COUNT = 3
 
 #: The load-bearing half of G5. Per site, the **sorted members actually passed** -- so each
-#: transport's polarity choice is pinned, not merely "some member appears". The deleted sync-doctor
-#: renderer used to be the one site passing both members; after issue #5 the two members are split
-#: across the local trio and the hosted pair.
+#: site's polarity choice is pinned, not merely "some member appears".
+#: #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the two hosted sites that passed
+#: ``HOSTED_SERVICE`` left with the hosted surface, leaving only the local trio.
 EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
-    "SaaSTrackerClient._current_tracker_egress_verdict": ("HOSTED_SERVICE",),
-    "_check_sync_readiness": ("HOSTED_SERVICE",),
 }
-EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS", "HOSTED_SERVICE"})
+#: #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- only one member survives.
+EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS"})
 
 _ALIAS_HINT = "If `EgressDestination` was imported under an alias, this is a FALSE RED -- import it under its own name (FR-015 G5, data-model.md section 2). "
 
@@ -1062,13 +1062,11 @@ def newly_added_ungated_path(root):
     return tracker_egress_verdict(root, destination=dest)
 """
 
-_MUTANT_ADDED_SWAPPED_LITERAL = '''
-from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
-
-def sync_sideways_local_path(root):
-    """A new LOCAL-side function passing the HOSTED literal -- wrong polarity for its position."""
-    return tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
-'''
+# #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the "added LOCAL-side function passing the
+# HOSTED literal (wrong polarity)" mutant was a dual-channel wrong-polarity-swap presupposing two
+# channels, so it was retired with its subject. The "in-place literal swap" mutant and the
+# ``test_g4_inplace_literal_swap_does_NOT_move_its_counts`` test went with it for the same reason:
+# a single-member enum has nothing to swap.
 
 _MUTANT_ADDED_MODULE_QUALIFIED = """
 from specify_cli.tracker import egress_verdict as ev
@@ -1077,34 +1075,18 @@ def newly_added_ungated_path(root):
     return ev.tracker_egress_verdict(root, destination=ev.EgressDestination.LOCAL_SUBPROCESS)
 """
 
-#: G5's mutant (ii): the two literals swapped **IN PLACE** -- no site added, no site removed.
-#: This is the exact defect that would reopen `#3030`: ``_request`` (which sends to spec-kitty's
-#: own hosted service) evaluated under the LOCAL polarity, where ``tracker.egress: permitted``
-#: **grants independently of Channel 1**. It moves **no count**, which is precisely why G4's third
-#: mutant had to become an *added* site instead. Two guards, two different mutants, one shared
-#: literal-swap idea -- do not copy one into the other.
-_MUTANT_INPLACE_SWAP = """
-from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
-
-class LocalTrackerService:
-    def sync_pull(self, *, limit=100):
-        return tracker_egress_verdict(self._repo_root, destination=EgressDestination.HOSTED_SERVICE)
-
-class SaaSTrackerClient:
-    def _request(self, method, path):
-        return tracker_egress_verdict(self._project_root, destination=EgressDestination.LOCAL_SUBPROCESS)
-"""
-
-_UNSWAPPED_CONTROL = """
+# #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the control is now two LOCAL_SUBPROCESS
+# sites (it was one local + one hosted). Two Name-form call sites are all the folding and the
+# red-then-green blind-spot demonstration below need; the single surviving member is passed at both.
+_LOCAL_TWO_SITE_CONTROL = """
 from specify_cli.tracker.egress_verdict import tracker_egress_verdict, EgressDestination
 
 class LocalTrackerService:
     def sync_pull(self, *, limit=100):
         return tracker_egress_verdict(self._repo_root, destination=EgressDestination.LOCAL_SUBPROCESS)
 
-class SaaSTrackerClient:
-    def _request(self, method, path):
-        return tracker_egress_verdict(self._project_root, destination=EgressDestination.HOSTED_SERVICE)
+    def sync_push(self, *, limit=100):
+        return tracker_egress_verdict(self._repo_root, destination=EgressDestination.LOCAL_SUBPROCESS)
 """
 
 
@@ -1117,26 +1099,23 @@ def _real_verdict_calls() -> CallFindings:
     return analyze_calls_in_tree(SRC_ROOT, VERDICT_FN)
 
 
-def test_g4_exactly_five_enclosing_functions_and_five_call_expressions() -> None:
+def test_g4_exactly_three_enclosing_functions_and_three_call_expressions() -> None:
     """G4 -- **two** exact assertions, never collapsed into one and never ``<=``.
 
-    Exactly **5** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
-    ``SaaSTrackerClient._current_tracker_egress_verdict``, and ``_check_sync_readiness``)
-    and exactly **5** call expressions.
+    #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the hosted verdict helper and the
+    ``_check_sync_readiness`` CLI pre-flight were the fourth and fifth call sites; both left
+    open-core with the hosted surface.
 
-    Originally "exactly 5 / exactly 6" (FR-015); re-pinned to 6/7 at the 2026-08-10 landing pass
-    (PR #3135, HIGH-1 / #3108 follow-up) when ``_check_sync_readiness`` gained its own audited
-    ``tracker_egress_verdict`` call site; re-pinned again to 5/5 at issue-5-delete-sync-transport,
-    when the sixth enclosing function -- ``sync doctor``'s ``_render_tracker_egress`` renderer,
-    with its two call expressions -- was deleted with the sync transport. See
-    :data:`EXPECTED_CALL_EXPRESSION_COUNT`'s own comment for both re-pins.
+    Exactly **3** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``) and exactly
+    **3** call expressions.
 
-    A rejected draft of this Mission said "exactly three" while its own requirements demanded
-    three local sites, a fourth and a fifth -- arithmetically impossible, and repeated five times.
-    Both numbers here were re-derived from the tree, not transcribed.
+    History (counts since superseded): "exactly 5 / exactly 6" (FR-015); 6/7 at PR #3135 when
+    ``_check_sync_readiness`` gained its own audited call site; 5/5 at
+    issue-5-delete-sync-transport when ``sync doctor``'s ``_render_tracker_egress`` renderer was
+    deleted; 3/3 at #6164. See :data:`EXPECTED_CALL_EXPRESSION_COUNT`'s own comment.
 
     ``<=`` is not a weaker form of this guard. ``<=`` **passes on a zero-call scan**, which is
-    exactly what a sibling Mission's file move produces.
+    exactly what a file move produces.
     """
     real = _real_verdict_calls()
     _announce(
@@ -1157,136 +1136,44 @@ def test_g4_exactly_five_enclosing_functions_and_five_call_expressions() -> None
         f"{real.describe()}{bundle_b}"
     )
     assert real.call_count == EXPECTED_CALL_EXPRESSION_COUNT, (
+        # #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- only the three local sync sites remain.
         f"G4: expected exactly {EXPECTED_CALL_EXPRESSION_COUNT} call expressions "
-        f"(three local sites, the hosted helper, and the CLI pre-flight), found {real.call_count}:\n"
+        f"(the three local sync sites), found {real.call_count}:\n"
         f"{real.describe()}{bundle_b}"
     )
 
 
-def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
-    """The audited helper must remain the first call reachable from both enforced entry points.
-
-    #458 consolidated the duplicated verdict/raise pair -- previously textually repeated at
-    ``_request`` and ``_request_with_retry`` -- into one shared ``_enforce_tracker_egress_consent``
-    helper. Both entry points must call that helper as their first runtime statement, and the
-    helper itself must call ``_current_tracker_egress_verdict`` as *its* first runtime statement --
-    the audited call is one hop further from the physical sink than before, but still
-    unconditionally the first thing either entry point reaches.
-    """
-    path = SRC_ROOT / "specify_cli" / "tracker" / "saas_client.py"
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    class_node = next(parent for parent in tree.body if isinstance(parent, ast.ClassDef) and parent.name == "SaaSTrackerClient")
-    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
-
-    for entry_point in ("_request", "_request_with_retry"):
-        method = methods[entry_point]
-        first = method.body[0]
-        assert isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant), f"{entry_point}: expected a leading docstring"
-        first_runtime = method.body[1]
-        assert isinstance(first_runtime, ast.Expr), f"{entry_point}: first runtime statement is not a bare call: {ast.dump(first_runtime)}"
-        assert isinstance(first_runtime.value, ast.Call)
-        assert isinstance(first_runtime.value.func, ast.Attribute)
-        assert first_runtime.value.func.attr == "_enforce_tracker_egress_consent", (
-            f"{entry_point}: first runtime statement must call the shared consent gate, found `{ast.unparse(first_runtime.value)}`"
-        )
-
-    gate_method = methods["_enforce_tracker_egress_consent"]
-    gate_first = gate_method.body[0]
-    assert isinstance(gate_first, ast.Expr) and isinstance(gate_first.value, ast.Constant)
-    gate_first_runtime = gate_method.body[1]
-    assert isinstance(gate_first_runtime, ast.Assign)
-    assert isinstance(gate_first_runtime.value, ast.Call)
-    assert isinstance(gate_first_runtime.value.func, ast.Attribute)
-    assert gate_first_runtime.value.func.attr == "_current_tracker_egress_verdict"
-
-    real = _real_verdict_calls()
-
-    # Every kill below is measured as a DELTA against a control that is itself correctly shaped,
-    # then folded onto the real tree's findings. Asserting only "the synthetic mutant's set differs
-    # from the expected set" would be no evidence at all -- the two-site control differs from the
-    # expected set as well, so such a 'kill' fires whether or not the mutant is present. That is
-    # recorded mutation-lie #1 (the mutant is a no-op and all-green reads as "your pin is fine").
-    control = analyze_calls_in_source(_UNSWAPPED_CONTROL, VERDICT_FN, module="<g4-control>")
-    assert control.call_count == 2 and len(control.enclosing) == 2, (
-        f"G4 MUTANT HARNESS MISBUILT: control is {len(control.enclosing)}/{control.call_count}, expected 2/2"
-    )
-
-    killed = 0
-    for label, mutant_source in (
-        ("added site, config-derived destination", _MUTANT_ADDED_CONFIG_DERIVED),
-        ("ADDED sixth site with swapped literal", _MUTANT_ADDED_SWAPPED_LITERAL),
-        ("added sixth site, MODULE-QUALIFIED", _MUTANT_ADDED_MODULE_QUALIFIED),
-    ):
-        combined = analyze_calls_in_source(_UNSWAPPED_CONTROL + mutant_source, VERDICT_FN, module="<g4-mutant>")
-        added = combined.enclosing - control.enclosing
-        delta_calls = combined.call_count - control.call_count
-        assert len(added) == 1 and delta_calls == 1, (
-            f"G4 MUTANT MISBUILT ({label}): expected exactly one added enclosing function and one "
-            f"added call expression against the control, got added={sorted(added)} delta_calls={delta_calls}."
-        )
-        # Fold the measured delta onto the REAL tree: this is what G4 would see with the mutant present.
-        assert (real.enclosing | added) != EXPECTED_ENCLOSING_FUNCTIONS, f"G4 MUTANT SURVIVED ({label}) on membership: {sorted(added)} was already expected"
-        assert real.call_count + delta_calls != EXPECTED_CALL_EXPRESSION_COUNT, f"G4 MUTANT SURVIVED ({label}) on call count"
-        killed += 1
-        forms = sorted({c.func_form for c in combined.calls})
-        print(
-            f"[G4] mutant killed ({label}): control 2/2 -> mutant {len(combined.enclosing)}/{combined.call_count}; "
-            f"folded onto src/ that is {len(real.enclosing) + 1} enclosing / {real.call_count + delta_calls} calls "
-            f"vs expected {len(EXPECTED_ENCLOSING_FUNCTIONS)}/{EXPECTED_CALL_EXPRESSION_COUNT}; forms={forms}"
-        )
-    print(f"[G4] KILLED-PIN COUNT: {killed}/3")
-
-
-def test_g4_inplace_literal_swap_does_NOT_move_its_counts() -> None:
-    """The correction to SC-017's shared mutant list, asserted rather than merely written down.
-
-    SC-017 describes G4's and G5's three mutants with one shared list whose item (ii) is *"a call
-    site with the two literals swapped"*. **That mutant kills G5 and cannot kill G4.** An in-place
-    swap changes no enclosing function and no call-expression count, so G4 -- which asserts exactly
-    those two numbers -- passes against it.
-
-    This test pins that fact so nobody "fixes" G4's third mutant back into a permutation and
-    reports 3/3 while one of the three kills is imaginary. G4's third mutant is therefore an
-    **ADDED** site with a swapped literal; G5's stays the in-place swap.
-    """
-    control = analyze_calls_in_source(_UNSWAPPED_CONTROL, VERDICT_FN, module="<control>")
-    swapped = analyze_calls_in_source(_MUTANT_INPLACE_SWAP, VERDICT_FN, module="<swapped>")
-    _announce(
-        "G4-correction",
-        control.input_count + swapped.input_count,
-        control=f"{len(control.enclosing)}/{control.call_count}",
-        swapped=f"{len(swapped.enclosing)}/{swapped.call_count}",
-    )
-    assert control.enclosing == swapped.enclosing, "the in-place swap was expected to move no enclosing function"
-    assert control.call_count == swapped.call_count, "the in-place swap was expected to move no call count"
-    print("[G4-correction] confirmed: an in-place literal swap moves NEITHER of G4's counts -- G4 cannot kill it; G5 does.")
+# #6164: HOSTED_SERVICE / SaaSTrackerClient removed. Two G4 tests were retired with their subject:
+#   - ``test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink`` parsed the now-deleted
+#     ``tracker/saas_client.py`` to pin the hosted verdict helper's wiring to the physical sink.
+#     Its added-site mutant folding (config-derived name, module-qualified) is preserved in G5
+#     below, which protects the same live surface; its added-swapped-literal mutant was
+#     dual-channel and went with the hosted member.
+#   - ``test_g4_inplace_literal_swap_does_NOT_move_its_counts`` asserted that a two-member in-place
+#     literal swap moves neither of G4's counts; a single-member enum has nothing to swap.
 
 
 def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_intact() -> None:
     """G5 -- the P0 guard. Its clauses, in the order of their worth.
 
-    **1. The per-site mapping (load-bearing).** The hosted verdict helper always
-    ``HOSTED_SERVICE`` and the adjacent physical-sink pin proves ``_request`` calls it first;
-    the three local sites always ``LOCAL_SUBPROCESS``; the CLI pre-flight always
-    ``HOSTED_SERVICE``. (The deleted sync-doctor renderer used to pass both members from one
-    site; issue #5 retired it, and the two members are now split across the local trio and the
-    hosted pair.)
+    #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the two hosted call sites left with the
+    hosted surface, so only the three local ``LOCAL_SUBPROCESS`` sites remain and the single
+    surviving member is the whole polarity table.
+
+    **1. The per-site mapping (load-bearing).** The three local sites always ``LOCAL_SUBPROCESS``.
     *This is the clause whose mutant must kill.*
 
     **2. The node-shape clause.** Every ``destination`` argument is an ``ast.Attribute`` on
     ``EgressDestination``. No ``ast.Name`` (a loop variable or a config-derived local), no
-    ``ast.Call`` (a derivation).
+    ``ast.Call`` (a derivation). This is the live protection the removal leaves fully in force.
 
-    **3. The set-equality clause.** Kept: both members must appear across the surviving sites,
-    so deleting either transport's only literal would red here too.
+    **3. The set-equality clause.** Kept: the one surviving member must appear across the local
+    sites, so deleting the local transport's only literal would red here too.
 
-    Why this is P0: ``TrackerService._resolve_saas_backend_for_provider`` overrides the on-disk
-    provider **in memory** and never rewrites the file, so three operator-reachable commands drive
-    the **hosted** transport from a repo whose committed config says ``beads``. A config-derived
-    polarity would therefore read ``beads``, apply the local (two-way) polarity, and turn
-    ``tracker.egress: permitted`` into an **affirmative grant to spec-kitty's hosted service with
-    Channel 1 absent** -- for exactly the operator this design exists to serve, the one who
-    refuses hosted sync and writes ``permitted`` to keep ``beads`` alive.
+    Why the node-shape clause still matters: a config-derived polarity would read the on-disk
+    ``beads``/``fp`` provider and let it pick the destination, instead of the caller stating it as
+    a literal at every site. Keeping every ``destination`` a caller-stated literal is what forbids
+    that derivation.
     """
     real = _real_verdict_calls()
     per_site = _per_site_destinations(real)
@@ -1309,17 +1196,24 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     # As with G4, each kill is a DELTA against a correctly-shaped control, then folded onto the real
     # mapping -- and each is additionally attributed to the specific clause it is supposed to break,
     # so a mutant cannot be recorded as killed by the wrong clause (recorded mutation-lie #2).
-    control = analyze_calls_in_source(_UNSWAPPED_CONTROL, VERDICT_FN, module="<g5-control>")
+    # #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the control is now two local sites.
+    control = analyze_calls_in_source(_LOCAL_TWO_SITE_CONTROL, VERDICT_FN, module="<g5-control>")
     control_map = _per_site_destinations(control)
-    assert control_map == {"LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",), "SaaSTrackerClient._request": ("HOSTED_SERVICE",)}, (
+    assert control_map == {"LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",), "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",)}, (
         f"G5 MUTANT HARNESS MISBUILT: the control must itself have the correct per-site polarity, got {control_map}"
     )
     assert not _non_literal_sites(control), "G5 MUTANT HARNESS MISBUILT: the control must have no non-literal destination"
 
     killed = 0
 
+    # #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the in-place literal-swap mutant (the
+    # old CLAUSE 1 "mapping" kill) presupposed two channels to swap between and was retired. The
+    # two surviving mutants both prove something still true of the live single-channel surface: an
+    # added ungated site with a config-derived (Name) destination, and an added ungated site
+    # written module-qualified (reachable only because the matcher resolves Attribute func nodes).
+
     # (i) node-shape clause: a destination bound from a config read is an ast.Name.
-    mutant_i = analyze_calls_in_source(_UNSWAPPED_CONTROL + _MUTANT_ADDED_CONFIG_DERIVED, VERDICT_FN, module="<g5-mutant-i>")
+    mutant_i = analyze_calls_in_source(_LOCAL_TWO_SITE_CONTROL + _MUTANT_ADDED_CONFIG_DERIVED, VERDICT_FN, module="<g5-mutant-i>")
     non_literal = _non_literal_sites(mutant_i)
     assert len(non_literal) == 1, (
         f"G5 MUTANT SURVIVED (config-derived name): control had 0 non-literal sites, mutant has {non_literal}"
@@ -1328,44 +1222,35 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     killed += 1
     print(f"[G5] mutant killed (added site, config-derived name) via CLAUSE 2 node-shape: control had 0 non-literal sites, mutant has {non_literal}")
 
-    # (ii) per-site mapping clause: the two literals swapped IN PLACE, moving no count.
-    mutant_ii = analyze_calls_in_source(_MUTANT_INPLACE_SWAP, VERDICT_FN, module="<g5-mutant-ii>")
-    swapped_map = _per_site_destinations(mutant_ii)
-    assert len(swapped_map) == len(control_map) and swapped_map != control_map, f"G5 MUTANT SURVIVED (in-place swap): {swapped_map}"
-    folded = {**EXPECTED_PER_SITE_DESTINATIONS, **swapped_map}
-    assert folded != EXPECTED_PER_SITE_DESTINATIONS, "G5 MUTANT SURVIVED (in-place swap) when folded onto the real mapping"
-    assert not _non_literal_sites(mutant_ii), "G5 mutant (ii) killed by the wrong clause -- it must break the mapping, not the node shape"
-    killed += 1
-    print(f"[G5] mutant killed (IN-PLACE literal swap) via CLAUSE 1 per-site mapping (the clause that carries G5): control {control_map} -> mutant {swapped_map}")
-
-    # (iii) the blind spot: a sixth site the matcher must see at all before any clause can fire.
-    mutant_iii = analyze_calls_in_source(_UNSWAPPED_CONTROL + _MUTANT_ADDED_MODULE_QUALIFIED, VERDICT_FN, module="<g5-mutant-iii>")
-    qualified_map = _per_site_destinations(mutant_iii)
+    # (ii) the blind spot: an added ungated site the matcher must see at all before any clause can fire.
+    mutant_ii = analyze_calls_in_source(_LOCAL_TWO_SITE_CONTROL + _MUTANT_ADDED_MODULE_QUALIFIED, VERDICT_FN, module="<g5-mutant-ii>")
+    qualified_map = _per_site_destinations(mutant_ii)
     added_sites = set(qualified_map) - set(control_map)
     assert len(added_sites) == 1, f"G5 MUTANT MISBUILT (module-qualified): added {sorted(added_sites)}"
-    assert any(call.func_form == "Attribute" for call in mutant_iii.calls), (
+    assert any(call.func_form == "Attribute" for call in mutant_ii.calls), (
         "G5 MUTANT SURVIVED (module-qualified): the matcher never resolved the Attribute-form call"
     )
-    folded_iii = {**EXPECTED_PER_SITE_DESTINATIONS, **{q: qualified_map[q] for q in added_sites}}
-    assert folded_iii != EXPECTED_PER_SITE_DESTINATIONS, "G5 MUTANT SURVIVED (module-qualified) when folded onto the real mapping"
+    folded_ii = {**EXPECTED_PER_SITE_DESTINATIONS, **{q: qualified_map[q] for q in added_sites}}
+    assert folded_ii != EXPECTED_PER_SITE_DESTINATIONS, "G5 MUTANT SURVIVED (module-qualified) when folded onto the real mapping"
     killed += 1
     print(
-        "[G5] mutant killed (added sixth site, MODULE-QUALIFIED) via CLAUSE 1, reached only "
+        "[G5] mutant killed (added ungated site, MODULE-QUALIFIED) via CLAUSE 1, reached only "
         f"because the matcher resolves Attribute func nodes: added {sorted(added_sites)}"
     )
-    print(f"[G5] KILLED-PIN COUNT: {killed}/3")
+    print(f"[G5] KILLED-PIN COUNT: {killed}/2")
 
 
 def test_g5_module_qualified_mutant_observed_red_then_green() -> None:
     """**The specific pin.** The module-qualified mutant, observed red under an ``ast.Name``-only
     matcher and green under this file's matcher -- same input, two matchers, never a source edit.
 
-    This is the fifth measured mechanism for producing a green suite with no gate: a sixth,
+    This is the fifth measured mechanism for producing a green suite with no gate: an added,
     ungated call site written ``ev.tracker_egress_verdict(...)`` passed both G4 and G5 with the
     input count merely *rising*, while killing every other specified mutant. The blind matcher's
     2/2 was not evidence of health; it was evidence that both of its mutants shared its blind spot.
     """
-    source = _UNSWAPPED_CONTROL + _MUTANT_ADDED_MODULE_QUALIFIED
+    # #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the control is two local Name-form sites.
+    source = _LOCAL_TWO_SITE_CONTROL + _MUTANT_ADDED_MODULE_QUALIFIED
     tree = ast.parse(source)
     blind = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and _name_only_callee_trailing_name(n) == VERDICT_FN]
     seeing = analyze_calls_in_source(source, VERDICT_FN, module="<red-then-green>")
@@ -1505,6 +1390,9 @@ def tracker_egress_verdict(root, *, destination):
 #: Review LOW-3: the same body-side derivation reached through a **string** rather than an
 #: identifier. Neither shape produces an ``ast.Attribute`` named ``provider``, so the
 #: identifier-based clauses scored both zero before this was closed.
+#: #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the second branch now assigns the sole
+#: surviving member. The assigned member is cosmetic here: G6 flags only forbidden provider reads
+#: (``getattr(cfg, "provider")`` and the ``["provider"]`` subscript), never the destination value.
 _G6_MUTANT_STRING_INDIRECTED_READS = """
 from specify_cli.tracker.config import load_tracker_config
 
@@ -1513,7 +1401,7 @@ def tracker_egress_verdict(root, *, destination):
     if getattr(cfg, "provider") in ("beads", "fp"):
         destination = EgressDestination.LOCAL_SUBPROCESS
     if cfg.to_dict()["provider"] == "jira":
-        destination = EgressDestination.HOSTED_SERVICE
+        destination = EgressDestination.LOCAL_SUBPROCESS
     return destination
 """
 
@@ -1523,7 +1411,7 @@ def test_g6_verdict_body_never_reads_the_provider() -> None:
 
     G5 guards *where the destination comes from*; the original defect lived **inside** the verdict.
     A future change reading *"if the on-disk provider is local, treat this as local regardless of
-    the argument"* passes G5 at all six call expressions and would be caught by exactly one
+    the argument"* passes G5 at every call expression and would be caught by exactly one
     behavioural test.
 
     Detection signal for that defect: **G6 red; or SC-005a red with G5 green -- the signature of a
@@ -1604,19 +1492,9 @@ _LOCAL_SUBPROCESS_CASES: tuple[_ProjectRootCase, ...] = (
     ),
 )
 
-def _expected_hosted_service_refused(case: _ProjectRootCase) -> bool:
-    """The single-channel polarity table G7 pins for the hosted destination.
-
-    ``HOSTED_SERVICE`` is **narrowing only** (controller-qa MAJOR, egress_verdict.py:225): a
-    committed ``refused`` or an illegal/unreadable value (``fault``) still refuses -- the
-    operator's own explicit instruction is not silently overridden -- but ``permitted`` and
-    absence both fall through to permit, since the request otherwise rides the authenticated
-    session and there is no longer a Channel 1 to defer to. So only the two narrowing states
-    refuse here; a destination added to the enum is picked up by the loop below and must be
-    given an explicit row in this test or the guard reds on the unexpected answer:
-    exhaustiveness by construction.
-    """
-    return case.channel_state in ("refused", "fault")
+# #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the ``_expected_hosted_service_refused``
+# helper (the narrowing-only hosted polarity table) was retired with the hosted destination. The
+# only surviving destination is ``LOCAL_SUBPROCESS``, whose two-way polarity the cases above pin.
 
 
 def _commit_project_root(tmp_path_factory: pytest.TempPathFactory, case: _ProjectRootCase) -> Path:
@@ -1632,6 +1510,11 @@ def _commit_project_root(tmp_path_factory: pytest.TempPathFactory, case: _Projec
 def test_g7_single_channel_polarity_table_is_exhaustive_and_fails_closed(tmp_path_factory: pytest.TempPathFactory) -> None:
     """G7 (routed from WP02's review; **not** one of FR-015's six) -- the ONE remaining channel's
     polarity table is exhaustive over every destination and fails closed on an unmapped value.
+
+    #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- ``EgressDestination`` now has the single
+    member ``LOCAL_SUBPROCESS``, so the ``for dest in EgressDestination`` loop exercises exactly
+    that one destination; a destination re-added to the enum would be picked up by the loop and
+    must be given its own polarity assertion, keeping exhaustiveness by construction.
 
     Issue #5 retired Channel 1 and, with it, the introspectable ``_JOIN`` map this guard used to
     walk; the surviving channel's polarity now lives inline in the verdict body, so it is pinned
@@ -1656,19 +1539,9 @@ def test_g7_single_channel_polarity_table_is_exhaustive_and_fails_closed(tmp_pat
             root = _commit_project_root(tmp_path_factory, case)
             verdict = tracker_egress_verdict(root, destination=dest, identifiers="issue fields as argv")
             cells_checked += 1
-            if dest is EgressDestination.HOSTED_SERVICE:
-                expected_refused = _expected_hosted_service_refused(case)
-                assert verdict.refused == expected_refused, (
-                    f"G7: HOSTED_SERVICE x {case.label!r} returned refused={verdict.refused}, expected "
-                    f"{expected_refused}; the hosted destination narrows only -- a committed 'refused' or "
-                    f"an illegal value must still refuse, but absence and 'permitted' must grant."
-                )
-                expected_channels = frozenset({CHANNEL_2}) if expected_refused else frozenset()
-                assert verdict.refusing_channels == expected_channels, (
-                    f"G7: HOSTED_SERVICE x {case.label!r} named refusing channels "
-                    f"{sorted(verdict.refusing_channels)}, expected {sorted(expected_channels)}."
-                )
-                continue
+            # #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- the narrowing-only hosted branch
+            # was retired with its destination. Only LOCAL_SUBPROCESS remains, so every cell the
+            # loop produces is a local-polarity cell.
             assert verdict.refused == case.refused, (
                 f"G7: LOCAL_SUBPROCESS x {case.label!r} returned refused={verdict.refused}, expected "
                 f"{case.refused} (message: {verdict.message!r}). Polarity follows the destination: only "

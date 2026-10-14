@@ -174,7 +174,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "agent tasks move-task": (("missing", "--to", "missing"), 1, "outside"),
     "agent tasks validate-workflow": (("missing",), 1, "outside"),
     "agent tracer-append": (("--mission", "missing", "--category", "missing", "--entry", "missing", "--actor", "missing"), 1, "outside"),
-    "auth doctor": ((), 1, "outside"),
     "charter activate": (("--preset", "missing"), 1, "outside"),
     "charter bundle validate": ((), 2, "outside"),
     "charter context": ((), 1, "outside"),
@@ -200,8 +199,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "migrate backfill-provenance": (("--dry-run",), 1, "badmatrix"),
     "migrate backfill-wp-status": ((), 1, "outside"),
     "migrate charter-encoding": (("--dry-run",), 1, "badencoding"),
-    "moments drain status": ((), 0, "total"),
-    "moments status": ((), 0, "total"),
     "plan": ((), 1, "outside"),
     "reconcile": (("--mission", "missing"), 2, "outside"),
     "safe-commit": (("missing", "--message", "missing"), 1, "outside"),
@@ -210,8 +207,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "tasks": ((), 1, "outside"),
     "tracker providers": ((), 0, "total"),
     "upgrade": (("--project", "--dry-run"), 1, "outside"),
-    "zeitgeist operability drill-timeout": ((), 0, "loopback-refused"),
-    "zeitgeist outbox list": ((), 0, "total"),
 }
 
 # G0 clarification: total/read-only result commands exercise real result arms.
@@ -220,11 +215,7 @@ TOTAL_RESULT_EVIDENCE: dict[str, str] = {
     "charter pack asset list": "charter/pack_asset.py:127; read-only catalog enumeration; empty catalog is a result",
     "charter pack list": "charter/pack.py:103; offering pack listing (built-in, org packs); zero org packs is a result",
     "doctor channel": "_channel_doctor.py:63; total environment-channel report; no modeled error arm",
-    "moments drain status": "moments.py:273; effective drain/ledger posture snapshot; no external operation",
-    "moments status": "moments.py:91; effective local policy snapshot; no external operation",
     "tracker providers": "tracker.py:549; fixed provider roster; no modeled domain-error arm",
-    "zeitgeist outbox list": "zeitgeist.py:532; local pending-item query; empty collection is success",
-    "zeitgeist operability drill-timeout": "zeitgeist.py:690; offline failure drill; transport refusal is structured result data",
 }
 
 
@@ -352,11 +343,6 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         "outside",
         "invocations_cmd.py:377; empty stdout; unhandled TaskCliError; Follow-up: #4664",
     ),
-    "issue-search": (
-        ("--provider", "missing", "--query", "missing"),
-        "outside",
-        "tracker.py:522; empty stdout; human diagnostic on stderr; Follow-up: #4664",
-    ),
     "consolidate": (
         (),
         "outside",
@@ -452,21 +438,6 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         "outside",
         "retrospect.py:901; empty stdout; human diagnostic on stderr; Follow-up: #4664",
     ),
-    "routes": (
-        (),
-        "outside",
-        "routes.py:125; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "tracker discover": (
-        ("--provider", "missing"),
-        "outside",
-        "tracker.py:592; empty stdout; human diagnostic on stderr; Follow-up: #4664",
-    ),
-    "tracker list-tickets": (
-        ("--provider", "missing"),
-        "outside",
-        "tracker.py:1150; empty stdout; human diagnostic on stderr; Follow-up: #4664",
-    ),
     "tracker map list": (
         (),
         "outside",
@@ -496,61 +467,6 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         (),
         "outside",
         "tracker.py:1303; empty stdout; unhandled TrackerConfigError; Follow-up: #4664",
-    ),
-    "zeitgeist activity": (
-        (),
-        "outside",
-        "zeitgeist.py:289; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist inbox": (
-        (),
-        "outside",
-        "zeitgeist.py:464; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist operability drill-rollback": (
-        (),
-        "outside",
-        "zeitgeist.py:717; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist operability drill-rotation": (
-        (),
-        "outside",
-        "zeitgeist.py:703; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist operability report": (
-        (),
-        "outside",
-        "zeitgeist.py:676; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist outbox show": (
-        ("missing",),
-        "outside",
-        "zeitgeist.py:564; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist read": (
-        (),
-        "outside",
-        "zeitgeist.py:441; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist reply": (
-        ("missing", "missing"),
-        "outside",
-        "zeitgeist.py:405; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist send": (
-        ("missing", "missing"),
-        "outside",
-        "zeitgeist.py:378; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist status": (
-        (),
-        "outside",
-        "zeitgeist.py:157; human diagnostic on stdout; Follow-up: #4664",
-    ),
-    "zeitgeist watch": (
-        (),
-        "outside",
-        "zeitgeist.py:194; human diagnostic on stdout; Follow-up: #4664",
     ),
 }
 

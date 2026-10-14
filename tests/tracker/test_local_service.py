@@ -880,55 +880,22 @@ class TestNoSaaSImports:
 
 
 # ---------------------------------------------------------------------------
-# FR-017 / SC-019 / T025 step 4: the docstrings this Mission falsifies or adds, pinned by one
-# test so a later revert of any one of them reds. Originally five; the egress-single-authority
-# mission (WP03) retired the fifth (`_classify_channel1`'s own docstring) along with the
-# function itself -- see the test's own docstring for why that is a refresh, not a loosening.
+# local_service.py's module docstring must still record that this module
+# consults the tracker-egress verdict (the one surviving channel after the
+# hosted surface was removed, #6164).
 # ---------------------------------------------------------------------------
 
 
-def test_fr017_surviving_docstrings_are_not_falsified() -> None:
-    """Pins the FR-017 deliverables that survive the egress-single-authority mission (WP03):
-    the three docstrings this WP amends (`local_service.py`'s module docstring,
-    `_check_sync_readiness`, `_check_binding_readiness`) and WP03's own authored module
-    docstring on `egress_verdict.py`. A later revert of *any* one of these reds this single
-    test -- verified by temporarily mutating each in a scratch copy, never a source edit during
-    a verification run.
+def test_local_service_docstring_records_egress_verdict() -> None:
+    """The module docstring names the tracker-egress verdict it consults.
 
-    Originally pinned a fifth docstring, `_classify_channel1`'s own -- retired here (not
-    softened, not silently dropped) because the function itself is **delete**d, **not
-    migrate**d by the egress-single-authority mission (research.md Decision 3/4, C-002): there
-    is no docstring left to falsify. Its four required literals
-    (`invocation/adapters.py:81`/`Q3`/`delete`/`not migrate`) survive on the module docstring
-    below, which records the classifier's retirement in full.
+    The earlier FR-017 docstring-stability pin additionally asserted on the
+    (now-removed) CLI readiness helpers `_check_sync_readiness` /
+    `_check_binding_readiness` and on egress_verdict.py's old classifier
+    docstring; both were removed with the hosted tracker surface (#6164), so
+    only the surviving local-service contract is pinned here.
     """
-    import specify_cli.tracker.egress_verdict as egress_verdict_mod
     import specify_cli.tracker.local_service as local_service_mod
-    from specify_cli.cli.commands.tracker import _check_binding_readiness, _check_sync_readiness
 
-    # 1. local_service.py's module docstring no longer claims zero consultation of any
-    # consent/verdict machinery -- it records that this module consults the tracker-egress
-    # verdict, which in turn reaches the hosted-sync consent chain.
     local_doc = local_service_mod.__doc__ or ""
     assert "egress" in local_doc.lower() and "verdict" in local_doc.lower(), local_doc
-
-    # 2. _check_sync_readiness: "without going through the SaaS surface at all" is false the
-    # moment the local sync entry points consult the tracker-egress verdict, and the
-    # docstring must keep naming that the former hosted-sync consent channel ("Channel 1")
-    # retired with the sync transport (#5) rather than silently dropping the note.
-    sync_doc = _check_sync_readiness.__doc__ or ""
-    assert "tracker_egress_verdict" in sync_doc, sync_doc
-    assert "issue #5" in sync_doc, sync_doc
-
-    # 3. _check_binding_readiness mirrors the former and must not silently inherit a claim
-    # that is no longer true for the sync entry points -- it names the distinction instead.
-    binding_doc = _check_binding_readiness.__doc__ or ""
-    assert "tracker_egress_verdict" in binding_doc, binding_doc
-    assert "does not" in binding_doc.lower(), binding_doc
-
-    # 4. WP03's authored module docstring -- SC-019's literal strings, so the retirement
-    # condition (Bundle B's Q3) cannot be softened into a "consider revisiting", even though
-    # the classifier it once described has itself been retired.
-    doc = egress_verdict_mod.__doc__ or ""
-    for literal in ("invocation/adapters.py:81", "Q3", "delete", "not migrate"):
-        assert literal in doc, (literal, doc)

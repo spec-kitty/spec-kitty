@@ -131,54 +131,55 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
  ``--negative-invariant``, both routed through the WP03 write seam.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                   TEXT  Mission slug, mid8, or  │
-│                                                      mission_id              │
-│                                                      [required]              │
-│    --criterion                                 TEXT  Acceptance criterion id │
-│                                                      (e.g. FR-001); mutually │
-│                                                      exclusive with          │
-│                                                      --negative-invariant    │
-│    --result                                    TEXT  pass | fail | pending   │
-│                                                      (required with          │
-│                                                      --criterion)            │
-│    --verification-method                       TEXT  Criterion mode: how     │
-│                                                      this was verified       │
-│                                                      (updates proof_type).   │
-│                                                      Negative-invariant      │
-│                                                      mode: grep_absence |    │
-│                                                      route_check |           │
-│                                                      custom_command          │
-│                                                      (required with          │
-│                                                      --negative-invariant).  │
-│    --actor                                     TEXT  Actor recording this    │
-│                                                      verdict                 │
-│    --evidence                                  TEXT  Evidence reference      │
-│                                                      (URL/path/etc.)         │
-│    --negative-invariant                        TEXT  Negative invariant id   │
-│                                                      to register/execute     │
-│                                                      (FR-007/FR-008);        │
-│                                                      mutually exclusive with │
-│                                                      --criterion             │
-│    --description                               TEXT  Negative invariant      │
-│                                                      description (required   │
-│                                                      with                    │
-│                                                      --negative-invariant)   │
-│    --verification-command                      TEXT  grep pattern or command │
-│                                                      verifying the           │
-│                                                      invariant's absence     │
-│    --scope                                     TEXT  Whitespace-separated    │
-│                                                      repo-relative search    │
-│                                                      root(s); grep_absence   │
-│                                                      only                    │
-│    --execute                   --no-execute          Run the invariant's     │
-│                                                      verification            │
-│                                                      immediately after       │
-│                                                      registering (FR-008;    │
-│                                                      default: on)            │
-│                                                      [default: execute]      │
-│    --json                                            Output JSON format      │
-│    --help                  -h                        Show this message and   │
-│                                                      exit.                   │
+│ *  --mission                                   <str>  Mission slug, mid8, or │
+│                                                       mission_id             │
+│                                                       [required]             │
+│    --criterion                                 <str>  Acceptance criterion   │
+│                                                       id (e.g. FR-001);      │
+│                                                       mutually exclusive     │
+│                                                       with                   │
+│                                                       --negative-invariant   │
+│    --result                                    <str>  pass | fail | pending  │
+│                                                       (required with         │
+│                                                       --criterion)           │
+│    --verification-method                       <str>  Criterion mode: how    │
+│                                                       this was verified      │
+│                                                       (updates proof_type).  │
+│                                                       Negative-invariant     │
+│                                                       mode: grep_absence |   │
+│                                                       route_check |          │
+│                                                       custom_command         │
+│                                                       (required with         │
+│                                                       --negative-invariant). │
+│    --actor                                     <str>  Actor recording this   │
+│                                                       verdict                │
+│    --evidence                                  <str>  Evidence reference     │
+│                                                       (URL/path/etc.)        │
+│    --negative-invariant                        <str>  Negative invariant id  │
+│                                                       to register/execute    │
+│                                                       (FR-007/FR-008);       │
+│                                                       mutually exclusive     │
+│                                                       with --criterion       │
+│    --description                               <str>  Negative invariant     │
+│                                                       description (required  │
+│                                                       with                   │
+│                                                       --negative-invariant)  │
+│    --verification-command                      <str>  grep pattern or        │
+│                                                       command verifying the  │
+│                                                       invariant's absence    │
+│    --scope                                     <str>  Whitespace-separated   │
+│                                                       repo-relative search   │
+│                                                       root(s); grep_absence  │
+│                                                       only                   │
+│    --execute                   --no-execute           Run the invariant's    │
+│                                                       verification           │
+│                                                       immediately after      │
+│                                                       registering (FR-008;   │
+│                                                       default: on)           │
+│                                                       [default: execute]     │
+│    --json                                             Output JSON format     │
+│    --help                  -h                         Show this message and  │
+│                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -203,7 +204,7 @@ _Mission action commands that display prompts and instructions for agents_
 ## spec-kitty agent action implement
 
 ```
- Usage: spec-kitty agent action implement [OPTIONS] [WP_ID]
+ Usage: spec-kitty agent action implement [OPTIONS] [wp_id]
 
  Display work package prompt with implementation instructions.
 
@@ -221,60 +222,62 @@ _Mission action commands that display prompts and instructions for agents_
  planned WP
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   wp_id      [WP_ID]  Work package ID (e.g., WP01, wp01, WP01-slug) -        │
-│                       auto-detects first planned if omitted                  │
+│   wp_id      <str>  Work package ID (e.g., WP01, wp01, WP01-slug) -          │
+│                     auto-detects first planned if omitted                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                            TEXT  Mission slug                      │
-│ --agent                              TEXT  Agent name (required for          │
-│                                            auto-move to in_progress). With   │
-│                                            --force, name the agent that will │
-│                                            implement: it is recorded as the  │
-│                                            implementer of record.            │
-│ --model                              TEXT  Dispatch-resolved model asserted  │
-│                                            against the correlated Op record  │
-│                                            (requires --invocation-id; never  │
-│                                            the frontmatter recommendation)   │
-│ --profile                            TEXT  Agent profile id — a dispatch     │
-│                                            registry / Op record profile or a │
-│                                            local charter profile (the same   │
-│                                            ids `agent profile show`          │
-│                                            resolves). When omitted, the work │
-│                                            package's frontmatter             │
-│                                            agent_profile is used.            │
-│ --invocation-id                      TEXT  Correlated Op record ULID whose   │
-│                                            mission, WP, action, profile, and │
-│                                            model are authoritative           │
-│ --force                                    Operator override: take a WP out  │
-│                                            of for_review, in_review or       │
-│                                            approved. Requires --note.        │
-│                                            Refused for a WP in any other     │
-│                                            lane.                             │
-│ --note                               TEXT  Why the review lane is being      │
-│                                            left; recorded in the status      │
-│                                            event. Only valid with --force.   │
-│ --allow-sparse-checkout                    Proceed even if legacy            │
-│                                            sparse-checkout state is          │
-│                                            detected. Use of this override is │
-│                                            logged. Does not bypass the       │
-│                                            commit-time data-loss backstop.   │
-│ --acknowledge-not-bulk-edit                Suppress the bulk-edit inference  │
-│                                            warning when spec language        │
-│                                            resembles a bulk edit but the     │
-│                                            mission is not one.               │
-│ --owned-checkout                     PATH  Not yet supported. Refused: owned │
-│                                            checkouts use 'spec-kitty next    │
-│                                            --owned-checkout' and 'spec-kitty │
-│                                            agent tasks move-task             │
-│                                            --owned-checkout' instead.        │
-│ --help                       -h            Show this message and exit.       │
+│ --mission                            <str>   Mission slug                    │
+│ --agent                              <str>   Agent name (required for        │
+│                                              auto-move to in_progress). With │
+│                                              --force, name the agent that    │
+│                                              will implement: it is recorded  │
+│                                              as the implementer of record.   │
+│ --model                              <str>   Dispatch-resolved model         │
+│                                              asserted against the correlated │
+│                                              Op record (requires             │
+│                                              --invocation-id; never the      │
+│                                              frontmatter recommendation)     │
+│ --profile                            <str>   Agent profile id — a dispatch   │
+│                                              registry / Op record profile or │
+│                                              a local charter profile (the    │
+│                                              same ids `agent profile show`   │
+│                                              resolves). When omitted, the    │
+│                                              work package's frontmatter      │
+│                                              agent_profile is used.          │
+│ --invocation-id                      <str>   Correlated Op record ULID whose │
+│                                              mission, WP, action, profile,   │
+│                                              and model are authoritative     │
+│ --force                                      Operator override: take a WP    │
+│                                              out of for_review, in_review or │
+│                                              approved. Requires --note.      │
+│                                              Refused for a WP in any other   │
+│                                              lane.                           │
+│ --note                               <str>   Why the review lane is being    │
+│                                              left; recorded in the status    │
+│                                              event. Only valid with --force. │
+│ --allow-sparse-checkout                      Proceed even if legacy          │
+│                                              sparse-checkout state is        │
+│                                              detected. Use of this override  │
+│                                              is logged. Does not bypass the  │
+│                                              commit-time data-loss backstop. │
+│ --acknowledge-not-bulk-edit                  Suppress the bulk-edit          │
+│                                              inference warning when spec     │
+│                                              language resembles a bulk edit  │
+│                                              but the mission is not one.     │
+│ --owned-checkout                     <path>  Not yet supported. Refused:     │
+│                                              owned checkouts use 'spec-kitty │
+│                                              next --owned-checkout' and      │
+│                                              'spec-kitty agent tasks         │
+│                                              move-task --owned-checkout'     │
+│                                              instead.                        │
+│ --help                       -h              Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent action review
 
 ```
- Usage: spec-kitty agent action review [OPTIONS] [WP_ID]
+ Usage: spec-kitty agent action review [OPTIONS] [wp_id]
 
  Display work package prompt with review instructions.
 
@@ -291,29 +294,31 @@ _Mission action commands that display prompts and instructions for agents_
  for_review WP
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   wp_id      [WP_ID]  Work package ID (e.g., WP01) - auto-detects first      │
-│                       for_review if omitted                                  │
+│   wp_id      <str>  Work package ID (e.g., WP01) - auto-detects first        │
+│                     for_review if omitted                                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission slug                                 │
-│ --agent                   TEXT  Agent name (required for auto-move to        │
-│                                 in_progress)                                 │
-│ --model                   TEXT  Dispatch-resolved model asserted against the │
-│                                 correlated Op record (requires               │
-│                                 --invocation-id; never the frontmatter       │
-│                                 recommendation)                              │
-│ --profile                 TEXT  Agent profile id — a dispatch registry / Op  │
-│                                 record profile or a local charter profile    │
-│                                 (the same ids `agent profile show`           │
-│                                 resolves). When omitted, the work package's  │
-│                                 frontmatter agent_profile is used.           │
-│ --invocation-id           TEXT  Correlated Op record ULID whose mission, WP, │
-│                                 action, profile, and model are authoritative │
-│ --owned-checkout          PATH  Not yet supported. Refused: owned checkouts  │
-│                                 use 'spec-kitty next --owned-checkout' and   │
-│                                 'spec-kitty agent tasks move-task            │
-│                                 --owned-checkout' instead.                   │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>   Mission slug                               │
+│ --agent                   <str>   Agent name (required for auto-move to      │
+│                                   in_progress)                               │
+│ --model                   <str>   Dispatch-resolved model asserted against   │
+│                                   the correlated Op record (requires         │
+│                                   --invocation-id; never the frontmatter     │
+│                                   recommendation)                            │
+│ --profile                 <str>   Agent profile id — a dispatch registry /   │
+│                                   Op record profile or a local charter       │
+│                                   profile (the same ids `agent profile show` │
+│                                   resolves). When omitted, the work          │
+│                                   package's frontmatter agent_profile is     │
+│                                   used.                                      │
+│ --invocation-id           <str>   Correlated Op record ULID whose mission,   │
+│                                   WP, action, profile, and model are         │
+│                                   authoritative                              │
+│ --owned-checkout          <path>  Not yet supported. Refused: owned          │
+│                                   checkouts use 'spec-kitty next             │
+│                                   --owned-checkout' and 'spec-kitty agent    │
+│                                   tasks move-task --owned-checkout' instead. │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -342,7 +347,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 ## spec-kitty agent config add
 
 ```
- Usage: spec-kitty agent config add [OPTIONS] AGENTS...
+ Usage: spec-kitty agent config add [OPTIONS] {agents}...
 
  Add agents to the project.
 
@@ -352,8 +357,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
      spec-kitty agent config add claude codex
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    agents      AGENTS...  Agent keys to add (e.g., claude codex)           │
-│                             [required]                                       │
+│ *    agents      <str>  Agent keys to add (e.g., claude codex) [required]    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -375,7 +379,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 ## spec-kitty agent config remove
 
 ```
- Usage: spec-kitty agent config remove [OPTIONS] AGENTS...
+ Usage: spec-kitty agent config remove [OPTIONS] {agents}...
 
  Remove agents from the project.
 
@@ -385,7 +389,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
      spec-kitty agent config remove codex gemini
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    agents      AGENTS...  Agent keys to remove [required]                  │
+│ *    agents      <str>  Agent keys to remove [required]                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --keep-config            Keep in config.yaml but delete directory            │
@@ -396,7 +400,7 @@ _Manage project AI agent configuration (add, remove, list agents)_
 ## spec-kitty agent config set
 
 ```
- Usage: spec-kitty agent config set [OPTIONS] KEY VALUE
+ Usage: spec-kitty agent config set [OPTIONS] {key} {value}
 
  Set a project-level agent configuration value.
 
@@ -409,8 +413,8 @@ _Manage project AI agent configuration (add, remove, list agents)_
      spec-kitty agent config set lint_on_edit true
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    key        TEXT  Configuration key (e.g., auto_commit) [required]       │
-│ *    value      TEXT  Configuration value (e.g., true, false) [required]     │
+│ *    key        <str>  Configuration key (e.g., auto_commit) [required]      │
+│ *    value      <str>  Configuration value (e.g., true, false) [required]    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -488,20 +492,21 @@ _Agent context management commands_
  Resolve canonical feature/work-package/action context for prompt execution.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --action                  TEXT  Action to resolve context for (specify,   │
-│                                    plan, analyze, tasks, tasks_outline,      │
-│                                    tasks_packages, tasks_finalize,           │
-│                                    implement, review, accept, status)        │
-│                                    [required]                                │
-│    --mission                 TEXT  Mission slug (e.g., '020-my-mission')     │
-│    --wp-id                   TEXT  Work package ID (e.g., WP01)              │
-│    --agent                   TEXT  Agent name for exact command rendering    │
-│    --json                          Output results as JSON                    │
-│    --owned-checkout          PATH  Run against an owned checkout: a linked   │
-│                                    checkout that owns this mission. Refuses  │
-│                                    the repository root checkout, lane        │
-│                                    worktrees and coordination worktrees.     │
-│    --help            -h            Show this message and exit.               │
+│ *  --action                  <str>   Action to resolve context for (specify, │
+│                                      plan, analyze, tasks, tasks_outline,    │
+│                                      tasks_packages, tasks_finalize,         │
+│                                      implement, review, accept, status)      │
+│                                      [required]                              │
+│    --mission                 <str>   Mission slug (e.g., '020-my-mission')   │
+│    --wp-id                   <str>   Work package ID (e.g., WP01)            │
+│    --agent                   <str>   Agent name for exact command rendering  │
+│    --json                            Output results as JSON                  │
+│    --owned-checkout          <path>  Run against an owned checkout: a linked │
+│                                      checkout that owns this mission.        │
+│                                      Refuses the repository root checkout,   │
+│                                      lane worktrees and coordination         │
+│                                      worktrees.                              │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -535,52 +540,64 @@ _Decision Moment ledger for interview questions._
 ## spec-kitty agent decision cancel
 
 ```
- Usage: spec-kitty agent decision cancel [OPTIONS] DECISION_ID
+ Usage: spec-kitty agent decision cancel [OPTIONS] {decision_id}
 
  Cancel a decision (deemed no longer relevant).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    decision_id      TEXT  ULID identifier of the decision to cancel        │
-│                             [required]                                       │
+│ *    decision_id      <str>  ULID identifier of the decision to cancel       │
+│                              [required]                                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                       TEXT  Mission handle [required]           │
-│ *  --rationale                     TEXT  Explanation of why it's being       │
-│                                          canceled (required)                 │
-│                                          [required]                          │
-│    --resolved-by                   TEXT  Identity of canceling party         │
-│    --actor                         TEXT  Identity of the acting agent        │
-│                                          [default: cli]                      │
-│    --dry-run                             Validate without writing            │
-│    --json             --no-json          Output JSON (default true)          │
-│                                          [default: json]                     │
-│    --help         -h                     Show this message and exit.         │
+│ *  --mission                          <str>   Mission handle [required]      │
+│ *  --rationale                        <str>   Explanation of why it's being  │
+│                                               canceled (required)            │
+│                                               [required]                     │
+│    --resolved-by                      <str>   Identity of canceling party    │
+│    --actor                            <str>   Identity of the acting agent   │
+│                                               [default: cli]                 │
+│    --dry-run                                  Validate without writing       │
+│    --json                --no-json            Output JSON (default true)     │
+│                                               [default: json]                │
+│    --owned-checkout                   <path>  Run against an owned checkout: │
+│                                               a linked checkout that owns    │
+│                                               this mission. Refuses the      │
+│                                               repository root checkout, lane │
+│                                               worktrees and coordination     │
+│                                               worktrees.                     │
+│    --help            -h                       Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent decision defer
 
 ```
- Usage: spec-kitty agent decision defer [OPTIONS] DECISION_ID
+ Usage: spec-kitty agent decision defer [OPTIONS] {decision_id}
 
  Defer a decision for later resolution.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    decision_id      TEXT  ULID identifier of the decision to defer         │
-│                             [required]                                       │
+│ *    decision_id      <str>  ULID identifier of the decision to defer        │
+│                              [required]                                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                       TEXT  Mission handle [required]           │
-│ *  --rationale                     TEXT  Explanation of why it's being       │
-│                                          deferred (required)                 │
-│                                          [required]                          │
-│    --resolved-by                   TEXT  Identity of deferring party         │
-│    --actor                         TEXT  Identity of the acting agent        │
-│                                          [default: cli]                      │
-│    --dry-run                             Validate without writing            │
-│    --json             --no-json          Output JSON (default true)          │
-│                                          [default: json]                     │
-│    --help         -h                     Show this message and exit.         │
+│ *  --mission                          <str>   Mission handle [required]      │
+│ *  --rationale                        <str>   Explanation of why it's being  │
+│                                               deferred (required)            │
+│                                               [required]                     │
+│    --resolved-by                      <str>   Identity of deferring party    │
+│    --actor                            <str>   Identity of the acting agent   │
+│                                               [default: cli]                 │
+│    --dry-run                                  Validate without writing       │
+│    --json                --no-json            Output JSON (default true)     │
+│                                               [default: json]                │
+│    --owned-checkout                   <path>  Run against an owned checkout: │
+│                                               a linked checkout that owns    │
+│                                               this mission. Refuses the      │
+│                                               repository root checkout, lane │
+│                                               worktrees and coordination     │
+│                                               worktrees.                     │
+│    --help            -h                       Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -592,14 +609,21 @@ _Decision Moment ledger for interview questions._
  List the mission's recorded decision moments (read-only).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                   TEXT  Mission handle (slug, mission_id, or    │
-│                                      mid8)                                   │
-│                                      [required]                              │
-│    --status                    TEXT  Only list decisions in this status:     │
-│                                      open | resolved | deferred | canceled   │
-│    --json         --no-json          Output JSON (default true)              │
-│                                      [default: json]                         │
-│    --help     -h                     Show this message and exit.             │
+│ *  --mission                          <str>   Mission handle (slug,          │
+│                                               mission_id, or mid8)           │
+│                                               [required]                     │
+│    --status                           <str>   Only list decisions in this    │
+│                                               status: open | resolved |      │
+│                                               deferred | canceled            │
+│    --json                --no-json            Output JSON (default true)     │
+│                                               [default: json]                │
+│    --owned-checkout                   <path>  Run against an owned checkout: │
+│                                               a linked checkout that owns    │
+│                                               this mission. Refuses the      │
+│                                               repository root checkout, lane │
+│                                               worktrees and coordination     │
+│                                               worktrees.                     │
+│    --help            -h                       Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -611,26 +635,34 @@ _Decision Moment ledger for interview questions._
  Open a new Decision Moment or return idempotently if one already exists.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                     TEXT  Mission handle (slug, mission_id, or  │
-│                                        mid8)                                 │
-│                                        [required]                            │
-│ *  --flow                        TEXT  Origin flow: charter | specify | plan │
-│                                        [required]                            │
-│ *  --input-key                   TEXT  The input key this decision governs   │
-│                                        [required]                            │
-│ *  --question                    TEXT  Human-readable question text          │
-│                                        [required]                            │
-│    --step-id                     TEXT  Interview step identifier             │
-│    --slot-key                    TEXT  Slot key (use when step_id            │
-│                                        unavailable)                          │
-│    --options                     TEXT  Candidate answers as a JSON array     │
-│                                        string                                │
-│    --actor                       TEXT  Identity of the opening actor         │
-│                                        [default: cli]                        │
-│    --dry-run                           Validate without writing              │
-│    --json           --no-json          Output JSON (default true)            │
-│                                        [default: json]                       │
-│    --help       -h                     Show this message and exit.           │
+│ *  --mission                          <str>   Mission handle (slug,          │
+│                                               mission_id, or mid8)           │
+│                                               [required]                     │
+│ *  --flow                             <str>   Origin flow: charter | specify │
+│                                               | plan                         │
+│                                               [required]                     │
+│ *  --input-key                        <str>   The input key this decision    │
+│                                               governs                        │
+│                                               [required]                     │
+│ *  --question                         <str>   Human-readable question text   │
+│                                               [required]                     │
+│    --step-id                          <str>   Interview step identifier      │
+│    --slot-key                         <str>   Slot key (use when step_id     │
+│                                               unavailable)                   │
+│    --options                          <str>   Candidate answers as a JSON    │
+│                                               array string                   │
+│    --actor                            <str>   Identity of the opening actor  │
+│                                               [default: cli]                 │
+│    --dry-run                                  Validate without writing       │
+│    --json                --no-json            Output JSON (default true)     │
+│                                               [default: json]                │
+│    --owned-checkout                   <path>  Run against an owned checkout: │
+│                                               a linked checkout that owns    │
+│                                               this mission. Refuses the      │
+│                                               repository root checkout, lane │
+│                                               worktrees and coordination     │
+│                                               worktrees.                     │
+│    --help            -h                       Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -645,43 +677,50 @@ _Decision Moment ledger for interview questions._
  the lock is untracked but not ignored.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                 TEXT  Mission whose decision runtime lock needs │
-│                                    repair                                    │
-│                                    [required]                                │
-│    --owned-checkout          PATH  Run against an owned checkout: a linked   │
-│                                    checkout that owns this mission. Refuses  │
-│                                    the repository root checkout, lane        │
-│                                    worktrees and coordination worktrees.     │
-│    --dry-run                       Validate and inspect without acquiring    │
-│                                    the lock or writing                       │
-│    --help            -h            Show this message and exit.               │
+│ *  --mission                 <str>   Mission whose decision runtime lock     │
+│                                      needs repair                            │
+│                                      [required]                              │
+│    --owned-checkout          <path>  Run against an owned checkout: a linked │
+│                                      checkout that owns this mission.        │
+│                                      Refuses the repository root checkout,   │
+│                                      lane worktrees and coordination         │
+│                                      worktrees.                              │
+│    --dry-run                         Validate and inspect without acquiring  │
+│                                      the lock or writing                     │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent decision resolve
 
 ```
- Usage: spec-kitty agent decision resolve [OPTIONS] DECISION_ID
+ Usage: spec-kitty agent decision resolve [OPTIONS] {decision_id}
 
  Resolve a decision with a concrete final answer.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    decision_id      TEXT  ULID identifier of the decision to resolve       │
-│                             [required]                                       │
+│ *    decision_id      <str>  ULID identifier of the decision to resolve      │
+│                              [required]                                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                        TEXT  Mission handle [required]          │
-│ *  --final-answer                   TEXT  The chosen answer (non-empty)      │
-│                                           [required]                         │
-│    --other-answer                         True if answer is a write-in       │
-│    --rationale                      TEXT  Explanation of the choice          │
-│    --resolved-by                    TEXT  Identity of resolver               │
-│    --actor                          TEXT  Identity of the acting agent       │
-│                                           [default: cli]                     │
-│    --dry-run                              Validate without writing           │
-│    --json              --no-json          Output JSON (default true)         │
-│                                           [default: json]                    │
-│    --help          -h                     Show this message and exit.        │
+│ *  --mission                          <str>   Mission handle [required]      │
+│ *  --final-answer                     <str>   The chosen answer (non-empty)  │
+│                                               [required]                     │
+│    --other-answer                             True if answer is a write-in   │
+│    --rationale                        <str>   Explanation of the choice      │
+│    --resolved-by                      <str>   Identity of resolver           │
+│    --actor                            <str>   Identity of the acting agent   │
+│                                               [default: cli]                 │
+│    --dry-run                                  Validate without writing       │
+│    --json                --no-json            Output JSON (default true)     │
+│                                               [default: json]                │
+│    --owned-checkout                   <path>  Run against an owned checkout: │
+│                                               a linked checkout that owns    │
+│                                               this mission. Refuses the      │
+│                                               repository root checkout, lane │
+│                                               worktrees and coordination     │
+│                                               worktrees.                     │
+│    --help            -h                       Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -693,17 +732,27 @@ _Decision Moment ledger for interview questions._
  Cross-check deferred decisions against inline sentinel markers.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                  TEXT  Mission handle           │
-│                                                     [required]               │
-│    --fail-on-stale      --no-fail-on-stale          Exit non-zero when       │
-│                                                     findings are present     │
-│                                                     (default true)           │
-│                                                     [default: fail-on-stale] │
-│    --json               --no-json                   Output JSON (default     │
-│                                                     true)                    │
-│                                                     [default: json]          │
-│    --help           -h                              Show this message and    │
-│                                                     exit.                    │
+│ *  --mission                                   <str>   Mission handle        │
+│                                                        [required]            │
+│    --fail-on-stale       --no-fail-on-stale            Exit non-zero when    │
+│                                                        findings are present  │
+│                                                        (default true)        │
+│                                                        [default:             │
+│                                                        fail-on-stale]        │
+│    --json                --no-json                     Output JSON (default  │
+│                                                        true)                 │
+│                                                        [default: json]       │
+│    --owned-checkout                            <path>  Run against an owned  │
+│                                                        checkout: a linked    │
+│                                                        checkout that owns    │
+│                                                        this mission. Refuses │
+│                                                        the repository root   │
+│                                                        checkout, lane        │
+│                                                        worktrees and         │
+│                                                        coordination          │
+│                                                        worktrees.            │
+│    --help            -h                                Show this message and │
+│                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -715,27 +764,28 @@ _Decision Moment ledger for interview questions._
  Set an issue-matrix row's verdict, routed via ``write_target(ISSUE_MATRIX)``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               TEXT  Mission handle (slug, mission_id, or mid8). │
-│                                  [required]                                  │
-│ *  --issue                 TEXT  Issue reference, e.g. "#1726". [required]   │
-│ *  --verdict               TEXT  fixed | verified-already-fixed |            │
-│                                  deferred-with-followup | in-mission |       │
-│                                  not-applicable (non-gating: cited for       │
-│                                  context or a PR/commit reference, no work   │
-│                                  owed; unlike in-mission it is terminal --   │
-│                                  it also passes the done/merge completeness  │
-│                                  gate unchanged)                             │
-│                                  [required]                                  │
-│ *  --actor                 TEXT  Identity of the acting agent. [required]    │
-│    --wp                    TEXT  Owning work-package id (e.g. WP01).         │
-│    --evidence-ref          TEXT  Evidence text or link for the verdict.      │
-│                                  Required when --verdict is                  │
-│                                  deferred-with-followup: the value must      │
-│                                  contain a follow-up handle ('#NNN' or a     │
-│                                  'Follow-up:' substring), or the row fails   │
-│                                  validation.                                 │
-│    --json                        Output JSON format.                         │
-│    --help          -h            Show this message and exit.                 │
+│ *  --mission               <str>  Mission handle (slug, mission_id, or       │
+│                                   mid8).                                     │
+│                                   [required]                                 │
+│ *  --issue                 <str>  Issue reference, e.g. "#1726". [required]  │
+│ *  --verdict               <str>  fixed | verified-already-fixed |           │
+│                                   deferred-with-followup | in-mission |      │
+│                                   not-applicable (non-gating: cited for      │
+│                                   context or a PR/commit reference, no work  │
+│                                   owed; unlike in-mission it is terminal --  │
+│                                   it also passes the done/merge completeness │
+│                                   gate unchanged)                            │
+│                                   [required]                                 │
+│ *  --actor                 <str>  Identity of the acting agent. [required]   │
+│    --wp                    <str>  Owning work-package id (e.g. WP01).        │
+│    --evidence-ref          <str>  Evidence text or link for the verdict.     │
+│                                   Required when --verdict is                 │
+│                                   deferred-with-followup: the value must     │
+│                                   contain a follow-up handle ('#NNN' or a    │
+│                                   'Follow-up:' substring), or the row fails  │
+│                                   validation.                                │
+│    --json                         Output JSON format.                        │
+│    --help          -h             Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -803,32 +853,34 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission accept --mission 077-my-mission --lenient --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                              TEXT  Mission slug (required in       │
-│                                              multi-mission repos)            │
-│ --mode                                 TEXT  Acceptance mode: auto, pr,      │
-│                                              local, checklist                │
-│                                              [default: auto]                 │
-│ --json                                       Output results as JSON for      │
-│                                              agent parsing                   │
-│ --lenient                                    Skip strict metadata validation │
-│ --no-commit                                  Skip auto-commit (report only)  │
-│ --diagnose                                   Diagnose acceptance blockers    │
-│                                              without mutation                │
-│ --merge-commit                         SHA   With --mode pr: record this PR  │
-│                                              merge commit as the mission's   │
-│                                              post-merge review baseline      │
-│                                              (#4231).                        │
-│ --target-branch                        TEXT  With --merge-commit: the branch │
-│                                              the PR merged into. Defaults to │
-│                                              the mission's declared          │
-│                                              target_branch, else the         │
-│                                              repository's primary branch.    │
-│ --attest-first-landing-commit                With --merge-commit: attest the │
-│                                              supplied commit's first parent  │
-│                                              is the pre-landing target tip   │
-│                                              (#4231). Required for every     │
-│                                              landing shape.                  │
-│ --help                         -h            Show this message and exit.     │
+│ --mission                              <str>  Mission slug (required in      │
+│                                               multi-mission repos)           │
+│ --mode                                 <str>  Acceptance mode: auto, pr,     │
+│                                               local, checklist               │
+│                                               [default: auto]                │
+│ --json                                        Output results as JSON for     │
+│                                               agent parsing                  │
+│ --lenient                                     Skip strict metadata           │
+│                                               validation                     │
+│ --no-commit                                   Skip auto-commit (report only) │
+│ --diagnose                                    Diagnose acceptance blockers   │
+│                                               without mutation               │
+│ --merge-commit                         SHA    With --mode pr: record this PR │
+│                                               merge commit as the mission's  │
+│                                               post-merge review baseline     │
+│                                               (#4231).                       │
+│ --target-branch                        <str>  With --merge-commit: the       │
+│                                               branch the PR merged into.     │
+│                                               Defaults to the mission's      │
+│                                               declared target_branch, else   │
+│                                               the repository's primary       │
+│                                               branch.                        │
+│ --attest-first-landing-commit                 With --merge-commit: attest    │
+│                                               the supplied commit's first    │
+│                                               parent is the pre-landing      │
+│                                               target tip (#4231). Required   │
+│                                               for every landing shape.       │
+│ --help                         -h             Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -842,54 +894,55 @@ _Mission lifecycle commands for AI agents_
  ``--negative-invariant``, both routed through the WP03 write seam.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                   TEXT  Mission slug, mid8, or  │
-│                                                      mission_id              │
-│                                                      [required]              │
-│    --criterion                                 TEXT  Acceptance criterion id │
-│                                                      (e.g. FR-001); mutually │
-│                                                      exclusive with          │
-│                                                      --negative-invariant    │
-│    --result                                    TEXT  pass | fail | pending   │
-│                                                      (required with          │
-│                                                      --criterion)            │
-│    --verification-method                       TEXT  Criterion mode: how     │
-│                                                      this was verified       │
-│                                                      (updates proof_type).   │
-│                                                      Negative-invariant      │
-│                                                      mode: grep_absence |    │
-│                                                      route_check |           │
-│                                                      custom_command          │
-│                                                      (required with          │
-│                                                      --negative-invariant).  │
-│    --actor                                     TEXT  Actor recording this    │
-│                                                      verdict                 │
-│    --evidence                                  TEXT  Evidence reference      │
-│                                                      (URL/path/etc.)         │
-│    --negative-invariant                        TEXT  Negative invariant id   │
-│                                                      to register/execute     │
-│                                                      (FR-007/FR-008);        │
-│                                                      mutually exclusive with │
-│                                                      --criterion             │
-│    --description                               TEXT  Negative invariant      │
-│                                                      description (required   │
-│                                                      with                    │
-│                                                      --negative-invariant)   │
-│    --verification-command                      TEXT  grep pattern or command │
-│                                                      verifying the           │
-│                                                      invariant's absence     │
-│    --scope                                     TEXT  Whitespace-separated    │
-│                                                      repo-relative search    │
-│                                                      root(s); grep_absence   │
-│                                                      only                    │
-│    --execute                   --no-execute          Run the invariant's     │
-│                                                      verification            │
-│                                                      immediately after       │
-│                                                      registering (FR-008;    │
-│                                                      default: on)            │
-│                                                      [default: execute]      │
-│    --json                                            Output JSON format      │
-│    --help                  -h                        Show this message and   │
-│                                                      exit.                   │
+│ *  --mission                                   <str>  Mission slug, mid8, or │
+│                                                       mission_id             │
+│                                                       [required]             │
+│    --criterion                                 <str>  Acceptance criterion   │
+│                                                       id (e.g. FR-001);      │
+│                                                       mutually exclusive     │
+│                                                       with                   │
+│                                                       --negative-invariant   │
+│    --result                                    <str>  pass | fail | pending  │
+│                                                       (required with         │
+│                                                       --criterion)           │
+│    --verification-method                       <str>  Criterion mode: how    │
+│                                                       this was verified      │
+│                                                       (updates proof_type).  │
+│                                                       Negative-invariant     │
+│                                                       mode: grep_absence |   │
+│                                                       route_check |          │
+│                                                       custom_command         │
+│                                                       (required with         │
+│                                                       --negative-invariant). │
+│    --actor                                     <str>  Actor recording this   │
+│                                                       verdict                │
+│    --evidence                                  <str>  Evidence reference     │
+│                                                       (URL/path/etc.)        │
+│    --negative-invariant                        <str>  Negative invariant id  │
+│                                                       to register/execute    │
+│                                                       (FR-007/FR-008);       │
+│                                                       mutually exclusive     │
+│                                                       with --criterion       │
+│    --description                               <str>  Negative invariant     │
+│                                                       description (required  │
+│                                                       with                   │
+│                                                       --negative-invariant)  │
+│    --verification-command                      <str>  grep pattern or        │
+│                                                       command verifying the  │
+│                                                       invariant's absence    │
+│    --scope                                     <str>  Whitespace-separated   │
+│                                                       repo-relative search   │
+│                                                       root(s); grep_absence  │
+│                                                       only                   │
+│    --execute                   --no-execute           Run the invariant's    │
+│                                                       verification           │
+│                                                       immediately after      │
+│                                                       registering (FR-008;   │
+│                                                       default: on)           │
+│                                                       [default: execute]     │
+│    --json                                             Output JSON format     │
+│    --help                  -h                         Show this message and  │
+│                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -901,10 +954,10 @@ _Mission lifecycle commands for AI agents_
  Return deterministic branch contract for planning-stage prompts.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json                         Output JSON format                            │
-│ --target-branch          TEXT  Planned landing branch (defaults to current   │
-│                                branch)                                       │
-│ --help           -h            Show this message and exit.                   │
+│ --json                          Output JSON format                           │
+│ --target-branch          <str>  Planned landing branch (defaults to current  │
+│                                 branch)                                      │
+│ --help           -h             Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -925,25 +978,25 @@ _Mission lifecycle commands for AI agents_
  --resume-probe --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission slug (e.g., '020-my-mission')        │
-│ --json                          Output JSON format                           │
-│ --paths-only                    Only output path variables                   │
-│ --resume-probe                  Return structured                            │
-│                                 found/not_found/existing/ambiguous/malformed │
-│                                 state for safe specify resume                │
-│ --include-tasks                 Include tasks.md in validation               │
-│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
-│                                 checkout that owns this mission. Refuses the │
-│                                 repository root checkout, lane worktrees and │
-│                                 coordination worktrees.                      │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>   Mission slug (e.g., '020-my-mission')      │
+│ --json                            Output JSON format                         │
+│ --paths-only                      Only output path variables                 │
+│ --resume-probe                    Return structured                          │
+│                                   found/not_found/existing/ambiguous/malfor… │
+│                                   state for safe specify resume              │
+│ --include-tasks                   Include tasks.md in validation             │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent mission create
 
 ```
- Usage: spec-kitty agent mission create [OPTIONS] MISSION_SLUG
+ Usage: spec-kitty agent mission create [OPTIONS] {mission_slug}
 
  Create new mission directory structure in the project root checkout.
 
@@ -954,24 +1007,24 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission create "new-dashboard" --json
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    mission_slug      TEXT  Mission slug (e.g., 'user-auth') [required]     │
+│ *    mission_slug      <str>  Mission slug (e.g., 'user-auth') [required]    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                            TEXT             Mission type      │
+│ --mission-type                            <str>            Mission type      │
 │                                                            (e.g.,            │
 │                                                            'documentation',  │
 │                                                            'software-dev')   │
 │ --json                                                     Output JSON       │
 │                                                            format            │
-│ --target-branch                           TEXT             Target branch     │
+│ --target-branch                           <str>            Target branch     │
 │                                                            (defaults to      │
 │                                                            current branch)   │
-│ --friendly-name                           TEXT             Human-friendly    │
+│ --friendly-name                           <str>            Human-friendly    │
 │                                                            mission title     │
-│ --purpose-tldr                            TEXT             One-line          │
+│ --purpose-tldr                            <str>            One-line          │
 │                                                            stakeholder TLDR  │
 │                                                            for the mission   │
-│ --purpose-conte…                          TEXT             Short             │
+│ --purpose-conte…                          <str>            Short             │
 │                                                            stakeholder-faci… │
 │                                                            paragraph for the │
 │                                                            mission           │
@@ -981,9 +1034,9 @@ _Mission lifecycle commands for AI agents_
 │                                                            merge_target_bra… │
 │                                                            [default:         │
 │                                                            no-pr-bound]      │
-│ --topology                                [single_branch|  Create-time       │
+│ --topology                                <single_branch|  Create-time       │
 │                                           lanes|coord|lan  mission shape:    │
-│                                           es_with_coord]   single_branch |   │
+│                                           es_with_coord>   single_branch |   │
 │                                                            lanes | coord |   │
 │                                                            lanes_with_coord. │
 │                                                            Coordination-bea… │
@@ -1024,13 +1077,13 @@ _Mission lifecycle commands for AI agents_
 │                                                            explicitly (or    │
 │                                                            via               │
 │                                                            --owned-checkout… │
-│ --branch-strate…                          TEXT             Branch-strategy   │
+│ --branch-strate…                          <str>            Branch-strategy   │
 │                                                            gate control      │
 │                                                            (e.g.,            │
 │                                                            'already-confirm… │
 │                                                            to bypass the     │
 │                                                            prompt)           │
-│ --start-branch                            TEXT             Create or switch  │
+│ --start-branch                            <str>            Create or switch  │
 │                                                            to this branch    │
 │                                                            before mission    │
 │                                                            files are written │
@@ -1045,7 +1098,7 @@ _Mission lifecycle commands for AI agents_
 │                                                            Operator escape   │
 │                                                            hatch; never used │
 │                                                            by automation.    │
-│ --owned-checkout                          PATH             Run against an    │
+│ --owned-checkout                          <path>           Run against an    │
 │                                                            owned checkout: a │
 │                                                            linked checkout   │
 │                                                            that owns this    │
@@ -1159,79 +1212,83 @@ _Mission lifecycle commands for AI agents_
  --refresh-planning-commit --allow-orphaned
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                          TEXT  Mission slug (e.g.,                 │
-│                                          '020-my-mission')                   │
-│ --json                                   Output JSON format                  │
-│ --validate-only                          Run all validations without         │
-│                                          committing. Reports issues that     │
-│                                          would block finalization.           │
-│ --target-branch                    TEXT  Override the canonical planning     │
-│                                          target branch read from meta.json.  │
-│                                          Use this for legacy missions        │
-│                                          created before WP07 persisted       │
-│                                          target_branch in meta.json, or to   │
-│                                          correct a mission whose             │
-│                                          target_branch is stale (FR-012      │
-│                                          escape hatch). The override is      │
-│                                          persisted into the primary          │
-│                                          meta.json as part of this run, so   │
-│                                          every other target_branch consumer  │
-│                                          converges on it too (#3466).        │
-│ --owned-checkout                   PATH  Explicit owned checkout for a       │
-│                                          single-branch mission.              │
-│ --refresh-planning-commit                Force a refresh-ONLY run: re-point  │
-│                                          the recorded planning_commit_sha in │
-│                                          lanes.json to the current           │
-│                                          target-branch tip and exit, without │
-│                                          running the rest of finalize-tasks  │
-│                                          (#4141). By default (no flag        │
-│                                          needed) a normal re-finalize        │
-│                                          already advances the pin            │
-│                                          automatically whenever a PRIMARY    │
-│                                          planning file genuinely changed     │
-│                                          since it was recorded (FR-012); use │
-│                                          this flag only to force JUST the    │
-│                                          pin refresh for an ADVANCED pin     │
-│                                          (the common case) or to re-point a  │
-│                                          deliberate mid-mission rebase with  │
-│                                          --allow-orphaned (#4827). It is     │
-│                                          advance-only and REFUSES when the   │
-│                                          recorded SHA is not an ancestor of  │
-│                                          the tip without --allow-orphaned,   │
-│                                          and it CANNOT help a pin the        │
-│                                          automatic path already warned about │
-│                                          and kept unchanged (a FOREIGN       │
-│                                          object absent from this repository  │
-│                                          entirely, or an INDETERMINATE pin   │
-│                                          whose target tip could not even be  │
-│                                          resolved) -- WP15 cycle 2/3:        │
-│                                          neither shape is inspectable, so    │
-│                                          --refresh-planning-commit           │
-│                                          --allow-orphaned refuses both the   │
-│                                          same as a bare                      │
-│                                          --refresh-planning-commit would;    │
-│                                          correct lanes.json's                │
-│                                          planning_commit_sha by hand         │
-│                                          instead, per that warning's own     │
-│                                          text.                               │
-│ --allow-orphaned                         Only meaningful with                │
-│                                          --refresh-planning-commit (#4827).  │
-│                                          Permits the re-pin to re-point a    │
-│                                          recorded planning_commit_sha that   │
-│                                          is ORPHANED -- present in the       │
-│                                          repository but no longer an         │
-│                                          ancestor of the target-branch tip,  │
-│                                          the mid-mission-rebase shape.       │
-│                                          Without it, an orphaned pin is      │
-│                                          refused (a bare                     │
-│                                          --refresh-planning-commit stays     │
-│                                          advance-only; a plain finalize      │
-│                                          fails closed before writing         │
-│                                          lanes.json). Still refused          │
-│                                          regardless for a FOREIGN (absent)   │
-│                                          object -- investigate that          │
-│                                          divergence manually.                │
-│ --help                     -h            Show this message and exit.         │
+│ --mission                          <str>   Mission slug (e.g.,               │
+│                                            '020-my-mission')                 │
+│ --json                                     Output JSON format                │
+│ --validate-only                            Run all validations without       │
+│                                            committing. Reports issues that   │
+│                                            would block finalization.         │
+│ --target-branch                    <str>   Override the canonical planning   │
+│                                            target branch read from           │
+│                                            meta.json. Use this for legacy    │
+│                                            missions created before WP07      │
+│                                            persisted target_branch in        │
+│                                            meta.json, or to correct a        │
+│                                            mission whose target_branch is    │
+│                                            stale (FR-012 escape hatch). The  │
+│                                            override is persisted into the    │
+│                                            primary meta.json as part of this │
+│                                            run, so every other target_branch │
+│                                            consumer converges on it too      │
+│                                            (#3466).                          │
+│ --owned-checkout                   <path>  Explicit owned checkout for a     │
+│                                            single-branch mission.            │
+│ --refresh-planning-commit                  Force a refresh-ONLY run:         │
+│                                            re-point the recorded             │
+│                                            planning_commit_sha in lanes.json │
+│                                            to the current target-branch tip  │
+│                                            and exit, without running the     │
+│                                            rest of finalize-tasks (#4141).   │
+│                                            By default (no flag needed) a     │
+│                                            normal re-finalize already        │
+│                                            advances the pin automatically    │
+│                                            whenever a PRIMARY planning file  │
+│                                            genuinely changed since it was    │
+│                                            recorded (FR-012); use this flag  │
+│                                            only to force JUST the pin        │
+│                                            refresh for an ADVANCED pin (the  │
+│                                            common case) or to re-point a     │
+│                                            deliberate mid-mission rebase     │
+│                                            with --allow-orphaned (#4827). It │
+│                                            is advance-only and REFUSES when  │
+│                                            the recorded SHA is not an        │
+│                                            ancestor of the tip without       │
+│                                            --allow-orphaned, and it CANNOT   │
+│                                            help a pin the automatic path     │
+│                                            already warned about and kept     │
+│                                            unchanged (a FOREIGN object       │
+│                                            absent from this repository       │
+│                                            entirely, or an INDETERMINATE pin │
+│                                            whose target tip could not even   │
+│                                            be resolved) -- WP15 cycle 2/3:   │
+│                                            neither shape is inspectable, so  │
+│                                            --refresh-planning-commit         │
+│                                            --allow-orphaned refuses both the │
+│                                            same as a bare                    │
+│                                            --refresh-planning-commit would;  │
+│                                            correct lanes.json's              │
+│                                            planning_commit_sha by hand       │
+│                                            instead, per that warning's own   │
+│                                            text.                             │
+│ --allow-orphaned                           Only meaningful with              │
+│                                            --refresh-planning-commit         │
+│                                            (#4827). Permits the re-pin to    │
+│                                            re-point a recorded               │
+│                                            planning_commit_sha that is       │
+│                                            ORPHANED -- present in the        │
+│                                            repository but no longer an       │
+│                                            ancestor of the target-branch     │
+│                                            tip, the mid-mission-rebase       │
+│                                            shape. Without it, an orphaned    │
+│                                            pin is refused (a bare            │
+│                                            --refresh-planning-commit stays   │
+│                                            advance-only; a plain finalize    │
+│                                            fails closed before writing       │
+│                                            lanes.json). Still refused        │
+│                                            regardless for a FOREIGN (absent) │
+│                                            object -- investigate that        │
+│                                            divergence manually.              │
+│ --help                     -h              Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1271,33 +1328,34 @@ _Mission lifecycle commands for AI agents_
  --keep-branch
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                                 TEXT  Mission slug (required in    │
-│                                                 multi-mission repos)         │
-│ --target                                  TEXT  Target branch for the        │
-│                                                 branch-integration step      │
-│                                                 (required in multi-mission   │
-│                                                 repos)                       │
-│ --strategy                                TEXT  Strategy for the             │
-│                                                 branch-integration step:     │
-│                                                 merge, squash, rebase        │
-│                                                 [default: merge]             │
-│ --push                                          Publish to origin after the  │
-│                                                 local merge (the operator    │
-│                                                 publish step)                │
-│ --dry-run                                       Show actions without         │
-│                                                 executing                    │
-│ --keep-branch        --delete-branch            Keep or delete mission       │
-│                                                 branch after merge (default: │
-│                                                 retain-gate choice)          │
-│ --keep-worktree      --remove-worktree          Keep or remove worktree      │
-│                                                 after merge (default:        │
-│                                                 retain-gate choice)          │
-│ --auto-retry         --no-auto-retry            Auto-navigate to a           │
-│                                                 deterministic mission        │
-│                                                 worktree if in the wrong     │
-│                                                 location                     │
-│                                                 [default: no-auto-retry]     │
-│ --help           -h                             Show this message and exit.  │
+│ --mission                                 <str>  Mission slug (required in   │
+│                                                  multi-mission repos)        │
+│ --target                                  <str>  Target branch for the       │
+│                                                  branch-integration step     │
+│                                                  (required in multi-mission  │
+│                                                  repos)                      │
+│ --strategy                                <str>  Strategy for the            │
+│                                                  branch-integration step:    │
+│                                                  merge, squash, rebase       │
+│                                                  [default: merge]            │
+│ --push                                           Publish to origin after the │
+│                                                  local merge (the operator   │
+│                                                  publish step)               │
+│ --dry-run                                        Show actions without        │
+│                                                  executing                   │
+│ --keep-branch        --delete-branch             Keep or delete mission      │
+│                                                  branch after merge          │
+│                                                  (default: retain-gate       │
+│                                                  choice)                     │
+│ --keep-worktree      --remove-worktree           Keep or remove worktree     │
+│                                                  after merge (default:       │
+│                                                  retain-gate choice)         │
+│ --auto-retry         --no-auto-retry             Auto-navigate to a          │
+│                                                  deterministic mission       │
+│                                                  worktree if in the wrong    │
+│                                                  location                    │
+│                                                  [default: no-auto-retry]    │
+│ --help           -h                              Show this message and exit. │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1309,15 +1367,21 @@ _Mission lifecycle commands for AI agents_
  Persist `/spec-kitty.analyze` output as `analysis-report.md`.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug (e.g., '020-my-mission')           │
-│ --input-file           TEXT  Markdown report path, or '-' to read report     │
-│                              from stdin                                      │
-│                              [default: -]                                    │
-│ --agent                TEXT  Agent name that produced the analysis report    │
-│ --json                       Output JSON format                              │
-│ --report-only                Commit only the report while preserving         │
-│                              unrelated work; require clean material inputs   │
-│ --help         -h            Show this message and exit.                     │
+│ --mission                 <str>   Mission slug (e.g., '020-my-mission')      │
+│ --input-file              <str>   Markdown report path, or '-' to read       │
+│                                   report from stdin                          │
+│                                   [default: -]                               │
+│ --agent                   <str>   Agent name that produced the analysis      │
+│                                   report                                     │
+│ --json                            Output JSON format                         │
+│ --report-only                     Commit only the report while preserving    │
+│                                   unrelated work; require clean material     │
+│                                   inputs                                     │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1337,8 +1401,8 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission repair --mission 020-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug/handle to repair [required]         │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission          <str>  Mission slug/handle to repair [required]        │
+│    --help     -h             Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1364,13 +1428,13 @@ _Mission lifecycle commands for AI agents_
  ------------------------------------------------------------------
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                 TEXT  Mission slug (e.g., '020-my-mission')        │
-│ --json                          Output JSON format                           │
-│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
-│                                 checkout that owns this mission. Refuses the │
-│                                 repository root checkout, lane worktrees and │
-│                                 coordination worktrees.                      │
-│ --help            -h            Show this message and exit.                  │
+│ --mission                 <str>   Mission slug (e.g., '020-my-mission')      │
+│ --json                            Output JSON format                         │
+│ --owned-checkout          <path>  Run against an owned checkout: a linked    │
+│                                   checkout that owns this mission. Refuses   │
+│                                   the repository root checkout, lane         │
+│                                   worktrees and coordination worktrees.      │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1402,10 +1466,10 @@ _Release packaging commands for AI agents_
  Reads kitty-specs/ artifacts and local git tags. No network calls.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --channel          [alpha|beta|stable]  Release channel: alpha | beta |   │
+│ *  --channel          <alpha|beta|stable>  Release channel: alpha | beta |   │
 │                                            stable                            │
 │                                            [required]                        │
-│    --repo             PATH                 Repository root (default: current │
+│    --repo             <path>               Repository root (default: current │
 │                                            directory)                        │
 │                                            [default: .]                      │
 │    --json                                  Emit JSON instead of              │
@@ -1449,18 +1513,18 @@ _Cross-mission retrospective summary._
  No mutation is performed.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --project                    PATH                    Project root (default:  │
+│ --project                    <path>                  Project root (default:  │
 │                                                      cwd)                    │
 │ --json                                               Emit JSON to stdout     │
-│ --json-out                   PATH                    Also write JSON to this │
+│ --json-out                   <path>                  Also write JSON to this │
 │                                                      file                    │
-│ --limit                      INTEGER RANGE           Top-N for ranked        │
+│ --limit                      <int range>             Top-N for ranked        │
 │                              [1<=x<=100]             sections                │
 │                                                      [default: 20]           │
-│ --since                      TEXT                    ISO-8601 date filter    │
+│ --since                      <str>                   ISO-8601 date filter    │
 │ --include-malformed                                  Include malformed       │
 │                                                      record detail           │
-│ --filter                     TEXT                    Filter by record state  │
+│ --filter                     <str>                   Filter by record state  │
 │                                                      (has_findings|ran_no_f… │
 │ --help               -h                              Show this message and   │
 │                                                      exit.                   │
@@ -1486,26 +1550,27 @@ _Apply staged proposals from a mission's retrospective record._
  Pass --fabricate-empty to use the legacy auto-fabrication path instead.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                  TEXT  Mission handle (mission_id / mid8 /      │
-│                                     mission_slug)                            │
-│                                     [required]                               │
-│    --apply                          Execute application after checks pass    │
-│                                     (default is dry-run)                     │
-│    --proposal-id              TEXT  Restrict the batch to the given proposal │
-│                                     ids, which must be accepted              │
-│                                     (repeatable). Any id that is pending,    │
-│                                     rejected or not in the record is refused │
-│                                     (exit 1) before anything is applied.     │
-│    --json-out                 PATH  Write JSON envelope to PATH in addition  │
-│                                     to other output                          │
-│    --json                           Emit JSON to stdout (suppresses Rich     │
-│                                     rendering)                               │
-│    --actor-id                 TEXT  Override provenance actor id (default:   │
-│                                     inferred from environment)               │
-│    --fabricate-empty                Legacy: auto-fabricate an empty record   │
-│                                     when none exists (synthesize_fabricate   │
-│                                     provenance)                              │
-│    --help             -h            Show this message and exit.              │
+│ *  --mission                  <str>   Mission handle (mission_id / mid8 /    │
+│                                       mission_slug)                          │
+│                                       [required]                             │
+│    --apply                            Execute application after checks pass  │
+│                                       (default is dry-run)                   │
+│    --proposal-id              <str>   Restrict the batch to the given        │
+│                                       proposal ids, which must be accepted   │
+│                                       (repeatable). Any id that is pending,  │
+│                                       rejected or not in the record is       │
+│                                       refused (exit 1) before anything is    │
+│                                       applied.                               │
+│    --json-out                 <path>  Write JSON envelope to PATH in         │
+│                                       addition to other output               │
+│    --json                             Emit JSON to stdout (suppresses Rich   │
+│                                       rendering)                             │
+│    --actor-id                 <str>   Override provenance actor id (default: │
+│                                       inferred from environment)             │
+│    --fabricate-empty                  Legacy: auto-fabricate an empty record │
+│                                       when none exists (synthesize_fabricate │
+│                                       provenance)                            │
+│    --help             -h              Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1551,21 +1616,21 @@ _Canonical status management commands_
      spec-kitty agent status doctor --stale-claimed-days 3 --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                         TEXT     Mission slug                      │
-│ --stale-claimed-days              INTEGER  Threshold for stale claims (days) │
-│                                            [default: 7]                      │
-│ --stale-in-progress-days          INTEGER  Threshold for stale in-progress   │
-│                                            (days)                            │
-│                                            [default: 14]                     │
-│ --json                                     Machine-readable JSON output      │
-│ --help                    -h               Show this message and exit.       │
+│ --mission                         <str>  Mission slug                        │
+│ --stale-claimed-days              <int>  Threshold for stale claims (days)   │
+│                                          [default: 7]                        │
+│ --stale-in-progress-days          <int>  Threshold for stale in-progress     │
+│                                          (days)                              │
+│                                          [default: 14]                       │
+│ --json                                   Machine-readable JSON output        │
+│ --help                    -h             Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent status emit
 
 ```
- Usage: spec-kitty agent status emit [OPTIONS] [WP_ID]
+ Usage: spec-kitty agent status emit [OPTIONS] [wp_id]
 
  Emit a status transition event for a work package.
 
@@ -1583,43 +1648,43 @@ _Canonical status management commands_
  --reason "resuming after crash"
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   wp_id      [WP_ID]  Work package ID (e.g., WP01)                           │
+│   wp_id      <str>  Work package ID (e.g., WP01)                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --to                                  TEXT  Target lane (e.g., claimed,   │
+│ *  --to                                 <str>  Target lane (e.g., claimed,   │
 │                                                in_progress, for_review,      │
 │                                                approved, done)               │
 │                                                [required]                    │
-│ *  --actor                               TEXT  Who is making this transition │
+│ *  --actor                              <str>  Who is making this transition │
 │                                                [required]                    │
-│    --mission                             TEXT  Mission slug (required in     │
+│    --mission                            <str>  Mission slug (required in     │
 │                                                multi-mission repos)          │
-│    --wp                                  TEXT  Work package ID (alternative  │
+│    --wp                                 <str>  Work package ID (alternative  │
 │                                                to positional ID)             │
 │    --force                                     Force transition bypassing    │
 │                                                guards                        │
-│    --reason                              TEXT  Reason for forced transition  │
+│    --reason                             <str>  Reason for forced transition  │
 │                                                (required with --force out of │
 │                                                in_review or approved)        │
-│    --evidence-json                       TEXT  JSON string with done         │
+│    --evidence-json                      <str>  JSON string with done         │
 │                                                evidence                      │
-│    --review-ref                          TEXT  Review feedback reference     │
-│    --review-result-json                  TEXT  JSON structured review        │
+│    --review-ref                         <str>  Review feedback reference     │
+│    --review-result-json                 <str>  JSON structured review        │
 │                                                outcome for transitions from  │
 │                                                in_review                     │
-│    --workspace-context                   TEXT  Workspace context identifier  │
+│    --workspace-context                  <str>  Workspace context identifier  │
 │                                                for claimed->in_progress      │
 │    --subtasks-complete                         Whether required subtasks are │
 │                                                complete for                  │
 │                                                in_progress->for_review       │
-│    --implementation-evidence-p…                Whether implementation        │
+│    --implementation-evidence-…                 Whether implementation        │
 │                                                evidence exists for           │
 │                                                in_progress->for_review       │
-│    --execution-mode                      TEXT  Execution mode (worktree or   │
+│    --execution-mode                     <str>  Execution mode (worktree or   │
 │                                                direct_repo)                  │
 │                                                [default: worktree]           │
 │    --json                                      Machine-readable JSON output  │
-│    --help                        -h            Show this message and exit.   │
+│    --help                       -h             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1635,9 +1700,9 @@ _Canonical status management commands_
  now just recoverable/archive history.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Machine-readable JSON output                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --json                    Machine-readable JSON output                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1658,9 +1723,9 @@ _Canonical status management commands_
      spec-kitty agent status materialize --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
-│ --json                   Machine-readable JSON output                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug (required in multi-mission repos)     │
+│ --json                    Machine-readable JSON output                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1679,13 +1744,13 @@ _Canonical status management commands_
      spec-kitty upgrade  # applies all pending migrations
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Single mission slug to migrate                      │
-│ --all                    Migrate all features in kitty-specs/                │
-│ --dry-run                Preview migration without writing events            │
-│ --json                   Output results as JSON                              │
-│ --actor            TEXT  Actor name for bootstrap events                     │
-│                          [default: migration]                                │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Single mission slug to migrate                     │
+│ --all                     Migrate all features in kitty-specs/               │
+│ --dry-run                 Preview migration without writing events           │
+│ --json                    Output results as JSON                             │
+│ --actor            <str>  Actor name for bootstrap events                    │
+│                           [default: migration]                               │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1705,13 +1770,14 @@ _Canonical status management commands_
      spec-kitty agent status validate --mission 034-feature-name
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                     TEXT  Mission slug (required in multi-mission  │
-│                                     repos)                                   │
-│ --dry-run          --apply          Preview vs persist reconciliation events │
-│                                     [default: dry-run]                       │
-│ --target-repo  -t             PATH  Target repo path(s) to scan              │
-│ --json                              Machine-readable JSON output             │
-│ --help         -h                   Show this message and exit.              │
+│ --mission                     <str>   Mission slug (required in              │
+│                                       multi-mission repos)                   │
+│ --dry-run          --apply            Preview vs persist reconciliation      │
+│                                       events                                 │
+│                                       [default: dry-run]                     │
+│ --target-repo  -t             <path>  Target repo path(s) to scan            │
+│ --json                                Machine-readable JSON output           │
+│ --help         -h                     Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1734,9 +1800,9 @@ _Canonical status management commands_
      spec-kitty agent status validate --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (required in multi-mission repos)      │
-│ --json                   Machine-readable JSON output                        │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug (required in multi-mission repos)     │
+│ --json                    Machine-readable JSON output                       │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1776,7 +1842,7 @@ _Task workflow commands for AI agents_
 ## spec-kitty agent tasks add-history
 
 ```
- Usage: spec-kitty agent tasks add-history [OPTIONS] TASK_ID
+ Usage: spec-kitty agent tasks add-history [OPTIONS] {task_id}
 
  Record a history note in the WP status event log.
 
@@ -1785,15 +1851,15 @@ _Task workflow commands for AI agents_
  --json
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
+│ *    task_id      <str>  Task ID (e.g., WP01) [required]                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --note               TEXT  History note [required]                        │
-│    --mission            TEXT  Mission slug                                   │
-│    --agent              TEXT  Agent name                                     │
-│    --shell-pid          TEXT  Shell PID                                      │
-│    --json                     Output JSON format                             │
-│    --help       -h            Show this message and exit.                    │
+│ *  --note               <str>  History note [required]                       │
+│    --mission            <str>  Mission slug                                  │
+│    --agent              <str>  Agent name                                    │
+│    --shell-pid          <str>  Shell PID                                     │
+│    --json                      Output JSON format                            │
+│    --help       -h             Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1814,9 +1880,9 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks check-terminability --mission my-mission --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Output JSON format                                  │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --json                    Output JSON format                                 │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1836,17 +1902,17 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug                                  │
-│ --json                         Output JSON format                            │
-│ --validate-only                Validate without writing changes              │
-│ --help           -h            Show this message and exit.                   │
+│ --mission                <str>  Mission slug                                 │
+│ --json                          Output JSON format                           │
+│ --validate-only                 Validate without writing changes             │
+│ --help           -h             Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent tasks list-dependents
 
 ```
- Usage: spec-kitty agent tasks list-dependents [OPTIONS] WP_ID
+ Usage: spec-kitty agent tasks list-dependents [OPTIONS] {wp_id}
 
  Find all WPs that depend on a given WP (downstream dependents).
 
@@ -1861,12 +1927,12 @@ _Task workflow commands for AI agents_
  --json
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
+│ *    wp_id      <str>  Work package ID (e.g., WP01) [required]               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Output JSON format                                  │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --json                    Output JSON format                                 │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1882,10 +1948,10 @@ _Task workflow commands for AI agents_
  spec-kitty agent tasks list-tasks --lane doing --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --lane             TEXT  Filter by lane                                      │
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Output JSON format                                  │
-│ --help     -h            Show this message and exit.                         │
+│ --lane             <str>  Filter by lane                                     │
+│ --mission          <str>  Mission slug                                       │
+│ --json                    Output JSON format                                 │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1897,32 +1963,42 @@ _Task workflow commands for AI agents_
  Register requirement-to-WP mappings with immediate validation.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --wp                                   TEXT  WP ID (e.g., WP04)              │
-│ --refs                                 TEXT  Comma-separated requirement     │
-│                                              refs (e.g., FR-001,FR-002)      │
-│ --batch                                TEXT  JSON batch mapping (e.g.,       │
-│                                              '{"WP01":["FR-001"],"WP02":["F… │
-│ --replace                                    Replace existing refs instead   │
-│                                              of merging (default:            │
-│                                              merge/union)                    │
-│ --tracker-ref                          TEXT  External tracker reference      │
-│                                              (e.g., '#1298' or 'JIRA-123').  │
-│                                              Repeatable; requires --wp.      │
-│                                              Persists to the WP frontmatter  │
-│                                              as tracker_refs.                │
-│ --mission                              TEXT  Mission slug                    │
-│ --json                                       Output JSON format              │
-│ --auto-commit      --no-auto-commit          Automatically commit WP file    │
-│                                              changes (default: from project  │
-│                                              config)                         │
-│ --help         -h                            Show this message and exit.     │
+│ --wp                                      <str>   WP ID (e.g., WP04)         │
+│ --refs                                    <str>   Comma-separated            │
+│                                                   requirement refs (e.g.,    │
+│                                                   FR-001,FR-002)             │
+│ --batch                                   <str>   JSON batch mapping (e.g.,  │
+│                                                   '{"WP01":["FR-001"],"WP02… │
+│ --replace                                         Replace existing refs      │
+│                                                   instead of merging         │
+│                                                   (default: merge/union)     │
+│ --tracker-ref                             <str>   External tracker reference │
+│                                                   (e.g., '#1298' or          │
+│                                                   'JIRA-123'). Repeatable;   │
+│                                                   requires --wp. Persists to │
+│                                                   the WP frontmatter as      │
+│                                                   tracker_refs.              │
+│ --mission                                 <str>   Mission slug               │
+│ --json                                            Output JSON format         │
+│ --auto-commit         --no-auto-commit            Automatically commit WP    │
+│                                                   file changes (default:     │
+│                                                   from project config)       │
+│ --owned-checkout                          <path>  Run against an owned       │
+│                                                   checkout: a linked         │
+│                                                   checkout that owns this    │
+│                                                   mission. Refuses the       │
+│                                                   repository root checkout,  │
+│                                                   lane worktrees and         │
+│                                                   coordination worktrees.    │
+│ --help            -h                              Show this message and      │
+│                                                   exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent tasks mark-status
 
 ```
- Usage: spec-kitty agent tasks mark-status [OPTIONS] TASK_IDS...
+ Usage: spec-kitty agent tasks mark-status [OPTIONS] {task_ids}...
 
  Record subtask status for one or more tasks.
 
@@ -1947,33 +2023,34 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    task_ids      TASK_IDS...  Task ID(s) - space-separated (e.g., T001     │
-│                                 T002 T003)                                   │
-│                                 [required]                                   │
+│ *    task_ids      <str>  Task ID(s) - space-separated (e.g., T001 T002      │
+│                           T003)                                              │
+│                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --status                                  TEXT  Status:                   │
-│                                                    done/pending/skipped/not… │
-│                                                    [required]                │
-│    --mission                                 TEXT  Mission slug              │
-│    --wp                                      TEXT  Work package containing   │
-│                                                    the subtasks (e.g., WP02) │
-│    --owned-checkout                          PATH  Explicit single-branch    │
-│                                                    checkout root.            │
-│    --auto-commit         --no-auto-commit          Automatically commit      │
-│                                                    status events when        │
-│                                                    supported (default: from  │
-│                                                    project config)           │
-│    --json                                          Output JSON format        │
-│    --help            -h                            Show this message and     │
-│                                                    exit.                     │
+│ *  --status                                  <str>   Status:                 │
+│                                                      done/pending/skipped/n… │
+│                                                      [required]              │
+│    --mission                                 <str>   Mission slug            │
+│    --wp                                      <str>   Work package containing │
+│                                                      the subtasks (e.g.,     │
+│                                                      WP02)                   │
+│    --owned-checkout                          <path>  Explicit single-branch  │
+│                                                      checkout root.          │
+│    --auto-commit         --no-auto-commit            Automatically commit    │
+│                                                      status events when      │
+│                                                      supported (default:     │
+│                                                      from project config)    │
+│    --json                                            Output JSON format      │
+│    --help            -h                              Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent tasks move-task
 
 ```
- Usage: spec-kitty agent tasks move-task [OPTIONS] TASK_ID
+ Usage: spec-kitty agent tasks move-task [OPTIONS] {task_id}
 
  Move task between lanes (planned → doing → for_review → approved → done).
 
@@ -2011,125 +2088,133 @@ _Task workflow commands for AI agents_
  feedback.md
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
+│ *    task_id      <str>  Task ID (e.g., WP01) [required]                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --to                                          TEXT  Target lane           │
-│                                                        (planned/doing/for_r… │
-│                                                        [required]            │
-│    --mission                                     TEXT  Mission slug          │
-│    --agent,--actor                               TEXT  Agent name (alias:    │
-│                                                        --actor, matching     │
-│                                                        issue-verdict's       │
-│                                                        vocabulary). If both  │
-│                                                        --agent and --actor   │
-│                                                        are given, the one    │
-│                                                        supplied LAST on the  │
-│                                                        command line wins.    │
-│    --model                                       TEXT  Dispatch-resolved     │
-│                                                        model actual          │
-│    --profile                                     TEXT  Dispatch-resolved     │
-│                                                        agent profile actual  │
-│    --invocation-id                               TEXT  Authoritative         │
-│                                                        dispatch Op record id │
-│    --assignee                                    TEXT  Assignee name,        │
-│                                                        recorded on this      │
-│                                                        transition regardless │
-│                                                        of the target lane    │
-│                                                        (not limited to --to  │
-│                                                        doing).               │
-│    --shell-pid                                   TEXT  Shell PID             │
-│    --note,--reason                               TEXT  History note (alias:  │
-│                                                        --reason, matching    │
-│                                                        issue-verdict's       │
-│                                                        vocabulary). If both  │
-│                                                        --note and --reason   │
-│                                                        are given, the one    │
-│                                                        supplied LAST on the  │
-│                                                        command line wins.    │
-│    --review-feedback-f…                          PATH  Path to review        │
-│                                                        feedback file.        │
-│                                                        Required for          │
-│                                                        review-rejection      │
-│                                                        edges (--to planned,  │
-│                                                        incl. with --force;   │
-│                                                        and                   │
-│                                                        in_review->in_progre… │
-│                                                        Recorded as the       │
-│                                                        transition's on-wire  │
-│                                                        review_ref rationale; │
-│                                                        omitting it makes the │
-│                                                        status event          │
-│                                                        contract-invalid and  │
-│                                                        hosted sync drops it. │
-│    --approval-ref                                TEXT  Approval reference    │
-│                                                        for approval/done     │
-│                                                        transitions (e.g.,    │
-│                                                        PR#42)                │
-│    --reviewer                                    TEXT  Reviewer name         │
-│                                                        (auto-detected from   │
-│                                                        git if omitted)       │
-│    --self-review-fallb…                                Record that approval  │
-│                                                        is a self-review      │
-│                                                        fallback after the    │
-│                                                        intended reviewer     │
-│                                                        failed.               │
-│    --intended-reviewer                           TEXT  Reviewer that should  │
-│                                                        have reviewed this WP │
-│                                                        before fallback.      │
-│    --reviewer-failure-…                          TEXT  Reason the intended   │
-│                                                        reviewer failed.      │
-│    --done-override-rea…                          TEXT  Required when --to    │
-│                                                        done and merge        │
-│                                                        ancestry cannot be    │
-│                                                        verified; recorded in │
-│                                                        history/event reason  │
-│    --force                                             Force move even with  │
-│                                                        unchecked subtasks    │
-│                                                        (does not bypass      │
-│                                                        planned rollback      │
-│                                                        feedback              │
-│                                                        requirement). Out of  │
-│                                                        in_review or approved │
-│                                                        it needs --note.      │
-│    --tracker-ref                                 TEXT  External tracker      │
-│                                                        reference (e.g.,      │
-│                                                        '#1298' or            │
-│                                                        'JIRA-123').          │
-│                                                        Repeatable; appended  │
-│                                                        to the WP frontmatter │
-│                                                        tracker_refs.         │
-│    --skip-review-artif…                                Override a rejected   │
-│                                                        latest review         │
-│                                                        artifact when         │
-│                                                        arbiter-approving;    │
-│                                                        requires --note and   │
-│                                                        records override      │
-│                                                        evidence.             │
-│    --auto-commit             --no-auto-commit          Automatically commit  │
-│                                                        WP file changes to    │
-│                                                        target branch         │
-│                                                        (default: from        │
-│                                                        project config)       │
-│    --json                                              Output JSON format    │
-│    --skip-pre-review-g…                                Skip the pre-review   │
-│                                                        regression gate on a  │
-│                                                        --to for_review move  │
-│                                                        (also honored via the │
-│                                                        SPEC_KITTY_SKIP_PRE_… │
-│                                                        env var). The gate    │
-│                                                        still runs and        │
-│                                                        enforces by default.  │
-│    --owned-checkout                              PATH  Use an owned          │
-│                                                        single_branch         │
-│                                                        checkout for the      │
-│                                                        local review          │
-│                                                        lifecycle             │
-│                                                        (force/skip, done,    │
-│                                                        and arbiter modes     │
-│                                                        unsupported).         │
-│    --help                -h                            Show this message and │
-│                                                        exit.                 │
+│ *  --to                                         <str>   Target lane          │
+│                                                         (planned/doing/for_… │
+│                                                         [required]           │
+│    --mission                                    <str>   Mission slug         │
+│    --agent,--actor                              <str>   Agent name (alias:   │
+│                                                         --actor, matching    │
+│                                                         issue-verdict's      │
+│                                                         vocabulary). If both │
+│                                                         --agent and --actor  │
+│                                                         are given, the one   │
+│                                                         supplied LAST on the │
+│                                                         command line wins.   │
+│    --model                                      <str>   Dispatch-resolved    │
+│                                                         model actual         │
+│    --profile                                    <str>   Dispatch-resolved    │
+│                                                         agent profile actual │
+│    --invocation-id                              <str>   Authoritative        │
+│                                                         dispatch Op record   │
+│                                                         id                   │
+│    --assignee                                   <str>   Assignee name,       │
+│                                                         recorded on this     │
+│                                                         transition           │
+│                                                         regardless of the    │
+│                                                         target lane (not     │
+│                                                         limited to --to      │
+│                                                         doing).              │
+│    --shell-pid                                  <str>   Shell PID            │
+│    --note,--reason                              <str>   History note (alias: │
+│                                                         --reason, matching   │
+│                                                         issue-verdict's      │
+│                                                         vocabulary). If both │
+│                                                         --note and --reason  │
+│                                                         are given, the one   │
+│                                                         supplied LAST on the │
+│                                                         command line wins.   │
+│    --review-feedback-…                          <path>  Path to review       │
+│                                                         feedback file.       │
+│                                                         Required for         │
+│                                                         review-rejection     │
+│                                                         edges (--to planned, │
+│                                                         incl. with --force;  │
+│                                                         and                  │
+│                                                         in_review->in_progr… │
+│                                                         Recorded as the      │
+│                                                         transition's on-wire │
+│                                                         review_ref           │
+│                                                         rationale; omitting  │
+│                                                         it makes the status  │
+│                                                         event                │
+│                                                         contract-invalid and │
+│                                                         hosted sync drops    │
+│                                                         it.                  │
+│    --approval-ref                               <str>   Approval reference   │
+│                                                         for approval/done    │
+│                                                         transitions (e.g.,   │
+│                                                         PR#42)               │
+│    --reviewer                                   <str>   Reviewer name        │
+│                                                         (auto-detected from  │
+│                                                         git if omitted)      │
+│    --self-review-fall…                                  Record that approval │
+│                                                         is a self-review     │
+│                                                         fallback after the   │
+│                                                         intended reviewer    │
+│                                                         failed.              │
+│    --intended-reviewer                          <str>   Reviewer that should │
+│                                                         have reviewed this   │
+│                                                         WP before fallback.  │
+│    --reviewer-failure…                          <str>   Reason the intended  │
+│                                                         reviewer failed.     │
+│    --done-override-re…                          <str>   Required when --to   │
+│                                                         done and merge       │
+│                                                         ancestry cannot be   │
+│                                                         verified; recorded   │
+│                                                         in history/event     │
+│                                                         reason               │
+│    --force                                              Force move even with │
+│                                                         unchecked subtasks   │
+│                                                         (does not bypass     │
+│                                                         planned rollback     │
+│                                                         feedback             │
+│                                                         requirement). Out of │
+│                                                         in_review or         │
+│                                                         approved it needs    │
+│                                                         --note.              │
+│    --tracker-ref                                <str>   External tracker     │
+│                                                         reference (e.g.,     │
+│                                                         '#1298' or           │
+│                                                         'JIRA-123').         │
+│                                                         Repeatable; appended │
+│                                                         to the WP            │
+│                                                         frontmatter          │
+│                                                         tracker_refs.        │
+│    --skip-review-arti…                                  Override a rejected  │
+│                                                         latest review        │
+│                                                         artifact when        │
+│                                                         arbiter-approving;   │
+│                                                         requires --note and  │
+│                                                         records override     │
+│                                                         evidence.            │
+│    --auto-commit            --no-auto-commit            Automatically commit │
+│                                                         WP file changes to   │
+│                                                         target branch        │
+│                                                         (default: from       │
+│                                                         project config)      │
+│    --json                                               Output JSON format   │
+│    --skip-pre-review-…                                  Skip the pre-review  │
+│                                                         regression gate on a │
+│                                                         --to for_review move │
+│                                                         (also honored via    │
+│                                                         the                  │
+│                                                         SPEC_KITTY_SKIP_PRE… │
+│                                                         env var). The gate   │
+│                                                         still runs and       │
+│                                                         enforces by default. │
+│    --owned-checkout                             <path>  Use an owned         │
+│                                                         single_branch        │
+│                                                         checkout for the     │
+│                                                         local review         │
+│                                                         lifecycle            │
+│                                                         (force/skip, done,   │
+│                                                         and arbiter modes    │
+│                                                         unsupported).        │
+│    --help               -h                              Show this message    │
+│                                                         and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2153,24 +2238,24 @@ _Task workflow commands for AI agents_
      spec-kitty agent tasks status --stale-threshold 15
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                  TEXT     Mission slug (optional when exactly one  │
-│                                     active mission exists)                   │
-│ --json                              Output as JSON                           │
-│ --stale-threshold          INTEGER  Minutes of inactivity before a WP is     │
-│                                     considered stale                         │
-│                                     [default: 10]                            │
-│ --owned-checkout           PATH     Run against an owned checkout: a linked  │
-│                                     checkout that owns this mission. Refuses │
-│                                     the repository root checkout, lane       │
-│                                     worktrees and coordination worktrees.    │
-│ --help             -h               Show this message and exit.              │
+│ --mission                  <str>   Mission slug (optional when exactly one   │
+│                                    active mission exists)                    │
+│ --json                             Output as JSON                            │
+│ --stale-threshold          <int>   Minutes of inactivity before a WP is      │
+│                                    considered stale                          │
+│                                    [default: 10]                             │
+│ --owned-checkout           <path>  Run against an owned checkout: a linked   │
+│                                    checkout that owns this mission. Refuses  │
+│                                    the repository root checkout, lane        │
+│                                    worktrees and coordination worktrees.     │
+│ --help             -h              Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty agent tasks validate-workflow
 
 ```
- Usage: spec-kitty agent tasks validate-workflow [OPTIONS] TASK_ID
+ Usage: spec-kitty agent tasks validate-workflow [OPTIONS] {task_id}
 
  Validate task metadata structure and workflow consistency.
 
@@ -2178,12 +2263,12 @@ _Task workflow commands for AI agents_
  spec-kitty agent tasks validate-workflow WP01 --json
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                      │
+│ *    task_id      <str>  Task ID (e.g., WP01) [required]                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug                                        │
-│ --json                   Output JSON format                                  │
-│ --help     -h            Show this message and exit.                         │
+│ --mission          <str>  Mission slug                                       │
+│ --json                    Output JSON format                                 │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2226,12 +2311,12 @@ _Test-related commands for AI agents_
             review (#3957)
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --base          TEXT  Base git ref for the diff [required]                │
-│    --head          TEXT  Head git ref for the diff [default: HEAD]           │
-│    --repo          PATH  Repository root (default: current directory)        │
-│                          [default: .]                                        │
-│    --json                Emit JSON instead of human-readable text            │
-│    --help  -h            Show this message and exit.                         │
+│ *  --base          <str>   Base git ref for the diff [required]              │
+│    --head          <str>   Head git ref for the diff [default: HEAD]         │
+│    --repo          <path>  Repository root (default: current directory)      │
+│                            [default: .]                                      │
+│    --json                  Emit JSON instead of human-readable text          │
+│    --help  -h              Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2243,15 +2328,15 @@ _Test-related commands for AI agents_
  Append a dated, attributed finding to the mission's tracer surface.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission           TEXT  Mission handle (e.g. 'my-mission-01ABCDEF')     │
-│                              [required]                                      │
-│ *  --category          TEXT  Tracer category: approach | design-decisions |  │
-│                              tooling-friction                                │
-│                              [required]                                      │
-│ *  --entry             TEXT  Finding text [required]                         │
-│ *  --actor             TEXT  Attribution (required, non-empty) [required]    │
-│    --json                    Output JSON format                              │
-│    --help      -h            Show this message and exit.                     │
+│ *  --mission           <str>  Mission handle (e.g. 'my-mission-01ABCDEF')    │
+│                               [required]                                     │
+│ *  --category          <str>  Tracer category: approach | design-decisions | │
+│                               tooling-friction                               │
+│                               [required]                                     │
+│ *  --entry             <str>  Finding text [required]                        │
+│ *  --actor             <str>  Attribution (required, non-empty) [required]   │
+│    --json                     Output JSON format                             │
+│    --help      -h             Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

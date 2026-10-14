@@ -19,11 +19,11 @@ class TestRedactAllowlisted:
         assert result == [RedactedVar(name="SPEC_KITTY_HOME", present=True, value="/home/operator/.kittify")]
 
     def test_multiple_allowlisted_vars_all_render(self) -> None:
-        mapping = {"SPEC_KITTY_HOME": "/x", "SPEC_KITTY_SAAS_URL": "https://saas.example.com"}
+        mapping = {"SPEC_KITTY_HOME": "/x", "SPEC_KITTY_TEMPLATE_ROOT": "/opt/templates"}
         result = redact(mapping)
         by_name = {r.name: r for r in result}
         assert by_name["SPEC_KITTY_HOME"].value == "/x"
-        assert by_name["SPEC_KITTY_SAAS_URL"].value == "https://saas.example.com"
+        assert by_name["SPEC_KITTY_TEMPLATE_ROOT"].value == "/opt/templates"
 
 
 class TestRedactNonAllowlisted:

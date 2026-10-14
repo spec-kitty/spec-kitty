@@ -2,8 +2,9 @@
 
 ``register_commands()`` (``specify_cli/cli/commands/__init__.py``) used to
 unconditionally import all ~50 command/group modules on every invocation not
-already covered by the pre-existing ``next``/``live-work hook`` fast paths
-(``_is_next_fast_path``/``_is_live_work_hook_fast_path``). This mission
+already covered by the pre-existing ``next`` fast path (``_is_next_fast_path``;
+the sibling ``live-work hook`` fast path was removed with the hosted surfaces
+by #6164). This mission
 generalizes that same argv-sniffing idiom into a lazy lookup keyed by the
 invoked top-level command/group name (``_COMMAND_REGISTRARS``), so a
 single-leaf-command invocation only imports the one module tree its invoked
@@ -97,10 +98,9 @@ def _run_register_commands(argv_tail: list[str]) -> set[str]:
 def test_single_leaf_command_imports_only_its_own_module() -> None:
     """A single leaf-command invocation imports only that command's module.
 
-    ``merge`` is a clean single-module probe: it is neither of the two
-    pre-existing fast paths (``next``, ``live-work hook``), so this exercises
-    WP05's new generalized lazy lookup, not the pre-existing idiom it
-    deliberately leaves untouched.
+    ``merge`` is a clean single-module probe: it is not the pre-existing
+    ``next`` fast path, so this exercises WP05's new generalized lazy lookup,
+    not the pre-existing idiom it deliberately leaves untouched.
     """
     mods = _run_register_commands(["merge", "--help"])
     assert mods == {"specify_cli.cli.commands.consolidate"}, f"`merge --help` imported unexpected command modules: {sorted(mods)}"
@@ -121,7 +121,6 @@ def test_a_second_unrelated_leaf_command_stays_isolated_too() -> None:
         "specify_cli.cli.commands.consolidate",
         "specify_cli.cli.commands.merge_driver",
         "specify_cli.cli.commands.upgrade",
-        "specify_cli.cli.commands.zeitgeist",
         "specify_cli.cli.commands.tracker",
         "specify_cli.cli.commands.charter",
     }
@@ -153,7 +152,6 @@ def test_top_level_help_still_imports_every_command_module() -> None:
         "specify_cli.cli.commands.doctor",
         "specify_cli.cli.commands.consolidate",
         "specify_cli.cli.commands.merge_driver",
-        "specify_cli.cli.commands.zeitgeist",
         "specify_cli.cli.commands.charter",
         "specify_cli.cli.commands.retrospect",
     ):
@@ -172,13 +170,14 @@ def test_unrecognized_command_still_imports_every_command_module() -> None:
     assert "specify_cli.cli.commands.consolidate" in mods
 
 
-def test_next_and_live_work_hook_fast_paths_are_unchanged() -> None:
-    """WP05 must not touch the two pre-existing fast paths' own behavior.
+def test_next_hook_fast_path_is_unchanged() -> None:
+    """WP05 must not touch the ``next`` fast path's own behavior.
 
-    Locks in that ``next``/``live-work hook`` still register only their own
-    module, guarding against this WP's lookup table accidentally growing to
-    include (and thus re-import) either of those two already-fast-pathed
-    names.
+    Locks in that ``next`` still registers only its own module, guarding
+    against this WP's lookup table accidentally growing to include (and thus
+    re-import) that already-fast-pathed name. (The sibling ``live-work hook``
+    fast path was removed with the hosted surfaces by #6164, so only ``next``
+    remains to check.)
     """
     next_mods = _run_register_commands(["next", "--help"])
     # owned-checkout-lifecycle-authority WP19: ``next_cmd`` declares ``--owned-checkout``
@@ -187,6 +186,3 @@ def test_next_and_live_work_hook_fast_paths_are_unchanged() -> None:
     # owned-checkout CLI surface loads with it. It is not a command module and pulls
     # in no other command.
     assert next_mods == {"specify_cli.cli.commands.next_cmd", "specify_cli.cli.commands._owned_checkout"}, sorted(next_mods)
-
-    live_work_mods = _run_register_commands(["live-work", "hook", "claude"])
-    assert live_work_mods == {"specify_cli.cli.commands.live_work"}, sorted(live_work_mods)

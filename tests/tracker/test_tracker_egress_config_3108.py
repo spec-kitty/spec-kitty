@@ -9,25 +9,21 @@ Covers T009-T014 of the WP02 work-package prompt:
   fix landed (see the WP02 PR body for the quoted ``RepresenterError``).
 * T011 -- byte-identical round trip over the probed set of exactly 15
   (FR-010), scoped to the ``egress:`` line.
-* T012 -- class-A preservation: A2 and A4 asserted at the unit level against
-  the constructed object (no red-first pin, no end-to-end pin -- see the WP02
-  prompt's rationale for why neither is earnable inside this WP); A3 asserted
-  end-to-end on disk, both directions, with the sibling ``sync:`` block as the
-  control.
-* T013 -- class-B carries: B1 (``apply_binding_upgrade``) and B2
-  (``_persist_binding``), the two sites this WP's own field-shape promotion
-  breaks. Their reds were observed and quoted on the FR-002-only tree (see the
-  WP02 PR body).
-* T014 -- sites C (``clear_tracker_config``) and D (``SaaSTrackerService.unbind``):
-  a recorded decision outlives its binding, both directions, with the sibling
-  ``sync:`` block as the control on every case including "nothing recorded".
+* T012 -- class-A preservation: A2 (the local ``TrackerService.bind`` branch)
+  asserted at the unit level against the constructed object. The SaaS sites A3
+  and A4 were removed with the hosted tracker surface (#6164).
+* T014 -- site C (``clear_tracker_config``): a recorded decision outlives its
+  binding, both directions, with the sibling ``sync:`` block as the control on
+  every case including "nothing recorded". The SaaS carry sites (B1/B2) and
+  site D (``SaaSTrackerService.unbind``) were removed with the hosted tracker
+  surface (#6164).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Final
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -39,7 +35,6 @@ from specify_cli.tracker.config import (
     save_tracker_config,
 )
 from specify_cli.tracker.local_service import LocalTrackerService
-from specify_cli.tracker.saas_service import SaaSTrackerService
 from specify_cli.tracker.service import TrackerService
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -421,46 +416,6 @@ class TestClearTrackerConfigPreservesQuotes:
 # ---------------------------------------------------------------------------
 
 
-class TestSiteA3SaaSBindPreservesEgress:
-    """FR-011 site A3 (`SaaSTrackerService.bind`, `saas_service.py:266`).
-
-    Erases today -- measured: `TrackerProjectConfig(provider=..., project_slug=...)`
-    carries nothing forward. File-level pin, both directions, with the
-    sibling `sync:` block asserted present as the control.
-    """
-
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_bind_carries_egress_forward(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        initial = TrackerProjectConfig(provider="linear", project_slug="old-proj", egress=egress_value)
-        save_tracker_config(tmp_path, initial)
-        config_path = tmp_path / ".kittify" / "config.yaml"
-        config_path.write_text(config_path.read_text() + "sync:\n  enabled: true\n")
-
-        loaded = load_tracker_config(tmp_path)
-        service = SaaSTrackerService(tmp_path, loaded, client=MagicMock())
-        service.bind(provider="linear", project_slug="new-proj")
-
-        after_text = config_path.read_text(encoding="utf-8")
-        reloaded = load_tracker_config(tmp_path)
-        assert reloaded.egress == egress_value
-        assert reloaded.project_slug == "new-proj"  # the rewrite genuinely happened
-        assert "sync:\n  enabled: true\n" in after_text  # control: rest of file untouched
-
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_bind_carries_extra_forward(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        initial = TrackerProjectConfig(provider="linear", project_slug="old-proj", egress=egress_value, _extra={"future_flag": True})
-        save_tracker_config(tmp_path, initial)
-
-        loaded = load_tracker_config(tmp_path)
-        service = SaaSTrackerService(tmp_path, loaded, client=MagicMock())
-        service.bind(provider="linear", project_slug="new-proj")
-
-        reloaded = load_tracker_config(tmp_path)
-        assert reloaded._extra == {"future_flag": True}
-
-
 class TestSiteA2LocalBranchUnitLevel:
     """FR-011 site A2 (`TrackerService.bind`'s local branch, `service.py:163`).
 
@@ -502,108 +457,8 @@ class TestSiteA2LocalBranchUnitLevel:
         assert captured["config"]._extra == {"future_flag": True}
 
 
-class TestSiteA4SubstitutedBackendUnitLevel:
-    """FR-011 site A4 (`TrackerService._resolve_saas_backend_for_provider`,
-    `service.py:98`). Defence-in-depth -- NO production write path today
-    (`apply_binding_upgrade` has zero callers in `src/`; the three read-only
-    call sites at `service.py:210,214,220` persist nothing). NO red-first pin.
-    Asserted at the unit level, against the substituted config object, in
-    both directions.
-    """
-
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_provider_mismatch_substitution_carries_egress(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="beads", workspace="ws", egress=egress_value, _extra={"future_flag": True})
-        save_tracker_config(tmp_path, committed)
-
-        captured: dict[str, TrackerProjectConfig] = {}
-        original_init = SaaSTrackerService.__init__
-
-        def capturing_init(self: SaaSTrackerService, repo_root: Path, config: TrackerProjectConfig, *a: object, **kw: object) -> None:
-            captured["config"] = config
-            original_init(self, repo_root, config, *a, **kw)
-
-        with patch.object(SaaSTrackerService, "__init__", capturing_init):
-            service = TrackerService(tmp_path)
-            service._resolve_saas_backend_for_provider("jira")
-
-        assert captured["config"].provider == "jira"
-        assert captured["config"].egress == egress_value
-        assert captured["config"]._extra == {"future_flag": True}
-
-    def test_same_provider_does_not_substitute(self, tmp_path: Path) -> None:
-        """Negative control: when the on-disk provider already matches, no
-        substitution happens at all -- the loaded config (with its already
-        correct egress) is used directly."""
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="jira", project_slug="p", egress="refused")
-        save_tracker_config(tmp_path, committed)
-
-        service = TrackerService(tmp_path)
-        backend = service._resolve_saas_backend_for_provider("jira")
-        assert backend._config.egress == "refused"
-
-
 # ---------------------------------------------------------------------------
-# T013 -- class B carries: the two sites this WP's own promotion breaks.
-#
-# Both were observed red on the FR-002-only tree (T009 applied, before these
-# carries were added) and quoted in the WP02 PR body:
-#
-#   B1: AssertionError: B1 RED: expected 'refused', got EGRESS_ABSENT (is EGRESS_ABSENT: True)
-#   B2: AssertionError: B2 RED: expected 'permitted', got EGRESS_ABSENT (is EGRESS_ABSENT: True)
-#
-# Detection signal: tests/specify_cli/tracker/test_binding_report_only.py's
-# test_apply_binding_upgrade_preserves_extra_fields must stay green -- it
-# would red if the fix here replaced the `_extra` carry instead of adding an
-# `egress` carry beside it (not owned or touched by this WP; run as part of
-# the wider regression suite, not duplicated in this file).
-# ---------------------------------------------------------------------------
-
-
-class TestSiteB1ApplyBindingUpgradeCarriesEgress:
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_apply_binding_upgrade_carries_egress(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="linear", project_slug="p", egress=egress_value)
-        save_tracker_config(tmp_path, committed)
-
-        loaded = load_tracker_config(tmp_path)
-        service = SaaSTrackerService(tmp_path, loaded, client=MagicMock())
-        service.apply_binding_upgrade("new-binding-ref-123")
-
-        reloaded = load_tracker_config(tmp_path)
-        assert reloaded.egress == egress_value
-
-
-class TestSiteB2PersistBindingCarriesEgress:
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_validate_and_bind_carries_egress(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="linear", project_slug="p", egress=egress_value)
-        save_tracker_config(tmp_path, committed)
-
-        loaded = load_tracker_config(tmp_path)
-        mock_client = MagicMock()
-        mock_client.bind_validate.return_value = {
-            "valid": True,
-            "binding_ref": "lin-abc",
-            "reason": None,
-            "guidance": None,
-            "display_label": "My Board",
-            "provider": "linear",
-            "provider_context": {},
-        }
-        service = SaaSTrackerService(tmp_path, loaded, client=mock_client)
-        service.validate_and_bind(provider="linear", bind_ref="lin-abc")
-
-        reloaded = load_tracker_config(tmp_path)
-        assert reloaded.egress == egress_value
-
-
-# ---------------------------------------------------------------------------
-# T014 -- sites C and D: unbind keeps the decision (SC-009).
+# T014 -- site C: unbind keeps the decision (SC-009).
 # ---------------------------------------------------------------------------
 
 
@@ -651,32 +506,3 @@ class TestSiteCClearTrackerConfigPreservesEgress:
         text = config_path.read_text(encoding="utf-8")
         assert "tracker:" not in text
         assert "sync:\n  enabled: true\n" in text  # control
-
-
-class TestSiteDUnbindResetsToLoadedConfig:
-    """FR-011 site D (`SaaSTrackerService.unbind`, `saas_service.py:281`).
-    Library-caller reachable only. Unit-level: after `unbind`, `self._config`
-    matches what site C just left on disk, in both directions."""
-
-    @pytest.mark.parametrize("egress_value", ["refused", "permitted"])
-    def test_unbind_resets_in_memory_config_from_disk(self, tmp_path: Path, egress_value: str) -> None:
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="linear", project_slug="p", egress=egress_value)
-        save_tracker_config(tmp_path, committed)
-
-        loaded = load_tracker_config(tmp_path)
-        service = SaaSTrackerService(tmp_path, loaded, client=MagicMock())
-        service.unbind()
-
-        assert service._config.egress == egress_value
-
-    def test_unbind_resets_in_memory_config_to_absent_when_nothing_recorded(self, tmp_path: Path) -> None:
-        (tmp_path / ".kittify").mkdir()
-        committed = TrackerProjectConfig(provider="linear", project_slug="p")
-        save_tracker_config(tmp_path, committed)
-
-        loaded = load_tracker_config(tmp_path)
-        service = SaaSTrackerService(tmp_path, loaded, client=MagicMock())
-        service.unbind()
-
-        assert service._config.egress is EGRESS_ABSENT

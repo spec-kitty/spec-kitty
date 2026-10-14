@@ -8,7 +8,6 @@ from specify_cli.tracker.config import (
     ALL_SUPPORTED_PROVIDERS,
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
-    SAAS_PROVIDERS,
     TrackerProjectConfig,
     load_tracker_config,
     save_tracker_config,
@@ -24,7 +23,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_project_slug_roundtrip(tmp_path: object) -> None:
-    """SaaS binding: project_slug survives save + load cycle."""
+    """Legacy project_slug field survives save + load cycle.
+
+    The provider string round-trips verbatim even for a now-removed provider
+    (#6164); save/load does not validate the provider name.
+    """
     from pathlib import Path
 
     root = Path(str(tmp_path))
@@ -71,25 +74,14 @@ def test_project_slug_none_when_absent(tmp_path: object) -> None:
 
 
 # ---------------------------------------------------------------------------
-# is_configured tests — SaaS providers
+# is_configured tests — former SaaS providers are now removed
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("provider", sorted(SAAS_PROVIDERS))
-def test_is_configured_saas_with_project_slug(provider: str) -> None:
-    """SaaS provider with project_slug is configured."""
-    assert TrackerProjectConfig(provider=provider, project_slug="p").is_configured
-
-
-@pytest.mark.parametrize("provider", sorted(SAAS_PROVIDERS))
-def test_is_configured_saas_without_project_slug(provider: str) -> None:
-    """SaaS provider without project_slug is NOT configured."""
-    assert not TrackerProjectConfig(provider=provider).is_configured
-
-
-def test_is_configured_saas_workspace_alone_insufficient() -> None:
-    """SaaS provider with only workspace (no project_slug) is NOT configured."""
-    assert not TrackerProjectConfig(provider="linear", workspace="w").is_configured
+@pytest.mark.parametrize("provider", ["linear", "jira", "github", "gitlab"])
+def test_is_configured_former_saas_now_not_configured(provider: str) -> None:
+    """The former SaaS providers are removed (#6164): never configured, even with fields."""
+    assert not TrackerProjectConfig(provider=provider, project_slug="p", workspace="w").is_configured
 
 
 # ---------------------------------------------------------------------------
@@ -140,32 +132,33 @@ def test_is_configured_unknown_provider() -> None:
 
 
 def test_provider_constants_membership() -> None:
-    """Spot-check key providers are in the right sets."""
-    assert "linear" in SAAS_PROVIDERS
-    assert "jira" in SAAS_PROVIDERS
-    assert "github" in SAAS_PROVIDERS
-    assert "gitlab" in SAAS_PROVIDERS
+    """Spot-check key providers are in the right sets.
+
+    The former SaaS providers (linear, jira, github, gitlab) were moved into
+    REMOVED_PROVIDERS together with the hosted surface (#6164).
+    """
+    assert "linear" in REMOVED_PROVIDERS
+    assert "jira" in REMOVED_PROVIDERS
+    assert "github" in REMOVED_PROVIDERS
+    assert "gitlab" in REMOVED_PROVIDERS
     assert "beads" in LOCAL_PROVIDERS
     assert "fp" in LOCAL_PROVIDERS
     assert "azure_devops" in REMOVED_PROVIDERS
 
 
 def test_provider_sets_disjoint() -> None:
-    """SaaS, local, and removed sets must not overlap."""
-    assert not SAAS_PROVIDERS & LOCAL_PROVIDERS
-    assert not SAAS_PROVIDERS & REMOVED_PROVIDERS
+    """Local and removed sets must not overlap."""
     assert not LOCAL_PROVIDERS & REMOVED_PROVIDERS
 
 
-def test_all_supported_is_union() -> None:
-    """ALL_SUPPORTED_PROVIDERS == SAAS | LOCAL (removed excluded)."""
-    assert ALL_SUPPORTED_PROVIDERS == SAAS_PROVIDERS | LOCAL_PROVIDERS
+def test_all_supported_is_local_only() -> None:
+    """ALL_SUPPORTED_PROVIDERS == LOCAL (SaaS removed, removed excluded)."""
+    assert ALL_SUPPORTED_PROVIDERS == LOCAL_PROVIDERS
     assert not REMOVED_PROVIDERS & ALL_SUPPORTED_PROVIDERS
 
 
 def test_provider_constants_are_frozensets() -> None:
     """Constants are immutable frozensets."""
-    assert isinstance(SAAS_PROVIDERS, frozenset)
     assert isinstance(LOCAL_PROVIDERS, frozenset)
     assert isinstance(REMOVED_PROVIDERS, frozenset)
     assert isinstance(ALL_SUPPORTED_PROVIDERS, frozenset)
@@ -295,7 +288,9 @@ def test_legacy_config_loads_without_binding_ref(tmp_path: object) -> None:
     assert loaded.binding_ref is None
     assert loaded.display_label is None
     assert loaded.provider_context is None
-    assert loaded.is_configured is True
+    # `linear` is a removed provider now (#6164): the legacy config still parses
+    # cleanly (the assertions above), but it is no longer treated as configured.
+    assert loaded.is_configured is False
 
 
 def test_unknown_field_passthrough(tmp_path: object) -> None:
@@ -450,35 +445,14 @@ def test_to_dict_extra_does_not_override_known_fields() -> None:
 
 
 # ---------------------------------------------------------------------------
-# is_configured tests — SaaS dual-read (T005)
+# is_configured tests — former SaaS binding fields no longer configure
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "binding_ref,project_slug,expected",
-    [
-        ("ref", None, True),  # binding_ref only
-        (None, "slug", True),  # project_slug only (legacy)
-        ("ref", "slug", True),  # both
-        (None, None, False),  # neither
-    ],
-)
-def test_is_configured_saas_dual_read(binding_ref: str | None, project_slug: str | None, expected: bool) -> None:
-    """SaaS provider is configured when binding_ref OR project_slug is set."""
-    config = TrackerProjectConfig(provider="linear", binding_ref=binding_ref, project_slug=project_slug)
-    assert config.is_configured == expected
-
-
-@pytest.mark.parametrize("provider", sorted(SAAS_PROVIDERS))
-def test_is_configured_saas_with_binding_ref_only(provider: str) -> None:
-    """SaaS provider with only binding_ref (no project_slug) is configured."""
-    assert TrackerProjectConfig(provider=provider, binding_ref="ref").is_configured
-
-
-def test_is_configured_saas_workspace_and_binding_ref() -> None:
-    """SaaS provider with workspace + binding_ref is configured (binding_ref counts)."""
-    config = TrackerProjectConfig(provider="linear", binding_ref="ref", workspace="ws")
-    assert config.is_configured
+@pytest.mark.parametrize("provider", ["linear", "jira", "github", "gitlab"])
+def test_is_configured_former_saas_binding_ref_ignored(provider: str) -> None:
+    """A removed provider is never configured, even with binding_ref/project_slug (#6164)."""
+    assert not TrackerProjectConfig(provider=provider, binding_ref="ref", project_slug="slug").is_configured
 
 
 @pytest.mark.parametrize("provider", sorted(LOCAL_PROVIDERS))

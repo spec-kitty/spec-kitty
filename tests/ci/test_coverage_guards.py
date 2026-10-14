@@ -157,10 +157,10 @@ def test_imports_under_package_deferred_function_level(lib: ModuleType, tmp_path
     """A function-level (deferred) import still counts — the full ast.walk sees it."""
     src = tmp_path / "test_deferred.py"
     src.write_text(
-        "def probe():\n    import specify_cli.live_work.bindings  # deferred\n    return specify_cli.live_work.bindings\n",
+        "def probe():\n    import specify_cli.status.store  # deferred\n    return specify_cli.status.store\n",
         encoding="utf-8",
     )
-    assert lib.imports_under_package(src, "specify_cli.live_work") is True
+    assert lib.imports_under_package(src, "specify_cli.status") is True
 
 
 def test_imports_under_package_parent_does_not_fabricate_child(lib: ModuleType, tmp_path: Path) -> None:

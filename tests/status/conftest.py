@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
-from specify_cli.status import adapters
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
@@ -174,28 +173,12 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.fast)
 
 
-@pytest.fixture(autouse=True)
-def _restore_zeitgeist_moment_handlers_around_every_status_test() -> None:
-    """Re-register the Zeitgeist moment handlers around every status test.
-
-    Many files in this directory (``test_emit_backward_transition.py``,
-    ``test_emit_fanout_after_adapter.py``, ``test_sync_lane_mapping.py``, ...)
-    call ``adapters.reset_handlers()`` to get an empty registry and never put
-    production wiring back, so one test's wipe would silence every later
-    test's fan-out. #123 added this restoration alongside the sync handlers'
-    own; when #114 deleted the sync package it rewrote the same fixture, and
-    the merge kept #114's version wholesale — dropping the restoration with
-    it. This is #123's fixture minus the sync half that no longer exists.
-
-    Registration is idempotent (the ``register_*_handler`` calls de-duplicate
-    by qualified name), so calling before and after each test never
-    accumulates handlers. The pre-yield call also covers a fresh xdist worker
-    whose first import ran under ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` and
-    therefore registered nothing at import time.
-    """
-    adapters.ensure_zeitgeist_moment_handlers()
-    yield
-    adapters.ensure_zeitgeist_moment_handlers()
+# (Removed: the _restore_zeitgeist_moment_handlers_around_every_status_test
+# autouse fixture. It re-registered the Zeitgeist moment handlers around every
+# status test after a test's adapters.reset_handlers() wipe. #6164 removed the
+# hosted drain bridge and adapters.ensure_zeitgeist_moment_handlers() with it,
+# so there is no drain producer to re-register — the empty registry a
+# reset_handlers() leaves is now the correct production state.)
 
 
 @pytest.fixture(autouse=True)
@@ -210,12 +193,9 @@ def _disable_saas_fanout_for_local_status_tests(
     JSONL/materialization semantics and should not start auth, tracker, or
     dashboard-daemon flows.
     """
-    if Path(str(request.node.fspath)).name in (
-        "test_emit_fanout_after_adapter.py",
-        # The Zeitgeist handler tests drive the real emit -> adapters fan-out;
-        # only the network is faked there.
-        "test_zeitgeist_moment_handler.py",
-    ):
+    if Path(str(request.node.fspath)).name in ("test_emit_fanout_after_adapter.py",):
+        # (test_zeitgeist_moment_handler.py was removed with the hosted drain
+        # bridge, #6164; only the general emit -> adapters fan-out test remains.)
         return
 
     import specify_cli.status.emit as emit_module

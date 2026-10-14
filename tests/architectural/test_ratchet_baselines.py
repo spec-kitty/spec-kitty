@@ -292,14 +292,10 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_mutation_ownership_routing",
         "_ALLOWLIST",
     ),
-    # hosted-opt-in-drain-ledger WP04 (NFR-002): hosted relay/gateway edges
-    # exempt from the drain gate. Empty; growth means an ungated hosted edge.
-    _SizeRatchet(
-        "test_hosted_drain_gate",
-        "ungated_edge_allowlist",
-        "tests.architectural.test_hosted_drain_gate",
-        "_UNGATED_EDGE_ALLOWLIST",
-    ),
+    # (The test_hosted_drain_gate ratchet leaf was removed with the hosted
+    # drain gate itself: #6164 deleted tests/architectural/test_hosted_drain_gate.py
+    # along with the frozen hosted/sync/drain surfaces, so there is no gate module
+    # left for this size ratchet to import.)
     # #5108 four-leg worktree-name gate: each leg's allow-list is the surface
     # an author would edit to silence that leg, so growing it must cost the
     # same visible diff. Registered here (not the retired `single_baselines`

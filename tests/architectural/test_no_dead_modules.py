@@ -340,18 +340,8 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # `specify_cli.status.migrate_lifecycle_envelope` was removed from
         # Category 7 above -- it now has a real src/ caller: this module.)
         "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
-        # (m_4_0_0_retired_hosted_target removed from this category by
-        # hosted-opt-in-drain-ledger WP07: its `home_config_path()` now has a
-        # real src/ caller -- the D-6 backfill sibling below imports it.)
-        # hosted-opt-in-drain-ledger WP07 (D-6, FR-016): backfills
-        # config.toml [sync].server_url from a stored auth session's
-        # issuer_url when no endpoint is configured. A NEW migration_id
-        # (never folded into m_4_0_0_retired_hosted_target -- see that
-        # module's docstring for the already-applied-migration skip trap
-        # this avoids). Auto-discovered via pkgutil.iter_modules +
-        # @MigrationRegistry.register; never statically imported by runtime
-        # code -- same sibling shape as the m_zz_* backfill migrations above.
-        "specify_cli.upgrade.migrations.m_4_0_0rc5_hosted_endpoint_session_backfill",
+        # (The hosted-target + hosted-endpoint-session-backfill migrations that
+        # lived here were removed from open-core with the hosted surface, #6164.)
         # single-branch-topology-honesty-01M3M22V WP03 (#5100 IC-02): re-stamps
         # a single_branch mission whose lanes.json has a code lane to
         # topology: lanes (Invariant T-1 repair). Auto-discovered via
@@ -523,15 +513,29 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # unshim-wave1-01KWKVHB (#2292) drained this set 6 -> 2 by deleting
         # task_profile, sync.replay, sync.tracker_client_glue and
         # retrospective.lifecycle outright (WP01 T005 executed + WP03 T008).
-        # The two survivors carry documented deferral verdicts:
-        # - auth.transport: DELETE approved by ADR
-        #   docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md,
-        #   execution deferred to Robert (HiC C-001 no-touch boundary).
-        "specify_cli.auth.transport",
+        # The surviving entry carries a documented deferral verdict:
+        # - auth.transport: PRUNED (#6164, 2026-10-13). Its DELETE was approved
+        #   long ago by ADR docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-
+        #   transport.md, with execution deferred under the HiC C-001 no-touch
+        #   boundary; removing the frozen hosted surfaces deleted the whole
+        #   specify_cli.auth package, so the deferred delete is now executed and
+        #   the allowlist entry retired. Shrinks Cat-7 (C-006 burn-down).
         # - policy.audit: KEEP -> adopt-as-follow-up. Real designed
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
+        # - decisions.ownership: KEEP (#6164, 2026-10-13, operator ruling). A
+        #   substantial, well-tested local C-009 decision-ownership resolver
+        #   (resolve_decision_ownership over local ledgers; tests in
+        #   tests/specify_cli/decisions/test_ownership_3111.py and
+        #   test_ownership_symlink_loops.py; no hosted deps). Its ONLY caller was
+        #   the hosted `decision widen` command (cmd_widen), removed with the
+        #   frozen hosted surfaces; no non-hosted caller exists today. The
+        #   operator chose to preserve it in open-core as local governance logic
+        #   rather than delete it, pending a future non-hosted consumer. This
+        #   entry REPLACES the pruned auth.transport slot, so Cat-7 holds at 2
+        #   (net zero vs the C-006 burn-down baseline).
+        "specify_cli.decisions.ownership",
         # charter.parser + charter.activation.template_resolver were PRUNED
         # (Cat-7 burn-down, #6009): both were genuine orphans (zero static
         # src/ callers; only the charter/__init__.py string-literal re-export

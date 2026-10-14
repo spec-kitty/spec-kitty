@@ -71,7 +71,9 @@ _EXCLUDED_PREFIXES = (
 _EXCLUDED_GLOBS = ("src/specify_cli/upgrade/migrations/m_*charter_pack_cutover*.py",)
 
 #: Non-vacuity floor: the measured scan count, rounded down to the nearest 100.
-_MIN_FILES_SCANNED = 2500
+#: #6164 removed the frozen hosted/sync/drain surfaces and their test suites,
+#: dropping the scan below 2500; re-floored to the new count rounded down to 100.
+_MIN_FILES_SCANNED = 2400
 
 
 def _offenders(text: str) -> list[tuple[int, str]]:

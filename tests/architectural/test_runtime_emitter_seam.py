@@ -47,16 +47,20 @@ _BRIDGE_BYPASS_NEEDLES = ("flush(ctx.sync_emitter)", "sync_emitter=ctx.sync_emit
 # one file", not "this text never appears" (the definition and its own
 # illustrative comment both live in the canonical seam module).
 #
-# THIS GATE IS A TRIPWIRE, NOT A PROHIBITION -- and it has a planned exit.
-# The ADR's ADR-BLOCKED list bound *Mission B* (`dead-port-disposition`),
-# which is merged and closed; it is not a standing ban on ever wiring a
-# producer. Wiring one is exactly what E3 (spec-kitty#3929) is for. E3 took
-# that exit: the one planned production registration site is the status
-# seam's ``ensure_runtime_moment_producer`` (called by the runtime bridge), which registers
-# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. The gate stays
-# and still catches an *unplanned* third site.
-_PLANNED_PRODUCER_REGISTRATION_SITE = "src/specify_cli/status/adapters.py"
-_ALLOWED_REGISTRATION_SITES: tuple[str, ...] = (_CANONICAL_SEAM, _PLANNED_PRODUCER_REGISTRATION_SITE)
+# THIS GATE IS A TRIPWIRE, NOT A PROHIBITION. The ADR's ADR-BLOCKED list bound
+# *Mission B* (`dead-port-disposition`), which is merged and closed; it is not a
+# standing ban on ever wiring a producer. E3 (spec-kitty#3929) once took that
+# exit, wiring ``specify_cli.events.runtime_moments.RuntimeMomentProducer`` via
+# the status seam's ``ensure_runtime_moment_producer``. issue-6164-remove-hosted-from-core
+# (#6164) removed that producer along with the frozen hosted/sync/drain surfaces
+# (the drain-only runtime-moment producer never ran in open-core), so the status
+# seam no longer registers a factory and the ADR's "no live producer is wired"
+# boundary holds again by construction. The one remaining registration site is
+# the canonical seam module's own ``def`` and its illustrative example comment.
+# Re-wiring a producer later is still a planned exit: add its module back to
+# ``_ALLOWED_REGISTRATION_SITES`` rather than deleting this gate, which still
+# catches an *unplanned* second site.
+_ALLOWED_REGISTRATION_SITES: tuple[str, ...] = (_CANONICAL_SEAM,)
 
 # Matched as a regex, not a bare substring, so ``name (args)`` and stray
 # whitespace do not slip past; ``_registration_sites`` additionally resolves
@@ -192,11 +196,13 @@ def test_only_events_module_registers_the_runtime_emitter_factory() -> None:
     """ADR scope boundary: "no live producer is wired". The only file under
     ``src/`` that calls the registry is the seam's own module -- both the
     ``def`` and its illustrative registration-example comment live there.
+    (E3/spec-kitty#3929 briefly wired the status-seam producer; #6164 removed
+    it with the frozen hosted/sync/drain surfaces, so the boundary holds again.)
 
-    Removal trigger: E3 (spec-kitty#3929) wires a real producer. That is the
-    boundary's planned exit, not a violation -- add the producer module to
-    ``_ALLOWED_REGISTRATION_SITES`` rather than deleting this gate, which
-    still catches an unplanned second registration site."""
+    Re-wiring a producer later is the boundary's planned exit, not a violation
+    -- add the producer module to ``_ALLOWED_REGISTRATION_SITES`` rather than
+    deleting this gate, which still catches an unplanned second registration
+    site."""
     assert _registration_sites(_REPO_ROOT / "src") == list(_ALLOWED_REGISTRATION_SITES), (
         f"a registration site was added outside {list(_ALLOWED_REGISTRATION_SITES)}. If this is E3 "
         f"(spec-kitty#3929) wiring the planned producer, add it to _ALLOWED_REGISTRATION_SITES; "

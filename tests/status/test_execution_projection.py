@@ -34,7 +34,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from specify_cli.core import hosted_posture
+from specify_cli.core import ledger_posture
 from specify_cli.status import views as views_module
 from specify_cli.status.emit import emit_status_transition, emit_status_transition_batch
 from specify_cli.status.models import TransitionRequest
@@ -208,9 +208,9 @@ class TestParityWithMaterializeCommand:
 class TestLedgerOffGate:
     def test_ledger_off_skips_automatic_refresh(self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            hosted_posture,
+            ledger_posture,
             "ledger_posture",
-            lambda *a, **k: hosted_posture.LedgerPosture(enabled=False, source="test"),
+            lambda *a, **k: ledger_posture.LedgerPosture(enabled=False, source="test"),
         )
         seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(
@@ -230,9 +230,9 @@ class TestLedgerOffGate:
         self, feature_dir: Path, tmp_path: Path, seed_to_planned: Callable, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            hosted_posture,
+            ledger_posture,
             "ledger_posture",
-            lambda *a, **k: hosted_posture.LedgerPosture(enabled=False, source="test"),
+            lambda *a, **k: ledger_posture.LedgerPosture(enabled=False, source="test"),
         )
         seed_to_planned(feature_dir, "WP01", slug=_SLUG)
         emit_status_transition(

@@ -161,29 +161,6 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
     "tests/agent/glossary/test_middleware.py": {"len(result.extracted_terms) > 0": 1},
     "tests/architectural/test_status_module_boundary.py": {"not violations": 1},
     "tests/audit/test_audit_engine.py": {"len(report.missions) == 204": 1},
-    "tests/auth/concurrency/test_incident_regression.py": {
-        "on_disk is not None": 1,
-        "on_disk.access_token.startswith('at_rotated_')": 1,
-        "on_disk.refresh_token == 'rt_rotated_v2'": 1,
-        "on_disk.session_id == 'sess_seed'": 1,
-        "proc_a.returncode == 0": 1,
-        "proc_b.returncode == 0": 1,
-        "request_count == 1": 1,
-    },
-    "tests/auth/concurrency/test_session_hot_path.py": {
-        "_CountingFastFileStorage.durable_read_count == 0": 1,
-        "_CountingFastFileStorage.durable_read_count == 1": 1,
-        "tm._hot_path_summary is not None": 1,
-        "tm._session is None": 1,
-        "tm._session is not None": 1,
-        "tm.is_authenticated is True": 1,
-    },
-    "tests/auth/test_auth_doctor_report.py": {"report.findings == []": 1},
-    "tests/auth/test_token_manager.py": {
-        "'credential-shaped-secret-must-not-escape' not in caplog.text": 1,
-        "tm.is_authenticated is False": 1,
-        "tm.session_assessment == SessionAssessment(completed=False, usable_session=None, reason='session_materialization_failed')": 1,
-    },
     "tests/charter/evidence/test_code_reader.py": {"signals.primary_language == 'python'": 1},
     "tests/charter/synthesizer/test_performance_envelopes.py": {"not result.is_noop or True": 1, "result.synthesized_drg.state == 'fresh'": 1},
     "tests/charter/test_charter_context_spdd_reasons.py": {"is_spdd_reasons_active(tmp_path) is True": 1},
@@ -272,7 +249,6 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
         "result.output.count('still running') >= 2": 1,
         "timeline[names.index('launch')][1] - timeline[0][1] <= 1.0": 1,
     },
-    "tests/specify_cli/cli/commands/test_charter_widen.py": {"result.all_satisfied is False": 1, "result.all_satisfied is True": 1},
     "tests/specify_cli/cli/commands/test_doctor_mission_type.py": {"all((s.state == 'resolved' for s in states))": 1, "len(states) == 200": 1},
     "tests/specify_cli/cli/commands/test_session_start.py": {"result.exit_code == 0": 1},
     "tests/specify_cli/invocation/cli/test_invocations.py": {"len(records) == 100": 1},
@@ -313,12 +289,6 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
     },
     "tests/status/test_saas_fanout_timeout.py": {"any(('timed out' in record.getMessage().lower() for record in caplog.records))": 1, "entered.is_set()": 1},
     "tests/status/test_tail_reader.py": {"[event['event'] for event in yielded] == [event['event'] for event in events_to_write]": 1},
-    "tests/status/test_zeitgeist_decision_moment_docker_local.py": {
-        "frames": 1,
-        "frames[0].payload['kind'] == DECISION_POINT_OPENED": 1,
-        "frames[0].payload['ref'] == entry.decision_id": 1,
-        "not errors": 1,
-    },
     "tests/stress/test_concurrent_emits.py": {
         "eid": 1,
         "eid not in event_ids": 1,
@@ -331,28 +301,6 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
         "wp_id": 1,
     },
     "tests/unit/test_symbol_key.py": {"len(index) == 400": 1},
-    "tests/zeitgeist_client/test_budget.py": {"outcome.completed is False": 1, "outcome.result is None": 1},
-    "tests/zeitgeist_client/test_cli_zeitgeist_e2e.py": {
-        "'could not reach the relay' in result.stdout": 1,
-        "'timed out' in result.stdout": 1,
-        "payload['frames'] == 0": 1,
-        "payload['type'] == 'watch_summary'": 1,
-        "result.exit_code == 0": 1,
-        "result.exit_code == 1": 1,
-    },
-    "tests/zeitgeist_client/test_managed_relay_docker_local.py": {
-        "frames": 1,
-        "frames[0].frame_type == 'presence'": 1,
-        "not error": 1,
-        "result.outcome == transport.OfferOutcome.SENT": 1,
-    },
-    "tests/zeitgeist_client/test_repo_identity.py": {
-        "deadline.expired()": 1,
-        "result.branch == ''": 1,
-        "result.commit == ''": 1,
-        "result.repo == 'acme-widgets'": 1,
-    },
-    "tests/zeitgeist_client/test_transport.py": {"len(team_kitty_double.requests) == 1": 1, "team_kitty_double.connection_count == 1": 1},
 }
 
 # ---------------------------------------------------------------------------
@@ -378,8 +326,10 @@ def test_functional_assertion_coverage_does_not_regress(relpath: str) -> None:
 
 def test_baseline_covers_every_canonical_mixed_source_file() -> None:
     """Guards the baseline table itself against silent shrinkage (C-005)."""
-    # 62 at #4015; the two tests/cross_cutting/dashboard files left with the bundled dashboard (#5530).
-    assert len(BASELINE_FUNCTIONAL_ASSERTIONS) == 60, "baseline must cover all 60 surviving #4015 MIXED source files"
+    # 62 at #4015; the two tests/cross_cutting/dashboard files left with the bundled dashboard (#5530);
+    # 11 auth/zeitgeist/charter-widen test files relocated out of open-core with the frozen hosted
+    # surfaces (#6164), leaving 49.
+    assert len(BASELINE_FUNCTIONAL_ASSERTIONS) == 49, "baseline must cover all 49 surviving #4015 MIXED source files"
     empty = [relpath for relpath, counts in BASELINE_FUNCTIONAL_ASSERTIONS.items() if not counts]
     assert not empty, f"every #4015 MIXED file must record >=1 functional assertion: {empty}"
 

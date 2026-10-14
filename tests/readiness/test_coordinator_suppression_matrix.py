@@ -1,9 +1,17 @@
 """Suppression matrix tests for the readiness coordinator.
 
-Asserts FR-011 (no Teamspace leakage when hosted mode is disabled, across the
-full suppression matrix) and FR-004 (output policy derivation).
+Asserts FR-011 (no Teamspace leakage across the full suppression matrix) and
+FR-004 (output policy derivation).
 
 Mission: cli-startup-readiness-coordinator-skeleton-01KS7JRV
+
+The hosted auth-readiness surface (``readiness.auth.probe_auth_status``, the
+``SPEC_KITTY_ENABLE_SAAS_SYNC`` enablement path, and the legacy ``_invoke_nag``
+seam) was removed from open-core (#6164): the coordinator no longer probes auth
+or runs a hosted-enabled path, so it always returns a disabled result. The
+hosted-enabled matrix row and the auth-probe/nag monkeypatches that exercised
+that path were removed with it; the seven output-policy suppression rows below
+exercise the behaviour that remains.
 """
 
 from __future__ import annotations
@@ -32,86 +40,61 @@ class MatrixRow:
     argv: list[str]
     ci_env: bool
     isatty: bool
-    hosted_enabled: bool
     expected_policy: OutputPolicy
-    expected_enabled: bool
 
 
-# 7-row suppression matrix (hosted mode OFF) + 1 hosted-mode-enabled row.
+# 7-row suppression matrix. The coordinator is always disabled in open-core
+# (the hosted-enabled path was removed, #6164), so every row expects a disabled
+# result; only the derived output policy varies.
 MATRIX_ROWS: list[MatrixRow] = [
     MatrixRow(
         name="help",
         argv=["--help"],
         ci_env=False,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.NON_INTERACTIVE,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="version",
         argv=["--version"],
         ci_env=False,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.NON_INTERACTIVE,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="plain_invocation",
         argv=[],
         ci_env=False,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.INTERACTIVE,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="json",
         argv=["status", "--json"],
         ci_env=False,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.MACHINE_OUTPUT,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="quiet",
         argv=["status", "--quiet"],
         ci_env=False,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.MACHINE_OUTPUT,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="ci",
         argv=["status"],
         ci_env=True,
         isatty=True,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.NON_INTERACTIVE,
-        expected_enabled=False,
     ),
     MatrixRow(
         name="non_tty",
         argv=["status"],
         ci_env=False,
         isatty=False,
-        hosted_enabled=False,
         expected_policy=OutputPolicy.NON_INTERACTIVE,
-        expected_enabled=False,
-    ),
-    # Hosted-mode-enabled row: still no Teamspace leakage because the auth probe
-    # is not exercised in this mission.
-    MatrixRow(
-        name="hosted_enabled_interactive",
-        argv=["status"],
-        ci_env=False,
-        isatty=True,
-        hosted_enabled=True,
-        expected_policy=OutputPolicy.INTERACTIVE,
-        expected_enabled=True,
     ),
 ]
 
@@ -134,34 +117,15 @@ def test_suppression_matrix_no_teamspace_leakage(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # Arrange env: SPEC_KITTY_ENABLE_SAAS_SYNC
-    if row.hosted_enabled:
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    else:
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
-
     # Arrange env: CI
     if row.ci_env:
         monkeypatch.setenv("CI", "1")
     else:
         monkeypatch.delenv("CI", raising=False)
 
-    # Suppress side-effects of the wrapped legacy nag — we are testing the
-    # coordinator's suppression contract, not the nag's behavior (covered in
-    # WP03 nag passthrough tests).
+    # Suppress side-effects of the (non-hosted) upgrade UX — we are testing the
+    # coordinator's suppression contract, not the UX's behaviour.
     monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
-
-    # WS2 (issue #1094): the readiness auth probe now runs on the
-    # hosted-enabled path. Stub it to a Teamspace-free verdict so this
-    # Wave 1 suppression matrix continues to assert the "no leakage"
-    # invariant deterministically — independent of any local repo state.
-    from specify_cli.readiness import auth as auth_module
-
-    monkeypatch.setattr(
-        auth_module,
-        "probe_auth_status",
-        lambda **_kw: (AuthStatus.NOT_IN_TEAMSPACE, None),
-    )
 
     # Arrange argv
     monkeypatch.setattr(sys, "argv", ["spec-kitty", *row.argv])
@@ -173,29 +137,14 @@ def test_suppression_matrix_no_teamspace_leakage(
     ctx = _make_ctx()
     result = evaluate_readiness(ctx)
 
-    # Assert: result fields
+    # Assert: result fields. Open-core always returns a disabled result.
     assert isinstance(result, ReadinessResult), f"got {type(result)!r}"
-    assert result.enabled == row.expected_enabled, f"row={row.name}: enabled mismatch ({result.enabled})"
+    assert result.enabled is False, f"row={row.name}: open-core is always disabled"
     assert (
         result.output_policy == row.expected_policy
     ), f"row={row.name}: policy mismatch ({result.output_policy})"
-    if row.expected_enabled:
-        # WS2 (issue #1094) widened AuthStatus. The probe now produces one of
-        # the authoritative values; the Wave 1 ``NOT_CHECKED`` sentinel is no
-        # longer emitted by the coordinator. The Wave 1 readiness API
-        # contract explicitly permits this enum widening.
-        assert result.auth_status in {
-            AuthStatus.AUTHENTICATED,
-            AuthStatus.LOGGED_OUT_IN_TEAMSPACE,
-            AuthStatus.NOT_IN_TEAMSPACE,
-            AuthStatus.UNKNOWN,
-        }, f"row={row.name}: enabled rows expect an authoritative auth status, got {result.auth_status!r}"
-        assert result.ran is True
-    else:
-        assert (
-            result.auth_status == AuthStatus.DISABLED
-        ), f"row={row.name}: disabled rows expect DISABLED"
-        assert result.ran is False
+    assert result.auth_status == AuthStatus.DISABLED, f"row={row.name}: expected DISABLED"
+    assert result.ran is False, f"row={row.name}: disabled result never ran a hosted probe"
 
     # Assert: no Teamspace leakage
     captured = capsys.readouterr()

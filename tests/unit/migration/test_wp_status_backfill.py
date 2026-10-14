@@ -22,7 +22,6 @@ from specify_cli.status.models import GuardContext, Lane
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import read_event_stream
 from specify_cli.status.transitions import validate_transition
-from specify_cli.status.zeitgeist_bridge import _normalise_evidence
 from tests.unit.migration._backfill_fixture import build_mission
 
 pytestmark = [pytest.mark.fast]
@@ -398,7 +397,6 @@ def test_done_event_without_evidence_is_tolerated_by_readers(tmp_path: Path) -> 
     done_row = next(row for row in rows if row["to_lane"] == "done")
 
     assert done_row["evidence"] is None
-    assert _normalise_evidence(done_row["evidence"]) is None
     assert is_documented_review_rejection(done_row) is False
 
 

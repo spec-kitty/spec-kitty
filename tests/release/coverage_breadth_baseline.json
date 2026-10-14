@@ -50,7 +50,7 @@
         "python": "3.11.15"
       },
       "totals": {
-        "files": 1255,
+        "files": 1254,
         "files_with_coverage": 998,
         "covered_statements": 42942,
         "statements": 128702
@@ -4903,10 +4903,6 @@
         "src/specify_cli/upgrade/migrations/m_3_3_1_context_sources_consolidation.py": [
           0,
           130
-        ],
-        "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py": [
-          0,
-          64
         ],
         "src/specify_cli/upgrade/migrations/m_unify_charter_activation.py": [
           27,

@@ -2,6 +2,9 @@
 #
 # Mission ci-pipeline-reinstatement, WP07 (FR-004/005/008/016; NFR-002).
 #
+# #6164: removed the dead `auth` filter group (src/specify_cli/auth/** deleted)
+# from both router authorities, and the core_misc zeitgeist_client/** glob.
+#
 # There are exactly TWO hand-authored routing sources; everything else is
 # derived and asserted against them (contract contracts/router-two-authority.md):
 #   1. the dorny `changes` filter block  ->  group -> globs[]   (path -> group)
@@ -79,7 +82,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       consolidation: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.consolidation }}
-      auth: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.auth }}
       missions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
       post_merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
       release: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
@@ -180,8 +182,6 @@ jobs:
           filters: |
             consolidation:
               - 'src/specify_cli/consolidation/**'
-            auth:
-              - 'src/specify_cli/auth/**'
             missions:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
@@ -279,7 +279,6 @@ jobs:
               - 'src/specify_cli/charter_pack_synthesizer/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
-              - 'src/specify_cli/zeitgeist_client/**'
             # Test-inventory groups: tests/unit and tests/specify_cli/runtime had
             # no declared home in the module registry. Every glob below is a
             # verbatim copy of one another group already carries (scrub groups
@@ -502,7 +501,6 @@ jobs:
           # excluded so a data-only path can never mask an unmapped src/** change).
           for group_hit in \
             "${{ steps.filter.outputs.consolidation }}" \
-            "${{ steps.filter.outputs.auth }}" \
             "${{ steps.filter.outputs.missions }}" \
             "${{ steps.filter.outputs.post_merge }}" \
             "${{ steps.filter.outputs.release }}" \
@@ -922,7 +920,6 @@ jobs:
     needs: [changes, prose-scan]
     if: >-
       (needs.changes.outputs.consolidation == 'true' ||
-      needs.changes.outputs.auth == 'true' ||
       needs.changes.outputs.missions == 'true' ||
       needs.changes.outputs.post_merge == 'true' ||
       needs.changes.outputs.release == 'true' ||

@@ -11,22 +11,26 @@ only to be *read* by the census's AST walker.
 Every ``patch()`` target below resolves on this tree — ``check_patch_targets.py``
 rglobs every ``*.py`` under ``tests/`` with a **regex over raw source**, so an
 unresolvable literal here (even one quoted in a docstring) would red an
-``[ENFORCED]`` CI job.
+``[ENFORCED]`` CI job. The patch *target* is incidental to the detected *form*:
+this fixture patches its own module-level ``time`` so it depends on no product
+module (the former ``specify_cli.tracker.saas_client`` target was removed with
+the frozen hosted surfaces, issue #6164).
 """
 
 from __future__ import annotations
 
+import time  # noqa: F401 — patch target `<this module>.time.sleep` must resolve on disk
 from unittest.mock import MagicMock, patch
 
 
-@patch("specify_cli.tracker.saas_client.time.sleep")
+@patch("tests.architectural._fixtures.patch_seam_control.seam_decorator_cases.time.sleep")
 def case_assert_called_once(mock_sleep: MagicMock) -> None:
     """One sleep, read back through ``assert_called_once_with`` (n=1)."""
     mock_sleep(1.5)
     mock_sleep.assert_called_once_with(1.5)
 
 
-@patch("specify_cli.tracker.saas_client.time.sleep")
+@patch("tests.architectural._fixtures.patch_seam_control.seam_decorator_cases.time.sleep")
 def case_call_count_comparison(mock_sleep: MagicMock) -> None:
     """Two sleeps, read back through a ``.call_count`` comparison (n=2)."""
     mock_sleep(0.1)
@@ -34,7 +38,7 @@ def case_call_count_comparison(mock_sleep: MagicMock) -> None:
     assert mock_sleep.call_count == 2
 
 
-@patch("specify_cli.tracker.saas_client.time.sleep")
+@patch("tests.architectural._fixtures.patch_seam_control.seam_decorator_cases.time.sleep")
 def case_alias_whole_list_equality(mock_sleep: MagicMock) -> None:
     """The one-level-alias shape from ``test_saas_client.py:783-786``.
 

@@ -93,7 +93,6 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
         "src/specify_cli/cli/commands/mission_type.py",
         "src/specify_cli/cli/commands/tracker.py",
         "src/specify_cli/doc_analysis/doc_state.py",
-        "src/specify_cli/tracker/origin.py",
         "src/specify_cli/acceptance/__init__.py",
     }
 )
@@ -189,21 +188,6 @@ def _drive_doc_write(feature_dir: Path) -> Any:
     return set_iteration_mode(feature_dir / "meta.json", "initial")
 
 
-def _drive_tracker(feature_dir: Path) -> Any:
-    from specify_cli.tracker.origin import bind_mission_origin
-    from specify_cli.tracker.origin_models import OriginCandidate
-
-    candidate = OriginCandidate(
-        external_issue_id="1",
-        external_issue_key="PROBE-1",
-        title="probe",
-        status="open",
-        url="https://example.invalid/1",
-        match_type="exact",
-    )
-    return bind_mission_origin(feature_dir, candidate, "github")
-
-
 def _drive_acceptance(feature_dir: Path) -> Any:
     """Drive ``acceptance._commit_acceptance_meta`` against a real git repo.
 
@@ -269,7 +253,6 @@ def _drive_acceptance(feature_dir: Path) -> Any:
 
 def _routed_readers() -> list[RoutedReader]:
     from specify_cli.consolidation.baseline import BaselineMergeCommitError
-    from specify_cli.tracker.origin import OriginBindingError
 
     return [
         RoutedReader("merge", "baseline.record_baseline_merge_commit", _drive_merge_baseline, _RAISES_DOMAIN, BaselineMergeCommitError),
@@ -280,7 +263,6 @@ def _routed_readers() -> list[RoutedReader]:
         RoutedReader("cli/agent", "mission_setup_plan._resolve_plan_template", _drive_cli_agent_setup_plan, _RAISES_TYPED),
         RoutedReader("doc_analysis", "doc_state.read_documentation_state", _drive_doc_read, _RAISES_TYPED),
         RoutedReader("doc_analysis", "doc_state.set_iteration_mode", _drive_doc_write, _RAISES_TYPED),
-        RoutedReader("tracker", "origin.bind_mission_origin", _drive_tracker, _RAISES_DOMAIN, OriginBindingError),
         RoutedReader("acceptance", "_commit_acceptance_meta", _drive_acceptance, _RAISES_TYPED),
     ]
 

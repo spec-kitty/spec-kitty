@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+# #6164: removed the windows_critical filter glob for the deleted
+# tests/auth/secure_storage/test_file_fallback_windows_root.py.
+#
 # Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
 # only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
 # run everywhere. Pinned by tests/ci/test_fork_guard.py.
@@ -30,7 +33,6 @@ jobs:
               - 'pytest.ini'
               - 'tests/conftest.py'
               - 'tests/test_test_venv_bootstrap.py'
-              - 'tests/auth/secure_storage/test_file_fallback_windows_root.py'
               - 'tests/cli/test_agent_status_messaging.py'
               - 'tests/cli/test_migrate_cmd_messaging.py'
               - 'tests/core/test_worktree_symlink_fallback.py'

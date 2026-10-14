@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.adapters import (
@@ -314,25 +315,47 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
     assert sorted(f.name for f in result.uncommitted_files) == [".gitkeep", "README.md", "meta.json", "spec.md"]
 
 
-def _tracker_origin_consumer(
+def _stub_bind_origin(feature_dir: Path, pending: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Test-only bind seam the stand-in consumer delegates to.
+
+    Replaces the removed tracker origin-binding surface. Tests patch this to
+    simulate a successful or failing bind without depending on hosted code.
+    """
+    raise NotImplementedError
+
+
+def _read_pending_origin(repo_root: Path) -> dict[str, Any] | None:
+    """Read ``.kittify/pending-origin.yaml`` (inlined: the hosted
+    ``tracker.ticket_context`` read/clear helpers were removed from open-core
+    with the ticket-origin staging surface, #6164). Test-only."""
+    path = repo_root / ".kittify" / "pending-origin.yaml"
+    if not path.exists():
+        return None
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _clear_pending_origin(repo_root: Path) -> None:
+    """Remove ``.kittify/pending-origin.yaml`` after the stand-in consumer binds
+    it (inlined for the same reason as :func:`_read_pending_origin`)."""
+    path = repo_root / ".kittify" / "pending-origin.yaml"
+    if path.exists():
+        path.unlink()
+
+
+def _origin_consumer_stub(
     repo_root: Path,
     feature_dir: Path,
     meta: dict[str, Any],
 ) -> tuple[bool, bool, str | None, dict[str, Any]]:
-    """Test-only PendingOriginConsumer that routes through the tracker's binding logic.
-
-    This consumer mirrors what ``tracker/origin_consumer.py`` (WP03) will implement.
-    It is used in tests that verify the pending-origin registry dispatch chain,
-    replacing the old approach of patching ``mission_creation.py`` internals directly.
-
-    Imports are lazy so that the test's ``patch("specify_cli.tracker.origin.bind_mission_origin")``
-    mock is active when the consumer runs.
+    """Test-only PendingOriginConsumer exercising the core/adapters.py registry
+    dispatch chain (WP02 boundary fix) without the removed tracker binding
+    surface. The actual bind step is delegated to the module-level
+    ``_stub_bind_origin`` seam so tests can drive success/failure directly.
     """
-    from specify_cli.tracker.origin import OriginBindingError, bind_mission_origin
-    from specify_cli.tracker.origin_models import OriginCandidate
-    from specify_cli.tracker.ticket_context import clear_pending_origin, read_pending_origin
-
-    pending = read_pending_origin(repo_root)
+    pending = _read_pending_origin(repo_root)
     if not pending:
         return False, False, None, meta
 
@@ -343,30 +366,12 @@ def _tracker_origin_consumer(
     if not provider or not issue_id or not issue_key:
         return True, False, "Pending origin is missing required provider/issue identifiers.", meta
 
-    candidate = OriginCandidate(
-        external_issue_id=issue_id,
-        external_issue_key=issue_key,
-        title=str(pending.get("title") or "").strip(),
-        status=str(pending.get("status") or "").strip(),
-        url=str(pending.get("url") or "").strip(),
-        match_type="pending_origin",
-        body=str(pending.get("body") or "").strip() or None,
-    )
-
     try:
-        updated_meta, _ = bind_mission_origin(
-            feature_dir=feature_dir,
-            candidate=candidate,
-            provider=provider,
-            resource_type=None,
-            resource_id=None,
-        )
-    except OriginBindingError as exc:
-        return True, False, str(exc), meta
+        updated_meta, _ = _stub_bind_origin(feature_dir, pending)
     except Exception as exc:  # noqa: BLE001
         return True, False, str(exc), meta
 
-    clear_pending_origin(repo_root)
+    _clear_pending_origin(repo_root)
     return True, True, None, updated_meta
 
 
@@ -389,13 +394,13 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    # Register the test consumer that exercises the tracker binding path via
-    # the core/adapters.py registry (WP02 boundary fix). WP03 will register the
-    # real tracker consumer at startup; here we use the identical logic as a
-    # test-only consumer so the binding assertions remain meaningful.
-    register_pending_origin_consumer(_tracker_origin_consumer)
+    # Register the test consumer that exercises the pending-origin dispatch via
+    # the core/adapters.py registry (WP02 boundary fix); the bind step is a
+    # local stub so the dispatch assertions remain meaningful without the
+    # removed tracker binding surface.
+    register_pending_origin_consumer(_origin_consumer_stub)
     try:
-        with patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin:
+        with patch(f"{__name__}._stub_bind_origin") as mock_bind_origin:
             mock_bind_origin.return_value = (
                 {
                     "mission_id": "01KTESTMISSIONID00000000003",
@@ -440,9 +445,9 @@ def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None
         encoding="utf-8",
     )
 
-    register_pending_origin_consumer(_tracker_origin_consumer)
+    register_pending_origin_consumer(_origin_consumer_stub)
     try:
-        with patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")):
+        with patch(f"{__name__}._stub_bind_origin", side_effect=RuntimeError("bind failed")):
             result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
     finally:
         reset_origin_consumer()

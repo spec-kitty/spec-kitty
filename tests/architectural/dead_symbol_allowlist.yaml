@@ -136,13 +136,6 @@ categories:
       in their seam module, just lacking a cross-file src/ caller after the decomposition moved the consuming
       call to a sibling seam -- a different shape than a re-export shim.'
     requires_issue: false
-  category_b_t001_unblinded:
-    rationale: B. T001-unblinded symbols (WP01 harden-dead-symbol-gate). The T001 bug in ``_extract_all_literal``
-      caused any module with a top-level ``ast.AnnAssign`` before ``__all__`` to be silently zeroed. WP01
-      fixed the parser; these symbols surfaced as offenders for the first time. Grandfathered at the same
-      "investigate + wire/prune/delete" policy as ``category_b_grandfathered_legacy``. Burns down when
-      each symbol is wired, removed from ``__all__``, or deleted (FR-303).
-    requires_issue: false
   category_c_mission_type_drg_edges_facade_reexport:
     rationale: 'C. mission-type-drg-edges (#2677) charter.drg facade re-export. ``charter.drg`` is a contract-required
       FACADE module: the ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
@@ -328,37 +321,23 @@ categories:
     requires_issue: false
   category_c_team_kitty_launch_defaults_3980:
     rationale: 'C. team-kitty-launch-defaults 3980 forward API. The #3980 launch-defaults flip introduced
-      the canonical env-name constants in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
-      armed predicate (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/ contracts/saas_rollout.md``
-      v3). None has a cross-file ``src/`` caller yet: * the three ``core.env`` constants are consumed
-      by their own module''s gate functions (``sync_kill_switch_active`` / ``pre_review_gate_skip_reason``
-      / ``moment_handlers_disabled_reason``) and imported by tests (``tests/specify_cli/core/test_env.py``,
-      the agent-command conftest), but the parallel literal name lists in ``core/secret_redaction.py``
-      and ``upgrade/migrations/m_3_2_8_provision_kitty_env.py`` predate the constants and still hardcode
-      the strings. * ``sync_active()``''s last runtime caller (the owned-checkout ``OWNED_SYNC_UNSUPPORTED``
-      refusal) was removed by #3980 itself; the contract still requires its kill-switch/disarm test coverage,
-      and the launch table names it as the ``SPEC_KITTY_SYNC_DISABLE`` consumer. TODO(triage): #3980 post-launch
-      — wire the literal-list sites to the constants, and either wire a ``sync_active()`` consumer (the
-      kill-switch fold into readiness/tracker gating) or retire it with the next contract version bump,
-      then drop these entries.'
+      canonical env-name constants in ``specify_cli.core.env``. The sync/moment members of this category
+      (``SYNC_KILL_SWITCH_ENV_VAR``, ``MOMENT_HANDLER_DISABLE_ENV_VARS``) and the ``sync_active()`` predicate
+      were removed with the frozen hosted/sync/drain surfaces by issue-6164-remove-hosted-from-core (#6164).
+      What remains is ``PRE_REVIEW_GATE_SKIP_ENV_VAR`` (``SPEC_KITTY_SKIP_PRE_REVIEW_GATE``): a kept,
+      contract-pinned env-name constant with no cross-file ``src/`` caller yet -- consumed by its own
+      module''s ``pre_review_gate_skip_reason`` gate function and imported by tests
+      (``tests/specify_cli/core/test_env.py``, the agent-command conftest), while the parallel literal
+      name list in ``core/secret_redaction.py`` predates the constant and still hardcodes the string.
+      TODO(triage): #3980 post-launch — wire the literal-list site to the constant, then drop this entry.'
     requires_issue: false
-  category_c_live_work_capture_public_surface:
-    rationale: 'C. Live Work capture layer public surface (#4268). The new ``specify_cli.live_work`` package
-      (spec-kitty#4268, Live Work harness capture): its runtime callers are the ``live-work`` CLI command
-      group and the retrospective-outcome fanout, which consume the adapter, publisher, coalescer, watcher
-      and bindings seams. The twelve symbols below are the layer''s *public constants and predicates*
-      — the vocabulary its tests pin and its follow-up wiring (factory dispatch install, e2e capture-to-paint
-      qualification, spec-kitty#4268''s acceptance evidence) consumes by name; none has a second src/
-      importer yet. TODO(triage): wire the first by-name consumer or drop from __all__ (FR-303).'
-    requires_issue: false
-  category_d_live_work_authored_public_surface:
-    rationale: 'D. Live Work authored-message service surface (#4269). The ``specify_cli.live_work.authored``
-      service (spec-kitty#4269, authored publish/reply/read/inbox): its runtime callers are the ``zeitgeist
-      send/reply/read/inbox`` CLI commands and the MCP ``zeitgeist_*`` tools, which import the service
-      functions, the typed error and the outcome enum by name. The three symbols below are the service''s
-      *result type and wire bounds* — the vocabulary its tests pin and the e2e A-question->B-reply qualification
-      (e2e#452) consumes by name; none has a second src/ importer yet. TODO(triage): wire the first by-name
-      consumer or drop from __all__ (FR-303, spec-kitty#4269).'
+  category_c_hosted_removal_orphaned_api_6164:
+    rationale: 'C. issue-6164-remove-hosted-from-core (#6164) kept-API orphans. Each symbol is a public,
+      kept-in-open-core surface whose sole in-core caller was removed with the frozen hosted/sync/drain
+      surfaces (ADR 2026-10-06-1). The operator ruling was to not scope-creep the removal into deleting
+      kept public API, so each is retained with no src caller for now; see each entry''s own rationale.
+      TODO(triage): the milestone-11 lifecycle-event reroute (#6185) or a dedicated burn-down re-wires
+      or retires these.'
     requires_issue: false
   category_c_terminus_reconciliation_5001:
     rationale: 'C. Terminus reconciliation gate + merge-coord integrity (#5001). The terminus/merge-coord
@@ -605,36 +584,6 @@ entries:
     exercised by ``tests/regressions/test_issue_4968_accept_encoding.py`` (#4962/#4968). ``__all__``-declared
     but only ever caught within the same module''s own ``except AcceptanceError`` handler, so it has no
     cross-module ``src/`` caller for this gate to see.'
-- module: specify_cli.auth.refresh_transaction
-  name: RefreshResult
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: DoctorReport
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: Finding
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: LockSummary
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: ServerSessionStatus
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: SessionSummary
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: assemble_report
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: compute_exit_code
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: render_report
-  category: category_b_grandfathered_legacy
-- module: specify_cli.cli.commands._auth_doctor
-  name: render_report_json
-  category: category_b_grandfathered_legacy
 - module: specify_cli.cli.commands._branch_strategy_gate
   name: GateDecision
   category: category_b_grandfathered_legacy
@@ -925,9 +874,6 @@ entries:
 - module: specify_cli.validators.research
   name: validate_source_register
   category: category_b_grandfathered_legacy
-- module: specify_cli.widen.interview_helpers
-  name: render_widen_hint_if_present
-  category: category_b_grandfathered_legacy
 - module: charter.activation.invocation_context
   name: ContextPreconditionError
   category: category_c_wp_in_flight_charter_scope
@@ -1082,24 +1028,6 @@ entries:
 - module: specify_cli.consolidation.resolve
   name: _iter_merge_states_for_slug
   category: category_c_merge_decomp_shim_reexport_2057
-- module: specify_cli.auth.transport
-  name: AsyncAuthenticatedClient
-  category: category_b_t001_unblinded
-- module: specify_cli.auth.transport
-  name: AuthRefreshFailed
-  category: category_b_t001_unblinded
-- module: specify_cli.auth.transport
-  name: AuthenticatedClient
-  category: category_b_t001_unblinded
-- module: specify_cli.auth.transport
-  name: get_async_client
-  category: category_b_t001_unblinded
-- module: specify_cli.auth.transport
-  name: get_client
-  category: category_b_t001_unblinded
-- module: specify_cli.auth.transport
-  name: reset_clients
-  category: category_b_t001_unblinded
 - module: charter.drg
   name: load_graph
   category: category_c_mission_type_drg_edges_facade_reexport
@@ -1223,59 +1151,8 @@ entries:
   name: merge_three_layers
   category: category_e_charter_activation_split_forward_api
 - module: specify_cli.core.env
-  name: MOMENT_HANDLER_DISABLE_ENV_VARS
-  category: category_c_team_kitty_launch_defaults_3980
-- module: specify_cli.core.env
   name: PRE_REVIEW_GATE_SKIP_ENV_VAR
   category: category_c_team_kitty_launch_defaults_3980
-- module: specify_cli.core.env
-  name: SYNC_KILL_SWITCH_ENV_VAR
-  category: category_c_team_kitty_launch_defaults_3980
-- module: specify_cli.core.saas_sync_config
-  name: sync_active
-  category: category_c_team_kitty_launch_defaults_3980
-- module: specify_cli.live_work.adapters.codex
-  name: CODEX_NOTIFY_EVENTS
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.capability
-  name: LIVE_WORK_HOOK_COMMAND_MARKER
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.coalesce
-  name: is_structural
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.install
-  name: CLAUDE_LIVE_WORK_COMMAND
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.install
-  name: CODEX_LIVE_WORK_COMMAND
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.install
-  name: CODEX_NOTIFY_LINE
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.kinds
-  name: FAMILY_BY_EMISSION_KIND
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.kinds
-  name: WORK_CONTRACT_VERSION
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.publisher
-  name: MAX_OBSERVATIONS_PER_INVOCATION
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.redaction
-  name: is_excluded_path
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.watcher
-  name: MAX_WATCHED_PATHS
-  category: category_c_live_work_capture_public_surface
-- module: specify_cli.live_work.authored
-  name: MAX_BODY_CHARS
-  category: category_d_live_work_authored_public_surface
-- module: specify_cli.live_work.authored
-  name: MAX_SEND_ATTEMPTS
-  category: category_d_live_work_authored_public_surface
-- module: specify_cli.live_work.authored
-  name: SendResult
-  category: category_d_live_work_authored_public_surface
 - module: specify_cli.consolidation.bookkeeping_projection
   name: ProjectionResult
   category: category_c_terminus_reconciliation_5001
@@ -1307,6 +1184,48 @@ entries:
   category: category_c_terminus_reconciliation_5001
   rationale: public vocabulary of the new reconciliation gate (raised by `route_terminus` for an unrouted
     terminus path).
+- module: kernel.locks
+  name: force_release
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: kept kernel lock-admin primitive; its sole in-core caller was a removed hosted lock-repair/doctor
+    surface.
+- module: kernel.locks
+  name: read_lock_record
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: kept kernel lock-record reader; its sole in-core caller was a removed hosted lock-repair/doctor
+    surface.
+- module: specify_cli.core.ledger_posture
+  name: LedgerPosture
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: return type of the wired ``ledger_posture.ledger_posture()`` reader (called from status/emit.py
+    and coordination/status_transition.py); callers consume the value, not the class name.
+- module: specify_cli.decisions.ownership
+  name: is_well_formed_decision_id
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
+    was the removed ``decision widen`` command.
+- module: specify_cli.decisions.ownership
+  name: ownership_refusal
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
+    was the removed ``decision widen`` command.
+- module: specify_cli.decisions.ownership
+  name: resolve_decision_ownership
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
+    was the removed ``decision widen`` command.
+- module: specify_cli.readiness.upgrade_ux
+  name: run_upgrade_ux
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: 'kept upgrade-UX orchestrator; it only ran on the coordinator''s hosted-enabled path (hosted
+    shipped off), which #6164 removed. The module stays for its UpgradeChoice/apply_choice/needs_reset
+    helpers used by ``spec-kitty upgrade``.'
+- module: runtime.next._internal_runtime.events
+  name: register_runtime_emitter_factory
+  category: category_c_hosted_removal_orphaned_api_6164
+  rationale: 'the canonical runtime-emitter seam registration API; its sole caller (the runtime-moment
+    producer wiring in status/adapters.py) was removed by #6164. Re-wiring a producer is the seam''s planned
+    exit (see tests/architectural/test_runtime_emitter_seam.py).'
 widened_grandfathered_470:
   rationale: 'Pre-existing debt the #470 widened (non-__all__) walk surfaced, kept apart from `entries`
     because these names are not __all__ members. Reviewed by hand at widening time: each entry is either
@@ -1316,6 +1235,19 @@ widened_grandfathered_470:
     rescued by an intra-module reference.'
   issue: '#633'
   entries:
+  # issue-6164-remove-hosted-from-core (#6164): these three kept-core, non-__all__ public
+  # seams lost their sole in-core caller when the SaaS-first origin-binding chain
+  # (tracker/origin.py + tracker/origin_consumer.py + tracker/saas_service.py) was removed.
+  # Each is a test-covered library primitive deliberately retained in its kept module
+  # (resolve_identity is the explicitly-preserved alternative to ensure_identity; StaleBindingError
+  # is still raised/handled intra-module in tracker/service.py; set_origin_ticket has its own
+  # test file). Grandfathered per the #470 policy pending a local-origin re-wire or deletion.
+  - module: specify_cli.identity.project
+    name: resolve_identity
+  - module: specify_cli.mission_metadata
+    name: set_origin_ticket
+  - module: specify_cli.tracker.service
+    name: StaleBindingError
   - module: charter.activation._io
     name: load_charter_bytes
   - module: charter.activation.context_contract
@@ -1388,8 +1320,6 @@ widened_grandfathered_470:
     name: prefix_groups_to_findings
   - module: specify_cli.audit.identity_adapter
     name: selector_groups_to_findings
-  - module: specify_cli.auth.transport
-    name: reset_user_facing_dedup
   - module: specify_cli.cli.commands.agent.mission
     name: INVALID_WP_OWNED_FILES_KITTY_SPECS
   - module: specify_cli.cli.commands.intake
@@ -1496,13 +1426,3 @@ widened_grandfathered_470:
     name: exclude_paths
   - module: specify_cli.upgrade.skill_update
     name: replace_skill_file
-  - module: specify_cli.widen.state
-    name: validate_entry_schema
-  - module: specify_cli.zeitgeist_client.credentials
-    name: revoke
-  - module: specify_cli.zeitgeist_client.sanitizer
-    name: FORBIDDEN_CONTROL_KEYS_VERSION
-  - module: specify_cli.zeitgeist_client.sanitizer
-    name: FORBIDDEN_OBSERVATION_KEYS
-  - module: specify_cli.zeitgeist_client.sanitizer
-    name: FORBIDDEN_OBSERVATION_KEYS_VERSION

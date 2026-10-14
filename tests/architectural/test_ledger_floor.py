@@ -14,20 +14,24 @@ carries DONE"):
   ``src/specify_cli/events/decision_log.py``)
 
 This gate keys on the REFERENCE (an AST scan for any use of
-``hosted_posture.ledger_posture`` / ``hosted_posture.drain_posture`` --
-attribute access (through the canonical module name OR an ``import ... as``/
-``from ... import hosted_posture as`` alias of the module itself), a bare
-imported name, or an import statement), not a literal string ``grep``, which
-a rename or an indirection could dodge -- modelled on
-``tests/architectural/test_egress_consent_boundary.py``'s sink-reference-scan
-rationale.
+``ledger_posture.ledger_posture`` -- attribute access (through the canonical
+module name OR an ``import ... as``/``from ... import ledger_posture as`` alias
+of the module itself), a bare imported name, or an import statement), not a
+literal string ``grep``, which a rename or an indirection could dodge --
+modelled on ``tests/architectural/test_egress_consent_boundary.py``'s
+sink-reference-scan rationale.
+
+(The ledger posture reader lived in ``core/hosted_posture.py`` alongside the
+hosted drain posture until #6164 removed the hosted drain/relay surface from
+open-core; it now lives, ledger-only, in ``core/ledger_posture.py``, and this
+gate tracks that module.)
 
 Two axes:
 
 1. **Forbidden files** (:data:`_FORBIDDEN_FILES` / :data:`_FORBIDDEN_DIRS`)
-   -- ``ledger_posture``/``drain_posture`` must be referenced ZERO times
-   anywhere in these files. :func:`_assert_no_forbidden_reference` is the one
-   assertion helper both the real test and its self-mutation check run.
+   -- ``ledger_posture`` must be referenced ZERO times anywhere in these
+   files. :func:`_assert_no_forbidden_reference` is the one assertion helper
+   both the real test and its self-mutation check run.
 2. **``coordination/status_transition.py`` allow-list** -- ``ledger_posture``
    may be referenced ONLY inside the enumerated hook-site functions
    (:data:`_ALLOWED_STATUS_TRANSITION_FUNCTIONS`, T024), and EVERY one of
@@ -55,10 +59,10 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
 
-_HOSTED_POSTURE_NAMES = frozenset({"ledger_posture", "drain_posture"})
-_HOSTED_POSTURE_MODULE_TAIL = "hosted_posture"
+_LEDGER_POSTURE_NAMES = frozenset({"ledger_posture"})
+_LEDGER_POSTURE_MODULE_TAIL = "ledger_posture"
 
-# Files that must carry ZERO references to ledger_posture/drain_posture.
+# Files that must carry ZERO references to ledger_posture.
 _FORBIDDEN_FILES: tuple[str, ...] = (
     "specify_cli/status/store.py",
     "specify_cli/status/reducer.py",
@@ -114,11 +118,11 @@ class _EnclosingFunctionVisitor(ast.NodeVisitor):
     * a direct/aliased NAME import of a target (``from ... import
       ledger_posture`` / ``... as x``), or
     * an attribute access ``<expr>.<target>`` where ``<expr>``'s own tail
-      names the hosted_posture module OR is bound to it via a tracked
-      import alias -- ``import specify_cli.core.hosted_posture as _hp`` /
-      ``from specify_cli.core import hosted_posture as _hp2`` (review cycle
-      1 / B3.2: a plain module-tail substring check misses both alias
-      forms, since the accessed name is the alias, not ``hosted_posture``).
+      names the ledger_posture module OR is bound to it via a tracked
+      import alias -- ``import specify_cli.core.ledger_posture as _hp`` /
+      ``from specify_cli.core import ledger_posture as _hp2`` (a plain
+      module-tail substring check misses both alias forms, since the accessed
+      name is the alias, not ``ledger_posture``).
     """
 
     def __init__(self, relpath: str, target_names: frozenset[str], module_tail: str) -> None:
@@ -147,8 +151,8 @@ class _EnclosingFunctionVisitor(ast.NodeVisitor):
         self._visit_function(node)
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
-        # `import specify_cli.core.hosted_posture as _hp` -- record `_hp` as
-        # a name bound to the hosted_posture module itself.
+        # `import specify_cli.core.ledger_posture as _hp` -- record `_hp` as
+        # a name bound to the ledger_posture module itself.
         for alias in node.names:
             dotted = alias.name
             if dotted == self.module_tail or dotted.endswith("." + self.module_tail):
@@ -160,13 +164,14 @@ class _EnclosingFunctionVisitor(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
         module = node.module or ""
-        module_is_hosted_posture = module.endswith(self.module_tail) or self.module_tail in module
+        module_is_ledger_posture = module.endswith(self.module_tail) or self.module_tail in module
         for alias in node.names:
-            if module_is_hosted_posture and alias.name in self.target_names:
-                # `from specify_cli.core.hosted_posture import ledger_posture[ as x]`
+            if module_is_ledger_posture and alias.name in self.target_names:
+                # `from specify_cli.core.ledger_posture import ledger_posture[ as x]`
+                # -- importing the FUNCTION out of the ledger_posture module.
                 self._record(node.lineno)
             elif alias.name == self.module_tail:
-                # `from specify_cli.core import hosted_posture[ as _hp2]` --
+                # `from specify_cli.core import ledger_posture[ as _hp2]` --
                 # importing the MODULE itself, not one of its functions.
                 self._module_aliases.add(alias.asname or alias.name)
         self.generic_visit(node)
@@ -179,14 +184,19 @@ class _EnclosingFunctionVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name) -> None:  # noqa: N802
-        if node.id in self.target_names:
+        # A bare Name reference is a target only when it is not also the
+        # module Name of an attribute access (e.g. the `ledger_posture` in
+        # `ledger_posture.ledger_posture(...)`), which `visit_Attribute`
+        # already records; the module-name collision is harmless because the
+        # allow-list check is set-based over enclosing functions.
+        if node.id in self.target_names and node.id not in self._module_aliases:
             self._record(node.lineno)
         self.generic_visit(node)
 
 
-def _find_references(source: str, relpath: str, target_names: frozenset[str] = _HOSTED_POSTURE_NAMES) -> list[_Reference]:
+def _find_references(source: str, relpath: str, target_names: frozenset[str] = _LEDGER_POSTURE_NAMES) -> list[_Reference]:
     tree = ast.parse(source)
-    visitor = _EnclosingFunctionVisitor(relpath, target_names, _HOSTED_POSTURE_MODULE_TAIL)
+    visitor = _EnclosingFunctionVisitor(relpath, target_names, _LEDGER_POSTURE_MODULE_TAIL)
     visitor.visit(tree)
     return visitor.references
 
@@ -195,7 +205,7 @@ def _assert_no_forbidden_reference(source: str, relpath: str) -> None:
     """The one assertion both the real forbidden-file/dir tests and their
     self-mutation check run (review cycle 1 / B3.2)."""
     offenders = _find_references(source, relpath)
-    assert offenders == [], f"hosted_posture.ledger_posture/drain_posture must never be referenced from {relpath}: {offenders}"
+    assert offenders == [], f"ledger_posture.ledger_posture must never be referenced from {relpath}: {offenders}"
 
 
 def _assert_ledger_posture_allowlist(source: str, relpath: str, allowed: frozenset[str]) -> None:
@@ -221,13 +231,13 @@ def _read(path: Path) -> str:
 
 
 class TestLedgerFloor:
-    def test_forbidden_files_carry_no_ledger_or_drain_posture_reference(self) -> None:
+    def test_forbidden_files_carry_no_ledger_posture_reference(self) -> None:
         for rel in _FORBIDDEN_FILES:
             path = _SRC_ROOT / rel
             assert path.exists(), f"expected file missing (test itself is stale): {path}"
             _assert_no_forbidden_reference(_read(path), rel)
 
-    def test_forbidden_dirs_carry_no_ledger_or_drain_posture_reference(self) -> None:
+    def test_forbidden_dirs_carry_no_ledger_posture_reference(self) -> None:
         for rel_dir in _FORBIDDEN_DIRS:
             directory = _SRC_ROOT / rel_dir
             assert directory.is_dir(), f"expected directory missing (test itself is stale): {directory}"
@@ -238,11 +248,6 @@ class TestLedgerFloor:
         path = _SRC_ROOT / _STATUS_TRANSITION_RELPATH
         assert path.exists(), f"expected file missing (test itself is stale): {path}"
         _assert_ledger_posture_allowlist(_read(path), _STATUS_TRANSITION_RELPATH, _ALLOWED_STATUS_TRANSITION_FUNCTIONS)
-
-    def test_status_transition_does_not_reference_drain_posture(self) -> None:
-        path = _SRC_ROOT / _STATUS_TRANSITION_RELPATH
-        refs = _find_references(_read(path), _STATUS_TRANSITION_RELPATH, frozenset({"drain_posture"}))
-        assert refs == []
 
 
 class TestGuardBites:
@@ -255,23 +260,23 @@ class TestGuardBites:
         """A reference outside every permitted function must be flagged."""
         planted = textwrap.dedent(
             """
-            from specify_cli.core import hosted_posture
+            from specify_cli.core import ledger_posture
 
-            _EAGER_ENABLED = hosted_posture.ledger_posture(None).enabled
+            _EAGER_ENABLED = ledger_posture.ledger_posture(None).enabled
 
 
             def _defer_fan_out(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
 
 
             def _fan_out_committed_coord_tail(stream):
-                if hosted_posture.ledger_posture(None).enabled:
+                if ledger_posture.ledger_posture(None).enabled:
                     pass
 
 
             def emit_inner_state_changed_transactional(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
             """
         )
@@ -290,11 +295,11 @@ class TestGuardBites:
 
         without_two_sites = textwrap.dedent(
             """
-            from specify_cli.core import hosted_posture
+            from specify_cli.core import ledger_posture
 
 
             def _defer_fan_out(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
 
 
@@ -314,42 +319,42 @@ class TestGuardBites:
         must also be caught -- set equality cuts both ways."""
         planted = textwrap.dedent(
             """
-            from specify_cli.core import hosted_posture
+            from specify_cli.core import ledger_posture
 
 
             def _defer_fan_out(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
 
 
             def _fan_out_committed_coord_tail(stream):
-                if hosted_posture.ledger_posture(None).enabled:
+                if ledger_posture.ledger_posture(None).enabled:
                     pass
 
 
             def emit_inner_state_changed_transactional(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
 
 
             def _some_new_unreviewed_site(txn):
-                if hosted_posture.ledger_posture(txn.repo_root).enabled:
+                if ledger_posture.ledger_posture(txn.repo_root).enabled:
                     pass
             """
         )
         with pytest.raises(AssertionError, match="must equal the permitted"):
             _assert_ledger_posture_allowlist(planted, _STATUS_TRANSITION_RELPATH, _ALLOWED_STATUS_TRANSITION_FUNCTIONS)
 
-    # -- B3.2: import aliases of the hosted_posture module must not evade the scan --
+    # -- B3.2: import aliases of the ledger_posture module must not evade the scan --
 
     def test_forbidden_file_scan_catches_a_planted_reference(self) -> None:
         planted = textwrap.dedent(
             """
-            from specify_cli.core import hosted_posture
+            from specify_cli.core import ledger_posture
 
 
             def materialize(feature_dir):
-                if hosted_posture.ledger_posture(feature_dir).enabled:
+                if ledger_posture.ledger_posture(feature_dir).enabled:
                     pass
             """
         )
@@ -359,11 +364,11 @@ class TestGuardBites:
     def test_forbidden_dir_scan_catches_a_planted_reference(self) -> None:
         planted = textwrap.dedent(
             """
-            from specify_cli.core.hosted_posture import drain_posture
+            from specify_cli.core.ledger_posture import ledger_posture
 
 
             def record_decision():
-                return drain_posture()
+                return ledger_posture()
             """
         )
         with pytest.raises(AssertionError):
@@ -372,12 +377,12 @@ class TestGuardBites:
     @pytest.mark.parametrize(
         "aliased_import",
         [
-            pytest.param("import specify_cli.core.hosted_posture as _hp", id="import-as"),
-            pytest.param("from specify_cli.core import hosted_posture as _hp", id="from-import-as"),
+            pytest.param("import specify_cli.core.ledger_posture as _hp", id="import-as"),
+            pytest.param("from specify_cli.core import ledger_posture as _hp", id="from-import-as"),
         ],
     )
     def test_forbidden_file_scan_catches_a_module_import_alias(self, aliased_import: str) -> None:
-        """B3.2: `import ... as _hp` / `from ... import hosted_posture as _hp`
+        """B3.2: `import ... as _hp` / `from ... import ledger_posture as _hp`
         must not evade the forbidden-file scan, planted in a COPY of a real
         forbidden module's source (review's own wording)."""
         real_source = _read(_SRC_ROOT / "specify_cli/status/reducer.py")
@@ -404,8 +409,8 @@ class TestGuardBites:
         still count as that function's reference, not go unseen)."""
         planted = textwrap.dedent(
             """
-            import specify_cli.core.hosted_posture as _hp
-            from specify_cli.core import hosted_posture as _hp2
+            import specify_cli.core.ledger_posture as _hp
+            from specify_cli.core import ledger_posture as _hp2
 
 
             def _defer_fan_out(txn):

@@ -463,43 +463,8 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
     # hosted-sync pipeline (E1/E7/E8/E9/E10/E13); those files were deleted with
     # their transport and their allowances died with them. The surviving
     # hosted-egress paths gate on authentication + team admission instead.
-    "specify_cli/tracker/saas_client.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E2",
-        note=(
-            "FR-029. _request refuses via tracker_egress_verdict before the call. "
-            "This is the path reached non-interactively during mission creation "
-            "(core/mission_creation.py -> tracker/origin_consumer.py -> "
-            "bind_mission_origin), which needed no operator action to fire. "
-            "#3108 swapped the seam from project_egress_refusal to "
-            "tracker_egress_verdict(root, destination=HOSTED_SERVICE), which joins "
-            "the same hosted-sync consent chain (Channel 1) with the project's own "
-            "committed tracker.egress key (Channel 2) as a narrowing conjunct. The "
-            "exemption is strictly safer than before: Channel 1 still decides, and a "
-            "tracker.egress grant is a no-op here because this transport reaches "
-            "spec-kitty's own hosted service. Per FR-016 the Channel-1 refusal text "
-            "stays byte-identical to what #3030 shipped."
-        ),
-        seam_symbol="tracker_egress_verdict",
-        seam_module="specify_cli/tracker/saas_client.py",
-    ),
-    "specify_cli/saas_client/client.py": Allowance(
-        kind=AllowanceKind.SEAM,
-        inventory_id="E3",
-        note=(
-            "Re-anchored at issue-5-delete-sync-transport: FR-030's per-project "
-            "_refuse_unless_project_consents retired with the hosted-sync consent "
-            "chain, and _exchange now gates on _authenticated_authority_for_token "
-            "*before the URL is used* — the bearer-token authority check "
-            "(authenticated account + Private Teamspace + one Collaborative "
-            "Teamspace) that team-side admission enforcement now rides. Four of "
-            "five endpoints still put mission_id ('ULID or slug', and a slug is a "
-            "client engagement name) in the request path, so a body-only gate would "
-            "have missed every one; the authority check sits at that same chokepoint."
-        ),
-        seam_symbol="_authenticated_authority_for_token",
-        seam_module="specify_cli/saas_client/client.py",
-    ),
+    # #6164: specify_cli/tracker/saas_client.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/saas_client/client.py removed with the frozen hosted surfaces
     "specify_cli/invocation/propagator.py": Allowance(
         kind=AllowanceKind.SEAM,
         inventory_id="E6",
@@ -524,54 +489,14 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
     # `request_with_stdlib_fallback_sync` call, which
     # `tests/architectural/test_batch_drain_retired_3167.py` now enforces.
     # -- Not project egress (E18), verified individually rather than assumed --
-    "specify_cli/auth/transport.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="The centralized auth transport (FR-030 of the auth-boundary ADR); token traffic.",
-    ),
-    "specify_cli/auth/http/transport.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="Auth-internal transport with the stdlib fallback; token traffic.",
-    ),
-    "specify_cli/auth/flows/authorization_code.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="OAuth authorization-code exchange; carries no project data.",
-    ),
-    "specify_cli/auth/flows/device_code.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="OAuth device-code flow; carries no project data.",
-    ),
-    "specify_cli/auth/flows/client_credentials.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note=(
-            "OAuth client_credentials machine login (#3277); exchanges the "
-            "ServicePrincipal credential pair for a session. Same E18 class "
-            "as the other auth flows — credential traffic, no project data."
-        ),
-    ),
-    "specify_cli/auth/flows/refresh.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="OAuth token refresh; carries no project data.",
-    ),
-    "specify_cli/auth/flows/revoke.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note="OAuth token revocation; carries no project data.",
-    ),
-    "specify_cli/tracker/saas_readiness.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E18",
-        note=(
-            "Server reachability probe; sends no payload. Re-homed verbatim from "
-            "`saas/readiness.py` when issue #5 deleted the sync transport — same "
-            "HEAD-only urllib probe, new address."
-        ),
-    ),
+    # #6164: specify_cli/auth/transport.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/http/transport.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/flows/authorization_code.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/flows/device_code.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/flows/client_credentials.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/flows/refresh.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/auth/flows/revoke.py removed with the frozen hosted surfaces
+    # #6164: specify_cli/tracker/saas_readiness.py removed with the frozen hosted surfaces
     "specify_cli/charter_packs/sources/api_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
@@ -587,27 +512,7 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         ),
     ),
     # -- Credential traffic, not project egress (E3, Priivacy-ai/spec-kitty#9) --
-    "specify_cli/zeitgeist_client/resolution.py": Allowance(
-        kind=AllowanceKind.NOT_PROJECT_DATA,
-        inventory_id="E3-#9",
-        note=(
-            "The capability mint: POST /api/v1/live/capability/cli/ with "
-            "{'repo_slug', 'kind'} and nothing else — a credential exchange that "
-            "*receives* the relay token, in the same class as the auth flows above. "
-            "No journal row, no envelope, no project_uuid: repo_slug is the hosted "
-            "owner/repo key the admission GET one call earlier already carries, and "
-            "the gate here is team membership over Bearer auth (SaasCapabilityGateway), "
-            "not FR-019's per-project consent — presence broadcast must neither queue "
-            "nor consult hosted-sync consent (design page ephemeral-team-status). "
-            "Drain (mission hosted-opt-in-drain-ledger-01M3FFEV) is a narrower "
-            "precondition layered in front of this same consent answer, not a "
-            "replacement for it: tests/architectural/test_hosted_drain_gate.py "
-            "additionally requires check_repo_admission and mint_capability to call "
-            "hosted_posture.require_drain before this HTTP client is used. That gate "
-            "scans named relay/gateway functions for the drain call; this one reasons "
-            "about every sink-bearing file under src/ — complementary, not redundant."
-        ),
-    ),
+    # #6164: specify_cli/zeitgeist_client/resolution.py removed with the frozen hosted surfaces
     # specify_cli/dashboard/{handlers/api,lifecycle,server}.py RETIRED: the
     # bundled dashboard and its loopback control plane were deleted (#5530).
 }
@@ -1324,7 +1229,7 @@ class TestFR015StructuralTighteningMeasurement:
 
 _PROJECT_SENDER_ROOTS = (
     _SRC / "specify_cli" / "tracker",
-    _SRC / "specify_cli" / "saas_client",
+    # #6164: specify_cli/saas_client removed with the frozen hosted surfaces
 )
 
 
@@ -1643,33 +1548,12 @@ def _scan_project_sinks(
     return tuple(sorted(sites))
 
 
-#: WP06 (hosted-opt-in-drain-ledger, S2 campsite extraction): the three
-#: ``self._request`` calls that used to live directly inside
-#: ``_physical_request_with_retry`` (401-retry, 429-retry, initial call) were
-#: split into ``_retry_on_unauthorized``/``_retry_on_rate_limit`` helpers to
-#: bring that function's C901 complexity from 15 to 2. Total transport-call
-#: sinks reaching the network is unchanged (still 3 ``self._request`` calls,
-#: now attributed across 3 symbols instead of 1) — a behaviour-preserving
-#: refactor, not new egress.
-_KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
-    line.strip()
-    for line in """
-specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._retry_on_unauthorized
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._retry_on_rate_limit
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_unauthorized::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_rate_limit::transport-call::self._request
-specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry
-specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_confirm::transport-call::self._request_with_retry
-specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_mission_origin::transport-call::self._request_with_retry
-specify_cli/tracker/saas_client.py::SaaSTrackerClient.push::transport-call::self._request_with_retry
-specify_cli/tracker/saas_client.py::SaaSTrackerClient.run::transport-call::self._request_with_retry
-specify_cli/tracker/saas_readiness.py::_probe_reachability::urlopen::urllib.request.urlopen
-""".splitlines()
-    if line.strip()
-)
+# #6164: every sink line below named a file removed with the frozen hosted
+# surfaces (saas_client/client.py, tracker/saas_client.py,
+# tracker/saas_readiness.py), so the census over the surviving sender roots is
+# now empty. The variable is kept: a new transmit primitive reappearing under
+# _PROJECT_SENDER_ROOTS reds the growth assertion below against this empty baseline.
+_KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter()
 
 #: Empty since issue-5-delete-sync-transport: its single entry was the deleted
 #: sync daemon's quiesce/restart handshake. A loopback control sink reappearing
@@ -1713,54 +1597,11 @@ def test_hosted_sender_census_is_exact_per_symbol_not_per_file() -> None:
     assert observed == _KNOWN_PROJECT_SINK_COUNTS
 
 
-_T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(
-    {
-        "specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post": 1,
-        # WP06 S2 campsite extraction (see _KNOWN_PROJECT_SINK_COUNTS above):
-        # the sole remaining direct self._request call inside
-        # _physical_request_with_retry is the initial request; the 401/429
-        # retry requests moved into their own helper methods, each with its
-        # own self._request sink.
-        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 1,
-        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_unauthorized::transport-call::self._request": 1,
-        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._retry_on_rate_limit::transport-call::self._request": 1,
-        "specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry": 1,
-    }
-)
-
-
-def _t034_durable_adapter_sink_counts(
-    sites: tuple[_ProjectSinkSite, ...],
-) -> Counter[str]:
-    return Counter(site.key for site in sites if site.key in _T034_DURABLE_ADAPTER_SINK_COUNTS)
-
-
-def test_t034_durable_adapter_sender_census_is_exact() -> None:
-    assert _t034_durable_adapter_sink_counts(_scan_project_sinks()) == _T034_DURABLE_ADAPTER_SINK_COUNTS
-
-
-def test_t034_durable_adapter_sender_census_rejects_extra_retry_mutant(
-    tmp_path: Path,
-) -> None:
-    # WP06 S2 campsite extraction moved the honest baseline for this key to
-    # 1 (see _T034_DURABLE_ADAPTER_SINK_COUNTS above) — the synthetic mutant
-    # writes one call beyond that baseline (2 total) to prove the exact-count
-    # gate still catches a single rogue extra retry call.
-    tracker = tmp_path / "specify_cli" / "tracker" / "saas_client.py"
-    tracker.parent.mkdir(parents=True)
-    tracker.write_text(
-        "class SaaSTrackerClient:\n"
-        "    def _physical_request_with_retry(self, payload):\n"
-        "        self._request('POST', '/one', json=payload, headers={})\n"
-        "        self._request('POST', '/mutant', json=payload, headers={})\n",
-        encoding="utf-8",
-    )
-
-    observed = _t034_durable_adapter_sink_counts(_scan_project_sinks((tracker,), source_root=tmp_path))
-
-    assert observed - _T034_DURABLE_ADAPTER_SINK_COUNTS == Counter(
-        {"specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 1}
-    )
+# #6164: the T034 durable-adapter census (_T034_DURABLE_ADAPTER_SINK_COUNTS,
+# _t034_durable_adapter_sink_counts, test_t034_durable_adapter_sender_census_is_exact,
+# test_t034_durable_adapter_sender_census_rejects_extra_retry_mutant) was retired —
+# its subjects specify_cli/saas_client/client.py and specify_cli/tracker/saas_client.py
+# were removed with the frozen hosted surfaces.
 
 
 def test_new_sender_mutants_flow_through_real_collectors(tmp_path: Path) -> None:
@@ -1833,276 +1674,12 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
     assert [(site.qualname, site.callee) for site in sites] == [("alias_chain", "client.post")]
 
 
-# ---------------------------------------------------------------------------
-# Issuer-target fence (WP05, #4755): get_saas_base_url() forbidden on
-# token-send paths
-# ---------------------------------------------------------------------------
-#
-# Extends the E18 "token traffic, no project data" allowances above
-# (auth/flows/refresh.py, auth/flows/revoke.py, auth/token_manager.py,
-# auth/http/transport.py already carry
-# a NOT_PROJECT_DATA row in `_EGRESS_ALLOWLIST` for the *sink* scanner) with a
-# second, narrower boundary on one specific accessor rather than a duplicate
-# gate: `get_saas_base_url()` knows nothing about a session's issuer, so a
-# token-send flow that calls it can silently send a held bearer token to the
-# wrong host on a stale/mismatched session
-# (contracts/issuer-target-helper.md). The three flows above must instead
-# resolve their endpoint through
-# `specify_cli.auth.server_target.resolve_token_endpoint`, which compares the
-# session's issuer against the resolved target and refuses on a mismatch.
-#
-# AST-based, not text-matching, and this distinction is load-bearing here:
-# forbidden modules carry a *comment* naming
-# `get_saas_base_url()` to explain that they no longer call it
-# (auth/flows/refresh.py:98/105, auth/token_manager.py:162/439) -- a grep
-# would false-positive on exactly the modules this fence exists to protect.
-# `ast.parse` never sees a comment or a docstring in the first place, so the
-# detector below is blind to them by construction, not by a hand-written
-# comment-skip rule that could itself be wrong.
-
-_ISSUER_TARGET_SYMBOL = "get_saas_base_url"
-
-#: The three token-send modules `get_saas_base_url()` must never reach
-#: (the fourth, `auth/websocket/token_provisioning.py`, was deleted with the
-#: dead `auth.websocket` package, dead-code review 2026-09-30).
-_FORBIDDEN_TOKEN_SEND_MODULES: frozenset[str] = frozenset(
-    {
-        "specify_cli/auth/flows/refresh.py",
-        "specify_cli/auth/flows/revoke.py",
-        "specify_cli/auth/token_manager.py",
-    }
-)
-
-#: The explicit allowlist floor (contracts/issuer-target-helper.md): every
-#: file permitted to reference `get_saas_base_url()`. Minting flows have no
-#: session/issuer to compare against; `auth/http/transport.py` resolves a
-#: host with no session in play; the display/doctor surfaces render
-#: `resolve_server_target`'s verdict, never a token-bearing comparison.
-_ISSUER_TARGET_ALLOWLIST_FLOOR: frozenset[str] = frozenset(
-    {
-        "specify_cli/auth/config.py",
-        "specify_cli/auth/flows/device_code.py",
-        "specify_cli/auth/flows/authorization_code.py",
-        "specify_cli/auth/flows/client_credentials.py",
-        "specify_cli/auth/http/transport.py",
-        "specify_cli/cli/commands/_auth_login.py",
-        "specify_cli/cli/commands/_auth_doctor.py",
-        "specify_cli/cli/commands/_auth_saas_target.py",
-    }
-)
-
-#: SC-003 positive membership: the compare+normalize+remedy decision lives in
-#: exactly one module (`server_target.py`); a consumer "imports/consumes it"
-#: by pulling one of these names from it.
-_SERVER_TARGET_DECISION_SYMBOLS: frozenset[str] = frozenset(
-    {
-        "resolve_token_endpoint",
-        "_normalize_url",
-        "_issuer_target_decision",
-    }
-)
-
-#: The five consumers SC-003 names: the three token-send flows,
-#: `saas_client.auth._guard_session_issuer`, and
-#: `_auth_saas_target.format_saas_mismatch_warning`.
-_ISSUER_TARGET_DECISION_CONSUMERS: frozenset[str] = frozenset(
-    {
-        "specify_cli/auth/flows/refresh.py",
-        "specify_cli/auth/flows/revoke.py",
-        "specify_cli/auth/token_manager.py",
-        "specify_cli/saas_client/auth.py",
-        "specify_cli/cli/commands/_auth_saas_target.py",
-    }
-)
-
-
-def _references_symbol(path: Path, symbol: str) -> bool:
-    """True when *path* holds a real AST reference to *symbol*.
-
-    A "real reference" is a bare name, an attribute access, or an import
-    alias -- never a comment or a docstring, both of which `ast.parse`
-    discards before this ever walks the tree. This is what makes the fence
-    immune to the explanatory comments the forbidden modules carry (see the
-    module-level note above); a text-matching gate would not be.
-    """
-    tree = parse_file(path)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and node.id == symbol:
-            return True
-        if isinstance(node, ast.Attribute) and node.attr == symbol:
-            return True
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            for alias in node.names:
-                if alias.name == symbol or alias.asname == symbol:
-                    return True
-    return False
-
-
-def _imports_issuer_target_decision(path: Path) -> bool:
-    """True when *path* imports one of :data:`_SERVER_TARGET_DECISION_SYMBOLS`
-    from `server_target`, at module level or from inside a function.
-    `saas_client/auth.py` imports lazily to avoid a cycle (``# noqa:
-    PLC0415``), so this walks the whole tree rather than only top-level
-    statements.
-    """
-    tree = parse_file(path)
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom) or node.module is None:
-            continue
-        if node.module.split(".")[-1] != "server_target":
-            continue
-        if any(alias.name in _SERVER_TARGET_DECISION_SYMBOLS for alias in node.names):
-            return True
-    return False
-
-
-def _issuer_target_fence_violations(
-    *,
-    forbidden: frozenset[str],
-    allowlist: frozenset[str],
-    root: Path = _SRC,
-) -> list[str]:
-    """The real gate: every reason the issuer-target fence would red.
-
-    Two independent directions (NFR-003's non-vacuity requirement), both
-    computed from the same *forbidden*/*allowlist* arguments so a test can
-    drive either one through this single function -- never a copied literal:
-
-    1. A forbidden module holds a real reference to `get_saas_base_url` (the
-       leak this fence exists to catch).
-    2. A forbidden module has been added to the allowlist (the vacuous-
-       whitelist evasion: widen the allowlist instead of fixing the leak).
-    """
-    violations: list[str] = []
-    overlap = sorted(forbidden & allowlist)
-    if overlap:
-        violations.append(f"issuer-target fence: allowlist vacuously includes forbidden token-send module(s), which would silence a real leak: {overlap}")
-    for relpath in sorted(forbidden):
-        if _references_symbol(root / relpath, _ISSUER_TARGET_SYMBOL):
-            violations.append(
-                f"issuer-target fence: {relpath} references {_ISSUER_TARGET_SYMBOL}() "
-                "from a token-send path -- route it through "
-                "specify_cli.auth.server_target.resolve_token_endpoint instead "
-                "(contracts/issuer-target-helper.md)"
-            )
-    return violations
-
-
-class TestIssuerTargetFence:
-    """WP05 (#4755): `get_saas_base_url()` is forbidden on every token-send path.
-
-    Extends the E18 allowances above with a narrower, symbol-keyed boundary
-    on one specific accessor. Does not duplicate the sink scanner: that gate
-    keys on a transmit *call shape*; this one keys on a reference to one
-    named accessor, which the sink scanner's vocabulary does not (and should
-    not) model.
-    """
-
-    def test_forbidden_modules_carry_no_reference_today(self) -> None:
-        """T018: the three token-send modules are clean on the real tree."""
-        violations = _issuer_target_fence_violations(
-            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
-            allowlist=_ISSUER_TARGET_ALLOWLIST_FLOOR,
-        )
-        assert violations == [], "\n".join(violations)
-
-    def test_allowlist_floor_is_disjoint_from_forbidden_modules(self) -> None:
-        """T019: the allowlist provably excludes the three token-send modules
-        (no vacuous whitelist)."""
-        overlap = _FORBIDDEN_TOKEN_SEND_MODULES & _ISSUER_TARGET_ALLOWLIST_FLOOR
-        assert overlap == set(), f"vacuous allowlist: {sorted(overlap)}"
-
-    def test_gate_reds_when_a_forbidden_module_regains_the_call(self, tmp_path: Path) -> None:
-        """T018/T023(a) self-mutation, wired to the real gate function.
-
-        Because WP05 lands after WP02-WP04 rewired every flow, the fence is
-        never observed red against the *original* leak on the real tree;
-        this reproduces that leak in an isolated copy and calls the
-        production detector on it, so the non-vacuity claim is demonstrated
-        rather than merely asserted.
-        """
-        mutated_root = tmp_path / "src"
-        relpath = "specify_cli/auth/flows/refresh.py"
-        mutated_file = mutated_root / relpath
-        mutated_file.parent.mkdir(parents=True)
-        mutated_file.write_text(
-            "from ..config import get_saas_base_url\n\n\ndef leak() -> str:\n    return get_saas_base_url()\n",
-            encoding="utf-8",
-        )
-        violations = _issuer_target_fence_violations(
-            forbidden=frozenset({relpath}),
-            allowlist=frozenset(),
-            root=mutated_root,
-        )
-        assert any(relpath in v for v in violations), violations
-
-    def test_gate_passes_when_the_mutation_is_reverted(self, tmp_path: Path) -> None:
-        """The control half of the self-mutation test: an unmutated copy of
-        the same file, scanned by the same real function, must NOT red --
-        proving the previous test's red comes from the mutation and not from
-        a detector that always fires.
-        """
-        mutated_root = tmp_path / "src"
-        relpath = "specify_cli/auth/flows/refresh.py"
-        clean_file = mutated_root / relpath
-        clean_file.parent.mkdir(parents=True)
-        clean_file.write_text((_SRC / relpath).read_text(encoding="utf-8"), encoding="utf-8")
-        violations = _issuer_target_fence_violations(
-            forbidden=frozenset({relpath}),
-            allowlist=frozenset(),
-            root=mutated_root,
-        )
-        assert violations == []
-
-    def test_gate_reds_when_a_forbidden_module_is_added_to_the_allowlist(self) -> None:
-        """T019/T023(b): the second vacuity direction, wired to the real gate
-        function -- widening the allowlist to cover a forbidden module must
-        itself red, never silently pass.
-        """
-        poisoned_allowlist = _ISSUER_TARGET_ALLOWLIST_FLOOR | {"specify_cli/auth/flows/refresh.py"}
-        violations = _issuer_target_fence_violations(
-            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
-            allowlist=poisoned_allowlist,
-        )
-        assert any("vacuously includes" in v for v in violations), violations
-
-    def test_gate_passes_for_allowlisted_non_token_callers(self) -> None:
-        """T023(c): the detector genuinely fires on a real reference (proving
-        it is not just always False) yet the allowed floor files pass the
-        fence, because they are not in the forbidden set.
-        """
-        floor_callers_with_a_real_reference = {
-            "specify_cli/auth/flows/device_code.py",
-            "specify_cli/auth/flows/authorization_code.py",
-            # WP06 T028 item 13 (D4): auth/http/transport.py no longer
-            # references get_saas_base_url() -- it resolves the comparison
-            # host through resolve_server_target_or_none() instead, so a
-            # config.toml-only-configured user keeps the stdlib fallback
-            # (get_saas_base_url() is now env-only-and-raising, endpoint
-            # opt-in FR-011). Removed from this witness set; the two flow
-            # modules above still hold a real reference (item 14's dead
-            # constructor-fallback path), so the detector's non-vacuity
-            # proof still stands.
-        }
-        for relpath in floor_callers_with_a_real_reference:
-            assert _references_symbol(_SRC / relpath, _ISSUER_TARGET_SYMBOL), (
-                f"{relpath} was expected to hold a real reference to "
-                f"{_ISSUER_TARGET_SYMBOL} -- if it no longer does, this test's "
-                "non-vacuity witness (proof the detector can fire) needs a "
-                "different file"
-            )
-        violations = _issuer_target_fence_violations(
-            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
-            allowlist=_ISSUER_TARGET_ALLOWLIST_FLOOR,
-        )
-        assert violations == []
-
-    def test_six_consumers_import_the_shared_issuer_target_decision(self) -> None:
-        """SC-003 positive membership: the compare+normalize+remedy decision
-        lives in exactly one module (`server_target.py`); every one of the
-        five consumers (three flows + `saas_client._guard_session_issuer` +
-        `_auth_saas_target.format_saas_mismatch_warning`) imports/consumes
-        it. Positive membership, not a "no copies" grep.
-        """
-        missing = sorted(relpath for relpath in _ISSUER_TARGET_DECISION_CONSUMERS if not _imports_issuer_target_decision(_SRC / relpath))
-        assert missing == [], f"consumer(s) do not import the shared server_target decision ({sorted(_SERVER_TARGET_DECISION_SYMBOLS)}): {missing}"
+# #6164: the IssuerTargetFence section was retired. Its whole subject -- the
+# removed auth.server_target subsystem and every auth/* and saas_client/*
+# module it referenced (get_saas_base_url, resolve_token_endpoint, the three
+# token-send flows, saas_client/auth.py) -- was deleted with the frozen hosted
+# surfaces. Removed with it: _ISSUER_TARGET_SYMBOL, _FORBIDDEN_TOKEN_SEND_MODULES,
+# _ISSUER_TARGET_ALLOWLIST_FLOOR, _SERVER_TARGET_DECISION_SYMBOLS,
+# _ISSUER_TARGET_DECISION_CONSUMERS, the _references_symbol and
+# _imports_issuer_target_decision helpers (used only by this section),
+# _issuer_target_fence_violations, and the TestIssuerTargetFence class.

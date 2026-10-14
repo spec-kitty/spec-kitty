@@ -29,15 +29,15 @@ the wall-clock half (T022) stays in
 ``tests/performance/test_cli_startup_agent_commands_freshness.py``.
 
 WP06-C1-002 (severity 1, resolved here): the original exemption hardcoded
-the two pre-existing fast-path predicate FUNCTION NAMES
-(``_is_next_fast_path`` / ``_is_live_work_hook_fast_path``) in a frozenset,
-so a harmless rename of either predicate would false-positive (the walk
+the pre-existing fast-path predicate FUNCTION NAME
+(``_is_next_fast_path``) in a frozenset,
+so a harmless rename of the predicate would false-positive (the walk
 would then descend into that branch and flag its one legitimate
 ``from . import`` as an offending eager import). This version never reads a
 predicate's name at all -- it exempts an ``if`` branch purely by its own
 BODY SHAPE: exactly one ``from . import <module>`` statement anywhere in the
 branch, and the branch's last statement is an unconditional ``return``. That
-is the actual structural signature both narrow fast paths share (each
+is the actual structural signature a narrow fast path has (it
 imports exactly one command module for its own fast-pathed command and
 returns immediately after registering it), so it survives any predicate
 rename while still refusing to exempt a branch that imports more than one
@@ -177,7 +177,7 @@ def test_eager_import_shape_helper_is_non_vacuous() -> None:
 
 def test_eager_import_shape_helper_accepts_the_real_shape() -> None:
     """Positive control mirroring the real (post-WP05) function structure:
-    two narrow fast-path branches (each a single import + trailing return),
+    a narrow fast-path branch (a single import + trailing return),
     then a lazy single-leaf lookup / full-registrar-loop split with no
     direct imports of its own."""
     source = (
@@ -185,10 +185,6 @@ def test_eager_import_shape_helper_accepts_the_real_shape() -> None:
         "    if _is_next_fast_path(sys.argv):\n"
         "        from . import next_cmd as next_cmd_module\n"
         "        app.command(name='next')(next_cmd_module.next_step)\n"
-        "        return\n"
-        "    if _is_live_work_hook_fast_path(sys.argv):\n"
-        "        from . import live_work as live_work_module\n"
-        "        app.add_typer(live_work_module.app, name='live-work')\n"
         "        return\n"
         "    single_leaf = _resolve_single_leaf_command(sys.argv)\n"
         "    if single_leaf is not None:\n"

@@ -1,9 +1,8 @@
 """Windows runtime-root consistency tests.
 
-Auth session storage now resolves through the shared runtime root
-(DM-01KW1KDHVGWZ0QERDMV1CRJ15S): on Windows it lives under the platformdirs
-LocalAppData base (``%LOCALAPPDATA%\\spec-kitty\\auth``), the same base
-tracker state uses, and honors ``SPEC_KITTY_HOME`` when set.
+Tracker and kernel runtime state resolve through the shared runtime root: on
+Windows it lives under the platformdirs LocalAppData base
+(``%LOCALAPPDATA%\\spec-kitty``) and honors ``SPEC_KITTY_HOME`` when set.
 """
 from __future__ import annotations
 
@@ -16,11 +15,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 @pytest.mark.windows_ci
-def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
+def test_runtime_consumers_share_single_windows_root() -> None:
     """Tracker/kernel runtime state resolves under RuntimeRoot.base.
 
-    (The sync/daemon sections of this probe died with the sync transport,
-    issue #5.)
+    (The sync/daemon and auth sections of this probe died with the sync
+    transport, issue #5, and the hosted-surface removal, issue #6164.)
     """
     from specify_cli.paths import get_runtime_root
 
@@ -51,23 +50,6 @@ def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
 
 
 @pytest.mark.windows_ci
-def test_auth_store_uses_runtime_root_app_data_base_on_windows() -> None:
-    """Auth storage resolves through the unified runtime root on Windows.
-
-    DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows auth store was previously
-    hardcoded to ``~/.spec-kitty/auth``. It now resolves through
-    :func:`specify_cli.paths.get_runtime_root` — the platformdirs LocalAppData
-    base (``%LOCALAPPDATA%\\spec-kitty\\auth``), matching tracker/sync/daemon
-    state and honoring ``SPEC_KITTY_HOME``.
-    """
-    from specify_cli.auth.secure_storage import WindowsFileStorage
-    from specify_cli.paths import get_runtime_root
-
-    auth = WindowsFileStorage()
-    assert auth.store_path == get_runtime_root().auth_dir
-
-
-@pytest.mark.windows_ci
 def test_runtime_root_platform_field_is_win32() -> None:
     """RuntimeRoot.platform is 'win32' when running on Windows."""
     from specify_cli.paths import get_runtime_root
@@ -90,7 +72,7 @@ def test_runtime_root_base_is_absolute() -> None:
 # These run on every platform (no windows_ci gate) by pinning the platform-
 # detection source, proving the env base is honored cross-platform and that the
 # RuntimeRoot-derived directories inherit it. (Wiring the per-surface consumers
-# — tracker/sync/auth — through this base is downstream WP02-WP05 work and is
+# — tracker — through this base is downstream WP02-WP05 work and is
 # intentionally NOT asserted here.)
 # ---------------------------------------------------------------------------
 

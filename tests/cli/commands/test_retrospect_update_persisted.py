@@ -26,6 +26,7 @@ there since persisted == new).
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -53,7 +54,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 RUNNER = CliRunner()
 
 _RETRO_MODULE = "specify_cli.cli.commands.retrospect"
-_FANOUT_EDGE = "specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"
 
 
 def _legacy_record_with_gap() -> GenRetrospectiveRecord:
@@ -75,7 +75,8 @@ def _seed_and_invoke_update(
     """Seed an on-disk has_findings+1-gap record, then invoke `create --update`.
 
     ``emit_captured_replacement=None`` runs the REAL emitter (appending to the
-    mission's event log) with only the Zeitgeist fan-out edge patched.
+    mission's event log) directly -- the hosted live-work fan-out edge it used
+    to patch was removed with the hosted surfaces by #6164, so nothing is patched.
 
     Runs the REAL ``write_gen_record`` merge (not mocked); only mission
     resolution and generation collaborators are stubbed. The generator is
@@ -100,7 +101,7 @@ def _seed_and_invoke_update(
         MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir
     )
 
-    emit_patch = patch(_FANOUT_EDGE) if emit_captured_replacement is None else patch(f"{_RETRO_MODULE}.emit_captured", emit_captured_replacement)
+    emit_patch = nullcontext() if emit_captured_replacement is None else patch(f"{_RETRO_MODULE}.emit_captured", emit_captured_replacement)
     with (
         patch(f"{_RETRO_MODULE}.locate_project_root", return_value=repo_root),
         patch(f"{_RETRO_MODULE}._resolve_handle", return_value=resolved),

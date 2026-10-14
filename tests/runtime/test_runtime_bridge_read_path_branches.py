@@ -298,7 +298,9 @@ class TestAnswerDecisionPreconditions:
         monkeypatch.setattr("runtime.next.runtime_bridge_query.runtime_emitter_for_mission", lambda **k: object())
         monkeypatch.setattr("runtime.next.runtime_bridge_query.seed_runtime_emitter", lambda *a, **k: None)
         monkeypatch.setattr("runtime.next.runtime_bridge_query._decision_log._wrap_with_decision_git_log", lambda e, *a, **k: e)
-        monkeypatch.setattr("specify_cli.status.ensure_runtime_moment_producer", lambda: None)
+        # (specify_cli.status.ensure_runtime_moment_producer was removed with the
+        # hosted drain producer, #6164; the runtime bridge no longer calls it, so
+        # there is nothing to stub here.)
 
         def _busy(*args: Any, **kwargs: Any) -> None:
             raise LockAcquireTimeout(path=str(tmp_path / "state.json.lock"))

@@ -12,8 +12,7 @@ UTF-8/UTF-16/UTF-32); never guess a code page. A provably-decodable non-UTF-8
 file is backed up byte-exact before its UTF-8 rewrite. Anything else: leave
 the file byte-identical and fail non-zero, naming the file and the remedy.
 Covered surfaces: the hook registrar, ``agent config sync --sync-hooks``,
-``live-work install``/``uninstall``, the init/upgrade writer path, and the
-``doctor tool-surfaces`` probe.
+the init/upgrade writer path, and the ``doctor tool-surfaces`` probe.
 """
 
 from __future__ import annotations
@@ -28,7 +27,6 @@ from typing import Any
 import pytest
 
 from specify_cli.cli.commands.agent.config import LINT_HOOK_COMMAND, _sync_claude_hooks
-from specify_cli.live_work.install import install_hooks, uninstall_hooks
 from specify_cli.session_presence.content import SECTION_OPEN
 from specify_cli.session_presence.hooks.claude_code_hook import (
     SESSION_START_EVENT,
@@ -318,47 +316,6 @@ class TestSyncClaudeHooksCLI:
         assert "re-save it as UTF-8" in output, output
         assert "Sync complete" not in result.stdout
         assert _settings_path(project).read_bytes() == original
-
-
-# ---------------------------------------------------------------------------
-# `spec-kitty live-work install claude` / `uninstall`
-# ---------------------------------------------------------------------------
-
-
-class TestLiveWorkInstall:
-    def test_utf8_bom_install_backs_up_and_keeps_entries(self, tmp_path: Path) -> None:
-        raw = _utf8_bom_bytes(_fixture_settings_dict())
-        path = _write_settings_bytes(tmp_path, raw)
-        original = path.read_bytes()
-
-        outcome = install_hooks("claude", tmp_path)
-
-        assert outcome.installed is True
-        data = json.loads(path.read_bytes().decode("utf-8"))
-        _assert_fixture_entries_present(data)
-        backups = _backups(tmp_path)
-        assert backups and backups[0].read_bytes() == original
-
-    def test_cp1252_install_refuses_non_zero(self, tmp_path: Path) -> None:
-        path = _write_settings_bytes(tmp_path, _cp1252_bytes(_fixture_settings_dict()))
-        original = path.read_bytes()
-
-        with pytest.raises(SettingsNotDecodableError) as excinfo:
-            install_hooks("claude", tmp_path)
-
-        _assert_refusal(excinfo, path)
-        assert path.read_bytes() == original
-
-    def test_cp1252_uninstall_refuses_non_zero(self, tmp_path: Path) -> None:
-        """Uninstall already left the bytes alone; it must also exit non-zero."""
-        path = _write_settings_bytes(tmp_path, _cp1252_bytes(_fixture_settings_dict()))
-        original = path.read_bytes()
-
-        with pytest.raises(SettingsNotDecodableError) as excinfo:
-            uninstall_hooks("claude", tmp_path)
-
-        _assert_refusal(excinfo, path)
-        assert path.read_bytes() == original
 
 
 # ---------------------------------------------------------------------------

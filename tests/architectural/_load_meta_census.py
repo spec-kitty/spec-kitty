@@ -172,7 +172,6 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/mission_type.py", "_discard_target_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_expected_discard_branches"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
-    ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "_build_index"): (1, "silent-by-contract"),
     # #4736: the mission SELECTION/discovery listing must tolerate a corrupt
     # meta.json — it lists the mission with `mid8=None` (best-effort

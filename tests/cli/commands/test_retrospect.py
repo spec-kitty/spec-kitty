@@ -960,8 +960,6 @@ class TestMaybeAutoCommit:
 # Real-git helpers (auto-commit contracts)
 # ---------------------------------------------------------------------------
 
-_FANOUT_EDGE = "specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"
-
 
 def _git(repo: Path, *args: str) -> str:
     """Run real git in *repo* and return stripped stdout."""
@@ -1068,8 +1066,7 @@ class TestAutoCommitFailureIsSurfaced:
         git_error = break_git(repo)
         monkeypatch.chdir(repo)
 
-        with patch(_FANOUT_EDGE):
-            result = RUNNER.invoke(retrospect_app, ["create", "--mission", MISSION_SLUG_COMPLETED, "--json"])
+        result = RUNNER.invoke(retrospect_app, ["create", "--mission", MISSION_SLUG_COMPLETED, "--json"])
 
         # The record write succeeded, so the command still succeeds ...
         assert result.exit_code == 0, result.output
@@ -1095,12 +1092,9 @@ class TestAutoCommitFailureIsSurfaced:
         head_before = _git(repo, "rev-parse", "HEAD")
         monkeypatch.chdir(repo)
 
-        with (
-            patch(_FANOUT_EDGE),
-            patch(
-                "specify_cli.cli.commands.retrospect.commit_for_mission",
-                side_effect=CoordWorktreeResolutionError("coordination worktree resolution failed"),
-            ),
+        with patch(
+            "specify_cli.cli.commands.retrospect.commit_for_mission",
+            side_effect=CoordWorktreeResolutionError("coordination worktree resolution failed"),
         ):
             result = RUNNER.invoke(retrospect_app, ["create", "--mission", MISSION_SLUG_COMPLETED, "--json"])
 
@@ -1222,8 +1216,7 @@ class TestPublishedCoordMissionCreate:
         feature_dir = _seed_published_coord_mission_repo(repo, mission_slug=mission_slug)
         monkeypatch.chdir(repo)
 
-        with patch(_FANOUT_EDGE):
-            result = RUNNER.invoke(retrospect_app, ["create", "--mission", mission_slug, "--json"])
+        result = RUNNER.invoke(retrospect_app, ["create", "--mission", mission_slug, "--json"])
 
         assert result.exit_code == 0, result.output
         payload = json.loads(result.stdout)
@@ -2444,7 +2437,6 @@ def _build_retrospect_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *
     from kernel.clock import FrozenClock, parse_iso
 
     monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=parse_iso(_FROZEN_NOW)))
-    monkeypatch.setattr(_FANOUT_EDGE, lambda *args, **kwargs: None)
 
     repo = tmp_path / "repo"
     _init_git_repo(repo, auto_commit=True, branch=branch)

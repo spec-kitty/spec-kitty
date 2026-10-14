@@ -198,8 +198,7 @@
         "src/specify_cli/coordination/**",
         "src/specify_cli/charter_pack_synthesizer/**",
         "src/specify_cli/status/**",
-        "src/specify_cli/tool_surface/**",
-        "src/specify_cli/zeitgeist_client/**"
+        "src/specify_cli/tool_surface/**"
       ],
       "cov_targets": [
         "specify_cli",
@@ -253,17 +252,6 @@
       ],
       "census_evidence": "known-live",
       "note": "CI-INFRASTRUCTURE row (spec-kitty#4386). The first NON-src group in `groups`: its roots are the CI-infrastructure paths (the CI scripts and the workflows that run them) whose regressions tests/ci guards, not product code, so it is deliberately NOT moved to non_src_router_groups -- it must stay in `groups` because the module registry consumes `groups` rows verbatim and tests/ci needs a registry row to gain per-PR execution (the module matrix runs on every PR). Mirrored 1:1 as the `ci` filter group in ci-router.yml. cov_targets follow the TEST-INVENTORY precedent: the src surfaces scripts/ci actually imports (kernel.clock in capture_shard_timings.py/select_source_artifacts.py, specify_cli.core.vcs.git in local_gate_parity.py) -- already owned by the `kernel` and `core_misc` groups, so no path's match set changes. Deliberate routing decision: CI-infra paths stay OUTSIDE the FR-004 fail-closed catch-all (that sensor is contractually unmapped src/** code, router-two-authority.md Invariants 1-2; these paths are not src and are now named) and no ci-router.yml job gates on the group -- the per-PR executor is the ci-modules.yml matrix shard, and a router tests (ci) job would double-run the suite per PR."
-    },
-    {
-      "group": "auth",
-      "roots": [
-        "src/specify_cli/auth/**"
-      ],
-      "cov_targets": [
-        "specify_cli.auth"
-      ],
-      "census_evidence": "known-live",
-      "note": "SECURITY-CRITICAL new-row-via-scrub (spec-kitty#4374 WP03 T011, Phase-S capped promotion set): tests/auth (+ concurrency/integration/secure_storage/stress subdirs) previously reached CI only via marker-selected lanes and make test-full -- no per-PR lane executed the auth device_flow/http/secure_storage/loopback/websocket/token_manager/session/transport surface. Root confirmed live on disk (device_flow, http, secure_storage, flows, loopback, websocket, token_manager, manager, session, session_hot_path, transport, config, verdict, errors submodules); no prior group claimed src/specify_cli/auth/**. Mirrored verbatim into the new `auth` module registry row (bijection + verbatim guards, tests/architectural/test_module_shard_registry.py)."
     }
   ],
   "non_src_router_groups": [

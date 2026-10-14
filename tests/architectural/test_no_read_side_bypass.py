@@ -652,22 +652,10 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     # ---- placement_seam(...).write_dir(STATUS_STATE) -- the single
     # ---- write-location accessor -- so this allow-list entry is removed (no
     # ---- `resolve_feature_dir_for_mission` call site remains here).
-    ContentDescriptor(
-        rel_path="src/specify_cli/widen/state.py",
-        qualname="WidenPendingStore.__init__",
-        token_substring="resolve_feature_dir_for_mission ( repo_root , mission_slug )",
-        occurrence=None,
-        rationale=(
-            "Ledger :63 (ambiguous -- reviewer confirm): no protective "
-            "comment; widen-pending.jsonl's partition (PRIMARY vs COORD) is "
-            "not established anywhere else in the module, and the store's own "
-            "'a missing file is equivalent to an empty store -- never raises' "
-            "invariant would be broken by a read_dir(kind) swap that CAN raise "
-            "on a deleted coord branch for a COORD-partition kind. Defaulted "
-            "lenient pending a bespoke kind decision (T012's vacuity guard: "
-            "not a reason to skip classifying the site)."
-        ),
-    ),
+    # (The src/specify_cli/widen/state.py (WidenPendingStore.__init__) read-side
+    # allow-list entry was removed: #6164 deleted the widen package with the
+    # frozen hosted surfaces, so there is no file left for this descriptor to
+    # read/classify.)
     # ---- decisions/emit.py:71 (_mission_dir) is intentionally ABSENT here.
     # ---- The read-side-seam-primary-primitive-closure mission left it an
     # ---- expected-red `migrate-fail-loud` site; a later reviewer allow-listed

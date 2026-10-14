@@ -219,34 +219,13 @@ class TestQueryModeOutput:
         assert lines[1] == "  Mission: 069-test @ specify"
         assert lines[2] == "  Mission Type: software-dev"
 
-    def test_hosted_readiness_does_not_prepend_query_output(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """`next` query output remains a protocol response under hosted mode."""
-        from specify_cli.readiness import AuthStatus
-
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-        monkeypatch.setattr(
-            "specify_cli.readiness.auth.probe_auth_status",
-            lambda **_kw: (AuthStatus.LOGGED_OUT_IN_TEAMSPACE, "spec-kitty/spec-kitty"),
-        )
-        mock_decision = _make_mock_decision(is_query=True, mission_state="specify")
-
-        with (
-            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
-            patch("runtime.next.runtime_bridge.query_current_state", return_value=mock_decision),
-        ):
-            result = runner.invoke(
-                cli_app,
-                ["next", "--agent", "claude", "--mission", "069-test"],
-            )
-
-        assert result.exit_code == 0
-        assert "logged_out_on_connected_teamspace" not in result.output
-        assert result.output.splitlines()[0] == "[QUERY \u2014 no result provided, state not advanced]"
+    # Removed: test_hosted_readiness_does_not_prepend_query_output. It asserted
+    # that the hosted auth-readiness guidance (readiness.auth.probe_auth_status +
+    # the SPEC_KITTY_ENABLE_SAAS_SYNC path) never polluted the `next` query
+    # protocol response. That hosted surface was removed from open-core (#6164):
+    # the coordinator no longer probes auth or prepends guidance, so the premise
+    # no longer exists. Clean query output is still asserted by the sibling tests
+    # above and below (lines asserting `lines[0] == "[QUERY ...]"`).
 
     def test_json_output_includes_is_query_true(self, tmp_path: Path) -> None:
         """JSON output includes is_query: true."""

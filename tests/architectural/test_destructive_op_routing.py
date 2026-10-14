@@ -131,9 +131,11 @@ _GUARD_INTERNAL_MODULES: dict[str, str] = {
 #: four layers that hold one today.
 _SCAN_ROOTS: tuple[Path, ...] = tuple(SRC_ROOT / name for name in ("specify_cli", "runtime", "mission_runtime", "charter", "glossary", "kernel"))
 
-#: Files-scanned floor (NFR-002): the six-layer scan covers 1433 files.
+#: Files-scanned floor (NFR-002): the six-layer scan covers 1330 files after
+#: issue-6164-remove-hosted-from-core (#6164) deleted the frozen hosted/sync/drain
+#: source packages (was 1433 / floor 1428 before the removal).
 #: A scan that silently shrinks below it is vacuous.
-_FILES_SCANNED_FLOOR = 1428
+_FILES_SCANNED_FLOOR = 1325
 
 
 def _is_forced_clean(tokens: list[str | None]) -> bool:

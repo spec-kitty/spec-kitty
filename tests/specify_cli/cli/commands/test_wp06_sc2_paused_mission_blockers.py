@@ -481,11 +481,9 @@ class TestFinalizeLeavesNoPrimaryResidue:
     def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.status.emit as emit_module
 
+        # Stub the (now handler-less) saas fan-out so no environment-dependent
+        # outbound write leaks into the porcelain assertions below.
         monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
-        # Disable hosted sync at its canonical source module: late
-        # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled`
-        # imports (readiness coordinator, mission_type) must also see it disabled,
-        # or environment-dependent writes leak into the porcelain assertions.
 
     def test_finalize_leaves_porcelain_free_of_stager_residue(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

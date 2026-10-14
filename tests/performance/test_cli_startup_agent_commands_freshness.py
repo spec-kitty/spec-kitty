@@ -61,9 +61,10 @@ from tests._perf_helpers import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # A real leaf command that runs through `main_callback()`'s full
-# non-fast-pathed path -- never `next`, `live-work hook`, or `doctor skills`
-# (see `_is_next_fast_path` / `_is_live_work_hook_fast_path` /
-# `_is_doctor_skills_invocation` in the CLI source), so it pays
+# non-fast-pathed path -- never `next` or `doctor skills`
+# (see `_is_next_fast_path` / `_is_doctor_skills_invocation` in the CLI
+# source; the `live-work hook` fast path was removed with the hosted
+# surfaces by #6164), so it pays
 # `ensure_global_agent_commands()`'s cost exactly like every ordinary
 # command. Cheap and side-effect-light: `context list --json` only reads
 # workspace-context state and never mutates the project.

@@ -10,7 +10,7 @@ looser than the live total (a shrink-only ratchet).
 Current sealed caps, by class::
 
     process-bootstrap    6
-    subprocess-entry    12
+    subprocess-entry    6
     leak-sentinel        2
     deferred-01M3EW3Z    4
 
@@ -45,7 +45,7 @@ pytestmark = pytest.mark.architectural
 #: cap when a site is converted; never raise it.
 SEALED_CLASS_CAPS: Final[Mapping[str, int]] = {
     "process-bootstrap": 5,
-    "subprocess-entry": 12,
+    "subprocess-entry": 6,  # #6164: S8 lease_revocation rows removed (shrink-only)
     "leak-sentinel": 2,
     "deferred-01M3EW3Z": 4,
 }

@@ -7,8 +7,6 @@ Covers the sites routed through the naming authority's parsers:
 * ``git/sparse_checkout.py`` (``_ManagedLanePolicy.matches_path`` /
   ``expected_branch_for``);
 * ``status/doctor.py::check_orphan_workspaces``;
-* ``live_work/bindings.py::_resolve_mission_from_worktree`` (via
-  ``resolve_bindings``);
 * ``policy/commit_guard.py::is_implementation_branch``;
 * ``merge/resolve.py::_extract_mission_slug``.
 
@@ -28,7 +26,6 @@ from kernel.clock import now_utc_iso
 from specify_cli.git.sparse_checkout import _ManagedLanePolicy
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
-from specify_cli.live_work.bindings import _resolve_mission_from_worktree
 from specify_cli.consolidation.resolve import _extract_mission_slug
 from specify_cli.policy.commit_guard import is_implementation_branch
 from specify_cli.status.doctor import check_orphan_workspaces
@@ -203,104 +200,6 @@ class TestCheckOrphanWorkspacesRecomposition:
         snapshot = {"work_packages": {"WP01": {"lane": "done"}}}
         findings = check_orphan_workspaces(tmp_path, "057-foo", snapshot)
         assert len(findings) == 0
-
-
-# ---------------------------------------------------------------------------
-# live_work/bindings.py::_resolve_mission_from_worktree (via resolve_bindings)
-# ---------------------------------------------------------------------------
-
-
-def _seed_mission(repo: Path, mission_slug: str, mission_id: str) -> None:
-    spec_dir = repo / "kitty-specs" / mission_slug
-    spec_dir.mkdir(parents=True)
-    (spec_dir / "meta.json").write_text(json.dumps({"mission_id": mission_id, "mission_slug": mission_slug}))
-
-
-def _make_lane_worktree(repo: Path, dir_name: str) -> Path:
-    worktrees_dir = repo / ".worktrees"
-    worktrees_dir.mkdir(exist_ok=True)
-    lane_branch = f"lane-worktree-branch-{dir_name}"
-    _git(repo, "branch", lane_branch)
-    lane_path = worktrees_dir / dir_name
-    _git(repo, "worktree", "add", "-q", str(lane_path), lane_branch)
-    return lane_path
-
-
-class TestResolveMissionFromWorktree:
-    """Tests call the private site directly: ``resolve_bindings`` additionally
-    gates on a git-truth ``origin`` remote (unrelated to this WP's change),
-    which a bare tmp repo has none of.
-    """
-
-    def test_legacy_dir_binds_to_mission_by_slug_recomposition(self, tmp_path: Path) -> None:
-        """Guards against a mid8-only ``_WORKTREE_DIR_RE`` never matching a
-        legacy (no-mid8) worktree dir name, so ``057-foo-lane-a`` never binds.
-        Named behaviour change: live-work binding by slug recomposition
-        instead of mid8 prefix (plan Risk 2).
-        """
-        repo = _init_repo(tmp_path)
-        mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
-        _seed_mission(repo, "057-foo", mission_id)
-        lane_path = _make_lane_worktree(repo, "057-foo-lane-a")
-
-        binding = _resolve_mission_from_worktree(lane_path, repo)
-        assert binding is not None
-        assert binding.mission_id == mission_id
-        assert binding.display_label == "057-foo"
-
-    def test_mid8_dir_binds_as_before(self, tmp_path: Path) -> None:
-        """Regression: a modern mid8-embedded worktree dir still binds."""
-        repo = _init_repo(tmp_path)
-        mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
-        _seed_mission(repo, "foo-01J6XW9K", mission_id)
-        lane_path = _make_lane_worktree(repo, "foo-01J6XW9K-lane-a")
-
-        binding = _resolve_mission_from_worktree(lane_path, repo)
-        assert binding is not None
-        assert binding.mission_id == mission_id
-        assert binding.display_label == "foo-01J6XW9K"
-
-    def test_ambiguous_dir_matching_two_missions_returns_none(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Zero or more than one recomposition match never guesses (FR-008).
-
-        Honest on-disk state cannot produce two DIFFERENT ``ResolvedMission``
-        entries whose ``mission_slug`` (the ``kitty-specs/`` directory name,
-        necessarily unique on one filesystem) both recompose the SAME
-        worktree-dir name -- recomposition is injective in ``mission_slug``
-        for a fixed ``lane_id``. So ambiguity is constructed directly at the
-        resolver seam, per the subtask's own "(constructed ambiguity)" note.
-        """
-        from specify_cli.context import mission_resolver as mission_resolver_module
-
-        repo = _init_repo(tmp_path)
-        mission_a = mission_resolver_module.ResolvedMission(
-            mission_id="01J6XW9KABCDEFGHJKMNPQRSTV",
-            mission_slug="foo",
-            feature_dir=repo / "kitty-specs" / "foo",
-            mid8="01J6XW9K",
-        )
-        mission_b = mission_resolver_module.ResolvedMission(
-            mission_id="01J6XW9LABCDEFGHJKMNPQRSTV",
-            mission_slug="foo",
-            feature_dir=repo / "kitty-specs" / "foo",
-            mid8="01J6XW9L",
-        )
-        monkeypatch.setattr(
-            mission_resolver_module.FsMissionResolver,
-            "all_missions",
-            lambda self: [mission_a, mission_b],
-        )
-
-        lane_path = _make_lane_worktree(repo, "foo-lane-a")
-
-        binding = _resolve_mission_from_worktree(lane_path, repo)
-        assert binding is None
-
-    def test_non_lane_dir_returns_none(self, tmp_path: Path) -> None:
-        repo = _init_repo(tmp_path)
-        lane_path = _make_lane_worktree(repo, "not-a-lane-dir")
-        binding = _resolve_mission_from_worktree(lane_path, repo)
-        assert binding is None
 
 
 # ---------------------------------------------------------------------------

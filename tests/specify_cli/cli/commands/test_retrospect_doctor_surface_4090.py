@@ -371,8 +371,6 @@ def test_retrospect_append_on_prefix_mission_lands_on_coordination_surface(tmp_p
     coordination surface from the root copy on first write per
     ``contracts/seed.md``) instead.
     """
-    from unittest.mock import patch
-
     from specify_cli.cli.commands.agent_retrospect import _create_empty_retrospective_record
     from specify_cli.retrospective.schema import ActorRef
 
@@ -385,14 +383,13 @@ def test_retrospect_append_on_prefix_mission_lands_on_coordination_surface(tmp_p
     root_events_before = root_events.read_text(encoding="utf-8")
     assert not coord_events.exists()
 
-    with patch("specify_cli.retrospective.lifecycle_events._fanout_live_work_retrospective"):
-        _create_empty_retrospective_record(
-            repo_root=coord.repo_root,
-            mission_id=_read_mission_id_for(coord),
-            mission_slug=coord.mission_dir_name,
-            feature_dir=coord.root_mission_dir,
-            actor=ActorRef(kind="agent", id="agent"),
-        )
+    _create_empty_retrospective_record(
+        repo_root=coord.repo_root,
+        mission_id=_read_mission_id_for(coord),
+        mission_slug=coord.mission_dir_name,
+        feature_dir=coord.root_mission_dir,
+        actor=ActorRef(kind="agent", id="agent"),
+    )
 
     # Load-bearing: the coordination surface gained exactly the one
     # RetrospectiveCaptured row -- seeded from the root copy, then appended to.

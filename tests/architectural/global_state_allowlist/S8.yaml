@@ -1,9 +1,10 @@
+# #6164: dropped the tests/auth and tests/zeitgeist_client entries whose files were
+# deleted with the frozen hosted/sync/drain surfaces (owns ghost + global-state rows).
 shard: S8
 owns:
   - tests/agent/cli/commands/test_ops.py
   - tests/agent/test_context_validation_unit.py
   - tests/audit/test_no_legacy_path_literals.py
-  - tests/auth/secure_storage/test_from_environment_platform_split.py
   - tests/charter/synthesizer/test_adapter_contract.py
   - tests/charter/synthesizer/test_synthesize_path_parity.py
   - tests/charter/test_action_sequence_dispatch.py
@@ -35,7 +36,6 @@ owns:
   - tests/upgrade/test_upgrade_idempotency.py
   - tests/upgrade/test_upgrade_integration.py
   - tests/upgrade/test_worktree_stamp_guard.py
-  - tests/zeitgeist_client/lease_revocation_chain_runner.py
 rows:
   - file: tests/concurrency/test_ensure_runtime_concurrent.py
     qualname: "_run_ensure"
@@ -70,24 +70,6 @@ rows:
   - file: tests/upgrade/preview_support/write_observer.py
     qualname: "main"
     kind: sys.argv
-    count: 1
-    class: subprocess-entry
-    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
-  - file: tests/zeitgeist_client/lease_revocation_chain_runner.py
-    qualname: "<module>"
-    kind: os.environ
-    count: 4
-    class: subprocess-entry
-    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
-  - file: tests/zeitgeist_client/lease_revocation_chain_runner.py
-    qualname: "<module>"
-    kind: sys.path
-    count: 1
-    class: subprocess-entry
-    reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."
-  - file: tests/zeitgeist_client/lease_revocation_chain_runner.py
-    qualname: "Chain.test_chain.select"
-    kind: os.environ
     count: 1
     class: subprocess-entry
     reason: "Spawned subprocess/multiprocessing entry point or standalone audit CLI: runs in a child process or its own interpreter, so this state is process-local and exits with the process."

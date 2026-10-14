@@ -1,10 +1,10 @@
-"""Create-mode proof for the two plaintext-secret credential transports.
+"""Create-mode proof for the tracker plaintext-secret credential transport.
 
-Mission ``local-write-safety-01M2ZPZD`` WP06 (#4812 / #4760, D7): both
-``tracker/credentials.py`` and ``zeitgeist_client/credentials.py`` must be
-"0600-by-construction" — owner-only *at creation*, never a
-``write_text``/``O_TRUNC`` write followed by a trailing ``chmod`` that
-narrows a briefly-wider mode.
+Mission ``local-write-safety-01M2ZPZD`` WP06 (#4812 / #4760, D7):
+``tracker/credentials.py`` must be "0600-by-construction" — owner-only *at
+creation*, never a ``write_text``/``O_TRUNC`` write followed by a trailing
+``chmod`` that narrows a briefly-wider mode. (The zeitgeist_client transport
+this mission also covered was removed from open-core in #6164.)
 
 A post-hoc ``stat().st_mode == 0o600`` assertion is explicitly rejected as
 non-fakeable proof here (SC-005): tracker's pre-fix ``write_text`` +
@@ -32,7 +32,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.tracker.credentials import TrackerCredentialError, TrackerCredentialStore
-from specify_cli.zeitgeist_client import credentials as zeitgeist_credentials
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
@@ -222,158 +221,3 @@ def test_tracker_injected_path_never_touches_the_real_runtime_root(tmp_path: Pat
     store.set_provider("beads", {"command": "beads", "workspace": "demo"})
 
     assert str(real_root) not in calls
-
-
-# ---------------------------------------------------------------------------
-# T020 — zeitgeist_client/credentials.py
-# ---------------------------------------------------------------------------
-
-
-def test_zeitgeist_credential_write_is_0600_by_construction_structural(isolated_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The create call for the temp write is ``O_CREAT|O_EXCL|O_WRONLY`` at
-    ``0o600``, and no ``os.chmod`` ever targets the credential file itself
-    (a fresh store -- ``path.is_file()`` is False, so ``_locked``'s
-    pre-existing-file tightening branch does not fire either)."""
-    open_spy = _OpenSpy(monkeypatch)
-    chmod_spy = _ChmodSpy(monkeypatch)
-    path = zeitgeist_credentials.credentials_path()
-    assert not path.exists(), "must be a fresh, isolated HOME"
-
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-a",
-        token_kind="shared_team",
-    )
-
-    create_calls = [call for call in open_spy.matching(path.name) if _has_create_flags(call[1])]
-    assert create_calls, f"no O_CREAT|O_EXCL|O_WRONLY create observed among {open_spy.calls!r}"
-    assert all(mode == 0o600 for _, _, mode in create_calls)
-    assert str(path) not in chmod_spy.targets
-
-
-def test_zeitgeist_credential_create_mode_argument_is_0600_interception(isolated_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Interception proof: the literal mode argument passed to ``os.open``
-    for the credential file's creation is ``0o600``."""
-    open_spy = _OpenSpy(monkeypatch)
-    path = zeitgeist_credentials.credentials_path()
-
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-a",
-        token_kind="shared_team",
-    )
-
-    matching = open_spy.matching(path.name)
-    assert matching, "expected at least one os.open call touching the credential file"
-    for _, flags, mode in matching:
-        if flags & os.O_CREAT:
-            assert mode == 0o600, f"creation mode was {oct(mode)}, expected 0o600"
-
-
-def test_zeitgeist_credential_write_refuses_a_pre_planted_symlink_at_the_temp_path(
-    isolated_home: Path,
-) -> None:
-    """SC-001: a symlink already sitting at the deterministic ``.tmp`` write
-    path is refused outright (never silently reclaimed like an ordinary
-    stale leftover) -- the secret it points at is never disclosed, and the
-    already-stored credential is left untouched."""
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-a",
-        token_kind="shared_team",
-    )
-    path = zeitgeist_credentials.credentials_path()
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    secret = path.parent / "secret.txt"
-    secret.write_text("do not disclose\n", encoding="utf-8")
-    assert not tmp_path.exists()
-    tmp_path.symlink_to(secret)
-
-    with pytest.raises(FileExistsError):
-        zeitgeist_credentials.store(
-            repo="github.com/acme/spec-kitty",
-            relay_url="http://relay",
-            token="tok-b-should-never-land",
-            token_kind="shared_team",
-        )
-
-    assert secret.read_text(encoding="utf-8") == "do not disclose\n"
-    assert tmp_path.is_symlink(), "the plant must be refused, not silently reclaimed"
-    loaded = zeitgeist_credentials.load(repo="github.com/acme/spec-kitty")
-    assert loaded is not None
-    assert loaded.token == "tok-a"  # the second store() never landed
-
-
-def test_zeitgeist_credential_write_reclaims_a_stale_regular_temp_leftover(
-    isolated_home: Path,
-) -> None:
-    """A *regular* leftover temp file (e.g. from a crash mid-write, never a
-    symlink) must not permanently brick every future write under
-    ``O_EXCL`` -- it is safely reclaimed (unlink, never dereferenced) and
-    the create retried."""
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-a",
-        token_kind="shared_team",
-    )
-    path = zeitgeist_credentials.credentials_path()
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    assert not tmp_path.exists()
-    tmp_path.write_text("stale-leftover", encoding="utf-8")
-
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-b",
-        token_kind="shared_team",
-    )
-
-    loaded = zeitgeist_credentials.load(repo="github.com/acme/spec-kitty")
-    assert loaded is not None
-    assert loaded.token == "tok-b"
-
-
-def test_zeitgeist_root_establishment_delegates_to_the_single_canonical_owner(
-    isolated_home: Path,
-) -> None:
-    """FR-011: the shared runtime root ends up 0o700 through
-    ``ensure_runtime_root`` (the same door tracker uses), not zeitgeist's
-    retired hand-rolled ladder."""
-    if not hasattr(os, "getuid"):
-        pytest.skip("POSIX-only permission check")
-    import stat
-
-    from specify_cli.paths import get_runtime_root
-
-    zeitgeist_credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url="http://relay",
-        token="tok-a",
-        token_kind="shared_team",
-    )
-
-    assert stat.S_IMODE(get_runtime_root().base.stat().st_mode) == 0o700
-
-
-# ---------------------------------------------------------------------------
-# Class-boundary regression guard: auth writers are untouched by this WP.
-# ---------------------------------------------------------------------------
-
-
-def test_auth_secure_storage_file_fallback_still_uses_write_text_then_chmod() -> None:
-    """Documents the WP06 class boundary (D7 / research.md): the AES-GCM
-    ciphertext session blob and the non-secret salt in
-    ``auth/secure_storage/file_fallback.py`` are deliberately out of scope
-    (ciphertext / non-secret, read-side 0600 verification is NFR-013's
-    job) -- this WP must not have touched them. A change here belongs to a
-    different, explicitly-scoped mission, not a silent WP06 side effect."""
-    import inspect
-
-    from specify_cli.auth.secure_storage import file_fallback
-
-    source = inspect.getsource(file_fallback)
-    assert "write_text" in source and ".chmod(" in source
