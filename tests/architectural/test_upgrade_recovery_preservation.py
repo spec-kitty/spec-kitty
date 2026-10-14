@@ -338,6 +338,31 @@ def export_tree(repo: Path, rev: str, *paths: str) -> None:
             target.chmod(member.mode)
 
 
+# Operator-sanctioned corrections (#6061, #6205, #6238) are read from this pinned
+# commit, never HEAD: HEAD may legitimately re-edit a sanctioned file, which
+# would silently change the fixture. 2ff2f1deb5 holds their final sanctioned bytes.
+SANCTIONED_AT = "2ff2f1deb542ecec9a637bd872e91cef3437fee9"
+FULL_CORPUS_SANCTIONED_COUNT = 25
+
+
+def _apply_sanctioned_corrections(repo: Path) -> list[str]:
+    """Overlay the operator-sanctioned corrected files onto the exported corpus.
+
+    Only paths that already exist in the exported tree are rewritten; absent
+    paths are skipped and never created. The path set is the gate's own
+    ``_OPERATOR_SANCTIONED_CORRECTIONS`` (no duplicated list). The narrower
+    non-full fixture contains none of them, so the overlay applies 0 there.
+    """
+    applied: list[str] = []
+    for path in sorted(gate._OPERATOR_SANCTIONED_CORRECTIONS):
+        target = repo / path
+        if not target.is_file():
+            continue
+        target.write_bytes(git(REPO_ROOT, "show", f"{SANCTIONED_AT}:{path}"))
+        applied.append(path)
+    return applied
+
+
 def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
     repo = tmp_path / "corpus"
     # Shared clone reads pinned objects; all refs/index/worktree mutations are local.
@@ -362,9 +387,15 @@ def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
             *(p.rsplit("/", 1)[0] for p in gate.SNAPSHOTS[:2]),
         )
     )
-    export_tree(repo, "c0054153b9bce0778cf41a85d11ecd4e9650031d", *paths)
+    export_tree(repo, gate.ORIGINAL, *paths)
     git(repo, "add", "-f", ".")
     git(repo, "commit", "-m", "Original historical corpus")
+    applied = _apply_sanctioned_corrections(repo)
+    if full:
+        assert len(applied) == FULL_CORPUS_SANCTIONED_COUNT, f"sanctioned overlay applied {len(applied)} paths, expected {FULL_CORPUS_SANCTIONED_COUNT}"
+    if applied:
+        git(repo, "add", "-f", ".")
+        git(repo, "commit", "-m", "Operator-sanctioned corrections (#6061, #6205)")
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     return repo
 
