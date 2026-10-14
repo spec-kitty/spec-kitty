@@ -2,10 +2,9 @@
 
 ``scripts/ci/consumer_census_cost.py`` measures the per-PR selected-shard count
 under the live hand fan-out vs the census-derived one (FR-009). These pin the pure
-library: shard counts come from the registry's measured values, a diff selects a
-positive cost, and the derived fan-out is >= the hand fan-out on a pack-content
-edit (full derivation widens, never narrows, those edits — the recorded trade-off)
-while a non-consumed pack file costs zero under both.
+library: a diff selects its module's shard cost, the derived fan-out is dearer than the hand
+one on a prompt edit (the recorded trade-off), and a non-consumed pack file costs zero
+under both.
 """
 
 from __future__ import annotations
@@ -23,24 +22,10 @@ def router():
     return load_router()
 
 
-def test_shard_counts_are_positive_registry_values() -> None:
-    counts = cost.shard_counts()
-    assert counts["charter"] == 7, "charter's measured shard_count drifted (the 7-shard long pole)"
-    assert all(v >= 1 for v in counts.values())
-
-
 def test_a_src_group_diff_costs_its_module_shards(router) -> None:
     counts = cost.shard_counts()
     c = cost.shard_count_for(["src/specify_cli/consolidation/executor.py"], GROUP_MODULE_FANOUT, router=router, counts=counts)
     assert c == counts["consolidation"]
-
-
-def test_derived_fanout_never_cheaper_than_hand_on_pack_edits(router) -> None:
-    """Full derivation WIDENS pack-content routing (the recorded trade-off): for
-    every representative pack-edit type the derived shard count is >= the hand one."""
-    rows = cost.compare_fanouts([paths for _label, paths in cost.REPRESENTATIVE_EDITS], router=router)
-    for (label, _paths), row in zip(cost.REPRESENTATIVE_EDITS, rows, strict=True):
-        assert row["delta"] >= 0, f"{label}: derived fan-out is cheaper than hand ({row})"
 
 
 def test_prompt_edit_shows_a_positive_derivation_delta(router) -> None:

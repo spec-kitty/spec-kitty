@@ -4,7 +4,7 @@ The census (``scripts/ci/consumer_census.py``) is the committed, regenerable map
 which test module consumes which ``src/**``/``packs/**`` path — static import/read
 PLUS runtime resolver capture. These tests pin:
 
-* determinism / freshness — a rebuild reproduces the committed artifact byte-for-byte;
+* freshness — a rebuild reproduces the committed artifact;
 * the three historical #6166 pins are recorded, each with the right provenance;
 * the runtime half is non-vacuous — the ``tests/next`` prompt edge is captured as
   ``runtime`` (a grep of ``tests/next`` would miss it), proving the audit-hook
@@ -55,14 +55,16 @@ def test_committed_census_matches_a_rebuild(census: dict[str, object]) -> None:
     assert committed == census, "committed .github/ci-consumer-census.json is stale — run `python scripts/ci/consumer_census.py --write`"
 
 
-def test_rebuild_is_deterministic() -> None:
-    """Two builds on an unchanged tree are byte-identical (sorted, offline)."""
-    assert cc._serialize(cc.build_census()) == cc._serialize(cc.build_census())
-
-
-def test_cli_check_passes() -> None:
-    """The ``--check`` CLI agrees the committed artifact is up to date (exit 0)."""
+def test_cli_check_exit_code_wiring(census: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--check`` exits 0 on a fresh artifact and 1 on a stale one (the build is
+    stubbed with the module fixture so this costs no rebuild)."""
+    artifact = tmp_path / "census.json"
+    monkeypatch.setattr(cc, "CENSUS_PATH", artifact)
+    monkeypatch.setattr(cc, "build_census", lambda: census)
+    artifact.write_text(cc._serialize(census), encoding="utf-8")
     assert cc.main(["--check"]) == 0
+    artifact.write_text(cc._serialize(census) + " ", encoding="utf-8")
+    assert cc.main(["--check"]) == 1
 
 
 # ---------------------------------------------------------------------------

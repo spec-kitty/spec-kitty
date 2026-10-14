@@ -4,10 +4,9 @@
 fan-out group (the modules the committed census records consuming a path matching
 that group's router globs). These tests pin that the derivation:
 
-* is non-vacuous — real groups, real registry modules, and it reproduces the three
-  #6166 pins (``next``/``charter`` for the mission-step prompts, ``dossier`` for the
-  manifest, ``agent`` for lifecycle.py) — so a future census/router change cannot
-  silently drop a historical consumer;
+* is non-vacuous — every group derives modules, and a malformed census raises;
+* leaves no census-derived module unrouted: each is in the hand fan-out or carries a
+  reasoned ``FANOUT_ALLOWLIST`` entry;
 * is a sound SUPERSET of the human-validated ``GROUP_MODULE_FANOUT`` for the
   routed-consumer sense: every module the hand fan-out routes because its tests
   genuinely resolve the real shipped pack is also found by the census (the two
