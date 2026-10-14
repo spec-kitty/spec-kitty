@@ -84,7 +84,7 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # prompt/step contracts, per-type templates, mission.yaml, mission-runtime.yaml, actions/**,
     # governance-profile.yaml, built_in_step_contracts/**). Per-module evidence: the census
     # ``via`` field (.github/ci-consumer-census.json).
-    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"}),
+    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review"}),
     # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs).
     "mission_type_definitions": frozenset({"charter", "core_misc", "upgrade"}),
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
@@ -118,7 +118,6 @@ FANOUT_ALLOWLIST: dict[str, dict[str, str]] = {
     "mission_pack_content": {
         "core_misc": _INCIDENTAL_TEMPLATES,
         "unit": _INCIDENTAL_TEMPLATES,
-        "review": "gate-binding tests load a step contract incidentally; they assert on the binding join, not the shipped prompt",
     },
     "mission_type_definitions": {
         "cli": _INCIDENTAL_MISSION_TYPES,

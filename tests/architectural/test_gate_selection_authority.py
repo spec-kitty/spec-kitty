@@ -281,7 +281,9 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     assert GROUP_MODULE_FANOUT["mission_manifest"] == frozenset({"charter", "dossier", "specify_cli_runtime"})
     # #6166: the chosen target sets, pinned so a future routing change cannot silently shrink them
     # (DIRECTIVE_003 -- the PR records the set + the per-module reason in gate_selection.py).
-    assert GROUP_MODULE_FANOUT["mission_pack_content"] == frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"})
+    assert GROUP_MODULE_FANOUT["mission_pack_content"] == frozenset(
+        {"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review"}
+    )
     assert GROUP_MODULE_FANOUT["cli_lifecycle"] == frozenset({"agent", "core_misc"})
     assert GROUP_MODULE_FANOUT["mission_type_definitions"] == frozenset({"charter", "core_misc", "upgrade"})
     for group, targets in GROUP_MODULE_FANOUT.items():
