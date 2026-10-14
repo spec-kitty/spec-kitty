@@ -140,6 +140,43 @@ class ServedRoutesCompleteTest {
     assertThat(emptyGoldenPairs()).containsAll(org.speckitty.missionstatus.conformance.golden.served.WorkPackageServedRoute.emptyEntries());
   }
 
+  /** The divergent sets the providers declare: the pairs they leave to their route's own tests. */
+  static Set<Entry> declaredDivergent() {
+    Set<Entry> divergent = new LinkedHashSet<>();
+    divergent.addAll(org.speckitty.missionstatus.conformance.golden.served.MissionDetailServedRoute.divergentEntries());
+    divergent.addAll(org.speckitty.missionstatus.conformance.golden.served.WorkPackageDetailServedRoute.divergentEntries());
+    divergent.addAll(org.speckitty.missionstatus.conformance.golden.served.WorkPackageServedRoute.divergentEntries());
+    return divergent;
+  }
+
+  /** The tagged pairs that no provider serves and no provider's divergent set lists: a provider silently dropped them. */
+  static List<String> taggedPairProblems(List<ServedRoute> providers, Set<Entry> divergent) {
+    Set<Entry> served = new LinkedHashSet<>();
+    providers.forEach(provider -> served.addAll(provider.served()));
+    List<String> problems = new ArrayList<>();
+    for (Entry tagged : taggedPairs()) {
+      if (!served.contains(tagged) && !divergent.contains(tagged)) {
+        problems.add(tagged + " is tagged knownDivergence but neither served nor in a provider's divergent set");
+      }
+    }
+    return problems;
+  }
+
+  @Test
+  void everyTaggedPairIsEitherServedByItsProviderOrListedInItsDivergentSet() {
+    assertThat(taggedPairProblems(ServedRoutes.loaded(), declaredDivergent())).isEmpty();
+  }
+
+  @Test
+  void controlATaggedPairDroppedFromTheDivergentSetIsRed() {
+    Set<Entry> divergent = declaredDivergent();
+    Entry dropped = divergent.iterator().next();
+    divergent.remove(dropped);
+
+    assertThat(taggedPairProblems(ServedRoutes.loaded(), divergent))
+        .containsExactly(dropped + " is tagged knownDivergence but neither served nor in a provider's divergent set");
+  }
+
   @Test
   void aFixtureOfAJavaOnlyClassHasNoGoldenAndIsNotRequired() {
     Set<String> required = new TreeSet<>();
