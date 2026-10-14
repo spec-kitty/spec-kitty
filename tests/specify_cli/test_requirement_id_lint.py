@@ -312,14 +312,23 @@ def test_commented_declaration_is_undeclared_for_both_lint_and_declared_set() ->
 
 
 @pytest.mark.parametrize(
-    ("token", "expected"),
+    ("token", "mission_type", "expected"),
     [
-        ("FR-001", True),
-        ("fr-006a", True),
-        ("SC-002b", True),
-        ("FR-006A", False),
-        ("FR-008-mandated", False),
+        ("FR-001", "software-dev", True),
+        ("fr-006a", "software-dev", True),
+        ("SC-002b", "software-dev", True),
+        ("FR-006A", "software-dev", False),
+        ("FR-008-mandated", "software-dev", False),
+        # Research-only kinds (DR/AR/QR) are well-formed only for research.
+        ("DR-001", "research", True),
+        ("QR-2", "research", True),
+        ("DR-001", "software-dev", False),
+        # Base kinds stay valid under research.
+        ("FR-001", "research", True),
+        # A template placeholder is never a well-formed declaration.
+        ("FR-00N", "software-dev", False),
+        ("FR-00N", "research", False),
     ],
 )
-def test_is_well_formed_declaration(token: str, expected: bool) -> None:
-    assert _is_well_formed_declaration(token) is expected
+def test_is_well_formed_declaration(token: str, mission_type: str, expected: bool) -> None:
+    assert _is_well_formed_declaration(token, mission_type) is expected
