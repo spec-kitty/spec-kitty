@@ -1,11 +1,20 @@
-"""#5811 red-first repro: a no-op ``upgrade --yes`` must not rewrite Mission history.
+"""#5811 regression guard: a no-op ``upgrade --yes`` must not rewrite Mission history.
 
-Drives the real ``upgrade`` CLI entry point (in-process, so the autouse
-drain-posture patch applies) over a scratch git repository that is already up
-to date. The only work left is the finalizer's TeamSpace mission-state repair
-offer, which ``--yes`` opts into. Today that repair rewrites every valid
-Mission's ``status.events.jsonl`` and writes an audit manifest even though the
-Mission had nothing wrong with it; the blocker sat in one unrelated Mission.
+Drives the real ``upgrade`` CLI entry point (in-process) over a scratch git
+repository that is already up to date, so the only finalizer work left is the
+mission-state report step.
+
+The #5811 regression this pins: a no-op ``upgrade --yes`` on a repository with
+historical Missions must leave every pre-existing ``status.events.jsonl``
+byte-identical, write no audit manifest, and commit/dirty no Mission history —
+even when one unrelated Mission carries a blocker.
+
+Historical note (#6241): the TeamSpace mission-state *repair offer* that
+originally caused the over-rewrite was removed with the hosted TeamSpace surface
+in #6164, so ``report_teamspace_mission_state_blockers`` is now a deliberate
+no-op that evaluates and prints nothing (no "blocker" count). The #5811 property
+these tests guard is unaffected and still holds, so the tests no longer assert
+that a gate *ran* — they assert the no-op invariants directly.
 
 Histories are produced by the live writer (``build_status_event`` +
 ``append_event``), never hand-written JSON.
@@ -117,10 +126,6 @@ def _audit_files(root: Path) -> set[str]:
     return {str(p.relative_to(root)) for p in audit.rglob("*") if p.is_file()} if audit.exists() else set()
 
 
-def _assert_gate_ran(output: str) -> None:
-    assert "blocker" in output.lower(), f"the mission-state gate did not run (no blocker count printed):\n{output}"
-
-
 def test_noop_upgrade_yes_leaves_mission_history_byte_identical(tmp_path: Path) -> None:
     project = tmp_path / "proj"
     _build_project(project)
@@ -129,7 +134,6 @@ def test_noop_upgrade_yes_leaves_mission_history_byte_identical(tmp_path: Path) 
     result = _run_upgrade(project)
 
     assert result.exit_code == 0, result.output
-    _assert_gate_ran(result.output)
     after = _snapshot(project)
     changed = sorted(path for path in before if after.get(path) != before[path])
     created = sorted(set(after) - set(before))
@@ -146,7 +150,6 @@ def test_noop_upgrade_yes_writes_no_audit_manifest(tmp_path: Path) -> None:
     result = _run_upgrade(project)
 
     assert result.exit_code == 0, result.output
-    _assert_gate_ran(result.output)
     new = sorted(_audit_files(project) - before)
     assert not new, f"upgrade wrote an audit manifest under .kittify/mission-state-audit/: {new}"
 
@@ -160,7 +163,6 @@ def test_noop_upgrade_yes_with_auto_commit_commits_no_mission_history(tmp_path: 
     result = _run_upgrade(project)
 
     assert result.exit_code == 0, result.output
-    _assert_gate_ran(result.output)
     committed = _git(project, "diff", "--name-only", head_before, "HEAD").splitlines()
     mission_paths = [path for path in committed if path.startswith("kitty-specs/")]
     assert not mission_paths, f"auto_commit committed Mission history: {mission_paths}"
