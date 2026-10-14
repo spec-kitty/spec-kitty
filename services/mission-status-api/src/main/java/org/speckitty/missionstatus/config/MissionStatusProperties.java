@@ -18,7 +18,7 @@ public record MissionStatusProperties(String projectRoot, @DefaultValue Stream s
   /**
    * @param queueCapacity the capacity of each subscriber's queue (key {@code mission-status.stream.queue-capacity}, default 1024)
    * @param heartbeatInterval how often an idle stream sends its heartbeat comment (key {@code mission-status.stream.heartbeat-interval},
-   *     an ISO-8601 duration, default {@code PT30S}; the events controller of WP20 reads this key)
+   *     an ISO-8601 duration, default {@code PT30S}; the event stream reads this key)
    */
   public record Stream(@DefaultValue("1024") int queueCapacity, @DefaultValue("PT30S") Duration heartbeatInterval) {}
 }

@@ -219,10 +219,10 @@ jobs:
       # image has `python`, the Linux and macOS images have `python3`.
       - name: Require the native test floor
         if: runner.os != 'Windows'
-        run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
+        run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 4
       - name: Require the native test floor (Windows)
         if: runner.os == 'Windows'
-        run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
+        run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 4
       - name: Stage the binary and its checksum
         run: |
           set -eu
