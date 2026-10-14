@@ -1,16 +1,22 @@
 package org.speckitty.missionstatus.adapter.out.filesystem;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Optional;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.speckitty.missionstatus.adapter.out.filesystem.Allowlist.OpenMode;
 import org.speckitty.missionstatus.adapter.out.filesystem.Allowlist.PathClass;
@@ -106,6 +112,18 @@ class SafeFilesTest {
   void aDirectoryWhereAFileShouldBeIsRefusedWithTheRefusalKind() throws IOException {
     Files.createDirectory(meta());
     assertThat(faultOf(() -> files.readRegular(meta(), SafeFiles.SMALL_FILE_MAX, Kind.PATH_REFUSED, Kind.META_UNPARSEABLE))).isEqualTo(Kind.PATH_REFUSED);
+  }
+
+  /** An open for reading blocks on a FIFO with no writer, so the stat must refuse it before any open. */
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void aFifoWhereAFileShouldBeIsRefusedWithoutBlocking() throws IOException, InterruptedException {
+    Process made = new ProcessBuilder("mkfifo", meta().toString()).redirectErrorStream(true).start();
+    Assumptions.assumeTrue(made.waitFor() == 0 && !Files.isRegularFile(meta()) && Files.exists(meta(), LinkOption.NOFOLLOW_LINKS), "mkfifo is not available");
+
+    Kind kind = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> faultOf(() -> files.readRegular(meta(), SafeFiles.SMALL_FILE_MAX, Kind.PATH_REFUSED, Kind.META_UNPARSEABLE)));
+
+    assertThat(kind).isEqualTo(Kind.PATH_REFUSED);
   }
 
   @Test
