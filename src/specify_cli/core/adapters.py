@@ -24,13 +24,14 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Relative location of the staged pending-origin file, mirrored from
-# ``tracker.ticket_context.PENDING_ORIGIN_FILENAME`` (".kittify/pending-origin.yaml").
-# Duplicated here as a path literal — NOT an import — so CORE can detect a
-# *cold-miss* (a staged binding present on disk while no consumer is registered)
-# without importing the INTEGRATION ``tracker`` package. If tracker ever moves
-# the file, this constant and that one must stay in lockstep; the tracker-side
-# test suite guards the producer path.
+# Relative location of the staged pending-origin file (".kittify/pending-origin.yaml").
+# A path literal — NOT an import — so CORE can detect a *cold-miss* (a staged
+# binding present on disk while no consumer is registered) without importing any
+# INTEGRATION package. The hosted ticket-origin staging helper that once owned
+# this filename (``tracker.ticket_context``) was removed from open-core with the
+# frozen hosted surfaces (#6164) and relocated out of tree; the consume seam
+# below stays, and any future producer that writes this file must keep the name
+# in lockstep with this constant.
 _PENDING_ORIGIN_RELPATH = (".kittify", "pending-origin.yaml")
 
 

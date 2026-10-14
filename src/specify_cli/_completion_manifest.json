@@ -319,11 +319,6 @@
        "hidden": false,
        "deprecated": false
       },
-      "widen": {
-       "help": "[internal] Call the widen endpoint for a decision. Not for end users.",
-       "hidden": true,
-       "deprecated": false
-      },
       "repair-runtime-lock": {
        "help": "Stop tracking the exact decision lock in an explicitly owned mission.\n\nAlso adds the exact ignore rule to the Mission's decisions/.gitignore when\nthe lock is untracked but not ignored.",
        "hidden": false,
@@ -384,38 +379,6 @@
     },
     "list": {
      "help": "Enumerate archived missions (AM-3).",
-     "hidden": false,
-     "deprecated": false
-    }
-   }
-  },
-  "auth": {
-   "help": "Authentication commands",
-   "hidden": true,
-   "deprecated": false,
-   "commands": {
-    "login": {
-     "help": "Log in to spec-kitty SaaS via browser OAuth (or device flow with --headless).",
-     "hidden": false,
-     "deprecated": false
-    },
-    "logout": {
-     "help": "Log out and revoke the current session.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "status": {
-     "help": "Show current authentication status.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "whoami": {
-     "help": "Print the authenticated user's email and exit 0, or exit 1 if not authenticated.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "doctor": {
-     "help": "Diagnose CLI auth state. Default invocation is read-only.",
      "hidden": false,
      "deprecated": false
     }
@@ -872,47 +835,10 @@
     }
    }
   },
-  "issue-search": {
-   "help": "Search tracker issues via the hosted read path",
-   "hidden": true,
-   "deprecated": false
-  },
   "lint": {
    "help": "Run ruff and mypy on a file and report errors.\n\nThis command is designed to be used as a post-edit hook for AI agents,\nproviding immediate feedback on linting and type-checking violations.\nWhen invoked without a path (the wired hook form), the target file is read\nfrom the harness JSON payload on stdin.",
    "hidden": false,
    "deprecated": false
-  },
-  "live-work": {
-   "help": "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268).",
-   "hidden": true,
-   "deprecated": false,
-   "commands": {
-    "hook": {
-     "help": "Handle one harness hook event (JSON on stdin) and publish live frames.\n\nExit 0 always — capture must never fail the harness invocation.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "matrix": {
-     "help": "Print the executable capability matrix (rows + health + codec state).\n\nExits non-zero when a harness configured in this project has no Live\nWork hooks installed — the no-silent-green enforcement.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "install": {
-     "help": "Register the Live Work capture hooks in the harness's native config.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "uninstall": {
-     "help": "Remove the Live Work capture hooks (sibling hooks are untouched).",
-     "hidden": false,
-     "deprecated": false
-    },
-    "watch": {
-     "help": "One-shot labeled changed-file observation (sampled fallback).\n\nEmits sampled file-change frames for the working tree's uncommitted\nchanges — changed files only, explicitly labeled: no attribution to an\nagent, and file reads are never claimed.",
-     "hidden": false,
-     "deprecated": false
-    }
-   }
   },
   "materialize": {
    "help": "Regenerate all derived views from the canonical event log.\n\nFor each feature (or a single feature when --mission is given),\nwrites the following files to ``.kittify/derived/<slug>/``:\n\n- ``status.json`` — full StatusSnapshot\n- ``board-summary.json`` — lane counts and WP lists\n- ``progress.json`` — lane-weighted progress percentage\n- ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state\n\nA coordination-routed Mission is reduced from its coordination surface's\nevent log. To find that log this command may create the coordination\nworktree (one ``git worktree add`` per coordination-routed Mission, done\nonce) and, for a Mission created before the coordination surface was\nseeded, seed it. ``lanes`` and ``single_branch`` Missions are reduced from\nthe repository root checkout exactly as before. A Mission whose coordination\nbranch exists only on a remote, or whose logs diverged, is reported in the\nerror summary and the remaining Missions are still processed.\n\nExamples::\n\n    spec-kitty materialize\n    spec-kitty materialize --mission 034-my-feature\n    spec-kitty materialize --json",
@@ -1041,11 +967,6 @@
      "hidden": false,
      "deprecated": false
     },
-    "create": {
-     "help": "Fetch a tracker ticket and prepare it as a mission brief.\n\nWrites the ticket content to .kittify/ticket-context.md so the LLM can\nread it and run /spec-kitty.specify. Records a pending origin so the\nmission-to-ticket link is established automatically when specify completes.\n\nExample:\n    spec-kitty mission create --from-ticket linear:PRI-42",
-     "hidden": false,
-     "deprecated": false
-    },
     "run": {
      "help": "Start (or attach to) a runtime for a project-authored custom mission definition.",
      "hidden": false,
@@ -1098,11 +1019,6 @@
      "hidden": false,
      "deprecated": false
     },
-    "create": {
-     "help": "Fetch a tracker ticket and prepare it as a mission brief.\n\nWrites the ticket content to .kittify/ticket-context.md so the LLM can\nread it and run /spec-kitty.specify. Records a pending origin so the\nmission-to-ticket link is established automatically when specify completes.\n\nExample:\n    spec-kitty mission create --from-ticket linear:PRI-42",
-     "hidden": false,
-     "deprecated": false
-    },
     "run": {
      "help": "Start (or attach to) a runtime for a project-authored custom mission definition.",
      "hidden": false,
@@ -1137,50 +1053,6 @@
      "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
      "hidden": false,
      "deprecated": false
-    }
-   }
-  },
-  "moments": {
-   "help": "Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
-   "hidden": true,
-   "deprecated": false,
-   "commands": {
-    "off": {
-     "help": "Switch moments to agents OFF: nothing surfaces, and\nthe internal agent-context bridge exits cleanly with one line.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "on": {
-     "help": "Switch moments back ON at the documented default (`team`).",
-     "hidden": false,
-     "deprecated": false
-    },
-    "status": {
-     "help": "Show the effective mode, which file decided it, and the active filters.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "drain": {
-     "help": "Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
-     "hidden": false,
-     "deprecated": false,
-     "commands": {
-      "on": {
-       "help": "Turn live drain ON for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
-       "hidden": false,
-       "deprecated": false
-      },
-      "off": {
-       "help": "Turn live drain OFF for one scope. Live drain (moments/presence/capability/relay) is effective only when BOTH scopes are on: the repository (.kittify/config.yaml hosted.drain) and your personal runtime-root config.toml (\\[hosted] drain). No environment variable can turn drain on -- env vars only narrow it further (e.g. SPEC_KITTY_NO_MOMENT_HANDLERS).",
-       "hidden": false,
-       "deprecated": false
-      },
-      "status": {
-       "help": "Show the effective live-drain posture, both scopes' values and source\nfiles, active narrowers, the ledger-projection posture, and all four\nhosted-posture file paths (existing or not).",
-       "hidden": false,
-       "deprecated": false
-      }
-     }
     }
    }
   },
@@ -1441,11 +1313,6 @@
    "hidden": false,
    "deprecated": false
   },
-  "routes": {
-   "help": "Show which team admits this checkout and which relay carries its moments.",
-   "hidden": true,
-   "deprecated": false
-  },
   "safe-commit": {
    "help": "Commit only the requested files via Spec Kitty's safe-commit path.",
    "hidden": false,
@@ -1482,32 +1349,22 @@
    "deprecated": false,
    "commands": {
     "providers": {
-     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers need a hosted Team Kitty sign-in, which is no\nlonger actively supported (ADR 2026-10-06-1), and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — ``tracker_callback``\nis the sole rollout gate for the tracker Typer app, which is all the\ngating this static output needs.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "discover": {
-     "help": "Discover bindable tracker resources under your installation.\n\nLists all resources (projects, teams, boards) available for binding\nwith the specified provider.  Each row is numbered 1-indexed to align\nwith ``tracker bind --select N``.\n\n``discover`` is explicitly the *pre-binding* command — it is how users\nfind something to bind to — so it MUST NOT require an existing mission\nbinding.  Requiring a binding here would make fresh bind flows\nimpossible.",
+     "help": "List supported tracker providers.\n\nLocal providers use direct connectors with locally stored credentials. The\nformer SaaS/hosted providers (linear, jira, github, gitlab) are no longer\nsupported (#6164) and are listed only to explain the refusal a bind for one\nof them produces.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.",
      "hidden": false,
      "deprecated": false
     },
     "bind": {
-     "help": "Bind the current project to an issue tracker.\n\nFor SaaS-backed providers (linear, jira, github, gitlab):\n  Uses discovery to find bindable resources automatically.\n  Use --bind-ref for CI/automation, --select N for non-interactive.\n  Needs a hosted Team Kitty sign-in (no longer actively supported).\n\nFor local providers (beads, fp):\n  Requires --provider, --workspace, and --credential flags.",
+     "help": "Bind the current project to a local issue tracker (beads, fp).\n\nRequires --provider and --workspace; --credential supplies connector\ncredentials stored locally.",
      "hidden": false,
      "deprecated": false
     },
     "status": {
-     "help": "Show tracker binding and sync status.\n\nFor SaaS-backed providers: displays identity path, sync state, and\nprovider info from the SaaS control plane.\n\nFor local providers: displays local cache statistics and configuration.\n\nWith --all: shows installation-wide summary across all bindings\n(SaaS providers only).",
-     "hidden": false,
-     "deprecated": false
-    },
-    "list-tickets": {
-     "help": "Browse visible tickets for the resolved provider resource.",
+     "help": "Show tracker binding and sync status.\n\nDisplays local cache statistics and configuration for the bound local\nprovider.",
      "hidden": false,
      "deprecated": false
     },
     "unbind": {
-     "help": "Remove tracker binding for this project.\n\nFor SaaS-backed providers this clears only local project configuration.\nProvider unlinking remains a SaaS dashboard action.",
+     "help": "Remove tracker binding for this project.",
      "hidden": false,
      "deprecated": false
     },
@@ -1517,12 +1374,12 @@
      "deprecated": false,
      "commands": {
       "add": {
-       "help": "Add or update a WP-to-external issue mapping.\n\nFor local providers: stores the mapping in the local SQLite database.\n\nFor SaaS-backed providers: this command is not available.  Manage\nmappings in the Spec Kitty dashboard instead.",
+       "help": "Add or update a WP-to-external issue mapping.\n\nStores the mapping in the local SQLite database.",
        "hidden": false,
        "deprecated": false
       },
       "list": {
-       "help": "List tracker mappings.\n\nFor local providers: shows mappings from the local SQLite database.\n\nFor SaaS-backed providers: shows SaaS-authoritative mappings from the\ncontrol plane.",
+       "help": "List tracker mappings from the local SQLite database.",
        "hidden": false,
        "deprecated": false
       }
@@ -1534,22 +1391,22 @@
      "deprecated": false,
      "commands": {
       "pull": {
-       "help": "Pull tracker updates into the local cache.\n\nFor SaaS-backed providers: pulls items via the SaaS control plane.\nThe response includes an identity_path and summary envelope.\n\nFor local providers: pulls directly from the tracker API.",
+       "help": "Pull tracker updates into the local cache via the direct connector.",
        "hidden": false,
        "deprecated": false
       },
       "push": {
-       "help": "Push explicit mutations to the upstream provider.\n\nFor SaaS-backed providers: requires --items-json with a JSON array of\nPushItem objects per the PRI-12 TrackerPushRequest contract.  Each item\nmust have ``ref``, ``action``, and optionally ``patch`` / ``target_status``.\n\nFor full bidirectional sync, use ``tracker sync run`` instead.\n\nFor local providers: pushes directly to the tracker API using --limit.",
+       "help": "Push local mutations to the upstream provider via the direct connector.",
        "hidden": false,
        "deprecated": false
       },
       "run": {
-       "help": "Run pull+push synchronization in one operation.\n\nFor SaaS-backed providers: executes a full sync cycle via the SaaS\ncontrol plane.\n\nFor local providers: runs pull then push using direct connectors.",
+       "help": "Run pull+push synchronization in one operation via the direct connector.",
        "hidden": false,
        "deprecated": false
       },
       "publish": {
-       "help": "Publish local tracker snapshot.\n\nThis command is not supported for SaaS-backed providers.  Use\n``spec-kitty tracker sync push`` instead.\n\nFor local providers: the facade will raise an error if this operation\nis not supported by the bound provider.",
+       "help": "Publish local tracker snapshot.\n\nLocal providers (beads/fp) have no snapshot-publish transport; the facade\nraises a clean error directing the operator to ``tracker sync push``.",
        "hidden": false,
        "deprecated": false
       }
@@ -1596,112 +1453,6 @@
      "help": "Import a workflow YAML into `.kittify/overrides/workflows`.",
      "hidden": false,
      "deprecated": false
-    }
-   }
-  },
-  "zeitgeist": {
-   "help": "Access to one team's live Zeitgeist presence/focus stream and status-moment events, authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills.",
-   "hidden": true,
-   "deprecated": false,
-   "commands": {
-    "status": {
-     "help": "Who is live on ``repo``'s relay right now, answered immediately from\nthe relay's own presence/focus record; a relay without that route falls\nback to a bounded listen.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "watch": {
-     "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count. ``--seed <seconds>`` first\nreplays that much retained history through the same policy, so nothing\npublished during startup is lost.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "activity": {
-     "help": "Catch up on retained activity using the same policy as agent watch.\n``--person``/``--project`` narrow the catch-up client-side (the relay's\nretained-events route has no such filter) with matched/withheld counts\nin the result.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "send": {
-     "help": "Author and publish one live message (#4269) — accepted/offered/failed,\nnever retained delivery.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "reply": {
-     "help": "Reply to one authored message — thread and audience come from the\nparent; a peer thread is never broadened to team scope.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "read": {
-     "help": "Read a conversation thread (or recent authored messages) from the\nrelay's recent ring; bodies render inside untrusted markers.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "inbox": {
-     "help": "Addressed inbox: novel authored messages for this consumer, over the\nsame novelty/receipt policy as agent watch.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "mcp-serve": {
-     "help": "Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the\nclient disconnects. Process entry point for an MCP client's launcher —\nnot meant for direct interactive use, hence hidden.\n\n#190: switched off (`spec-kitty moments off`), this prints one line to\nstderr and exits 0 — stdout stays clean for the MCP framing protocol —\nrather than starting a server that would only ever look broken.",
-     "hidden": true,
-     "deprecated": false
-    },
-    "outbox": {
-     "help": "Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script.",
-     "hidden": false,
-     "deprecated": false,
-     "commands": {
-      "list": {
-       "help": "Every item still awaiting a human disposition. Content is shown only\nas a bounded, redacted preview — never the exact prose (use ``show`` for\nthat, by exact id).",
-       "hidden": false,
-       "deprecated": false
-      },
-      "show": {
-       "help": "The exact full record for ``item_id`` — the one explicit, per-id\ndisclosure action (see ``outbox_approval.py``'s module docstring).",
-       "hidden": false,
-       "deprecated": false
-      },
-      "approve": {
-       "help": "Approve ``item_id``. Requires typing back the item's own challenge at\nthe controlling terminal when prompted — there is no flag to skip this.\n\nPre-flighted like every other relay-publishing command (R-3): approving\nan item is what publishes its prose to the relay, even though\n``outbox_approval.py`` itself never opens a socket (its docstring, line\n~91). ``list``/``show``/``reject``/``revoke`` are local-only and are\nNOT pre-flighted.",
-       "hidden": false,
-       "deprecated": false
-      },
-      "reject": {
-       "help": "Reject ``item_id``. Same human-gesture requirement as ``approve``.",
-       "hidden": false,
-       "deprecated": false
-      },
-      "revoke": {
-       "help": "Pull back an already-approved ``item_id``. Same human-gesture\nrequirement as ``approve``; only valid from ``approved``.",
-       "hidden": false,
-       "deprecated": false
-      }
-     }
-    },
-    "operability": {
-     "help": "Payload-free self-report of this client's liveness/connection/subscription/outbox status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second implementation, no relay-url/token option, no network beyond the one optional canary offer `report` makes when repo already has a stored checkout.",
-     "hidden": false,
-     "deprecated": false,
-     "commands": {
-      "report": {
-       "help": "One payload-free snapshot of ``repo``'s operability signals. Runs a\nsingle canary offer probe only if ``repo`` already has a stored\ncheckout — otherwise reports honestly stale/inactive rather than\nfabricating a live reading.",
-       "hidden": false,
-       "deprecated": false
-      },
-      "drill-timeout": {
-       "help": "Local \"relay unreachable\" drill — one offer() against a loopback\naddress nothing listens on. Network-free (loopback only) and needs no\nrepo/checkout.",
-       "hidden": false,
-       "deprecated": false
-      },
-      "drill-rotation": {
-       "help": "Local \"auth expiry\" drill for ``repo``'s stored checkout — reads only\nthe stored ``token_issued_at`` timestamp, never the token value.",
-       "hidden": false,
-       "deprecated": false
-      },
-      "drill-rollback": {
-       "help": "Local \"rollback\" drill: proves ``outbox_approval.revoke()`` fails\nclosed on a never-approved item — never touches the controlling\nterminal, never requires a human.",
-       "hidden": false,
-       "deprecated": false
-      }
-     }
     }
    }
   }

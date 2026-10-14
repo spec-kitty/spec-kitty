@@ -642,10 +642,6 @@ def answer_decision_via_runtime(
     mission_type = get_mission_type(feature_dir)
     config_root = owned.owned_root if owned is not None else repo_root
     run_ref = _io_seam.get_or_start_run(mission_slug, config_root, mission_type, owned=owned)
-    # E3 (#3929): same bridge-entry registration as the decide path.
-    from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
-
-    ensure_runtime_moment_producer()
     sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,

@@ -479,11 +479,6 @@ def _dn_bootstrap(
                 reason="Mission is already completed",
             )
         )
-    # E3 (#3929): register the runtime-moment producer at this entry, never while
-    # ``specify_cli.status`` imports (that re-enters ``runtime.next`` mid-import).
-    from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
-
-    ensure_runtime_moment_producer()
     sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,

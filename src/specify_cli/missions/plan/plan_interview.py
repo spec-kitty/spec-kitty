@@ -1,28 +1,22 @@
-"""Plan interview flow with Widen Mode affordance (FR-002, WP08 T044).
+"""Plan interview flow (local Decision-Moment loop).
 
-Applies the same ``[w]iden`` pattern as the charter and specify interview
-flows to the ``plan`` interview surface.  Each question opened here records
-a Decision Moment with ``origin_flow=PLAN``.
+Each question opened here records a Decision Moment with ``origin_flow=PLAN``.
+Hosted Widen Mode was removed in issue #6164; only the local interview loop
+remains.
 
 Public API:
     run_plan_interview(questions, repo_root, mission_slug, console, actor)
-        Drive a list of (question_id, question_text) through the widen-enabled
+        Drive a list of (question_id, question_text) through the local
         interview loop and return a dict of answers.
-
-This module is intentionally thin — it reuses helpers from
-``specify_cli.widen.interview_helpers`` and the same WidenFlow/WidenPendingStore
-infrastructure already used by charter.py and specify_interview.py.
 """
 
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.core import hosted_posture
 from specify_cli.core.env import is_interactive
 from specify_cli.mission_metadata import load_meta_or_empty
 import contextlib
 from pathlib import Path
-from typing import Any
 
 from rich.console import Console
 from rich.markup import escape
@@ -82,14 +76,14 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def run_plan_interview(  # noqa: C901
+def run_plan_interview(
     questions: list[tuple[str, str]],
     repo_root: Path,
     mission_slug: str,
     console: Console,
     actor: str | None = None,
 ) -> dict[str, str]:
-    """Drive a plan interview with the Widen Mode affordance.
+    """Drive a plan interview (local Decision-Moment loop).
 
     Args:
         questions:    List of ``(question_id, question_text)`` pairs in order.
@@ -100,7 +94,7 @@ def run_plan_interview(  # noqa: C901
 
     Returns:
         A dict mapping ``question_id`` to the owner's answer.  Empty string
-        for questions that were widened (pending-external-input) or deferred.
+        for questions that were deferred.
 
     Non-interactive contract (#2876): when :func:`is_interactive` is False —
     ``SPEC_KITTY_NON_INTERACTIVE`` set, or stdin is not a TTY, which is how
@@ -108,8 +102,7 @@ def run_plan_interview(  # noqa: C901
     prompt hangs forever on an open-but-silent stdin pipe). Per the issue it
     *takes the defaults*: every Decision Moment is still opened and recorded
     (deferred / unanswered), so ``decisions/index.json`` is written exactly as
-    in the interactive path — only the blocking ``typer.prompt`` (and the widen
-    affordance, which needs a keystroke) is skipped.
+    in the interactive path — only the blocking ``typer.prompt`` is skipped.
     """
     import typer
 
@@ -123,50 +116,9 @@ def run_plan_interview(  # noqa: C901
     from specify_cli.decisions import service as _dm_service
     from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
     from specify_cli.decisions.service import DecisionError as _DecisionError
-    from specify_cli.widen.interview_helpers import (
-        resolve_already_widened_prompt,
-        run_end_of_interview_pending_pass,
-    )
 
     if actor is None:
         actor = _resolve_actor()
-
-    # ------------------------------------------------------------------
-    # Prereq check + widen infrastructure setup (non-fatal)
-    # ------------------------------------------------------------------
-    prereq_state: Any = None
-    widen_flow: Any = None
-    widen_store: Any = None
-    saas_client: Any = None
-
-    # Widen needs a keystroke ([w]); it is only reachable interactively. Skipping
-    # the setup non-interactively also avoids the SaaS prereq probe in CI (#2876).
-    # FR-004: gate on drain BEFORE SaasClient.from_env/load_auth_context, not
-    # just before check_prereqs -- those two calls already read the credential
-    # store (and may refresh an expired OAuth session over the network).
-    if interactive and hosted_posture.drain_posture().enabled:
-        try:
-            from specify_cli.saas_client import SaasClient
-            from specify_cli.widen import check_prereqs
-            from specify_cli.widen.flow import WidenFlow
-            from specify_cli.widen.state import WidenPendingStore
-
-            saas_client = SaasClient.from_env(repo_root)
-            _team_slug: str = ""
-            with contextlib.suppress(Exception):
-                from specify_cli.saas_client.auth import load_auth_context
-
-                _auth_ctx = load_auth_context(repo_root)
-                _team_slug = _auth_ctx.team_slug or ""
-
-            prereq_state = check_prereqs(saas_client, team_slug=_team_slug)
-            if prereq_state.all_satisfied:
-                widen_flow = WidenFlow(saas_client, repo_root, console)
-                widen_store = WidenPendingStore(repo_root, mission_slug)
-        except Exception:  # noqa: BLE001
-            pass  # non-fatal; [w] will be suppressed
-
-    mission_id = _get_mission_id(repo_root, mission_slug)
 
     answers: dict[str, str] = {}
 
@@ -191,124 +143,28 @@ def run_plan_interview(  # noqa: C901
             )
             current_decision_id = dm_response.decision_id
 
-        # T045 — Already-widened question prompt (narrow-once seam, #2675 T061)
-        _already_widened = resolve_already_widened_prompt(
-            widen_store=widen_store,
-            decision_id=current_decision_id,
-            saas_client=saas_client,
-            question_text=question_text,
-            mission_slug=mission_slug,
-            repo_root=repo_root,
-            dm_service=_dm_service,
-            actor=actor,
-            console=console,
-        )
-        if _already_widened:
-            answers[question_id] = ""
-            continue  # next question
-
         # Build hint line
-        widen_suffix = ""
-        if (
-            prereq_state is not None
-            and prereq_state.all_satisfied
-            and widen_flow is not None
-            and widen_store is not None
-            and current_decision_id is not None
-            and not _already_widened
-        ):
-            widen_suffix = " | [w]iden"
         hint_line = (
-            f"[enter]=accept default | [text]=type answer{widen_suffix}"
+            "[enter]=accept default | [text]=type answer"
             " | [d]efer | [!cancel]"
         )
         # #2876: the hint's bracketed keys are literal text, not Rich markup.
-        # Unescaped, Rich eats [enter]/[text]/[d]/[w] as style tags and the
+        # Unescaped, Rich eats [enter]/[text]/[d] as style tags and the
         # operator sees "=accept default | =type answer | efer | [!cancel]".
         if interactive:
             console.print(f"[dim]{escape(hint_line)}[/dim]")
 
         # Prompt
-        user_answer = ""
-        while True:
-            if not interactive:
-                # #2876: non-interactive — take the default, never prompt (a
-                # blocking read hangs on a silent stdin pipe). The Decision
-                # Moment above is still recorded (deferred below).
-                user_answer = default_value
-                break
+        if not interactive:
+            # #2876: non-interactive — take the default, never prompt (a
+            # blocking read hangs on a silent stdin pipe). The Decision
+            # Moment above is still recorded (deferred below).
+            user_answer = default_value
+        else:
             try:
-                raw = typer.prompt(question_text, default=default_value)
+                user_answer = typer.prompt(question_text, default=default_value)
             except (KeyboardInterrupt, EOFError):
                 raise typer.Exit() from None
-
-            if (
-                raw.strip().lower() == "w"
-                and widen_flow is not None
-                and current_decision_id is not None
-                and mission_id is not None
-            ):
-                from kernel.clock import now_utc
-
-                from specify_cli.widen.models import WidenAction, WidenPendingEntry
-
-                result = widen_flow.run_widen_mode(
-                    decision_id=current_decision_id,
-                    mission_id=mission_id,
-                    mission_slug=mission_slug,
-                    question_text=question_text,
-                    actor=actor,
-                )
-
-                if result.action == WidenAction.CANCEL:
-                    console.print(f"[dim]{escape(hint_line)}[/dim]")
-                    continue  # re-prompt
-
-                if result.action == WidenAction.BLOCK:
-                    from specify_cli.cli.commands.charter import _run_blocked_prompt_loop
-
-                    _run_blocked_prompt_loop(
-                        decision_id=result.decision_id or current_decision_id,
-                        question_text=question_text,
-                        invited=result.invited,
-                        mission_slug=mission_slug,
-                        repo_root=repo_root,
-                        console=console,
-                        saas_client=saas_client,
-                        actor=actor,
-                    )
-                    user_answer = ""
-                    break
-
-                if result.action == WidenAction.CONTINUE:
-                    if widen_store is not None:
-                        try:
-                            widen_store.add_pending(
-                                WidenPendingEntry(
-                                    decision_id=result.decision_id or current_decision_id,
-                                    mission_slug=mission_slug,
-                                    question_id=f"plan.{question_id}",
-                                    question_text=question_text,
-                                    entered_pending_at=now_utc(),
-                                    widen_endpoint_response={},
-                                )
-                            )
-                        except Exception as exc:  # noqa: BLE001
-                            console.print(
-                                "[red]Could not save pending widen marker: "
-                                f"{exc}. Question was NOT parked.[/red]"
-                            )
-                            continue
-                    user_answer = ""
-                    break
-
-                # Unknown action
-                user_answer = raw
-                break
-
-            else:
-                user_answer = raw
-                break
 
         answers[question_id] = user_answer
 
@@ -341,19 +197,5 @@ def run_plan_interview(  # noqa: C901
                         rationale="owner deferred during plan interview",
                         actor=actor,
                     )
-
-    # ------------------------------------------------------------------
-    # T040 — End-of-interview pending pass (FR-010)
-    # ------------------------------------------------------------------
-    if widen_store is not None and saas_client is not None:
-        run_end_of_interview_pending_pass(
-            widen_store=widen_store,
-            saas_client=saas_client,
-            mission_slug=mission_slug,
-            repo_root=repo_root,
-            console=console,
-            dm_service=_dm_service,
-            actor=actor,
-        )
 
     return answers

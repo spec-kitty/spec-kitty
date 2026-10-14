@@ -1,8 +1,9 @@
 """High-level tracker orchestration for CLI commands.
 
-Thin facade that dispatches to ``SaaSTrackerService`` (linear, jira,
-github, gitlab) or ``LocalTrackerService`` (beads, fp) based on the
-bound provider in project config.
+Thin facade over ``LocalTrackerService`` (beads, fp) based on the bound
+provider in project config. The former SaaS/hosted providers (linear, jira,
+github, gitlab) were removed from open-core together with the hosted tracker
+surface (#6164); they now resolve as removed providers and are refused.
 """
 
 from __future__ import annotations
@@ -14,8 +15,6 @@ from specify_cli.tracker.config import (
     ALL_SUPPORTED_PROVIDERS,
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
-    SAAS_PROVIDERS,
-    TrackerProjectConfig,
     load_tracker_config,
 )
 
@@ -53,7 +52,7 @@ def parse_kv_pairs(entries: list[str]) -> dict[str, str]:
 
 
 class TrackerService:
-    """Facade dispatching to SaaS or local backend by provider."""
+    """Facade dispatching to the local (beads/fp) backend by provider."""
 
     def __init__(self, repo_root: Path) -> None:
         self._repo_root = repo_root
@@ -63,15 +62,12 @@ class TrackerService:
     # ------------------------------------------------------------------
 
     def _resolve_backend(self) -> Any:
-        """Load config and return the appropriate service backend."""
+        """Load config and return the local service backend."""
         from specify_cli.tracker.local_service import LocalTrackerService
-        from specify_cli.tracker.saas_service import SaaSTrackerService
 
         config = load_tracker_config(self._repo_root)
         if not config.provider:
             raise TrackerServiceError("No tracker bound. Run `spec-kitty tracker bind` first.")
-        if config.provider in SAAS_PROVIDERS:
-            return SaaSTrackerService(self._repo_root, config)
         if config.provider in LOCAL_PROVIDERS:
             return LocalTrackerService(self._repo_root, config)
         if config.provider in REMOVED_PROVIDERS:
@@ -81,117 +77,24 @@ class TrackerService:
             )
         raise TrackerServiceError(f"Unknown provider: {config.provider}")
 
-    def _resolve_saas_backend_for_provider(self, provider: str) -> Any:
-        from specify_cli.tracker.saas_service import SaaSTrackerService
-
-        if provider in LOCAL_PROVIDERS:
-            raise TrackerServiceError(
-                f"Provider-scoped hosted reads are not available for local provider '{provider}'."
-            )
-        if provider in REMOVED_PROVIDERS:
-            raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
-        if provider not in SAAS_PROVIDERS:
-            raise TrackerServiceError(f"Unknown provider: {provider}")
-
-        config = load_tracker_config(self._repo_root)
-        if config.provider != provider:
-            # FR-011 site A4 -- defence-in-depth, no production write path today
-            # (`apply_binding_upgrade` has zero callers in `src/`; every other
-            # `_persist_binding` call site is entered from `TrackerService.bind`,
-            # which builds its own service with `load_tracker_config`, never
-            # through here). Carrying `egress` (and `_extra`) forward means a
-            # future write-capable caller reached through this substitution
-            # cannot silently reintroduce the erasure this WP fixes elsewhere.
-            config = TrackerProjectConfig(
-                provider=provider,
-                egress=config.egress,
-                _extra=dict(config._extra),
-            )
-        return SaaSTrackerService(self._repo_root, config)
-
     @staticmethod
     def supported_providers() -> tuple[str, ...]:
         """Return all currently supported provider names, sorted."""
         return tuple(sorted(ALL_SUPPORTED_PROVIDERS))
 
     # ------------------------------------------------------------------
-    # discover (SaaS-only)
-    # ------------------------------------------------------------------
-
-    def discover(self, *, provider: str) -> list:
-        """List bindable resources for the given provider (SaaS only)."""
-        if provider in LOCAL_PROVIDERS:
-            raise TrackerServiceError(
-                f"Discovery is not available for local provider '{provider}'."
-            )
-        if provider in REMOVED_PROVIDERS:
-            raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
-        if provider not in SAAS_PROVIDERS:
-            raise TrackerServiceError(f"Unknown provider: {provider}")
-
-        from specify_cli.tracker.saas_service import SaaSTrackerService
-
-        config = load_tracker_config(self._repo_root)
-        service = SaaSTrackerService(self._repo_root, config)
-        return service.discover(provider)
-
-    # ------------------------------------------------------------------
     # bind (pre-dispatch by provider kwarg)
     # ------------------------------------------------------------------
 
     def bind(self, **kwargs: Any) -> Any:
-        """Bind a tracker provider -- dispatches to the correct backend.
-
-        For SaaS providers, accepts ``bind_ref``, ``select_n``, and
-        ``project_identity`` kwargs to drive the discovery-bind flow.
-        """
+        """Bind a tracker provider -- dispatches to the local backend."""
         from specify_cli.tracker.local_service import LocalTrackerService
-        from specify_cli.tracker.saas_service import SaaSTrackerService
 
         provider: str = kwargs.get("provider", "")
-        if provider in SAAS_PROVIDERS:
-            service = SaaSTrackerService(
-                self._repo_root,
-                load_tracker_config(self._repo_root),
-            )
-            bind_ref = kwargs.get("bind_ref")
-            select_n = kwargs.get("select_n")
-            project_identity = kwargs.get("project_identity")
-
-            if bind_ref:
-                return service.validate_and_bind(
-                    provider=provider,
-                    bind_ref=bind_ref,
-                    project_identity=project_identity,
-                )
-
-            return service.resolve_and_bind(
-                provider=provider,
-                project_identity=project_identity,
-                select_n=select_n,
-            )
         if provider in LOCAL_PROVIDERS:
-            # FR-011 site A2 -- class A': `LocalTrackerService.bind` never reads
-            # `self._config` (it builds a fresh `TrackerProjectConfig` from its
-            # own keyword arguments and saves that), so handing it the loaded
-            # config here changes nothing on disk. Matches the SaaS branch above,
-            # which already loads before constructing its service.
-            #
-            # This is defence-in-depth with no executable pin, and it stays that
-            # way. An earlier draft said it changed nothing "until site A1 lands";
-            # A1 has since landed (WP04 T024) and it still changes nothing,
-            # because `LocalTrackerService.bind` closes the erasure by re-reading
-            # `load_tracker_config(self._repo_root)` itself rather than by
-            # consuming the config handed to the constructor. Measured after WP04:
-            # `self._config` has exactly one AST access in `local_service.py` -- the
-            # constructor's own `Store` -- and zero `Load`s, so making
-            # `LocalTrackerService` discard this argument entirely reds nothing in
-            # the tree. Kept anyway: it costs one already-required read, keeps this
-            # branch symmetric with the SaaS branch, and means a future `bind` that
-            # *does* read `self._config` inherits a loaded config instead of a
-            # default one. Do not cite it as the thing that preserves `egress`
-            # on disk -- that is site A1.
-            return LocalTrackerService(self._repo_root, load_tracker_config(self._repo_root)).bind(**kwargs)
+            return LocalTrackerService(
+                self._repo_root, load_tracker_config(self._repo_root)
+            ).bind(**kwargs)
         if provider in REMOVED_PROVIDERS:
             raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
         raise TrackerServiceError(f"Unknown provider: {provider}")
@@ -203,22 +106,8 @@ class TrackerService:
     def unbind(self) -> None:
         return self._resolve_backend().unbind()
 
-    def status(self, *, all: bool = False) -> dict[str, Any]:  # noqa: A002
-        """Retrieve tracker status.
-
-        When *all* is ``True``, return installation-wide status across all
-        bindings (SaaS-only).  Otherwise return project-scoped status.
-        """
-        if all:
-            config = load_tracker_config(self._repo_root)
-            if not config.provider or config.provider not in SAAS_PROVIDERS:
-                raise TrackerServiceError(
-                    "Installation-wide status (--all) is only available for SaaS providers."
-                )
-            from specify_cli.tracker.saas_service import SaaSTrackerService
-
-            service = SaaSTrackerService(self._repo_root, config)
-            return service._client.status(config.provider, installation_wide=True)
+    def status(self) -> dict[str, Any]:
+        """Retrieve project-scoped tracker status."""
         return self._resolve_backend().status()
 
     def sync_pull(self, **kwargs: Any) -> dict[str, Any]:
@@ -236,20 +125,5 @@ class TrackerService:
     def map_add(self, **kwargs: Any) -> None:
         return self._resolve_backend().map_add(**kwargs)
 
-    def map_list(self, *, provider: str | None = None) -> list[dict[str, Any]]:
-        if provider is not None:
-            return self._resolve_saas_backend_for_provider(provider).map_list(provider=provider)
+    def map_list(self) -> list[dict[str, Any]]:
         return self._resolve_backend().map_list()
-
-    def issue_search(self, *, provider: str, query: str, limit: int = 20) -> list[dict[str, Any]]:
-        return self._resolve_saas_backend_for_provider(provider).issue_search(
-            provider=provider,
-            query=query,
-            limit=limit,
-        )
-
-    def list_tickets(self, *, provider: str, limit: int = 20) -> list[dict[str, Any]]:
-        return self._resolve_saas_backend_for_provider(provider).list_tickets(
-            provider=provider,
-            limit=limit,
-        )

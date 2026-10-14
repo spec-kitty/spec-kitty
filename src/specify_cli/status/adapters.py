@@ -2,13 +2,12 @@
 
 Provides a decoupled callback boundary so that status/emit.py does not
 need to depend on any transport. Handlers are registered into the slots
-below by whichever subsystem owns a transport. The default wiring (this
-module's import tail) installs the Zeitgeist moment handler (#8), the
-sole occupant of these registries since the sync package was deleted
-(#5/#114); that tail honours the moment-handler gate
-(:func:`specify_cli.core.env.moment_handlers_disabled_reason` —
-``SPEC_KITTY_NO_MOMENT_HANDLERS``, the ``SPEC_KITTY_SYNC_DISABLE`` kill
-switch, or the deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias, #3980).
+below by whichever subsystem owns a transport. Open-core ships NO default
+handler: the Zeitgeist moment transport that used to occupy these slots was
+removed from this repository (#6164), so the registries start empty and every
+``fire_*`` is a no-op until a transport owner registers a handler. This
+publish/subscribe seam is explicitly kept live (ADR 2026-10-06-1): producing
+an event never depends on whether a drain is enabled.
 
 All fire_* functions are non-raising: exceptions from individual
 handlers are caught and logged, never re-raised to the caller. An empty
@@ -24,19 +23,6 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-
-from specify_cli.core import hosted_posture
-from specify_cli.core.env import moment_handlers_disabled_reason
-
-# The E3 Zeitgeist moment handler (#8): the default occupant of the three
-# fan-out slots since the sync transport (which registered its own handlers)
-# was deleted. Module-level import so registration below is a plain function
-# call, never an import side effect hidden in another package's init.
-from .zeitgeist_bridge import (
-    lifecycle_moment_handler,
-    resolved_binding_moment_handler,
-    saas_moment_handler,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +175,7 @@ def register_lifecycle_saas_fanout_handler(cb: LifecycleSaasFanOutHandler) -> No
 def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
     """Register a ``WPResolvedBindingChanged`` fan-out callback (idempotent by name).
 
-    Mirrors :func:`register_saas_fanout_handler`. The Zeitgeist moment handler
+    Mirrors :func:`register_saas_fanout_handler`. A transport handler
     builds the concrete ``spec_kitty_events.WPResolvedBindingChanged`` payload
     once the events package ships it; until then the status layer's version
     gate skips the fan-out (see ``emit._resolved_binding_fan_out``).
@@ -202,46 +188,12 @@ def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -
     _resolved_binding_handlers.append(cb)
 
 
-def ensure_zeitgeist_moment_handlers() -> None:
-    """Register the Zeitgeist moment handlers into all three fan-out slots.
-
-    Idempotent: the ``register_*`` functions de-duplicate by qualified name,
-    so calling this repeatedly is safe. This is the E3 (#8) default wiring of
-    these slots — the sole default occupant since the sync package was
-    deleted (#5/#114) — and, per the egress-consent precedent, it lives where
-    the answer is needed rather than in some other package's init. The
-    import tail calls it once; tests that wipe the registry via
-    :func:`reset_handlers` call it again to restore production wiring.
-    """
-    register_saas_fanout_handler(saas_moment_handler)
-    register_lifecycle_saas_fanout_handler(lifecycle_moment_handler)
-    register_resolved_binding_fanout_handler(resolved_binding_moment_handler)
-
-
-def ensure_runtime_moment_producer() -> None:
-    """Register the E3 runtime-moment producer at the runtime emitter seam (#3929).
-
-    Called by the runtime bridge immediately before it obtains the seam, never
-    from this module's import tail: importing the runtime seam while the status
-    package is still importing re-enters ``runtime.next`` mid-import. The
-    registry is idempotent by qualified name, and the seam itself applies the
-    moment-handler gate at call time (S2). The producer publishes through the
-    lifecycle slot above.
-    """
-    from runtime.next._internal_runtime.events import register_runtime_emitter_factory  # noqa: PLC0415
-    from specify_cli.events.runtime_moments import RuntimeMomentProducer  # noqa: PLC0415
-
-    register_runtime_emitter_factory(RuntimeMomentProducer.for_mission)
-
-
 def reset_handlers() -> None:
     """Clear all registered handlers (test-only utility).
 
-    Clears the Zeitgeist moment handlers too; a test that wipes the registry
-    and wants the production wiring back calls
-    :func:`ensure_zeitgeist_moment_handlers` (the status conftest does exactly
-    that around every test, so one test's wipe cannot silence another's
-    fan-out).
+    Open-core ships no default handler (the Zeitgeist transport was removed
+    from this repository, #6164), so a wiped registry stays empty until a
+    caller that owns a transport registers one.
     """
     _saas_handlers.clear()
     _lifecycle_saas_handlers.clear()
@@ -279,21 +231,9 @@ def fire_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
 
     ``repo_root`` (#5181): the repository that OWNS this transition -- the
     checkout ``status/emit.py`` and ``coordination/outbound.py`` were given,
-    never the process's own CWD. It gates drain against that repo's own
-    ``.kittify/config.yaml`` (see below) and is re-joined into the kwargs
-    handed to handlers, since ``zeitgeist_bridge._broadcast_status_transition``
-    already reads ``kwargs["repo_root"]`` to resolve relay credentials. A
-    caller that omits it (an older call site, or a direct test call) falls
-    back to ``drain_posture()``'s own documented CWD resolution -- unchanged
-    legacy behaviour, not a new fallback this fix introduces.
+    never the process's own CWD. It is re-joined into the kwargs handed to
+    handlers so a transport owner can resolve per-repo context.
     """
-    # Drain gate (WP03/T013, repo-scoped per #5181): evaluated per call,
-    # independently of the import-time moment_handlers_disabled_reason()
-    # registration gate below -- the two compose (either one silences
-    # fan-out); neither replaces the other. A future reader must not
-    # "simplify" this into one check.
-    if not hosted_posture.drain_posture(project_root=repo_root).enabled:
-        return
     kwargs["repo_root"] = repo_root
     # Diagnostic breadcrumb (issue #1141). Cheap dict.get() calls avoid
     # raising if the caller drops a key; the breadcrumb is best-effort and
@@ -345,13 +285,12 @@ def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any
     no-op. The status layer only reaches here once its version gate confirms the
     installed ``spec_kitty_events`` supports the event (FR-015 / IC-09).
 
-    ``repo_root`` (#5181): see :func:`fire_saas_fanout` -- gates drain against
-    the emitting repo, never the process CWD.
+    ``repo_root`` was the drain-gate input (``drain_posture(project_root=repo_root)``)
+    that #6164 removed; it was never forwarded to handlers (handlers receive the
+    caller's ``**kwargs`` only), so it is absorbed as an explicit parameter here
+    and discarded rather than passed through.
     """
-    # Drain gate (WP03/T013, repo-scoped per #5181): composes with, does not
-    # replace, the import-time moment_handlers_disabled_reason() gate below.
-    if not hosted_posture.drain_posture(project_root=repo_root).enabled:
-        return
+    del repo_root
     logger.info(
         "fire_resolved_binding_fanout: wp_id=%s mission_slug=%s handlers=%d",
         kwargs.get("wp_id"),
@@ -382,16 +321,15 @@ def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any
 def fire_lifecycle_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
     """Call all registered lifecycle SaaS fan-out handlers with **kwargs.
 
-    ``repo_root`` (#5181): see :func:`fire_saas_fanout` -- gates drain against
-    the emitting repo, never the process CWD. Callers resolve it themselves
-    (e.g. ``lifecycle_events.repo_root_for_lifecycle_log(log_path)``) since
-    this module must not reach back into ``lifecycle_events``/``decisions``
-    at import time.
+    ``repo_root`` was the drain-gate input (``drain_posture(project_root=repo_root)``)
+    that #6164 removed; it was never forwarded to handlers (handlers receive the
+    caller's ``**kwargs`` only -- ``{envelope, log_path}``), so it is absorbed as
+    an explicit parameter here and discarded rather than passed through. Callers
+    still resolve it themselves (e.g.
+    ``lifecycle_events.repo_root_for_lifecycle_log(log_path)``) since this module
+    must not reach back into ``lifecycle_events``/``decisions`` at import time.
     """
-    # Drain gate (WP03/T013, repo-scoped per #5181): composes with, does not
-    # replace, the import-time moment_handlers_disabled_reason() gate below.
-    if not hosted_posture.drain_posture(project_root=repo_root).enabled:
-        return
+    del repo_root
     for handler in _lifecycle_saas_handlers:
         try:
             _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle SaaS fan-out")
@@ -408,16 +346,3 @@ def fire_lifecycle_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) 
                 "Lifecycle SaaS fan-out handler failed; canonical lifecycle log unaffected",
                 exc_info=True,
             )
-
-
-# Default wiring: every process that imports this seam carries the Zeitgeist
-# moment handler (#3980 launch names). The gate has its own name —
-# SPEC_KITTY_NO_MOMENT_HANDLERS means "register no transport at import time"
-# — the kill switch SPEC_KITTY_SYNC_DISABLE folds in (a disarmed process
-# registers no transport), and the former SPEC_KITTY_SYNC_MINIMAL_IMPORT name
-# survives as a deprecated alias that warns once when honored. This is the
-# only default registration into these slots. A caller needing an empty
-# registry (tests) calls reset_handlers() and restores with
-# ensure_zeitgeist_moment_handlers().
-if moment_handlers_disabled_reason() is None:
-    ensure_zeitgeist_moment_handlers()

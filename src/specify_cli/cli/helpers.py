@@ -420,11 +420,10 @@ def callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
         click.echo(ctx.get_help(), color=ctx.color)
 
-    # Teamspace CLI auth/upgrade readiness coordinator
-    # (Priivacy-ai/spec-kitty#1093). First-gated on is_saas_sync_enabled();
-    # no-ops when hosted mode is disabled. The coordinator owns the call to
-    # _render_nag_if_needed() so downstream missions (WS2 auth, WS3 upgrade
-    # UX) can extend behavior through one seam. Lazy import to avoid
+    # CLI upgrade readiness coordinator (Priivacy-ai/spec-kitty#1093). The
+    # hosted auth gate was removed from open-core (#6164); the coordinator now
+    # just derives the output policy and runs the upgrade UX through one seam.
+    # Lazy import to avoid
     # module-load circularity (readiness/coordinator.py imports
     # _render_nag_if_needed back from this module at call time).
     from specify_cli.readiness import evaluate_readiness  # noqa: PLC0415
@@ -566,5 +565,8 @@ __all__ = [
     "git_resolution_failure_message",
     "show_banner",
     "_render_nag_if_needed",
-    "_should_suppress_nag",
+    # ``_should_suppress_nag`` was dropped from __all__ by issue-6164-remove-hosted-from-core
+    # (#6164): it is an underscore-private helper used only intra-module (and by tests via explicit
+    # import); it never had a cross-module caller, so exporting it was incorrect. ``_render_nag_if_needed``
+    # stays exported because the readiness coordinator imports it cross-module.
 ]

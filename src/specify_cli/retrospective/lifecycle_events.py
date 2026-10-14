@@ -481,12 +481,6 @@ def emit_captured(
         )
 
     event = _locked_append(log_dir, _build, lock_timeout=lock_timeout)
-    _fanout_live_work_retrospective(
-        "captured",
-        repo_root=repo_root,
-        mission_id=record.mission_id,
-        text=f"retrospective captured ({record.findings_status})",
-    )
     return event
 
 
@@ -565,12 +559,6 @@ def emit_capture_failed(
         )
 
     event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
-    _fanout_live_work_retrospective(
-        "failed",
-        repo_root=repo_root,
-        mission_id=mission_id,
-        text=f"retrospective capture failed ({failure_category}): {failure_message}",
-    )
     return event
 
 
@@ -648,71 +636,4 @@ def emit_skipped(
         )
 
     event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
-    _fanout_live_work_retrospective(
-        "skipped",
-        repo_root=repo_root,
-        mission_id=mission_id,
-        text=f"retrospective skipped ({skip_reason_source}): {skip_reason}",
-    )
     return event
-
-
-def _fanout_live_work_retrospective(
-    outcome: Literal["captured", "failed", "skipped"],
-    *,
-    repo_root: Path,
-    mission_id: str,
-    text: str,
-) -> None:
-    """Publish one retrospective-outcome live frame (folded #4267, #4268).
-
-    Fire-and-forget beside the local append — the same posture the decision
-    seam uses: the canonical local record is already written, and a live
-    frame that cannot be delivered is a logged drop, never a raise into the
-    retrospective flow. Session identity is this one-shot CLI invocation;
-    the mission binding is the record's own canonical ``mission_id``.
-    """
-    try:
-        from specify_cli.core import hosted_posture
-        from specify_cli.core.env import moment_handlers_disabled_reason
-        from specify_cli.live_work.bindings import resolve_bindings
-        from specify_cli.live_work.kinds import WorkEmissionKind
-        from specify_cli.live_work.models import (
-            ActorBinding,
-            MissionBinding,
-            Observation,
-            Provenance,
-            SessionBinding,
-        )
-        from specify_cli.live_work.publisher import publish_observations
-
-        if moment_handlers_disabled_reason() is not None:
-            return
-        # A3: scope the posture check to the acting repo (`repo_root`), not
-        # the process's own working directory.
-        if not hosted_posture.drain_posture(project_root=repo_root).enabled:
-            return
-        kind = {
-            "captured": WorkEmissionKind.RETROSPECTIVE_CAPTURED,
-            "failed": WorkEmissionKind.RETROSPECTIVE_FAILED,
-            "skipped": WorkEmissionKind.RETROSPECTIVE_SKIPPED,
-        }[outcome]
-        bindings = resolve_bindings(repo_root)
-        if bindings.repository is None:
-            return
-        observation = Observation(
-            kind=kind,
-            session=SessionBinding(session_id=f"spec-kitty-{_generate_ulid().lower()}"),
-            actor=ActorBinding(harness="spec-kitty-cli"),
-            repository=bindings.repository,
-            mission=MissionBinding(mission_id=mission_id),
-            text=text[:2000],
-            provenance=Provenance(
-                source="emitter",
-                capability="live-work.retrospective.outcome",
-            ),
-            occurred_at=now_utc_iso(),
-        )
-        publish_observations([observation], cwd=repo_root)
-    except Exception as exc:  # noqa: S110 - the local record already stands
-        logger.debug("retrospective live-work frame not published: %s", exc)

@@ -420,12 +420,10 @@ def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
 def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
     """Reject unsupported owned-checkout modes before any mission write.
 
-    #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
-    flip — owned checkouts publish moments like any checkout. The fan-out
-    handlers registered on the status emit seam are individually bounded and
-    non-raising (``status/adapters.py``), and the Zeitgeist moment handler
-    no-ops without a session/team, so an owned transition under active sync
-    completes with at worst a skipped fan-out warning.
+    Owned checkouts are not specially restricted here: the fan-out handlers
+    registered on the status emit seam are individually bounded and
+    non-raising (``status/adapters.py``, and open-core ships none), so an
+    owned transition completes with at worst a skipped fan-out warning.
     """
     assert st.owned is not None
     require_unstaged_index(st.owned)

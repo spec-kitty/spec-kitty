@@ -52,7 +52,7 @@ import ulid as _ulid_mod
 from pydantic import ValidationError
 
 from kernel.clock import now_utc, now_utc_iso, timedelta
-from specify_cli.core import hosted_posture
+from specify_cli.core import ledger_posture
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
@@ -679,18 +679,18 @@ def _refresh_projection_if_ledger_on(feature_dir: Path, repo_root: Path | None) 
     """F-3 flat-path hook: refresh the derived execution-state projection.
 
     Independent of the ``fan_out`` flag (FR-009 refreshes on every durably
-    persisted transition regardless of whether SaaS fan-out ran) and gated
-    on :func:`hosted_posture.ledger_posture`. Reached through the MODULE
-    ATTRIBUTE (``hosted_posture.ledger_posture(...)``, never a local
-    binding) so the root ``tests/conftest.py`` fixture's monkeypatch of the
-    module attribute stays effective (see hosted_posture's own docstring).
+    persisted transition regardless of whether fan-out ran) and gated
+    on :func:`ledger_posture.ledger_posture`. Reached through the MODULE
+    ATTRIBUTE (``ledger_posture.ledger_posture(...)``, never a local
+    binding) so a test's monkeypatch of the module attribute stays
+    effective (see ledger_posture's own docstring).
     Skipped entirely -- no posture check, no I/O -- when ``repo_root`` is
     ``None``: there is no repository root to derive ``.kittify/derived/``
     against.
     """
     if repo_root is None:
         return
-    if hosted_posture.ledger_posture(repo_root).enabled:
+    if ledger_posture.ledger_posture(repo_root).enabled:
         refresh_execution_projection(feature_dir, repo_root)
 
 
@@ -1318,8 +1318,11 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str, repo_
     ships; the status layer only feature-detects via the gate and hands off kwargs
     (the same handoff shape as :func:`_saas_fan_out` — no local type definition).
 
-    ``repo_root`` (#5181): threaded through to :func:`fire_resolved_binding_fanout`
-    so its drain gate reads the emitting repo's own posture, never the process CWD.
+    ``repo_root`` (#5181): still threaded through to
+    :func:`fire_resolved_binding_fanout`, which absorbs it. It was the drain-gate
+    input removed in #6164; the handler contract (caller ``**kwargs`` only) is
+    unchanged, so the argument is retained on this write path but no longer gates
+    anything.
     """
     delta = event.delta
     binding = {name: getattr(delta, name) for name in _RESOLVED_BINDING_DELTA_FIELDS}

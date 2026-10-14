@@ -97,8 +97,6 @@ from specify_cli.cli.commands.charter._synthesis import (  # noqa: F401
 from specify_cli.cli.commands.charter._widen import (  # noqa: F401
     _WIDEN_PREREQS_ABSENT_CACHE,
     _defer_from_blocked_prompt,
-    _dispatch_widen_input,
-    _fetch_and_review_from_blocked,
     _get_mission_id,
     _get_widen_prereqs_absent,
     _is_already_widened,
@@ -203,10 +201,8 @@ __all__ = [
     "_render_waiting_panel",
     "_resolve_locally",
     "_defer_from_blocked_prompt",
-    "_fetch_and_review_from_blocked",
     "_resolve_dm_terminal",
     "_prompt_one_question",
-    "_dispatch_widen_input",
     "_run_blocked_prompt_loop",
     "_WIDEN_PREREQS_ABSENT_CACHE",
     # Lint helper

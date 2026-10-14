@@ -43,7 +43,6 @@ from runtime.next._internal_runtime.significance import (
 # ``specify_cli.*`` except ``specify_cli.cli`` / ``specify_cli.next``; both ``core``
 # and ``mission_metadata`` are already on the runtime outbound ledger
 # (``tests/architectural/test_layer_rules.py``), so these add no ledger entry.
-from specify_cli.core.env import moment_handlers_disabled_reason
 from specify_cli.mission_metadata import resolve_mission_identity
 
 # Explicit re-exports so `from runtime.next._internal_runtime.events import X`
@@ -189,14 +188,11 @@ class NullEmitter:
 # input requested/answered). With no producer registered the seam returns
 # :class:`NullEmitter`, so the bridge's instrumentation points survive intact.
 #
-# The live producer (#3929) is
-# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. The runtime
-# bridge registers it through ``specify_cli.status.ensure_runtime_moment_producer``
-# immediately before each call to :func:`runtime_emitter_for_mission`, so every
-# ``next`` decide/answer path has it. Registration never happens while
-# ``specify_cli.status`` is importing, which would re-enter ``runtime.next``
-# mid-import. The moment-handler gate (#3980) still disarms the seam at call
-# time (S2); the producer publishes through the status lifecycle fan-out slot.
+# Open-core ships NO producer: the Zeitgeist runtime-moment producer that used
+# to register here was removed from this repository (#6164), so the seam always
+# returns :class:`NullEmitter` and the ``next`` decide/answer paths run their
+# instrumentation points as no-ops. A downstream consumer that owns a transport
+# may register its own factory through :func:`register_runtime_emitter_factory`.
 #
 # Governing ADR: ``docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md``.
 
@@ -293,15 +289,10 @@ def runtime_emitter_for_mission(
 ) -> RuntimeEventEmitter:
     """Return the mission's runtime emitter seam.
 
-    Under the moment-handler gate (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``,
-    the ``SPEC_KITTY_SYNC_DISABLE`` kill switch, or the deprecated
-    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias, resolved by
-    :func:`specify_cli.core.env.moment_handlers_disabled_reason`) the null
-    seam is returned
-    unconditionally and the registered factory is not called (S2). Otherwise
-    the registered factory wins (S3); with none registered the null seam is
-    returned (S1). The env gate is read at call time so tests can toggle it
-    without reloading this module.
+    The registered factory wins (S3); with none registered the null seam is
+    returned (S1). Open-core registers no factory (the Zeitgeist producer was
+    removed, #6164), so this returns :class:`NullEmitter` unless a downstream
+    consumer registers its own factory.
 
     A registered factory that raises degrades to the null seam rather than
     propagating: ``NullEmitter``'s own docstring rule -- "Nothing here may
@@ -311,10 +302,6 @@ def runtime_emitter_for_mission(
     instead of degrading gracefully. The failure is logged at WARNING, not
     silent.
     """
-    if moment_handlers_disabled_reason() is not None:
-        return NullEmitter.for_mission(
-            feature_dir=feature_dir, mission_slug=mission_slug, mission_type=mission_type
-        )
     if _registered_factory is not None:
         try:
             return _registered_factory(

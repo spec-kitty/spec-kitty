@@ -1,7 +1,9 @@
 """``spec-kitty charter interview`` command (WP06 per-subcommand split).
 
-Widen Mode helpers live in :mod:`specify_cli.cli.commands.charter._widen` so
-this module stays under the 500-line WP06 budget.
+The local Decision-Moment interview helpers live in
+:mod:`specify_cli.cli.commands.charter._widen` so this module stays under the
+500-line WP06 budget. Hosted Widen Mode was removed in issue #6164; only the
+local interview loop remains.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ from typing import Any
 
 import typer
 
-from specify_cli.core import hosted_posture
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.task_utils import TaskCliError
@@ -26,14 +27,13 @@ from specify_cli.cli.commands.charter._common import (
     _resolve_actor,
 )
 from specify_cli.cli.commands.charter._widen import (
-    _is_already_widened,
     _prompt_one_question,
     _resolve_dm_terminal,
 )
 
 # Patch-compatibility shim: legacy tests patch
 # ``specify_cli.cli.commands.charter.<name>`` for ``find_repo_root``,
-# ``default_interview``, ``_charter_pkg._dm_service``, ``_get_widen_prereqs_absent``, and
+# ``default_interview``, ``_charter_pkg._dm_service``, and
 # ``_resolve_dm_terminal``. Looking them up on the package module at call time
 # preserves that contract through the WP06 split.
 import specify_cli.cli.commands.charter as _charter_pkg
@@ -216,48 +216,6 @@ def interview(  # noqa: C901
         # Resolve actor for Decision Moment events (non-fatal fallback)
         actor = _resolve_actor()
 
-        # ------------------------------------------------------------------
-        # T026 — Widen Mode prereq check at startup (non-fatal, ≤300ms)
-        # ------------------------------------------------------------------
-        prereq_state: Any = _charter_pkg._get_widen_prereqs_absent()
-        widen_flow: Any = None
-        widen_store: Any = None
-        _saas_client: Any = None
-
-        # FR-004: the drain check must gate BEFORE SaasClient.from_env/
-        # load_auth_context, not just before check_prereqs -- those two calls
-        # already read the credential store (and may refresh an expired
-        # OAuth session over the network) before check_prereqs' own internal
-        # gate is ever reached. With drain off, [w] stays silently suppressed
-        # (prereq_state stays ABSENT), same UX as any other prereq failure.
-        if mission_slug is not None and hosted_posture.drain_posture().enabled:
-            try:
-                from specify_cli.saas_client import SaasClient
-                from specify_cli.widen import check_prereqs
-                from specify_cli.widen.flow import WidenFlow
-                from specify_cli.widen.state import WidenPendingStore
-
-                _saas_client = SaasClient.from_env(repo_root)
-                # Resolve team_slug from the auth context
-                _team_slug: str = ""
-                with contextlib.suppress(Exception):
-                    from specify_cli.saas_client.auth import load_auth_context
-
-                    _auth_ctx = load_auth_context(repo_root)
-                    _team_slug = _auth_ctx.team_slug or ""
-
-                prereq_state = check_prereqs(_saas_client, team_slug=_team_slug)
-                if prereq_state.all_satisfied:
-                    widen_flow = WidenFlow(_saas_client, repo_root, console)
-                    widen_store = WidenPendingStore(repo_root, mission_slug)
-            except Exception:  # noqa: BLE001 — SaaS prereq check is optional; failure keeps prereq_state ABSENT (non-fatal)
-                pass  # non-fatal; prereq_state stays ABSENT
-
-        # Resolve mission_id for widen endpoint (ULID from meta.json)
-        _mission_id: str | None = None
-        if mission_slug is not None:
-            _mission_id = _charter_pkg._get_mission_id(repo_root, mission_slug)
-
         if not use_defaults:
             question_order = MINIMAL_QUESTION_ORDER if normalized_profile == "minimal" else QUESTION_ORDER
             answers_override: dict[str, str] = {}
@@ -281,46 +239,15 @@ def interview(  # noqa: C901
                         )
                         current_decision_id = dm_response.decision_id
 
-                # T045 — Already-widened question prompt (§1.3 contract)
-                _already_widened = widen_store is not None and current_decision_id is not None and _is_already_widened(widen_store, current_decision_id)
-                if _already_widened and _saas_client is not None and mission_slug is not None and current_decision_id is not None:
-                    from specify_cli.widen.interview_helpers import render_already_widened_prompt
+                hint_line = "[enter]=accept default | [text]=type answer | [d]efer | [!cancel]"
 
-                    render_already_widened_prompt(
-                        question_text=prompt_text,
-                        decision_id=current_decision_id,
-                        mission_slug=mission_slug,
-                        repo_root=repo_root,
-                        saas_client=_saas_client,
-                        widen_store=widen_store,
-                        dm_service=_charter_pkg._dm_service,
-                        actor=actor,
-                        console=console,
-                    )
-                    answers_override[question_id] = ""
-                    continue  # next question — decision already handled
-
-                # T027 — Build hint line; append [w]iden when prereqs met
-                widen_suffix = ""
-                if prereq_state is not None and prereq_state.all_satisfied and widen_store is not None and current_decision_id is not None and not _already_widened:
-                    widen_suffix = " | [w]iden"
-                hint_line = f"[enter]=accept default | [text]=type answer{widen_suffix} | [d]efer | [!cancel]"
-
-                # Prompt the question (handles widen dispatch internally)
+                # Prompt the question (local Decision-Moment loop)
                 actual_answer = _prompt_one_question(
                     question_id=question_id,
                     prompt_text=prompt_text,
                     default_value=default_value,
                     hint_line=hint_line,
-                    widen_flow=widen_flow,
-                    widen_store=widen_store,
-                    current_decision_id=current_decision_id,
-                    mission_id=_mission_id,
-                    mission_slug=mission_slug,
-                    repo_root=repo_root,
                     console=console,
-                    saas_client=_saas_client,
-                    actor=actor,
                     answers_override=answers_override,
                 )
 
@@ -392,22 +319,6 @@ def interview(  # noqa: C901
                 selected_paradigms=_parse_csv_option(selected_paradigms),
                 selected_directives=_parse_csv_option(selected_directives),
                 available_tools=_parse_csv_option(available_tools),
-            )
-
-        # ------------------------------------------------------------------
-        # T040 — End-of-interview pending pass (FR-010)
-        # ------------------------------------------------------------------
-        if widen_store is not None and _saas_client is not None and mission_slug is not None:
-            from specify_cli.widen.interview_helpers import run_end_of_interview_pending_pass
-
-            run_end_of_interview_pending_pass(
-                widen_store=widen_store,
-                saas_client=_saas_client,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                console=console,
-                dm_service=_charter_pkg._dm_service,
-                actor=actor,
             )
 
         answers_path = _interview_path(repo_root)

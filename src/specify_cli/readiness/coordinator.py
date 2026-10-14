@@ -4,11 +4,10 @@ See spec: kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/spec.m
 See data model: kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/data-model.md
 See contracts: kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/contracts/readiness-api.md
 
-The coordinator's first gate is ``is_saas_sync_enabled()``. When hosted mode is
-disabled the coordinator returns a no-op result and emits no Teamspace-labeled
-output. When hosted mode is enabled the coordinator composes (stubbed in this
-mission) feature-gate state, output policy, auth readiness, and upgrade
-readiness into a typed ``ReadinessResult`` cached on ``ctx.obj``.
+The hosted auth/sync readiness surface was removed from open-core (#6164), so
+the coordinator no longer gates on a hosted flag: it derives the output policy,
+runs the (non-hosted) upgrade UX, and returns a disabled ``ReadinessResult``
+cached on ``ctx.obj``.
 
 Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/1093
 """
@@ -20,17 +19,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 import typer
-
-# WS2 (Workstream 2, issue #1094): auth probe wiring landed. The probe in
-# ``specify_cli.readiness.auth.probe_auth_status`` wraps
-# ``detect_logged_out_with_connected_teamspace`` and the renderer in
-# ``specify_cli.readiness.render.render_auth_guidance`` produces the
-# per-output-policy guidance. The import below is retained as the Wave 1
-# hand-off marker; it remains a grep target for the symbol and ensures any
-# future refactor of ``_auth_recovery`` cannot silently delete the helper.
-from specify_cli.cli.commands._auth_recovery import (  # noqa: F401
-    detect_logged_out_with_connected_teamspace,
-)
 
 _READINESS_CTX_KEY = "readiness"
 _PROTOCOL_OUTPUT_SUBCOMMANDS = frozenset({"do", "next"})
@@ -182,120 +170,41 @@ def _invoke_nag(ctx: typer.Context) -> None:
     """Invoke the existing upgrade-nag renderer through the coordinator.
 
     Lazy import: ``helpers.callback`` imports ``evaluate_readiness`` from
-    ``specify_cli.readiness`` at call time. Importing
-    ``_render_nag_if_needed`` at module scope here would form an import
-    cycle.
+    ``specify_cli.readiness`` at call time. Importing ``_render_nag_if_needed``
+    at module scope here would form an import cycle.
 
-    ``_render_nag_if_needed`` already swallows its own exceptions and
-    applies its own suppression checks; this wrapper adds no gating of its
-    own. Preserves byte-for-byte behavior of the pre-mission inline call
-    from ``callback()``.
+    ``_render_nag_if_needed`` already swallows its own exceptions and applies
+    its own suppression checks; this wrapper adds no gating of its own. It
+    preserves byte-for-byte the pre-coordinator inline call from ``callback()``.
     """
     from specify_cli.cli.helpers import _render_nag_if_needed  # noqa: PLC0415
 
     _render_nag_if_needed(ctx)
 
 
-def _invoke_upgrade_ux(ctx: typer.Context) -> None:
-    """Run the hosted-mode upgrade-readiness UX (WS3, issue #1092).
-
-    Suppression is delegated to the canonical
-    ``cli.helpers._should_suppress_nag`` predicate; when that predicate
-    returns True this function passes ``suppressed=True`` into the UX
-    layer so the UX MUST NOT prompt, MUST NOT invoke a subprocess, and
-    MUST NOT mutate the cache.
-
-    Exceptions are swallowed — the coordinator must never raise out of
-    the CLI startup path.
-    """
-    try:
-        from specify_cli.cli.helpers import _should_suppress_nag  # noqa: PLC0415
-        from specify_cli.readiness.upgrade_ux import run_upgrade_ux  # noqa: PLC0415
-
-        run_upgrade_ux(ctx, suppressed=_should_suppress_nag())
-    except Exception:  # noqa: BLE001 — UX must never crash the CLI
-        pass
-
-
 def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
     """Compute a fresh ``ReadinessResult`` for the current invocation.
 
-    Branches on ``is_saas_sync_enabled()``:
+    The hosted auth/sync readiness surface was removed from open-core (#6164).
+    That removed the ``is_saas_sync_enabled()`` branch and the hosted path
+    (auth probe + render + the hosted-mode upgrade UX). What remains is the
+    former *disabled* path, which every open-core invocation already took
+    (hosted shipped off): derive the output policy, fire the legacy upgrade
+    nag exactly as ``callback()`` used to, and return a disabled result.
 
-    - **Disabled path**: return a ``ReadinessResult`` with ``enabled=False``
-      and ``ran=False``. The legacy upgrade-nag still fires (existing
-      behavior is preserved exactly), so ``_invoke_nag`` is called before
-      returning.
-
-    - **Enabled path**: derive the output policy, stub ``auth_status`` as
-      ``NOT_CHECKED`` (WS2 will wire the real probe here using the import
-      already established in this module), invoke the nag, and return a
-      ``ReadinessResult`` with ``enabled=True`` and ``ran=True``.
-
-    No network I/O. No SaaS DB / queue / readiness counter mutation.
+    No network I/O.
     """
-    from specify_cli.core.saas_sync_config import is_saas_sync_enabled  # noqa: PLC0415
-
     output_policy = _derive_output_policy(ctx=ctx)
 
-    if not is_saas_sync_enabled():
-        _invoke_nag(ctx)
-        return ReadinessResult(
-            enabled=False,
-            ran=False,
-            output_policy=output_policy,
-            auth_status=AuthStatus.DISABLED,
-            nag_invoked=True,
-        )
-
-    # WS2 (issue #1094): auth probe + renderer. Each step is independently
-    # exception-wrapped: a probe failure degrades to ``UNKNOWN`` rather than
-    # collapsing the whole ReadinessResult to ``_NOOP_DISABLED`` (which is
-    # what ``evaluate_readiness``'s outer ``except`` would do). The renderer
-    # is then gated on the verdict + output policy.
-    try:
-        from specify_cli.readiness.auth import probe_auth_status  # noqa: PLC0415 — lazy
-        auth_status, teamspace_handle = probe_auth_status()
-    except Exception:  # noqa: BLE001 — coordinator must never raise; degrade to UNKNOWN.
-        auth_status = AuthStatus.UNKNOWN
-        teamspace_handle = None
-
-    # Gate the renderer per the suppression contract:
-    # - LOGGED_OUT_IN_TEAMSPACE is the only verdict that produces visible
-    #   guidance.
-    # - MACHINE_OUTPUT (``--json``/``--quiet``) is always silent.
-    # - ``--help``/``--version`` is always silent: users asking for help
-    #   text or a version number are not asking to be told about auth.
-    help_or_version = any(
-        tok in {"--help", "-h", "--version", "-v"} for tok in sys.argv[1:]
-    )
-    if (
-        auth_status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
-        and output_policy != OutputPolicy.MACHINE_OUTPUT
-        and not help_or_version
-    ):
-        try:
-            from specify_cli.readiness.render import render_auth_guidance  # noqa: PLC0415 — lazy
-            command_name = ctx.invoked_subcommand or "spec-kitty"
-            render_auth_guidance(
-                status=auth_status,
-                teamspace=teamspace_handle,
-                command_name=command_name,
-                output_policy=output_policy,
-            )
-        except Exception:  # noqa: BLE001 — render must never raise out of the coordinator
-            pass
-
-    # WS3 (issue #1092): on the hosted-enabled path the upgrade UX
-    # subsumes the legacy nag. It owns prompt cadence, choice
-    # persistence, and auto-upgrade gating, and applies its own
-    # suppression checks via ``_should_suppress_nag``.
-    _invoke_upgrade_ux(ctx)
+    # The non-hosted default path, preserved byte-for-byte: the legacy upgrade
+    # nag (``_render_nag_if_needed``) applies its own suppression and never
+    # raises out of the CLI startup path.
+    _invoke_nag(ctx)
     return ReadinessResult(
-        enabled=True,
-        ran=True,
+        enabled=False,
+        ran=False,
         output_policy=output_policy,
-        auth_status=auth_status,
+        auth_status=AuthStatus.DISABLED,
         nag_invoked=True,
     )
 

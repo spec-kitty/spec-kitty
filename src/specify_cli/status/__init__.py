@@ -207,7 +207,6 @@ from .progress import (
     generate_progress_json,
 )
 from .adapters import (
-    ensure_runtime_moment_producer,
     fire_lifecycle_saas_fanout,
     fire_resolved_binding_fanout,
     fire_saas_fanout,
@@ -669,7 +668,6 @@ __all__ = [
     "materialize",
     "materialize_to_json",
     "reconcile_status_snapshot",
-    "ensure_runtime_moment_producer",
     "fire_lifecycle_saas_fanout",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",

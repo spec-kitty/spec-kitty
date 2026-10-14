@@ -206,12 +206,10 @@ def _ms_resolve_context(st: _MarkStatusState) -> None:
         # (no project-root probe, no ``get_main_repo_root``, no mission-handle
         # walk) -- ownership was validated exactly once at the Typer edge.
         require_unstaged_index(owned)
-        # #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
-        # flip — owned checkouts publish moments like any checkout. The
-        # fan-out handlers on the status emit seam are individually bounded
-        # and non-raising, and the Zeitgeist moment handler no-ops without a
-        # session/team, so an owned mark-status under active sync completes
-        # with at worst a skipped fan-out warning.
+        # Owned checkouts are not specially restricted here: the fan-out
+        # handlers on the status emit seam are individually bounded and
+        # non-raising (and open-core ships none), so an owned mark-status
+        # completes with at worst a skipped fan-out warning.
         st.repo_root = owned.owned_root
         _tasks._emit_sparse_session_warning(st.repo_root, command="spec-kitty agent tasks mark-status")
         st.resolved_auto_commit = _tasks.get_auto_commit_default(st.repo_root) if st.auto_commit is None else st.auto_commit

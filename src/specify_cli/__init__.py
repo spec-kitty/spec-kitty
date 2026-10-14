@@ -23,8 +23,7 @@ Usage:
 # contracts/kitty-env-loader.md C-LDR-1..7). Runs as the FIRST statements of
 # this module -- before the SPEC_KITTY_TEST_MODE read below and before any
 # other spec-kitty submodule is imported (C-LDR-2) -- so operator-configured
-# env vars (incl. import-time-gated ones like SPEC_KITTY_SYNC_MINIMAL_IMPORT,
-# see specify_cli/status/adapters.py) are already in os.environ by the time
+# env vars are already in os.environ by the time
 # anything downstream reads them. specify_cli.bootstrap.env_file's own
 # transitive imports are stdlib + kernel ONLY (arch-gated by
 # tests/architectural/test_bootstrap_import_purity.py) -- it does not import
@@ -440,10 +439,7 @@ def _assemble_app() -> typer.Typer:
         _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
-    from specify_cli.cli.commands import reveal_hosted_surfaces
-
     app = _get_app()
-    reveal_hosted_surfaces(app, sys.argv)
     return app
 
 

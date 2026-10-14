@@ -183,10 +183,8 @@ def generate_manifest() -> dict[str, Any]:
     invoked by the regeneration helper and the drift-guard test, never on the
     completion hot path.
 
-    ``SPEC_KITTY_ENABLE_SAAS_SYNC`` gates runtime behaviour inside a handful of
-    commands (e.g. ``tracker``, ``mission create --from-ticket``), never their
-    Typer registration, so the command tree captured here is identical
-    regardless of that flag's value (the ``saas_gated`` manifest field this
+    Command registration is unconditional, so the command tree captured here
+    does not depend on any runtime flag (the ``saas_gated`` manifest field this
     function used to compute died with the sync transport, issue #5, once its
     last consumer -- the ``tracker`` command -- started registering
     unconditionally).

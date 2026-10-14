@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import inspect
 import sys
-import warnings
 from collections.abc import Callable
 
 import click
 import typer
 from typer.core import TyperGroup
-from typer.models import CommandInfo, DefaultPlaceholder, TyperInfo
+from typer.models import DefaultPlaceholder, TyperInfo
 
 
 class HelpOnEmptyTopLevelGroup(TyperGroup):
@@ -158,71 +157,6 @@ def _is_next_fast_path(argv: list[str]) -> bool:
     return False
 
 
-def _is_live_work_hook_fast_path(argv: list[str]) -> bool:
-    """Return True when argv directly invokes the per-tool-call live-work hook.
-
-    ``spec-kitty live-work hook <harness>`` is registered on the harness's
-    PreToolUse/PostToolUse events, which run synchronously around every tool
-    call — so this path must not pay the full command-registry import
-    (spec-kitty#4353 fix round: the hook was measured at ~12 s wall against
-    its own 4 s budget, all of it registry imports). Only the live-work
-    group is registered, the same posture as the ``next`` fast path.
-    """
-    args = [arg for arg in argv[1:] if not arg.startswith("-")]
-    return len(args) >= 2 and args[0] == "live-work" and args[1] == "hook"
-
-
-_LIVE_WORK_GROUP_HELP = "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268)."
-
-#: Top-level commands and groups that only serve the hosted Team Kitty
-#: surface, which is no longer actively supported (ADR 2026-10-06-1). They are
-#: registered hidden, so the default ``--help`` listing, the completion
-#: manifest and the generated CLI reference never offer them; each one still
-#: runs when invoked by name. :func:`reveal_hosted_surfaces` lists them again
-#: for a checkout whose hosted drain posture is on.
-_HOSTED_SURFACE_NAMES = frozenset({"auth", "issue-search", "live-work", "moments", "routes", "zeitgeist"})
-
-
-def _hosted_surface_entries(app: typer.Typer) -> list[CommandInfo | TyperInfo]:
-    commands: list[CommandInfo | TyperInfo] = [info for info in app.registered_commands if _command_name(info) in _HOSTED_SURFACE_NAMES]
-    groups = [info for info in app.registered_groups if _top_level_group_name(info) in _HOSTED_SURFACE_NAMES]
-    return [*commands, *groups]
-
-
-def _set_hosted_surfaces_hidden(app: typer.Typer, *, hidden: bool) -> None:
-    for entry in _hosted_surface_entries(app):
-        entry.hidden = hidden
-
-
-def reveal_hosted_surfaces(app: typer.Typer, argv: list[str]) -> None:
-    """List the hosted surfaces in the root ``--help`` when drain is on.
-
-    Only the root listing reads the ``hidden`` flag, so the drain posture is
-    read only when *argv* does not resolve to one top-level command; a normal
-    command invocation pays no extra config read. The posture reader warns on
-    an unparseable config file; that warning is silenced here because the
-    listing falls back to hidden, the same fail-closed answer the hosted edges
-    give, and the edges themselves still report the file when invoked. Any other
-    failure of the read also leaves the surfaces hidden.
-    """
-    if _resolve_single_leaf_command(argv, app) is not None:
-        return
-    from specify_cli.core import hosted_posture
-
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            enabled = hosted_posture.drain_posture().enabled
-    except Exception:
-        # Hidden is the safe default and the root listing must never crash, so
-        # any failure reading the posture (e.g. PermissionError on the personal
-        # config) leaves the hosted surfaces hidden. The hosted edges report the
-        # underlying problem themselves when invoked.
-        return
-    if enabled:
-        _set_hosted_surfaces_hidden(app, hidden=False)
-
-
 _CommandRegistrar = Callable[[typer.Typer], None]
 
 
@@ -248,12 +182,6 @@ def _register_config(app: typer.Typer) -> None:
     from . import config_cmd as config_cmd_module
 
     app.command()(config_cmd_module.config)
-
-
-def _register_auth(app: typer.Typer) -> None:
-    from . import auth as auth_module
-
-    app.add_typer(auth_module.app, name="auth", help="Authentication commands")
 
 
 def _register_charter(app: typer.Typer) -> None:
@@ -410,16 +338,6 @@ def _register_mission_type(app: typer.Typer) -> None:
     app.add_typer(mission_type_module.app, name="mission-type")
 
 
-def _register_moments(app: typer.Typer) -> None:
-    from . import moments as moments_module
-
-    app.add_typer(
-        moments_module.moments_app,
-        name="moments",
-        help="Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
-    )
-
-
 def _register_ops(app: typer.Typer) -> None:
     from . import ops as ops_module
 
@@ -453,12 +371,6 @@ def _register_research(app: typer.Typer) -> None:
     app.command()(research_module.research)
 
 
-def _register_routes(app: typer.Typer) -> None:
-    from . import routes as routes_module
-
-    app.command(name="routes", help="Show which team admits this checkout and which relay carries its moments.")(routes_module.routes)
-
-
 def _register_review(app: typer.Typer) -> None:
     from . import review as review_module
 
@@ -489,21 +401,10 @@ def _register_session_stop(app: typer.Typer) -> None:
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
 
 
-def _register_live_work(app: typer.Typer) -> None:
-    from . import live_work as live_work_module
-
-    app.add_typer(
-        live_work_module.app,
-        name="live-work",
-        help=_LIVE_WORK_GROUP_HELP,
-    )
-
-
 def _register_tracker(app: typer.Typer) -> None:
     from . import tracker as tracker_module
 
     app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-    app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
 
 
 def _register_upgrade(app: typer.Typer) -> None:
@@ -534,19 +435,6 @@ def _register_workflow(app: typer.Typer) -> None:
     from . import workflow as workflow_module
 
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
-
-
-def _register_zeitgeist(app: typer.Typer) -> None:
-    from . import zeitgeist as zeitgeist_module
-
-    app.add_typer(
-        zeitgeist_module.app,
-        name="zeitgeist",
-        help=(
-            "Access to one team's live Zeitgeist presence/focus stream and status-moment events, "
-            "authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills."
-        ),
-    )
 
 
 def _register_profiles(app: typer.Typer) -> None:
@@ -594,7 +482,6 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_agent,
     _register_archive,
     _register_config,
-    _register_auth,
     _register_charter,
     _register_context,
     _register_cutover_guard,
@@ -616,26 +503,22 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_mission,
     _register_next,
     _register_mission_type,
-    _register_moments,
     _register_ops,
     _register_plugin,
     _register_orchestrator_api,
     _register_reconcile,
     _register_research,
-    _register_routes,
     _register_review,
     _register_safe_commit,
     _register_spec_commit,
     _register_session_start,
     _register_session_stop,
-    _register_live_work,
     _register_tracker,
     _register_upgrade,
     _register_validate_encoding,
     _register_validate_tasks,
     _register_verify,
     _register_workflow,
-    _register_zeitgeist,
     _register_profiles,
     _register_dispatch,
     _register_profile_invocation,
@@ -648,7 +531,6 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "agent": _register_agent,
     "archive": _register_archive,
     "config": _register_config,
-    "auth": _register_auth,
     "charter": _register_charter,
     "context": _register_context,
     "cutover-guard": _register_cutover_guard,
@@ -679,27 +561,22 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "mission": _register_mission,
     "next": _register_next,
     "mission-type": _register_mission_type,
-    "moments": _register_moments,
     "ops": _register_ops,
     "plugin": _register_plugin,
     "orchestrator-api": _register_orchestrator_api,
     "reconcile": _register_reconcile,
     "research": _register_research,
-    "routes": _register_routes,
     "review": _register_review,
     "safe-commit": _register_safe_commit,
     "spec-commit": _register_spec_commit,
     "session-start": _register_session_start,
     "session-stop": _register_session_stop,
-    "live-work": _register_live_work,
     "tracker": _register_tracker,
-    "issue-search": _register_tracker,
     "upgrade": _register_upgrade,
     "validate-encoding": _register_validate_encoding,
     "validate-tasks": _register_validate_tasks,
     "verify-setup": _register_verify,
     "workflow": _register_workflow,
-    "zeitgeist": _register_zeitgeist,
     "profiles": _register_profiles,
     "dispatch": _register_dispatch,
     "profile-invocation": _register_profile_invocation,
@@ -780,14 +657,6 @@ def register_commands(app: typer.Typer) -> None:
         make_leaf_commands_mission_agnostic(app)
         return
 
-    if _is_live_work_hook_fast_path(sys.argv):
-        from . import live_work as live_work_module
-
-        app.add_typer(live_work_module.app, name="live-work", help=_LIVE_WORK_GROUP_HELP)
-        _apply_short_help_options(app)
-        make_leaf_commands_mission_agnostic(app)
-        return
-
     # WP05 (#4417-deferred): generalizes the same argv-sniffing idiom the two
     # fast paths above already use. When argv cleanly resolves to exactly one
     # known top-level command/group, only that one module tree is imported
@@ -803,9 +672,8 @@ def register_commands(app: typer.Typer) -> None:
 
     _sort_root_command_metadata(app)
     _enforce_top_level_empty_group_help(app)
-    _set_hosted_surfaces_hidden(app, hidden=True)
     _apply_short_help_options(app)
     make_leaf_commands_mission_agnostic(app)
 
 
-__all__ = ["register_commands", "reveal_hosted_surfaces"]
+__all__ = ["register_commands"]

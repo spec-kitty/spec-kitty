@@ -16,10 +16,16 @@ from specify_cli.core.paths import locate_project_root
 # ---------------------------------------------------------------------------
 # Provider classification constants (single source of truth)
 # ---------------------------------------------------------------------------
-SAAS_PROVIDERS: frozenset[str] = frozenset({"linear", "jira", "github", "gitlab"})
 LOCAL_PROVIDERS: frozenset[str] = frozenset({"beads", "fp"})
-REMOVED_PROVIDERS: frozenset[str] = frozenset({"azure_devops"})
-ALL_SUPPORTED_PROVIDERS: frozenset[str] = SAAS_PROVIDERS | LOCAL_PROVIDERS
+#: Providers that are no longer supported. ``azure_devops`` was retired earlier;
+#: the four former SaaS/hosted providers (linear, jira, github, gitlab) were
+#: removed from open-core together with the hosted tracker surface (#6164). A
+#: ``tracker bind --provider <name>`` for any of these yields a clean
+#: "no longer supported" refusal rather than attempting a dead hosted path.
+REMOVED_PROVIDERS: frozenset[str] = frozenset(
+    {"azure_devops", "linear", "jira", "github", "gitlab"}
+)
+ALL_SUPPORTED_PROVIDERS: frozenset[str] = LOCAL_PROVIDERS
 
 
 class TrackerConfigError(RuntimeError):
@@ -145,8 +151,6 @@ class TrackerProjectConfig:
     def is_configured(self) -> bool:
         if not self.provider:
             return False
-        if self.provider in SAAS_PROVIDERS:
-            return bool(self.binding_ref) or bool(self.project_slug)
         if self.provider in LOCAL_PROVIDERS:
             return bool(self.workspace)
         return False  # Unknown or removed provider
@@ -156,13 +160,12 @@ class TrackerProjectConfig:
         """Derived fault flag for Channel 2 (#3108 FR-006, C-020).
 
         ``False`` when ``egress`` is ``EGRESS_ABSENT`` (the key was missing --
-        absence is not a fault; Channel 1 is retired, so for
-        ``EgressDestination.HOSTED_SERVICE`` this now falls through to permit
-        directly, with no Channel 1 to defer to) or holds one of the
-        exactly two legal strings. ``True`` for anything else present at the
-        key -- a present ``null``, the wrong type, or a near-miss string such
-        as ``Refused`` or ``refuse`` -- and a fault refuses at both
-        destinations. The ``isinstance`` guard comes **first**: a bare
+        absence is not a fault) or holds one of the exactly two legal strings.
+        ``True`` for anything else present at the key -- a present ``null``, the
+        wrong type, or a near-miss string such as ``Refused`` or ``refuse`` --
+        and a fault refuses local-subprocess egress (the only remaining
+        destination after the hosted surface was removed, #6164). The
+        ``isinstance`` guard comes **first**: a bare
         ``raw in _EGRESS_LEGAL_VALUES`` raises ``TypeError: unhashable type``
         for a mapping or a list, both of which this property must classify as
         a fault, not raise out of.

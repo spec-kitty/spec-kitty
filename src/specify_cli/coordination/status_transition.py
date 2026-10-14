@@ -48,7 +48,7 @@ from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
 )
-from specify_cli.core import hosted_posture
+from specify_cli.core import ledger_posture
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.errors import StructuredError
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -463,7 +463,7 @@ def _fan_out_committed_coord_tail(
     announcements and outbound I/O cannot hold the status lock.
 
     F-3: also refreshes the derived execution-state projection (gated on
-    :func:`hosted_posture.ledger_posture`), from ``coord_feature_dir`` -- the
+    :func:`ledger_posture.ledger_posture`), from ``coord_feature_dir`` -- the
     coord worktree's on-disk feature dir the commit just landed on -- against
     ``repo_root``. Skipped when either is ``None`` (no coord Mission directory was
     resolved, or no repository root is known).
@@ -477,7 +477,7 @@ def _fan_out_committed_coord_tail(
         )
     for annotation in stream.annotations:
         _emit._resolved_binding_fan_out(annotation, mission_slug, repo_root)
-    if coord_feature_dir is not None and repo_root is not None and hosted_posture.ledger_posture(repo_root).enabled:
+    if coord_feature_dir is not None and repo_root is not None and ledger_posture.ledger_posture(repo_root).enabled:
         _refresh_execution_projection(coord_feature_dir, repo_root)
 
 
@@ -1111,7 +1111,7 @@ def _defer_fan_out(
     # F-3: register the projection refresh as a post-commit deferred outbound
     # (never called synchronously inside the transaction) -- the shared choke
     # point for both the single-door (~1534) and batch-door (~1773) callers.
-    if hosted_posture.ledger_posture(txn.repo_root).enabled:
+    if ledger_posture.ledger_posture(txn.repo_root).enabled:
         txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
 
 
@@ -1845,7 +1845,7 @@ def emit_inner_state_changed_transactional(
             # F-3: this path persists an InnerStateChanged annotation rather
             # than a lane-transition StatusEvent -- still a durably persisted
             # change worth reflecting in the projection.
-            if hosted_posture.ledger_posture(txn.repo_root).enabled:
+            if ledger_posture.ledger_posture(txn.repo_root).enabled:
                 txn.defer_outbound(_deferred_execution_projection_refresh(txn.feature_dir, txn.repo_root))
     except (
         BookkeepingWorktreeMissing,
