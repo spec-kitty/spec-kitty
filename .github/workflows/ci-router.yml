@@ -870,6 +870,15 @@ jobs:
             --deselect tests/architectural/test_archive_root_byte_identical.py \
             -p scripts.ci.battery_partition_plugin --battery-part fast \
             --junitxml=out/reports/xunit-architectural-fast.xml
+      # #6173: census freshness on EVERY PR. The tests/ci shard that also asserts this
+      # is selected only for scripts/ci/**, .github/workflows/** and the status-api, so
+      # a PR adding a tests/** consumer would otherwise leave the census stale and green.
+      - name: Consumer census is fresh (#6173)
+        run: |
+          uv run --frozen python scripts/ci/consumer_census.py --check || {
+            echo "::error::.github/ci-consumer-census.json is stale. Regenerate it with: python scripts/ci/consumer_census.py --write (then commit the result)."
+            exit 1
+          }
       - name: Report peak memory (NFR-005)
         if: always()
         run: python3 -m scripts.ci.memory_sampler stop --out "$RUNNER_TEMP/memory-sampler.json"
