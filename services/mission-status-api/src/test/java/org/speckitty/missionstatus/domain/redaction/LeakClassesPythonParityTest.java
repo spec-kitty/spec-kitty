@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.speckitty.missionstatus.testsupport.LeakPatternsFile;
 
 /**
  * {@link LeakClasses#compile(String)} against Python's {@code re}. Python's {@code \w \s \d} on a {@code str} are not Java's
@@ -20,7 +21,7 @@ import org.junit.jupiter.api.TestFactory;
  */
 class LeakClassesPythonParityTest {
 
-  private final LeakClasses leaks = InlineLeakClasses.python();
+  private final LeakClasses leaks = LeakPatternsFile.load();
 
   @TestFactory
   List<DynamicTest> everyProbeGetsTheVerdictOfThePythonPatterns() {

@@ -39,6 +39,6 @@ public final class FixtureFactory {
 
   /** The leak patterns of the oracle, written out for tests (the service reads them from the classpath in production). */
   public static LeakClasses leakClasses() {
-    return LeakFixtures.python();
+    return LeakPatternsFile.load();
   }
 }

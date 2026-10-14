@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.speckitty.missionstatus.testsupport.LeakPatternsFile;
 
 /**
  * Plain unit tests of the projector; no Spring context. Every expected value below is what live Python gave for the same input
@@ -15,7 +16,7 @@ class ProjectorTest {
 
   private static final Pattern MISSION_ID = Pattern.compile("^[0-9A-HJKMNP-TV-Z]{26}$");
 
-  private final Projector projector = new Projector(InlineLeakClasses.python());
+  private final Projector projector = new Projector(LeakPatternsFile.load());
 
   // ---- human fields ----------------------------------------------------------------------------------------------------
 
@@ -89,7 +90,7 @@ class ProjectorTest {
 
   @Test
   void aSecretInAHumanTextCannotBeRedactedAndIsRefusedWithoutItsValue() {
-    String leaked = "token " + InlineLeakClasses.fakeGithubToken() + " leak";
+    String leaked = "token " + FakeLeakValues.fakeGithubToken() + " leak";
     assertThatThrownBy(() -> projector.human(leaked, "title"))
         .isInstanceOfSatisfying(
             ProjectionError.class,
@@ -99,8 +100,8 @@ class ProjectorTest {
             })
         .hasMessage("title: redaction left a leak in a human text field")
         .message()
-        .doesNotContain(InlineLeakClasses.fakeGithubToken());
-    assertThatThrownBy(() -> projector.human("key " + InlineLeakClasses.fakeAwsKeyId() + " x", "title")).isInstanceOf(ProjectionError.class);
+        .doesNotContain(FakeLeakValues.fakeGithubToken());
+    assertThatThrownBy(() -> projector.human("key " + FakeLeakValues.fakeAwsKeyId() + " x", "title")).isInstanceOf(ProjectionError.class);
   }
 
   // ---- strict fields ---------------------------------------------------------------------------------------------------
@@ -124,7 +125,7 @@ class ProjectorTest {
   @Test
   void aNullableStrictFieldHoldingAnEmailOrASecretOrNothingIsNulled() {
     assertThat(projector.strict("x@y.org", "f", true)).isNull();
-    assertThat(projector.strict(InlineLeakClasses.fakeGithubToken(), "f", true)).isNull();
+    assertThat(projector.strict(FakeLeakValues.fakeGithubToken(), "f", true)).isNull();
     assertThat(projector.strict("", "f", true)).isNull();
   }
 
@@ -136,7 +137,7 @@ class ProjectorTest {
 
   @Test
   void aNonNullableStrictFieldWithATokenShapedValueIsRefusedAndTheMessageHasNoValue() {
-    String token = InlineLeakClasses.fakeGithubToken();
+    String token = FakeLeakValues.fakeGithubToken();
     assertThatThrownBy(() -> projector.strict(token, "targetBranch", false))
         .isInstanceOfSatisfying(
             ProjectionError.class,

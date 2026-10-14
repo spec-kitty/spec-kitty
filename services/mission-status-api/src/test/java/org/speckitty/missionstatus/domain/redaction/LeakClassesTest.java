@@ -6,11 +6,12 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.speckitty.missionstatus.testsupport.LeakPatternsFile;
 
 /** The leak-class value: patterns handed to the constructor, compiled with the Unicode flag, answering the questions of AC-9g. */
 class LeakClassesTest {
 
-  private final LeakClasses leaks = InlineLeakClasses.python();
+  private final LeakClasses leaks = LeakPatternsFile.load();
 
   @Test
   void compileReadsTheWordClassLikePythonDoesNotLikeTheUnicodeFlag() {
@@ -35,7 +36,7 @@ class LeakClassesTest {
   void strictLeaksIncludeEmailsAndSecretsButHumanHostPathsDoNotApplyToStrictFields() {
     assertThat(leaks.strictLeak("/abs")).isTrue();
     assertThat(leaks.strictLeak("x@y.org")).isTrue();
-    assertThat(leaks.strictLeak(InlineLeakClasses.fakeGithubToken())).isTrue();
+    assertThat(leaks.strictLeak(FakeLeakValues.fakeGithubToken())).isTrue();
     assertThat(leaks.strictLeak("/tmp/x")).isTrue();
     assertThat(leaks.strictLeak("fine")).isFalse();
   }
@@ -45,7 +46,7 @@ class LeakClassesTest {
     assertThat(leaks.humanLeak("see ~/notes")).isFalse();
     assertThat(leaks.humanLeak("/home/alice/x")).isTrue();
     assertThat(leaks.humanLeak("mail a@b.org")).isTrue();
-    assertThat(leaks.humanLeak(InlineLeakClasses.fakeAwsKeyId())).isTrue();
+    assertThat(leaks.humanLeak(FakeLeakValues.fakeAwsKeyId())).isTrue();
     assertThat(leaks.humanLeak("/tmp/x")).isTrue();
     assertThat(leaks.humanLeak("plain")).isFalse();
   }

@@ -218,18 +218,6 @@ class FilesystemFixtureFactoryTest {
   }
 
   @Test
-  void theLeakClassesLoadedFromTheCommittedFileEqualTheInlinePatternsSourceForSource() {
-    var fromFile = LeakPatternsFile.load();
-    var inline = LeakFixtures.python();
-
-    assertThat(fromFile.strictHostPaths()).extracting(java.util.regex.Pattern::pattern).containsExactlyElementsOf(inline.strictHostPaths().stream().map(java.util.regex.Pattern::pattern).toList());
-    assertThat(fromFile.humanHostPaths()).extracting(java.util.regex.Pattern::pattern).containsExactlyElementsOf(inline.humanHostPaths().stream().map(java.util.regex.Pattern::pattern).toList());
-    assertThat(fromFile.email().pattern()).isEqualTo(inline.email().pattern());
-    assertThat(fromFile.emailAnchored().pattern()).isEqualTo(inline.emailAnchored().pattern());
-    assertThat(fromFile.secrets()).extracting(java.util.regex.Pattern::pattern).containsExactlyElementsOf(inline.secrets().stream().map(java.util.regex.Pattern::pattern).toList());
-  }
-
-  @Test
   void theManifestFixturesAreAllDiscovered() {
     Map<String, Integer> counts = new java.util.TreeMap<>();
     ConformanceTree.classes().forEach(entry -> counts.put(entry.tag(), entry.fixtures().size()));
