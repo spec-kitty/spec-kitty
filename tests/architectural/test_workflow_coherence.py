@@ -334,6 +334,10 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   split from ``mission_pack_content`` because its consumer set differs
 #   (charter/core_misc/upgrade). Gates no router job BY DESIGN; fanned out by
 #   ``GROUP_MODULE_FANOUT`` and pinned by the same test file.
+#
+# * ``reducer_lock`` (#6238) — ``uv.lock`` alone. Gates no router job BY DESIGN; fanned out to
+#   upgrade + status by the non-census ``DEPENDENCY_MODULE_FANOUT``. ``pyproject.toml`` is
+#   deliberately absent (operator ruling).
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
     {
         "any_src",
@@ -344,6 +348,7 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "mission_pack_content",
         "cli_lifecycle",
         "mission_type_definitions",
+        "reducer_lock",
     }
 )
 

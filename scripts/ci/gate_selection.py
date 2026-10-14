@@ -35,6 +35,7 @@ __all__ = [
     "DEFAULT_REGISTRY_PATH",
     "DEFAULT_ROUTER_PATH",
     "FANOUT_ALLOWLIST",
+    "DEPENDENCY_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
     "PROBE_GROUPS",
@@ -90,6 +91,16 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
     # modules whose tests exercise it but that `cli` does not reach (agent, core_misc).
     "cli_lifecycle": frozenset({"agent", "core_misc"}),
+}
+
+# Dependency-lock fan-out (#6238). NON-CENSUS BY DESIGN: a lock file is not a pack path, so the
+# consumer census derives nothing for it; keeping it OUT of GROUP_MODULE_FANOUT / FANOUT_GROUPS
+# leaves the census, census-routing and census-cost machinery pack-scoped. The spec-kitty-events
+# bump (#6205) changed the reducer through uv.lock alone and selected neither shard. Operator
+# ruling (decision 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is deliberately NOT in the group,
+# so a manifest rename or non-version edit never triggers the upgrade shards.
+DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "reducer_lock": frozenset({"upgrade", "status"}),
 }
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
@@ -437,7 +448,7 @@ def select_modules(
     if mode == "full" or selection.unmatched_src:
         return modules
     src_selected = selection.matched_groups & modules
-    for group, targets in GROUP_MODULE_FANOUT.items():
+    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items()):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)

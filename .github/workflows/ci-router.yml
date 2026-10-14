@@ -138,6 +138,9 @@ jobs:
       # Mission-type-definitions group (#6166 landing review): non-src, like mission_pack_content above;
       # gates no job BY DESIGN (fanned out to charter/core_misc/upgrade). Never in the unmatched loop.
       mission_type_definitions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_type_definitions }}
+      # Reducer-lock group (#6238): non-src, like mission_type_definitions above; gates no job BY DESIGN
+      # (fanned out to upgrade + status via gate_selection.DEPENDENCY_MODULE_FANOUT). Never in the unmatched loop.
+      reducer_lock: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.reducer_lock }}
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
       cli_lifecycle: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_lifecycle }}
@@ -250,6 +253,14 @@ jobs:
             # upgrade by gate_selection.GROUP_MODULE_FANOUT; gates no router job BY DESIGN.
             mission_type_definitions:
               - 'packs/built-in/missions/mission_types/**'
+            # Reducer-lock group (#6238): NON-src, so it can never mask an unmapped src/** change. A
+            # uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet
+            # selected neither the upgrade nor the status shard. Fanned out by
+            # gate_selection.DEPENDENCY_MODULE_FANOUT (non-census); gates no router job BY DESIGN.
+            # Operator ruling (decision 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is NOT listed, so a
+            # manifest rename or non-version edit never triggers the upgrade shards.
+            reducer_lock:
+              - 'uv.lock'
             # Lifecycle-command group (#6166): NON-src. The glob is **/-prefixed (not src/...), so the
             # group is NOT src-backed and stays out of the unmatched loop -- the same shape the
             # contract_tools / mission_state groups use to name a src file without becoming a code-shard
