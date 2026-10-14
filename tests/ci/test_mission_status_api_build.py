@@ -827,9 +827,11 @@ WORKFLOW_PATHS = [
     ".github/workflows/mission-status-api.yml",
 ]
 FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
-# No `schedule` trigger (landing review A4: a cron run skipped every job), so no job carries a schedule conjunct.
-JVM_IF = FORK_GUARD
-GATE_IF = f"{FORK_GUARD} && always()"
+# The one `schedule` runs `nightly-corpus` only: every other job carries the schedule exclusion (the gate's `always()` would otherwise run
+# on a scheduled run whose needs were skipped).
+NOT_SCHEDULED = "github.event_name != 'schedule'"
+JVM_IF = f"{FORK_GUARD} && {NOT_SCHEDULED}"
+GATE_IF = f"{JVM_IF} && always()"
 CONCURRENCY_GROUP = "mission-status-api-${{ startsWith(github.ref, 'refs/tags/') && github.ref || (github.event_name == 'push' && github.sha || github.ref) }}"
 CONCURRENCY_CANCEL = "${{ github.event_name == 'pull_request' }}"
 NATIVE_RUNNERS = {"ubuntu-24.04", "ubuntu-24.04-arm", "macos-15", "windows-2025"}
@@ -897,6 +899,16 @@ def _uses(job: dict[str, object]) -> list[str]:
     return [str(step["uses"]) for step in _steps(job) if "uses" in step]
 
 
+def schedule_violations(schedule: object) -> list[str]:
+    """Exactly one cron entry, five fields, and a minute that is not on the hour or half hour (every runner fleet fires then)."""
+    if not isinstance(schedule, list) or len(schedule) != 1 or not isinstance(schedule[0], dict) or set(schedule[0]) != {"cron"}:
+        return ["on.schedule must be exactly one cron entry"]
+    fields = str(schedule[0]["cron"]).split()
+    if len(fields) != 5 or not fields[0].isdigit() or int(fields[0]) in (0, 30):
+        return ["on.schedule cron must have five fields and a minute off the hour and the half hour"]
+    return []
+
+
 def trigger_violations(text: str) -> list[str]:
     on = _on(_wf(text))
     found: list[str] = []
@@ -905,8 +917,7 @@ def trigger_violations(text: str) -> list[str]:
         found.append("on.push must carry branches [main] and exactly the WORKFLOW_PATHS")
     if not isinstance(pull, dict) or pull.get("paths") != WORKFLOW_PATHS:
         found.append("on.pull_request must carry exactly the WORKFLOW_PATHS")
-    if "schedule" in on:
-        found.append("on.schedule must be absent (every job would skip a scheduled run)")
+    found.extend(schedule_violations(on.get("schedule")))
     if not on:
         found.append("no on: block parsed (vacuous)")
     if "workflow_dispatch" not in on:
@@ -946,7 +957,7 @@ def guard_violations(text: str) -> list[str]:
         if starts_on_its_own and not condition.startswith(FORK_GUARD):
             found.append(f"job {name} can start on its own but does not open with the canonical fork guard")
     if "contract-bundle" in jobs and _norm(jobs["contract-bundle"].get("if")) != JVM_IF:
-        found.append("job contract-bundle: if: is not exactly the canonical fork guard")
+        found.append("job contract-bundle: if: is not exactly the canonical fork guard and the schedule exclusion")
     return found
 
 
@@ -1282,19 +1293,33 @@ def test_widening_a_path_turns_the_trigger_pin_red() -> None:
     assert PUSH_PATHS_MSG in trigger_violations(_mutate("services/mission-status-api/**", "services/**"))
 
 
-def test_a_filter_on_dispatch_or_a_schedule_trigger_turns_the_trigger_pin_red() -> None:
+def test_a_filter_on_dispatch_or_a_malformed_schedule_turns_the_trigger_pin_red() -> None:
     assert trigger_violations(_mutate("  workflow_dispatch:", "  workflow_dispatch:\n    branches: [main]")) == ["workflow_dispatch must carry no filter"]
-    scheduled = _mutate("  workflow_dispatch:", "  schedule:\n    - cron: '37 5 * * *'\n  workflow_dispatch:")
-    assert trigger_violations(scheduled) == ["on.schedule must be absent (every job would skip a scheduled run)"]
+    assert trigger_violations("") and schedule_violations(None) == ["on.schedule must be exactly one cron entry"]
+    two_crons = _mutate("    - cron: '37 4 * * *'\n", "    - cron: '37 4 * * *'\n    - cron: '41 5 * * *'\n")
+    assert trigger_violations(two_crons) == ["on.schedule must be exactly one cron entry"]
+    off_hour = ["on.schedule cron must have five fields and a minute off the hour and the half hour"]
+    assert trigger_violations(_mutate("'37 4 * * *'", "'0 4 * * *'")) == off_hour
+    assert trigger_violations(_mutate("'37 4 * * *'", "'30 4 * * *'")) == off_hour
+    assert trigger_violations(_mutate("'37 4 * * *'", "'37 4 * *'")) == off_hour
+    assert trigger_violations(_mutate("  schedule:\n    - cron: '37 4 * * *'\n", "")) == ["on.schedule must be exactly one cron entry"]
 
 
 def test_dropping_a_fork_guard_turns_the_guard_pin_red() -> None:
     found = guard_violations(_mutate(f"if: {JVM_IF}\n", "if: github.event_name != 'merge_group'\n"))
-    assert "job contract-bundle: if: is not exactly the canonical fork guard" in found
+    assert "job contract-bundle: if: is not exactly the canonical fork guard and the schedule exclusion" in found
     assert "job contract-bundle can start on its own but does not open with the canonical fork guard" in found
     found = guard_violations(_mutate(f"if: {GATE_IF}", "if: always()"))
     assert f"job mission-status-api-gate: if: is not exactly {GATE_IF!r}" in found
     assert "job mission-status-api-gate can start on its own but does not open with the canonical fork guard" in found
+
+
+def test_letting_a_job_other_than_the_nightly_run_on_a_schedule_turns_the_guard_and_event_pins_red() -> None:
+    schedule_row = "schedule on refs/heads/main in spec-kitty/spec-kitty"
+    for original, loosened in ((f"if: {JVM_IF}\n", f"if: {FORK_GUARD}\n"), (f"if: {GATE_IF}", f"if: {FORK_GUARD} && always()")):
+        text = _mutate(original, loosened)
+        assert guard_violations(text)
+        assert any(row.startswith(schedule_row) for row in tag_run_violations(text))
 
 
 def test_dropping_always_from_the_gate_turns_the_guard_pin_red() -> None:
@@ -2166,9 +2191,8 @@ def test_nativeperf_runs_after_the_floor_build_and_before_the_digest_upload() ->
 # and the real text with one mutation fails it.
 
 NIGHTLY_JOB = "nightly-corpus"
-# The workflow has no `schedule` trigger (landing review A4), so the job runs on workflow_dispatch only; a cron is a deliberate later
-# addition that must change this guard, the trigger pin and the job guards of the legs together.
-NIGHTLY_IF = f"{FORK_GUARD} && github.event_name == 'workflow_dispatch'"
+# The nightly cron (a schedule) and a maintainer's workflow_dispatch are the only events that run this job; the other jobs exclude `schedule`.
+NIGHTLY_IF = f"{FORK_GUARD} && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')"
 NIGHTLY_SCRIPT_RUN = (
     "uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py "
     '--base-url http://127.0.0.1:8787 --repo-root "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/nightly-report.json"'
@@ -2201,9 +2225,10 @@ def nightly_violations(text: str) -> list[str]:
         return [f"job {NIGHTLY_JOB} is missing"]
     found: list[str] = []
     if _norm(job.get("if")) != NIGHTLY_IF:
-        found.append(f"{NIGHTLY_JOB}: if: is not exactly {NIGHTLY_IF!r} (the canonical guard first, then workflow_dispatch only)")
-    if job.get("runs-on") != "ubuntu-24.04" or job.get("timeout-minutes") != 45:
-        found.append(f"{NIGHTLY_JOB} must run on ubuntu-24.04 with timeout-minutes: 45")
+        found.append(f"{NIGHTLY_JOB}: if: is not exactly {NIGHTLY_IF!r} (the canonical guard first, then schedule or workflow_dispatch only)")
+    timeout = job.get("timeout-minutes")
+    if job.get("runs-on") != "ubuntu-24.04" or not isinstance(timeout, int) or not 0 < timeout <= 60:
+        found.append(f"{NIGHTLY_JOB} must run on ubuntu-24.04 with a timeout-minutes of at most 60 (the value is provisional)")
     if _needs(job):
         found.append(f"{NIGHTLY_JOB} must not need another job (it builds its own bundle)")
     if any(NIGHTLY_JOB in _needs(other) for other in jobs.values()):
@@ -2233,17 +2258,18 @@ def test_the_nightly_pin_reports_something_for_an_empty_workflow() -> None:
     assert nightly_violations("")
 
 
-def test_the_nightly_job_is_not_a_need_of_the_gate_and_the_workflow_has_no_schedule_to_ride_on() -> None:
-    wf = _wf(_workflow_text())
-    assert NIGHTLY_JOB not in _needs(_jobs(wf)["mission-status-api-gate"])
-    assert "schedule" not in _on(wf)
+def test_a_scheduled_run_runs_only_the_nightly_job_and_the_nightly_job_is_not_a_need_of_the_gate() -> None:
+    text = _workflow_text()
+    assert NIGHTLY_JOB not in _needs(_jobs(_wf(text))["mission-status-api-gate"])
+    assert jobs_that_run(text, "schedule", "refs/heads/main") == {NIGHTLY_JOB}
+    assert jobs_that_run(text, "schedule", "refs/heads/main", "someone/fork") == set()
 
 
 def test_dropping_fetch_depth_turns_the_nightly_pin_red() -> None:
-    text = _workflow_text()
-    anchor = "          fetch-depth: 0\n"
-    assert text.count(anchor) == 1
-    assert nightly_violations(text.replace(anchor, "", 1))
+    # Located through the parsed workflow, so the pin does not depend on how another job spells its own checkout.
+    workflow = _wf(_workflow_text())
+    del _checkout_with(_jobs(workflow)[NIGHTLY_JOB])["fetch-depth"]
+    assert nightly_violations(yaml.safe_dump(workflow))
 
 
 def test_adding_a_pytest_step_to_the_nightly_job_turns_the_pin_red() -> None:
@@ -2264,7 +2290,7 @@ def test_the_other_nightly_pins_each_turn_red_for_one_change() -> None:
     assert nightly_violations(
         text.replace(
             "timeout-minutes: 45\n    defaults:\n      run:\n        shell: bash\n    steps:\n      # A real",
-            "timeout-minutes: 60\n    defaults:\n      run:\n        shell: bash\n    steps:\n      # A real",
+            "timeout-minutes: 61\n    defaults:\n      run:\n        shell: bash\n    steps:\n      # A real",
             1,
         )
     )
@@ -2562,6 +2588,8 @@ def tag_run_violations(text: str) -> list[str]:
     cases = {
         ("push", TAG_REF, "spec-kitty/spec-kitty"): LEG_JOBS | {RELEASE_JOB},
         ("push", TAG_REF, "someone/fork"): set(),
+        ("schedule", "refs/heads/main", "spec-kitty/spec-kitty"): {NIGHTLY_JOB},
+        ("schedule", "refs/heads/main", "someone/fork"): set(),
         ("push", "refs/heads/main", "spec-kitty/spec-kitty"): LEG_JOBS,
         ("pull_request", "refs/pull/1/merge", "spec-kitty/spec-kitty"): LEG_JOBS,
         ("workflow_dispatch", "refs/heads/main", "spec-kitty/spec-kitty"): LEG_JOBS | {NIGHTLY_JOB},
@@ -2812,10 +2840,10 @@ def test_the_release_structure_pins_each_turn_red_for_one_change() -> None:
     assert release_job_violations(
         text.replace("          merge-multiple: true\n          path: ${{ runner.temp }}/release-assets", "          path: ${{ runner.temp }}/release-assets", 1)
     )
-    assert release_job_violations(text.replace("with: {persist-credentials: false, fetch-depth: 0}", "with: {fetch-depth: 0}", 1))
+    assert release_job_violations(text.replace("          persist-credentials: false\n          fetch-depth: 0\n", "          fetch-depth: 0\n", 1))
     assert release_job_violations(text.replace("TAG_NAME: ${{ github.ref_name }}", "TAG_NAME: ${{ github.ref_name }}\n          INPUT: ${{ inputs.tag }}", 1))
     assert release_job_violations(text.replace('"$TAG_NAME"', '"${{ github.ref_name }}"', 1))
-    assert release_job_violations(text.replace("with: {persist-credentials: false, fetch-depth: 0}", "with: {persist-credentials: false}", 1))
+    assert release_job_violations(text.replace("          persist-credentials: false\n          fetch-depth: 0\n", "          persist-credentials: false\n", 1))
     assert release_job_violations(text.replace("timeout-minutes: 15", "timeout-minutes: 45", 1))
     assert release_job_violations(
         text.replace(

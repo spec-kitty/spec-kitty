@@ -1,9 +1,9 @@
 # Mission Status API: the standalone Java service under services/mission-status-api/. Path-filtered on push to main and on pull
 # requests (the service tree, the contract module, the shared contract fragments, the bundler and the gate helper script);
-# `workflow_dispatch` carries no filter. There is no `schedule` trigger. Jobs: `contract-bundle` (the contract document, built once
-# by the Python resolver), `jvm` (./gradlew check), `native` (four targets, golden replay and digest), the terminal
-# `mission-status-api-gate`, `release` (a mission-status-api-v*.*.* tag push only) and `nightly-corpus` (workflow_dispatch only: the
-# full-corpus Python/service compare, no exemptions; it runs when a maintainer dispatches it, until a cron is added deliberately).
+# `workflow_dispatch` carries no filter. The one `schedule` (a nightly cron) runs `nightly-corpus` only. Jobs: `contract-bundle` (the
+# contract document, built once by the Python resolver), `jvm` (./gradlew check), `native` (four targets, golden replay and digest),
+# the terminal `mission-status-api-gate`, `release` (a mission-status-api-v*.*.* tag push only) and `nightly-corpus` (a schedule or a
+# workflow_dispatch: the full-corpus Python/service compare, no exemptions).
 # It is NOT a router dependency, but it IS registered in the fleet verdict (ci-fleet-verdict.yml on.workflow_run.workflows and
 # scripts/ci/fleet_verdict.py PR_WORKFLOWS), which treats it as applicable only when its path filter matches the PR.
 # No pytest runs here: the Python tests of the helper script and the build pins run in the router's `ci` module shard (tests/ci),
@@ -32,6 +32,10 @@ on:
       - 'contracts/tools/**'
       - 'scripts/ci/mission_status_gate_checks.py'
       - '.github/workflows/mission-status-api.yml'
+  # The one cron: only `nightly-corpus` runs on it. Every other job carries a `github.event_name != 'schedule'` conjunct, because a job that
+  # `needs` a skipped job is skipped too, but the gate's `always()` would otherwise run it. 04:37 UTC, off the hour.
+  schedule:
+    - cron: '37 4 * * *'
   workflow_dispatch:
 
 permissions:
@@ -51,7 +55,7 @@ jobs:
   # the same bytes by construction. bundle.py refuses an output directory inside the repository.
   contract-bundle:
     # A root job: it carries the canonical fork guard.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -81,7 +85,7 @@ jobs:
   jvm:
     needs: contract-bundle
     # A root-equivalent job: the canonical fork guard.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     # Provisional (research.md budgets); final value from the first CI run's per-step times.
     timeout-minutes: 45
@@ -129,7 +133,7 @@ jobs:
 
   native:
     needs: contract-bundle
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
     name: native (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
     # Provisional: the doubled native compile (nativeCompile plus the test image) on a 4-core runner; the first CI run sets it.
@@ -336,7 +340,7 @@ jobs:
   mission-status-api-gate:
     needs: [jvm, native]
     # always() makes the job self-starting, so the canonical fork guard is first; always() is last.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always()
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule' && always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -381,10 +385,11 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      # Full history: the ancestor check needs origin/main. Written as a flow mapping so the WP14 pin that counts the nightly job's
-      # `fetch-depth: 0` line (it asserts exactly one) is not disturbed.
+      # Full history: the ancestor check needs origin/main.
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with: {persist-credentials: false, fetch-depth: 0}
+        with:
+          persist-credentials: false
+          fetch-depth: 0
       # A tag can be pushed on any commit. Only a commit that is on main (so it went through review) publishes; fails closed.
       - name: Require the tagged commit to be on main
         run: |
@@ -466,7 +471,7 @@ jobs:
   # bundle (it does not depend on the contract-bundle job). No step runs the test runner: the oracle module imports
   # it, so the fully synced environment is installed.
   nightly-corpus:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name == 'workflow_dispatch'
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     # Provisional (plan.md section 7); final value from the first dispatch run's per-step times.
     timeout-minutes: 45
