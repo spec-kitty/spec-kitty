@@ -55,7 +55,7 @@ public final class ReviewCycleReader {
    * @param history the transitions of the Work Package, in the order the resolved state holds them: the verdicts are read from their reviews
    * @param projector the projection of the reviewer handle
    * @throws ReadRefused when a directory is too large to list, or a cycle file's number does not fit the served integer
-   * @throws TextFault when the port cannot stat or list a directory, or stat a cycle file
+   * @throws TextFault when the port cannot stat or list a directory, or stat or read a cycle file
    */
   public List<ReviewCycleEntry> read(MissionRef mission, String missionDirectory, String promptFileName, List<HistoryRow> history, Projector projector) {
     if (promptFileName == null) {
@@ -113,14 +113,13 @@ public final class ReviewCycleReader {
     return new ReviewCycleEntry(CycleNames.cycleNumber(name).getAsInt(), meta.reviewedAt(), reviewer, verdict(history, pointer), pointer, eligible ? relative : null);
   }
 
-  /** The members of the file; an unreadable, over-cap or unparseable file gives none, and the entry stays. */
+  /**
+   * The members of the file; an over-cap, non-regular or unparseable file gives none and the entry stays (row M11). A read fault (EACCES, EIO)
+   * is not hidden: it propagates as a {@link TextFault} and the route answers 500 {@code source_unreadable} (FR-012, AC-12.3, row M4b).
+   */
   private ReviewCycleMeta parsed(MissionRef mission, String relative) {
-    try {
-      BytesRead read = text.readBytes(new FileRef.MissionFile(mission, RelativePath.of(relative)), FILE_CAP_BYTES, ReadScope.AUTHORED);
-      return read instanceof BytesRead.Bytes bytes ? decoder.decodeReviewCycle(bytes.content()) : ReviewCycleMeta.UNPARSED;
-    } catch (TextFault unreadable) {
-      return ReviewCycleMeta.UNPARSED;
-    }
+    BytesRead read = text.readBytes(new FileRef.MissionFile(mission, RelativePath.of(relative)), FILE_CAP_BYTES, ReadScope.AUTHORED);
+    return read instanceof BytesRead.Bytes bytes ? decoder.decodeReviewCycle(bytes.content()) : ReviewCycleMeta.UNPARSED;
   }
 
   /** The verdict of the last transition in ledger file order whose trimmed review reference is the pointer; null when no transition names it or its verdict is no review verdict. */

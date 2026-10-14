@@ -131,7 +131,7 @@ class ReviewCycleReaderTest {
   }
 
   @Test
-  void aFaultOfAStatOrOfTheListingIsThrownButAFaultOfTheReadLeavesAnEntry() {
+  void aFaultOfAStatOrOfTheListingIsThrown() {
     for (TextFault.Kind kind : TextFault.Kind.values()) {
       InMemoryTextSource statFault = withCycles(1).fault(file("tasks/WP01-one/review-cycle-1.md"), kind);
       assertThatThrownBy(() -> read(statFault, List.of())).isInstanceOf(TextFault.class);

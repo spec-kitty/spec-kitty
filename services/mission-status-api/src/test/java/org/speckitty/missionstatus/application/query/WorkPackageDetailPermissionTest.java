@@ -106,16 +106,11 @@ class WorkPackageDetailPermissionTest {
   }
 
   @Test
-  void aCycleFileThatCannotBeReadIsStillAnEntryWithNullMembers() {
+  void aCycleFileThatCannotBeReadIsSourceUnreadable() {
     DetailFixture fixture = withCycle();
     fixture.recorder().failWhen(access -> access.pathClass() == PathClass.WP_CYCLE_FILE && access.mode() == OpenMode.READ, () -> new AccessDeniedException("injected"));
 
-    assertThat(detail(fixture, "WP01").reviewCycles()).singleElement().satisfies(entry -> {
-      assertThat(entry.reviewer()).isNull();
-      assertThat(entry.reviewedAt()).isNull();
-      assertThat(entry.cycleNumber()).isEqualTo(1);
-    });
-    assertThat(fixture.diagnostics()).isEmpty();
+    assertSourceUnreadable(fixture);
   }
 
   @Test
