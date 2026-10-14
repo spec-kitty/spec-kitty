@@ -53,6 +53,16 @@ public final class SafeFiles {
     return c < ' ' || c == 0x7f || "/\\<>:\"|?*".indexOf(c) >= 0;
   }
 
+  /**
+   * Whether the attributes of an entry read with NOFOLLOW_LINKS name a link. A symbolic link is one. So is a Windows junction (mount
+   * point): the JDK reports it as a directory that is also "other" and not as a symbolic link, so a check of {@code isSymbolicLink}
+   * alone walks into its target. A directory is never "other" on a POSIX system, so a FIFO, a socket or a device (other, not a
+   * directory) keeps the rule it has: not a regular file.
+   */
+  public static boolean isLinkLike(BasicFileAttributes attributes) {
+    return attributes.isSymbolicLink() || (attributes.isOther() && attributes.isDirectory());
+  }
+
   /** The project root as configured (not resolved). */
   public Path root() {
     return root;
@@ -144,7 +154,7 @@ public final class SafeFiles {
       }
       throw new SourceFault(unreadable);
     }
-    if (attributes.isSymbolicLink()) {
+    if (isLinkLike(attributes)) {
       throw new SourceFault(refused);
     }
     if (!attributes.isRegularFile()) {
@@ -191,7 +201,7 @@ public final class SafeFiles {
 
   private boolean isLink(Path file) {
     try {
-      return access.stat(file, false).isSymbolicLink();
+      return isLinkLike(access.stat(file, false));
     } catch (IOException failure) {
       return false;
     }
@@ -209,7 +219,7 @@ public final class SafeFiles {
     } catch (IOException failure) {
       throw new SourceFault(isAbsent(failure) ? Kind.VANISHED : Kind.DIR_UNREADABLE);
     }
-    if (attributes.isSymbolicLink()) {
+    if (isLinkLike(attributes)) {
       throw new SourceFault(Kind.PATH_REFUSED);
     }
     if (!attributes.isDirectory()) {

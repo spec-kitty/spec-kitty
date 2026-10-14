@@ -240,7 +240,7 @@ final class FilesystemMissionEventSourceProject {
     } catch (SourceFault unreadable) {
       return Optional.empty();
     }
-    if (attributes.isEmpty() || attributes.get().isSymbolicLink()) {
+    if (attributes.isEmpty() || SafeFiles.isLinkLike(attributes.get())) {
       return Optional.empty();
     }
     if (attributes.get().isDirectory()) {

@@ -1,6 +1,7 @@
 package org.speckitty.missionstatus.adapter.out.filesystem;
 
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.EnumMap;
@@ -80,7 +81,7 @@ public final class FilesystemTextSource implements TextSource {
       if (attributes.isEmpty()) {
         return new DirListing.Absent();
       }
-      if (attributes.get().isSymbolicLink()) {
+      if (SafeFiles.isLinkLike(attributes.get())) {
         throw new SourceFault(SourceFault.Kind.PATH_REFUSED);
       }
       if (!attributes.get().isDirectory()) {
@@ -168,16 +169,28 @@ public final class FilesystemTextSource implements TextSource {
         if (!SafeFiles.isSafeSegment(name)) {
           throw new SourceFault(SourceFault.Kind.PATH_REFUSED);
         }
-        yield views.get(ReadScope.AUTHORED).files().requireContainedDir(root.resolve(SPECS).resolve(name));
+        yield views.get(ReadScope.AUTHORED).files().requireContainedDir(child(root.resolve(SPECS), name));
       }
       case FileRef.ProjectFile project -> root;
     };
   }
 
+  /**
+   * One segment appended. A name the platform cannot parse (a NUL, or on Windows a colon, a wildcard or a reserved shape) raises the
+   * unchecked {@code InvalidPathException}; that is a refused path, not an internal error.
+   */
+  static Path child(Path parent, String segment) {
+    try {
+      return parent.resolve(segment);
+    } catch (InvalidPathException unparseable) {
+      throw new SourceFault(SourceFault.Kind.PATH_REFUSED);
+    }
+  }
+
   private static Path resolve(Path base, List<String> segments) {
     Path current = base;
     for (String segment : segments) {
-      current = current.resolve(segment);
+      current = child(current, segment);
     }
     return current;
   }
@@ -189,12 +202,12 @@ public final class FilesystemTextSource implements TextSource {
   private static boolean ancestorsAreDirectories(SafeFiles files, Path base, List<String> segments) {
     Path current = base;
     for (int i = 0; i < segments.size() - 1; i++) {
-      current = current.resolve(segments.get(i));
+      current = child(current, segments.get(i));
       Optional<BasicFileAttributes> attributes = files.statNoFollow(current);
       if (attributes.isEmpty()) {
         return false;
       }
-      if (attributes.get().isSymbolicLink()) {
+      if (SafeFiles.isLinkLike(attributes.get())) {
         throw new SourceFault(SourceFault.Kind.PATH_REFUSED);
       }
       if (!attributes.get().isDirectory()) {
@@ -206,7 +219,7 @@ public final class FilesystemTextSource implements TextSource {
 
   private static EntryStat present(BasicFileAttributes attributes) {
     EntryKind kind =
-        attributes.isSymbolicLink()
+        SafeFiles.isLinkLike(attributes)
             ? EntryKind.SYMLINK
             : attributes.isRegularFile() ? EntryKind.FILE : attributes.isDirectory() ? EntryKind.DIRECTORY : EntryKind.OTHER;
     return new EntryStat.Present(kind, attributes.size(), attributes.lastModifiedTime().toInstant().getEpochSecond());
