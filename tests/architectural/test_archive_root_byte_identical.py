@@ -247,6 +247,10 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   Follow-up: once this correction is in main's baseline, this entry is dead
 #   weight and should be removed to restore the byte-freeze on the corrected
 #   file (same convention as the entries above).
+# Second reader: tests/architectural/test_upgrade_recovery_preservation.py overlays
+# these paths onto the full historical corpus from its pinned SANCTIONED_AT commit
+# and asserts FULL_CORPUS_SANCTIONED_COUNT (#6238). Adding or removing an entry that
+# exists in that corpus means updating both constants there.
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/079-post-555-release-hardening/status.json",
