@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.15.0`
+- `CONTRACT_VERSION`: `1.16.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -152,6 +152,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   failure is raised. Like `SAFE_COMMIT_INDEX_RESIDUE` it refines
   `SAFE_COMMIT_RECOVERY_FAILED` (the commit landed). A new `error_code` on an existing
   verb, so a minor bump; no field is removed or renamed.
+- `1.16.0` — `answer-decision` now surfaces decision-log commit warnings in its
+  `data` under a `warnings` key (list of strings) when the decision record's
+  `safe_commit` is refused (#6222, follow-up to #3930, which fixed the host
+  `next --answer --json` surface only). Previously an external orchestrator got
+  `success: true` while the committed decision record diverged silently. The key
+  is present only when non-empty — a clean commit leaves the payload
+  byte-identical — so this is a purely additive, optional field; no field is
+  removed or renamed.
 
 ## Response Envelope
 
@@ -159,7 +167,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.15.0",
+  "contract_version": "1.16.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -744,6 +752,14 @@ payload shape documented above, its `mission_identity_fields()` helper here
 only normalizes `mission_slug` / `mission_number` / `mission_type`). `data`
 does **not** carry an `answer` echo key; the host CLI's terser `answered`
 key is similarly not used.
+
+Since contract `1.16.0`, `data` also carries a `warnings` key (a list of
+strings) **only when** the Step-1 decision-log `safe_commit` was refused —
+byte-identical to the host `next --answer --json` surface (#6222, follow-up to
+#3930). On a clean commit the key is absent and the payload is unchanged. A
+`warnings` entry means the answer event was written to `decisions.events.jsonl`
+but not committed to git, so the committed decision record may be stale; the
+answer itself is not lost locally.
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `RESULT_REQUIRED` (`--result` omitted), `INVALID_RESULT`

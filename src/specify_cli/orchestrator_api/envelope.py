@@ -125,7 +125,14 @@ from kernel.clock import now_utc_iso
 # re-synced for those paths before it is raised. Like ``SAFE_COMMIT_INDEX_RESIDUE`` it refines
 # ``SAFE_COMMIT_RECOVERY_FAILED`` (the commit landed). A new ``error_code`` on an existing verb,
 # so a minor bump; no field is removed or renamed.
-CONTRACT_VERSION = "1.15.0"
+# 1.16.0: ``answer-decision`` now surfaces decision-log commit warnings in its
+# ``data`` under the ``warnings`` key when the decision record's ``safe_commit``
+# is refused (#6222, follow-up to #3930 which fixed the host ``next --answer
+# --json`` surface only). The key is present only when non-empty, mirroring the
+# host; a clean commit leaves the payload byte-identical. A new optional,
+# additive field on an existing verb, so a minor bump; no field is removed or
+# renamed.
+CONTRACT_VERSION = "1.16.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

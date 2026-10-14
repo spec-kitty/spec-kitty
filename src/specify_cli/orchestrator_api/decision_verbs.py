@@ -753,7 +753,17 @@ def answer_decision(
             return
 
     # --- Step 1: persist the answer. ---
-    answer_decision_via_runtime(mission, resolved_decision_id, answer, agent, main_repo_root)
+    # #6222 (follow-up to #3930): capture decision-log commit warnings around
+    # the answer persistence so a refused ``safe_commit`` of the decision
+    # record surfaces to the external orchestrator in ``data["warnings"]``
+    # instead of a silent ``success: true`` with the committed record diverged.
+    # Mirrors the host CLI's ``next --answer --json`` path, which wraps the same
+    # answer-persistence span (``next_cmd.py`` ``capture_commit_warnings`` →
+    # ``_print_decision``). Additive field, contract 1.16.0.
+    from specify_cli.events.decision_log import capture_commit_warnings
+
+    with capture_commit_warnings() as commit_warnings:
+        answer_decision_via_runtime(mission, resolved_decision_id, answer, agent, main_repo_root)
 
     # --- Step 2 (WP02 seam, REQUIRED, BEFORE the DAG advances): pair the
     # previous issuance's `started` lifecycle record. ---
@@ -781,6 +791,11 @@ def answer_decision(
     # deliberately NOT the CLI's terser `answered` key. No `answer` echo key
     # is set here (the host already possesses the value it submitted).
     data["answered_decision_id"] = resolved_decision_id
+    # #6222: surface the Step-1 decision-log commit warnings (if any) under the
+    # same ``warnings`` key the host CLI uses, and only when non-empty — byte
+    # parity with ``next --answer --json`` (no key on the clean-commit path).
+    if commit_warnings:
+        data["warnings"] = commit_warnings
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=data)
     _emit(envelope)

@@ -807,6 +807,7 @@ spec-kitty orchestrator-api answer-decision \
 | `is_query` | bool | `true` when `kind == query` |
 | `preview_step` | string or null | Preview of the next step |
 | `answered_decision_id` | string | The `decision_id` this call persisted an answer against — this verb's own field name for the CLI's terser `answered` key. `data` carries NO `answer` echo key: the submitted value is intentionally omitted (the host already has it) |
+| `warnings` | list of strings | Present (contract >= 1.16.0) **only when** the Step-1 decision-log `safe_commit` was refused — byte-identical to the host `next --answer --json` surface. Absent on a clean commit. A `warnings` entry means the answer event is in `decisions.events.jsonl` but not committed to git, so the committed decision record may be stale (#6222) |
 
 **Error codes:**
 

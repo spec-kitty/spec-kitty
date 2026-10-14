@@ -618,17 +618,89 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
     assert orch_envelope["success"] is True, orch_envelope
     orch_data = orch_envelope["data"]
 
-    # Non-deterministic per call/run -- see module docstring.
-    _excluded = {"timestamp", "run_id", "prompt_file"}
+    # Non-deterministic per call/run -- see module docstring. ``warnings``
+    # (#6222) joins this set for the SAME reason ``prompt_file`` is here: when
+    # the Step-1 decision-log ``safe_commit`` is refused (as it is for both
+    # repos in this fixture, HEAD on ``main`` vs. the mission branch), the
+    # surfaced warning string embeds the mission's absolute
+    # ``decisions.events.jsonl`` path, which is run-instance-scoped and so
+    # differs between the two independent ``cli``/``orch`` repos. Its PRESENCE
+    # is still parity-checked by the subset assertion below (both surfaces must
+    # carry the key); only its path-bearing VALUE is exempt from byte-equality.
+    _excluded = {"timestamp", "run_id", "prompt_file", "warnings"}
     decision_keys = set(cli_payload) - {"answered", "answer"}
     assert decision_keys <= set(orch_data)
     for key in sorted(decision_keys - _excluded):
         assert orch_data[key] == cli_payload[key], f"field {key!r} diverges: cli={cli_payload[key]!r} orch={orch_data[key]!r}"
     assert orch_data.get("prompt_file"), "orchestrator-api response missing prompt_file"
     assert cli_payload.get("prompt_file"), "host-CLI response missing prompt_file"
+    # #6222: both surfaces must carry the commit-failure ``warnings`` key (the
+    # fixture forces a refused decision-log commit in both repos). This pins the
+    # presence-parity the subset check above enforces, independent of the
+    # path-bearing value excluded from byte-equality.
+    assert orch_data.get("warnings"), "orchestrator-api response missing commit-failure warnings"
+    assert cli_payload.get("warnings"), "host-CLI response missing commit-failure warnings"
 
     assert orch_data["answered_decision_id"] == "audit:audit_gate"
     assert "answer" not in orch_data
+
+
+def test_answer_decision_omits_warnings_on_clean_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6222: the ``warnings`` key is ABSENT when the decision-log commit lands.
+
+    Complement of the parity test's refused-commit case above: it pins the
+    ``if commit_warnings:`` false branch and the contract ledger's
+    "byte-identical on a clean commit" guarantee. With the decision-log commit
+    succeeding (no ``SafeCommitError`` recorded), ``answer-decision`` returns
+    ``success: true`` and the payload carries no ``warnings`` key.
+    """
+    from specify_cli.events.decision_log import DecisionGitLog
+
+    # A landed commit records no warning. Neutralize only the git-commit side
+    # effect -- the single call that raises ``SafeCommitError`` in the fixture's
+    # HEAD-on-``main`` setup; the decision event is still written to disk first
+    # (``_append_decision_event`` runs before ``_trigger_commit``), exactly as on
+    # a real clean commit.
+    monkeypatch.setattr(DecisionGitLog, "_trigger_commit", lambda self: None)
+
+    mission_slug = "wp08-clean-commit"
+    mission_type = "wp08-clean-commit-mission"
+    agent = "parity-agent"
+    repo = _scaffold_project(
+        tmp_path,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+        mission_id="01HWP08CLEANCOMMITULID0001",
+    )
+    _write_audit_gate_mission(repo, mission_type)
+
+    reveal = _next(repo, agent, mission_slug)
+    assert reveal["decision_id"] == "audit:audit_gate"
+    _set_mission_owner_id(repo, mission_slug, agent)
+
+    result = _run_answer_decision(
+        repo,
+        [
+            "--mission",
+            mission_slug,
+            "--agent",
+            agent,
+            "--result",
+            "success",
+            "--answer",
+            "approve",
+            "--decision-id",
+            "audit:audit_gate",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+    assert envelope["success"] is True, envelope
+    assert envelope["data"]["answered_decision_id"] == "audit:audit_gate"
+    # The false branch: no commit warning recorded -> no ``warnings`` key, so the
+    # clean-commit payload stays byte-identical to the pre-#6222 shape.
+    assert "warnings" not in envelope["data"], envelope["data"]
 
 
 # ---------------------------------------------------------------------------
