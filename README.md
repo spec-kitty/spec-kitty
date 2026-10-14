@@ -174,9 +174,8 @@ Deeper topics:
 - [External Orchestrator Runbook](docs/guides/how-to/collaboration/run-external-orchestrator.md)
 - [Hosted Sync Workspaces](docs/guides/how-to/collaboration/sync-workspaces.md)
 
-Hosted auth, sync, and tracker flows remain opt-in. For setup details, see
-[Hosted Sync Workspaces](docs/guides/how-to/collaboration/sync-workspaces.md), [Internal
-Hosted-Readiness](docs/operations/internal-hosted-readiness.md), and
+Hosted auth, sync, and tracker flows were removed from open-core (#6164; the code is
+preserved in `spec-kitty/event-router`). For background, see
 [Launch-Readiness Behavior](docs/architecture/launch-readiness-future.md).
 
 ## FAQ

@@ -6,7 +6,6 @@ updated: '2026-10-05'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
-- docs/api/auth-whoami-output.md
 - docs/development/reference/issue-matrix-verdicts.md
 ---
 # CLI Command Reference
@@ -35,7 +34,6 @@ Terminology note:
 For non-obvious runtime behaviour an operator may encounter:
 
 - [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics, lane-depth cycle safety, and the planning-commit pin refresh.
-- [`auth whoami` output](auth-whoami-output.md) — the full stdout shape, including the SaaS diagnostic lines the generated `--help` section below doesn't mention.
 - [Issue-matrix verdict reference](../development/reference/issue-matrix-verdicts.md) — the five `issue-verdict` verdict values, which gate at `approved` vs `done`, and the reference-classification model behind `move-task`'s approval gate. `move-task`'s `--actor`/`--reason` aliases and `issue-verdict`'s `not-applicable` verdict are agent-only commands documented in full in `docs/api/agent-subcommands.md` (regenerated from the live Typer surface); this reference page is the durable, hand-authored explanation of the vocabulary and gating rules those generated sections don't narrate (#3469).
 
 ## Coordination-routed Missions: where writes land

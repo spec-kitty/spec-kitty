@@ -6,7 +6,6 @@ type: reference
 audience: docs/context/audience/internal/maintainer.md
 updated: '2026-09-14'
 related:
-- docs/operations/internal-hosted-readiness.md
 - docs/api/environment-variables.md
 - docs/adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md
 ---

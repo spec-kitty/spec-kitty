@@ -3563,6 +3563,7 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "amendment-2026-10-12-accepted-team-kitty-is-multiplayer-mode-the-consumer-side-the-rule-is-scoped-lifted-not-dropped", text: "Amendment 2026-10-12 (Accepted): Team Kitty is \"Multiplayer Mode,\" the consumer side — the rule is scoped-lifted, not dropped", level: 2}
+    - {slug: "amendment-2026-10-14", text: "Amendment 2026-10-14", level: 2}
   - path: "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md"
     title: "ADR: charter offering, active charter and activation presets"
     divio_type: "none"
@@ -3607,6 +3608,7 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-10-14", text: "Amendment 2026-10-14", level: 2}
   - path: "docs/adr/4.x/2026-10-07-2-governed-planning-application-seam.md"
     title: "ADR: governed planning application seam and status integration"
     divio_type: "none"
@@ -3748,6 +3750,7 @@ pages:
     - {slug: "publication-a-second-toggle-for-local-subscribers", text: "Publication: a second toggle for local subscribers", level: 3}
     - {slug: "retention-one-policy-for-every-log", text: "Retention: one policy for every log", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-14", text: "Amendment 2026-10-14", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4045,13 +4048,6 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/auth-whoami-output.md"
-    title: "auth whoami output reference"
-    divio_type: "none"
-    abstract: "Full stdout shape of spec-kitty auth whoami, including the SaaS diagnostic lines the generated --help text doesn't mention."
-    anchors:
-    - {slug: "what-prints-in-order", text: "What prints, in order", level: 2}
-    - {slug: "why-the-split-exists", text: "Why the split exists", level: 2}
   - path: "docs/api/batch-api-contract.md"
     title: "Batch Event Ingest API Contract"
     divio_type: "reference"
@@ -4847,7 +4843,7 @@ pages:
     - {slug: "purpose", text: "Purpose", level: 2}
     - {slug: "level-0-system-landscape-codebase-modules", text: "Level 0 — System Landscape → Codebase Modules", level: 2}
     - {slug: "key-structural-observation", text: "Key structural observation", level: 3}
-    - {slug: "ephemeral-status-transport-zeitgeist-and-the-saas-client", text: "Ephemeral status transport (Zeitgeist) and the SaaS client", level: 3}
+    - {slug: "retired-hosted-transports-and-clients", text: "Retired hosted transports and clients", level: 3}
     - {slug: "level-1-system-context-boundary-mapping", text: "Level 1 — System Context → Boundary Mapping", level: 2}
     - {slug: "boundary-rule-compliance", text: "Boundary rule compliance", level: 3}
     - {slug: "level-2-container-collaboration-code-paths", text: "Level 2 — Container Collaboration → Code Paths", level: 2}
@@ -4889,7 +4885,7 @@ pages:
     abstract: "Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain."
     anchors:
     - {slug: "the-canonical-modularity-ssot-is-the-enforced-pair", text: "The canonical modularity SSOT is the enforced pair", level: 2}
-    - {slug: "client-packages-are-consumers-of-upstream-authoritative-repos", text: "Client packages are consumers of upstream authoritative repos", level: 2}
+    - {slug: "hosted-client-packages-were-removed", text: "Hosted client packages were removed", level: 2}
     - {slug: "historical-note", text: "Historical note", level: 2}
   - path: "docs/architecture/06_unified_charter_bundle.md"
     title: "06 — Unified Charter Bundle"
@@ -13497,21 +13493,6 @@ pages:
     anchors:
     - {slug: "pages", text: "Pages", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/operations/internal-hosted-readiness.md"
-    title: "Internal Hosted-Readiness Mode (Pre-Launch)"
-    divio_type: "how-to"
-    abstract: "How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch)."
-    anchors:
-    - {slug: "when-this-page-applies", text: "When this page applies", level: 2}
-    - {slug: "how-the-hidden-mode-works-one-paragraph-mental-model", text: "How the hidden mode works (one-paragraph mental model)", level: 2}
-    - {slug: "enable-hosted-readiness-locally", text: "Enable hosted readiness locally", level: 2}
-    - {slug: "point-at-a-dev-or-staging-hosted-environment", text: "Point at a dev or staging hosted environment", level: 2}
-    - {slug: "readiness-states-the-coordinator-surfaces", text: "Readiness states the coordinator surfaces", level: 2}
-    - {slug: "diagnose-hosted-readiness", text: "Diagnose hosted readiness", level: 2}
-    - {slug: "suppression-contract", text: "Suppression contract", level: 2}
-    - {slug: "verify-locally-end-to-end", text: "Verify locally end-to-end", level: 2}
-    - {slug: "related", text: "Related", level: 2}
-    - {slug: "not-for-end-users", text: "Not for end users", level: 2}
   - path: "docs/operations/logged-out-teamspace.md"
     title: "Recovery: Logged out on a connected teamspace"
     divio_type: "none"

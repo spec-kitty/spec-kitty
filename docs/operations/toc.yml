@@ -14,8 +14,6 @@
   href: how-to-maintain.md
 - name: Identity-Boundary CI Gate
   href: identity-boundary-ci-gate.md
-- name: Internal Hosted-Readiness Mode
-  href: internal-hosted-readiness.md
 - name: Logged-Out Teamspace Recovery
   href: logged-out-teamspace.md
 - name: Manual Test Plan

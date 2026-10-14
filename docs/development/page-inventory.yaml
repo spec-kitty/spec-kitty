@@ -1466,12 +1466,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/api/auth-whoami-output.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/api/batch-api-contract.md
   tag: current
   divio_type: reference
@@ -4685,12 +4679,6 @@
 - path: docs/operations/index.md
   tag: current
   divio_type: reference
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/operations/internal-hosted-readiness.md
-  tag: current
-  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null

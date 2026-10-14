@@ -4,7 +4,6 @@ description: 'Work the 3-gate sync-drain order (flag/consent, auth, teamspace) a
 doc_status: deprecated
 updated: '2026-08-31'
 related:
-- docs/operations/internal-hosted-readiness.md
 - docs/operations/logged-out-teamspace.md
 - docs/operations/recovery-index.md
 - docs/api/environment-variables.md
@@ -35,7 +34,7 @@ is opted out" (gate 1), not a downstream symptom like "no Private Teamspace"
 ## Gate 1 — is hosted sync on, and does this project consent?
 
 This gate is already documented — cite it, do not restate it:
-[Internal Hosted-Readiness Mode](internal-hosted-readiness.md) (L35–158)
+the [Environment Variables Reference](../api/environment-variables.md)
 covers `SPEC_KITTY_ENABLE_SAAS_SYNC` (the rollout flag — **not**
 `SPEC_KITTY_ENABLE_SAAS_SYNC_ENABLED`, no such variable exists) and
 `spec-kitty sync doctor` as the diagnostic entry point.
@@ -68,8 +67,7 @@ Blocked reason: `missing_team`. The operator is authenticated, but the
 strict Private-Teamspace resolver returned nothing for this event, so
 ingress refuses the batch rather than routing it somewhere unintended. This
 is the same "no Private Teamspace available" state
-[Internal Hosted-Readiness Mode](internal-hosted-readiness.md#readiness-states-the-coordinator-surfaces)
-lists as a readiness bucket; remediation is to refresh Teamspace membership
+the hosted readiness coordinator listed as a readiness bucket; remediation is to refresh Teamspace membership
 in the dashboard. If the CLI session itself is logged out on a *connected*
 Teamspace (a distinct state from "no Teamspace at all"), see
 [Recovery: Logged out on a connected teamspace](logged-out-teamspace.md).
@@ -136,8 +134,6 @@ doctor` to see which tier is actually supplying gate-relevant vars like
 
 ## Related
 
-- [Internal Hosted-Readiness Mode](internal-hosted-readiness.md) — gate 1's
-  home: `SPEC_KITTY_ENABLE_SAAS_SYNC`, `sync doctor`, readiness states.
 - [Recovery: Logged out on a connected teamspace](logged-out-teamspace.md) —
   the gate-3-adjacent logged-out recovery path.
 - [Environment Variables Reference](../api/environment-variables.md) —

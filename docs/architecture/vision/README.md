@@ -41,13 +41,11 @@ forward intent that may still change. It is one of the living architecture surfa
 [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md); in architecture terms it
 points at:
 
-- **Hosted collaboration over Zeitgeist.** Team Kitty is the hosted product, and the only
-  outbound hosted path is one bounded moment per lane transition to the team's relay, opt-in
-  on the client. The retired sync transport stays retired. See
-  [Team Kitty and Zeitgeist](../../context/team-kitty.md).
-- **Structural finish.** Post-convergence client surfaces (`zeitgeist_client/`, `saas_client/`)
-  settle onto their upstream authorities, and one canonical event store stays the single
-  source of lifecycle truth.
+- **Hosted collaboration lives outside open-core.** The hosted client surfaces
+  (`zeitgeist_client/`, `saas_client/`, hosted auth and the moment publisher) were removed from
+  open-core (#6164; the code is preserved in `spec-kitty/event-router`), and the retired sync
+  transport stays retired. See [Team Kitty and Zeitgeist](../../context/team-kitty.md).
+- **Structural finish.** One canonical event store stays the single source of lifecycle truth.
 - **One governed front door.** A stable, versioned application API that the CLI, UI, MCP
   and SDK consumers build against, rather than parallel ad-hoc surfaces.
 - **Charter service strangler.** Move charter reads, then writes, behind the stable

@@ -134,16 +134,6 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
     # removed with the frozen hosted/sync/drain machinery (relocated to the
     # companion event-router repo). Kept as history/architecture record rather
     # than rewritten; the paths no longer resolve on disk.
-    "docs/api/auth-whoami-output.md": {
-        "src/specify_cli/cli/commands/_auth_status.py": "#6164 removal history: the hidden hosted auth CLI entry was removed",
-        "src/specify_cli/cli/commands/_auth_whoami.py": "#6164 removal history: the hidden hosted auth CLI entry was removed",
-    },
-    "docs/development/reference/read-side-seam-classification.md": {
-        "src/specify_cli/widen/state.py": "#6164 removal history: the widen package was removed with the frozen hosted surfaces",
-    },
-    "docs/operations/internal-hosted-readiness.md": {
-        "src/specify_cli/core/saas_sync_config.py": "#6164 removal history: hosted-readiness ops doc names the removed saas-sync config",
-    },
     "docs/api/batch-api-contract.md": {
         "src/specify_cli/sync/emitter.py": "wire-contract history: the doc says this module was deleted with the sync transport",
         "src/specify_cli/sync/batch.py": "wire-contract history: the doc says this module was deleted with the sync transport",
@@ -158,14 +148,10 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
     },
     "docs/architecture/00_landscape/README.md": {
         "src/doctrine/": "relocation history: 'absorbed the former src/doctrine/ package at src/charter/offering/'",
-        "src/specify_cli/zeitgeist_client/": "#6164 removal history: the zeitgeist client was removed with the frozen hosted surfaces",
-        "src/specify_cli/saas_client/": "#6164 removal history: the saas client was removed with the frozen hosted surfaces",
     },
     "docs/architecture/04_implementation_mapping/README.md": {
         "src/specify_cli/saas/": "retirement history: 'the convergence retired ... the src/specify_cli/saas/ package'",
         "src/specify_cli/next/": "shim-deletion history: names the commit that deleted the shim",
-        "src/specify_cli/zeitgeist_client/": "#6164 removal history: the zeitgeist client was removed with the frozen hosted surfaces",
-        "src/specify_cli/saas_client/": "#6164 removal history: the saas client was removed with the frozen hosted surfaces",
     },
     "docs/architecture/execution-lanes.md": {
         "src/foo.py": "illustrative example path in a lane-layout snippet",

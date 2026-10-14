@@ -50,12 +50,9 @@ relocated into (Convergence #3881); the `src/doctrine.py` deprecation shim was r
 > precondition #645, now GA-gating). The enforced pair stays the authority; this note changes
 > no gate.
 
-## Client packages are consumers of upstream authoritative repos
+## Hosted client packages were removed
 
-`src/specify_cli/zeitgeist_client/` and `src/specify_cli/saas_client/` are **client/consumer
-code**, not in-repo successor subsystems. The authoritative repositories are
-`spec-kitty/zeitgeist` (ephemeral status) and `spec-kitty/saas` (hosted team surface); the
-API/client is authored + published upstream and consumed here. See ADR
+The former `zeitgeist_client/` and `saas_client/` packages were removed from open-core (#6164; the code is preserved in `spec-kitty/event-router`). See ADR
 [`2026-09-06-1-convergence-retirement-and-client-repo-inversion`](../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)
 and the precedent ADR
 [`2026-04-25-1-shared-package-boundary`](../adr/3.x/2026-04-25-1-shared-package-boundary.md).

@@ -240,10 +240,9 @@ breaking that gate. `#3055` tracked the follow-up. (Superseded: the site was rou
 in #3285; see the `decisions/emit.py:71` row in
 [`read-side-seam-classification.md`](../development/reference/read-side-seam-classification.md).) This is the one edge *this mission audited*
 as directory-identical-routable and deliberately deferred. It is not the only unrouted
-sanctioned `resolve_feature_dir_for_mission` coord-write: `widen/state.py:63`,
-`agent_tasks_ports.py:322`, and `lanes/recovery.py:765` carry the same coord-authority
-sanction, and `widen/state.py:63`'s rationale is verbatim-identical to this one — they were
-simply not re-audited for the directory-identical-routing property this mission established
+sanctioned `resolve_feature_dir_for_mission` coord-write: `widen/state.py:63` (removed
+with the widen package, #6164), `agent_tasks_ports.py:322`, and `lanes/recovery.py:765` carried
+the same coord-authority sanction — they were simply not re-audited for the directory-identical-routing property this mission established
 for `emit.py:71`. So the honest statement is "the one edge adjudicated and deferred," not "the
 one call site in tension."
 
@@ -253,7 +252,7 @@ location through `placement_seam(...).write_dir(STATUS_STATE).path`, because a d
 COORD record and `read_dir` would degrade an `EMPTY` coordination surface to the repository root
 checkout. Of the three sibling sanctions, `agent_tasks_ports.py` (`RealCoordCommitRouter.
 feature_write_dir`) and `lanes/recovery.py` (`reconcile_status`) now also take `write_dir`;
-`widen/state.py:63` (`WidenPendingStore.__init__`) still calls `resolve_feature_dir_for_mission`.
+`widen/state.py:63` (`WidenPendingStore.__init__`) was removed with the widen package (#6164).
 
 ## Partition-Move Audit Checklist
 

@@ -69,9 +69,7 @@ flowchart TB
 
     op["Op Tier — dispatch + pre/post-mission lifecycle"]
     orchestrator["External Orchestrator"] --> cli
-    moments["Zeitgeist moment publisher — status/zeitgeist_bridge + zeitgeist_client"]
-    relay["Team's Zeitgeist relay (external)"]
-    extTracker["External Tracker (local provider or via Team Kitty)"]
+    extTracker["External Tracker (local provider)"]
 
     cli --> op
     op -->|action-scoped context| charter
@@ -82,8 +80,6 @@ flowchart TB
     cli --> missionLifecycle
     missionLifecycle --> statusFacade
     missionLifecycle --> planning
-    statusFacade -->|after local persistence, when drain is on| moments
-    moments -->|one bounded moment, no queue, no retry| relay
     cli -->|tracker commands| extTracker
 
     missionLifecycle -->|resolve_action_context| missionRuntime
@@ -174,7 +170,6 @@ reads enter the same application and domain policies.
 | `resolve_status_surface_with_anchor` | Single-pass status-surface + primary-anchor resolution | The one status-surface authority; fails closed rather than handing back a primary surface (kills the split-brain class) |
 | `CommitTarget(ref, kind)` | The one ref artifacts and status events resolve to | Self-validating value object pairing the destination `ref` with its topology `kind` |
 | `commit_guard.evaluate` + `GuardCapability` | The ONE commit-protection decision | Pure function: echoes `CommitTarget.ref` as the resolved destination; capability is asserted at the call site, never derived |
-| Zeitgeist moment publisher | Publishes a lane-transition moment to the team's relay | Runs only after the event is persisted locally and only when drain is on; fails open on availability, closed on identity ([Team Kitty and Zeitgeist](../../../context/team-kitty.md)) |
 
 ## Canonical-shape notes (what these containers are NOT)
 
@@ -189,14 +184,14 @@ reads enter the same application and domain policies.
   by an explicit `GuardCapability`; the five legacy privilege channels were
   folded into that capability and are not depicted.
 - The retired sync transport (daemon, offline queue, batch ingress) is gone and
-  is not depicted; the only hosted outbound path is the Zeitgeist moment.
+  is not depicted, and neither is the Zeitgeist moment publisher, which was removed from open-core (#6164; preserved in `spec-kitty/event-router`).
 
 ## Domain-to-Container Allocation
 
 | Domain (bounded module) | Primary Containers | Secondary Containers |
 |---|---|---|
 | Governance | Charter Engine, Charter Offering + DRG, Glossary Corpus | CLI Command Surface, Op Tier |
-| Mission Management | Mission + WP lifecycle, `status/` OHS facade, Planning artifacts | CLI Command Surface, Zeitgeist moment publisher |
+| Mission Management | Mission + WP lifecycle, `status/` OHS facade, Planning artifacts | CLI Command Surface |
 | Execution / Runtime | `mission_runtime`, `resolve_placement_only`, `resolve_status_surface_with_anchor`, Workspace lifecycle | Mission + WP lifecycle |
 | Shared Kernel | `CommitTarget(ref, kind)`, `commit_guard.evaluate` + `GuardCapability` | — |
 | Op Tier (cross-module) | Op Tier | Charter Engine, Mission + WP lifecycle |
@@ -235,14 +230,13 @@ execution/routing invariants.
 
 ## Interaction Constraints
 
-1. State transitions are host-authoritative; orchestrator, Team Kitty, the relay,
+1. State transitions are host-authoritative; orchestrator, Team Kitty
    and trackers use contract surfaces only.
 2. Modules communicate through OHS facades; `status` internals are import-forbidden
    outside Mission Management.
 3. There is exactly one execution-state surface (`mission_runtime`) and one
    commit-protection decision (`commit_guard.evaluate`).
-4. Hosted and tracker integrations are optional and boundary-scoped; hosted
-   moments are opt-in on the client (drain) and never block local persistence.
+4. Tracker integrations are optional and boundary-scoped and never block local persistence.
 
 ## Decision Traceability
 

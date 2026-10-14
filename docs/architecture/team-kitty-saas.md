@@ -7,7 +7,6 @@ audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/operations/sync-drain.md
 - docs/guides/project-sync-consent.md
-- docs/operations/internal-hosted-readiness.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 - docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
 - docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
@@ -190,7 +189,7 @@ sequenceDiagram
 | 1. Opt-in / consent | [Per-Project Sync Consent](../guides/project-sync-consent.md) |
 | 2. Project-store migration | [Per-Project Sync Consent § Migrating legacy shared state](../guides/project-sync-consent.md#migrating-legacy-shared-state-operators) |
 | 3. Admission / delivery-target | [Per-Project Sync Consent § How admission pairs with the SaaS boundary](../guides/project-sync-consent.md#how-admission-pairs-with-the-saas-boundary) |
-| 4. Auth | [Internal Hosted-Readiness Mode](../operations/internal-hosted-readiness.md); [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md) |
+| 4. Auth | [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md) |
 | 5. History disclosure | `spec-kitty sync project-store-history --help` (no dedicated runbook yet — the CLI's own preview/confirm/apply prompts are the primary UX) |
 | 6. `sync now` / the 3-gate drain | [Sync-Drain Runbook](../operations/sync-drain.md) |
 
@@ -211,7 +210,6 @@ Per-Project Event Journal block).
 
 - [Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap](../operations/sync-drain.md)
 - [Per-Project Sync Consent](../guides/project-sync-consent.md)
-- [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
 - [ADR: Operator configuration resolves through one kernel env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
 - [ADR: One Project UUID Owns One Sync Store and One Consent Decision](../adr/3.x/2026-08-09-1-project-sync-store-boundary.md)
 - [ADR: The Egress-Consent Boundary](../adr/3.x/2026-08-04-1-egress-consent-boundary.md)

@@ -3,7 +3,7 @@ title: 'ADR: upgrade never runs the mission-state repair'
 description: 'spec-kitty upgrade, including --yes, only reports TeamSpace mission-state blockers (and only when hosted drain is on); doctor mission-state --fix is the sole repair consent path.'
 status: Accepted
 date: '2026-10-07'
-updated: '2026-10-07'
+updated: '2026-10-14'
 ---
 
 **Status:** Accepted
@@ -47,3 +47,7 @@ updated: '2026-10-07'
 - `enforce_teamspace_mission_state_ready`, the blocking gate for hosted operations, is unchanged.
 - Reversible only by an explicit, new decision; the sole-caller gate fails on any other `repair_repo` caller until its allowlist is amended in the same change.
 - Known limitation: `upgrade --json` does not report mission-state blockers. Deferred; it needs an operator ruling on the JSON contract.
+
+## Amendment 2026-10-14
+
+Amendment 2026-10-14: the hosted surfaces this ADR fences were removed from open-core by #6164; the code is preserved in spec-kitty/event-router.

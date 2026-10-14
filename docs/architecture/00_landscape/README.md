@@ -340,10 +340,8 @@ pair; on any conflict, the enforced pair wins. The former self-declared authorit
 it drifted from reality.
 
 **Client-repo inversion.** `charter.offering` holds the doctrine code (the former top-level
-`src/doctrine/`; the top-level `doctrine` deprecation shim module was removed, #805). `src/specify_cli/zeitgeist_client/`
-and `src/specify_cli/saas_client/` are **clients** of the upstream authoritative repos
-`spec-kitty/zeitgeist` and `spec-kitty/saas` — consumer code integrated here, not in-repo
-successor subsystems (the API is authored/published upstream). See ADR
+`src/doctrine/`; the top-level `doctrine` deprecation shim module was removed, #805). The former
+hosted client packages (`zeitgeist_client/`, `saas_client/`) were removed from open-core (#6164; the code is preserved in `spec-kitty/event-router`). See ADR
 `docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
 
 ## Traceability

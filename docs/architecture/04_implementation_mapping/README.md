@@ -89,19 +89,17 @@ shrink-only outbound-import ledgers (`TestMissionRuntimeBoundary` /
 imports outside the named ledger still red the gate. Only the remaining container boundaries
 are module-level conventions enforced by architectural gates and code review.
 
-### Ephemeral status transport (Zeitgeist) and the SaaS client
+### Retired hosted transports and clients
 
 The convergence retired the local `sync/` transport (daemon, offline queue,
-body outbox, transport-attempts) and the `src/specify_cli/saas/` package. Two
-live packages carry their surviving responsibilities and were previously
-undocumented in this map:
+body outbox, transport-attempts) and the `src/specify_cli/saas/` package. The
+hosted client packages that followed (`zeitgeist_client/`, `saas_client/`), the
+`auth/` package, `core/hosted_posture.py`, `core/saas_sync_config.py`, the
+runtime-moment, live-work and decision-widen surfaces, `status/zeitgeist_bridge.py`
+and the SaaS tracker providers were removed from open-core (#6164; the code is preserved in `spec-kitty/event-router`). Nothing in this map describes
+them as live.
 
-| Package | Role |
-|---|---|
-| `src/specify_cli/zeitgeist_client/` | The **ephemeral-status successor** to the removed sync transport (transport, subscription, moments, live-frame, outbox-approval, budget, credentials). Mission status is now ephemeral by design and team artifacts render server-side; this client is how the host participates in that ephemeral-status stream. |
-| `src/specify_cli/saas_client/` | A **sync-free HTTP client** (`client`, `endpoints`, `auth`, `errors`) for hosted team artifacts. Distinct from the deleted `saas/` readiness/rollout package — readiness re-homed to `tracker/saas_readiness.py` and the SaaS-sync flag to `core/saas_sync_config.py`. |
-
-Both are guarded against silent reintroduction of the retired surfaces by
+These are guarded against silent reintroduction of the retired surfaces by
 `tests/architectural/test_no_retired_subsystems.py` and the `pyproject.toml`
 TID251 ban block; the surviving `SPEC_KITTY_SYNC_*` / `SPEC_KITTY_*_SAAS_*` env
 vars are sanctioned by design.

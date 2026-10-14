@@ -198,9 +198,6 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
-  for the operator walkthrough of the pre-launch opt-in era this
-  flag used to gate.
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   for the launch-coordinator playbook behind the default flip.
 
@@ -245,10 +242,6 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../operations/internal-hosted-readiness.md)
-  -- background on the pre-launch opt-in era; this variable is now one of the
-  two primary ways any operator configures a hosted endpoint, not an
-  internal-only dev/staging tool.
 - [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
   -- the decision record for the no-packaged-default / two-scope-drain model this
   variable now operates under.
