@@ -23,12 +23,14 @@ anchor and the regression guard for the full-value-derivation follow-up.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from scripts.ci.gate_selection import (
+    FANOUT_ALLOWLIST,
     FANOUT_GROUPS,
     GROUP_MODULE_FANOUT,
-    _registry_module_names,
     derive_group_module_fanout,
 )
 
@@ -40,31 +42,35 @@ def derived() -> dict[str, frozenset[str]]:
     return derive_group_module_fanout()
 
 
-def test_derivation_covers_every_fanout_group(derived: dict[str, frozenset[str]]) -> None:
-    assert set(derived) == set(FANOUT_GROUPS)
+def test_every_census_derived_module_is_routed_or_allowlisted(derived: dict[str, frozenset[str]]) -> None:
+    """A module the census derives for a fan-out group must be in the hand fan-out
+    or carry a reasoned allowlist entry, so a new real consumer cannot go unrouted
+    (and an incidental one cannot be silently ignored)."""
+    for group in sorted(FANOUT_GROUPS):
+        missing = derived[group] - GROUP_MODULE_FANOUT[group] - frozenset(FANOUT_ALLOWLIST.get(group, {}))
+        assert not missing, (
+            f"census derives {sorted(missing)} as consumer(s) of fan-out group {group!r} but they are in neither "
+            f"GROUP_MODULE_FANOUT[{group!r}] nor FANOUT_ALLOWLIST[{group!r}] in scripts/ci/gate_selection.py. "
+            "Fix: add the module to GROUP_MODULE_FANOUT if its tests assert on the shipped content, "
+            "otherwise allowlist it with a one-line reason."
+        )
+        stale = set(FANOUT_ALLOWLIST.get(group, {})) - derived[group]
+        assert not stale, f"FANOUT_ALLOWLIST[{group!r}] entries {sorted(stale)} are no longer census-derived; remove them."
 
 
-def test_every_derived_target_is_a_registry_module(derived: dict[str, frozenset[str]]) -> None:
-    registry = _registry_module_names()
-    for group, members in derived.items():
-        stray = set(members) - set(registry)
-        assert not stray, f"{group}: derived non-registry modules {sorted(stray)}"
-
-
-def test_derivation_is_non_vacuous(derived: dict[str, frozenset[str]]) -> None:
+def test_derivation_is_non_vacuous(derived: dict[str, frozenset[str]], tmp_path: Path) -> None:
     """Every fan-out group derives at least one module (a census/router break that
-    emptied a group would red here, not silently route nothing)."""
+    emptied a group would red, not silently route nothing); an absent census yields
+    empty sets, but a malformed one raises instead of routing nothing."""
     empty = [group for group, members in derived.items() if not members]
     assert not empty, f"fan-out groups with an empty census-derived set: {empty}"
 
-
-def test_derivation_reproduces_the_three_pins(derived: dict[str, frozenset[str]]) -> None:
-    """The census's own answer places each historical pin's consumer in its group:
-    the #6156/#6153/#6161 consumers the hand fan-out routes are all re-found."""
-    assert "next" in derived["mission_pack_content"], "prompt->next pin not re-derived"
-    assert "charter" in derived["mission_pack_content"], "charter prompt consumer not re-derived"
-    assert "dossier" in derived["mission_manifest"], "manifest->dossier pin not re-derived"
-    assert "agent" in derived["cli_lifecycle"], "lifecycle.py->agent pin not re-derived"
+    assert all(not members for members in derive_group_module_fanout(census_path=tmp_path / "absent.json").values())
+    for label, content in (("not-json", "{nope"), ("no-modules", "{}"), ("modules-not-a-map", '{"modules": []}')):
+        bad = tmp_path / f"{label}.json"
+        bad.write_text(content, encoding="utf-8")
+        with pytest.raises(ValueError, match="malformed"):
+            derive_group_module_fanout(census_path=bad)
 
 
 def test_hand_fanout_routed_members_are_all_re_derived(derived: dict[str, frozenset[str]]) -> None:

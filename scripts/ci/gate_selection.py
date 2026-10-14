@@ -34,6 +34,7 @@ __all__ = [
     "DEFAULT_CENSUS_PATH",
     "DEFAULT_REGISTRY_PATH",
     "DEFAULT_ROUTER_PATH",
+    "FANOUT_ALLOWLIST",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
     "PROBE_GROUPS",
@@ -95,6 +96,38 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # and the routing gate share one authority for "which groups are consumer fan-outs".
 FANOUT_GROUPS: frozenset[str] = frozenset(GROUP_MODULE_FANOUT)
 
+# Modules the census derives for a fan-out group but the hand set deliberately does NOT
+# route, each with the reason it is not a real consumer. A census-derived module missing
+# from both GROUP_MODULE_FANOUT and this allowlist reds
+# tests/ci/test_fanout_derivation.py: add it to the hand set if its tests assert on the
+# shipped content, or here (with a reason) if the read is incidental. Every entry was
+# inspected against the census ``via`` evidence; none asserts on the shipped content.
+_ATTRIBUTION_OVERLAP = "test file shared by several modules' test trees; the read is not this module's assertion"
+_INCIDENTAL_DOSSIER = "reaches the documentation expected-artifacts.yaml only through the dossier indexer as a side effect"
+_INCIDENTAL_TEMPLATES = "default template/mission resolution of the documentation mission; asserts nothing on the pack content"
+_INCIDENTAL_MISSION_TYPES = "mission-type repository load as a fixture/side effect; asserts nothing on the shipped YAMLs"
+FANOUT_ALLOWLIST: dict[str, dict[str, str]] = {
+    "cli_lifecycle": {"execution_context": _ATTRIBUTION_OVERLAP},
+    "mission_manifest": {
+        "cli": _INCIDENTAL_DOSSIER,
+        "core_misc": _INCIDENTAL_DOSSIER,
+        "execution_context": _INCIDENTAL_DOSSIER,
+        "next": _INCIDENTAL_DOSSIER,
+        "upgrade": _INCIDENTAL_DOSSIER,
+    },
+    "mission_pack_content": {
+        "core_misc": _INCIDENTAL_TEMPLATES,
+        "unit": _INCIDENTAL_TEMPLATES,
+        "review": "gate-binding tests load a step contract incidentally; they assert on the binding join, not the shipped prompt",
+    },
+    "mission_type_definitions": {
+        "cli": _INCIDENTAL_MISSION_TYPES,
+        "execution_context": _INCIDENTAL_MISSION_TYPES,
+        "next": _INCIDENTAL_MISSION_TYPES,
+        "specify_cli_runtime": _INCIDENTAL_MISSION_TYPES,
+    },
+}
+
 
 def derive_group_module_fanout(
     *,
@@ -110,17 +143,22 @@ def derive_group_module_fanout(
 
     The router globs are the independent path->group authority, so the derivation is
     not self-referential: a census path matching no group's globs lands in no set.
-    Resilient: a missing/malformed census yields an empty set per group (never a
-    crash), so importing this module never depends on the artifact existing yet.
+    A census file that does not exist yields an empty set per group (so importing this
+    module never depends on the artifact existing yet); one that exists but is
+    unreadable or malformed RAISES ``ValueError`` -- a corrupt census must red, not
+    silently route nothing.
     """
     router = router or load_router()
     modules = _registry_module_names(registry_path)
     result: dict[str, set[str]] = {group: set() for group in FANOUT_GROUPS}
-    try:
-        census = json.loads((census_path or DEFAULT_CENSUS_PATH).read_text(encoding="utf-8"))
-        census_modules = census["modules"]
-    except (OSError, ValueError, KeyError, TypeError):
+    path_to_read = census_path or DEFAULT_CENSUS_PATH
+    if not path_to_read.is_file():
         return {group: frozenset() for group in FANOUT_GROUPS}
+    try:
+        census_modules = json.loads(path_to_read.read_text(encoding="utf-8"))["modules"]
+        census_modules.items()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise ValueError(f"consumer census {path_to_read} is unreadable or malformed: {exc!r}") from exc
 
     group_globs = {group: tuple(router.filters.get(group, ())) for group in FANOUT_GROUPS}
     for module, data in census_modules.items():
