@@ -157,6 +157,25 @@ class MissionStatusQueryServiceTest {
   }
 
   @Test
+  void aDateOrEventIdOfTheWrongShapeIsNulledNotServed() {
+    String meta =
+        Rows.metaWith(
+            Rows.ALPHA_ID,
+            "alpha",
+            CREATED_OLD,
+            "\"accepted_at\":\"/home/alice/notes alice@corp.com\",\"merged_at\":\"/tmp/x\",\"discarded_at\":\"" + Fx.T2 + "\"");
+    String ledger = Rows.status("/Users/alice/x", Fx.T0, "WP01", "planned", "claimed");
+    Fx fx = new Fx(FixtureSpec.of(FixtureSpec.Mission.of("alpha", meta, ledger)));
+
+    MissionOverview item = fx.service.missions(new PageRequest(null, null)).items().getFirst();
+
+    assertThat(item.acceptedAt()).isNull();
+    assertThat(item.mergedAt()).isNull();
+    assertThat(item.discardedAt()).isEqualTo(Fx.T2);
+    assertThat(item.lastEventId()).isNull();
+  }
+
+  @Test
   void aHumanFieldIsRedactedNotRefused() {
     String meta = Rows.metaWith(Rows.ALPHA_ID, "alpha", CREATED_OLD, "\"friendly_name\":\"see /home/someone/x for mail a@b.example\"");
     Fx fx = new Fx(FixtureSpec.of(FixtureSpec.Mission.of("alpha", meta, null)));

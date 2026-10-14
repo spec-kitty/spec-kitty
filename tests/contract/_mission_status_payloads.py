@@ -826,6 +826,17 @@ def _optional_text(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def _instant_or_none(value: str | None) -> str | None:
+    """A served ``date-time`` member: the text when it reads as an instant, else null (AC-9g, a nullable strict field)."""
+    if value is None:
+        return None
+    try:
+        parse_iso(value)
+    except ValueError:
+        return None
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Builders
 # ---------------------------------------------------------------------------
@@ -867,10 +878,10 @@ def build_overview(source: MissionSource, projector: Projector) -> dict[str, Any
             "semantics": "weighted_readiness",
         },
         "lifecycleStatus": derive_lifecycle_status(counts, wp_total, discarded_at, accepted_at),
-        "acceptedAt": accepted_at,
-        "mergedAt": _optional_text(meta.get("merged_at")),
-        "discardedAt": discarded_at,
-        "lastEventId": snapshot.last_event_id,
+        "acceptedAt": _instant_or_none(accepted_at),
+        "mergedAt": _instant_or_none(_optional_text(meta.get("merged_at"))),
+        "discardedAt": _instant_or_none(discarded_at),
+        "lastEventId": projector.strict(snapshot.last_event_id, "lastEventId", nullable=True, pattern=_MISSION_ID),
         "lastActivityAt": _latest_instant(state.get("last_transition_at") for state in snapshot.work_packages.values()),
         "eventCount": snapshot.event_count,
         "streamCursor": stream_cursor_of(source.cursor),

@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
@@ -58,6 +59,9 @@ import org.speckitty.missionstatus.domain.readmodel.reducer.UnreducibleLedgerExc
  * carries a path, a line text or an operating-system message.
  */
 public final class MissionStatusQueryService implements MissionStatusQuery {
+
+  /** The shape of an event id the projector serves: a ULID, anchored at the start as the oracle's pattern is. */
+  private static final Pattern EVENT_ID = Pattern.compile("^[0-9A-HJKMNP-TV-Z]{26}$");
 
   private final MissionEventSource source;
   private final Consumer<Diagnostic> diagnostics;
@@ -385,6 +389,12 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       String missionType = projector.strict(o.missionType() == null || o.missionType().isEmpty() ? null : o.missionType(), "missionType", true);
       String targetBranch = projector.strict(o.targetBranch(), "targetBranch", false);
       String nextAction = projector.human(o.nextAction(), "nextAction");
+      // meta.json text and ledger ids are not shaped by the writer: a value that is not the contract's shape is nulled (AC-9g,
+      // nullable strict fields), never served; the lifecycle status above was derived from the raw values, as in the oracle.
+      String acceptedAt = instantOrNull(o.acceptedAt());
+      String mergedAt = instantOrNull(o.mergedAt());
+      String discardedAt = instantOrNull(o.discardedAt());
+      String lastEventId = projector.strict(o.lastEventId(), "lastEventId", true, EVENT_ID);
       return new MissionOverview(
           o.missionId(),
           o.mid8(),
@@ -400,16 +410,29 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
           o.blockedCount(),
           o.progress(),
           o.lifecycleStatus(),
-          o.acceptedAt(),
-          o.mergedAt(),
-          o.discardedAt(),
-          o.lastEventId(),
+          acceptedAt,
+          mergedAt,
+          discardedAt,
+          lastEventId,
           o.lastActivityAt(),
           o.eventCount(),
           o.streamCursor(),
           nextAction);
     } catch (ProjectionError refused) {
       throw refuse(DiagnosticCode.PROJECTION_REFUSED, mid8, null);
+    }
+  }
+
+  /** The text when it reads as an instant (the shape {@code createdAt} is held to), else null: the contract declares {@code date-time}. */
+  private static String instantOrNull(String text) {
+    if (text == null) {
+      return null;
+    }
+    try {
+      Instants.parse(text);
+      return text;
+    } catch (InvalidInstantException unusable) {
+      return null;
     }
   }
 
