@@ -412,6 +412,66 @@ def test_profile_source_update_distinguishes_installed_hash_from_drift(tmp_path:
         assert not _assess_real(tmp_path).effects
 
 
+def test_profile_crlf_checkout_is_not_upgrade_drift_6235(tmp_path: Path) -> None:
+    """#6235: a CRLF-checked-out managed profile is git-clean, not an exact-path-consent edit.
+
+    Git for Windows' default ``core.autocrlf=true`` checks tracked text out with
+    CRLF line endings. The managed profile is then byte-identical to the LF
+    render hashed in the manifest *modulo line endings* -- git considers it clean
+    (``git diff`` empty). The provider must NOT report it as "Managed profile
+    drift requires exact-path consent" (which makes a fresh clone's
+    ``upgrade --project --yes`` exit 1), and must plan no phantom rewrite effect
+    for it. Mirrors the #5576 "CRLF checkout of an unchanged file is not changed"
+    regression on the surface PR #5593 did not reach.
+    """
+    from .test_agent_profiles_prune import _agent_yaml
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    source = tmp_path / ".kittify/agent_profiles/local-reviewer.agent.yaml"
+    source.parent.mkdir(parents=True)
+    source.write_text(_agent_yaml("local-reviewer", name="Local Reviewer", role="reviewer"))
+    assert _apply_real(_assess_real(tmp_path)).outcome == "applied"
+    output = tmp_path / ".claude/agents/local-reviewer.md"
+    lf_bytes = output.read_bytes()
+    assert b"\r\n" not in lf_bytes, "the canonical render is LF"
+    # Simulate a Git checkout under core.autocrlf=true: CRLF line endings on disk.
+    output.write_bytes(lf_bytes.replace(b"\n", b"\r\n"))
+
+    before = snapshot({"project": tmp_path})
+    assessment = _assess_real(tmp_path)
+    assert assessment.complete, assessment.diagnostics
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    # The git-clean CRLF profile is NOT drift requiring consent (the #6235 symptom)...
+    assert not any(d.path == ".claude/agents/local-reviewer.md" and d.state == "consent_required" for d in assessment.dispositions), assessment.dispositions
+    # ...and the upgrade leaves it alone -- no phantom rewrite effect for it.
+    assert not any(e.path == ".claude/agents/local-reviewer.md" for e in assessment.effects), assessment.effects
+
+
+def test_profile_probe_crlf_checkout_is_present_not_drifted_6235(tmp_path: Path) -> None:
+    """#6235: ``doctor tool-surfaces`` must not report a git-clean CRLF profile as drifted.
+
+    The probe drift check hashed raw on-disk bytes against the LF manifest hash,
+    so a CRLF checkout surfaced ``native-agent-profile-drift`` even though the
+    content is git-clean. It must resolve as ``present``.
+    """
+    from specify_cli.tool_surface.profiles.manifest import hash_file
+    from specify_cli.tool_surface.providers.agent_profiles import (
+        AgentProfilesProvider,
+        agent_profile_definition,
+    )
+
+    path = tmp_path / ".claude/agents/analyst-annie.md"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"---\nname: analyst-annie\n---\n\nmanaged body\n")
+    lf_hash = hash_file(path)
+    # Simulate a Git checkout under core.autocrlf=true: CRLF line endings on disk.
+    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+
+    instance = SurfaceInstance(agent_profile_definition(), path, True, lf_hash, "claude")
+    status = AgentProfilesProvider().probe(instance)
+    assert status.state == STATE_PRESENT, status
+
+
 @pytest.mark.parametrize("activated", [None, ["orgzilla-org-analyst"], ["reviewer-renata"], []], ids=["absent", "include", "exclude", "empty"])
 @pytest.mark.parametrize("corrupt", [True, False], ids=["corrupt", "healthy"])
 def test_org_source_diagnostics_block_real_assessment_independent_of_admission(tmp_path: Path, activated: list[str] | None, corrupt: bool) -> None:
