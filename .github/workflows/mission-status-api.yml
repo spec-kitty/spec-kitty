@@ -268,9 +268,12 @@ jobs:
             }
           }
           JAVA
+          # GraalVM ships native-image as native-image.cmd on Windows, which Git Bash does not find under the bare name.
+          native_image="$JAVA_HOME/bin/native-image"
+          if [ "${{ runner.os }}" = "Windows" ]; then native_image="$JAVA_HOME/bin/native-image.cmd"; fi
           if mkdir -p "$floor/classes" \
             && "$JAVA_HOME/bin/javac" -d "$floor/classes" "$floor/src/FloorServer.java" \
-            && (cd "$floor/classes" && "$JAVA_HOME/bin/native-image" -cp . FloorServer -o "$floor/floor-binary"); then
+            && (cd "$floor/classes" && "$native_image" -cp . FloorServer -o "$floor/floor-binary"); then
             echo "MISSION_STATUS_FLOOR_BINARY=$(cygpath -m "$floor/floor-binary${{ matrix.exe }}" 2>/dev/null || echo "$floor/floor-binary${{ matrix.exe }}")" >> "$GITHUB_ENV"
             echo "floor=built" >> "$GITHUB_OUTPUT"
           else
@@ -284,16 +287,28 @@ jobs:
         env:
           WORKSPACE: ${{ github.workspace }}
         run: ./gradlew --no-daemon nativePerf "-PnativeBinary=$WORKSPACE/services/mission-status-api/build/native/nativeCompile/mission-status-api${{ matrix.exe }}"
-      # A floor build that failed leaves the leg ceiling-only; say so in the job summary (the test fails when the variable names a missing file).
+      # A floor build that failed leaves the leg ceiling-only (NFR-002 allows it: the ceiling alone is then recorded as unmeasured); say so
+      # in the job summary and as an annotation (the test fails when the variable names a missing file).
       - name: Show the floor build outcome
         if: ${{ !cancelled() }}
         run: |
           echo "NFR-002 floor binary build on ${{ matrix.target }}: ${{ steps.floor.outputs.floor }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.floor.outputs.floor }}" != "built" ]; then
+            echo "::warning::NFR-002 start-up ratio UNMEASURED on ${{ matrix.target }}: the ceiling alone was asserted"
+            echo "**UNMEASURED:** the start-up ratio on ${{ matrix.target }} (the ceiling alone was asserted)." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Show the performance summary
         if: always()
         run: |
           summary="services/mission-status-api/build/nativesmoke/perf-summary-${{ matrix.target }}.txt"
-          if [ -f "$summary" ]; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; else echo "no performance summary was written" >> "$GITHUB_STEP_SUMMARY"; fi
+          if [ -f "$summary" ]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # nativePerf executed no test (or wrote nothing): zero measured must not read as green.
+            echo "no performance summary was written" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::nativePerf wrote no performance summary on ${{ matrix.target }}"
+            exit 1
+          fi
       # A nativePerf miss (possibly runner noise, ADR 2026-10-05-2) must not skip the digest upload, the native floor check or the staging.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !cancelled() }}

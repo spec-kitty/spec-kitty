@@ -2062,6 +2062,23 @@ def _perf_step_index(steps: list[str], needle: str) -> int:
     return -1
 
 
+def _floor_step_violations(step: str) -> list[str]:
+    found: list[str] = []
+    if "continue-on-error" in step.replace("`continue-on-error`", ""):
+        found.append("the floor step must not set continue-on-error (it degrades by design, in its own script)")
+    if 'echo "floor=unmeasured" >> "$GITHUB_OUTPUT"' not in step or "::warning::" not in step or 'echo "floor=built" >> "$GITHUB_OUTPUT"' not in step:
+        found.append("a floor build break must be reported (::warning:: and floor=unmeasured) and not fail the leg's build")
+    if "id: floor" not in step:
+        found.append("the floor step has no id (its outcome cannot reach the job summary)")
+    if not re.search(r'MISSION_STATUS_FLOOR_BINARY=.*>> "\$GITHUB_ENV"', step):
+        found.append("the floor step does not write MISSION_STATUS_FLOOR_BINARY to GITHUB_ENV")
+    if "cygpath -m" not in step:
+        found.append("the floor step lost its cygpath fallback for the Windows path")
+    if "native-image.cmd" not in step or 'runner.os }}" = "Windows"' not in step:
+        found.append("the floor step does not resolve native-image.cmd on Windows (the bare name is not found under Git Bash)")
+    return found
+
+
 def perf_workflow_violations(text: str) -> list[str]:
     found: list[str] = []
     steps = _perf_native_steps(text)
@@ -2074,19 +2091,12 @@ def perf_workflow_violations(text: str) -> list[str]:
     if floor < 0 or "MISSION_STATUS_FLOOR_BINARY" not in steps[floor]:
         found.append("the native leg does not build the NFR-002 floor binary")
     else:
-        step = steps[floor]
-        if "continue-on-error" in step.replace("`continue-on-error`", ""):
-            found.append("the floor step must not set continue-on-error (it degrades by design, in its own script)")
-        if 'echo "floor=unmeasured" >> "$GITHUB_OUTPUT"' not in step or "::warning::" not in step or 'echo "floor=built" >> "$GITHUB_OUTPUT"' not in step:
-            found.append("a floor build break must be reported (::warning:: and floor=unmeasured) and not fail the leg's build")
-        if "id: floor" not in step:
-            found.append("the floor step has no id (its outcome cannot reach the job summary)")
-        if not re.search(r'MISSION_STATUS_FLOOR_BINARY=.*>> "\$GITHUB_ENV"', step):
-            found.append("the floor step does not write MISSION_STATUS_FLOOR_BINARY to GITHUB_ENV")
-        if "cygpath -m" not in step:
-            found.append("the floor step lost its cygpath fallback for the Windows path")
+        found.extend(_floor_step_violations(steps[floor]))
     if "steps.floor.outputs.floor" not in text:
         found.append("the floor step result is not shown in the job summary")
+    summary_step = next((step for step in steps if "perf-summary-" in step and "Show the performance summary" in step), "")
+    if "exit 1" not in summary_step or "::error::" not in summary_step:
+        found.append("a leg whose nativePerf wrote no performance summary must fail (zero executed tests must not read as green)")
     run = _perf_step_index(steps, "./gradlew --no-daemon nativePerf")
     digest = _perf_step_index(steps, "name: digest-")
     if not (0 <= floor < run < digest):
@@ -2149,6 +2159,9 @@ def test_the_workflow_pin_turns_red_for_a_removed_step_a_lost_binary_property_or
     assert perf_workflow_violations(text.replace("        id: floor\n", "", 1))
     assert perf_workflow_violations(text.replace('matrix.exe }}")" >> "$GITHUB_ENV"', 'matrix.exe }}")" >> /dev/null', 1))
     assert perf_workflow_violations(text.replace("cygpath -m", "cygpath -w", 1))
+    assert perf_workflow_violations(text.replace("native-image.cmd", "native-image"))
+    assert perf_workflow_violations(text.replace('on ${{ matrix.target }}"\n            exit 1\n', 'on ${{ matrix.target }}"\n            true\n', 1))
+    assert perf_workflow_violations(text.replace("::error::nativePerf wrote", "nativePerf wrote", 1))
     assert perf_workflow_violations(text.replace("steps.floor.outputs.floor", "steps.other.outputs.floor"))
 
 
