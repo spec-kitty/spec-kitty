@@ -1,0 +1,316 @@
+{
+  "description": "Derived consumer census (#6173): per test module, the src/** and packs/** paths its tests consume (static import/read + runtime resolver capture). Regenerate with `python scripts/ci/consumer_census.py --write`.",
+  "generated_by": "scripts/ci/consumer_census.py",
+  "modules": {
+    "agent": {
+      "consumes": [
+        {
+          "path": "src/specify_cli/cli/commands/lifecycle.py",
+          "provenance": "static-import",
+          "via": "tests/agent/test_commands.py"
+        }
+      ]
+    },
+    "charter": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/test_activation_filtered_drg.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/activation/test_org_expected_artifacts.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/governance-profile.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/activation/test_preset_application.py [profile]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/test_activation_filtered_drg.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/test_activation_filtered_drg.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/charter/test_activation_filtered_drg.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/charter/test_activation_filtered_drg.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/charter/activation/test_layer_roots.py [mission_type_repository]"
+        }
+      ]
+    },
+    "cli": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/cli/commands/test_reconcile.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/cli/test_charter_mission_type_commands.py [mission_type_repository]"
+        }
+      ]
+    },
+    "core_misc": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/specify_cli/tool_surface/providers/test_managed_skills.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_identity.py [mission_type_repository]"
+        },
+        {
+          "path": "src/specify_cli/cli/commands/lifecycle.py",
+          "provenance": "static-import",
+          "via": "tests/specify_cli/design/test_design_context.py"
+        }
+      ]
+    },
+    "dossier": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/dossier/test_indexer.py [dossier_manifest]"
+        }
+      ]
+    },
+    "execution_context": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/next/test_presence_filenames.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/governance-profile.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/test_composition_advance_alignment.py [profile]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/test_runtime_seam.py [mission_type_repository]"
+        },
+        {
+          "path": "src/specify_cli/cli/commands/lifecycle.py",
+          "provenance": "static-import",
+          "via": "tests/agent/test_commands.py"
+        }
+      ]
+    },
+    "next": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/next/test_presence_filenames.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/governance-profile.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/test_composition_advance_alignment.py [profile]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/test_runtime_seam.py [mission_type_repository]"
+        }
+      ]
+    },
+    "review": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/step.yaml",
+          "provenance": "runtime",
+          "via": "tests/review/test_gate_bindings.py [step_contract]"
+        }
+      ]
+    },
+    "specify_cli_runtime": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/next/test_presence_filenames.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/governance-profile.yaml",
+          "provenance": "runtime",
+          "via": "tests/runtime/test_composition_advance_alignment.py [profile]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_owned_charter.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/core/test_mission_creation_identity.py [mission_type_repository]"
+        }
+      ]
+    },
+    "unit": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/next/test_discovery_step_contract.py [template_repository]"
+        }
+      ]
+    },
+    "upgrade": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_3_0_3_globalize_skill_pack.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/mission_types/documentation.yaml",
+          "provenance": "runtime",
+          "via": "tests/upgrade/test_activate_builtin_types_migration.py [mission_type_repository]"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}
