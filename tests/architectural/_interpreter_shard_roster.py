@@ -284,7 +284,6 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/integration",
             "tests/specify_cli/invocation",
             "tests/specify_cli/mission_v1",
-            "tests/specify_cli/readiness",
             "tests/specify_cli/retrospective",
             "tests/specify_cli/test_1716_closeout_regression.py",
             "tests/specify_cli/test_analysis_report_symlink_loops.py",

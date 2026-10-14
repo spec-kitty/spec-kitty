@@ -201,8 +201,7 @@
     {
       "dir": "readiness",
       "cone_roots": [
-        "tests/readiness",
-        "tests/specify_cli/readiness"
+        "tests/readiness"
       ],
       "target_group": "closeout",
       "target_shard": "misc"

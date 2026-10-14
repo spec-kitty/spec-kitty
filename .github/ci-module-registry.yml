@@ -663,7 +663,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/mission_step_contracts
   - tests/specify_cli/orchestrator_api
   - tests/specify_cli/ownership
-  - tests/specify_cli/readiness
   - tests/specify_cli/regression
   - tests/specify_cli/retrospect
   - tests/specify_cli/retrospective

@@ -2248,7 +2248,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
         ),
     ),
     "readiness": (
-        "closeout", "misc", ("tests/readiness", "tests/specify_cli/readiness"),
+        "closeout", "misc", ("tests/readiness",),
     ),
     "decisions": ("closeout", "misc", ("tests/specify_cli/decisions",)),
     "doc_analysis": ("closeout", "misc", ()),
