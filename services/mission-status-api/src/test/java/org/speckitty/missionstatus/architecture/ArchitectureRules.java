@@ -64,8 +64,7 @@ public final class ArchitectureRules {
   }
 
   private static final String[] SPRING = {"org.springframework.."};
-  private static final String[] HTTP = {"jakarta.servlet..", "org.apache.catalina..", "org.apache.coyote..", "java.net.."};
-  /** The packages of every JSON (and YAML) library the build can see; rule 8 and rules 1 and 2 share the list. */
+  /** The packages of every JSON (and YAML) library the build can see; rule 8 uses the list. */
   private static final String[] JSON = {
     "tools.jackson..", "com.fasterxml.jackson..", "org.openapitools.jackson..", "com.google.gson..", "org.json..", "jakarta.json..", "javax.json..",
     "org.yaml..", "org.snakeyaml.."
@@ -132,24 +131,23 @@ public final class ArchitectureRules {
     DescribedPredicate<JavaClass> anyClass = DescribedPredicate.alwaysTrue();
 
     // 1: domain
-    ArchRule r1a =
-        noClasses().that().resideInAPackage(domain).should().dependOnClassesThat()
-            .resideInAnyPackage(concat(SPRING, HTTP, JSON, new String[] {"java.nio.file..", "java.io.."}))
-            .as("rule 1a: domain references no Spring, HTTP, JSON, java.nio.file or java.io");
+    // The allowlist below also keeps Spring, HTTP, JSON, java.nio.file and java.io out of the domain (an allowlist subsumes that denylist).
     ArchRule r1b =
         classes().that().resideInAPackage(domain).should().onlyDependOnClassesThat(
                 resideInAnyPackage(domain, "java.lang..", "java.util..", "java.time..", "java.math..", "java.security..", "java.nio.charset..").and(resideOutsideOfPackage("java.util.concurrent..")))
-            .as("rule 1b: domain depends only on domain and java.lang, java.util (not concurrent), java.time, java.math, java.security, java.nio.charset");
+            .as("rule 1b: domain depends only on domain and java.lang, java.util (not concurrent), java.time, java.math, java.security, java.nio.charset"
+                + " (so no Spring, HTTP, JSON, java.nio.file or java.io)");
+    ArchRule r1c =
+        noClasses().that().resideInAPackage(domain).should().callMethodWhere(threadCreatingMethodCall())
+            .orShould().callConstructorWhere(threadCreatingConstructorCall())
+            .as("rule 1c: domain creates no thread (java.lang is allowed by 1b, so Thread itself needs its own rule)");
 
     // 2: application
-    ArchRule r2a =
-        noClasses().that().resideInAPackage(application).should().dependOnClassesThat()
-            .resideInAnyPackage(concat(SPRING, HTTP, JSON, new String[] {"java.nio.file..", "java.io.."}))
-            .as("rule 2a: application references no Spring, HTTP, JSON, java.io or java.nio.file");
+    // As in the domain, the allowlist of 2b subsumes the denylist of Spring, HTTP, JSON, java.io and java.nio.file.
     ArchRule r2b =
         classes().that().resideInAPackage(application).should().onlyDependOnClassesThat(
                 resideInAnyPackage(application, domain, "java.lang..", "java.util..", "java.time..", "java.math..", "java.security..", "java.nio.charset.."))
-            .as("rule 2b: application depends only on application, domain and the JDK packages (adapter and config excluded)");
+            .as("rule 2b: application depends only on application, domain and the JDK packages (adapter and config, Spring, HTTP, JSON and file APIs excluded)");
     ArchRule r2c =
         noClasses().that().resideInAPackage(application).should().callMethodWhere(threadCreatingMethodCall())
             .orShould().callConstructorWhere(threadCreatingConstructorCall())
@@ -224,8 +222,8 @@ public final class ArchitectureRules {
             .as("rule 14: nothing in application.query depends on application.command");
 
     return List.of(
-        new Rule(1, "domain is framework-, JSON-, file- and concurrency-free", Scope.MAIN, both(r1a, r1b), resideInAPackage(domain)),
-        new Rule(2, "application is technology-free and creates no thread", Scope.MAIN, CompositeArchRule.of(rule(r2a)).and(rule(r2b)).and(rule(r2c)), resideInAPackage(application)),
+        new Rule(1, "domain is framework-, JSON-, file- and concurrency-free", Scope.MAIN, both(r1b, r1c), resideInAPackage(domain)),
+        new Rule(2, "application is technology-free and creates no thread", Scope.MAIN, both(r2b, r2c), resideInAPackage(application)),
         new Rule(3, "adapter.in.http reaches only the inbound port", Scope.MAIN, rule(r3), resideInAPackage(http)),
         new Rule(4, "adapter.out.filesystem reaches only the outbound port and domain", Scope.MAIN, rule(r4), resideInAPackage(filesystem)),
         new Rule(5, "no adapter-to-adapter dependency", Scope.MAIN, both(r5a, r5b), resideInAPackage(p(root, "adapter.."))),
@@ -255,18 +253,32 @@ public final class ArchitectureRules {
 
   private static DescribedPredicate<JavaMethodCall> threadCreatingMethodCall() {
     return DescribedPredicate.describe(
-        "a call of Executors.* or Thread.ofVirtual/ofPlatform/startVirtualThread",
-        (JavaMethodCall call) ->
-            call.getTargetOwner().getName().equals("java.util.concurrent.Executors")
-                || (call.getTargetOwner().getName().equals("java.lang.Thread") && THREAD_OWNER_METHODS.contains(call.getName())));
+        "a call of Executors.*, Thread.ofVirtual/ofPlatform/startVirtualThread, ForkJoinPool.commonPool, a CompletableFuture *Async method"
+            + " without an executor, parallelStream() or BaseStream.parallel()",
+        (JavaMethodCall call) -> {
+          String owner = call.getTargetOwner().getName();
+          String name = call.getName();
+          return owner.equals("java.util.concurrent.Executors")
+              || (owner.equals("java.lang.Thread") && THREAD_OWNER_METHODS.contains(name))
+              || (owner.equals("java.util.concurrent.ForkJoinPool") && name.equals("commonPool"))
+              || (owner.equals("java.util.concurrent.CompletableFuture") && name.endsWith("Async") && !takesAnExecutor(call))
+              || name.equals("parallelStream")
+              || (call.getTargetOwner().isAssignableTo(java.util.stream.BaseStream.class) && name.equals("parallel"));
+        });
+  }
+
+  /** The async variants of CompletableFuture run on the common pool unless the call passes an executor. */
+  private static boolean takesAnExecutor(JavaMethodCall call) {
+    return call.getTarget().getRawParameterTypes().stream().anyMatch(type -> type.isAssignableTo(java.util.concurrent.Executor.class));
   }
 
   private static DescribedPredicate<JavaConstructorCall> threadCreatingConstructorCall() {
     return DescribedPredicate.describe(
-        "the construction of a Thread, ThreadPoolExecutor or ForkJoinPool",
+        "the construction of a Thread, ThreadPoolExecutor, ForkJoinPool or Timer",
         (JavaConstructorCall call) ->
             call.getTargetOwner().isAssignableTo(Thread.class)
                 || call.getTargetOwner().isAssignableTo(java.util.concurrent.ThreadPoolExecutor.class)
-                || call.getTargetOwner().isAssignableTo(java.util.concurrent.ForkJoinPool.class));
+                || call.getTargetOwner().isAssignableTo(java.util.concurrent.ForkJoinPool.class)
+                || call.getTargetOwner().isAssignableTo(java.util.Timer.class));
   }
 }
