@@ -19,7 +19,7 @@ from kernel.resolution import is_symlink_loop_error, resolve_rejecting_loops
 #: directory/file", e.g. a dangling symlink or a non-directory in the middle of
 #: a path) rather than **unreadable**. Reproduced from ``pathlib._ignore_error``
 #: (private, and 3.13 moved it out of the top-level namespace) rather than
-#: imported, for the same reason ``specify_cli.decisions.ownership`` reproduces
+#: imported, for the same reason the former decision-ownership resolver reproduced
 #: it: replacing ``is_dir()``/``is_file()``/``exists()`` with a guarded
 #: ``stat()`` must not also change how genuinely absent-like failures are
 #: classified — only make ``EACCES`` observable instead of silently swallowed.
@@ -65,8 +65,8 @@ def safe_is_dir(path: Path) -> bool:
     unreadable ancestor silently answers ``False`` ("not a directory") on 3.14
     where every earlier interpreter raised. Measured (non-root euid, via a
     symlink into a ``0o000`` directory) in
-    ``specify_cli.decisions.ownership``'s module docstring, which hit this
-    exact divergence three times before the pattern was generalized here.
+    the former decision-ownership resolver, which hit this exact divergence
+    three times before the pattern was generalized here.
 
     This reproduces ``pathlib``'s own PRE-3.14 ``is_dir()`` — ``S_ISDIR(p.stat().st_mode)``
     under ``except OSError: if not _ignore_error(e): raise`` — so the answer

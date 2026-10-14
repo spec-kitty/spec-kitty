@@ -15,10 +15,8 @@ directly) and are out of scope by design (post-tasks squad MF-1).
 
 **C-004 (predicate honours the holder)**: the door is excluded from the ban
 entirely (mirrors the OS-detection gate's ``relpath != door`` guard below),
-so the door's own raw ``msvcrt.locking``/``fcntl.flock`` calls and its
-legitimate sidecar-record reads (``read_lock_record``/
-``_read_lock_record_from_fd``, neither of which this gate's banned-shape
-list even names) never trip the predicate. The invariant enforced is
+so the door's own raw ``msvcrt.locking``/``fcntl.flock`` calls never trip
+the predicate. The invariant enforced is
 narrowly "no raw locking outside the sanctioned holder" -- never a blunt "no
 read under lock" that would misfire on the door's own diagnostics.
 """
@@ -297,25 +295,6 @@ def test_door_file_itself_is_exempt_by_construction() -> None:
     # exemption file -- confirm no such entry exists, so a future edit cannot
     # silently swap the mechanism for a weaker one.
     assert not any(descriptor.rel_path == door_relpath for descriptor in exemptions)
-
-
-def test_door_sidecar_record_read_is_never_a_banned_shape() -> None:
-    """C-004: the door's own sidecar-record read is not even a shape this gate recognises.
-
-    ``read_lock_record``/``_read_lock_record_from_fd`` call ``path.read_bytes()``
-    / ``os.read(fd, ...)`` -- neither matches any of the banned import/call
-    shapes (msvcrt.locking / fcntl.flock / fcntl.lockf / FileLock(...)), so
-    the predicate structurally cannot flag the holder's own legitimate
-    metadata read as a violation, independent of the `relpath != door` guard.
-    """
-    door_source = scan.DOOR_FILE.read_text(encoding="utf-8")
-    tree = ast.parse(door_source)
-    read_functions = {"read_lock_record", "_read_lock_record_from_fd"}
-    read_function_nodes = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name in read_functions]
-    assert len(read_function_nodes) == len(read_functions), "expected both sidecar-record readers to be present in the door"
-
-    for node in read_function_nodes:
-        assert scan.find_lock_ban_violations(node) == [], f"{node.name} must not itself look like a banned raw-lock shape"
 
 
 def test_unrelated_locking_named_function_does_not_fire(tmp_path: Path) -> None:

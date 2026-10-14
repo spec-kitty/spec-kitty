@@ -50,7 +50,7 @@
         "python": "3.11.15"
       },
       "totals": {
-        "files": 1255,
+        "files": 1252,
         "files_with_coverage": 998,
         "covered_statements": 42942,
         "statements": 128702
@@ -2328,14 +2328,6 @@
           29,
           53
         ],
-        "src/specify_cli/compat/history.py": [
-          0,
-          112
-        ],
-        "src/specify_cli/compat/install_events.py": [
-          0,
-          14
-        ],
         "src/specify_cli/compat/messages.py": [
           49,
           60
@@ -2767,10 +2759,6 @@
         "src/specify_cli/decisions/models.py": [
           67,
           70
-        ],
-        "src/specify_cli/decisions/ownership.py": [
-          0,
-          133
         ],
         "src/specify_cli/decisions/service.py": [
           29,

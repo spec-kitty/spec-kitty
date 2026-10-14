@@ -35,12 +35,12 @@ from pathlib import Path
 import pytest
 
 import kernel.locks as locks
+from tests.kernel._lock_support import record_on_disk
 from kernel.locks import (
     LockAcquireTimeout,
     LockRecord,
     MachineFileLock,
     SyncMachineFileLock,
-    read_lock_record,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -278,7 +278,7 @@ def test_sync_primitive_never_reopens_the_resource_while_held(tmp_path: Path, wi
         assert isinstance(record, LockRecord)
 
     # Released -- a subsequent read (e.g. `auth doctor`, a non-holder) is safe.
-    assert read_lock_record(resource) is None
+    assert record_on_disk(resource) is None
 
 
 async def test_async_primitive_never_reopens_the_resource_while_held(tmp_path: Path, windows_mandatory_lock_simulation: _WindowsMandatoryLockSimulator) -> None:
@@ -288,7 +288,7 @@ async def test_async_primitive_never_reopens_the_resource_while_held(tmp_path: P
     async with MachineFileLock(resource) as record:
         assert isinstance(record, LockRecord)
 
-    assert read_lock_record(resource) is None
+    assert record_on_disk(resource) is None
 
 
 # ---------------------------------------------------------------------------

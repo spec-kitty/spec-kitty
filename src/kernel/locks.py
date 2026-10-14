@@ -73,7 +73,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
-from kernel.clock import UTC, datetime, now_utc, parse_iso
+from kernel.clock import datetime, now_utc
 from kernel.no_follow import open_no_follow
 from kernel.paths import is_windows
 
@@ -105,17 +105,14 @@ __all__ = [
     "LockRecord",
     "MachineFileLock",
     "SyncMachineFileLock",
-    "force_release",
     "machine_file_lock",
-    "read_lock_record",
 ]
 
 
 STALE_AFTER_S_DEFAULT: float = 60.0
 """Default age threshold (seconds) above which a lock record is considered stale.
 
-Stale locks may be safely adopted by new acquirers and removed via
-:func:`force_release`. The default is 6x the NFR-002 hold ceiling (10 s) so
+Stale locks may be safely adopted by new acquirers. The default is 6x the NFR-002 hold ceiling (10 s) so
 slow but legitimate transactions are never preempted.
 """
 
@@ -298,132 +295,6 @@ def _record_to_json(record: LockRecord) -> str:
         "version": record.version,
     }
     return json.dumps(payload, sort_keys=True)
-
-
-def _record_from_payload(payload: object) -> LockRecord | None:
-    if not isinstance(payload, dict):
-        return None
-    try:
-        schema_version = int(payload["schema_version"])
-        pid = int(payload["pid"])
-        started_raw = payload["started_at"]
-        host = payload["host"]
-        version = payload["version"]
-    except (KeyError, TypeError, ValueError):
-        return None
-    if not isinstance(started_raw, str) or not isinstance(host, str) or not isinstance(version, str):
-        return None
-    try:
-        started_at = parse_iso(started_raw)
-    except ValueError:
-        return None
-    if started_at.tzinfo is None:
-        # Treat naive timestamps as UTC for backwards compatibility.
-        started_at = started_at.replace(tzinfo=UTC)
-    return LockRecord(
-        schema_version=schema_version,
-        pid=pid,
-        started_at=started_at,
-        host=host,
-        version=version,
-    )
-
-
-def _record_from_bytes(raw: bytes) -> LockRecord | None:
-    if not raw:
-        return None
-    try:
-        payload = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    return _record_from_payload(payload)
-
-
-def _read_lock_record_from_fd(fd: int) -> LockRecord | None:
-    try:
-        os.lseek(fd, 0, os.SEEK_SET)
-        raw = os.read(fd, 65536)
-    except OSError:
-        return None
-    return _record_from_bytes(raw)
-
-
-def read_lock_record(lock_path: Path) -> LockRecord | None:
-    """Return the lock record at ``lock_path`` without acquiring the OS lock.
-
-    Returns ``None`` when:
-
-    - the file does not exist;
-    - the file is empty or contains malformed JSON;
-    - the JSON is missing required keys or has wrong types.
-
-    This reads the *sidecar record* only -- never a payload -- so it never
-    interferes with an in-flight transaction. On POSIX (advisory locks) it
-    always returns the current holder's record whether or not the lock is
-    held. On Windows the record file carries a *mandatory* byte-range lock
-    while held, so a concurrent read is refused, caught, and reported as
-    ``None`` -- the holder is surfaced only once the lock releases. Used by
-    ``auth doctor`` to name the holding process, degrading gracefully to
-    "no holder shown" during the held window on Windows.
-    """
-    try:
-        raw = lock_path.read_bytes()
-    except OSError:
-        return None
-    return _record_from_bytes(raw)
-
-
-def force_release(lock_path: Path, *, only_if_age_s: float = STALE_AFTER_S_DEFAULT) -> bool:
-    """Clear the lock record at ``lock_path`` iff it is older than ``only_if_age_s``.
-
-    Returns ``True`` when the record was cleared (it existed and was stuck);
-    ``False`` when the file is missing, unreadable, held, or still considered fresh.
-
-    A lock cannot be ripped out from under a running process: force release
-    first proves the OS lock is available, then truncates the existing inode
-    under that lock instead of unlinking the path.
-    """
-    record = read_lock_record(lock_path)
-    if record is None:
-        return False
-    if record.age_s <= only_if_age_s:
-        return False
-    try:
-        # Same no-follow routing as ``_LockCore.open_fd`` above: a planted
-        # symlink at ``lock_path`` must raise ``NoFollowPathError`` rather
-        # than being followed and truncated. This intentionally propagates
-        # past the surrounding ``except OSError`` (``NoFollowPathError`` is a
-        # ``RuntimeError``, not an ``OSError``) -- a symlinked lock path is a
-        # security signal the caller must see, not a routine "lock missing/
-        # unreadable" outcome silently folded into a ``False`` return.
-        # ``open_no_follow`` ORs ``O_NOFOLLOW`` in itself -- the door owns the
-        # flag, so callers pass only their own intent.
-        fd = open_no_follow(lock_path, os.O_RDWR)
-    except OSError:
-        return False
-    try:
-        try:
-            _os_lock(fd)
-        except OSError as exc:
-            if not _is_contention_error(exc):
-                # Genuine FS error (e.g. EIO/ENOSPC) must propagate, per the module
-                # contract (_is_contention_error/_os_lock docstrings) and its twin
-                # in _LockCore.try_lock_once. Only true contention -> False (the
-                # lock is held, so it cannot be force-released).
-                raise
-            return False
-        locked_record = _read_lock_record_from_fd(fd)
-        if locked_record is None or locked_record.age_s <= only_if_age_s:
-            return False
-        try:
-            _atomic_write_under_lock(fd, b"")
-        except OSError:
-            return False
-        return True
-    finally:
-        _os_unlock(fd)
-        with contextlib.suppress(OSError):
-            os.close(fd)
 
 
 def _build_record() -> LockRecord:

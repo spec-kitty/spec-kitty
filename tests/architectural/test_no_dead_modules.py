@@ -528,18 +528,10 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # - decisions.ownership: KEEP (#6164, 2026-10-13, operator ruling). A
-        #   substantial, well-tested local C-009 decision-ownership resolver
-        #   (resolve_decision_ownership over local ledgers; tests in
-        #   tests/specify_cli/decisions/test_ownership_3111.py and
-        #   test_ownership_symlink_loops.py; no hosted deps). Its ONLY caller was
-        #   the hosted `decision widen` command (cmd_widen), removed with the
-        #   frozen hosted surfaces; no non-hosted caller exists today. The
-        #   operator chose to preserve it in open-core as local governance logic
-        #   rather than delete it, pending a future non-hosted consumer. This
-        #   entry REPLACES the pruned auth.transport slot, so Cat-7 holds at 2
-        #   (net zero vs the C-006 burn-down baseline).
-        "specify_cli.decisions.ownership",
+        # - decisions.ownership: DELETED (#6164, 2026-10-14, operator ruling).
+        #   Its only caller was the hosted `decision widen` command, removed
+        #   with the frozen hosted surfaces; the module and its tests went with
+        #   it, so Cat-7 shrinks 2 -> 1 (C-006 burn-down).
         # charter.parser + charter.activation.template_resolver were PRUNED
         # (Cat-7 burn-down, #6009): both were genuine orphans (zero static
         # src/ callers; only the charter/__init__.py string-literal re-export

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from kernel.locks import LockAcquireTimeout, LockNotAcquired, SyncMachineFileLock, force_release
+from kernel.locks import LockAcquireTimeout, LockNotAcquired, SyncMachineFileLock
 from kernel.no_follow import NoFollowPathError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -78,32 +78,3 @@ def test_sync_lock_acquire_on_planted_symlink_does_not_raise_lock_contention_err
         pass
 
     assert not isinstance(exc_info.value, (LockNotAcquired, LockAcquireTimeout))
-
-
-def test_force_release_on_planted_symlink_leaves_victim_untouched(planted_lock_path: Path, victim_path: Path) -> None:
-    """``force_release``'s raw ``os.open`` must not follow a planted symlink either.
-
-    ``force_release`` reads the record via ``read_lock_record`` first; against
-    a symlink pointing at a file with no valid ``LockRecord`` payload, that
-    read returns ``None`` and ``force_release`` reports ``False`` without
-    reaching its own ``os.open`` -- the real risk. Exercise the ``os.open``
-    call directly by planting a *valid, stale* record at the victim so
-    ``read_lock_record`` succeeds and ``force_release`` proceeds to open the
-    (symlinked) path itself.
-    """
-    from kernel.locks import LockRecord, STALE_AFTER_S_DEFAULT, _record_to_json
-    from kernel.clock import now_utc, timedelta
-
-    stale_record = LockRecord(
-        schema_version=1,
-        pid=999999,
-        started_at=now_utc() - timedelta(seconds=STALE_AFTER_S_DEFAULT + 60),
-        host="stale-host",
-        version="0.0.0",
-    )
-    victim_path.write_bytes(_record_to_json(stale_record).encode("utf-8"))
-
-    with pytest.raises(NoFollowPathError):
-        force_release(planted_lock_path)
-
-    assert victim_path.read_bytes() == _record_to_json(stale_record).encode("utf-8")

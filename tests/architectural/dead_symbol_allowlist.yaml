@@ -1184,48 +1184,17 @@ entries:
   category: category_c_terminus_reconciliation_5001
   rationale: public vocabulary of the new reconciliation gate (raised by `route_terminus` for an unrouted
     terminus path).
-- module: kernel.locks
-  name: force_release
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: kept kernel lock-admin primitive; its sole in-core caller was a removed hosted lock-repair/doctor
-    surface.
-- module: kernel.locks
-  name: read_lock_record
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: kept kernel lock-record reader; its sole in-core caller was a removed hosted lock-repair/doctor
-    surface.
 - module: specify_cli.core.ledger_posture
   name: LedgerPosture
   category: category_c_hosted_removal_orphaned_api_6164
   rationale: return type of the wired ``ledger_posture.ledger_posture()`` reader (called from status/emit.py
-    and coordination/status_transition.py); callers consume the value, not the class name.
-- module: specify_cli.decisions.ownership
-  name: is_well_formed_decision_id
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
-    was the removed ``decision widen`` command.
-- module: specify_cli.decisions.ownership
-  name: ownership_refusal
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
-    was the removed ``decision widen`` command.
-- module: specify_cli.decisions.ownership
-  name: resolve_decision_ownership
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: public C-009 decision-ownership API, kept in open-core by operator ruling; its only caller
-    was the removed ``decision widen`` command.
-- module: specify_cli.readiness.upgrade_ux
-  name: run_upgrade_ux
-  category: category_c_hosted_removal_orphaned_api_6164
-  rationale: 'kept upgrade-UX orchestrator; it only ran on the coordinator''s hosted-enabled path (hosted
-    shipped off), which #6164 removed. The module stays for its UpgradeChoice/apply_choice/needs_reset
-    helpers used by ``spec-kitty upgrade``.'
+    and coordination/status_transition.py); callers consume the value, not the class name. Kept pending the ledger-posture follow-up tracked in #6185.
 - module: runtime.next._internal_runtime.events
   name: register_runtime_emitter_factory
   category: category_c_hosted_removal_orphaned_api_6164
   rationale: 'the canonical runtime-emitter seam registration API; its sole caller (the runtime-moment
     producer wiring in status/adapters.py) was removed by #6164. Re-wiring a producer is the seam''s planned
-    exit (see tests/architectural/test_runtime_emitter_seam.py).'
+    exit (see tests/architectural/test_runtime_emitter_seam.py). Kept pending #6185.'
 widened_grandfathered_470:
   rationale: 'Pre-existing debt the #470 widened (non-__all__) walk surfaced, kept apart from `entries`
     because these names are not __all__ members. Reviewed by hand at widening time: each entry is either
