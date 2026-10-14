@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-10-13T14:33:00Z",
+  "friendly_name": "Remove frozen hosted/sync/drain surfaces from open-core",
+  "mission_id": "01M4VKYRXRBFSSAATCVHR6D23H",
+  "mission_number": null,
+  "mission_slug": "issue-6164-remove-hosted-from-core",
+  "mission_type": "research",
+  "slug": "issue-6164-remove-hosted-from-core",
+  "source_description": "Remove the never-shipped-configured hosted/sync/drain surfaces from open-core (#6164); research + milestone-11 reroute design committed here.",
+  "target_branch": "main"
+}
