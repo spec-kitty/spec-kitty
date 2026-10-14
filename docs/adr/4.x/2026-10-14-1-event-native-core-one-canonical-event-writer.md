@@ -37,7 +37,7 @@ The decisions of 2026-10-13 stand: runtime transitions create events; events flo
 **Many writers, several row shapes.** Counting each module that builds an event-like record and appends it to a log, there are twelve producers writing seven files:
 
 | # | Producer | File | Row shape and version marker |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Lane transitions: `status/transition_pipeline.py::prepare_transition` (:245) builds a `StatusEvent`, appended by `status/emit.py::_persist_prepared` (:831) or `BookkeepingTransaction.append_events` (`coordination/transaction.py:985`) | `status.events.jsonl` | `StatusEvent.to_dict` (`status/models.py:470`): flat row, **no version** |
 | 2 | Inner-state annotations: `status/emit.py::emit_inner_state_changed` (:1212) | `status.events.jsonl` | `InnerStateChanged.to_dict` (`status/models.py:793`), no version |
 | 3 | Internal lifecycle events: `status/lifecycle_events.py::persist_lifecycle_event_local` (:536), envelope from `_build_envelope` (:309) | `.kittify/canonical-events.jsonl` and `status.events.jsonl` (:10-18, :125-126) | local envelope, `schema_version "5.0.0"` (:317), marked `canonical-producer-exempt: #1198` (:308, :319) |
