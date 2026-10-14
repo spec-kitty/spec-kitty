@@ -609,7 +609,7 @@ def test_identical_detail_sides_pass_and_every_route_is_counted(cc: ModuleType) 
     oracle, detail, service = _detail_world(cc)
     report = _run_detail(cc, oracle, detail, service)
     assert report.exit_code == PASS, report.lines
-    assert report.counts == {"missions": 2, "work_packages": 4, "listed_files": 4, "decoded_files": 4, "exempt": 0, "duplicate_ids": 0}
+    assert report.counts == {"missions": 2, "work_packages": 4, "listed_files": 4, "decoded_files": 4, "shadowed_files": 0, "exempt": 0, "duplicate_ids": 0}
     routes = {row.route for row in report.rows if row.outcome == "equal" and row.route}
     assert {"getMission", "listArtifacts", "getArtifactContent", "getWorkPackage", "getWorkPackage?includePrompt=true", "getWorkPackageDetail"} <= routes
     # both forms of the prompt request, the detail and the content were really asked
@@ -887,3 +887,13 @@ def test_a_mission_whose_id_resolves_to_another_directory_has_no_route_of_its_ow
     assert report.exit_code == PASS
     assert report.counts["duplicate_ids"] == 1 and report.counts["missions"] == 1 and report.counts["work_packages"] == 2
     assert "1 duplicate ids" in _said(report)
+
+
+def test_the_over_coverage_check_counts_the_shadowed_files_the_scan_sees(cc: ModuleType) -> None:
+    mission = _mission("mission-01", wps=("WP01",))
+    mission[3].append(("WP01-copy.md", "WP01", "shadowed"))
+    oracle, detail, service = _detail_world(cc, count=1, missions=[mission])
+    report = _run_detail(cc, oracle, detail, service, work_package_files=2)
+    assert report.exit_code == PASS and report.counts["shadowed_files"] == 1
+    report = _run_detail(cc, oracle, detail, service, work_package_files=1)
+    assert report.exit_code == CANNOT and "more Work Package files" in _said(report)

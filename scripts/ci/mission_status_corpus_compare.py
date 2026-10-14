@@ -790,11 +790,14 @@ def compare_answer(expected: Expected, reply: Reply, *, slug: str, mission_id: s
 
 def _decode_rows(
     detail: DetailOracle, service: ServiceClient, name: str, mission_id: str, records: Sequence[DecodeRecord], winners: set[str]
-) -> tuple[list[Row], int]:
+) -> tuple[list[Row], int, int]:
     """The decode class of each Work Package file: the oracle's frontmatter read against what the service answers for its id."""
     rows: list[Row] = []
     compared = 0
+    shadowed = 0
     for record in records:
+        if record.outcome == SHADOWED:
+            shadowed += 1
         if record.outcome == SHADOWED or record.wp_id is None:
             continue  # another file holds the id (the first wins, FR-006) or the name carries no id: no class of its own to compare
         compared += 1
@@ -826,7 +829,7 @@ def _decode_rows(
                 name, mission_id, OUTCOME_FIELD, SIDE_SERVICE, field=differing, route=route, file=record.file, item=record.wp_id, klass=f"{DECODED}->{DECODED}"
             )
         )
-    return rows, compared
+    return rows, compared, shadowed
 
 
 # The members of a Work Package that the frontmatter decoder produces; their first difference is the decode class difference of AC-6.4.
@@ -835,7 +838,7 @@ DECODED_MEMBERS = ("wpId", "title", "authored", "ownedFiles")
 
 def _compare_mission_detail(detail: DetailOracle, service: ServiceClient, name: str, exempt: str | None) -> tuple[list[Row], dict[str, int]]:
     """Every detail request of one Mission. An exempt Mission skips only its Work Package routes and its decode class, and says so."""
-    counts = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "exempt": 0, "duplicate_ids": 0}
+    counts = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "shadowed_files": 0, "exempt": 0, "duplicate_ids": 0}
     mission_id = detail.mission_id(name)
     if mission_id is None:
         return [], counts  # no route can be asked; the overview refusal row of this Mission already fails the run
@@ -866,15 +869,16 @@ def _compare_mission_detail(detail: DetailOracle, service: ServiceClient, name: 
             ("getWorkPackageDetail", detail.work_package_detail(name, wp_id), _wp_route(mission_id, wp_id, "/detail")),
         ):
             rows.append(compare_answer(expected, service.get(target), slug=name, mission_id=mission_id, route=route, item=wp_id))
-    decode, compared = _decode_rows(detail, service, name, mission_id, detail.decode_records(name), set(ids))
+    decode, compared, shadowed = _decode_rows(detail, service, name, mission_id, detail.decode_records(name), set(ids))
     counts["decoded_files"] = compared
+    counts["shadowed_files"] = shadowed
     return rows + decode, counts
 
 
 def compare_detail(detail: DetailOracle, service: ServiceClient, names: Sequence[str], refused: Mapping[str, str]) -> tuple[list[Row], dict[str, int]]:
     """The detail comparison over every Mission; the counts say how much was compared (the non-vacuity floors read them)."""
     rows: list[Row] = []
-    totals = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "exempt": 0, "duplicate_ids": 0}
+    totals = {"missions": 0, "work_packages": 0, "listed_files": 0, "decoded_files": 0, "shadowed_files": 0, "exempt": 0, "duplicate_ids": 0}
     for name in names:
         mission_rows, counts = _compare_mission_detail(detail, service, name, refused.get(name))
         rows.extend(mission_rows)
