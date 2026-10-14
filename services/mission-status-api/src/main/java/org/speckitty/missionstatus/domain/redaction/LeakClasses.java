@@ -133,7 +133,7 @@ public record LeakClasses(List<Pattern> strictHostPaths, List<Pattern> humanHost
 
   /** True when the text is shaped like a host path of the strict class; this is the predicate the project header takes. */
   public boolean strictHostPath(String text) {
-    return anyFound(strictHostPaths, text);
+    return guard(() -> anyFound(strictHostPaths, text));
   }
 
   /**
@@ -141,17 +141,17 @@ public record LeakClasses(List<Pattern> strictHostPaths, List<Pattern> humanHost
    * the {@code Projector} use (single owner; the patterns are generated into {@code leak-patterns.json}).
    */
   public boolean credential(String text) {
-    return anyFound(secrets, text);
+    return guard(() -> anyFound(secrets, text));
   }
 
   /** True when the text holds a strict host path, an address or a secret. */
   public boolean strictLeak(String text) {
-    return anyFound(strictHostPaths, text) || email.matcher(text).find() || anyFound(secrets, text);
+    return guard(() -> anyFound(strictHostPaths, text) || email.matcher(text).find() || anyFound(secrets, text));
   }
 
   /** True when the text holds a human host path, an address or a secret. */
   public boolean humanLeak(String text) {
-    return anyFound(humanHostPaths, text) || email.matcher(text).find() || anyFound(secrets, text);
+    return guard(() -> anyFound(humanHostPaths, text) || email.matcher(text).find() || anyFound(secrets, text));
   }
 
   /**
@@ -203,6 +203,20 @@ public record LeakClasses(List<Pattern> strictHostPaths, List<Pattern> humanHost
     matcher.useTransparentBounds(true);
     matcher.useAnchoringBounds(false);
     return matcher.lookingAt() ? matcher : null;
+  }
+
+  /**
+   * Fails closed. {@code java.util.regex} recurses once per iteration of a group loop (the e-mail label run, the PEM word run), so a
+   * few KB of hostile text overflows the stack where Python's {@code re} does not. An overflow is answered as a detected leak, the
+   * same outcome as a credential hit, never as a pass. No length bound is applied first: the stack depth differs per thread and per
+   * native image, and any bound under about 6 KB would refuse ordinary artifact text that Python accepts.
+   */
+  private static boolean guard(java.util.function.BooleanSupplier question) {
+    try {
+      return question.getAsBoolean();
+    } catch (StackOverflowError overflow) {
+      return true;
+    }
   }
 
   private static boolean anyFound(List<Pattern> patterns, String text) {

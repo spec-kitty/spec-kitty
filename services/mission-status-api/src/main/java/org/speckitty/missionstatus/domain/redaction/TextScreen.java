@@ -42,8 +42,13 @@ public final class TextScreen {
     if (leaks.credential(text)) {
       return new Screened.SecretFound();
     }
-    String paths = leaks.redactHumanHostPaths(text, PATH_TOKEN).text();
-    String emails = leaks.redactEmails(paths, EMAIL_TOKEN).text();
-    return new Screened.Clean(emails, !emails.equals(text));
+    try {
+      String paths = leaks.redactHumanHostPaths(text, PATH_TOKEN).text();
+      String emails = leaks.redactEmails(paths, EMAIL_TOKEN).text();
+      return new Screened.Clean(emails, !emails.equals(text));
+    } catch (StackOverflowError overflow) {
+      // A pattern overflowed the stack on hostile text: fail closed, the same outcome as a credential hit.
+      return new Screened.SecretFound();
+    }
   }
 }

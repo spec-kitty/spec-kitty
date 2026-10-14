@@ -71,18 +71,23 @@ public final class Projector {
     if (value == null) {
       return null;
     }
-    LeakClasses.Replaced paths = leaks.redactHumanHostPaths(value, PATH_TOKEN);
-    if (paths.count() > 0) {
-      redactions.add(new Redaction(fieldName, Kind.PATH));
-    }
-    LeakClasses.Replaced emails = leaks.redactEmails(paths.text(), EMAIL_TOKEN);
-    if (emails.count() > 0) {
-      redactions.add(new Redaction(fieldName, Kind.EMAIL));
-    }
-    if (leaks.humanLeak(emails.text())) {
+    try {
+      LeakClasses.Replaced paths = leaks.redactHumanHostPaths(value, PATH_TOKEN);
+      if (paths.count() > 0) {
+        redactions.add(new Redaction(fieldName, Kind.PATH));
+      }
+      LeakClasses.Replaced emails = leaks.redactEmails(paths.text(), EMAIL_TOKEN);
+      if (emails.count() > 0) {
+        redactions.add(new Redaction(fieldName, Kind.EMAIL));
+      }
+      if (leaks.humanLeak(emails.text())) {
+        throw new ProjectionError(fieldName, ProjectionError.Reason.LEAK_REMAINS);
+      }
+      return emails.text();
+    } catch (StackOverflowError overflow) {
+      // A pattern overflowed the stack on hostile text: refuse the field, the same outcome as a leak that cannot be removed.
       throw new ProjectionError(fieldName, ProjectionError.Reason.LEAK_REMAINS);
     }
-    return emails.text();
   }
 
   /** A read-only snapshot of the redactions recorded so far. */
