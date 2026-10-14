@@ -6,8 +6,9 @@ import java.util.List;
 import org.apache.tomcat.util.http.InvalidParameterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.speckitty.missionstatus.application.query.port.in.exceptions.DetailRefusal;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
-import org.speckitty.missionstatus.application.query.port.in.dto.StreamCursorText;
+import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamCapacityReached;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.domain.readmodel.cursor.InvalidPageCursor;
 import org.springframework.http.HttpMethod;
@@ -33,6 +34,11 @@ class ProblemAdvice {
     return ProblemMapper.unavailable(refusal);
   }
 
+  @ExceptionHandler(DetailRefusal.class)
+  ResponseEntity<ProblemBody> detail(DetailRefusal refusal) {
+    return ProblemMapper.detail(refusal);
+  }
+
   @ExceptionHandler(InvalidPageCursor.class)
   ResponseEntity<ProblemBody> pageCursor(InvalidPageCursor refusal) {
     return ProblemMapper.pageCursor(refusal);
@@ -40,16 +46,11 @@ class ProblemAdvice {
 
   @ExceptionHandler(StreamRefused.class)
   ResponseEntity<ProblemBody> stream(StreamRefused refusal) {
-    return ProblemMapper.stream(refusal);
+    return ProblemMapper.stream(refusal, refusal.detail().orElse(null));
   }
 
-  @ExceptionHandler(EventsController.UnparseableCursor.class)
-  ResponseEntity<ProblemBody> unparseableCursor(EventsController.UnparseableCursor refusal) {
-    return ProblemMapper.stream(new StreamRefused(StreamRefused.Kind.MISALIGNED), StreamCursorText.UNPARSEABLE_DETAIL);
-  }
-
-  @ExceptionHandler(EventsController.StreamCapacityReached.class)
-  ResponseEntity<ProblemBody> streamCapacity(EventsController.StreamCapacityReached refusal) {
+  @ExceptionHandler(StreamCapacityReached.class)
+  ResponseEntity<ProblemBody> streamCapacity(StreamCapacityReached refusal) {
     return ProblemMapper.streamCapacity();
   }
 

@@ -2,9 +2,12 @@ package org.speckitty.missionstatus.architecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.lang.EvaluationResult;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -16,7 +19,7 @@ import org.speckitty.missionstatus.architecture.ArchitectureRules.Rule;
 import org.speckitty.missionstatus.architecture.ArchitectureRules.Scope;
 
 /**
- * The fourteen architecture rules of FR-012 over the real classes. Production rules import main classes only
+ * The sixteen architecture rules of FR-012 over the real classes. Production rules import main classes only
  * ({@code DoNotIncludeTests}, generated classes included); rule 11 imports test classes. Non-vacuity has three parts (AC-12b): every
  * rule scans more than zero classes, every rule has a positive control ({@link ArchitectureControlsTest}), and the rule-count guard
  * below fails when the number of rules run differs from the number defined.
@@ -61,11 +64,77 @@ class ArchitectureRulesTest {
   }
 
   @Test
-  void theRuleSetDefinesTheFourteenRulesOfThePlanTableWithContiguousIds() {
+  void theRuleSetDefinesEveryRuleOfThePlanTableWithContiguousIds() {
     List<Rule> rules = ArchitectureRules.production();
 
     assertThat(rules).hasSize(ArchitectureRules.DEFINED_RULE_COUNT);
     assertThat(rules).extracting(Rule::id).containsExactlyElementsOf(IntStream.rangeClosed(1, ArchitectureRules.DEFINED_RULE_COUNT).boxed().toList());
+  }
+
+  /**
+   * Pins the discovered inbound adapters of the production import (not in the rule: the fixture root legitimately holds
+   * {@code adapter.in.other}). The first MCP adapter must add its own entry and its own count here.
+   */
+  @Test
+  void theDiscoveredInboundAdaptersAreExactlyHttpWithClasses() {
+    Map<String, Long> bySegment = new TreeMap<>();
+    for (JavaClass c : MAIN) {
+      if (c.getPackageName().startsWith(ArchitectureRules.ROOT + ".adapter.in.")) {
+        bySegment.merge(ArchitectureRules.adapterSegment(ArchitectureRules.ROOT, c), 1L, Long::sum);
+      }
+    }
+
+    assertThat(bySegment.keySet()).containsExactly("http");
+    assertThat(bySegment.get("http")).as("classes in adapter.in.http").isGreaterThan(0);
+  }
+
+  /** Rule 3b: the production floor is five annotated classes in adapter.in.. plus the allow-listed error controller, which must still exist. */
+  @Test
+  void ruleThreeBSeesTheFiveAnnotatedControllersAndTheAllowListedOneStillExists() {
+    String allowListed = ArchitectureRules.controllerAllowList(ArchitectureRules.ROOT);
+    long inAdapter =
+        MAIN.stream().filter(ArchitectureRules.CONTROLLER_ANNOTATED).filter(c -> c.getPackageName().startsWith(ArchitectureRules.ROOT + ".adapter.in.")).count();
+
+    assertThat(inAdapter).as("annotated controller classes in adapter.in..").isGreaterThanOrEqualTo(5);
+    assertThat(MAIN.contain(allowListed)).as("stale allow-list entry: %s no longer exists", allowListed).isTrue();
+    assertThat(MAIN.get(allowListed)).as("the allow-listed class is a controller").matches(ArchitectureRules.CONTROLLER_ANNOTATED);
+  }
+
+  /** Rule 13 must scan each of the two roots and the four subpackages, or one of them could be vacuously green. */
+  @Test
+  void ruleThirteenScansBothPortRootsAndAllFourSubpackages() {
+    String port = ArchitectureRules.ROOT + ".application.query.port.";
+    for (String sub : List.of("in", "out", "in.dto", "in.exceptions", "out.dto", "out.exceptions")) {
+      long count = MAIN.stream().filter(c -> c.getPackageName().equals(port + sub)).count();
+      assertThat(count).as("classes in application.query.port.%s", sub).isGreaterThan(0);
+    }
+  }
+
+  /** Rule 15 must scan the shared HTTP pieces of the detail operations: with no controller yet, {@code RawQuery} and {@code IncludePrompt} are its subject. */
+  @Test
+  void ruleFifteenScansTheSharedDetailPieces() {
+    String detail = ArchitectureRules.ROOT + ".adapter.in.http.detail.";
+
+    assertThat(MAIN.contain(detail + "RawQuery")).isTrue();
+    assertThat(MAIN.contain(detail + "IncludePrompt")).isTrue();
+    assertThat(MAIN.stream().filter(c -> c.getPackageName().equals(detail.substring(0, detail.length() - 1))).count()).isGreaterThanOrEqualTo(2);
+  }
+
+  /** Rule 16 clause c reads the four detail interfaces: exactly those, besides the stream port, sit directly in port.in. */
+  @Test
+  void ruleSixteenReadsTheFourDetailInterfacesAndTheDetailRecords() {
+    String port = ArchitectureRules.ROOT + ".application.query.port.in";
+    List<String> interfaces =
+        MAIN.stream().filter(c -> c.getPackageName().equals(port) && c.isInterface()).map(JavaClass::getSimpleName).sorted().toList();
+
+    assertThat(interfaces).containsExactly("ArtifactQuery", "MissionDetailQuery", "MissionStatusQuery", "Subscription", "WorkPackageDetailQuery", "WorkPackageQuery");
+    assertThat(MAIN.stream().filter(c -> c.getPackageName().equals(ArchitectureRules.ROOT + ".domain.readmodel.detail")).count()).isGreaterThanOrEqualTo(21);
+  }
+
+  /** Rule 14's target does not exist in production by design: the planted control, not production, shows the rule bites. */
+  @Test
+  void noApplicationCommandPackageExistsInProduction() {
+    assertThat(MAIN.stream().filter(c -> c.getPackageName().startsWith(ArchitectureRules.ROOT + ".application.command"))).isEmpty();
   }
 
   /** The rule-count guard: the number of rules RUN equals the number defined. It fails when a rule is deleted from the set. */

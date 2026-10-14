@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.speckitty.missionstatus.application.query.Fx;
 import org.speckitty.missionstatus.application.query.StreamFx;
 import org.speckitty.missionstatus.application.query.port.in.dto.Closure;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamEvent;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
 import org.speckitty.missionstatus.application.query.port.in.Subscription;
@@ -31,6 +32,15 @@ class ChangeFeedTest {
 
   private static final String MID8_ALPHA = Rows.ALPHA_ID.substring(0, 8);
   private static final String MID8_BETA = Rows.BETA_ID.substring(0, 8);
+
+  /** The signal a truncation of the alpha Mission becomes at the port: one projected {@code log-truncated} event. */
+  private static StreamSignal truncation(String cause, long detectedAtOffset) {
+    return new StreamSignal.Events(List.of(new StreamEvent.LogTruncated(Rows.ALPHA_ID, cause, detectedAtOffset, StreamCursor.start())));
+  }
+
+  private static void assertIsTruncation(StreamSignal signal) {
+    assertThat(signal).isInstanceOfSatisfying(StreamSignal.Events.class, events -> assertThat(events.events()).singleElement().isInstanceOf(StreamEvent.LogTruncated.class));
+  }
 
   private static Subscription scoped(Fx fx) {
     return fx.service.subscribe(StreamScope.mission(ALPHA), Optional.empty());
@@ -57,8 +67,8 @@ class ChangeFeedTest {
       var changes = StreamFx.changes(StreamFx.drain(subscription));
 
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(4));
-      assertThat(changes.getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + row, 4));
-      assertThat(changes.getFirst().missionId()).isEqualTo(ALPHA);
+      assertThat(changes.getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + row, 4));
+      assertThat(changes.getFirst().missionId()).isEqualTo(ALPHA.value());
     }
   }
 
@@ -82,7 +92,7 @@ class ChangeFeedTest {
 
       var changes = StreamFx.changes(StreamFx.drain(subscription));
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(7));
-      assertThat(changes.getFirst().cursor()).as("the offset advanced past every dropped row").isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + dropped + unknownType + unknownKind + unknownLane + row, 8));
+      assertThat(changes.getFirst().resumeCursor().orElseThrow()).as("the offset advanced past every dropped row").isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + dropped + unknownType + unknownKind + unknownLane + row, 8));
     }
     assertThat(fx.handles.diagnostics()).isEmpty();
   }
@@ -98,7 +108,7 @@ class ChangeFeedTest {
       var changes = StreamFx.changes(StreamFx.drain(subscription));
 
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(5));
-      assertThat(changes.getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + dropped + lifecycle, 5));
+      assertThat(changes.getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + dropped + lifecycle, 5));
     }
   }
 
@@ -117,7 +127,7 @@ class ChangeFeedTest {
 
       var changes = StreamFx.changes(StreamFx.drain(subscription));
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(4));
-      assertThat(changes.getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + row, 4));
+      assertThat(changes.getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory() + row, 4));
     }
     assertThat(fx.handles.diagnostics()).isEmpty();
   }
@@ -152,12 +162,12 @@ class ChangeFeedTest {
       fx.source.replaceLedger("alpha", shorter.getBytes(StandardCharsets.UTF_8));
       fx.executor.tick();
 
-      assertThat(StreamFx.drain(subscription)).containsExactly(new StreamSignal.Truncated(ALPHA, StreamSignal.Truncated.Reason.SIZE_SHRINK, before));
+      assertThat(StreamFx.drain(subscription)).containsExactly(truncation("size_shrink", before));
 
       append(fx, "alpha", Rows.status(Rows.id(9), Fx.T2, "WP01", "claimed", "in_progress"));
       var changes = StreamFx.changes(StreamFx.drain(subscription));
       assertThat(StreamFx.eventIds(changes)).as("rows after the re-baseline are delivered, the rewritten history is not").containsExactly(Rows.id(9));
-      assertThat(changes.getFirst().cursor().offset()).isGreaterThan(shorter.getBytes(StandardCharsets.UTF_8).length);
+      assertThat(changes.getFirst().resumeCursor().orElseThrow().offset()).isGreaterThan(shorter.getBytes(StandardCharsets.UTF_8).length);
     }
   }
 
@@ -171,7 +181,7 @@ class ChangeFeedTest {
       fx.executor.tick();
 
       assertThat(StreamFx.drain(subscription))
-          .containsExactly(new StreamSignal.Truncated(ALPHA, StreamSignal.Truncated.Reason.CONTENT_MISMATCH, original.getBytes(StandardCharsets.UTF_8).length));
+          .containsExactly(truncation("content_mismatch", original.getBytes(StandardCharsets.UTF_8).length));
     }
   }
 
@@ -183,8 +193,8 @@ class ChangeFeedTest {
       fx.source.deleteLedger("alpha");
       fx.executor.tick();
 
-      assertThat(StreamFx.drain(subscription)).singleElement().isInstanceOf(StreamSignal.Truncated.class);
-      assertThat(StreamFx.drain(all)).singleElement().isInstanceOf(StreamSignal.Truncated.class);
+      assertThat(StreamFx.drain(subscription)).singleElement().satisfies(ChangeFeedTest::assertIsTruncation);
+      assertThat(StreamFx.drain(all)).singleElement().satisfies(ChangeFeedTest::assertIsTruncation);
     }
     assertThat(fx.handles.diagnostics()).isEmpty();
   }
@@ -296,9 +306,9 @@ class ChangeFeedTest {
 
         for (Subscription subscription : List.of(scoped, unscoped, resumed)) {
           List<StreamSignal> signals = StreamFx.drain(subscription);
-          assertThat(signals).as(unusable).allSatisfy(signal -> assertThat(signal).isInstanceOf(StreamSignal.Forwarded.class));
+          assertThat(signals).as(unusable).allSatisfy(signal -> assertThat(signal).isInstanceOf(StreamSignal.Events.class));
           assertThat(StreamFx.eventIds(StreamFx.changes(signals))).as(unusable).containsExactly(Rows.id(4));
-          assertThat(StreamFx.changes(signals).getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(ledger, 5));
+          assertThat(StreamFx.changes(signals).getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(ledger, 5));
         }
       }
       assertThat(fx.handles.diagnostics()).as(unusable).isEmpty();
@@ -306,9 +316,9 @@ class ChangeFeedTest {
       Fx resuming = new Fx(FixtureSpec.of(Fx.mission("alpha", Rows.ALPHA_ID, StreamFx.CREATED, ledger)));
       try (Subscription subscription = resuming.service.subscribe(StreamScope.mission(ALPHA), Optional.of(StreamFx.cursorAfter(ledger, 3)))) {
         List<StreamSignal> signals = StreamFx.drain(subscription);
-        assertThat(signals).as("resume over " + unusable).allSatisfy(signal -> assertThat(signal).isInstanceOf(StreamSignal.Forwarded.class));
+        assertThat(signals).as("resume over " + unusable).allSatisfy(signal -> assertThat(signal).isInstanceOf(StreamSignal.Events.class));
         assertThat(StreamFx.eventIds(StreamFx.changes(signals))).containsExactly(Rows.id(4));
-        assertThat(StreamFx.changes(signals).getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(ledger, 5));
+        assertThat(StreamFx.changes(signals).getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(ledger, 5));
       }
       assertThat(resuming.handles.diagnostics()).isEmpty();
     }
@@ -400,7 +410,7 @@ class ChangeFeedTest {
 
       var changes = StreamFx.changes(StreamFx.drain(subscription));
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(60));
-      assertThat(changes.getFirst().missionId().value()).isEqualTo(Rows.GAMMA_ID);
+      assertThat(changes.getFirst().missionId()).isEqualTo(Rows.GAMMA_ID);
 
       fx.clock.advance(Duration.ofSeconds(2));
       fx.executor.tick();
@@ -425,7 +435,7 @@ class ChangeFeedTest {
         var secondChanges = StreamFx.changes(StreamFx.drain(second));
         assertThat(StreamFx.eventIds(firstChanges)).as("the first subscriber was there when both rows were written").containsExactly(Rows.id(60), Rows.id(61));
         assertThat(StreamFx.eventIds(secondChanges)).as("the second one gets only what was written after it connected").containsExactly(Rows.id(61));
-        assertThat(secondChanges.getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(before + after, 2));
+        assertThat(secondChanges.getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(before + after, 2));
 
         fx.clock.advance(Duration.ofSeconds(2));
         fx.executor.tick();
@@ -650,7 +660,7 @@ class ChangeFeedTest {
 
       StreamSignal signal = subscription.next(Duration.ofSeconds(10));
 
-      assertThat(signal).isInstanceOf(StreamSignal.Forwarded.class);
+      assertThat(signal).isInstanceOf(StreamSignal.Events.class);
       producer.join();
     }
   }
@@ -727,7 +737,7 @@ class ChangeFeedTest {
 
       List<StreamSignal> signals = StreamFx.drain(subscription);
 
-      assertThat(signals.getFirst()).isInstanceOf(StreamSignal.Truncated.class);
+      assertThat(signals.getFirst()).satisfies(ChangeFeedTest::assertIsTruncation);
       assertThat(StreamFx.eventIds(StreamFx.changes(signals))).containsExactly(Rows.id(51));
       assertThat(StreamCursor.start().offset()).isZero();
     }

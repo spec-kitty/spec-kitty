@@ -101,18 +101,28 @@ public final class FilesystemFixtureFactory {
 
   /** A source-neutral spec, written as a tree. This is what the selector installs for the second leg of the port-level subset. */
   public static Built fromSpec(FixtureSpec spec) {
+    return fromSpec(spec, StreamSettings.defaults());
+  }
+
+  /** A source-neutral spec served by a service with these stream settings (the service, not the controller, owns the stream cap). */
+  public static Built fromSpec(FixtureSpec spec, StreamSettings settings) {
     Path root = projectRoot();
     FixtureTrees.write(spec, root);
-    return over(root, null);
+    return over(root, null, settings);
   }
 
   /** The service over an existing project root. */
   public static Built over(Path root, Function<Path, AllowlistAccess> access) {
+    return over(root, access, StreamSettings.defaults());
+  }
+
+  /** The service over an existing project root with these stream settings. */
+  public static Built over(Path root, Function<Path, AllowlistAccess> access, StreamSettings settings) {
     AllowlistAccess seam = access == null ? AllowlistAccess.passThrough() : access.apply(root);
     RecordingAllowlistAccess recorder = seam instanceof RecordingAllowlistAccess recording ? recording : null;
     FilesystemMissionEventSource source = new FilesystemMissionEventSource(root, seam);
     FixtureHandles handles = new FixtureHandles(new MutableClock(Instant.parse("2026-10-01T12:00:00Z")), recorder);
-    MissionStatusQuery query = new MissionStatusQueryService(source, handles.clock(), handles.recorder(), handles.executor(), StreamSettings.defaults(), LeakPatternsFile.load());
+    MissionStatusQuery query = new MissionStatusQueryService(source, handles.clock(), handles.recorder(), handles.executor(), settings, LeakPatternsFile.load());
     return new Built(query, source, handles, root);
   }
 

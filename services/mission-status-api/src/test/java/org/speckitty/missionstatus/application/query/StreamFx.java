@@ -7,7 +7,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.speckitty.missionstatus.application.query.port.in.dto.Change;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamEvent;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
 import org.speckitty.missionstatus.application.query.port.in.Subscription;
@@ -58,24 +58,24 @@ public final class StreamFx {
     return signals;
   }
 
-  /** The changes of every Forwarded signal, in arrival order. */
-  public static List<Change> changes(List<StreamSignal> signals) {
-    List<Change> changes = new ArrayList<>();
+  /** The status transitions and lifecycle events of every Events signal, in arrival order (a truncation is not a change). */
+  public static List<StreamEvent> changes(List<StreamSignal> signals) {
+    List<StreamEvent> changes = new ArrayList<>();
     for (StreamSignal signal : signals) {
-      if (signal instanceof StreamSignal.Forwarded forwarded) {
-        changes.addAll(forwarded.batch().changes());
+      if (signal instanceof StreamSignal.Events events) {
+        events.events().stream().filter(event -> !(event instanceof StreamEvent.LogTruncated)).forEach(changes::add);
       }
     }
     return changes;
   }
 
-  public static List<String> eventIds(List<Change> changes) {
+  public static List<String> eventIds(List<StreamEvent> changes) {
     return changes.stream()
         .map(
             change ->
-                switch (change.kind()) {
-                  case org.speckitty.missionstatus.domain.model.LineKind.Status status -> status.event().eventId();
-                  case org.speckitty.missionstatus.domain.model.LineKind.Lifecycle lifecycle -> lifecycle.event().eventId();
+                switch (change) {
+                  case StreamEvent.StatusTransition status -> status.eventId();
+                  case StreamEvent.Lifecycle lifecycle -> lifecycle.eventId();
                   default -> throw new AssertionError();
                 })
         .toList();

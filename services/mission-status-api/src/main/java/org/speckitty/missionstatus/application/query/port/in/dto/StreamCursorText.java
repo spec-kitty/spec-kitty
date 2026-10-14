@@ -12,7 +12,7 @@ import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursorException
  */
 public final class StreamCursorText {
 
-  /** The detail text for a cursor that did not parse (the adapter uses it for the Problem). */
+  /** The detail text for a cursor that did not parse (the fixed detail of the {@code misaligned} refusal). */
   public static final String UNPARSEABLE_DETAIL = "The stream cursor did not parse.";
 
   private StreamCursorText() {}
@@ -21,7 +21,10 @@ public final class StreamCursorText {
     try {
       return StreamCursor.parse(text);
     } catch (StreamCursorException refused) {
-      throw new StreamRefused(refused.reason() == StreamCursorException.Reason.NEGATIVE ? StreamRefused.Kind.NEGATIVE : StreamRefused.Kind.MISALIGNED);
+      if (refused.reason() == StreamCursorException.Reason.NEGATIVE) {
+        throw new StreamRefused(StreamRefused.Kind.NEGATIVE);
+      }
+      throw new StreamRefused(StreamRefused.Kind.MISALIGNED, UNPARSEABLE_DETAIL);
     }
   }
 }

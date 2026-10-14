@@ -109,7 +109,8 @@ class ValueObjectsTest {
   void diagnosticsUseTheClosedCodeSetAndNeverCarryAPathOrText() {
     assertThat(java.util.Arrays.stream(DiagnosticCode.values()).map(DiagnosticCode::wire))
         .containsExactly(
-            "ledger_unreadable", "ledger_unparseable", "ledger_torn_tail", "meta_unparseable", "mission_vanished", "path_refused", "mission_dir_unreadable", "projection_refused", "mission_id_duplicate");
+            "ledger_unreadable", "ledger_unparseable", "ledger_torn_tail", "meta_unparseable", "mission_vanished", "path_refused", "mission_dir_unreadable", "projection_refused", "mission_id_duplicate",
+            "wp_file_skipped", "wp_id_duplicate", "source_unreadable", "artifact_too_large", "artifact_not_text", "artifact_secret", "artifact_unreadable", "artifact_listing_unreadable");
     Diagnostic withLine = new Diagnostic(DiagnosticCode.LEDGER_UNPARSEABLE, "01J01000", 12);
     assertThat(withLine.code()).isEqualTo(DiagnosticCode.LEDGER_UNPARSEABLE);
     assertThat(withLine.mid8()).isEqualTo("01J01000");

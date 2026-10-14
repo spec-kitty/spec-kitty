@@ -90,61 +90,103 @@ public final class SafeFiles {
     }
   }
 
-  /**
-   * Reads a whole regular file of at most {@code max} bytes. Empty when nothing is there. A link, a directory or any other non-regular
-   * entry is refused with {@code refused}; an operating-system failure, and a file larger than {@code max} (checked on the attributes
-   * and again while reading, because a file can grow), is {@code unreadable}. The cap is required: this is the only whole-file read of
-   * the adapter, so no read of a file the project owner does not control can exhaust the heap.
-   */
-  public Optional<byte[]> readRegular(Path file, int max, Kind refused, Kind unreadable) {
-    Optional<OpenFile> opened = openRegular(file, refused, unreadable);
-    if (opened.isEmpty()) {
-      return Optional.empty();
-    }
-    try (SeekableByteChannel open = opened.get().channel()) {
-      if (opened.get().size() > max) {
-        throw new SourceFault(unreadable);
-      }
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      ByteBuffer buffer = ByteBuffer.allocate(CHUNK);
-      while (open.read(buffer) >= 0) {
-        out.write(buffer.array(), 0, buffer.position());
-        buffer.clear();
-        if (out.size() > max) {
-          throw new SourceFault(unreadable);
-        }
-      }
-      return Optional.of(out.toByteArray());
-    } catch (IOException failure) {
-      throw new SourceFault(unreadable);
-    }
+  /** The result of {@link #readCapped}: a distinct outcome for each thing that can happen to a capped read. */
+  public sealed interface Capped {
+    /** The whole file, at most the cap. */
+    record Bytes(byte[] content) implements Capped {}
+
+    /** Nothing is there (or the path runs through something that is not a directory). */
+    record Absent() implements Capped {}
+
+    /** A directory or another entry that is not a regular file. */
+    record NotRegular() implements Capped {}
+
+    /** The open handle was larger than the cap, or more than the cap arrived while reading. */
+    record OverCap() implements Capped {}
   }
 
-  private record OpenFile(SeekableByteChannel channel, long size) {}
+  /**
+   * Reads a whole regular file of at most {@code max} bytes. Empty when nothing is there. A link, a directory or any other non-regular
+   * entry is refused with {@code refused}; an operating-system failure, and a file larger than {@code max} (checked on the open handle
+   * and again while reading, because a file can grow), is {@code unreadable}. The cap is required: no read of a file the project owner
+   * does not control can exhaust the heap. It delegates to {@link #readCapped(Path, int, Kind, Kind)}, so no second whole-file reader
+   * exists (D-68).
+   */
+  public Optional<byte[]> readRegular(Path file, int max, Kind refused, Kind unreadable) {
+    return switch (readCapped(file, max, refused, unreadable)) {
+      case Capped.Bytes bytes -> Optional.of(bytes.content());
+      case Capped.Absent absent -> Optional.empty();
+      case Capped.NotRegular notRegular -> throw new SourceFault(refused);
+      case Capped.OverCap overCap -> throw new SourceFault(unreadable);
+    };
+  }
 
-  /** Opens a regular file for reading under the rules of {@link #readRegular}; private, so a read always goes through the cap. */
-  private Optional<OpenFile> openRegular(Path file, Kind refused, Kind unreadable) {
+  /**
+   * The capped read of the text-read port (plan 7.1 row 5), for a file that is not a link: a link in the final component is refused
+   * ({@code PATH_REFUSED}) before it is opened and an operating-system failure is {@code DIR_UNREADABLE}; everything else is a
+   * {@link Capped} outcome. The cap is enforced twice, in this order: by the size of the <em>open handle</em> (a size above {@code cap}
+   * is {@code OverCap} having read no byte), then by the bytes actually read, at most {@code cap + 1} of them.
+   */
+  public Capped readCapped(Path file, int cap) {
+    return readCapped(file, cap, Kind.PATH_REFUSED, Kind.DIR_UNREADABLE);
+  }
+
+  Capped readCapped(Path file, int cap, Kind refused, Kind unreadable) {
+    if (cap < 0) {
+      throw new IllegalArgumentException("cap");
+    }
     BasicFileAttributes attributes;
     try {
       attributes = access.stat(file, false);
     } catch (IOException failure) {
       if (isAbsent(failure)) {
-        return Optional.empty();
+        return new Capped.Absent();
       }
       throw new SourceFault(unreadable);
     }
-    if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
+    if (attributes.isSymbolicLink()) {
       throw new SourceFault(refused);
     }
+    if (!attributes.isRegularFile()) {
+      return new Capped.NotRegular();
+    }
+    SeekableByteChannel channel;
     try {
-      return Optional.of(new OpenFile(access.openRead(file), attributes.size()));
+      channel = access.openRead(file);
     } catch (IOException failure) {
       if (isAbsent(failure)) {
-        return Optional.empty();
+        return new Capped.Absent();
       }
       // A link swapped in between the attribute check and the open fails the NOFOLLOW open; say which row it is.
       throw new SourceFault(isLink(file) ? refused : unreadable);
     }
+    try (SeekableByteChannel open = channel) {
+      if (open.size() > cap) {
+        return new Capped.OverCap();
+      }
+      return drain(open, cap);
+    } catch (IOException failure) {
+      throw new SourceFault(unreadable);
+    }
+  }
+
+  /** Reads until the end or until {@code cap + 1} bytes have arrived, whichever is first: never more, so a growing file costs a bounded read. */
+  private static Capped drain(SeekableByteChannel open, int cap) throws IOException {
+    long limit = (long) cap + 1;
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ByteBuffer buffer = ByteBuffer.allocate(CHUNK);
+    long total = 0;
+    while (total < limit) {
+      buffer.clear();
+      buffer.limit((int) Math.min(CHUNK, limit - total));
+      int read = open.read(buffer);
+      if (read < 0) {
+        break;
+      }
+      out.write(buffer.array(), 0, read);
+      total += read;
+    }
+    return total > cap ? new Capped.OverCap() : new Capped.Bytes(out.toByteArray());
   }
 
   private boolean isLink(Path file) {

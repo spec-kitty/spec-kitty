@@ -7,13 +7,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.speckitty.missionstatus.application.query.port.out.dto.ReadScope;
 
 /**
  * The explicit read allowlist of the service (FR-010 items 1-6): the one test-visible constant that says which files are opened and
  * which directories are listed or stat-ed, plus the classification of a path into one of those classes. A path that is in no class is
  * not on the allowlist; a mode that is not read-only is on it for no class. The service reads the ledger and what it needs to find it,
- * and nothing else: never {@code tasks/*.md}, {@code spec.md}, {@code plan.md}, artifacts, WP frontmatter, {@code status.json}, the
- * coordination copy of {@code meta.json}, or the personal {@code config.toml}.
+ * the authored files of a Mission (Work Package files, {@code tasks.md}, review cycles, a stat of {@code spec.md} and {@code plan.md}) and,
+ * under the artifact scope, the artifacts below a Mission's primary directory; never the root {@code status.json}, the coordination copy
+ * of {@code meta.json}, {@code .git/refs}, or the personal {@code config.toml}.
+ *
+ * <p>The class of an access is a function of the pair (read scope, path) (FR-011, D-27): under {@link ReadScope#AUTHORED} the specific-first
+ * classifier applies and the two artifact classes never match; under {@link ReadScope#ARTIFACT} only those two apply.
  *
  * <p>Classification looks at the path relative to the project root, lexically; the callers pass paths composed under the root and never
  * a resolved real path. A path with a {@code .} or {@code ..} segment is in no class.
@@ -73,7 +78,27 @@ public final class Allowlist {
     /** {@code .git/HEAD}. */
     GIT_HEAD(EnumSet.of(OpenMode.READ, OpenMode.STAT)),
     /** The single file {@code HEAD} of the directory a {@code .git} pointer file names: outside the root only; in-root {@code .git/refs} and {@code .git/worktrees} stay off the list. */
-    GITDIR_HEAD(EnumSet.of(OpenMode.READ, OpenMode.STAT, OpenMode.REALPATH));
+    GITDIR_HEAD(EnumSet.of(OpenMode.READ, OpenMode.STAT, OpenMode.REALPATH)),
+    /** {@code <primary-dir>/tasks/}: the names of the Work Package files (scope AUTHORED). */
+    TASKS_DIR(EnumSet.of(OpenMode.STAT, OpenMode.LIST)),
+    /** {@code <primary-dir>/tasks/WP*.md} directly under {@code tasks/}: frontmatter and body, 1 MiB (scope AUTHORED). */
+    WP_FILE(EnumSet.of(OpenMode.STAT, OpenMode.READ)),
+    /** {@code <primary-dir>/tasks.md}: read (4 MiB) for the subtask titles, stat-ed for the tasks phase (scope AUTHORED). */
+    TASKS_MD(EnumSet.of(OpenMode.STAT, OpenMode.READ)),
+    /** {@code <primary-dir>/spec.md} and {@code plan.md}: stat only, for the phases (scope AUTHORED). */
+    PLANNING_FILE(EnumSet.of(OpenMode.STAT)),
+    /** {@code <primary-dir>/tasks/<wp-slug>/}: the names of the review-cycle files (scope AUTHORED). */
+    WP_CYCLE_DIR(EnumSet.of(OpenMode.STAT, OpenMode.LIST)),
+    /** {@code <primary-dir>/tasks/<wp-slug>/review-cycle-<N>.md}: reviewer and date only, 262144 bytes (scope AUTHORED). */
+    WP_CYCLE_FILE(EnumSet.of(OpenMode.STAT, OpenMode.READ)),
+    /** {@code .worktrees/<slug>-<lane id>/}: stat only, for {@code worktreePresent} (scope AUTHORED). */
+    WORKTREE_LANE(EnumSet.of(OpenMode.STAT)),
+    /** {@code .worktrees/<slug>-<lane id>/.git}: stat only, no follow (scope AUTHORED). */
+    WORKTREE_LANE_GIT(EnumSet.of(OpenMode.STAT)),
+    /** {@code <primary-dir>} itself and any directory below it: the names of the artifacts (scope ARTIFACT). */
+    ARTIFACT_DIR(EnumSet.of(OpenMode.STAT, OpenMode.LIST)),
+    /** Any regular file below {@code <primary-dir>} except the root status records: 262144 bytes (scope ARTIFACT). */
+    ARTIFACT_FILE(EnumSet.of(OpenMode.STAT, OpenMode.READ));
 
     private final Set<OpenMode> modes;
 
@@ -104,12 +129,27 @@ public final class Allowlist {
           new Entry(PathClass.SPECS_DIR, "kitty-specs/ (names only)", "the Mission directory names"),
           new Entry(PathClass.WORKTREES_DIR, ".worktrees/ (names only)", "listing for the coordination worktree roots"),
           new Entry(PathClass.COORD_MISSION_DIR, ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/ (stat only)", "whether the coordination Mission directory exists"),
-          new Entry(PathClass.COORD_META, ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)", "whether the coordination Mission directory holds a meta.json (existence only; never opened)"));
+          new Entry(PathClass.COORD_META, ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)", "whether the coordination Mission directory holds a meta.json (existence only; never opened)"),
+          new Entry(PathClass.TASKS_DIR, "<primary-dir>/tasks/ (names only; scope AUTHORED)", "the Work Package file names"),
+          new Entry(PathClass.WP_FILE, "<primary-dir>/tasks/WP*.md directly under tasks/ (frontmatter and body, 1 MiB; scope AUTHORED)", "the Work Package files"),
+          new Entry(PathClass.TASKS_MD, "<primary-dir>/tasks.md (4 MiB; stat for the tasks phase; scope AUTHORED)", "the subtask titles, and the tasks phase"),
+          new Entry(PathClass.PLANNING_FILE, "<primary-dir>/spec.md (stat only; scope AUTHORED)", "the specify phase"),
+          new Entry(PathClass.PLANNING_FILE, "<primary-dir>/plan.md (stat only; scope AUTHORED)", "the plan phase"),
+          new Entry(PathClass.WP_CYCLE_DIR, "<primary-dir>/tasks/<wp-slug>/ (names only; scope AUTHORED)", "the review-cycle file names"),
+          new Entry(PathClass.WP_CYCLE_FILE, "<primary-dir>/tasks/<wp-slug>/review-cycle-<N>.md (262144 bytes; scope AUTHORED)", "the reviewer and the date of a review cycle"),
+          new Entry(PathClass.WORKTREE_LANE, ".worktrees/<slug>-<lane id>/ (stat only; scope AUTHORED)", "whether a lane worktree is present"),
+          new Entry(PathClass.WORKTREE_LANE_GIT, ".worktrees/<slug>-<lane id>/.git (stat only, no follow; scope AUTHORED)", "whether a lane worktree is a git worktree"),
+          new Entry(PathClass.ARTIFACT_DIR, "<primary-dir> and every directory below it (names only; scope ARTIFACT)", "the artifact listing"),
+          new Entry(PathClass.ARTIFACT_FILE, "every regular file below <primary-dir> except the root status.events.jsonl and status.json (262144 bytes; scope ARTIFACT)", "the artifact content"));
 
   /** The path patterns of {@link #ENTRIES}, in order: the form the README parity test compares. */
   public static final List<String> PATTERNS = ENTRIES.stream().map(Entry::pattern).toList();
 
   private static final String SEGMENT = "[^/]+";
+  private static final String MISSION = "kitty-specs/" + SEGMENT;
+  private static final String ARTIFACT_ROOT = "kitty-specs";
+
+  /** The AUTHORED classifier: specific first; the first match wins. The artifact classes are not here. */
   private static final List<ClassPattern> CLASSIFIERS =
       List.of(
           new ClassPattern(PathClass.PROJECT_ROOT, ""),
@@ -126,7 +166,15 @@ public final class Allowlist {
           new ClassPattern(PathClass.CONFIG_YAML, "\\.kittify/config\\.yaml"),
           new ClassPattern(PathClass.METADATA_YAML, "\\.kittify/metadata\\.yaml"),
           new ClassPattern(PathClass.GIT_POINTER, "\\.git"),
-          new ClassPattern(PathClass.GIT_HEAD, "\\.git/HEAD"));
+          new ClassPattern(PathClass.GIT_HEAD, "\\.git/HEAD"),
+          new ClassPattern(PathClass.TASKS_DIR, MISSION + "/tasks"),
+          new ClassPattern(PathClass.WP_FILE, MISSION + "/tasks/WP[^/]*\\.md"),
+          new ClassPattern(PathClass.TASKS_MD, MISSION + "/tasks\\.md"),
+          new ClassPattern(PathClass.PLANNING_FILE, MISSION + "/(?:spec|plan)\\.md"),
+          new ClassPattern(PathClass.WP_CYCLE_FILE, MISSION + "/tasks/" + SEGMENT + "/review-cycle-[1-9][0-9]*\\.md"),
+          new ClassPattern(PathClass.WP_CYCLE_DIR, MISSION + "/tasks/" + SEGMENT),
+          new ClassPattern(PathClass.WORKTREE_LANE, "\\.worktrees/" + SEGMENT),
+          new ClassPattern(PathClass.WORKTREE_LANE_GIT, "\\.worktrees/" + SEGMENT + "/\\.git"));
 
   private static final String OUTSIDE = "<outside>/";
 
@@ -138,24 +186,60 @@ public final class Allowlist {
 
   private Allowlist() {}
 
-  /** The class of {@code path}, or empty when the path is on the allowlist for no class. */
+  /** The class of {@code path} under the AUTHORED scope, or empty when the path is on the allowlist for no class. */
   public static Optional<PathClass> classify(Path root, Path path) {
+    return classify(ReadScope.AUTHORED, root, path);
+  }
+
+  /**
+   * The class of {@code path} for a read made under {@code scope}, or empty when the path is on the allowlist for no class there. Under
+   * ARTIFACT a path below the primary directory is lexically an {@code ARTIFACT_FILE}, because the path alone cannot tell a file from a
+   * directory; {@link #classify(ReadScope, Path, Path, OpenMode)} refines it by the mode.
+   */
+  public static Optional<PathClass> classify(ReadScope scope, Path root, Path path) {
+    return classify(scope, root, path, OpenMode.STAT);
+  }
+
+  /**
+   * The class of an access: the scope and the path decide it; the mode only tells a directory from a file below the primary directory
+   * under ARTIFACT (a {@code LIST} is made on a directory), where the path alone cannot.
+   */
+  public static Optional<PathClass> classify(ReadScope scope, Path root, Path path, OpenMode mode) {
     String relative = describe(root, path);
     if (relative.startsWith(OUTSIDE)) {
       // The one place outside the project root that is read: the HEAD of the git directory a .git pointer file names.
-      return relative.equals(OUTSIDE + "HEAD") ? Optional.of(PathClass.GITDIR_HEAD) : Optional.empty();
+      return scope == ReadScope.AUTHORED && relative.equals(OUTSIDE + "HEAD") ? Optional.of(PathClass.GITDIR_HEAD) : Optional.empty();
     }
     for (String segment : relative.split("/", -1)) {
       if (segment.equals(".") || segment.equals("..")) {
         return Optional.empty();
       }
     }
+    return scope == ReadScope.ARTIFACT ? classifyArtifact(relative, mode) : classifyAuthored(relative);
+  }
+
+  private static Optional<PathClass> classifyAuthored(String relative) {
     for (ClassPattern classifier : CLASSIFIERS) {
       if (classifier.pattern().matcher(relative).matches()) {
         return Optional.of(classifier.pathClass());
       }
     }
     return Optional.empty();
+  }
+
+  /** Under ARTIFACT only the primary directory and what lies below it is classified, and not the root status records. */
+  private static Optional<PathClass> classifyArtifact(String relative, OpenMode mode) {
+    String[] segments = relative.split("/", -1);
+    if (segments.length < 2 || !segments[0].equals(ARTIFACT_ROOT) || segments[1].isEmpty()) {
+      return Optional.empty();
+    }
+    if (segments.length == 2) {
+      return Optional.of(PathClass.ARTIFACT_DIR);
+    }
+    if (segments.length == 3 && (segments[2].equalsIgnoreCase("status.json") || segments[2].equalsIgnoreCase("status.events.jsonl"))) {
+      return Optional.empty();
+    }
+    return Optional.of(mode == OpenMode.LIST ? PathClass.ARTIFACT_DIR : PathClass.ARTIFACT_FILE);
   }
 
   /**

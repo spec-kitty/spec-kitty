@@ -74,9 +74,11 @@ tasks.named<GenerateTask>("openApiGenerate") {
     apiPackage.set("org.speckitty.missionstatus.adapter.in.http.api")
     modelPackage.set("org.speckitty.missionstatus.adapter.in.http.model")
     // The contract tags six operations `Missions`; an unrestricted run yields five more live routes answering 501. The FILTER
-    // removes every operation but the two in scope, and the explicit models list keeps the model package to the closure of those
-    // two (the filter alone still generates all schemas). `Problem_1` is the generator's inline duplicate of Problem; a missing
-    // name is a compile error in ProjectApi/MissionsApi, an extra name is harmless.
+    // removes every operation but the two in scope (the five detail operations get hand-written controllers and no generated
+    // interface), and the explicit models list keeps the model package to the closure of the seven operations: the two above plus
+    // getMission, getWorkPackage, getWorkPackageDetail, listArtifacts and getArtifactContent (the filter alone still generates all
+    // schemas). `Problem_1`, `Actor_1`, `Readiness_1` and `SubtaskProgress_1` are the generator's inline duplicates; a missing name is
+    // a compile error where it is referenced, an extra name is harmless.
     openapiNormalizer.set(mapOf("FILTER" to "operationId:getProject|listMissions"))
     // The contract types every timestamp `date-time`; the service serves each one as the text it holds (a Mission's own createdAt, or an
     // event time exactly as written), which an OffsetDateTime cannot reproduce byte for byte (`+00:00` against `Z`, fraction widths).
@@ -86,7 +88,7 @@ tasks.named<GenerateTask>("openApiGenerate") {
         mapOf(
             "apis" to "",
             "supportingFiles" to "false",
-            "models" to "MissionOverview,MissionOverviewPage,MissionProgress,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,StatusLaneCounts,StreamCursor,Workspace",
+            "models" to "Actor,Actor_1,ActorHandle,ArtifactContent,ArtifactEntry,ArtifactKind,ArtifactListing,ArtifactPath,ArtifactReference,ArtifactReferences,ArtifactRefusal,ArtifactRefusalCode,Assignment,Authored,Cancellation,ChangeState,DependencyRef,HistoryEntry,LifecycleStatus,MissionDetail,MissionHead,MissionId,MissionOverview,MissionOverviewPage,MissionPhase,MissionProgress,OwnedFile,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,Readiness,Readiness_1,RelativeReference,Review,ReviewCycle,ReviewOverride,ReviewResult,ReviewVerdict,Staleness,StatusLane,StatusLaneCounts,StreamCursor,Subtask,SubtaskProgress,SubtaskProgress_1,Topology,WorkPackage,WorkPackageDetail,WorkPackageDetailRefusal,WorkPackageDetailRefusalCode,WorkPackageSummary,Workspace,WpId",
         ),
     )
     configOptions.set(
@@ -185,6 +187,23 @@ tasks.named<Test>("test") {
     }
     // The nested-build (TestKit) classes live in the kit source set; see below.
     finalizedBy("jacocoTestReport")
+    // BEGIN not-run report hook
+    // A JUnit skip is green in `check`. A test whose precondition is unmet appends `not run: precondition unmet: <test id>` to
+    // build/reports/not-run.txt (the test of a later work package does; this script writes nothing there). After the task the file is
+    // appended to the job summary named by GITHUB_STEP_SUMMARY, or printed to standard output when there is none; no file, no output.
+    doLast {
+        val notRun = layout.buildDirectory.file("reports/not-run.txt").get().asFile
+        if (notRun.isFile && notRun.length() > 0L) {
+            val text = notRun.readText(Charsets.UTF_8).let { if (it.endsWith("\n")) it else it + "\n" }
+            val summary = System.getenv("GITHUB_STEP_SUMMARY")
+            if (summary.isNullOrBlank()) {
+                print(text)
+            } else {
+                File(summary).appendText(text, Charsets.UTF_8)
+            }
+        }
+    }
+    // END not-run report hook
 }
 
 tasks.withType<Test>().configureEach {

@@ -88,27 +88,30 @@ public final class LedgerLineDecoder {
 
   private static LedgerLine line(long number, byte[] bytes, int start, int endExclusive) {
     int length = endExclusive - start;
-    return new LedgerLine(number, sha256Hex(bytes, start, length), length, kind(bytes, start, endExclusive - 1));
-  }
-
-  /** The kind of the line whose content is {@code bytes[start, contentEnd)} (the newline excluded). */
-  private static LineKind kind(byte[] bytes, int start, int contentEnd) {
     String text;
     try {
-      text = strictUtf8(bytes, start, contentEnd - start);
+      text = strictUtf8(bytes, start, endExclusive - 1 - start);
     } catch (CharacterCodingException notUtf8) {
-      return new LineKind.Malformed(MalformedReason.NOT_UTF8);
+      return new LedgerLine(number, sha256Hex(bytes, start, length), length, new LineKind.Malformed(MalformedReason.NOT_UTF8));
     }
+    return line(number, sha256Hex(bytes, start, length), length, text);
+  }
+
+  /**
+   * The line whose content is {@code text} (the newline excluded). The event type and the history row are read off the document
+   * independently of the classification: a marker row that classifies {@code Ignored} still counts for {@code lifecycleTypes}.
+   */
+  private static LedgerLine line(long number, String digest, int length, String text) {
     if (PyText.isBlank(text)) {
-      return new LineKind.Blank();
+      return new LedgerLine(number, digest, length, new LineKind.Blank());
     }
     Object document;
     try {
       document = PythonJson.parse(PyText.strip(text));
     } catch (PythonJson.Invalid notJson) {
-      return new LineKind.Malformed(MalformedReason.NOT_JSON);
+      return new LedgerLine(number, digest, length, new LineKind.Malformed(MalformedReason.NOT_JSON));
     }
-    return RowClassifier.classify(document);
+    return new LedgerLine(number, digest, length, RowClassifier.classify(document), RowClassifier.eventType(document), RowClassifier.historyRow(document));
   }
 
   private static TailClassification classifyTail(byte[] bytes, int tailStart) {

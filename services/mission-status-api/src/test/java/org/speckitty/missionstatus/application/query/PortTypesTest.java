@@ -6,13 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.speckitty.missionstatus.application.query.port.in.dto.Change;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.Closure;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
+import org.speckitty.missionstatus.application.query.stream.Change;
+import org.speckitty.missionstatus.application.query.stream.ChangeBatch;
+import org.speckitty.missionstatus.application.query.stream.FeedSignal;
 import org.speckitty.missionstatus.application.query.port.out.dto.LedgerStamp;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
@@ -65,8 +66,8 @@ class PortTypesTest {
   void theWireNamesAreStable() {
     assertThat(Closure.SLOW_CONSUMER.wire()).isEqualTo("slow_consumer");
     assertThat(Closure.LEDGER_UNPARSEABLE.wire()).isEqualTo("ledger_unparseable");
-    assertThat(StreamSignal.Truncated.Reason.SIZE_SHRINK.wire()).isEqualTo("size_shrink");
-    assertThat(StreamSignal.Truncated.Reason.CONTENT_MISMATCH.wire()).isEqualTo("content_mismatch");
+    assertThat(FeedSignal.Truncated.Reason.SIZE_SHRINK.wire()).isEqualTo("size_shrink");
+    assertThat(FeedSignal.Truncated.Reason.CONTENT_MISMATCH.wire()).isEqualTo("content_mismatch");
     assertThat(StreamRefused.Kind.CURSOR_WITHOUT_MISSION.wire()).isEqualTo("cursor_without_mission");
   }
 

@@ -86,6 +86,64 @@ public final class MissionCorpus {
     return text.toString();
   }
 
+  // ---- the NFR-009 option: 10 work packages and 100 transition rows per Mission (additive; spec(int) and its callers are untouched) ----
+
+  /** Work packages per Mission of the NFR-009 corpus. */
+  public static final int NFR009_WORK_PACKAGES = 10;
+
+  /** Transition rows per work package of the NFR-009 corpus: two claims, three rework rounds of two moves each, then submit and approve. */
+  public static final int NFR009_ROWS_PER_WORK_PACKAGE = 10;
+
+  /** The ten moves of one work package, in order: planned->claimed, claimed->in_progress, 3 x (in_progress->for_review, for_review->in_progress), in_progress->for_review, for_review->approved. */
+  static final String[][] NFR009_STEPS = {
+    {"planned", "claimed"},
+    {"claimed", "in_progress"},
+    {"in_progress", "for_review"},
+    {"for_review", "in_progress"},
+    {"in_progress", "for_review"},
+    {"for_review", "in_progress"},
+    {"in_progress", "for_review"},
+    {"for_review", "in_progress"},
+    {"in_progress", "for_review"},
+    {"for_review", "approved"}
+  };
+
+  /** The source-neutral description of {@code missions} NFR-009 Missions (seed {@link #SEED}, synthetic ids, ascending timestamps). */
+  public static FixtureSpec nfr009Spec(int missions) {
+    Random random = new Random(SEED);
+    List<FixtureSpec.Mission> built = new ArrayList<>(missions);
+    for (int i = 0; i < missions; i++) {
+      String createdAt = String.format("2026-08-%02dT%02d:00:00+00:00", 1 + (i % 28), i % 24);
+      built.add(FixtureSpec.Mission.of(slug(i), Rows.meta(missionId(i), slug(i), createdAt), nfr009Ledger(i, random)));
+    }
+    return FixtureSpec.of(built.toArray(FixtureSpec.Mission[]::new));
+  }
+
+  /** Writes {@code missions} NFR-009 Missions as a project tree below a fresh temporary directory and returns its root. */
+  public static Path writeNfr009(int missions) {
+    return FilesystemFixtureFactory.fromSpec(nfr009Spec(missions)).root();
+  }
+
+  /** One NFR-009 ledger: step by step, the ten work packages in a seeded order, so rows of different packages interleave. */
+  static String nfr009Ledger(int mission, Random random) {
+    StringBuilder text = new StringBuilder();
+    int serial = mission * 1000;
+    int written = 0;
+    List<Integer> order = new ArrayList<>();
+    for (int step = 0; step < NFR009_ROWS_PER_WORK_PACKAGE; step++) {
+      order.clear();
+      for (int p = 0; p < NFR009_WORK_PACKAGES; p++) {
+        order.add(p);
+      }
+      java.util.Collections.shuffle(order, random);
+      for (int p : order) {
+        String[] move = NFR009_STEPS[step];
+        text.append(Rows.status(Rows.id(++serial), at(written++), "WP" + String.format("%02d", p + 1), move[0], move[1]));
+      }
+    }
+    return text.toString();
+  }
+
   private static String at(int minute) {
     return String.format("2026-09-%02dT%02d:%02d:00Z", 1 + (minute / 1440) % 28, (minute / 60) % 24, minute % 60);
   }

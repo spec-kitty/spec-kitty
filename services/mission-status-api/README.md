@@ -84,7 +84,7 @@ Cases decided beyond the table:
 
 ## Read allowlist
 
-The service opens exactly these paths, read-only, and lists exactly these directories. Nothing else is opened: never `tasks/*.md`, `spec.md`, `plan.md`, artifacts, WP frontmatter, `status.json`, the content of the coordination copy of `meta.json`, or the personal `config.toml`. `<read-dir>` is the Mission's own primary directory or, when its stored topology routes through coordination and the coordination Mission directory exists, that directory if it holds a `meta.json` or the Mission's own `meta.json` names a non-blank string coordination branch. `<primary-dir>` is always the Mission's own directory under `kitty-specs/`. One path pattern per line; a test compares this list with the `Allowlist` constant in the code, entry for entry and in order.
+The service opens exactly these paths, read-only, and lists exactly these directories. Nothing else is opened: never the root `status.json` (in any case), the content of the coordination copy of `meta.json`, anything under `.git` but the two `HEAD` files, or the personal `config.toml`. `<read-dir>` is the Mission's own primary directory or, when its stored topology routes through coordination and the coordination Mission directory exists, that directory if it holds a `meta.json` or the Mission's own `meta.json` names a non-blank string coordination branch. `<primary-dir>` is always the Mission's own directory under `kitty-specs/`. One path pattern per line; a test compares this list with the `Allowlist` constant in the code, entry for entry and in order. Every entry states its read scope: a read is made either for the authored files and the ledger side (`AUTHORED`) or for the artifacts (`ARTIFACT`), and the class of an access is decided by the pair of scope and path; the entries without a stated scope are `AUTHORED`.
 
 ```
 <read-dir>/status.events.jsonl
@@ -98,6 +98,17 @@ kitty-specs/ (names only)
 .worktrees/ (names only)
 .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/ (stat only)
 .worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)
+<primary-dir>/tasks/ (names only; scope AUTHORED)
+<primary-dir>/tasks/WP*.md directly under tasks/ (frontmatter and body, 1 MiB; scope AUTHORED)
+<primary-dir>/tasks.md (4 MiB; stat for the tasks phase; scope AUTHORED)
+<primary-dir>/spec.md (stat only; scope AUTHORED)
+<primary-dir>/plan.md (stat only; scope AUTHORED)
+<primary-dir>/tasks/<wp-slug>/ (names only; scope AUTHORED)
+<primary-dir>/tasks/<wp-slug>/review-cycle-<N>.md (262144 bytes; scope AUTHORED)
+.worktrees/<slug>-<lane id>/ (stat only; scope AUTHORED)
+.worktrees/<slug>-<lane id>/.git (stat only, no follow; scope AUTHORED)
+<primary-dir> and every directory below it (names only; scope ARTIFACT)
+every regular file below <primary-dir> except the root status.events.jsonl and status.json (262144 bytes; scope ARTIFACT)
 ```
 
 What each line is read for:
@@ -109,6 +120,10 @@ What each line is read for:
 - `.kittify/metadata.yaml` is read for `spec_kitty.version` and `spec_kitty.schema_version`.
 - `.git/HEAD` gives the branch name. When `.git` is a pointer file, the file is read for its `gitdir:` line and the single file `HEAD` of the directory it names is read; that is the one read outside the project root. The directory a pointer names is contained by real path: a pointer that reaches a directory inside the project root through a symbolic link is refused exactly as one that names it directly, and no in-root `HEAD` is read through it. An in-root `.git/**/HEAD`, `.git/worktrees`, `packed-refs` and `refs/` are never read.
 - The two directory listings give names only, and the coordination Mission directory and the `meta.json` inside it are stat-ed to see whether they exist; the coordination `meta.json` is never opened.
+- The Work Package files, `tasks.md` and the review-cycle files are authored sources: `tasks/` and `tasks/<wp-slug>/` are listed for names only, `tasks/WP*.md` is read up to 1 MiB, `tasks.md` up to 4 MiB and a review-cycle file up to 262144 bytes. `spec.md` and `plan.md` are stat-ed only, for the phases; under the `AUTHORED` scope they are never read.
+- A lane worktree `.worktrees/<slug>-<lane id>/` and its `.git` are stat-ed only (the `.git` without following a link), to tell whether a worktree is present. Nothing below a lane worktree is read or listed.
+- The two `ARTIFACT` entries are the artifact walk: the primary directory and every directory below it are listed for names, and a regular file below it is read up to 262144 bytes, authored sources included. The root `status.events.jsonl` and `status.json` (in any case) are on no `ARTIFACT` class. A symbolic link in any component is refused, and its target is never opened.
+- The text-read port (`TextSource`, implemented by `FilesystemTextSource`) is the one reader behind the entries marked with a scope; it is built from a plain project-root path and every call carries the scope it is made for.
 
 ### Threat note
 

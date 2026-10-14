@@ -1,4 +1,4 @@
-package org.speckitty.missionstatus.application.query.port.in.dto;
+package org.speckitty.missionstatus.application.query.stream;
 
 import java.util.List;
 import java.util.Objects;

@@ -10,6 +10,7 @@ import org.speckitty.missionstatus.domain.model.Lane;
 import org.speckitty.missionstatus.domain.readmodel.overview.LifecycleStatus;
 import org.speckitty.missionstatus.domain.readmodel.overview.MissionOverview;
 import org.speckitty.missionstatus.domain.readmodel.overview.ProjectHeader;
+import org.speckitty.missionstatus.testsupport.FixtureSpec;
 import org.speckitty.missionstatus.testsupport.PortFixtures;
 import org.speckitty.missionstatus.testsupport.PortLevelTest;
 import org.speckitty.missionstatus.testsupport.Rows;
@@ -77,6 +78,73 @@ public class Ac5ReductionTest {
 
     assertThat(header.missionCount()).isEqualTo(2);
     assertThat(header.lastActivityAt()).isEqualTo("2026-09-01T11:00:00.123456Z");
+  }
+
+  // ---- AC-20.2: the resolved Work Package state does not move the overview ------------------------------------------------------
+
+  private static final String PLAIN_SLUG = "resolved-plain";
+  private static final String RICH_SLUG = "resolved-rich";
+
+  /** Three transitions of two work packages; the same rows, with nothing resolved, are the control. */
+  private static String plainLedger() {
+    return Rows.status(Rows.id(1), "2026-09-01T10:00:00Z", "WP01", "planned", "claimed")
+        + Rows.status(Rows.id(2), "2026-09-01T10:10:00Z", "WP01", "claimed", "in_progress")
+        + Rows.status(Rows.id(3), "2026-09-01T10:05:00Z", "WP02", "planned", "claimed");
+  }
+
+  /** The same transitions carrying every resolved member: a claim agent, a review result, annotations, marker and history rows, a repeated id. */
+  private static String richLedger() {
+    return Rows.status(Rows.id(1), "2026-09-01T10:00:00Z", "WP01", "planned", "claimed").replace("}\n", ",\"policy_metadata\":{\"agent\":\"claude\",\"shell_pid\":7}}\n")
+        + Rows.status(Rows.id(2), "2026-09-01T10:10:00Z", "WP01", "claimed", "in_progress")
+            .replace("}\n", ",\"review_result\":{\"reviewer\":\"rev\",\"verdict\":\"approved\",\"reference\":\"cycle-1\"}}\n")
+        + Rows.status(Rows.id(3), "2026-09-01T10:05:00Z", "WP02", "planned", "claimed")
+        + annotation(Rows.id(11), "2026-09-01T10:20:00Z", "WP01", "{\"release_runtime_claim\":true,\"role\":\"implementer\",\"subtasks\":{\"T1\":\"done\"}}")
+        + annotation(Rows.id(12), "2026-09-01T10:21:00Z", "WP01", "{\"review\":{\"at\":\"2026-09-01T10:21:00+00:00\",\"actor\":\"arb\",\"wp_id\":\"WP01\",\"reason\":\"ok\"}}")
+        + "{\"event_type\":\"PlanStarted\",\"timestamp\":\"2026-09-01T10:30:00Z\"}\n"
+        + "{\"event_type\":\"DecisionX\",\"event_id\":\"D1\",\"wp_id\":\"WP01\",\"from_lane\":\"claimed\",\"to_lane\":\"done\",\"at\":\"2026-09-01T10:31:00Z\"}\n"
+        + Rows.status(Rows.id(2), "2026-09-01T10:40:00Z", "WP01", "in_progress", "done");
+  }
+
+  private static String annotation(String eventId, String at, String wpId, String delta) {
+    return Rows.annotation(eventId, at, wpId).replace("{\"note\":\"hello\"}", delta);
+  }
+
+  private static MissionStatusQuery resolvedPair() {
+    return PortFixtures.open(
+        FixtureSpec.of(
+            PortFixtures.mission(PLAIN_SLUG, Rows.ALPHA_ID, PortFixtures.CREATED, plainLedger()),
+            PortFixtures.mission(RICH_SLUG, Rows.BETA_ID, PortFixtures.CREATED, richLedger())));
+  }
+
+  @PortLevelTest("AC-20/empty-members-control")
+  public void aLedgerWithNoResolvedMembersReducesToTheHandDerivedOverview() {
+    MissionOverview plain = overview(resolvedPair(), PLAIN_SLUG);
+
+    // WP01 ends in in_progress (the later at), WP02 in claimed
+    assertThat(plain.wpTotal()).isEqualTo(2);
+    assertThat(lanes(plain).get(Lane.IN_PROGRESS)).isEqualTo(1);
+    assertThat(lanes(plain).get(Lane.CLAIMED)).isEqualTo(1);
+    assertThat(plain.eventCount()).isEqualTo(3);
+    assertThat(plain.lastEventId()).isEqualTo(Rows.id(2));
+    assertThat(plain.lastActivityAt()).isEqualTo("2026-09-01T10:10:00Z");
+  }
+
+  @PortLevelTest("AC-20/resolved-members")
+  public void everyResolvedMemberInTheLedgerLeavesTheOverviewByteIdentical() {
+    MissionStatusQuery query = resolvedPair();
+    MissionOverview plain = overview(query, PLAIN_SLUG);
+    MissionOverview rich = overview(query, RICH_SLUG);
+
+    // The rich ledger repeats event id 2 with a different move (the dedup keeps the first, so the history lists a row the fold dropped) and
+    // adds annotation, marker and history-only rows; none of them may reach an overview member.
+    assertThat(rich.wpTotal()).isEqualTo(plain.wpTotal());
+    assertThat(rich.eventCount()).as("annotation, marker and history rows are not transitions").isEqualTo(plain.eventCount());
+    assertThat(rich.lastEventId()).isEqualTo(plain.lastEventId());
+    assertThat(lanes(rich)).isEqualTo(lanes(plain));
+    assertThat(rich.progress()).isEqualTo(plain.progress());
+    assertThat(rich.lastActivityAt()).isEqualTo(plain.lastActivityAt());
+    assertThat(rich.lifecycleStatus()).isEqualTo(plain.lifecycleStatus());
+    assertThat(rich.streamCursor().offset()).as("the rich ledger is longer, so the cursor is where the difference may show").isGreaterThan(plain.streamCursor().offset());
   }
 
   @PortLevelTest("AC-5c")

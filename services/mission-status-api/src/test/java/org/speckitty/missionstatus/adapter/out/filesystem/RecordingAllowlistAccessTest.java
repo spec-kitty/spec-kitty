@@ -28,7 +28,7 @@ class RecordingAllowlistAccessTest {
     recorder = new RecordingAllowlistAccess(root);
     write("kitty-specs/m-01ABCDEF/status.events.jsonl", "{}\n");
     write("kitty-specs/m-01ABCDEF/meta.json", "{}");
-    write("kitty-specs/m-01ABCDEF/tasks/WP01.md", "secret frontmatter");
+    write("kitty-specs/m-01ABCDEF/research/notes.md", "secret frontmatter");
     write(".worktrees/m-01ABCDEF-coord/kitty-specs/m-01ABCDEF/meta.json", "{}");
     write("config.toml", "token = 1");
   }
@@ -76,10 +76,10 @@ class RecordingAllowlistAccessTest {
   }
 
   @Test
-  void positiveControlAReadOfATaskFileIsRecordedAsAViolation() throws IOException {
-    readAll(root.resolve("kitty-specs/m-01ABCDEF/tasks/WP01.md"));
+  void positiveControlAReadOfAFileOnNoClassIsRecordedAsAViolation() throws IOException {
+    readAll(root.resolve("kitty-specs/m-01ABCDEF/research/notes.md"));
     assertThat(recorder.violations()).hasSize(1);
-    assertThat(recorder.violations().get(0).access().path()).isEqualTo("kitty-specs/m-01ABCDEF/tasks/WP01.md");
+    assertThat(recorder.violations().get(0).access().path()).isEqualTo("kitty-specs/m-01ABCDEF/research/notes.md");
   }
 
   @Test

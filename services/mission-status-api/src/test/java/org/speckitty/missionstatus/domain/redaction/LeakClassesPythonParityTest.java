@@ -159,4 +159,20 @@ class LeakClassesPythonParityTest {
       }
     }
   }
+
+  /** AC-5.6: the artifact corpus. Each secret pattern at its minimum length is found, one short of it is not; assembled at test time (C-006). */
+  @Test
+  void theCredentialPredicateAgreesWithTheSecretPatternsAtTheirMinimumLengths() {
+    for (String kind : List.of("p", "o", "u", "s", "r")) {
+      assertThat(leaks.credential("gh" + kind + "_" + "A".repeat(36))).as("gh" + kind + " 36").isTrue();
+      assertThat(leaks.credential("gh" + kind + "_" + "A".repeat(35))).as("gh" + kind + " 35").isFalse();
+    }
+    assertThat(leaks.credential("github" + "_pat_" + "A".repeat(40))).isTrue();
+    assertThat(leaks.credential("github" + "_pat_" + "A".repeat(39))).isFalse();
+    assertThat(leaks.credential("AK" + "IA" + "A".repeat(16))).isTrue();
+    assertThat(leaks.credential("AK" + "IA" + "A".repeat(15))).isFalse();
+    assertThat(leaks.credential("AK" + "IA" + "A".repeat(17))).as("a longer run of the same class is not a key id").isFalse();
+    assertThat(leaks.credential("-----BEGIN " + "EC PRIVATE KEY-----")).isTrue();
+    assertThat(leaks.credential("x" + "ghp_" + "A".repeat(36))).as("the lookbehind: glued onto a word character").isFalse();
+  }
 }

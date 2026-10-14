@@ -221,9 +221,9 @@ class FilesystemFixtureFactoryTest {
     try (var classDirectories = Files.list(ConformanceTree.root())) {
       assertThat(classDirectories.filter(Files::isDirectory).map(dir -> dir.getFileName().toString()).toList())
           .as("class directories")
-          .containsExactlyInAnyOrderElementsOf(ConformanceTree.classes().stream().map(ConformanceTree.ClassEntry::tag).toList());
+          .containsExactlyInAnyOrderElementsOf(ConformanceTree.allClasses().stream().map(ConformanceTree.ClassEntry::tag).toList());
     }
-    for (ConformanceTree.ClassEntry entry : ConformanceTree.classes()) {
+    for (ConformanceTree.ClassEntry entry : ConformanceTree.allClasses()) {
       try (var directories = Files.list(ConformanceTree.root().resolve(entry.tag()))) {
         assertThat(directories.filter(Files::isDirectory).map(dir -> dir.getFileName().toString()).toList())
             .as(entry.tag())

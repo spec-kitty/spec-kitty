@@ -1,5 +1,6 @@
 package org.speckitty.missionstatus.adapter.in.http;
 
+import org.speckitty.missionstatus.application.query.port.in.exceptions.DetailRefusal;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.domain.readmodel.cursor.InvalidPageCursor;
@@ -16,6 +17,7 @@ public final class ProblemMapper {
   public static final MediaType PROBLEM_JSON = MediaType.APPLICATION_PROBLEM_JSON;
 
   static final String INVALID_PAGE_CURSOR = "invalid_page_cursor";
+  static final String INVALID_PARAMETER = "invalid_parameter";
   static final String STREAM_CAPACITY = "stream_capacity_reached";
 
   private ProblemMapper() {}
@@ -42,6 +44,34 @@ public final class ProblemMapper {
   /** The event-stream admission bound is used up: 503 with a fixed code and detail (the contract's {@code default} Problem response). */
   public static ResponseEntity<ProblemBody> streamCapacity() {
     return respond(new ProblemBody(STREAM_CAPACITY, "The service holds the most event streams it admits; close one and retry.", 503, "The stream capacity is used up."));
+  }
+
+  /**
+   * A refused detail operation: the one table from a kind to a status and a fixed Problem. The codes are the contract's
+   * ({@code ArtifactRefusalCode} and {@code WorkPackageDetailRefusalCode}); no body names a path, a file, a Mission directory, an
+   * operating-system message or an enum name.
+   */
+  public static ResponseEntity<ProblemBody> detail(DetailRefusal refusal) {
+    DetailRefusal.Kind kind = refusal.kind();
+    return switch (kind) {
+      case NOT_FOUND -> detail(kind, 404, "The resource was not found.", "No Mission, work package or eligible artifact matches the request.");
+      case INVALID_ARTIFACT_PATH -> detail(kind, 400, "The artifact path was refused.", "The path is not a relative path of forward-slash segments.");
+      case ARTIFACT_TOO_LARGE -> detail(kind, 413, "The artifact is too large.", "The file is larger than 262144 bytes.");
+      case ARTIFACT_NOT_TEXT -> detail(kind, 415, "The artifact is not text.", "The file holds a NUL byte or is not valid UTF-8.");
+      case ARTIFACT_SECRET -> detail(kind, 422, "The artifact holds a credential.", "The file holds a credential, so its content is not served.");
+      case ARTIFACT_UNREADABLE -> detail(kind, 500, "The artifact could not be read.", "The file could not be read.");
+      case ARTIFACT_LISTING_UNREADABLE -> detail(kind, 500, "The artifacts could not be listed.", "The Mission directory could not be listed.");
+      case SOURCE_UNREADABLE -> detail(kind, 500, "A source of the work package could not be read.", "A file the detail is built from could not be read.");
+    };
+  }
+
+  private static ResponseEntity<ProblemBody> detail(DetailRefusal.Kind kind, int status, String title, String detail) {
+    return respond(new ProblemBody(kind.wire(), detail, status, title));
+  }
+
+  /** A request parameter with a value the service does not accept (for example {@code includePrompt=yes}): 400 {@code invalid_parameter}, naming no value. */
+  public static ResponseEntity<ProblemBody> invalidParameter() {
+    return respond(new ProblemBody(INVALID_PARAMETER, "A request parameter has a value the service does not accept.", 400, "The request parameter was refused."));
   }
 
   /** Any other failure with a status: the status text and no code. */

@@ -1,35 +1,19 @@
 package org.speckitty.missionstatus.application.query.port.in.dto;
 
+import java.util.List;
 import java.util.Objects;
-import org.speckitty.missionstatus.domain.model.MissionId;
 
-/** What a subscription hands out. */
+/** What a subscription hands out: projected events only, never a ledger row. */
 public sealed interface StreamSignal {
 
-  /** Forwarded rows, in log order. */
-  record Forwarded(ChangeBatch batch) implements StreamSignal {
+  /**
+   * The events of one consumed signal, in log order. An empty list is legal and means "a row was consumed and dropped" (a row the
+   * allow-list does not admit, or one whose projection was refused): the stream goes on.
+   */
+  record Events(List<StreamEvent> events) implements StreamSignal {
 
-    public Forwarded {
-      Objects.requireNonNull(batch, "batch");
-    }
-  }
-
-  /** The Mission's log shrank or changed under the reader: a {@code log-truncated} frame without an id, then a re-baseline. */
-  record Truncated(MissionId missionId, Reason reason, long detectedAtOffset) implements StreamSignal {
-
-    /** Why the reader concluded the log was truncated. */
-    public enum Reason {
-      SIZE_SHRINK,
-      CONTENT_MISMATCH;
-
-      public String wire() {
-        return name().toLowerCase(java.util.Locale.ROOT);
-      }
-    }
-
-    public Truncated {
-      Objects.requireNonNull(missionId, "missionId");
-      Objects.requireNonNull(reason, "reason");
+    public Events {
+      events = List.copyOf(Objects.requireNonNull(events, "events"));
     }
   }
 

@@ -136,6 +136,14 @@ public record LeakClasses(List<Pattern> strictHostPaths, List<Pattern> humanHost
     return anyFound(strictHostPaths, text);
   }
 
+  /**
+   * True when the text holds a credential: any of the {@code secrets} patterns, the very ones the strict and the human field classes of
+   * the {@code Projector} use (single owner; the patterns are generated into {@code leak-patterns.json}).
+   */
+  public boolean credential(String text) {
+    return anyFound(secrets, text);
+  }
+
   /** True when the text holds a strict host path, an address or a secret. */
   public boolean strictLeak(String text) {
     return anyFound(strictHostPaths, text) || email.matcher(text).find() || anyFound(secrets, text);

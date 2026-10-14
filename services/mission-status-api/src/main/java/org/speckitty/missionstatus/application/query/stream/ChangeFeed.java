@@ -16,11 +16,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import org.speckitty.missionstatus.application.query.MissionStatusQueryService;
-import org.speckitty.missionstatus.application.query.port.in.dto.Change;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.Closure;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
-import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
 import org.speckitty.missionstatus.application.query.port.out.dto.LedgerStamp;
 import org.speckitty.missionstatus.application.query.port.out.dto.LedgerWindow;
 import org.speckitty.missionstatus.application.query.port.out.MissionEventSource;
@@ -157,7 +154,7 @@ public final class ChangeFeed {
     }
     Resume.Result resumed = resume(ref, id, cursor.get(), watch.mid8);
     if (!resumed.changes().isEmpty()) {
-      subscriber.offer(new StreamSignal.Forwarded(new ChangeBatch(resumed.changes(), resumed.end())));
+      subscriber.offer(new FeedSignal.Forwarded(new ChangeBatch(resumed.changes(), resumed.end())));
     }
     subscriber.floor(ref, resumed.end().offset());
     if (resumed.unparseable()) {
@@ -407,7 +404,7 @@ public final class ChangeFeed {
   }
 
   private void consume(Watch watch, LedgerWindow window, LedgerStamp stamp) {
-    StreamSignal.Truncated truncation = truncation(watch, window);
+    FeedSignal.Truncated truncation = truncation(watch, window);
     if (truncation != null) {
       fanOut(watch, truncation);
       resetFloors(watch);
@@ -436,12 +433,12 @@ public final class ChangeFeed {
   }
 
   /** The log shrank (smaller than the position) or its last consumed line no longer hashes to the position's digest. */
-  private static StreamSignal.Truncated truncation(Watch watch, LedgerWindow window) {
+  private static FeedSignal.Truncated truncation(Watch watch, LedgerWindow window) {
     if (window.size() < watch.offset) {
-      return new StreamSignal.Truncated(watch.id, StreamSignal.Truncated.Reason.SIZE_SHRINK, watch.offset);
+      return new FeedSignal.Truncated(watch.id, FeedSignal.Truncated.Reason.SIZE_SHRINK, watch.offset);
     }
     if (!window.aligned() || !window.precedingLineSha256().equals(watch.invariant)) {
-      return new StreamSignal.Truncated(watch.id, StreamSignal.Truncated.Reason.CONTENT_MISMATCH, watch.offset);
+      return new FeedSignal.Truncated(watch.id, FeedSignal.Truncated.Reason.CONTENT_MISMATCH, watch.offset);
     }
     return null;
   }
@@ -467,12 +464,12 @@ public final class ChangeFeed {
       }
       List<Change> unseen = changes.stream().filter(change -> change.cursor().offset() > subscriber.floor(watch.ref)).toList();
       if (!unseen.isEmpty()) {
-        offerOrClose(subscriber, new StreamSignal.Forwarded(new ChangeBatch(unseen, unseen.getLast().cursor())));
+        offerOrClose(subscriber, new FeedSignal.Forwarded(new ChangeBatch(unseen, unseen.getLast().cursor())));
       }
     }
   }
 
-  private void fanOut(Watch watch, StreamSignal signal) {
+  private void fanOut(Watch watch, FeedSignal signal) {
     for (StreamSubscriber subscriber : new ArrayList<>(subscribers)) {
       if (wants(subscriber, watch)) {
         offerOrClose(subscriber, signal);
@@ -481,7 +478,7 @@ public final class ChangeFeed {
   }
 
   /** A signal that does not fit closes the subscriber as a slow consumer: nothing is dropped or reordered before the close. */
-  private void offerOrClose(StreamSubscriber subscriber, StreamSignal signal) {
+  private void offerOrClose(StreamSubscriber subscriber, FeedSignal signal) {
     if (!subscriber.offer(signal)) {
       subscriber.finish(Closure.SLOW_CONSUMER);
       detach(subscriber);
@@ -498,7 +495,7 @@ public final class ChangeFeed {
       }
       if (subscriber.scope() instanceof StreamScope.All) {
         subscriber.dropped().add(watch.ref);
-        offerOrClose(subscriber, new StreamSignal.Dropped(watch.mid8));
+        offerOrClose(subscriber, new FeedSignal.Dropped(watch.mid8));
       } else {
         subscriber.finish(closure);
         detach(subscriber);

@@ -13,7 +13,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
 import org.speckitty.missionstatus.domain.model.Lane;
@@ -106,8 +106,8 @@ class FilesystemMissionEventSourceStampTest {
     assertThat(counts(stale)).as("served stale, as documented").isEqualTo(counts(first));
     assertThat(stale.streamCursor()).isEqualTo(end);
 
-    ChangeBatch batch = harness.query.changesSince(new StreamScope.OneMission(new MissionId(Rows.ALPHA_ID)), Optional.of(end));
-    assertThat(batch.changes()).as("no log_truncated and nothing forwarded: the last line is unchanged").isEmpty();
+    StreamBatch batch = harness.query.changesSince(new StreamScope.OneMission(new MissionId(Rows.ALPHA_ID)), Optional.of(end));
+    assertThat(batch.events()).as("no log_truncated and nothing forwarded: the last line is unchanged").isEmpty();
     assertThat(batch.cursor()).isEqualTo(end);
   }
 }

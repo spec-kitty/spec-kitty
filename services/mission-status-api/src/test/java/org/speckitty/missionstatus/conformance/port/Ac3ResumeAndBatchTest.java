@@ -10,12 +10,11 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
-import org.speckitty.missionstatus.application.query.port.in.dto.Change;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamEvent;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
-import org.speckitty.missionstatus.domain.model.LineKind;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
 import org.speckitty.missionstatus.testsupport.PortFixtures;
 import org.speckitty.missionstatus.testsupport.PortLevelTest;
@@ -63,10 +62,10 @@ public class Ac3ResumeAndBatchTest {
     }
   }
 
-  private static String eventId(Change change) {
-    return switch (change.kind()) {
-      case LineKind.Status status -> status.event().eventId();
-      case LineKind.Lifecycle lifecycle -> lifecycle.event().eventId();
+  private static String eventId(StreamEvent change) {
+    return switch (change) {
+      case StreamEvent.StatusTransition status -> status.eventId();
+      case StreamEvent.Lifecycle lifecycle -> lifecycle.eventId();
       default -> throw new AssertionError("a change is a status or lifecycle row");
     };
   }
@@ -83,22 +82,22 @@ public class Ac3ResumeAndBatchTest {
 
     // After forwarded row 2 (k = 2), and after the annotation row 3 that is not forwarded: both resume with rows 4, 6, 7.
     for (int k : List.of(2, 3)) {
-      ChangeBatch batch = query.changesSince(scope, Optional.of(cursorAfterRow(rows, k)));
+      StreamBatch batch = query.changesSince(scope, Optional.of(cursorAfterRow(rows, k)));
 
-      assertThat(batch.changes()).as("changes after row %d", k).extracting(Ac3ResumeAndBatchTest::eventId).containsExactly(id(4), id(6), id(7));
-      assertThat(batch.changes()).extracting(Change::cursor).containsExactly(cursorAfterRow(rows, 4), cursorAfterRow(rows, 6), cursorAfterRow(rows, 7));
+      assertThat(batch.events()).as("changes after row %d", k).extracting(Ac3ResumeAndBatchTest::eventId).containsExactly(id(4), id(6), id(7));
+      assertThat(batch.events()).extracting(change -> change.resumeCursor().orElseThrow()).containsExactly(cursorAfterRow(rows, 4), cursorAfterRow(rows, 6), cursorAfterRow(rows, 7));
       assertThat(batch.cursor()).as("the cursor to resume from").isEqualTo(cursorAfterRow(rows, 7));
     }
 
     // From the very start: every forwarded row, none of the others, each with the cursor after its own physical row.
-    ChangeBatch all = query.changesSince(scope, Optional.of(StreamCursor.start()));
+    StreamBatch all = query.changesSince(scope, Optional.of(StreamCursor.start()));
     List<StreamCursor> expected = new ArrayList<>();
     FORWARDED.forEach(row -> expected.add(cursorAfterRow(rows, row)));
-    assertThat(all.changes()).extracting(Ac3ResumeAndBatchTest::eventId).containsExactly(id(1), id(2), id(4), id(6), id(7));
-    assertThat(all.changes()).extracting(Change::cursor).containsExactlyElementsOf(expected);
+    assertThat(all.events()).extracting(Ac3ResumeAndBatchTest::eventId).containsExactly(id(1), id(2), id(4), id(6), id(7));
+    assertThat(all.events()).extracting(change -> change.resumeCursor().orElseThrow()).containsExactlyElementsOf(expected);
 
     // At the tip: nothing replayed.
-    assertThat(query.changesSince(scope, Optional.of(cursorAfterRow(rows, 7))).changes()).isEmpty();
+    assertThat(query.changesSince(scope, Optional.of(cursorAfterRow(rows, 7))).events()).isEmpty();
   }
 
   @PortLevelTest("AC-3g/no-cursor-live-only")
@@ -106,9 +105,9 @@ public class Ac3ResumeAndBatchTest {
     List<String> rows = rows();
     MissionStatusQuery query = over(String.join("", rows));
 
-    ChangeBatch batch = query.changesSince(StreamScope.mission(PortFixtures.ALPHA), Optional.empty());
+    StreamBatch batch = query.changesSince(StreamScope.mission(PortFixtures.ALPHA), Optional.empty());
 
-    assertThat(batch.changes()).as("a connection without a cursor is live only").isEmpty();
+    assertThat(batch.events()).as("a connection without a cursor is live only").isEmpty();
     assertThat(batch.cursor()).as("it starts at the current tip").isEqualTo(cursorAfterRow(rows, 7));
   }
 
@@ -119,10 +118,10 @@ public class Ac3ResumeAndBatchTest {
     StreamCursor start = cursorAfterRow(rows, before);
     MissionStatusQuery query = over(String.join("", rows));
 
-    ChangeBatch batch = query.changesSince(StreamScope.mission(PortFixtures.ALPHA), Optional.of(start));
+    StreamBatch batch = query.changesSince(StreamScope.mission(PortFixtures.ALPHA), Optional.of(start));
 
-    assertThat(batch.changes()).extracting(Ac3ResumeAndBatchTest::eventId).as("K forwarded rows, in log order, none missing or repeated").containsExactly(id(4), id(6), id(7));
-    assertThat(batch.changes()).extracting(Change::cursor).containsExactly(cursorAfterRow(rows, 4), cursorAfterRow(rows, 6), cursorAfterRow(rows, 7));
-    assertThat(batch.changes()).extracting(Change::cursor).doesNotHaveDuplicates();
+    assertThat(batch.events()).extracting(Ac3ResumeAndBatchTest::eventId).as("K forwarded rows, in log order, none missing or repeated").containsExactly(id(4), id(6), id(7));
+    assertThat(batch.events()).extracting(change -> change.resumeCursor().orElseThrow()).containsExactly(cursorAfterRow(rows, 4), cursorAfterRow(rows, 6), cursorAfterRow(rows, 7));
+    assertThat(batch.events()).extracting(change -> change.resumeCursor().orElseThrow()).doesNotHaveDuplicates();
   }
 }

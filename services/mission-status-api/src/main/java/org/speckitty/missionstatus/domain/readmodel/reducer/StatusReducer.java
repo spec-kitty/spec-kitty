@@ -1,16 +1,17 @@
 package org.speckitty.missionstatus.domain.readmodel.reducer;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.speckitty.missionstatus.domain.model.CodePoints;
+import org.speckitty.missionstatus.domain.model.HistoryRow;
 import org.speckitty.missionstatus.domain.model.LedgerLine;
 import org.speckitty.missionstatus.domain.model.Lane;
 import org.speckitty.missionstatus.domain.model.LineKind;
@@ -30,7 +31,13 @@ import org.speckitty.missionstatus.domain.model.WpState;
  * {@code from_lane} differs from the lane in force for every setter; the reconstruction-seed exemptions (a rollback seed must continue the lane
  * in force unless it meets its bare sibling approval, an applied rollback seed yields to a real event); the same-id seed dedup; and the order
  * in which a real {@code approved -> X} follows its same-{@code at} approval. The 10.4.3 seed payload fold (a seed that loses arm (ii) still fills the claim slots and {@code review_result} that no real event
- * wrote) is not ported, because it writes only slots this service never serves; it touches none of the lane-setter slots.
+ * wrote) is ported with its slot provenance ({@link ResolvedFold}): since FR-020 the {@code agent} and {@code review_result} slots it
+ * writes are served members (data-model.md sections 4.2 and 7.9), so a seed that lost the lane contest can still decide them. It touches
+ * none of the lane-setter slots, so the lane, the counts and the overview do not move.
+ *
+ * <p>Beside the lane map the reduction produces the resolved state parallel to it ({@code StatusSnapshot.resolved}, built by
+ * {@link ResolvedFold}), the ordered history of each work package ({@code history_entries}: every {@code to_lane} row, no de-duplication
+ * and no arbitration, ruling OO-1) and the set of text event types of the ledger ({@code lifecycleTypes}, D-98).
  */
 public final class StatusReducer {
 
@@ -61,46 +68,63 @@ public final class StatusReducer {
    */
   public StatusSnapshot reduceLines(List<LedgerLine> lines) {
     List<StatusEvent> events = new ArrayList<>();
-    List<String> annotatedWpIds = new ArrayList<>();
+    List<LineKind.Annotation> annotations = new ArrayList<>();
+    Map<String, List<HistoryRow>> history = new LinkedHashMap<>();
+    Set<String> lifecycleTypes = new LinkedHashSet<>();
     for (LedgerLine line : lines) {
+      if (line.eventType() != null) {
+        lifecycleTypes.add(line.eventType());
+      }
+      if (line.historyRow() != null) {
+        history.computeIfAbsent(line.historyRow().wpId(), id -> new ArrayList<>()).add(line.historyRow());
+      }
       switch (line.kind()) {
         case LineKind.Status status -> events.add(status.event());
-        case LineKind.Annotation annotation -> annotatedWpIds.add(annotation.wpId());
+        case LineKind.Annotation annotation -> annotations.add(annotation);
         case LineKind.Malformed malformed -> throw new UnreducibleLedgerException(line.lineNumber(), malformed.reason());
         case LineKind.Lifecycle ignored -> {}
         case LineKind.Ignored ignored -> {}
         case LineKind.Blank ignored -> {}
       }
     }
-    return reduce(events, annotatedWpIds);
+    return reduce(events, annotations, history, lifecycleTypes);
   }
 
   /**
    * The fold runs over dedup-then-sort ({@code reduce_parsed}: the first copy in file order wins); the two projections run over sort-then-dedup
    * ({@code reducer.py}: the first copy in sorted order wins). A duplicated {@code event_id} with different {@code at} values separates them.
    *
-   * @param annotatedWpIds the work packages that carry annotation rows; one with no transition is held in the non-display {@code uninitialized}
+   * @param annotations the annotation rows; one for a work package with no transition holds it in the non-display {@code uninitialized}
    *     lane, as the oracle's annotation pass does (it counts in {@code wpTotal}, never in a lane count)
    */
-  private StatusSnapshot reduce(List<StatusEvent> transitions, Collection<String> annotatedWpIds) {
+  private StatusSnapshot reduce(
+      List<StatusEvent> transitions, List<LineKind.Annotation> annotations, Map<String, List<HistoryRow>> history, Set<String> lifecycleTypes) {
     List<StatusEvent> sorted = sortedUnique(transitions);
     Map<String, StatusEvent> byId = new HashMap<>();
     for (StatusEvent event : sorted) {
       byId.put(event.eventId(), event);
     }
     Map<String, WpState> states = new LinkedHashMap<>();
+    ResolvedFold fold = new ResolvedFold();
     for (StatusEvent event : sorted) {
       WpState current = states.get(event.wpId());
-      if (shouldApply(current, event, byId, sorted)) {
+      Arbitration verdict = arbitrate(current, event, byId, sorted);
+      if (verdict == Arbitration.APPLY) {
         states.put(event.wpId(), fold(event, current));
+        fold.applied(event);
+      } else if (verdict == Arbitration.LOST_ON_CONTINUITY && current != null && event.isSeed()) {
+        fold.foldLosingSeed(event);
       }
     }
     project(uniqueOfSorted(transitions), states);
-    for (String wpId : annotatedWpIds) {
-      states.putIfAbsent(wpId, new WpState(Lane.UNINITIALIZED, null, null, 0, null, null, null));
+    List<LineKind.Annotation> byAtThenEventId = new ArrayList<>(annotations);
+    byAtThenEventId.sort(Comparator.comparing(LineKind.Annotation::at, CodePoints::compare).thenComparing(LineKind.Annotation::eventId, CodePoints::compare));
+    for (LineKind.Annotation annotation : byAtThenEventId) {
+      states.putIfAbsent(annotation.wpId(), new WpState(Lane.UNINITIALIZED, null, null, 0, null, null, null));
+      fold.annotate(annotation);
     }
     StatusEvent last = sorted.isEmpty() ? null : sorted.getLast();
-    return new StatusSnapshot(states, sorted.size(), last == null ? null : last.eventId(), last == null ? "" : last.at());
+    return new StatusSnapshot(states, sorted.size(), last == null ? null : last.eventId(), last == null ? "" : last.at(), fold.resolve(history), lifecycleTypes);
   }
 
   /** Sort every row first, then keep the first copy of each {@code event_id} in sorted order. */
@@ -170,9 +194,18 @@ public final class StatusReducer {
     return result;
   }
 
-  private static boolean isRollback(StatusEvent event) {
+  static boolean isRollback(StatusEvent event) {
     boolean fromReview = event.fromLane() == Lane.IN_REVIEW || (event.fromLane() == Lane.FOR_REVIEW && event.reviewRef() != null);
     return fromReview && ROLLBACK_TARGETS.contains(event.toLane());
+  }
+
+  /** The verdict of {@code _arbitrate_event} on one candidate transition. */
+  private enum Arbitration {
+    APPLY,
+    /** Arm (i): a same-{@code at} forward event never beats a rollback; it contributes nothing. */
+    LOST_TO_ROLLBACK,
+    /** Arm (ii): {@code from_lane} does not continue the lane in force; a seed that lost here still folds its payload. */
+    LOST_ON_CONTINUITY
   }
 
   /**
@@ -182,22 +215,27 @@ public final class StatusReducer {
    * sibling approval and must otherwise continue the lane in force; an applied rollback seed yields to a real event; a seed never rides the
    * forward-seed-setter exemption. It runs on the sorted, deduplicated rows, so the setter is the row the dedup kept.
    */
-  private static boolean shouldApply(WpState current, StatusEvent event, Map<String, StatusEvent> byId, List<StatusEvent> all) {
+  private static Arbitration arbitrate(WpState current, StatusEvent event, Map<String, StatusEvent> byId, List<StatusEvent> all) {
     if (current == null) {
-      return true;
+      return Arbitration.APPLY;
     }
     StatusEvent setter = byId.get(current.lastEventId());
     if (current.lastTransitionAt().equals(event.at())) {
-      Boolean sameAt = sameTimestampVerdict(event, setter, all);
+      Arbitration sameAt = sameTimestampVerdict(event, setter, all);
       if (sameAt != null) {
         return sameAt;
       }
     }
-    return setter == null || event.force() || event.fromLane() == current.lane() || continuityExempt(event, setter, all);
+    return setter == null || event.force() || event.fromLane() == current.lane() || continuityExempt(event, setter, all)
+        ? Arbitration.APPLY
+        : Arbitration.LOST_ON_CONTINUITY;
   }
 
-  /** Arm (i): {@code TRUE} applies, {@code FALSE} drops, {@code null} abstains and leaves the event to arm (ii). */
-  private static Boolean sameTimestampVerdict(StatusEvent event, StatusEvent setter, List<StatusEvent> all) {
+  /**
+   * Arm (i): {@code APPLY} applies, {@code LOST_TO_ROLLBACK} drops, {@code null} abstains and leaves the event to arm (ii), so a rollback seed
+   * that loses here still folds its payload as a continuity loser (#6058, #6061).
+   */
+  private static Arbitration sameTimestampVerdict(StatusEvent event, StatusEvent setter, List<StatusEvent> all) {
     if (setter == null) {
       return null;
     }
@@ -205,9 +243,9 @@ public final class StatusReducer {
       if (isRollback(setter)) {
         return null;
       }
-      return !event.isSeed() || isBareSibling(setter, event, all) ? Boolean.TRUE : null;
+      return !event.isSeed() || isBareSibling(setter, event, all) ? Arbitration.APPLY : null;
     }
-    return isRollback(setter) && !yieldsToReal(setter, event, all) ? Boolean.FALSE : null;
+    return isRollback(setter) && !yieldsToReal(setter, event, all) ? Arbitration.LOST_TO_ROLLBACK : null;
   }
 
   /** Arm (ii) exemptions ({@code _continuity_exempt}): whether the event may break {@code from_lane} continuity. */

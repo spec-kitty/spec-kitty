@@ -11,7 +11,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.Closure;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
@@ -225,8 +225,8 @@ class SubscribeConnectTest {
 
       var changes = StreamFx.changes(signals);
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(2), Rows.id(3));
-      assertThat(changes.get(0).cursor()).isEqualTo(StreamFx.cursorAfter(history, 2));
-      assertThat(changes.get(1).cursor()).isEqualTo(StreamFx.cursorAfter(history, 3));
+      assertThat(changes.get(0).resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(history, 2));
+      assertThat(changes.get(1).resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(history, 3));
 
       fx.source.appendLedger("alpha", Rows.status(Rows.id(4), Fx.T2, "WP01", "in_progress", "for_review"));
       fx.executor.tick();
@@ -269,7 +269,7 @@ class SubscribeConnectTest {
 
       var changes = StreamFx.changes(StreamFx.drain(subscription));
       assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(4), Rows.id(5), Rows.id(6));
-      assertThat(changes).extracting(c -> c.cursor()).containsExactly(StreamFx.cursorAfter(history + burst, 4), StreamFx.cursorAfter(history + burst, 5), StreamFx.cursorAfter(history + burst, 6));
+      assertThat(changes).extracting(c -> c.resumeCursor().orElseThrow()).containsExactly(StreamFx.cursorAfter(history + burst, 4), StreamFx.cursorAfter(history + burst, 5), StreamFx.cursorAfter(history + burst, 6));
     }
   }
 
@@ -278,9 +278,9 @@ class SubscribeConnectTest {
     Fx fx = new Fx(StreamFx.twoMissions());
     String history = StreamFx.alphaHistory();
 
-    ChangeBatch batch = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.of(StreamFx.cursorAfter(history, 1)));
+    StreamBatch batch = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.of(StreamFx.cursorAfter(history, 1)));
 
-    assertThat(StreamFx.eventIds(batch.changes())).containsExactly(Rows.id(2), Rows.id(3));
+    assertThat(StreamFx.eventIds(batch.events())).containsExactly(Rows.id(2), Rows.id(3));
     assertThat(batch.cursor()).isEqualTo(StreamFx.cursorAfter(history, 3));
   }
 
@@ -288,12 +288,12 @@ class SubscribeConnectTest {
   void changesSinceWithoutACursorIsEmptyAtTheCurrentTip() {
     Fx fx = new Fx(StreamFx.twoMissions());
 
-    ChangeBatch scoped = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.empty());
-    ChangeBatch unscoped = fx.service.changesSince(StreamScope.all(), Optional.empty());
+    StreamBatch scoped = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.empty());
+    StreamBatch unscoped = fx.service.changesSince(StreamScope.all(), Optional.empty());
 
-    assertThat(scoped.changes()).isEmpty();
+    assertThat(scoped.events()).isEmpty();
     assertThat(scoped.cursor()).isEqualTo(StreamFx.cursorAfter(StreamFx.alphaHistory(), 3));
-    assertThat(unscoped.changes()).isEmpty();
+    assertThat(unscoped.events()).isEmpty();
     assertThat(unscoped.cursor()).isEqualTo(StreamCursor.start());
   }
 

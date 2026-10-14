@@ -10,8 +10,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import org.speckitty.missionstatus.application.query.port.in.dto.Closure;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
-import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
-import org.speckitty.missionstatus.application.query.port.in.Subscription;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
 
 /**
@@ -21,9 +19,9 @@ import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
  * lock. A floor belongs to one subscriber and one Mission: it is the offset in that Mission's ledger up to which this subscriber already
  * has the rows (or never wants them), so two subscribers that joined at different times each get exactly the rows written after they did.
  */
-public final class StreamSubscriber implements Subscription {
+public final class StreamSubscriber implements FeedSubscription {
 
-  private static final StreamSignal IDLE = new StreamSignal.Idle();
+  private static final FeedSignal IDLE = new FeedSignal.Idle();
   private static final long NO_FLOOR = -1;
 
   private final ChangeFeed feed;
@@ -31,8 +29,8 @@ public final class StreamSubscriber implements Subscription {
   private final int capacity;
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition ready = lock.newCondition();
-  private final ArrayDeque<StreamSignal> queue = new ArrayDeque<>();
-  private StreamSignal.Closed terminal;
+  private final ArrayDeque<FeedSignal> queue = new ArrayDeque<>();
+  private FeedSignal.Closed terminal;
   private boolean closed;
 
   // owned by the feed (its lock)
@@ -67,7 +65,7 @@ public final class StreamSubscriber implements Subscription {
   }
 
   /** Queues the signal; false when the queue is full. A finished or closed subscriber accepts and discards. */
-  boolean offer(StreamSignal signal) {
+  boolean offer(FeedSignal signal) {
     lock.lock();
     try {
       if (terminal != null || closed) {
@@ -89,7 +87,7 @@ public final class StreamSubscriber implements Subscription {
     lock.lock();
     try {
       if (terminal == null) {
-        terminal = new StreamSignal.Closed(closure);
+        terminal = new FeedSignal.Closed(closure);
         ready.signalAll();
       }
     } finally {
@@ -98,7 +96,7 @@ public final class StreamSubscriber implements Subscription {
   }
 
   @Override
-  public StreamSignal next(Duration wait) throws InterruptedException {
+  public FeedSignal next(Duration wait) throws InterruptedException {
     lock.lock();
     try {
       long nanos = wait.toNanos();
@@ -106,7 +104,7 @@ public final class StreamSubscriber implements Subscription {
         if (closed) {
           throw new IllegalStateException("subscription closed");
         }
-        StreamSignal signal = queue.poll();
+        FeedSignal signal = queue.poll();
         if (signal != null) {
           return signal;
         }

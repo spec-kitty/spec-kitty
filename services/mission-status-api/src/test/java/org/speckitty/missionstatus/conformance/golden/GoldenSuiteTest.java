@@ -227,7 +227,7 @@ class GoldenSuiteTest {
       }
     }
     Map<String, Set<String>> inManifest = new LinkedHashMap<>();
-    ConformanceTree.classes().forEach(entry -> inManifest.put(entry.tag(), entry.fixtures().stream().map(TreeFixture::name).collect(Collectors.toCollection(TreeSet::new))));
+    ConformanceTree.allClasses().forEach(entry -> inManifest.put(entry.tag(), entry.fixtures().stream().map(TreeFixture::name).collect(Collectors.toCollection(TreeSet::new))));
 
     assertThat(onDisk).isEqualTo(new TreeMap<>(inManifest));
     for (TreeFixture fixture : goldenFixtures().toList()) {

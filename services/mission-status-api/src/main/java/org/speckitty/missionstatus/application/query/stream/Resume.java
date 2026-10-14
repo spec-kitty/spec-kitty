@@ -2,7 +2,6 @@ package org.speckitty.missionstatus.application.query.stream;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.speckitty.missionstatus.application.query.port.in.dto.Change;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.application.query.port.out.dto.LedgerWindow;
 import org.speckitty.missionstatus.application.query.port.out.MissionEventSource;

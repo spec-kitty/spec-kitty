@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.PageRequest;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
@@ -86,9 +86,9 @@ class DuplicateMissionIdTest {
   void aStreamConnectResolvesToAReadableCopyAndWritesTheSameDiagnostic() {
     FilesystemFixtureFactory.Built built = FilesystemFixtureFactory.fromSpec(twoCopiesAndAnOlderMission());
 
-    ChangeBatch batch = built.query().changesSince(new StreamScope.OneMission(new MissionId(Rows.ALPHA_ID)), Optional.empty());
+    StreamBatch batch = built.query().changesSince(new StreamScope.OneMission(new MissionId(Rows.ALPHA_ID)), Optional.empty());
 
-    assertThat(batch.changes()).isEmpty();
+    assertThat(batch.events()).isEmpty();
     assertThat(built.handles().diagnostics()).singleElement().satisfies(d -> {
       assertThat(d.code()).isEqualTo(DiagnosticCode.MISSION_ID_DUPLICATE);
       assertThat(d.mid8()).isEqualTo(Rows.ALPHA_ID.substring(0, 8));

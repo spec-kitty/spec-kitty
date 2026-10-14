@@ -131,10 +131,10 @@ class FilesystemMissionEventSourceAllowlistFlowTest {
   }
 
   @Test
-  void aReadOfAWorkPackageFileIsFlaggedByTheRecorderPositiveControl() throws Exception {
+  void aReadOfAFileOnNoClassIsFlaggedByTheRecorderPositiveControl() throws Exception {
     runFlow(harness);
-    harness.recorder.record(root.resolve("kitty-specs").resolve(AdapterServiceHarness.ALPHA).resolve("tasks/WP01.md"), OpenMode.READ);
-    assertThat(harness.recorder.violations()).hasSize(1).first().satisfies(v -> assertThat(v.access().path()).endsWith("tasks/WP01.md"));
+    harness.recorder.record(root.resolve("kitty-specs").resolve(AdapterServiceHarness.ALPHA).resolve("research/notes.md"), OpenMode.READ);
+    assertThat(harness.recorder.violations()).hasSize(1).first().satisfies(v -> assertThat(v.access().path()).endsWith("research/notes.md"));
   }
 
   @Test

@@ -7,7 +7,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
 import org.speckitty.missionstatus.application.query.port.in.dto.PageRequest;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
@@ -80,8 +80,13 @@ public final class SpyQuery implements MissionStatusQuery {
   }
 
   @Override
-  public ChangeBatch changesSince(StreamScope scope, Optional<StreamCursor> cursor) {
+  public StreamBatch changesSince(StreamScope scope, Optional<StreamCursor> cursor) {
     return delegate.changesSince(scope, cursor);
+  }
+
+  @Override
+  public void endStreams() {
+    delegate.endStreams();
   }
 
   @Override

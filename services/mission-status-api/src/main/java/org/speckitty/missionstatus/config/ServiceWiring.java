@@ -11,6 +11,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.speckitty.missionstatus.adapter.out.filesystem.FilesystemMissionEventSource;
+import org.speckitty.missionstatus.application.query.MissionReadModel;
 import org.speckitty.missionstatus.application.query.MissionStatusQueryService;
 import org.speckitty.missionstatus.application.query.stream.StreamSettings;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
@@ -49,11 +50,24 @@ class ServiceWiring {
     return Clock.systemUTC();
   }
 
+  /** The read path (lookup, head derivation and the one projection cache), built once and shared by every service of the query side. */
+  @Bean
+  MissionReadModel missionReadModel(MissionEventSource source, Consumer<Diagnostic> diagnosticsLine, LeakClasses leaks) {
+    return new MissionReadModel(source, diagnosticsLine, leaks);
+  }
+
   @Bean
   MissionStatusQuery missionStatusQuery(
-      MissionEventSource source, Clock clock, Consumer<Diagnostic> diagnosticsLine, ScheduledExecutorService feedExecutor, LeakClasses leaks, MissionStatusProperties properties) {
-    StreamSettings settings = new StreamSettings(Duration.ofMillis(500), Duration.ofSeconds(1), properties.stream().queueCapacity());
-    return new MissionStatusQueryService(source, clock, diagnosticsLine, feedExecutor, settings, leaks);
+      MissionEventSource source,
+      Clock clock,
+      Consumer<Diagnostic> diagnosticsLine,
+      ScheduledExecutorService feedExecutor,
+      LeakClasses leaks,
+      MissionReadModel readModel,
+      MissionStatusProperties properties) {
+    StreamSettings settings = new StreamSettings(
+            Duration.ofMillis(500), Duration.ofSeconds(1), properties.stream().queueCapacity(), properties.stream().maxConnections());
+    return new MissionStatusQueryService(source, clock, diagnosticsLine, feedExecutor, settings, leaks, readModel);
   }
 
   static LeakClasses loadLeakClasses() {

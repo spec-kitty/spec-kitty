@@ -9,11 +9,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
 import org.speckitty.missionstatus.config.MissionStatusApplication;
 import org.speckitty.missionstatus.testsupport.FilesystemFixtureFactory;
 import org.speckitty.missionstatus.testsupport.FixtureHandles;
+import org.speckitty.missionstatus.testsupport.RouteMarker;
 import org.speckitty.missionstatus.adapter.out.filesystem.RecordingAllowlistAccess;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
@@ -65,7 +67,32 @@ public final class HttpHarness implements AutoCloseable {
     return run(root, null, null, properties);
   }
 
+  /**
+   * Starts the production application over the fixture (its own query installed, as {@link #start} does) and registers each of
+   * {@code inbound} as a primary bean under its map key. The key is a plain {@code Class<?>}, so this harness names no inbound
+   * interface of a later work package: the route tests of PR B pass theirs, a test of this phase passes one it declares itself.
+   * Every instance must be an instance of its key.
+   */
+  public static HttpHarness startWith(FilesystemFixtureFactory.Built built, Map<Class<?>, Object> inbound, String... properties) {
+    return run(built.root(), built.handles(), built.query(), inbound, properties);
+  }
+
+  /**
+   * As {@link #startWith(FilesystemFixtureFactory.Built, Map, String...)}, and the recorder of the fixture notes the route of
+   * {@code marker} for every access from now on (a test sets the marker before the request it makes).
+   */
+  public static HttpHarness startWith(FilesystemFixtureFactory.Built built, Map<Class<?>, Object> inbound, RouteMarker marker, String... properties) {
+    if (built.handles().allowlistRecorder() != null) {
+      built.handles().allowlistRecorder().routeSupplier(marker.supplier());
+    }
+    return run(built.root(), built.handles(), built.query(), inbound, properties);
+  }
+
   private static HttpHarness run(Path root, FixtureHandles handles, MissionStatusQuery override, String... properties) {
+    return run(root, handles, override, Map.of(), properties);
+  }
+
+  private static HttpHarness run(Path root, FixtureHandles handles, MissionStatusQuery override, Map<Class<?>, Object> inbound, String... properties) {
     List<String> all = new ArrayList<>(List.of("server.port=0", "mission-status.project-root=" + root));
     all.addAll(List.of(properties));
     SpringApplicationBuilder builder = new SpringApplicationBuilder(MissionStatusApplication.class).web(org.springframework.boot.WebApplicationType.SERVLET);
@@ -74,10 +101,19 @@ public final class HttpHarness implements AutoCloseable {
           (ConfigurableApplicationContext context) ->
               ((GenericApplicationContext) context).registerBean("fixtureQuery", MissionStatusQuery.class, () -> override, definition -> definition.setPrimary(true)));
     }
+    if (!inbound.isEmpty()) {
+      builder.initializers(
+          (ConfigurableApplicationContext context) -> inbound.forEach((type, instance) -> registerPrimary((GenericApplicationContext) context, type, instance)));
+    }
     // command-line arguments: the highest precedence, so a test key wins over the packaged application.properties
     ConfigurableApplicationContext context = builder.run(arguments(all));
     int port = Integer.parseInt(context.getEnvironment().getProperty("local.server.port"));
     return new HttpHarness(context, port, handles);
+  }
+
+  private static <T> void registerPrimary(GenericApplicationContext context, Class<T> type, Object instance) {
+    T typed = type.cast(instance);
+    context.registerBean("inbound-" + type.getName(), type, () -> typed, definition -> definition.setPrimary(true));
   }
 
   /** The properties as command-line arguments; a key given twice keeps its last value (repeated arguments would be merged into a list). */

@@ -4,11 +4,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.speckitty.missionstatus.adapter.out.filesystem.RecordingAllowlistAccess;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
 
 /** The recording diagnostics consumer, the deterministic executor, the clock and (filesystem source) the allowlist recorder of one built fixture. */
 public final class FixtureHandles {
+
+  /** The logger of {@code config.LoggingDiagnostics}: the fixture service writes its diagnostics the way the production bean does. */
+  private static final Logger LOG = LoggerFactory.getLogger("org.speckitty.missionstatus.diagnostics");
 
   private final List<Diagnostic> diagnostics = Collections.synchronizedList(new ArrayList<>());
   private final DeterministicExecutor executor = new DeterministicExecutor();
@@ -29,8 +34,16 @@ public final class FixtureHandles {
     return allowlistRecorder;
   }
 
+  /**
+   * Records the diagnostic and also writes the path-free line of {@code config.LoggingDiagnostics} (WARN, {@code diagnostic code=<wire>
+   * mid8=<mid8> line=<n or ->}): the stream's projection now runs in the service, whose consumer this is, and no longer in the controller
+   * with the Spring consumer, so the line a test captures from the log must still be written. {@code FixtureHandlesLoggingTest} pins the parity.
+   */
   public Consumer<Diagnostic> recorder() {
-    return diagnostics::add;
+    return diagnostic -> {
+      diagnostics.add(diagnostic);
+      LOG.warn("diagnostic code={} mid8={} line={}", diagnostic.code().wire(), diagnostic.mid8(), diagnostic.line() == null ? "-" : diagnostic.line());
+    };
   }
 
   /** The allowlist violations the recorder saw, as text (empty without a recorder); the conformance trees must not name adapter types. */

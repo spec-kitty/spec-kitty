@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import org.speckitty.missionstatus.application.query.stream.StreamSettings;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
 import org.speckitty.missionstatus.testsupport.FilesystemFixtureFactory;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
@@ -38,7 +39,15 @@ public final class StreamRig implements AutoCloseable {
   }
 
   public static StreamRig of(FixtureSpec spec, String... properties) {
-    FilesystemFixtureFactory.Built built = FilesystemFixtureFactory.fromSpec(spec);
+    // the fixture's service, not the controller, owns the stream cap, so the property is handed to it as well as to the application
+    StreamSettings settings = StreamSettings.defaults();
+    for (String property : properties) {
+      String key = "mission-status.stream.max-connections=";
+      if (property.startsWith(key)) {
+        settings = settings.withMaxConnections(Integer.parseInt(property.substring(key.length())));
+      }
+    }
+    FilesystemFixtureFactory.Built built = FilesystemFixtureFactory.fromSpec(spec, settings);
     return over(built, properties);
   }
 

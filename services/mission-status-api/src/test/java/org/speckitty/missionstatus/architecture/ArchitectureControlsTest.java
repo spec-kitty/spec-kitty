@@ -18,16 +18,23 @@ import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.Controll
 import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.H3aInternal;
 import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.H3bConfig;
 import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.H5UsesFs;
+import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.detail.DetailController;
+import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.detail.R15Controller;
 import org.speckitty.missionstatus.architecture.fixture.adapter.in.http.model.Dto;
+import org.speckitty.missionstatus.architecture.fixture.adapter.in.other.SiblingReach;
+import org.speckitty.missionstatus.architecture.fixture.adapter.in.other.UsesService;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.F4UsesHttp;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.FsSource;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.SafeFiles;
+import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.C12aPortOut;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.C12aSafeFiles;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.C12bFiles;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.Decoder;
 import org.speckitty.missionstatus.architecture.fixture.application.A2aUsesAdapter;
 import org.speckitty.missionstatus.architecture.fixture.application.A2bExecutors;
+import org.speckitty.missionstatus.architecture.fixture.application.A2bReflect;
 import org.speckitty.missionstatus.architecture.fixture.application.A2cCommonPool;
+import org.speckitty.missionstatus.architecture.fixture.application.A2cVirtualThread;
 import org.speckitty.missionstatus.architecture.fixture.application.A2dAsync;
 import org.speckitty.missionstatus.architecture.fixture.application.A2eParallelStream;
 import org.speckitty.missionstatus.architecture.fixture.application.A2fParallel;
@@ -36,15 +43,32 @@ import org.speckitty.missionstatus.architecture.fixture.application.A2hAsyncOnOw
 import org.speckitty.missionstatus.architecture.fixture.application.A6UsesConfig;
 import org.speckitty.missionstatus.architecture.fixture.application.A8Jackson;
 import org.speckitty.missionstatus.architecture.fixture.application.A9GeneratedModel;
+import org.speckitty.missionstatus.architecture.fixture.application.query.A2cByteBuffer;
+import org.speckitty.missionstatus.architecture.fixture.application.query.A2dForName;
 import org.speckitty.missionstatus.architecture.fixture.application.query.P14UsesCommand;
+import org.speckitty.missionstatus.architecture.fixture.application.query.ReadsCommand;
 import org.speckitty.missionstatus.architecture.fixture.application.query.Service;
+import org.speckitty.missionstatus.architecture.fixture.application.query.index.A12cUsesCodec;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.DtoInRoot;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.MissionDetailQuery;
 import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.P13aInClass;
 import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.Query;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.R16IoException;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.R16Spring;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.R16StringId;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.StreamSpring;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.dto.ExceptionInDto;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.exceptions.RecordInExceptions;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.exceptions.Refusal;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.in.helpers.Stray;
+import org.speckitty.missionstatus.architecture.fixture.application.query.port.out.ExceptionInRoot;
 import org.speckitty.missionstatus.architecture.fixture.application.query.port.out.P13bOutClass;
 import org.speckitty.missionstatus.architecture.fixture.application.query.port.out.Source;
 import org.speckitty.missionstatus.architecture.fixture.config.G10Process;
 import org.speckitty.missionstatus.architecture.fixture.config.G11cUsesCodec;
 import org.speckitty.missionstatus.architecture.fixture.config.G7Files;
+import org.speckitty.missionstatus.architecture.fixture.config.ProblemErrorController;
+import org.speckitty.missionstatus.architecture.fixture.config.RogueController;
 import org.speckitty.missionstatus.architecture.fixture.config.Wiring;
 import org.speckitty.missionstatus.architecture.fixture.conformance.golden.P11bGoldenImportsFs;
 import org.speckitty.missionstatus.architecture.fixture.conformance.golden.P11bGoldenImportsHttp;
@@ -52,13 +76,16 @@ import org.speckitty.missionstatus.architecture.fixture.conformance.port.P11Adap
 import org.speckitty.missionstatus.architecture.fixture.conformance.port.PortCase;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1aSpring;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1bConcurrent;
+import org.speckitty.missionstatus.architecture.fixture.domain.D1bReflect;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1cThread;
+import org.speckitty.missionstatus.architecture.fixture.domain.D1dForName;
 import org.speckitty.missionstatus.architecture.fixture.domain.Value;
+import org.speckitty.missionstatus.architecture.fixture.domain.readmodel.detail.DetailValue;
 import org.speckitty.missionstatus.architecture.fixture.testsupport.Support;
 
 /**
- * The positive controls of FR-012: one planted violation per rule (a second for rules 1, 2, 3, 12 and 13), each shown to turn its rule red,
- * and a conforming skeleton shown to keep all fourteen green with every rule scanning at least one class. The rule definitions are the
+ * The positive controls of FR-012: one planted violation per rule (a second for rules 1, 2, 3, 12, 13 and 16), each shown to turn its rule red,
+ * and a conforming skeleton shown to keep every rule green with every rule scanning at least one class. The rule definitions are the
  * very ones the production run uses ({@link ArchitectureRules#all}), parameterised by the fixture package root, so a control cannot
  * pass against a rule that the production test does not run.
  *
@@ -75,7 +102,8 @@ class ArchitectureControlsTest {
   /** The conforming skeleton: one class (or more) in every package the rules name. */
   private static final List<Class<?>> SKELETON =
       List.of(Value.class, Query.class, Source.class, Service.class, Dto.class, Controller.class, Decoder.class, SafeFiles.class, FsSource.class, Wiring.class,
-          Support.class, PortCase.class);
+          Support.class, PortCase.class, ProblemErrorController.class, Refusal.class, Refusal.Kind.class,
+          org.speckitty.missionstatus.architecture.fixture.application.query.port.in.dto.Value.class, DetailController.class, MissionDetailQuery.class, DetailValue.class);
 
   /** A planted violation: the class, the rule it targets and the full set of rules it turns red. */
   private record Control(int target, Class<?> planted, Set<Integer> red) {}
@@ -85,6 +113,8 @@ class ArchitectureControlsTest {
           new Control(1, D1aSpring.class, Set.of(1, 8)),
           new Control(1, D1bConcurrent.class, Set.of(1)),
           new Control(1, D1cThread.class, Set.of(1)),
+          new Control(1, D1bReflect.class, Set.of(1)),
+          new Control(1, D1dForName.class, Set.of(1)),
           new Control(2, A2aUsesAdapter.class, Set.of(2)),
           new Control(2, A2bExecutors.class, Set.of(2)),
           new Control(2, A2cCommonPool.class, Set.of(2)),
@@ -92,8 +122,15 @@ class ArchitectureControlsTest {
           new Control(2, A2eParallelStream.class, Set.of(2)),
           new Control(2, A2fParallel.class, Set.of(2)),
           new Control(2, A2gTimer.class, Set.of(2)),
+          new Control(2, A2bReflect.class, Set.of(2)),
+          new Control(2, A2cVirtualThread.class, Set.of(2)),
+          new Control(2, A2dForName.class, Set.of(2)),
+          new Control(2, A2cByteBuffer.class, Set.of(2)),
           new Control(3, H3aInternal.class, Set.of(3)),
           new Control(3, H3bConfig.class, Set.of(3, 6)),
+          new Control(3, UsesService.class, Set.of(3)),
+          new Control(3, SiblingReach.class, Set.of(3)),
+          new Control(3, RogueController.class, Set.of(3)),
           new Control(4, F4UsesHttp.class, Set.of(4, 5)),
           new Control(5, H5UsesFs.class, Set.of(3, 5)),
           new Control(6, A6UsesConfig.class, Set.of(2, 6)),
@@ -107,9 +144,22 @@ class ArchitectureControlsTest {
           new Control(11, G11cUsesCodec.class, Set.of(11, 12)),
           new Control(12, C12aSafeFiles.class, Set.of(12)),
           new Control(12, C12bFiles.class, Set.of(7, 12)),
+          new Control(12, C12aPortOut.class, Set.of(12)),
+          new Control(12, A12cUsesCodec.class, Set.of(2, 11, 12)),
           new Control(13, P13aInClass.class, Set.of(13)),
           new Control(13, P13bOutClass.class, Set.of(13)),
-          new Control(14, P14UsesCommand.class, Set.of(14)));
+          new Control(13, DtoInRoot.class, Set.of(13)),
+          new Control(13, ExceptionInRoot.class, Set.of(13)),
+          new Control(13, ExceptionInDto.class, Set.of(13)),
+          new Control(13, RecordInExceptions.class, Set.of(13)),
+          new Control(13, Stray.class, Set.of(13)),
+          new Control(14, P14UsesCommand.class, Set.of(14)),
+          new Control(14, ReadsCommand.class, Set.of(14)),
+          new Control(15, R15Controller.class, Set.of(15)),
+          new Control(16, R16IoException.class, Set.of(2, 16)),
+          new Control(16, R16StringId.class, Set.of(16)),
+          new Control(16, R16Spring.class, Set.of(2, 8, 16)),
+          new Control(16, StreamSpring.class, Set.of(2, 8, 16)));
 
   private static List<Rule> fixtureRules() {
     return ArchitectureRules.all(FIXTURE_ROOT, FIXTURE_RULE_9_PACKAGES);
@@ -148,7 +198,7 @@ class ArchitectureControlsTest {
   }
 
   @Test
-  void theConformingSkeletonKeepsAllFourteenRulesGreenAndEveryRuleScansAClass() {
+  void theConformingSkeletonKeepsEveryRuleGreenAndEveryRuleScansAClass() {
     JavaClasses skeleton = import_(SKELETON);
 
     for (Rule rule : fixtureRules()) {
@@ -158,11 +208,11 @@ class ArchitectureControlsTest {
   }
 
   @Test
-  void everyRuleHasAControlAndRulesOneTwoThreeTwelveAndThirteenHaveASecond() {
+  void everyRuleHasAControlAndTheMultiFacetedRulesHaveASecond() {
     List<Integer> targets = CONTROLS.stream().map(Control::target).toList();
 
     assertThat(new TreeSet<>(targets)).containsExactlyElementsOf(IntStream.rangeClosed(1, ArchitectureRules.DEFINED_RULE_COUNT).boxed().toList());
-    for (int withSecond : List.of(1, 2, 3, 12, 13)) {
+    for (int withSecond : List.of(1, 2, 3, 12, 13, 16)) {
       assertThat(targets.stream().filter(target -> target == withSecond).count()).as("controls of rule %d", withSecond).isGreaterThanOrEqualTo(2);
     }
   }

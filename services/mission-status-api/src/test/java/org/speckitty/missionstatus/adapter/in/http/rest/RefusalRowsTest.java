@@ -190,7 +190,7 @@ class RefusalRowsTest {
             throw new IllegalStateException(HOME_PATH + " boom");
           }
 
-          public org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch changesSince(
+          public org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch changesSince(
               org.speckitty.missionstatus.application.query.port.in.dto.StreamScope scope, java.util.Optional<org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor> cursor) {
             throw new UnsupportedOperationException();
           }
@@ -199,6 +199,8 @@ class RefusalRowsTest {
               org.speckitty.missionstatus.application.query.port.in.dto.StreamScope scope, java.util.Optional<org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor> cursor) {
             throw new UnsupportedOperationException();
           }
+
+          public void endStreams() {}
         };
     FilesystemFixtureFactory.Built built = new FilesystemFixtureFactory.Built(boom, base.source(), base.handles(), base.root());
     try (HttpHarness server = HttpHarness.start(built)) {

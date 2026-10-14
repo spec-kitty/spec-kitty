@@ -50,7 +50,17 @@ GRADLE_DISTRIBUTION_SHA256 = "acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e
 WRAPPER_JAR_SHA256 = "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d"
 API_PACKAGE = "org.speckitty.missionstatus.adapter.in.http.api"
 MODEL_PACKAGE = "org.speckitty.missionstatus.adapter.in.http.model"
-MODELS_LIST = "MissionOverview,MissionOverviewPage,MissionProgress,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,StatusLaneCounts,StreamCursor,Workspace"
+MODELS_LIST = (
+    "Actor,Actor_1,ActorHandle,ArtifactContent,ArtifactEntry,ArtifactKind,ArtifactListing,ArtifactPath,ArtifactReference,"
+    "ArtifactReferences,ArtifactRefusal,ArtifactRefusalCode,Assignment,Authored,Cancellation,ChangeState,DependencyRef,"
+    "HistoryEntry,LifecycleStatus,MissionDetail,MissionHead,MissionId,MissionOverview,MissionOverviewPage,MissionPhase,"
+    "MissionProgress,OwnedFile,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,Readiness,Readiness_1,RelativeReference,"
+    "Review,ReviewCycle,ReviewOverride,ReviewResult,ReviewVerdict,Staleness,StatusLane,StatusLaneCounts,StreamCursor,"
+    "Subtask,SubtaskProgress,SubtaskProgress_1,Topology,WorkPackage,WorkPackageDetail,WorkPackageDetailRefusal,WorkPackageDetailRefusalCode,"
+    "WorkPackageSummary,Workspace,WpId"
+)
+# WP06 (P2, E-9, D-111): the hand records of adapter.in.http.dto, as the research.md decision table names them (stems of the *.java files).
+HAND_DTO_RECORDS = frozenset({"WorkPackage"})
 # Discovered-count floor for the NFR-009 scan: the tracked paths under the service tree when WP03 landed.
 TRACKED_SERVICE_PATH_FLOOR = 300
 
@@ -508,17 +518,27 @@ def test_the_gitattributes_pin_turns_red_when_a_rule_is_dropped_or_loosened() ->
 # A NEW file in each source directory named `out` (the outbound port and adapter packages, main and test, and the architecture fixtures)
 # must not be silently ignored: the repository-wide `out` pattern would otherwise skip it at `git add`. The files are probed by path,
 # so the directories need not hold a tracked file.
+_OUT_PACKAGE_ROOT = "org/speckitty/missionstatus"
+_OUT_PORT_PACKAGES = ("application/query/port/out", "application/query/port/out/dto", "application/query/port/out/exceptions", "adapter/out")
 NEW_FILES_IN_OUT_PACKAGES = tuple(
-    f"src/{tree}/java/org/speckitty/missionstatus/{package}/out/NewFile.java"
-    for tree, package in (
-        ("main", "application/query/port"),
-        ("main", "adapter"),
-        ("test", "application/query/port"),
-        ("test", "adapter"),
-        ("test", "architecture/fixture/application/query/port"),
-        ("test", "architecture/fixture/adapter"),
-    )
+    [f"src/{tree}/java/{_OUT_PACKAGE_ROOT}/{package}/NewFile.java" for tree in ("main", "test") for package in _OUT_PORT_PACKAGES]
+    + [f"src/test/java/{_OUT_PACKAGE_ROOT}/architecture/fixture/{package}/NewFile.java" for package in _OUT_PORT_PACKAGES]
 )
+_FLAT_PORT = "application/" + "port"  # the pre-re-cut package, spelled in two parts so a grep for the flat layout stays empty
+_FLAT_PORT_SEGMENTS = (f"{_FLAT_PORT}/", f"fixture/{_FLAT_PORT}/")
+
+
+def out_probe_violations(entries: tuple[str, ...]) -> list[str]:
+    """Violations of the probe list: an entry that still names the flat pre-re-cut port packages, or a missing probe.
+
+    A probe path under a directory that no longer exists is answered "not ignored" by `git check-ignore`, so a stale list would stay green
+    while testing nothing; the list is therefore compared with the expected twelve paths, not only checked for being unignored.
+    """
+    violations = [f"flat package in probe: {entry}" for entry in entries if any(segment in entry for segment in _FLAT_PORT_SEGMENTS)]
+    violations.extend(f"missing probe: {expected}" for expected in NEW_FILES_IN_OUT_PACKAGES if expected not in entries)
+    return violations
+
+
 STILL_IGNORED = ("build/classes/Foo.class", "build/libs/mission-status-api.jar", ".gradle/caches/x", "out/anything.txt")
 
 
@@ -529,6 +549,31 @@ def _is_ignored(rel: str) -> bool:
 def test_a_new_file_in_any_out_source_package_is_not_ignored_and_build_output_still_is() -> None:
     assert [rel for rel in NEW_FILES_IN_OUT_PACKAGES if _is_ignored(rel)] == []
     assert [rel for rel in STILL_IGNORED if not _is_ignored(rel)] == []
+
+
+def test_the_out_probe_list_names_the_twelve_re_cut_packages() -> None:
+    assert len(NEW_FILES_IN_OUT_PACKAGES) == 12
+    assert out_probe_violations(NEW_FILES_IN_OUT_PACKAGES) == []
+
+
+def test_the_out_probe_control_turns_red_on_the_flat_pre_re_cut_entries_and_on_a_list_never_extended() -> None:
+    flat = tuple(
+        f"src/{tree}/java/{_OUT_PACKAGE_ROOT}/{package}/out/NewFile.java"
+        for tree, package in (
+            ("main", _FLAT_PORT),
+            ("main", "adapter"),
+            ("test", _FLAT_PORT),
+            ("test", "adapter"),
+            ("test", f"architecture/fixture/{_FLAT_PORT}"),
+            ("test", "architecture/fixture/adapter"),
+        )
+    )
+    assert any(violation.startswith("flat package in probe") for violation in out_probe_violations(flat))
+    assert any(violation.startswith("missing probe") for violation in out_probe_violations(flat))
+    never_extended = tuple(entry for entry in NEW_FILES_IN_OUT_PACKAGES if not entry.endswith(("port/out/dto/NewFile.java", "port/out/exceptions/NewFile.java")))
+    assert len(never_extended) == 6
+    assert out_probe_violations(never_extended)
+    assert out_probe_violations(NEW_FILES_IN_OUT_PACKAGES[:-1])
 
 
 def test_the_gitignore_pin_turns_red_when_a_negation_is_dropped_or_a_pattern_is_unanchored() -> None:
@@ -1601,13 +1646,18 @@ def test_the_packaged_defaults_pin_turns_red_for_each_drift() -> None:
         assert packaged_default_violations(text), text
 
 
-def contract_package_violations(build_text: str, rules_test_text: str, http_dirs: set[str]) -> list[str]:
+def contract_package_violations(build_text: str, rules_test_text: str, http_dirs: set[str], dto_records: set[str]) -> list[str]:
     found: list[str] = []
     if CONTRACT_MODE == "generated":
         if f'apiPackage.set("{API_PACKAGE}")' not in build_text or f'modelPackage.set("{MODEL_PACKAGE}")' not in build_text:
             found.append("the build does not set the generated api and model packages")
-        if "dto" in http_dirs:
-            found.append("generated mode: the hand-mode dto package must not be populated")
+        # WP06 (E-9): the dto package holds exactly the hand records research.md names; no route phase adds one (D-111).
+        if HAND_DTO_RECORDS and "dto" not in http_dirs:
+            found.append("generated mode: the dto package must hold the hand records research.md names")
+        if not HAND_DTO_RECORDS and "dto" in http_dirs:
+            found.append("generated mode: no hand record is named, so the dto package must not exist")
+        found += [f"generated mode: {name}.java is not a hand record research.md names" for name in sorted(dto_records - HAND_DTO_RECORDS)]
+        found += [f"generated mode: the hand record {name} is missing from the dto package" for name in sorted(HAND_DTO_RECORDS - dto_records)]
     for name, literal in RULE_9_LITERALS.items():
         if f'"{literal}"' not in rules_test_text:
             found.append(f"ArchitectureRules does not hold the rule 9 literal for {name}")
@@ -1618,16 +1668,23 @@ def _http_dirs() -> set[str]:
     return {entry.name for entry in HTTP_MAIN.iterdir() if entry.is_dir()}
 
 
+def _dto_records() -> set[str]:
+    dto = HTTP_MAIN / "dto"
+    return {entry.stem for entry in dto.glob("*.java")} if dto.is_dir() else set()
+
+
 def test_the_http_adapter_packages_match_the_recorded_contract_mode() -> None:
-    assert contract_package_violations(_code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs()) == []
+    assert contract_package_violations(_code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs(), _dto_records()) == []
 
 
-def test_the_package_pin_turns_red_for_a_dropped_dto_literal_a_populated_dto_package_or_other_names() -> None:
-    build, rules, dirs = _code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs()
-    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["dto"]}"', '"x"'), dirs)
-    assert contract_package_violations(build, rules, dirs | {"dto"})
-    assert contract_package_violations(build.replace(API_PACKAGE, "org.example.api"), rules, dirs)
-    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["api"]}"', '"x"'), dirs)
+def test_the_package_pin_turns_red_for_a_dropped_dto_literal_an_extra_or_missing_record_or_other_names() -> None:
+    build, rules, dirs, records = _code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs(), _dto_records()
+    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["dto"]}"', '"x"'), dirs, records)
+    assert contract_package_violations(build, rules, dirs, records | {"Extra"})
+    assert contract_package_violations(build, rules, dirs, records - {next(iter(HAND_DTO_RECORDS))})
+    assert contract_package_violations(build, rules, dirs - {"dto"}, set())
+    assert contract_package_violations(build.replace(API_PACKAGE, "org.example.api"), rules, dirs, records)
+    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["api"]}"', '"x"'), dirs, records)
 
 
 BIND_GUARD_LISTENERS = ("org.speckitty.missionstatus.config.BindGuard$BeforeStart", "org.speckitty.missionstatus.config.BindGuard$AfterStart")

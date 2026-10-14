@@ -34,7 +34,18 @@ class AllowlistTest {
             "kitty-specs/ (names only)",
             ".worktrees/ (names only)",
             ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/ (stat only)",
-            ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)");
+            ".worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>-<mid8>/meta.json (stat only)",
+            "<primary-dir>/tasks/ (names only; scope AUTHORED)",
+            "<primary-dir>/tasks/WP*.md directly under tasks/ (frontmatter and body, 1 MiB; scope AUTHORED)",
+            "<primary-dir>/tasks.md (4 MiB; stat for the tasks phase; scope AUTHORED)",
+            "<primary-dir>/spec.md (stat only; scope AUTHORED)",
+            "<primary-dir>/plan.md (stat only; scope AUTHORED)",
+            "<primary-dir>/tasks/<wp-slug>/ (names only; scope AUTHORED)",
+            "<primary-dir>/tasks/<wp-slug>/review-cycle-<N>.md (262144 bytes; scope AUTHORED)",
+            ".worktrees/<slug>-<lane id>/ (stat only; scope AUTHORED)",
+            ".worktrees/<slug>-<lane id>/.git (stat only, no follow; scope AUTHORED)",
+            "<primary-dir> and every directory below it (names only; scope ARTIFACT)",
+            "every regular file below <primary-dir> except the root status.events.jsonl and status.json (262144 bytes; scope ARTIFACT)");
     assertThat(Allowlist.ENTRIES).hasSameSizeAs(Allowlist.PATTERNS);
   }
 
@@ -71,9 +82,7 @@ class AllowlistTest {
     List<String> refused =
         List.of(
             "tasks/WP01.md",
-            "kitty-specs/m-01ABCDEF/tasks/WP01.md",
-            "kitty-specs/m-01ABCDEF/spec.md",
-            "kitty-specs/m-01ABCDEF/plan.md",
+            "kitty-specs/m-01ABCDEF/notes.md",
             "kitty-specs/m-01ABCDEF/status.json",
             "kitty-specs/m-01ABCDEF/research/notes.md",
             ".worktrees/m-01ABCDEF-coord/kitty-specs/m-01ABCDEF/lanes.json",

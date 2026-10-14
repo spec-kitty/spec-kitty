@@ -8,10 +8,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
 import org.speckitty.missionstatus.application.query.port.in.dto.PageRequest;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamEvent;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamSignal;
 import org.speckitty.missionstatus.application.query.port.in.Subscription;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
@@ -76,8 +77,8 @@ class BlankFinalLineCursorTest {
   void aCursorWithTheBlankLineDigestIsAcceptedAndOneWithTheLastRowsDigestIsRefusedAsContentMismatch() {
     Fx fx = fx();
 
-    ChangeBatch accepted = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.of(new StreamCursor(size(), BLANK_LINE_DIGEST)));
-    assertThat(accepted.changes()).isEmpty();
+    StreamBatch accepted = fx.service.changesSince(StreamScope.mission(ALPHA), Optional.of(new StreamCursor(size(), BLANK_LINE_DIGEST)));
+    assertThat(accepted.events()).isEmpty();
     assertThat(accepted.cursor()).isEqualTo(new StreamCursor(size(), BLANK_LINE_DIGEST));
 
     String lastRow = StreamFx.alphaHistory().split("(?<=\n)")[2];
@@ -97,10 +98,10 @@ class BlankFinalLineCursorTest {
 
       for (Subscription subscription : java.util.List.of(scoped, unscoped, resumed)) {
         var signals = StreamFx.drain(subscription);
-        assertThat(signals).noneMatch(signal -> signal instanceof StreamSignal.Truncated);
+        assertThat(signals).noneMatch(signal -> signal instanceof StreamSignal.Events events && events.events().stream().anyMatch(event -> event instanceof StreamEvent.LogTruncated));
         var changes = StreamFx.changes(signals);
         assertThat(StreamFx.eventIds(changes)).containsExactly(Rows.id(4));
-        assertThat(changes.getFirst().cursor()).isEqualTo(StreamFx.cursorAfter(ledger() + row, 5));
+        assertThat(changes.getFirst().resumeCursor().orElseThrow()).isEqualTo(StreamFx.cursorAfter(ledger() + row, 5));
       }
       fx.clock.advance(Duration.ofSeconds(2));
       fx.executor.tick();

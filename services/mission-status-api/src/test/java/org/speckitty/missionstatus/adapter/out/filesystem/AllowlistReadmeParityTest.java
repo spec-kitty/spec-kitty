@@ -89,4 +89,34 @@ class AllowlistReadmeParityTest {
     assertThat(text).containsIgnoringCase("intermediate");
     assertThat(text).doesNotContain("/home/").doesNotContain("/Users/");
   }
+
+  /** AC-11.3: the README states the read scope of each of the eleven entries added by the amendment of FR-011. */
+  @Test
+  void eachNewReadmeEntryStatesItsReadScope() throws IOException {
+    List<String> entries = fencedAllowlist(readme());
+    assertThat(entries).hasSize(22);
+    assertThat(entries.subList(11, 22)).allSatisfy(entry -> assertThat(entry).containsAnyOf("scope AUTHORED", "scope ARTIFACT"));
+    assertThat(entries.subList(0, 11)).as("the existing entries keep their text").allSatisfy(entry -> assertThat(entry).doesNotContain("scope "));
+  }
+
+  /** AC-11.3: the sentence that lists what is never opened is the narrower truth now. */
+  @Test
+  void theNeverOpenedSentenceNoLongerNamesThePlanningFilesTheTasksOrArtifacts() throws IOException {
+    String text = readme();
+    int start = text.indexOf("Nothing else is opened");
+    assertThat(start).as("the README still has the 'Nothing else is opened' sentence").isGreaterThanOrEqualTo(0);
+    int end = text.indexOf("`<read-dir>`", start);
+    assertThat(end).isGreaterThan(start);
+    String sentence = text.substring(start, end);
+    assertThat(sentence).doesNotContain("tasks/*.md").doesNotContain("spec.md").doesNotContain("plan.md").doesNotContainIgnoringCase("artifact").doesNotContain("WP frontmatter");
+    assertThat(sentence).contains("status.json").contains("config.toml").contains("meta.json");
+  }
+
+  @Test
+  void theSentenceCheckIsRedForTheOldWording() {
+    String old = "Nothing else is opened: never `tasks/*.md`, `spec.md`, `plan.md`, artifacts, WP frontmatter, `status.json`. `<read-dir>` is";
+    int start = old.indexOf("Nothing else is opened");
+    String sentence = old.substring(start, old.indexOf("`<read-dir>`", start));
+    assertThat(sentence).contains("tasks/*.md").contains("spec.md");
+  }
 }

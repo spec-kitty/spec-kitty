@@ -17,6 +17,8 @@ AC-5a/alpha-sort-and-dedup Ac5ReductionTest#alphaReducesToTheOracleLanesAndCount
 AC-5a/beta-at-before-event-id Ac5ReductionTest#betaOrdersByAtBeforeEventId
 AC-5a/project-last-activity Ac5ReductionTest#theProjectHeaderTakesTheLatestInstant
 AC-5c Ac5ReductionTest#theReductionNeedsNoSpringContext
+AC-20/empty-members-control Ac5ReductionTest#aLedgerWithNoResolvedMembersReducesToTheHandDerivedOverview
+AC-20/resolved-members Ac5ReductionTest#everyResolvedMemberInTheLedgerLeavesTheOverviewByteIdentical
 AC-3g/resume-after-k Ac3ResumeAndBatchTest#aCursorResumesWithTheForwardedRowsAfterIt
 AC-3g/no-cursor-live-only Ac3ResumeAndBatchTest#noCursorReceivesNoneOfTheExistingRows
 AC-3i/batch-order Ac3ResumeAndBatchTest#rowsAppendedInOneWriteArriveInLogOrderEachWithItsOwnCursor

@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import org.speckitty.missionstatus.application.query.port.out.dto.ReadScope;
 
 /** The production {@link AllowlistAccess}: the operating system, with no link followed on a read. */
 final class AllowlistPassThrough implements AllowlistAccess {
@@ -44,5 +45,31 @@ final class AllowlistPassThrough implements AllowlistAccess {
       }
     }
     return names;
+  }
+
+  @Override
+  public AllowlistAccess scoped(ReadScope scope) {
+    return this;
+  }
+
+  @Override
+  public NameWindow listNames(Path dir, int limit) throws IOException {
+    try (DirectoryStream<Path> entries = Files.newDirectoryStream(dir)) {
+      return window(entries, limit);
+    }
+  }
+
+  /** At most {@code limit} names, pulled lazily from one stream: never more than {@code limit + 1} of them. */
+  static NameWindow window(DirectoryStream<Path> entries, int limit) {
+    List<String> names = new ArrayList<>();
+    boolean more = false;
+    for (Path entry : entries) {
+      if (names.size() == limit) {
+        more = true;
+        break;
+      }
+      names.add(entry.getFileName().toString());
+    }
+    return new NameWindow(names, more);
   }
 }

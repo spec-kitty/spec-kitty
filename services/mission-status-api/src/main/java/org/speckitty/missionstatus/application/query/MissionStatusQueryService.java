@@ -3,53 +3,44 @@ package org.speckitty.missionstatus.application.query;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
-import org.speckitty.missionstatus.application.query.port.in.dto.ChangeBatch;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.dto.PageRequest;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamBatch;
+import org.speckitty.missionstatus.application.query.port.in.dto.StreamEvent;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.Subscription;
-import org.speckitty.missionstatus.application.query.port.out.dto.LedgerRead;
-import org.speckitty.missionstatus.application.query.port.out.dto.LedgerStamp;
 import org.speckitty.missionstatus.application.query.port.out.MissionEventSource;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
 import org.speckitty.missionstatus.application.query.port.out.dto.ProjectInputs;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
+import org.speckitty.missionstatus.application.query.stream.Change;
 import org.speckitty.missionstatus.application.query.stream.ChangeFeed;
+import org.speckitty.missionstatus.application.query.stream.EventProjection;
+import org.speckitty.missionstatus.application.query.stream.ProjectedSubscription;
 import org.speckitty.missionstatus.application.query.stream.Resume;
+import org.speckitty.missionstatus.application.query.stream.StreamAdmission;
 import org.speckitty.missionstatus.application.query.stream.StreamSettings;
+import org.speckitty.missionstatus.application.query.stream.StreamSubscriber;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.model.DiagnosticCode;
-import org.speckitty.missionstatus.domain.model.LedgerLine;
-import org.speckitty.missionstatus.domain.model.LineKind;
-import org.speckitty.missionstatus.domain.model.MalformedReason;
 import org.speckitty.missionstatus.domain.model.MissionId;
 import org.speckitty.missionstatus.domain.model.MissionMeta;
-import org.speckitty.missionstatus.domain.model.StatusSnapshot;
-import org.speckitty.missionstatus.domain.model.TailClassification;
-import org.speckitty.missionstatus.domain.readmodel.overview.InvalidInstantException;
-import org.speckitty.missionstatus.domain.readmodel.overview.Instants;
 import org.speckitty.missionstatus.domain.readmodel.overview.MissionOverview;
 import org.speckitty.missionstatus.domain.readmodel.overview.MissionPage;
-import org.speckitty.missionstatus.domain.readmodel.overview.OverviewDeriver;
 import org.speckitty.missionstatus.domain.readmodel.overview.ProjectHeader;
 import org.speckitty.missionstatus.domain.readmodel.overview.ProjectHeaderDeriver;
 import org.speckitty.missionstatus.domain.readmodel.paging.Pager;
 import org.speckitty.missionstatus.domain.redaction.LeakClasses;
 import org.speckitty.missionstatus.domain.redaction.ProjectionError;
 import org.speckitty.missionstatus.domain.redaction.Projector;
-import org.speckitty.missionstatus.domain.readmodel.reducer.AtThenEventId;
-import org.speckitty.missionstatus.domain.readmodel.reducer.StatusReducer;
-import org.speckitty.missionstatus.domain.readmodel.reducer.UnreducibleLedgerException;
 
 /**
  * The application service behind {@link MissionStatusQuery}. It lists the Missions, reads each {@code meta.json}, stamps each ledger,
@@ -60,14 +51,13 @@ import org.speckitty.missionstatus.domain.readmodel.reducer.UnreducibleLedgerExc
  */
 public final class MissionStatusQueryService implements MissionStatusQuery {
 
-  /** The shape of an event id the projector serves: a ULID, anchored at the start as the oracle's pattern is. */
-  private static final Pattern EVENT_ID = Pattern.compile("^[0-9A-HJKMNP-TV-Z]{26}$");
-
   private final MissionEventSource source;
   private final Consumer<Diagnostic> diagnostics;
   private final LeakClasses leaks;
-  private final ProjectionCache cache;
+  private final MissionReadModel readModel;
   private final ChangeFeed feed;
+  private final EventProjection projection;
+  private final StreamAdmission admission;
 
   /**
    * @param source the outbound port
@@ -79,7 +69,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
    */
   public MissionStatusQueryService(
       MissionEventSource source, Clock clock, Consumer<Diagnostic> diagnostics, ScheduledExecutorService executor, StreamSettings settings, LeakClasses leaks) {
-    this(source, clock, diagnostics, executor, settings, leaks, new ProjectionCache(new StatusReducer(new AtThenEventId())));
+    this(source, clock, diagnostics, executor, settings, leaks, new MissionReadModel(source, diagnostics, leaks));
   }
 
   MissionStatusQueryService(
@@ -90,16 +80,32 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       StreamSettings settings,
       LeakClasses leaks,
       ProjectionCache cache) {
+    this(source, clock, diagnostics, executor, settings, leaks, new MissionReadModel(source, diagnostics, leaks, cache));
+  }
+
+  /**
+   * @param readModel the read path shared with the other services of the query side: one lookup, one head derivation, one cache
+   */
+  public MissionStatusQueryService(
+      MissionEventSource source,
+      Clock clock,
+      Consumer<Diagnostic> diagnostics,
+      ScheduledExecutorService executor,
+      StreamSettings settings,
+      LeakClasses leaks,
+      MissionReadModel readModel) {
     this.source = Objects.requireNonNull(source, "source");
     this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
     this.leaks = Objects.requireNonNull(leaks, "leaks");
-    this.cache = Objects.requireNonNull(cache, "cache");
+    this.readModel = Objects.requireNonNull(readModel, "readModel");
     this.feed =
         new ChangeFeed(source, Objects.requireNonNull(clock, "clock"), diagnostics, Objects.requireNonNull(executor, "executor"), Objects.requireNonNull(settings, "settings"));
+    this.projection = new EventProjection(leaks, diagnostics);
+    this.admission = new StreamAdmission(settings.maxConnections());
   }
 
   ProjectionCache cache() {
-    return cache;
+    return readModel.cache();
   }
 
   public ChangeFeed feed() {
@@ -148,13 +154,13 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
   // ---- changes and streams ---------------------------------------------------------------------------------------------------
 
   @Override
-  public ChangeBatch changesSince(StreamScope scope, Optional<StreamCursor> cursor) {
+  public StreamBatch changesSince(StreamScope scope, Optional<StreamCursor> cursor) {
     switch (scope) {
       case StreamScope.All all -> {
         if (cursor.isPresent()) {
           throw new StreamRefused(StreamRefused.Kind.CURSOR_WITHOUT_MISSION);
         }
-        return new ChangeBatch(List.of(), StreamCursor.start());
+        return new StreamBatch(List.of(), StreamCursor.start());
       }
       case StreamScope.OneMission one -> {
         Resolved resolved = resolve(one.missionId());
@@ -163,23 +169,54 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     }
   }
 
-  private ChangeBatch changes(Resolved resolved, Optional<StreamCursor> cursor) {
+  private StreamBatch changes(Resolved resolved, Optional<StreamCursor> cursor) {
     try {
       if (cursor.isEmpty()) {
-        return new ChangeBatch(List.of(), ProjectionCache.cursorOf(source.readLedgerFrom(resolved.ref(), 0).lines()));
+        return new StreamBatch(List.of(), ProjectionCache.cursorOf(source.readLedgerFrom(resolved.ref(), 0).lines()));
       }
       Resume.Result resumed = Resume.from(source, resolved.ref(), resolved.meta().missionId(), cursor.get());
       if (resumed.unparseable()) {
         throw refuse(DiagnosticCode.LEDGER_UNPARSEABLE, resolved.mid8(), null);
       }
-      return new ChangeBatch(resumed.changes(), resumed.end());
+      return new StreamBatch(projected(resumed.changes()), resumed.end());
     } catch (SourceFault fault) {
       throw ledgerFault(fault, resolved.mid8());
     }
   }
 
+  private List<StreamEvent> projected(List<Change> changes) {
+    List<StreamEvent> events = new ArrayList<>();
+    for (Change change : changes) {
+      projection.project(change).ifPresent(events::add);
+    }
+    return events;
+  }
+
+  /**
+   * The place is taken first (the check must not cost a listing), and given back if the connect fails for any reason; a refused call
+   * takes none. The subscription hands its place back when it is closed.
+   */
   @Override
   public Subscription subscribe(StreamScope scope, Optional<StreamCursor> cursor) {
+    admission.admit();
+    boolean connected = false;
+    try {
+      Subscription subscription = connect(scope, cursor);
+      connected = true;
+      return subscription;
+    } finally {
+      if (!connected) {
+        admission.release();
+      }
+    }
+  }
+
+  @Override
+  public void endStreams() {
+    admission.endAll();
+  }
+
+  private Subscription connect(StreamScope scope, Optional<StreamCursor> cursor) {
     switch (scope) {
       case StreamScope.All all -> {
         if (cursor.isPresent()) {
@@ -193,11 +230,17 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     }
   }
 
+  private Subscription open(StreamSubscriber subscriber) {
+    ProjectedSubscription subscription = new ProjectedSubscription(subscriber, projection, admission);
+    admission.register(subscription);
+    return subscription;
+  }
+
   /** Rows S1 and S2 of the unscoped column: a Mission that cannot be read is left out with one diagnostic; an unlistable directory refuses. */
   private Subscription subscribeAll() {
     ChangeFeed.UnscopedConnect connected = feed.connectUnscoped(list());
     connected.skipped().forEach(diagnostics);
-    return connected.subscriber();
+    return open(connected.subscriber());
   }
 
   private Subscription subscribeOne(MissionId id, Optional<StreamCursor> cursor) {
@@ -207,7 +250,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       if (connected.unparseable()) {
         note(DiagnosticCode.LEDGER_UNPARSEABLE, resolved.mid8());
       }
-      return connected.subscriber();
+      return open(connected.subscriber());
     } catch (ChangeFeed.Skipped notWatched) {
       throw refuse(notWatched.diagnostic().code(), notWatched.diagnostic().mid8(), null);
     }
@@ -220,31 +263,20 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
    * has no id to compare, so it could be the one asked for: when nothing else matches, its row decides instead of a plain 404.
    */
   private Resolved resolve(MissionId id) {
-    SourceFault.Kind unreadable = null;
-    Resolved first = null;
-    boolean duplicate = false;
-    for (MissionRef ref : list()) {
-      try {
-        MissionMeta meta = source.readMeta(ref);
-        if (meta.missionId().equals(id)) {
-          if (first != null) {
-            duplicate = true;
-            break;
-          }
-          first = new Resolved(ref, meta, meta.missionId().mid8());
-        }
-      } catch (SourceFault fault) {
-        if (fault.kind() != SourceFault.Kind.VANISHED && unreadable == null) {
-          unreadable = fault.kind();
-        }
-      }
+    MissionLookup.Scan scan;
+    try {
+      scan = readModel.find(id);
+    } catch (SourceFault fault) {
+      throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE, null);
     }
+    MissionLookup.Found first = scan.found();
     if (first != null) {
-      if (duplicate) {
+      if (readModel.hasDuplicate(scan)) {
         note(DiagnosticCode.MISSION_ID_DUPLICATE, first.mid8());
       }
-      return probed(first);
+      return probed(new Resolved(first.ref(), first.meta(), first.mid8()));
     }
+    SourceFault.Kind unreadable = scan.firstFault();
     if (unreadable == SourceFault.Kind.PATH_REFUSED) {
       note(DiagnosticCode.PATH_REFUSED, Diagnostic.NONE);
     } else if (unreadable == SourceFault.Kind.META_UNPARSEABLE) {
@@ -290,9 +322,9 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     List<MissionRef> refs = list();
     List<Pager.Entry> entries = new ArrayList<>();
     for (MissionRef ref : refs) {
-      overview(ref).ifPresent(overview -> entries.add(new Pager.Entry(ref.name(), overview)));
+      readModel.overview(ref).ifPresent(overview -> entries.add(new Pager.Entry(ref.name(), overview)));
     }
-    cache.retainOnly(Set.copyOf(refs));
+    readModel.cache().retainOnly(Set.copyOf(refs));
     noteDuplicateIds(entries);
     return entries;
   }
@@ -305,171 +337,6 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       if (!seen.add(id) && noted.add(id)) {
         note(DiagnosticCode.MISSION_ID_DUPLICATE, entry.overview().mid8());
       }
-    }
-  }
-
-  private Optional<MissionOverview> overview(MissionRef ref) {
-    String mid8 = Diagnostic.NONE;
-    try {
-      MissionMeta meta = withProjectedDates(source.readMeta(ref));
-      mid8 = meta.missionId().mid8();
-      requireInstant(meta.createdAt(), DiagnosticCode.META_UNPARSEABLE, mid8);
-      ProjectionCache.Entry entry = ledger(ref, mid8);
-      return Optional.of(derive(meta, entry, mid8));
-    } catch (SourceFault fault) {
-      return omitted(fault, mid8);
-    }
-  }
-
-  /** The rows that leave a Mission out (L6, L9) and the rows that refuse the whole read (L7, L11). */
-  private Optional<MissionOverview> omitted(SourceFault fault, String mid8) {
-    switch (fault.kind()) {
-      case VANISHED -> note(DiagnosticCode.MISSION_VANISHED, mid8);
-      case PATH_REFUSED -> note(DiagnosticCode.PATH_REFUSED, mid8);
-      case META_UNPARSEABLE -> throw refuse(DiagnosticCode.META_UNPARSEABLE, mid8, null);
-      case DIR_UNREADABLE, LEDGER_UNREADABLE -> throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, mid8, null);
-    }
-    return Optional.empty();
-  }
-
-  /**
-   * {@code acceptedAt}, {@code mergedAt} and {@code discardedAt} are projected strictly and are nullable (pre-merge fold J7, ruling 1 of
-   * 2026-10-13): a value that is not an instant, or that is shaped like a path, an address or a secret, is served as null. This runs before
-   * the overview is derived, so a junk value can neither be served nor decide the lifecycle status (an {@code accepted_at} of junk would
-   * otherwise make a finished Mission {@code done}). The conformance oracle does the same, so the goldens agree.
-   */
-  private MissionMeta withProjectedDates(MissionMeta meta) {
-    Projector projector = new Projector(leaks);
-    String mid8 = meta.missionId().mid8();
-    return new MissionMeta(
-        meta.missionId(),
-        meta.slug(),
-        meta.friendlyName(),
-        meta.displayNumber(),
-        meta.missionType(),
-        meta.targetBranch(),
-        meta.topology(),
-        meta.createdAt(),
-        instantOrNull(projector, meta.acceptedAt(), "acceptedAt", mid8),
-        instantOrNull(projector, meta.mergedAt(), "mergedAt", mid8),
-        instantOrNull(projector, meta.discardedAt(), "discardedAt", mid8),
-        meta.hasBaseline());
-  }
-
-  /**
-   * A served date-time: clean, and an instant with an offset (landing fold R-7: the contract's {@code date-time} needs one). Anything else
-   * is null, and a value that was there and is dropped writes one {@code projection_refused} diagnostic.
-   */
-  private String instantOrNull(Projector projector, String value, String field, String mid8) {
-    String clean = projector.strict(value, field, true);
-    if (clean != null && Instants.hasOffset(clean)) {
-      return clean;
-    }
-    if (value != null) {
-      note(DiagnosticCode.PROJECTION_REFUSED, mid8);
-    }
-    return null;
-  }
-
-  private void requireInstant(String text, DiagnosticCode code, String mid8) {
-    try {
-      Instants.parse(text);
-    } catch (InvalidInstantException unusable) {
-      throw refuse(code, mid8, null);
-    }
-  }
-
-  /** The reduction of the Mission's ledger: from the cache when the stamp is unchanged, from the source otherwise (rows L1 to L4). */
-  private ProjectionCache.Entry ledger(MissionRef ref, String mid8) {
-    LedgerStamp stamp;
-    LedgerRead read;
-    try {
-      stamp = source.stampLedger(ref);
-      Optional<ProjectionCache.Entry> hit = cache.lookup(ref, stamp);
-      if (hit.isPresent()) {
-        return hit.get();
-      }
-      read = source.readLedger(ref, stamp);
-    } catch (SourceFault fault) {
-      if (fault.kind() == SourceFault.Kind.LEDGER_UNREADABLE || fault.kind() == SourceFault.Kind.PATH_REFUSED) {
-        note(DiagnosticCode.LEDGER_UNREADABLE, mid8);
-        return new ProjectionCache.Entry(new StatusSnapshot(Map.of(), 0, null, ""), StreamCursor.start());
-      }
-      throw fault;
-    }
-    if (read.tail() == TailClassification.NON_WHITESPACE) {
-      refuseFirstMalformedLine(read.lines(), mid8);
-      throw refuse(DiagnosticCode.LEDGER_TORN_TAIL, mid8, null);
-    }
-    try {
-      return cache.load(ref, stamp, read.lines());
-    } catch (UnreducibleLedgerException malformed) {
-      throw refuse(DiagnosticCode.LEDGER_UNPARSEABLE, mid8, lineOf(malformed.reason(), malformed.lineNumber()));
-    }
-  }
-
-  /** Python reports the first line that fails, and a torn tail comes after every terminated line: a bad earlier line is the answer. */
-  private void refuseFirstMalformedLine(List<LedgerLine> terminated, String mid8) {
-    for (LedgerLine line : terminated) {
-      if (line.kind() instanceof LineKind.Malformed malformed) {
-        throw refuse(DiagnosticCode.LEDGER_UNPARSEABLE, mid8, lineOf(malformed.reason(), line.lineNumber()));
-      }
-    }
-  }
-
-  /** The 1-based line number of a bad line; none for a line that is not valid UTF-8 (Python gives a byte position, not a line). */
-  private static Integer lineOf(MalformedReason reason, long lineNumber) {
-    return reason == MalformedReason.NOT_UTF8 ? null : (int) Math.min(lineNumber, Integer.MAX_VALUE);
-  }
-
-  private MissionOverview derive(MissionMeta meta, ProjectionCache.Entry entry, String mid8) {
-    MissionOverview derived;
-    try {
-      derived = OverviewDeriver.derive(meta, entry.snapshot(), entry.cursor());
-    } catch (InvalidInstantException unusable) {
-      throw refuse(DiagnosticCode.LEDGER_UNPARSEABLE, mid8, null);
-    }
-    return projected(derived, mid8);
-  }
-
-  /** The fields the oracle routes through its projector; the Mission id is a validated ULID and needs no pass. */
-  private MissionOverview projected(MissionOverview o, String mid8) {
-    Projector projector = new Projector(leaks);
-    try {
-      String slug = projector.strict(o.slug(), "slug", false);
-      String friendlyName = projector.human(o.friendlyName(), "friendlyName");
-      String missionType = projector.strict(o.missionType() == null || o.missionType().isEmpty() ? null : o.missionType(), "missionType", true);
-      String targetBranch = projector.strict(o.targetBranch(), "targetBranch", false);
-      String nextAction = projector.human(o.nextAction(), "nextAction");
-      // Ledger ids are not shaped by the writer: a value that is not the contract's shape is nulled (AC-9g, nullable strict fields).
-      // The meta dates were projected before the overview was derived (withProjectedDates), so they pass through unchanged.
-      String lastEventId = projector.strict(o.lastEventId(), "lastEventId", true, EVENT_ID);
-      String lastActivityAt = instantOrNull(projector, o.lastActivityAt(), "lastActivityAt", mid8);
-      return new MissionOverview(
-          o.missionId(),
-          o.mid8(),
-          slug,
-          friendlyName,
-          o.displayNumber(),
-          missionType,
-          targetBranch,
-          o.topology(),
-          o.createdAt(),
-          o.statusLaneCounts(),
-          o.wpTotal(),
-          o.blockedCount(),
-          o.progress(),
-          o.lifecycleStatus(),
-          o.acceptedAt(),
-          o.mergedAt(),
-          o.discardedAt(),
-          lastEventId,
-          lastActivityAt,
-          o.eventCount(),
-          o.streamCursor(),
-          nextAction);
-    } catch (ProjectionError refused) {
-      throw refuse(DiagnosticCode.PROJECTION_REFUSED, mid8, null);
     }
   }
 

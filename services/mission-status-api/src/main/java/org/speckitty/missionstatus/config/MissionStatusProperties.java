@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * The service's own configuration keys. {@code mission-status.project-root} is required (the project-root guard refuses an unset or
  * non-directory value before the web server starts), {@code mission-status.port} (default 8787, 0 for an ephemeral port) feeds
- * {@code server.port} in the packaged defaults, and the stream keys are read by the wiring and by the events controller.
+ * {@code server.port} in the packaged defaults, and the stream keys are read by the wiring and by the events controller (the heartbeat).
  *
  * @param projectRoot the project directory the service reads
  * @param stream the stream knobs
@@ -19,6 +19,9 @@ public record MissionStatusProperties(String projectRoot, @DefaultValue Stream s
    * @param queueCapacity the capacity of each subscriber's queue (key {@code mission-status.stream.queue-capacity}, default 1024)
    * @param heartbeatInterval how often an idle stream sends its heartbeat comment (key {@code mission-status.stream.heartbeat-interval},
    *     an ISO-8601 duration, default {@code PT30S}; the event stream reads this key)
+   * @param maxConnections the bound on open event streams, for every inbound adapter (key {@code mission-status.stream.max-connections},
+   *     default 128; the service reads it, through {@code StreamSettings})
    */
-  public record Stream(@DefaultValue("1024") int queueCapacity, @DefaultValue("PT30S") Duration heartbeatInterval) {}
+  public record Stream(
+      @DefaultValue("1024") int queueCapacity, @DefaultValue("PT30S") Duration heartbeatInterval, @DefaultValue("128") int maxConnections) {}
 }
