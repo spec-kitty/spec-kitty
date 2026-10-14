@@ -352,10 +352,10 @@ class HttpService:
             connection.close()
 
     def wait_ready(self) -> bool:
-        """Poll the project route until anything but 0 (no answer) or 403 answers, or the timeout passes."""
+        """Poll the project route until it answers 200 (a booting service answering 404, 500 or 503 is not ready), or the timeout passes."""
         deadline = time.monotonic() + self.timeout
         while True:
-            if self.get(PROJECT_ROUTE).status not in (0, 403):
+            if self.get(PROJECT_ROUTE).status == 200:
                 return True
             if time.monotonic() >= deadline:
                 return False
@@ -1006,24 +1006,28 @@ def _say(message: str) -> None:
     print(message, flush=True)
 
 
+def _cannot(args: argparse.Namespace, message: str) -> int:
+    """Say why the run cannot do its job and leave a stub ``nightly-report.json``, so the workflow upload finds a file on every night."""
+    _say(f"CANNOT {message}")
+    write_report(Report(exit_code=EXIT_CANNOT), args.report)
+    return EXIT_CANNOT
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         service = HttpService(args.base_url)
     except ValueError as error:
-        _say(f"CANNOT {error}")
-        return EXIT_CANNOT
+        return _cannot(args, str(error))
     try:
         count = independent_count(args.repo_root)
         scanned = refused_scan(args.repo_root)
         parted = refused_list_problem(scanned)
         if parted is not None:
-            _say(f"CANNOT {parted}")
-            return EXIT_CANNOT
+            return _cannot(args, parted)
         with open_oracle(args.repo_root) as oracle:
             if oracle.detail is None:
-                _say("CANNOT the oracle has no reader for the detail routes, so five of the routes would go uncompared")
-                return EXIT_CANNOT
+                return _cannot(args, "the oracle has no reader for the detail routes, so five of the routes would go uncompared")
             report = compare_corpus(
                 oracle,
                 service,
@@ -1034,8 +1038,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 work_package_files=independent_work_package_files(args.repo_root),
             )
     except (ImportError, OSError, subprocess.CalledProcessError) as error:
-        _say(f"CANNOT the oracle or the independent count could not be built ({type(error).__name__})")
-        return EXIT_CANNOT
+        return _cannot(args, f"the oracle or the independent count could not be built ({type(error).__name__})")
     for line in report.lines:
         _say(line)
     write_report(report, args.report)

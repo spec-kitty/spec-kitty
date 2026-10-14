@@ -397,6 +397,32 @@ def test_main_writes_the_report_and_returns_the_exit_code(cc: ModuleType, tmp_pa
 
 def test_main_with_a_bad_base_url_cannot_do_its_job(cc: ModuleType, tmp_path: Path) -> None:
     assert cc.main(["--base-url", "http://example.invalid:80", "--repo-root", str(tmp_path), "--report", str(tmp_path / "r.json")]) == CANNOT
+    assert json.loads((tmp_path / "r.json").read_text(encoding="utf-8")) == {"compared": 0, "exit": CANNOT, "rows": []}  # a stub, so the upload finds a file
+
+
+def test_main_with_a_parted_refused_list_writes_a_stub_report(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+
+    oracle, service = _twin(cc, 2)
+    monkeypatch.setattr(cc, "HttpService", lambda base_url, **_: service)
+    monkeypatch.setattr(cc, "independent_count", lambda root: 2)
+    monkeypatch.setattr(cc, "open_oracle", lambda root: nullcontext(oracle))
+    monkeypatch.setattr(cc, "refused_scan", lambda root: {**cc.REFUSED_LIST, "100-new-mission": "SK-353"})
+    report = tmp_path / "r.json"
+    assert cc.main(["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(report)]) == CANNOT
+    assert json.loads(report.read_text(encoding="utf-8"))["exit"] == CANNOT
+
+
+def _service_answering(cc: ModuleType, status: int) -> Any:
+    service = cc.HttpService("http://127.0.0.1:8787", interval=0.0, timeout=0.01)
+    service.get = lambda route: cc.Reply(status, b"{}")  # type: ignore[method-assign]
+    return service
+
+
+def test_the_service_is_ready_only_when_the_project_route_answers_200(cc: ModuleType) -> None:
+    assert _service_answering(cc, 200).wait_ready() is True
+    for status in (0, 403, 404, 500, 503):
+        assert _service_answering(cc, status).wait_ready() is False, status
 
 
 def test_the_script_runs_by_path_from_another_working_directory(tmp_path: Path) -> None:
@@ -800,8 +826,9 @@ def test_main_refuses_a_detail_oracle_that_is_missing_and_a_refused_list_that_pa
     monkeypatch.setattr(cc, "refused_scan", lambda root: {**cc.REFUSED_LIST, "100-new-mission": "SK-353"})
     assert cc.main(arguments) == CANNOT  # the scan found a Mission the decision record does not hold
     monkeypatch.setattr(cc, "refused_scan", lambda root: dict(cc.REFUSED_LIST))
+    (tmp_path / "r.json").unlink(missing_ok=True)
     assert cc.main(arguments) == CANNOT  # no detail reader on the oracle: five routes would go uncompared
-    assert not (tmp_path / "r.json").exists()
+    assert json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))["exit"] == CANNOT  # a stub: the artifact exists on every night
 
 
 def _replay_service(cc: ModuleType, oracle: Any, items: list[dict[str, Any]], project: Any) -> Any:
