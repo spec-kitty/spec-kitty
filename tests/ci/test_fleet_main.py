@@ -17,10 +17,10 @@ from tests.ci.test_fleet_verdict import API, HEAD, IDS, REPO, ROOT
 pytestmark = pytest.mark.fast
 
 
-def test_main_push_event_selects_main_reporting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    api = API()
-    source = api.runs["ci-modules.yml"][0]
-    source.update(event="push", head_branch="main", pull_requests=[])
+def _identify(api: API, workflow: str, run: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Drive the reporter's `--event` entry point with one workflow_run payload; return what it wrote to GITHUB_OUTPUT."""
+    source = api.runs[workflow][0]
+    source.update(run)
     event = tmp_path / "event.json"
     event.write_text(json.dumps({"workflow_run": source}))
     output = tmp_path / "output"
@@ -28,12 +28,22 @@ def test_main_push_event_selects_main_reporting(tmp_path: Path, monkeypatch: pyt
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
     monkeypatch.setattr(fleet_verdict, "GitHub", lambda repository: api)
     monkeypatch.setattr(sys, "argv", ["fleet_verdict.py", "--event", str(event), "--repository", REPO, "--reporter-id", "123", "--attempt", "1"])
-
     fleet_verdict.main()
-
-    assert "main=true\n" in output.read_text()
-    assert IDS["ci-modules.yml"] == source["workflow_id"]
+    assert IDS[workflow] == source["workflow_id"]
     assert not api.posts
+    return output.read_text()
+
+
+def test_main_push_event_selects_main_reporting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    written = _identify(API(), "ci-modules.yml", {"event": "push", "head_branch": "main", "pull_requests": []}, tmp_path, monkeypatch)
+    assert "main=true\n" in written
+
+
+def test_a_tag_push_run_of_the_mission_status_workflow_selects_neither_main_nor_a_pull_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """mission-status-api.yml carries `on.push.tags` (release trigger, operator decision E-4): a run for a tag push has the tag name as
+    head_branch, so it is not main evidence and not a pull request run."""
+    tag_run = {"event": "push", "head_branch": "mission-status-api-v0.1.0", "pull_requests": []}
+    assert _identify(API(), "mission-status-api.yml", tag_run, tmp_path, monkeypatch) == ""
 
 
 class MainAPI(API):
@@ -507,15 +517,16 @@ def test_retry_budget_pair_is_imported_not_redefined() -> None:
 
 
 def test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence() -> None:
-    """mission-status-api.yml carries `on.push.tags` (release trigger, operator decision E-4): the policy reader accepts the key,
-    and a tag-push run (head_branch is the tag name, not main) is excluded from the main snapshot like any non-main push."""
+    """The policy reader accepts `tags` in a push block, and a tag-push run of mission-status-api.yml (head_branch is the tag name, not
+    main) is excluded from the main snapshot like any non-main push."""
     required, conditional = fleet_main.main_workflows(ROOT)
     assert "mission-status-api.yml" in conditional
-    assert "tags" in yaml.safe_load((ROOT / ".github/workflows/mission-status-api.yml").read_text(encoding="utf-8"))[True]["push"]
     api = MainAPI()
-    api.runs["ci-quality.yml"][0]["head_branch"] = "mission-status-api-v0.1.0"
+    assert fleet_main.snapshot(api, ROOT, IDS)["runs"]["mission-status-api.yml"]["event"] == "push"
+    api.runs["mission-status-api.yml"][0]["head_branch"] = "mission-status-api-v0.1.0"
     evidence = fleet_main.snapshot(api, ROOT, IDS)
-    assert evidence["runs"]["ci-quality.yml"] is None
+    assert "mission-status-api.yml" not in evidence["runs"]
+    assert "mission-status-api.yml" in evidence["conditional_gates_not_observed"]
 
 
 def test_removing_tags_from_the_accepted_push_keys_turns_the_tag_acceptance_red() -> None:

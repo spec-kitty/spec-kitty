@@ -891,23 +891,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        382
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
-    },
-    {
-      "rule": "tests/ci/test_fleet_main.py::test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence",
-      "file": "tests/ci/test_fleet_main.py",
-      "scope": "test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence",
-      "subjects": [
-        "retiring-host"
-      ],
-      "form": "derived-relation",
-      "lines": [
-        516,
-        518
+        392
       ],
       "dependency": false,
       "disposition": "none",
@@ -922,7 +906,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        387
+        397
       ],
       "dependency": false,
       "disposition": "none",
@@ -937,7 +921,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        351
+        361
       ],
       "dependency": false,
       "disposition": "none",
@@ -952,7 +936,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        337
+        347
       ],
       "dependency": false,
       "disposition": "none",
@@ -967,8 +951,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        230,
-        233
+        240,
+        243
       ],
       "dependency": false,
       "disposition": "none",
@@ -983,9 +967,9 @@
       ],
       "form": "derived-relation",
       "lines": [
-        315,
-        317,
-        320
+        325,
+        327,
+        330
       ],
       "dependency": false,
       "disposition": "none",
@@ -1000,7 +984,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        283
+        293
       ],
       "dependency": false,
       "disposition": "none",
@@ -1015,9 +999,9 @@
       ],
       "form": "derived-relation",
       "lines": [
-        425,
-        426,
-        428
+        435,
+        436,
+        438
       ],
       "dependency": false,
       "disposition": "none",
@@ -1032,8 +1016,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        260,
-        262
+        270,
+        272
       ],
       "dependency": false,
       "disposition": "none",
@@ -1048,7 +1032,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        465
+        475
       ],
       "dependency": false,
       "disposition": "none",
@@ -1063,7 +1047,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        95
+        105
       ],
       "dependency": false,
       "disposition": "none",
@@ -1078,7 +1062,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        81
+        91
       ],
       "dependency": false,
       "disposition": "none",
