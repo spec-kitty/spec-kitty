@@ -47,7 +47,7 @@ import pytest
 
 from specify_cli.consolidation.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
-from specify_cli.policy.config import MergeGateConfig
+from specify_cli.policy.config import MergeGateConfig, load_policy_config
 from specify_cli.policy.merge_gates import GateVerdict, evaluate_merge_gates
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -521,3 +521,38 @@ class TestLegacyMarkdownAtCoordRef:
 
 def _fmt_warnings(gates: list) -> list[str]:
     return [f"{g.gate_name}: {g.details}" for g in gates if g.verdict == GateVerdict.FAIL and not g.blocking]
+
+
+class TestPolicyModeSpellingFailsClosed:
+    """#5754: ``policy.merge_gates.mode: Block`` in config.yaml was silently read as
+    ``warn``, so an unresolved ``in-mission`` matrix row passed the merge gates.
+    The YAML loader output must drive the terminality gate to blocking.
+    """
+
+    @staticmethod
+    def _evaluate(repo: Path, *, mid8: str, written_mode: str):
+        # config.yaml is written BEFORE the fixture so its ``git add .`` commits it.
+        (repo / ".kittify" / "config.yaml").write_text(f'policy:\n  merge_gates:\n    mode: "{written_mode}"\n', encoding="utf-8")
+        mission_slug, _ = _build_coord_mission(repo, mid8=mid8, primary_matrix={_ISSUE_KEY: "in-mission"}, coord_matrix={_ISSUE_KEY: "in-mission"})
+        policy = load_policy_config(repo)
+        result = evaluate_merge_gates(repo / "kitty-specs" / mission_slug, mission_slug, [], policy.merge_gates, repo)
+        return result, _gate(result.gates, _TERMINALITY_GATE)
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize(
+        ("mid8", "written_mode"),
+        [("01KZR2A0", "Block"), ("01KZR2A1", "BLOCK"), ("01KZR2A2", "block ")],
+    )
+    def test_block_spelling_blocks_unresolved_row(self, repo: Path, mid8: str, written_mode: str):
+        result, terminality = self._evaluate(repo, mid8=mid8, written_mode=written_mode)
+        assert terminality.verdict == GateVerdict.FAIL
+        assert terminality.blocking is True
+        assert result.overall_pass is False
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize(("mid8", "written_mode"), [("01KZR2B0", "warn"), ("01KZR2B1", "Warn")])
+    def test_warn_spelling_stays_advisory(self, repo: Path, mid8: str, written_mode: str):
+        result, terminality = self._evaluate(repo, mid8=mid8, written_mode=written_mode)
+        assert terminality.verdict == GateVerdict.FAIL
+        assert terminality.blocking is False
+        assert result.overall_pass is True
