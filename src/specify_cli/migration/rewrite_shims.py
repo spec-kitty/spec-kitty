@@ -8,7 +8,14 @@ Writes all 16 consumer-facing command files for every configured agent:
   the package-bundled mission command-templates.
 
 After generation, any ``spec-kitty.*`` files that remain in agent command
-directories but were **not** freshly written are deleted as stale.
+directories but were **not** freshly written are routed through the
+asset-preservation guard (``guard_destructive_removal`` +
+``CanonicalContentProver``): a file whose version marker proves it is
+package-generated is deleted as stale, while an unproven file — a
+user-authored custom command such as ``spec-kitty.custom.md`` — is preserved
+in place. A ``spec-kitty.*`` name is never, by itself, proof of package
+ownership (charter "User Customization Preservation"); classifying one as a
+shipped asset and deleting it is the #6247 data-loss defect this guard closes.
 """
 
 from __future__ import annotations
@@ -33,13 +40,18 @@ class RewriteResult:
         agents_processed: Number of agent directories touched.
         files_written: Paths of command files that were written (created or
             overwritten).
-        files_deleted: Paths of stale command files that were removed.
+        files_deleted: Paths of stale command files that were removed (proven
+            package-generated via the version marker).
+        files_preserved: Paths of unproven ``spec-kitty.*`` files left in place
+            because a name is not proof of package ownership (e.g. a
+            user-authored ``spec-kitty.custom.md``).
         warnings: List of non-fatal warning messages.
     """
 
     agents_processed: int = 0
     files_written: list[Path] = field(default_factory=list)
     files_deleted: list[Path] = field(default_factory=list)
+    files_preserved: list[Path] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -168,8 +180,10 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
     """Regenerate all agent command files: CLI shims + prompt-driven templates.
 
     Writes all 16 consumer-facing command files for every configured agent,
-    then deletes any ``spec-kitty.*`` files that are not in the freshly
-    generated set (stale files from previous versions).
+    then routes any ``spec-kitty.*`` files that are not in the freshly
+    generated set through the asset-preservation guard: proven package-generated
+    stale files (version marker present) are deleted, user-authored unproven
+    files are preserved in place (#6247).
 
     Only processes agent directories configured in ``.kittify/config.yaml``
     (via :func:`~specify_cli.agent_utils.directories.get_agent_dirs_for_project`).
@@ -183,6 +197,8 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
     """
     from specify_cli.shims.generator import generate_all_shims
     from specify_cli.agent_utils.directories import get_agent_dirs_for_project
+    from specify_cli.asset_preservation.guard import guard_destructive_removal
+    from specify_cli.asset_preservation.provers import CanonicalContentProver
 
     result = RewriteResult()
 
@@ -250,19 +266,43 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
                 logger.info("Preserving %s (not regenerated this run)", stale_file)
                 continue
 
+            # A ``spec-kitty.*`` name is NOT proof of package ownership
+            # (charter "User Customization Preservation"): a user-authored
+            # custom command such as ``spec-kitty.custom.md`` shares the prefix
+            # but was never shipped. Route the removal through the
+            # asset-preservation guard, which deletes only a file whose version
+            # marker proves it is package-generated and otherwise preserves it
+            # in place (#6247). ``backup_parent`` is omitted: the parent command
+            # directory survives, so an unproven file is left where it is.
             try:
-                stale_file.unlink()
-                result.files_deleted.append(stale_file)
-                logger.info("Deleted stale command file: %s", stale_file)
-            except Exception as exc:
-                msg = f"Failed to delete stale file {stale_file}: {exc}"
+                verdict = guard_destructive_removal(
+                    stale_file,
+                    repo_root,
+                    prover=CanonicalContentProver(),
+                )
+            except OSError as exc:
+                # OSError is the only exception reachable here: the prover
+                # swallows its own read errors (fail-closed to preserve) and the
+                # guard's removal raises only OSError. A prover swap would need
+                # this scope revisited.
+                msg = f"Failed to remove stale file {stale_file}: {exc}"
                 logger.warning(msg)
                 result.warnings.append(msg)
+                continue
+
+            if verdict.owned:
+                result.files_deleted.append(stale_file)
+                logger.info("Deleted stale command file: %s", stale_file)
+            else:
+                result.files_preserved.append(stale_file)
+                result.warnings.append(verdict.diagnostic)
+                logger.info("%s", verdict.diagnostic)
 
     logger.info(
-        "rewrite_agent_shims: %d agents, %d written, %d deleted",
+        "rewrite_agent_shims: %d agents, %d written, %d deleted, %d preserved",
         result.agents_processed,
         len(result.files_written),
         len(result.files_deleted),
+        len(result.files_preserved),
     )
     return result

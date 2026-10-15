@@ -101,19 +101,80 @@ class TestRewriteAgentShims:
             assert len(lines) > 10, f"Prompt template {command} too short ({len(lines)} lines)"
 
     def test_stale_files_deleted(self, tmp_path: Path) -> None:
-        """T063-3: Legacy workflow files not in generated set are removed."""
+        """T063-3: A proven package-generated command not in the generated set is removed.
+
+        "Stale" means a *generated* command retired in a later version (e.g. a
+        removed command): it carries the ``<!-- spec-kitty-command-version: -->``
+        marker, which proves package ownership, so cleanup deletes it. An unmarked,
+        user-authored file is preserved instead — see
+        ``test_unmarked_custom_command_preserved``.
+        """
         _setup_project(tmp_path, agents=["claude"])
 
         claude_dir = _get_claude_cmd_dir(tmp_path)
         claude_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write a stale workflow file
+        # A stale *generated* workflow file: the version marker proves it is ours.
         stale = claude_dir / "spec-kitty.old-workflow.md"
-        stale.write_text("# Old lengthy workflow\n\nThis is old content.\n")
+        stale.write_text(
+            "<!-- spec-kitty-command-version: 2.1.0 -->\n"
+            "# Old lengthy workflow\n\nThis is old content.\n"
+        )
 
         result = rewrite_agent_shims(tmp_path)
-        assert not stale.exists(), "Stale file should have been deleted"
+        assert not stale.exists(), "Stale generated file should have been deleted"
         assert stale in result.files_deleted
+
+    def test_unmarked_custom_command_preserved(self, tmp_path: Path) -> None:
+        """#6247: a user-authored ``spec-kitty.*`` with no version marker survives.
+
+        A ``spec-kitty.*`` name is not proof of package ownership. A hand-authored
+        custom slash command never carries the
+        ``<!-- spec-kitty-command-version: -->`` marker, so cleanup must preserve it
+        in place rather than classify it as a shipped asset and delete it. This is
+        the data-loss defect behind the red
+        ``test_failed_surface_repair_commits_nothing`` upgrade test.
+        """
+        _setup_project(tmp_path, agents=["claude"])
+
+        claude_dir = _get_claude_cmd_dir(tmp_path)
+        claude_dir.mkdir(parents=True, exist_ok=True)
+
+        custom = claude_dir / "spec-kitty.custom.md"
+        custom_body = "# my own command\nhand written, no version marker\n"
+        custom.write_text(custom_body, encoding="utf-8")
+
+        result = rewrite_agent_shims(tmp_path)
+
+        assert custom.exists(), "a user-authored custom command must not be deleted"
+        assert custom.read_text(encoding="utf-8") == custom_body, "its bytes must be untouched"
+        assert custom not in result.files_deleted
+        assert custom in result.files_preserved
+
+    def test_marked_and_unmarked_stale_files_in_one_dir(self, tmp_path: Path) -> None:
+        """#6247: in one directory, a marked stale file is deleted and an unmarked one kept.
+
+        Proves the Step-4 loop decides ownership per file: a proven-generated
+        retired command and a user-authored custom command can sit side by side,
+        and only the former is removed in a single pass.
+        """
+        _setup_project(tmp_path, agents=["claude"])
+        claude_dir = _get_claude_cmd_dir(tmp_path)
+        claude_dir.mkdir(parents=True, exist_ok=True)
+
+        marked = claude_dir / "spec-kitty.retired.md"
+        marked.write_text("<!-- spec-kitty-command-version: 2.1.0 -->\n# retired generated command\n")
+        unmarked = claude_dir / "spec-kitty.custom.md"
+        unmarked_body = "# my own command\nno version marker\n"
+        unmarked.write_text(unmarked_body, encoding="utf-8")
+
+        result = rewrite_agent_shims(tmp_path)
+
+        assert not marked.exists(), "the proven-generated retired command is deleted"
+        assert marked in result.files_deleted
+        assert unmarked.exists(), "the user-authored command is preserved"
+        assert unmarked.read_text(encoding="utf-8") == unmarked_body
+        assert unmarked in result.files_preserved
 
     def test_result_counts(self, tmp_path: Path) -> None:
         """T063-4: RewriteResult fields are populated.
