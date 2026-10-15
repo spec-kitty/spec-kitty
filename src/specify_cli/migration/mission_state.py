@@ -60,7 +60,7 @@ from specify_cli.migration.canonicalization import (
     MigrationContext,
     apply_rules,
 )
-from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, mission_write_lock
+from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, extend_mission_write_lock_to_moved_key, mission_write_lock
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
@@ -1991,10 +1991,16 @@ def _repair_mission(
             raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
             meta = _repair_meta_phase(repo_root, mission_dir, raw_rows, state, generated_ids=generated_ids)
             snapshot: StatusSnapshot | None = None
-            if (mission_dir / EVENTS_FILENAME).exists():
-                snapshot = _repair_status_log_phases(repo_root, mission_dir, raw_rows, state, run_id=run_id, generated_ids=generated_ids)
-                if snapshot is None:
-                    return state.result("error")
+            # FR-008: when the meta repair moved the Mission's lock key (it minted a mission_id),
+            # other writers now lock the new key. Hold it too, and re-read the log: a writer
+            # holding only the new key may have appended since the first read.
+            with extend_mission_write_lock_to_moved_key(mission_dir, repo_root=repo_root) as key_moved:
+                if key_moved:
+                    raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
+                if (mission_dir / EVENTS_FILENAME).exists():
+                    snapshot = _repair_status_log_phases(repo_root, mission_dir, raw_rows, state, run_id=run_id, generated_ids=generated_ids)
+                    if snapshot is None:
+                        return state.result("error")
         # The lanes rebuild runs after the Mission hold (lock order: never wait on the lanes
         # lock while holding a Mission lock), still inside the try so its errors are reported.
         if snapshot is not None:
