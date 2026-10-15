@@ -397,6 +397,129 @@ def test_cli_refuses_migrate_too(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# --json refusal (#6232)
+# --------------------------------------------------------------------------- #
+
+JSON_COMMANDS = [
+    ["doctor", "tool-surfaces", "--json"],
+    ["doctor", "skills", "--json"],
+    ["doctor", "state-roots", "--json"],
+    ["charter", "status", "--json"],
+    ["context", "info", "--json"],
+]
+_REFUSAL_PREFIX = f"Error ({LEGACY_CHARTER_STATE}): "
+
+
+def _lane_of_a_migrated_root(tmp_path: Path) -> Path:
+    """A lane worktree that carries the retired layout while its root is migrated."""
+    root = _project(tmp_path / "root")
+    for args in (["init", "-q"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    lane = tmp_path / "lane"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "lane", str(lane)], cwd=root, check=True)
+    _write(lane / ".kittify" / "doctrine" / "directive" / "x.directive.yaml", "id: X\n")
+    return lane
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("args", JSON_COMMANDS, ids=lambda a: " ".join(a[:-1]))
+def test_cli_json_refusal_is_one_json_object_on_stdout(tmp_path: Path, args: list[str]) -> None:
+    """#6232: RED on f0e17e47e: stdout is empty, the prose is on stderr."""
+    result = _run(args, _project(tmp_path, layout="legacy_project_root"))
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload == {"ok": False, "error": {"code": LEGACY_CHARTER_STATE, "message": payload["error"]["message"]}}
+    assert "(legacy_project_root)" in payload["error"]["message"]
+    assert result.stderr == ""
+
+
+@pytest.mark.regression
+def test_cli_text_refusal_is_the_json_message_with_the_prefix(tmp_path: Path) -> None:
+    """FR-003/FR-004: the prose is the prefix plus the JSON message; text mode stays on stderr."""
+    project = _project(tmp_path, layout="legacy_project_root")
+    as_json = _run(["charter", "status", "--json"], project)
+    as_text = _run(["charter", "status"], project)
+
+    message = json.loads(as_json.stdout)["error"]["message"]
+    assert as_text.exit_code == 1 and as_json.exit_code == 1
+    assert as_text.stdout == ""
+    assert as_text.stderr == _REFUSAL_PREFIX + message + "\n"
+
+
+@pytest.mark.regression
+def test_cli_json_refusal_message_is_actionable_and_unprefixed(tmp_path: Path) -> None:
+    result = _run(["charter", "status", "--json"], _project(tmp_path, layout="legacy_project_root"))
+
+    message = json.loads(result.stdout)["error"]["message"]
+    assert "Run `spec-kitty upgrade` to migrate it." in message
+    assert message.endswith(f"See {RUNBOOK}.")
+    assert not message.startswith("Error (")
+
+
+@pytest.mark.regression
+def test_cli_json_refusal_in_a_stale_lane_worktree_carries_the_worktree_sentence(tmp_path: Path) -> None:
+    result = _run(["charter", "status", "--json"], _lane_of_a_migrated_root(tmp_path))
+
+    assert result.exit_code == 1, result.output
+    message = json.loads(result.stdout)["error"]["message"]
+    assert all(word in message for word in WORKTREE_WORDS)
+    assert "upgrade the\nrepository root" in message
+    assert result.stderr == ""
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["agent", "tasks", "status", "--mission", "--json"],
+        ["charter", "status", "--", "--json"],
+    ],
+    ids=["option-value", "after-double-dash"],
+)
+def test_cli_json_as_a_value_or_after_double_dash_is_text_mode(tmp_path: Path, args: list[str]) -> None:
+    """FR-005: only ``--json`` as a flag selects the JSON form."""
+    result = _run(args, _project(tmp_path, layout="legacy_project_root"))
+
+    assert result.exit_code == 1, result.output
+    assert result.stdout == ""
+    assert result.stderr.startswith(_REFUSAL_PREFIX)
+
+
+def test_cli_unknown_option_under_json_is_still_a_usage_error_first(tmp_path: Path) -> None:
+    """FR-006: the usage-error-first ordering is kept."""
+    result = _run(["charter", "status", "--json", "--doctrine-mode", "x"], _project(tmp_path, layout="legacy_project_root"))
+
+    assert result.exit_code == 2, result.output
+    assert LEGACY_CHARTER_STATE not in result.stdout
+
+
+def test_cli_json_command_on_a_migrated_project_is_not_refused(tmp_path: Path) -> None:
+    """SC-004: a migrated project is untouched."""
+    result = _run(["charter", "status", "--json"], _project(tmp_path))
+
+    assert LEGACY_CHARTER_STATE not in result.stdout + result.stderr
+    assert isinstance(json.loads(result.stdout), dict), result.output
+
+
+@pytest.mark.regression
+def test_cli_migrate_json_refusal_is_one_json_object_on_stdout(tmp_path: Path) -> None:
+    """FR-007: the deferred-bootstrap ``migrate`` path honors ``--json`` too."""
+    result = _run(["migrate", "backfill-identity", "--json"], _project(tmp_path, layout="legacy_project_root"))
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.stdout)["error"]["code"] == LEGACY_CHARTER_STATE
+    assert result.stderr == ""
+
+
+@pytest.mark.regression
+def test_cli_json_refusal_merged_stream_parses_as_one_object(tmp_path: Path) -> None:
+    """SC-003: ``result.output`` is the merged stream; the only deliberate use of it."""
+    result = _run(["charter", "status", "--json"], _project(tmp_path, layout="legacy_project_root"))
+
+    assert json.loads(result.output)["error"]["code"] == LEGACY_CHARTER_STATE
+
+
+# --------------------------------------------------------------------------- #
 # Layering and cost
 # --------------------------------------------------------------------------- #
 
