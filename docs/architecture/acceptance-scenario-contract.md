@@ -18,9 +18,8 @@ related:
 > the nightly job exist ([ADR 2026-10-11-3](../adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md)).
 > This page designs the four additions in
 > [ADR 2026-10-13-1](../adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md):
-> the scenario contract (A), the per-pull-request check (B) and the evidence bundle (C) are built;
-> of the fixture builders (D), a project with a Mission is built and a work package in a given
-> lane is not. Ownership and the absorption of engineering tests are in
+> the scenario contract (A), the per-pull-request check (B), the evidence bundle (C) and the
+> fixture builders (D) are built. Ownership and the absorption of engineering tests are in
 > [ADR 2026-10-15-1](../adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md).
 
 **Reader:** a maintainer or contributor who writes, reviews or generates scenarios under
@@ -166,7 +165,7 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   (`if-no-files-found: error`), and sets `retention-days: 30`.
 - The job's `if:` drops the `pull_request` clause.
 
-## D. Fixture builders (partly built)
+## D. Fixture builders (built)
 
 Today's Arrange steps can set up an initialised project and a git repository with history. The
 promises that matter next (mission creation, the status lane walk, review and consolidation)
@@ -174,18 +173,23 @@ need a project with a mission in a known state.
 
 - **Builders stay black-box.** A builder in `kitty.acceptance.environment` reaches a state only by
   running the CLI through the driver (`init`, `agent mission create`, `agent mission
-  finalize-tasks`, `move-task`, ...). It never writes `.kittify/` or `kitty-specs/` files
-  directly, so a builder breaks when the CLI's own path breaks, which is the point.
+  finalize-tasks`, `move-task`, ...). It never writes CLI-managed state, so a builder breaks when
+  the CLI's own path breaks, which is the point. It may write what an agent or a user authors (see
+  "What a builder may write" below).
 - **Steps on top:** `Given a project with a mission "<slug>"`, `Given the work package "<wp>" of
   mission "<slug>" is in lane "<lane>"`, and assert steps on `spec-kitty agent tasks status
   --json` output.
 - **First scenarios:** a small mission-lifecycle area that proves the builders, each with a
   positive control.
-- **Built so far:** `Given a project with a mission "<slug>"` (`MissionFixture`, through `init` and
-  `agent mission create`), and plain-git builders for sparse-checkout state, linked worktrees and an
-  in-progress merge (`GitStates`). A work package in a given lane is not built: it needs the spec,
-  tasks and work-package files an agent authors, which this section's rule does not allow yet
-  (ADR 2026-10-15-1, decision 6).
+- **Built:** `MissionFixture` (a project with a Mission, through `init` and `agent mission create`),
+  `MissionLifecycle` (a Mission planned on the topic branch `work` up to finalized work packages, a
+  `single_branch` Mission on the topic branch or minted from protected `main`, and a work package
+  walked through `in_progress`, `for_review`, `in_review` and `approved`, or rejected with
+  feedback), and `GitStates` (sparse-checkout state, linked worktrees, an in-progress merge).
+- **What a builder may write (amended 2026-10-15, ADR 2026-10-15-1 decision 6):** the planning files
+  an agent authors (`spec.md`, `plan.md`, `tasks.md`, `tasks/WP*.md`), a work package's code, review
+  feedback outside the repository and plain files a user edits in git. Never CLI-managed state:
+  `meta.json`, the status log, `lanes.json`, review-cycle records or anything under `.kittify/`.
 
 ## What this design does not cover
 

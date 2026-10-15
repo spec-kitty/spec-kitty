@@ -63,17 +63,18 @@ Only tests whose feedback already arrives nightly may move: all of `tests/integr
 
 Measured with the files' own text: files named `test_*.py`, all `.py` lines in the tree, and `def test_*` functions.
 
-| Tree | 2026-10-15 baseline (`f87ecb8a21`) | After waves 1, 1b, R and D | Change |
+| Tree | 2026-10-15 baseline (`f87ecb8a21`) | After waves 1, 1b, 2, R and D | Change |
 |---|---|---|---|
-| `tests/integration` | 177 files, 64,552 lines, 1,141 tests | 151 files, 59,294 lines, 970 tests | -26 files (-15%), -5,258 lines (-8%) |
-| `tests/e2e` | 7 files, 3,264 lines, 22 tests | 5 files, 2,868 lines, 12 tests | -2 files, -396 lines (-12%) |
-| `tests/scenarios` (gating) | 2 files, 5 scenarios | 8 files, 24 scenarios | +19 scenarios |
+| `tests/integration` | 177 files, 64,552 lines, 1,141 tests | 151 files, 58,874 lines, 957 tests | -26 files (-15%), -5,678 lines (-9%) |
+| `tests/e2e` | 7 files, 3,264 lines, 22 tests | 4 files, 2,396 lines, 9 tests | -3 files, -868 lines (-27%) |
+| `tests/scenarios` (gating) | 2 files, 5 scenarios | 12 files, 42 scenarios | +37 scenarios |
 
-Of the 28 files that left the two trees, 3 were absorbed whole into scenarios, 6 were duplicates
+Of the 29 files that left the two trees, 4 were absorbed whole into scenarios, 6 were duplicates
 retired after their unique assertions were folded into the surviving tests, and 19 were unit tests
-moved to their module's tree (where they now run on every pull request). A further 17 test
+moved to their module's tree (where they now run on every pull request). A further 29 test
 functions moved into scenarios from files that stay. `tests/scenarios/absorption-ledger.json`
-holds one row for each (42 rows).
+holds one row for each (58 rows). The scenarios run four at a time; the gating pass took 230
+seconds locally.
 
 The [inventory](integration-e2e-inventory.md) classifies every baseline file:
 
@@ -97,8 +98,9 @@ Each wave has an exit target, measured with the same counts.
 | 1 | Sparse-checkout doctor, `consolidate --abort` with a user's merge, Mission create and its refusals, the retired alias option refused; two duplicates retired | none | done | 13 ledger rows, 11 new gating scenarios |
 | 1b | Black-box cases that need only the CLI and plain git: `implement` and `consolidate` refused under sparse-checkout, `consolidate --abort` on a Mission with no merge state, `mission close --discard`, a fresh `init` ready for `next`; new coverage for `specify` outside a project | new steps: commit everything, branches unchanged, clean tree, a Mission's file content | done | 6 more ledger rows, 8 more gating scenarios |
 | 1c | The rest of the black-box candidates: charter synthesize and status freshness on a fresh project, the charter quickstart checks, the custom Mission error envelopes | new Arrange steps (charter interview with defaults); the custom Mission definition lives under `.kittify/missions/`, which needs a ruling like decision 6 | open | 4 integration files partly absorbed |
-| 2 | Mission lifecycle: implement, review, reject, approve, consolidate, `single_branch` write checkout, re-finalize frozen lanes, review cycles, the e2e full workflow and coordination status placement | a decision on authored content in Arrange (ADR 2026-10-15-1, decision 6), then a "Mission with finalized work packages" builder | blocked on the decision | 15 integration files and 3 e2e files absorbed |
-| 3 | Org charter packs in lint, status and context | a CLI command that registers an org pack (no command does today, so the arrange would write `.kittify/config.yaml`); file the gap upstream first | blocked on the CLI gap | 3 integration files absorbed |
+| 2 | Mission lifecycle: setup-plan, the hand-off to review, coordination status placement, rejection and review cycles, the `single_branch` write-checkout gates, `mission close --discard` of a single-branch Mission, consolidating an accepted Mission with stray untracked files | authored-content Arrange (ADR 2026-10-15-1, decision 6, decided 2026-10-15) and the `MissionLifecycle` builder | done | 16 more ledger rows, 18 more gating scenarios |
+| 2b | The rest of the lifecycle candidates: re-finalize keeping started lanes, the owned-checkout walk and refusals, the full coordination workflow to consolidate, the no-op upgrade, a styleguide reaching the implement prompt | builder steps for a `lanes` topology Mission and an owned checkout | open | 9 integration files partly absorbed |
+| 3 | Org charter packs in lint, status and context | a CLI command that registers an org pack ([#6267](https://github.com/spec-kitty/spec-kitty/issues/6267)); today the arrange would write `.kittify/config.yaml` | blocked on #6267 | 3 integration files absorbed |
 | D | Unit tests misplaced in `tests/integration` and `tests/e2e` moved to their module's tree | none | done | 19 files moved; one test that could not fail deleted |
 | R | Duplicate claims verified; unique assertions folded into the surviving tests, then the duplicate retired: `test_policy_source_attribution.py`, `test_reject_without_force.py`, `test_session_warning_once.py`, `test_mission_close.py` (plus `test_legacy_feature_alias.py` and `test_hic_terminus_e2e.py` in wave 1) | none | done | 6 files |
 

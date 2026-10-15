@@ -5,7 +5,7 @@ status: Accepted
 date: '2026-10-13'
 ---
 
-**Status:** Accepted, accepted by the owner on 2026-10-13
+**Status:** Accepted, accepted by the owner on 2026-10-13. Amended 2026-10-15, see [Amendment](#amendment-2026-10-15-authored-files-in-fixture-builders).
 
 **Date:** 2026-10-13
 
@@ -126,3 +126,13 @@ Four problems remain:
   design, including the fixture builders.
 * [CLI acceptance scenarios](../../development/testing/acceptance-scenarios.md): how to write and
   run scenarios today.
+
+## Amendment (2026-10-15): authored files in fixture builders
+
+Decision 6 of [ADR 2026-10-15-1](2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md)
+(operator ruling) narrows decision 5 above. A fixture builder may write the files an agent or a user
+authors: the planning files of `specify`, `plan` and `tasks` (`spec.md`, `plan.md`, `tasks.md`,
+`tasks/WP*.md`), a work package's code in its checkout, review feedback outside the repository, and
+plain files a user edits in git. It still reaches every state through the CLI and never writes
+CLI-managed state (`meta.json`, the status log, `lanes.json`, review-cycle records, `.kittify/`).
+

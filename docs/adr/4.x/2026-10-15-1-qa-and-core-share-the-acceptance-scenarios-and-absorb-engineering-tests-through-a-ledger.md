@@ -81,7 +81,16 @@ The audit behind this ADR classified all 184 files (the [inventory](../../develo
 5. **Signal parity.** The new `acceptance-bdd-escalation` job in `ci-nightly.yml` turns a red `acceptance-bdd` run on `main` into one deduplicated P0 issue under the suite key `acceptance-bdd`. It closes the issue on the next green run. Both jobs are in `nightly-summary.needs`.
 
    This **amends ADR 2026-10-11-3**, which treated the core job as an artefact producer only. It also **proposes an answer to open item 3 of spec-kitty-qa ADR-0001** (issue routing): a red acceptance run files into this repository under that one key, and the spec-kitty-qa acceptance nightly reuses the key rather than opening a second issue for the same red. If spec-kitty-qa disagrees, only the key and the owner of the filing change; the escalation stays.
-6. **Open: authored content in Arrange.** Absorbing the lifecycle tests (implement, review, consolidate) needs a builder that writes the spec, tasks and work-package files an agent writes during `specify` and `tasks`. ADR 2026-10-13-1 decision 5 forbids builders from writing `kitty-specs/`. A follow-up decision must say whether authored files (never CLI-managed state such as `meta.json`, `status.events.jsonl` or `lanes.json`) are allowed. Wave 2 of the plan waits for it.
+6. **Authored content in Arrange (decided, operator ruling 2026-10-15).** A scenario builder may write
+   the files an agent authors during `specify`, `plan` and `tasks` (`spec.md`, `plan.md`, `tasks.md`,
+   `tasks/WP*.md`), the code a work package's implementer writes in its checkout, a reviewer's
+   feedback file outside the repository, and plain files a user edits in git (a tracked file, an
+   untracked stray file). It still never writes CLI-managed state: `meta.json`, the status log,
+   `lanes.json`, review-cycle records, or anything under `.kittify/`. This **amends decision 5 of
+   ADR 2026-10-13-1**, which allowed no file writes at all; its purpose (a builder breaks when the
+   CLI's own path breaks) holds, because every state change still goes through the CLI. Planning
+   happens on a topic branch, because Spec Kitty refuses planning commits on the protected primary
+   branch, which is also what a user does.
 
 ### Consequences
 
@@ -95,7 +104,7 @@ The audit behind this ADR classified all 184 files (the [inventory](../../develo
 
 * Contributors deleting or renaming a baseline file must add a ledger row.
 * The ledger only grows; it is the history of the move.
-* Until decision 6 is taken, absorption stops at the black-box cases: the first waves took `tests/integration` from 177 to 151 files and `tests/e2e` from 7 to 5, most of it by moving misplaced unit tests and retiring duplicates; the lifecycle tests are the larger part still to move.
+* Lifecycle tests that need an owned checkout, a mergeable or approved Mission, or crafted older-version state are still to move or stay; the waves so far took `tests/integration` from 177 to 151 files and 64,552 to 58,874 lines, and `tests/e2e` from 7 to 4 files.
 
 #### Neutral
 
@@ -107,7 +116,7 @@ The audit behind this ADR classified all 184 files (the [inventory](../../develo
 * `tests/architectural/test_scenario_contract.py` passes on the real tree, and each planted ledger fails its own rule.
 * The same file fails when a planted CODEOWNERS line takes `tests/scenarios/` away from the shared owners.
 * `tests/ci/test_acceptance_bdd_job.py` pins one escalation job with one key, fail-closed, mainline-only, aggregated by `nightly-summary`.
-* For every absorbing scenario, putting the guarded defect back turned it red and left the others green: the #4754 abort, sparse-checkout detection, the sparse-checkout preflight of `implement` and `consolidate`, the #4863 no-state abort, the #3716 discard provenance, the #840 schema stamp and the not-initialised gate.
+* For every absorbing scenario, putting the guarded defect back turned it red and left the others green: the #4754 abort, sparse-checkout detection, the sparse-checkout preflight of `implement` and `consolidate`, the #4863 no-state abort, the #3716 discard provenance, the #840 schema stamp, the not-initialised gate, the single-branch review commit gate, the empty-feedback refusal (both layers), the declared reviewer, the occupied and dirty write checkout, and the kept ref of a discarded Mission branch.
 * `acceptance-jvm/build.gradle` declares the test task never up to date, because the wheel under test is built at run time from a checkout Gradle does not track; without that, a re-run after a source change reported the previous results.
 
 ## More Information

@@ -3725,6 +3725,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-15-authored-files-in-fixture-builders", text: "Amendment (2026-10-15): authored files in fixture builders", level: 2}
   - path: "docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md"
     title: "ADR: the event ledger is the publication seam, on by default, with a versioned row contract and local-log retention"
     divio_type: "none"
@@ -4962,7 +4963,7 @@ pages:
     - {slug: "a-the-scenario-contract", text: "A. The scenario contract", level: 2}
     - {slug: "b-the-per-pull-request-scenario-check-built", text: "B. The per-pull-request scenario check (built)", level: 2}
     - {slug: "c-the-evidence-bundle-built", text: "C. The evidence bundle (built)", level: 2}
-    - {slug: "d-fixture-builders-partly-built", text: "D. Fixture builders (partly built)", level: 2}
+    - {slug: "d-fixture-builders-built", text: "D. Fixture builders (built)", level: 2}
     - {slug: "what-this-design-does-not-cover", text: "What this design does not cover", level: 2}
   - path: "docs/architecture/adr-template.md"
     title: "[Short descriptive title]"
