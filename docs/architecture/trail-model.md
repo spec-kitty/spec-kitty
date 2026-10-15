@@ -55,7 +55,7 @@ Mode-of-work is recorded on the `started` event as the `mode_of_work` field. New
 
 ### Mode Enforcement at Tier 2 Promotion
 
-`spec-kitty profile-invocation complete --evidence <path>` is rejected with `InvalidModeForEvidenceError` when the target invocation is not evidence-eligible. The enforcement runs **before** any write, so the invocation remains open and uncommitted — rerun `complete` without `--evidence` to close cleanly.
+`spec-kitty profile-invocation complete --evidence <path>` is rejected with `InvalidModeForEvidenceError` when the target invocation is not evidence-eligible. The enforcement runs **before** any write, so the invocation remains open and uncommitted — rerun `complete` without `--evidence` to close cleanly. Unsupported evidence (not UTF-8 text) is likewise rejected before any write, with `UnsupportedEvidenceError` surfacing as `complete_failed` (exit 1).
 
 Pre-mission records (invocations opened before this enforcement landed) have no `mode_of_work` field and are accepted by enforcement — legacy behaviour is preserved. See ADR-002-mode-derivation.md for the full derivation table and rationale.
 
@@ -111,6 +111,7 @@ Created when the caller explicitly flags that the invocation produced checkable 
 
 - **Trigger**: Caller sets `--evidence <path>` on `spec-kitty profile-invocation complete`.
 - **Storage**: `.kittify/evidence/{invocation_id}/evidence.md` and `.kittify/evidence/{invocation_id}/record.json`
+- **Format**: UTF-8 text only, checked before the `completed` event is recorded.
 - **When**: `task_execution` and `mission_step` modes only.
 
 ### Tier 3 — Durable Project State (optional, action-driven)

@@ -53,7 +53,7 @@ event to the trail file.
 |---|---|
 | `--invocation-id`, `-i TEXT` | Invocation ULID to close [required] |
 | `--outcome TEXT` | `done`, `failed`, or `abandoned` [required] |
-| `--evidence TEXT` | Path to evidence file (Tier 2 promotion). Accepted for evidence-eligible records. |
+| `--evidence TEXT` | Path to a UTF-8 text evidence file (Tier 2 promotion). Accepted for evidence-eligible records. |
 | `--artifact TEXT` | Path to an artifact produced by this invocation (repeatable) |
 | `--commit TEXT` | Git commit SHA most directly produced by this invocation (singular) |
 | `--json` | Output JSON payload |
@@ -139,6 +139,13 @@ An invocation that was opened but never completed is stale. Use
 invocation's `mode_of_work`. Attempting to promote evidence on a non-eligible
 record results in `InvalidModeForEvidenceError`, and no write occurs. Re-run
 `complete` without `--evidence` to close the invocation cleanly.
+
+Evidence must be UTF-8 text. A file that is not (for example a PNG screenshot),
+or inline text that cannot be encoded as UTF-8, is refused **before any write**
+with `complete_failed` (exit 1) and the message "No completion was recorded".
+The invocation stays open, so re-run `complete` with a text evidence file. A
+path that cannot be read, or a relative path that escapes the repository, is
+still stored as the inline text you passed.
 
 | mode_of_work | Tier 2 evidence (`--evidence`) eligible |
 |---|---|

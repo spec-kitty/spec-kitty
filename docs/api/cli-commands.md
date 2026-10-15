@@ -5173,7 +5173,9 @@ _Manage invocation records._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --invocation-id  -i      <str>  Invocation ULID to close [required]       │
 │ *  --outcome                <str>  done | failed | abandoned [required]      │
-│    --evidence               <str>  Path to evidence file (Tier 2 promotion)  │
+│    --evidence               <str>  Path to a UTF-8 text evidence file (Tier  │
+│                                    2 promotion); checked before the Op       │
+│                                    closes                                    │
 │    --artifact               <str>  Path (repo-relative or absolute) or URL   │
 │                                    of an artifact produced by this           │
 │                                    invocation. Repeatable.                   │
