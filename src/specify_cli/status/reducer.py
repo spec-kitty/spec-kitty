@@ -27,6 +27,7 @@ from .models import (
     ReviewResult,
     StatusEvent,
     StatusSnapshot,
+    is_migration_actor,
 )
 from .store import StoreError, read_event_stream, read_events_raw
 
@@ -124,6 +125,20 @@ def _project_cancellation_provenance(
 IMPLEMENTER_OF_RECORD_SLOT = "implementer_of_record"
 
 
+def _is_claimant_bearing_claim(event: StatusEvent) -> bool:
+    """A ``planned -> claimed`` event whose ``policy_metadata['agent']`` sidecar names a claimant."""
+    return event.from_lane == Lane.PLANNED and event.to_lane == Lane.CLAIMED and bool((event.policy_metadata or {}).get("agent"))
+
+
+def _latest_real_claim_at(claims: Iterable[StatusEvent]) -> dict[str, str]:
+    """Per work package, the greatest ``at`` among non-seed claimant-bearing claims."""
+    latest: dict[str, str] = {}
+    for event in claims:
+        if not is_migration_actor(event.actor) and event.at > latest.get(event.wp_id, ""):
+            latest[event.wp_id] = event.at
+    return latest
+
+
 def _project_implementer_attribution(
     events: Iterable[StatusEvent],
     snapshot: StatusSnapshot,
@@ -151,6 +166,15 @@ def _project_implementer_attribution(
     Exposed on :data:`IMPLEMENTER_OF_RECORD_SLOT`, a slot the fold/release
     path never touches — the live ``agent`` claim keeps its existing
     release semantics byte-for-byte (#4673).
+
+    Seed rule (#6093): a seed claim (a ``migration:`` actor) counts only when no
+    *real* claimant-bearing claim of the SAME work package is at or after it.
+    Why: the migration re-stamps a seed at the real claim's ``at``, and a
+    later-sorting ``event_id`` would otherwise replace the real claimant.
+    Relation to the shared reducer's ``agent`` slot: a real sidecar outranks a
+    seed there too. The one shape where they differ is a re-claim without a
+    claimant followed by a seed: the live slot keeps the earlier claimant, while
+    this projection reports the seed's, which was also the result before this rule.
     """
     seen_event_ids: set[str] = set()
     unique_events: list[StatusEvent] = []
@@ -159,12 +183,12 @@ def _project_implementer_attribution(
             continue
         seen_event_ids.add(event.event_id)
         unique_events.append(event)
-    for event in unique_events:
-        if not (event.from_lane == Lane.PLANNED and event.to_lane == Lane.CLAIMED):
+    claims = [event for event in unique_events if _is_claimant_bearing_claim(event)]
+    latest_real_claim_at = _latest_real_claim_at(claims)
+    for event in claims:
+        if is_migration_actor(event.actor) and latest_real_claim_at.get(event.wp_id, "") >= event.at:
             continue
         claimant = (event.policy_metadata or {}).get("agent")
-        if not claimant:
-            continue
         state = snapshot.work_packages.get(event.wp_id)
         if state is None:
             continue
