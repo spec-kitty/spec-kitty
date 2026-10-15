@@ -45,10 +45,12 @@ class Nfr001DetailLatencyTest {
   private static final double LIST_ARTIFACTS_CEILING_MS = 1_500;
 
   // getArtifactContent of a 262144-byte file: spec 100 ms. Measured ratios 29.18 to 30.90; p95 68 to 72 ms.
-  // Raised from 45 (operator ruling 2026-10-15): the same seven runs measured ratios 25.86 to 43.47 with p95 63 to 84 ms. The 100 ms ceiling
-  // still catches a slow route.
+  // Raised from 45 (operator ruling 2026-10-15): the same seven runs measured ratios 25.86 to 43.47 with p95 63 to 84 ms. The absolute
+  // ceiling below still catches a slow route.
+  // The spec target stays 100 ms. On the 4-CPU GitHub runner the first CI run of #6265 measured a p95 of 146.4 ms (floor 5.829 ms, ratio
+  // 25.12), so the ceiling is 250 ms, amended by that CI-runner measurement under ADR 2026-10-05-2. The ratio limit stays the primary check.
   private static final double GET_ARTIFACT_CONTENT_RATIO_LIMIT = 60;
-  private static final double GET_ARTIFACT_CONTENT_CEILING_MS = 100;
+  private static final double GET_ARTIFACT_CONTENT_CEILING_MS = 250;
 
   private static void measure(String name, Path root, String route, int warmup, int samples, double ratioLimit, double ceilingMs) {
     try (HttpHarness server = HttpHarness.startWired(root)) {
