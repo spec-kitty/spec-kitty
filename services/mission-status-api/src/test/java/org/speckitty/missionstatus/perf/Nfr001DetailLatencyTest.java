@@ -50,7 +50,9 @@ class Nfr001DetailLatencyTest {
   // The spec target stays 100 ms. On the 4-CPU GitHub runner the first CI run of #6265 measured a p95 of 146.4 ms (floor 5.829 ms, ratio
   // 25.12), so the ceiling is 250 ms, amended by that CI-runner measurement under ADR 2026-10-05-2. The ratio limit stays the primary check.
   private static final double GET_ARTIFACT_CONTENT_RATIO_LIMIT = 60;
-  private static final double GET_ARTIFACT_CONTENT_CEILING_MS = 250;
+  private static final double GET_ARTIFACT_CONTENT_SPEC_MS = 100;
+  private static final double GET_ARTIFACT_CONTENT_CEILING_AMENDMENT_MS = 250;
+  private static final double GET_ARTIFACT_CONTENT_CEILING_MS = GET_ARTIFACT_CONTENT_CEILING_AMENDMENT_MS;
 
   private static void measure(String name, Path root, String route, int warmup, int samples, double ratioLimit, double ceilingMs) {
     try (HttpHarness server = HttpHarness.startWired(root)) {
@@ -118,8 +120,18 @@ class Nfr001DetailLatencyTest {
   }
 
   @Test
-  void controlTheCeilingsAreTheFiguresOfTheSpec() {
-    assertThat(new double[] {GET_MISSION_CEILING_MS, GET_WORK_PACKAGE_DETAIL_CEILING_MS, LIST_ARTIFACTS_CEILING_MS, GET_ARTIFACT_CONTENT_CEILING_MS}).containsExactly(100, 100, 1_500, 100);
+  void controlTheSpecFiguresAreThoseOfTheSpec() {
+    assertThat(new double[] {GET_MISSION_CEILING_MS, GET_WORK_PACKAGE_DETAIL_CEILING_MS, LIST_ARTIFACTS_CEILING_MS, GET_ARTIFACT_CONTENT_SPEC_MS}).containsExactly(100, 100, 1_500, 100);
+  }
+
+  // Every ceiling is its spec figure or a documented amendment not below it. The only amendment is getArtifactContent, at exactly 250 ms.
+  @Test
+  void controlEveryCeilingIsItsSpecFigureOrADocumentedAmendment() {
+    assertThat(GET_MISSION_CEILING_MS).as("getMission ceiling").isEqualTo(100);
+    assertThat(GET_WORK_PACKAGE_DETAIL_CEILING_MS).as("getWorkPackageDetail ceiling").isEqualTo(100);
+    assertThat(LIST_ARTIFACTS_CEILING_MS).as("listArtifacts ceiling").isEqualTo(1_500);
+    assertThat(GET_ARTIFACT_CONTENT_CEILING_AMENDMENT_MS).as("getArtifactContent amendment").isEqualTo(250).isGreaterThanOrEqualTo(GET_ARTIFACT_CONTENT_SPEC_MS);
+    assertThat(GET_ARTIFACT_CONTENT_CEILING_MS).as("getArtifactContent ceiling is the amendment").isEqualTo(GET_ARTIFACT_CONTENT_CEILING_AMENDMENT_MS);
   }
 
   private static String hint() {
