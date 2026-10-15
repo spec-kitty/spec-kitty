@@ -865,7 +865,13 @@ def _collect_status_validation_findings(feature_dir: Path, result: Any) -> bool:
     Returns False when there are no events to validate.
     """
     from specify_cli.status import read_events, read_events_raw
-    from specify_cli.status import validate_done_evidence, validate_event_schema, validate_materialization_drift, validate_transition_legality
+    from specify_cli.status import (
+        validate_done_evidence,
+        validate_event_schema,
+        validate_materialization_drift,
+        validate_timestamp_continuity,
+        validate_transition_legality,
+    )
 
     try:
         raw_events = read_events_raw(feature_dir)
@@ -880,6 +886,10 @@ def _collect_status_validation_findings(feature_dir: Path, result: Any) -> bool:
 
         result.errors.extend(validate_transition_legality(status_events))
         result.errors.extend(validate_done_evidence(status_events))
+        # Clock-skew ordering anomalies are warnings, not errors (spec-kitty#4941):
+        # the reducer re-orders them correctly, but the log's timestamps are out
+        # of causal order and the operator should know. Warnings never fail validate.
+        result.warnings.extend(validate_timestamp_continuity(status_events))
 
         # Drift detection: event log is sole authority, drift is always an error
         drift_findings = validate_materialization_drift(feature_dir)

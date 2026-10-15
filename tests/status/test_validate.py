@@ -18,6 +18,7 @@ from specify_cli.status.validate import (
     validate_done_evidence,
     validate_event_schema,
     validate_materialization_drift,
+    validate_timestamp_continuity,
     validate_transition_legality,
 )
 
@@ -670,3 +671,91 @@ class TestValidateDerivedViews:
         """No tasks directory: returns []."""
         findings = validate_derived_views(tmp_path, {"WP01": {"lane": "planned"}}, phase=2)
         assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# validate_timestamp_continuity (spec-kitty#4941: clock-skew ordering anomaly)
+# ---------------------------------------------------------------------------
+
+
+def _ev(event_id: str, frm: str, to: str, at: str, **kw) -> dict:
+    return _make_event(event_id=event_id, from_lane=frm, to_lane=to, at=at, **kw)
+
+
+class TestValidateTimestampContinuity:
+    def _pipeline_to_in_review(self) -> list[dict]:
+        return [
+            _ev("01A", "planned", "claimed", "2026-02-08T12:00:00+00:00"),
+            _ev("01B", "claimed", "in_progress", "2026-02-08T12:05:00+00:00"),
+            _ev("01C", "in_progress", "for_review", "2026-02-08T12:10:00+00:00"),
+            _ev("01D", "for_review", "in_review", "2026-02-08T12:15:00+00:00"),
+        ]
+
+    def test_clean_pipeline_has_no_findings(self) -> None:
+        assert validate_timestamp_continuity(self._pipeline_to_in_review()) == []
+
+    def test_future_stamped_approval_before_rejection_is_flagged(self) -> None:
+        """The #4941 shape: an approval 10 min in the future, then a real-clock
+        rejection that sorts before it. The rejection (from_lane=approved) does
+        not continue the in_review lane in force at its sort position."""
+        events = [
+            *self._pipeline_to_in_review(),
+            _ev("01E", "in_review", "approved", "2026-02-08T12:40:00+00:00", actor="reviewer-a"),
+            _ev("01F", "approved", "in_progress", "2026-02-08T12:30:00+00:00", actor="reviewer-b", review_ref="r://x"),
+        ]
+        findings = validate_timestamp_continuity(events)
+        assert len(findings) == 1
+        assert "01F" in findings[0]
+        assert "clock-skew" in findings[0]
+
+    def test_on_time_rejection_is_not_flagged(self) -> None:
+        """Control: the same rejection with the approval in the past produces no
+        anomaly -- the only difference from the flagged case is the approval's at."""
+        events = [
+            *self._pipeline_to_in_review(),
+            _ev("01E", "in_review", "approved", "2026-02-08T12:20:00+00:00", actor="reviewer-a"),
+            _ev("01F", "approved", "in_progress", "2026-02-08T12:30:00+00:00", actor="reviewer-b", review_ref="r://x"),
+        ]
+        assert validate_timestamp_continuity(events) == []
+
+    def test_force_transition_is_never_flagged(self) -> None:
+        events = [
+            _ev("01A", "planned", "claimed", "2026-02-08T12:00:00+00:00"),
+            _ev("01B", "approved", "planned", "2026-02-08T12:05:00+00:00", force=True, reason="rewind"),
+        ]
+        assert validate_timestamp_continuity(events) == []
+
+    def test_reconstruction_seed_is_not_flagged(self) -> None:
+        events = [
+            *self._pipeline_to_in_review(),
+            _ev("01E", "in_review", "approved", "2026-02-08T12:40:00+00:00", actor="reviewer-a"),
+            _ev("01S", "approved", "planned", "2026-02-08T12:30:00+00:00", actor="migration:backfill_runtime_state"),
+        ]
+        assert validate_timestamp_continuity(events) == []
+
+    def test_rework_cycle_on_correct_clocks_is_clean(self) -> None:
+        events = [
+            *self._pipeline_to_in_review(),
+            _ev("01E", "in_review", "approved", "2026-02-08T12:20:00+00:00", actor="reviewer-a"),
+            _ev("01F", "approved", "in_progress", "2026-02-08T12:25:00+00:00", actor="reviewer-b", review_ref="r://1"),
+            _ev("01G", "in_progress", "for_review", "2026-02-08T12:30:00+00:00"),
+            _ev("01H", "for_review", "in_review", "2026-02-08T12:35:00+00:00"),
+            _ev("01I", "in_review", "approved", "2026-02-08T12:40:00+00:00", actor="reviewer-a"),
+        ]
+        assert validate_timestamp_continuity(events) == []
+
+    def test_findings_are_warnings_not_errors_in_validate_result(self) -> None:
+        """A continuity finding must not flip ValidationResult.passed (warnings
+        never fail validate; the reducer handles the ordering)."""
+        result = ValidationResult()
+        result.warnings.extend(
+            validate_timestamp_continuity(
+                [
+                    *self._pipeline_to_in_review(),
+                    _ev("01E", "in_review", "approved", "2026-02-08T12:40:00+00:00", actor="reviewer-a"),
+                    _ev("01F", "approved", "in_progress", "2026-02-08T12:30:00+00:00", actor="reviewer-b", review_ref="r://x"),
+                ]
+            )
+        )
+        assert result.warnings
+        assert result.passed is True

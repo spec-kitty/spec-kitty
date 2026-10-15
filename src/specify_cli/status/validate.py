@@ -187,6 +187,72 @@ def validate_transition_legality(events: list[dict]) -> list[str]:
     return findings
 
 
+#: Actor-identity prefix marking a reconstruction seed (a migration/backfill
+#: restatement, not a live decision). Mirrors
+#: ``spec_kitty_events.diary._RECONSTRUCTION_SEED_ACTOR_PREFIX``; seeds are
+#: best-effort and are excluded from the timestamp-continuity check below.
+_RECONSTRUCTION_SEED_ACTOR_PREFIX = "migration:"
+
+
+def validate_timestamp_continuity(events: list[dict]) -> list[str]:
+    """Flag a transition whose ``from_lane`` is not the lane the preceding events produce.
+
+    Replays non-seed transitions in ``(at, event_id)`` order -- the same naive
+    wall-clock order the reducer and the union merge driver sort by -- tracking
+    each WP's running lane. A transition whose ``from_lane`` does not equal the
+    lane in force is the signature of a clock-skew ordering anomaly
+    (spec-kitty/spec-kitty#4941): an event minted on a correct clock that a
+    future-stamped predecessor sorts ahead of, e.g. an ``approved -> in_progress``
+    rejection recorded after an approval whose ``at`` ran ahead.
+
+    These are **warnings, not errors** (``spec-kitty agent status validate`` keeps
+    passing): the diary reducer (spec-kitty-events#101) re-orders a departure from
+    ``approved`` after the approval it followed, so the reduced lane is correct,
+    but the log itself carries out-of-causal-order timestamps the operator should
+    know about and fix at the source (a drifting clock, an NTP step). Skipped:
+    rows missing a lane or ``wp_id``; reconstruction seeds (best-effort
+    restatements judged by the reducer's arms); the first transition of a WP (no
+    preceding lane); and ``force`` transitions (break-glass), which still advance
+    the running lane but are never flagged. Aliases are resolved before comparing.
+    """
+    findings: list[str] = []
+    current: dict[str, str] = {}
+    sorted_events = sorted(events, key=lambda e: (e.get("at", ""), e.get("event_id", "")))
+
+    for event in sorted_events:
+        from_lane = event.get("from_lane")
+        to_lane = event.get("to_lane")
+        wp_id = event.get("wp_id")
+        if from_lane is None or to_lane is None or wp_id is None:
+            continue
+        if str(event.get("actor", "")).startswith(_RECONSTRUCTION_SEED_ACTOR_PREFIX):
+            continue  # a seed never sets the continuity baseline, nor is it flagged
+
+        resolved_from = resolve_lane_alias(str(from_lane))
+        resolved_to = resolve_lane_alias(str(to_lane))
+        prior = current.get(str(wp_id))
+
+        if prior is None or bool(event.get("force", False)):
+            # First transition (no baseline) or a break-glass force: not flagged,
+            # but both move the running lane the later events are measured against.
+            current[str(wp_id)] = resolved_to
+            continue
+
+        if resolved_from != prior:
+            event_id = event.get("event_id", "unknown")
+            findings.append(
+                f"Event {event_id}: from_lane '{from_lane}' is not the lane the preceding events "
+                f"produce ('{prior}') -- a clock-skew ordering anomaly; the reducer re-orders it, "
+                f"but this log's timestamps are out of causal order (see spec-kitty#4941)"
+            )
+            # Do not advance: keep the lane the in-continuity chain produced.
+            continue
+
+        current[str(wp_id)] = resolved_to
+
+    return findings
+
+
 def validate_done_evidence(events: list[dict]) -> list[str]:
     """Check all done-transitions have evidence or force flag.
 

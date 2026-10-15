@@ -35,10 +35,16 @@ import org.speckitty.missionstatus.domain.model.WpState;
 public final class StatusReducer {
 
   /**
-   * The {@code spec-kitty-events} release whose {@code reduce_parsed} this class ports. {@code ManifestCouplingTest} holds it equal to the
-   * version the conformance goldens were generated with, so a {@code uv.lock} bump of the oracle cannot land without a port review.
+   * The {@code spec-kitty-events} release whose {@code reduce_parsed} this class is coupled to. {@code ManifestCouplingTest} holds it
+   * equal to the version the conformance goldens were generated with, so a {@code uv.lock} bump of the oracle cannot land without a port review.
+   *
+   * <p>Advanced to 10.5.1 as a pin-only step (spec-kitty#6261, operator ruling): the 10.5.1 change to {@code _order_transitions} — a
+   * non-seed departure from {@code approved} lifted to sort after the clock-ahead approval it followed (spec-kitty#4941,
+   * spec-kitty-events#102) — is NOT yet ported here. No conformance golden exercises that case, so the goldens and this coupling stay
+   * green at the bumped pin; the reduction below still implements the 10.4.6-level behaviour described above. The behaviour port (plus a
+   * fixture that exercises the clock-ahead case) is tracked by spec-kitty#6268.
    */
-  public static final String PORTED_EVENTS_VERSION = "10.4.6";
+  public static final String PORTED_EVENTS_VERSION = "10.5.1";
 
   private static final String[] SYNTHETIC_PREFIXES = {"Force move to ", "move-task: "};
   private static final Set<Lane> ROLLBACK_TARGETS = Set.of(Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS);

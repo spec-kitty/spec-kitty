@@ -260,6 +260,7 @@ from .validate import (
     validate_done_evidence,
     validate_event_schema,
     validate_materialization_drift,
+    validate_timestamp_continuity,
     validate_transition_legality,
 )
 from .aggregate import (
@@ -703,6 +704,7 @@ __all__ = [
     "validate_done_evidence",
     "validate_event_schema",
     "validate_materialization_drift",
+    "validate_timestamp_continuity",
     "validate_transition",
     "validate_transition_legality",
     "wp_snapshot_state",
