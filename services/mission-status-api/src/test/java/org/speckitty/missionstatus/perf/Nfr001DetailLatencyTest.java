@@ -39,11 +39,15 @@ class Nfr001DetailLatencyTest {
   private static final double GET_WORK_PACKAGE_DETAIL_CEILING_MS = 100;
 
   // listArtifacts of a 1000-file Mission, each file read once for `readable`: spec 1500 ms. Measured ratios 31.48 to 36.12; p95 101 to 113 ms.
-  private static final double LIST_ARTIFACTS_RATIO_LIMIT = 45;
+  // Raised from 45 (operator ruling 2026-10-15): seven runs on a quiet 24-cpu machine (load under 4 at start) measured ratios 27.02 to 52.10 with
+  // p95 94 to 109 ms; the spread is the floor (1.1 to 3.9 ms), not the route.
+  private static final double LIST_ARTIFACTS_RATIO_LIMIT = 60;
   private static final double LIST_ARTIFACTS_CEILING_MS = 1_500;
 
   // getArtifactContent of a 262144-byte file: spec 100 ms. Measured ratios 29.18 to 30.90; p95 68 to 72 ms.
-  private static final double GET_ARTIFACT_CONTENT_RATIO_LIMIT = 45;
+  // Raised from 45 (operator ruling 2026-10-15): the same seven runs measured ratios 25.86 to 43.47 with p95 63 to 84 ms. The 100 ms ceiling
+  // still catches a slow route.
+  private static final double GET_ARTIFACT_CONTENT_RATIO_LIMIT = 60;
   private static final double GET_ARTIFACT_CONTENT_CEILING_MS = 100;
 
   private static void measure(String name, Path root, String route, int warmup, int samples, double ratioLimit, double ceilingMs) {
