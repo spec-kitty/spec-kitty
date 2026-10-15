@@ -12,6 +12,7 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.speckitty.missionstatus.conformance.golden.ServedRoute.Entry;
 import org.speckitty.missionstatus.testsupport.CanonicalJson;
+import org.speckitty.missionstatus.testsupport.CaseSensitiveHost;
 import org.speckitty.missionstatus.testsupport.ConformanceTree;
 import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
 
@@ -42,6 +43,9 @@ class DetailGoldenSuiteTest {
   static int compare(ServedRoute provider, GoldenSource goldens) {
     int compared = 0;
     for (Entry entry : provider.served()) {
+      if (!CaseSensitiveHost.comparable(entry.fixtureKey())) {
+        continue;
+      }
       TreeFixture fixture = fixture(entry.fixtureKey());
       byte[] golden = goldens.apply(fixture, entry.goldenFile());
       if (golden == null) {
