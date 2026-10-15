@@ -648,6 +648,44 @@ def _plain_cli_console_seam() -> Iterator[None]:
         err_console._width, err_console._height = original_err_console_size
 
 
+@pytest.fixture(autouse=True)
+def _isolate_init_console_seam() -> Iterator[None]:
+    """Re-point the init command's console at the canonical seam per test (#6224).
+
+    ``specify_cli.cli.commands.init`` keeps a module-global ``_console`` that
+    ``register_init_command`` binds. The init test files each register init on
+    their own throwaway app with a private ``CliConsole(file=StringIO())`` to
+    capture output, which mutates that shared global. A later test that drives
+    the CACHED real app (``from specify_cli import app``) never re-registers, so
+    it inherits the previous test's dead buffer and its output is written there
+    instead of to ``CliRunner``'s captured stream -- the order-dependent
+    ``default-preset-missing`` empty-output flake (#6210/#6211/#6212, owner
+    #6224). The product behaviour (fail closed, exit 1) is correct; only the
+    output SINK leaks across tests.
+
+    Reset the global to the canonical ``console`` seam (whose ``.file`` resolves
+    to the live stdout, so ``CliRunner``/``capsys`` capture it) before and after
+    each test. A test that injects its own console still overrides this at its
+    own setup, which runs after this autouse fixture. The reset is a no-op when
+    init was never imported, so conftest's import graph stays free of the heavy
+    init bootstrap.
+    """
+    if "specify_cli.cli.commands.init" not in sys.modules:
+        yield
+        return
+    # Already imported (gate above): this is a cache hit, so the heavy init
+    # bootstrap is never forced, and the typed import keeps ``_console`` a known
+    # module attribute for the assignment below.
+    from specify_cli.cli.commands import init as init_module
+    from specify_cli.cli.console import console as _canonical_console
+
+    init_module._console = _canonical_console
+    try:
+        yield
+    finally:
+        init_module._console = _canonical_console
+
+
 def reset_spec_kitty_queue_state() -> None:
     """Empty the user-scoped spec-kitty queue rows to a clean baseline.
 
