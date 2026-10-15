@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source 
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash: 
+  73ca8d93abef73369c07dd239b7787336541890699f82e4313ff7f3a158822fe
+artifact_kind: styleguide
+artifact_slug: testing-style-guide
+artifact_urn: styleguide:testing-style-guide
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-10-15T04:29:12+00:00'
+inputs_hash: 73ca8d93abef73369c07dd239b7787336541890699f82e4313ff7f3a158822fe
+produced_at: '2026-10-15T04:29:12+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/charter-packs/styleguide/testing-style-guide.styleguide.yaml
+source_section: 
+  .kittify/charter-packs/styleguide/testing-style-guide.styleguide.yaml
+source_urns: []
+synthesis_run_id: 01M4YX4GNYT654Y1MCEKWX8HS0
+synthesizer_version: 4.0.0rc7

@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source 
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash: 
+  061a83d356e452f100de05d15d10983365a163d12ddde649af9acf2ce539f08c
+artifact_kind: tactic
+artifact_slug: how-we-apply-directive-003
+artifact_urn: tactic:how-we-apply-directive-003
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-10-15T04:29:12+00:00'
+inputs_hash: 061a83d356e452f100de05d15d10983365a163d12ddde649af9acf2ce539f08c
+produced_at: '2026-10-15T04:29:12+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/charter-packs/tactic/how-we-apply-directive-003.tactic.yaml
+source_section: 
+  .kittify/charter-packs/tactic/how-we-apply-directive-003.tactic.yaml
+source_urns: []
+synthesis_run_id: 01M4YX4GNYT654Y1MCEKWX8HS0
+synthesizer_version: 4.0.0rc7

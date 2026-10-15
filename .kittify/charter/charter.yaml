@@ -2124,3 +2124,9 @@ activated_paradigms:
 - specification-by-example
 - structured-prompt-driven-development
 - trunk-based
+activated_skills:
+- issue-triage
+- land-pr
+- mission-from-issue
+- report-debrief
+- semi-auto

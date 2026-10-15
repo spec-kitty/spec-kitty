@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source 
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash: 
+  8fe2111d7c9b9b145c9912050d552e016841af0fb22a5bf02929bc09c1ecb4c0
+artifact_kind: directive
+artifact_slug: project-001
+artifact_urn: directive:PROJECT_001
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-10-15T04:29:12+00:00'
+inputs_hash: 8fe2111d7c9b9b145c9912050d552e016841af0fb22a5bf02929bc09c1ecb4c0
+produced_at: '2026-10-15T04:29:12+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/charter-packs/directive/001-mission-type-scope-directive.directive.yaml
+source_section: 
+  .kittify/charter-packs/directive/001-mission-type-scope-directive.directive.yaml
+source_urns: []
+synthesis_run_id: 01M4YX4GNYT654Y1MCEKWX8HS0
+synthesizer_version: 4.0.0rc7

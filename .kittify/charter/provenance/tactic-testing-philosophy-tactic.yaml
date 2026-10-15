@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source 
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash: 
+  55f5227d9336fcc7623be29551705dea289d4fd52366e479355bb68c578b8a0f
+artifact_kind: tactic
+artifact_slug: testing-philosophy-tactic
+artifact_urn: tactic:testing-philosophy-tactic
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-10-15T04:29:12+00:00'
+inputs_hash: 55f5227d9336fcc7623be29551705dea289d4fd52366e479355bb68c578b8a0f
+produced_at: '2026-10-15T04:29:12+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/charter-packs/tactic/testing-philosophy-tactic.tactic.yaml
+source_section: 
+  .kittify/charter-packs/tactic/testing-philosophy-tactic.tactic.yaml
+source_urns: []
+synthesis_run_id: 01M4YX4GNYT654Y1MCEKWX8HS0
+synthesizer_version: 4.0.0rc7
