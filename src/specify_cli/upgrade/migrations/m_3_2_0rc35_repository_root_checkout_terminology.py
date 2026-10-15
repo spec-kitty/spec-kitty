@@ -106,24 +106,52 @@ class RepositoryRootCheckoutTerminologyMigration(BaseMigration):
         if not hits:
             return MigrationResult(success=True, changes_made=["No files needed updating"])
 
+        from specify_cli.asset_preservation.guard import guard_destructive_overwrite
+        from specify_cli.asset_preservation.provers import CanonicalContentProver
+
+        prover = CanonicalContentProver()
         changed: list[str] = []
+        preserved: list[str] = []
+        warnings: list[str] = []
         for md_file in hits:
             try:
                 content = md_file.read_text(encoding="utf-8")
                 original = content
                 for old, new in _REPLACEMENTS:
                     content = content.replace(old, new)
-                if content != original:
-                    if not dry_run:
-                        # Agent command files are left read-only by the
-                        # generation layer; write_generated_file restores the
-                        # write bit before writing so a previously-generated
-                        # file does not raise PermissionError (#3651), and
-                        # leaves it read-only again afterward.
-                        write_generated_file(md_file, content, read_only=True)
-                    rel = str(md_file.relative_to(project_path))
-                    changed.append(rel)
-                    logger.info("Updated: %s", rel)
+                if content == original:
+                    continue
+
+                rel = str(md_file.relative_to(project_path))
+                # A matched phrase in a ``spec-kitty.*`` file is NOT proof of
+                # package ownership: a user-authored custom command that merely
+                # mentions e.g. "main repo" must not have its bytes rewritten
+                # (charter "User Customization Preservation", #6247). Gate the
+                # in-place overwrite on the canonical chokepoint: only a file
+                # whose version marker proves it is package-generated is
+                # rewritten; an unproven file is preserved and reported.
+                verdict = guard_destructive_overwrite(
+                    md_file,
+                    project_path,
+                    replacement_substantive=True,
+                    authorized=False,
+                    prover=prover,
+                )
+                if not verdict.proceed:
+                    preserved.append(rel)
+                    warnings.append(verdict.diagnostic)
+                    logger.info("%s", verdict.diagnostic)
+                    continue
+
+                if not dry_run:
+                    # Agent command files are left read-only by the
+                    # generation layer; write_generated_file restores the
+                    # write bit before writing so a previously-generated
+                    # file does not raise PermissionError (#3651), and
+                    # leaves it read-only again afterward.
+                    write_generated_file(md_file, content, read_only=True)
+                changed.append(rel)
+                logger.info("Updated: %s", rel)
             except OSError as exc:
                 logger.warning("Could not update %s: %s", md_file, exc)
 
@@ -131,4 +159,7 @@ class RepositoryRootCheckoutTerminologyMigration(BaseMigration):
         return MigrationResult(
             success=True,
             changes_made=changed or [summary],
+            warnings=warnings,
+            preserved_paths=preserved,
+            manual_review_required=bool(preserved),
         )
