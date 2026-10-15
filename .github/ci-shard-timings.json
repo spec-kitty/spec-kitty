@@ -34745,6 +34745,7 @@
       "tests/architectural/test_ci_quality_path_filters.py": 1.44,
       "tests/architectural/test_ci_router_transcription_guards.py": 0.6,
       "tests/architectural/test_claudemd_template_source.py": 0.12,
+      "tests/architectural/test_cli_commands_routing.py": 2.04,
       "tests/architectural/test_cli_console_single_seam.py": 0.48,
       "tests/architectural/test_cli_error_surface_seam.py": 1.08,
       "tests/architectural/test_cli_placeholder_output.py": 1.08,
@@ -35038,7 +35039,7 @@
       "window": "2026-09-30T05:32Z..2026-10-01T04:41Z",
       "workers": 2,
       "selection": "not performance and not stress and not timing",
-      "files_measured": 241,
+      "files_measured": 242,
       "captured_at": "2026-10-01T14:13:31.454159+00:00",
       "known_drift": "post-census #5503 (D-37): test_no_dead_symbols.py rewritten after the window; test_dead_symbol_allowlist_{loader,contract}.py post-census (formula-only seed; contract measured ~30 s local single-file; WP13's file-end cache_clear() finalizer on _real_tree_inputs removes M11's cross-file cache hit, ~30 s more on that worker); test_refresh_dead_symbol_hashes.py deleted; mission files added after the census are formula-only seeds (test_gate_os_tier.py, test_battery_partition_proof.py, test_battery_partition_proof_collect.py -- whose one slow collect-only test costs ~6 s but is seeded ~0.2 s); #3732 charter-pack cutover (post-census): five doctrine->charter/offering renames carry their pre-rename measured durations verbatim to the renamed key (test_charter_facades_reexport_offering.py 14.52, test_charter_sole_door_offering_service.py 0.96, test_offering_missions_stale_path_sweep.py 0.12, test_charter_offering_public_surface.py 0.72, test_kernel_no_charter_offering_import.py 0.72); two net-new gate files are median seeds (test_charter_pack_path_authority.py, test_retired_charter_vocabulary.py, 2.51 s each); acceptance-scenario-contract WP04 adds test_scenario_contract.py as a formula-only seed (23 collected x 0.12 s; measured 0.97 s wall single-file); files_measured counts table entries (test_battery_roster_budgets.py ties it to the table length), so it includes this seed (240 -> 241) although the file was not part of the census",
       "superseded_by": "scripts/ci/capture_shard_timings.py --suite architectural --from-junit (D-29)"
