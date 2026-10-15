@@ -190,12 +190,22 @@ class ArtifactQueryServiceTest {
       // spec order: the path is judged before the Mission is looked up, so an unknown Mission with a bad path is also 400
       assertThat(Trees.refusal(() -> service.content(Trees.unknown(), input))).as("unknown Mission, " + input).isEqualTo(DetailRefusal.Kind.INVALID_ARTIFACT_PATH);
     }
-    for (String accepted : List.of("a b.md", "café.md", "a@b.md", ".hidden", "home/x.md", "a/".repeat(255) + "ab")) {
+    for (String accepted : List.of("a b.md", "a@b.md", ".hidden", "home/x.md", "a/".repeat(255) + "ab")) {
       assertThat(Trees.refusal(() -> service.content(Trees.id(), Trees.path(accepted))))
           .as(accepted.length() > 20 ? "512 characters" : accepted)
           .isEqualTo(DetailRefusal.Kind.NOT_FOUND);
     }
     assertThat(Trees.codes(fixture)).isEmpty();
+  }
+
+  /** The one accepted name that is not ASCII: looking it up needs a host that decodes file names as UTF-8, so it is skipped elsewhere (D-128). */
+  @Test
+  void aWellFormedNonAsciiArtifactPathIsNotFoundOnAUtf8Host(org.junit.jupiter.api.TestInfo info) {
+    org.speckitty.missionstatus.testsupport.Utf8Host.assumeUtf8(info.getTestClass().orElseThrow().getName() + "#" + info.getTestMethod().orElseThrow().getName());
+    DetailFixture fixture = Trees.fixture("artifacts-populated", "artifacts-populated");
+    ArtifactQueryService service = Trees.service(fixture);
+
+    assertThat(Trees.refusal(() -> service.content(Trees.id(), Trees.path("caf\u00e9.md")))).isEqualTo(DetailRefusal.Kind.NOT_FOUND);
   }
 
   @Test
