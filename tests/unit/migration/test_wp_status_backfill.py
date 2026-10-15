@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.consolidation.wp_attribution import MIGRATION_ACTOR_PREFIX
+from specify_cli.status import MIGRATION_ACTOR_PREFIX
 from specify_cli.migration import backfill_runtime_state as b
 from specify_cli.migration import wp_status_backfill as planner
 from specify_cli.review.rejection_signal import is_documented_review_rejection

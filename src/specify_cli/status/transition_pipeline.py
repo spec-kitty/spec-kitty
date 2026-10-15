@@ -48,7 +48,6 @@ from .lane_head import LANE_HEAD_KEY
 from .models import (
     FORCE_NOTE_HINT,
     FORCE_NOTE_REQUIRED,
-    MIGRATION_ACTOR_PREFIX,
     DoneEvidence,
     GuardContext,
     InnerStateChanged,
@@ -56,6 +55,7 @@ from .models import (
     StatusEvent,
     TransitionRequest,
     actor_identity_str,
+    is_migration_actor,
 )
 from .transitions import resolve_lane_alias, validate_transition
 from .wp_state import annotate
@@ -233,7 +233,7 @@ def _refuse_unnoted_review_exit(request: TransitionRequest, from_lane: str) -> N
     """
     if not request.force or from_lane not in _VERDICT_GATED_LANES or request.review_result is not None:
         return
-    if request.actor is not None and actor_identity_str(request.actor).startswith(MIGRATION_ACTOR_PREFIX):
+    if is_migration_actor(request.actor):
         return
     if not (request.reason or "").strip():
         raise _emit.TransitionError(

@@ -32,7 +32,7 @@ attribution (:func:`attestation_stamps`); the latest attestation of a WP wins, s
 each re-attestation advances the stamp. An attestation is valid only
 while the WP stays in the same canceled stint: any later governed transition of
 that WP (reopened, re-canceled) voids it. Migration-synthesized events
-(``wp_attribution.MIGRATION_ACTOR_PREFIX``, FR-011) never void it.
+(``specify_cli.status.models.is_migration_actor``, FR-011) never void it.
 """
 
 from __future__ import annotations

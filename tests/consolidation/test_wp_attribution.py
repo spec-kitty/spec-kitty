@@ -23,7 +23,7 @@ import pytest
 
 from specify_cli.consolidation import wp_attribution as wpa
 from specify_cli.consolidation.git_probes import GitProbeError
-from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
+from specify_cli.status import LANE_HEAD_KEY, MIGRATION_ACTOR_PREFIX, Lane, StatusEvent
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -925,7 +925,7 @@ def test_migration_actor_prefix_names_the_backfill_actor() -> None:
     """The module constant is the ``migration:<module>`` convention the backfill uses."""
     from specify_cli.migration.backfill_runtime_state import BACKFILL_ACTOR
 
-    assert BACKFILL_ACTOR.startswith(wpa.MIGRATION_ACTOR_PREFIX)
+    assert BACKFILL_ACTOR.startswith(MIGRATION_ACTOR_PREFIX)
     assert _BACKFILL_ACTOR == BACKFILL_ACTOR
 
 

@@ -42,7 +42,7 @@ from .mission_state import deterministic_ulid
 logger = logging.getLogger(__name__)
 
 #: Actor on every seed. The ``migration:`` prefix is what
-#: ``consolidation.wp_attribution.MIGRATION_ACTOR_PREFIX`` keys on, so attribution
+#: ``specify_cli.status.models.MIGRATION_ACTOR_PREFIX`` (``is_migration_actor``) keys on, so attribution
 #: windows ignore these rows (C-003); a test pins the prefix relationship.
 WP_STATUS_BACKFILL_ACTOR = "migration:backfill_wp_status"
 

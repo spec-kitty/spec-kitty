@@ -60,7 +60,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.emit import parse_agent_boundary_string
-from specify_cli.status.models import ActorField, Lane, actor_identity_str
+from specify_cli.status.models import ActorField, Lane, actor_identity_str, is_migration_actor
 from specify_cli.status.reducer import reduce
 from specify_cli.status.review_claim_predicate import review_claim_decision
 from specify_cli.status.store import read_events
@@ -337,3 +337,23 @@ def test_transition_actor_slot_and_runtime_agent_slot_converge_after_claim(tmp_p
     assert _actor_key(wp_state["actor"]) == "codex"
     assert _actor_key(wp_state["agent"]) == "codex"
     assert _actor_key(wp_state["actor"]) == _actor_key(wp_state["agent"])
+
+
+@pytest.mark.parametrize(
+    ("actor", "expected"),
+    [
+        ("migration:backfill_runtime_state", True),
+        ("migration:verdict_provenance_backfill", True),
+        ({"tool": "migration:backfill_runtime_state", "model": None, "profile": None, "role": None}, True),
+        ({"tool": "migration", "model": "backfill_runtime_state", "profile": None, "role": None}, False),
+        ("claude:sonnet:python-pedro:implementer", False),
+        ("user", False),
+        ("migration", False),
+        ("Migration:x", False),
+        (" migration:x", False),
+        (None, False),
+    ],
+)
+def test_is_migration_actor_classifies_seed_identities(actor: ActorField | None, expected: bool) -> None:
+    """The seed predicate is the exact, case-sensitive ``migration:`` prefix (#6093)."""
+    assert is_migration_actor(actor) is expected

@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
-from specify_cli.status import LANE_HEAD_KEY, MIGRATION_ACTOR_PREFIX, StatusEvent, actor_identity_str
+from specify_cli.status import LANE_HEAD_KEY, StatusEvent, is_migration_actor
 
 from .git_probes import (
     GitProbeError,
@@ -234,8 +234,8 @@ def stamp_of(event: StatusEvent) -> str | None:
 
 
 def is_migration_event(event: StatusEvent) -> bool:
-    """True for a migration-synthesized event (:data:`MIGRATION_ACTOR_PREFIX`, FR-011)."""
-    return bool(actor_identity_str(event.actor).startswith(MIGRATION_ACTOR_PREFIX))
+    """True for a migration-synthesized event (:func:`specify_cli.status.is_migration_actor`, FR-011)."""
+    return bool(is_migration_actor(event.actor))
 
 
 def _classify(lane: str) -> WindowKind | None:
@@ -270,7 +270,7 @@ def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str,
     window class, opens the next window with the SAME event's stamp (a
     ``for_review`` -> ``in_progress`` rework re-enters implementation as a
     NEW window, not a resumption of the earlier one). Migration-synthesized
-    events (FR-011, :data:`MIGRATION_ACTOR_PREFIX`) are skipped entirely.
+    events (FR-011, :func:`specify_cli.status.is_migration_actor`) are skipped entirely.
     """
     open_state: dict[str, tuple[WindowKind, str | None]] = {}
     result: dict[str, list[WorkWindow]] = {wp_id: [] for wp_id in wp_ids}

@@ -209,6 +209,16 @@ def actor_identity_str(actor: ActorField) -> str:
     return actor
 
 
+def is_migration_actor(actor: ActorField | None) -> bool:
+    """True when ``actor`` is a migration-synthesized identity (:data:`MIGRATION_ACTOR_PREFIX`).
+
+    A seed restates history the log already records; it never represents a person
+    or governed work (#6093). Structured (dict) actors are projected through
+    :func:`actor_identity_str`. The match is the exact, case-sensitive prefix.
+    """
+    return actor is not None and actor_identity_str(actor).startswith(MIGRATION_ACTOR_PREFIX)
+
+
 def parse_agent_boundary_string(
     raw: str,
 ) -> tuple[str, str | None, str | None, str | None]:
