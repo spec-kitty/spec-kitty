@@ -32,6 +32,11 @@ public final class AssumeSteps {
         context.world().recordState(relative);
     }
 
+    @Given("the repository's branches are recorded")
+    public void theRepositorysBranchesAreRecorded() {
+        context.world().recordBranches();
+    }
+
     @Given("the repository has at least one commit")
     public void theRepositoryHasAtLeastOneCommit() {
         assertThat(context.world().recordRepoState()).as("Commits in the repository").isPositive();

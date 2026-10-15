@@ -98,6 +98,10 @@ test {
     // Declared inputs make Gradle re-run the task when the pass or filter changes.
     inputs.property('acceptance.pass', acceptancePass)
     inputs.property('cucumber.filter.tags', tagFilter ?: '')
+    // The CLI under test is a wheel built from the checkout at run time, which no Gradle input
+    // tracks. Without this, a re-run after a change under src/ (and nothing in this subproject)
+    // resolves the task UP-TO-DATE and reports the previous run's results as if they were new.
+    outputs.upToDateWhen { false }
 
     if (tagFilter != null) {
         systemProperty 'cucumber.filter.tags', tagFilter

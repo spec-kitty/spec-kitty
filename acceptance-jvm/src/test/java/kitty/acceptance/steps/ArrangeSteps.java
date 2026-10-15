@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -39,6 +40,37 @@ public final class ArrangeSteps {
     @Given("an existing git repository with commit history")
     public void anExistingGitRepositoryWithCommitHistory() {
         context.world().initGitRepoWithCommit();
+    }
+
+    @Given("a project set up with Spec Kitty whose files are committed")
+    public void aProjectSetUpWithSpecKittyWhoseFilesAreCommitted() {
+        missions().ensureProject();
+    }
+
+    @Given("sparse-checkout is turned on in the project for {string}")
+    public void sparseCheckoutIsTurnedOnFor(String patterns) {
+        context.world().enableLegacySparseCheckout(Arrays.stream(patterns.split(","))
+                .map(String::trim).filter(pattern -> !pattern.isEmpty()).toList());
+        assertThat(context.world().gitSetting("core.sparseCheckout"))
+                .as("core.sparseCheckout after turning sparse-checkout on").isEqualTo("true");
+    }
+
+    @Given("the project has a linked worktree {string} with sparse-checkout turned on")
+    public void theProjectHasALinkedWorktreeWithSparseCheckout(String relative) {
+        context.world().addSparseWorktree(relative);
+        assertThat(context.world().resolve(relative)).as("Linked worktree '%s'", relative).isDirectory();
+    }
+
+    @Given("I have a git merge in progress with a conflict in {string}")
+    public void iHaveAGitMergeInProgressWithAConflictIn(String file) {
+        context.world().startConflictingMerge(file);
+        assertThat(context.world().mergeInProgress()).as("A git merge is in progress").isTrue();
+    }
+
+    @Given("every change in the project is committed")
+    public void everyChangeInTheProjectIsCommitted() {
+        context.world().commitEverything("commit the project as it is");
+        assertThat(context.world().uncommittedChanges()).as("Uncommitted changes after committing everything").isEmpty();
     }
 
     @Given("a project with a mission {string}")

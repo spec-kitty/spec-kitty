@@ -55,7 +55,18 @@ final class GitFixture {
                 && recordedCommitCount == Integer.parseInt(git("rev-list", "--count", "HEAD").trim());
     }
 
-    private String git(String... args) {
+    /** Runs one git command in the working tree with the harness identity; fails fast on a non-zero exit. */
+    String git(String... args) {
+        ProcessRunner.Outcome outcome = tryGit(args);
+        if (outcome.exitCode() != 0) {
+            throw new IllegalStateException("git " + List.of(args) + " failed:"
+                    + System.lineSeparator() + outcome.output());
+        }
+        return outcome.output();
+    }
+
+    /** Runs one git command in the working tree with the harness identity and returns its outcome, whatever the exit code. */
+    ProcessRunner.Outcome tryGit(String... args) {
         List<String> command = new ArrayList<>();
         command.add("git");
         command.add("-c");
@@ -70,11 +81,6 @@ final class GitFixture {
         builder.directory(workDir.toFile());
         builder.environment().clear();
         builder.environment().putAll(environment);
-        ProcessRunner.Outcome outcome = ProcessRunner.run(builder, GIT_TIMEOUT, "git " + List.of(args));
-        if (outcome.exitCode() != 0) {
-            throw new IllegalStateException("git " + List.of(args) + " failed:"
-                    + System.lineSeparator() + outcome.output());
-        }
-        return outcome.output();
+        return ProcessRunner.run(builder, GIT_TIMEOUT, "git " + List.of(args));
     }
 }
