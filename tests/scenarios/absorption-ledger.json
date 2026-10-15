@@ -686,7 +686,7 @@
         "tests/agent/cli/commands/test_charter_synthesize_cli.py"
       ],
       "issue": 6101,
-      "note": "Same assertions (result success, mode fresh_project_seed, PROVENANCE.md and synthesis-manifest.yaml written and listed, built_in_only: true, a seed entry, no PROJECT_000) through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/. The per-entry field shape of written_artifacts is pinned by the synthesize CLI tests."
+      "note": "Same assertions (result success, mode fresh_project_seed, PROVENANCE.md and synthesis-manifest.yaml written and listed, built_in_only: true, a seed entry, no PROJECT_000) through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/. The per-entry field shape of written_artifacts is pinned by the synthesize CLI tests. The scenario checks the reported files by name: on Windows the envelope spells the paths with backslashes (#6277), which the old Linux-only test never saw."
     },
     {
       "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_dry_run_on_fresh_project_does_not_fall_through",
@@ -694,7 +694,7 @@
         "tests/scenarios/charter/charter.feature::A dry run of synthesize plans the seed and writes nothing"
       ],
       "issue": 6101,
-      "note": "Same assertions: result dry_run, mode fresh_project_seed_dry_run, both files planned, no charter-packs folder written. through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/."
+      "note": "Same assertions: result dry_run, mode fresh_project_seed_dry_run, both files planned, no charter-packs folder written. through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/. The scenario checks the reported files by name: on Windows the envelope spells the paths with backslashes (#6277), which the old Linux-only test never saw."
     },
     {
       "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_is_idempotent",
