@@ -23,6 +23,7 @@ this section at publish._
 ### Fixed
 
 - **`doctor mission-state --fix` no longer erases a status change recorded while it runs** (#5974). **Before:** the repair read `status.events.jsonl` outside the Mission write lock and rewrote the file from that read, so a transition another agent recorded in between was silently lost while the repair reported `updated`, and `status.json` could be replaced by a stale copy. **After:** one Mission-lock hold covers the read through the rewrite (extended to the new lock key when the repair mints the `mission_id` of a coordination Mission), and the `lanes.json` rebuild is one check-and-write under the lanes lock, so it never overwrites a manifest created meanwhile. A writer whose wait is bounded may now get the lock-timeout error during a long repair: its transition is not recorded and erases nothing, so retry it.
+- **A blocking policy mode is no longer silently turned into `warn`** (#5754). **Before:** `policy.<section>.mode` was matched exactly, so `Block`, `BLOCK` or `block ` in `.kittify/config.yaml` became `warn`, and `spec-kitty consolidate` landed a Mission with an unresolved `in-mission` issue-matrix row at exit 0; `risk` and `commit_guard` had the same defect. **After:** modes are matched ignoring case and surrounding whitespace, and an unrecognized value resolves to `block` with a warning naming the setting and the value. `Off` and `OFF` now mean `off` (they used to mean `warn`), and an absent or null (`mode:` with no value) mode is still `warn`.
 
 ## [4.0.0rc7] - 2026-10-15
 
