@@ -8,6 +8,7 @@ from specify_cli.asset_preservation import (
     AnyProver,
     CanonicalContentProver,
     ManifestProver,
+    guard_destructive_overwrite,
     guard_destructive_removal,
 )
 from specify_cli.runtime.generated_writer import write_generated_file
@@ -189,9 +190,28 @@ class UpdateSlashCommandsMigration(BaseMigration):
 
                 if dry_run:
                     changes.append(f"Would update {agent_root}: {dest_path.name}")
-                else:
-                    write_generated_file(dest_path, template_path.read_text(encoding="utf-8"))
-                    updated_count += 1
+                    continue
+
+                content = template_path.read_text(encoding="utf-8")
+                # A canonical command name is not proof of ownership: a user who
+                # hand-authored their own spec-kitty.<cmd>.md (no version marker)
+                # must not have it clobbered by the shipped template (charter
+                # "User Customization Preservation", #6247). Route the overwrite
+                # through the canonical chokepoint — it proceeds when the
+                # destination is absent or proven package-generated, and refuses
+                # (preserve) an unproven user file.
+                verdict = guard_destructive_overwrite(
+                    dest_path,
+                    project_path,
+                    replacement_substantive=bool(content.strip()),
+                    authorized=False,
+                    prover=CanonicalContentProver(),
+                )
+                if not verdict.proceed:
+                    warnings.append(verdict.diagnostic)
+                    continue
+                write_generated_file(dest_path, content)
+                updated_count += 1
 
             if updated_count > 0:
                 agent_name = agent_root.strip(".")

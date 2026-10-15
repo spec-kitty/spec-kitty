@@ -127,3 +127,74 @@ def test_apply_mixed_owned_and_user_command_tomls(tmp_path: Path) -> None:
     assert custom.read_text(encoding="utf-8") == user_body
     # A survivor remains ⇒ the commands dir is NOT torn down.
     assert (tmp_path / ".kittify" / "commands").is_dir()
+
+
+# ---------------------------------------------------------------------------
+# #6247 fold: the canonical-command OVERWRITE path is ownership-gated too.
+#
+# apply() writes each mission template over spec-kitty.<stem>.md in every agent
+# dir. Before this fold it overwrote unconditionally (a canonical-name write with
+# no ownership proof), clobbering a user's hand-edits to a canonical command.
+# ---------------------------------------------------------------------------
+
+_TEMPLATE_BODY = "# specify\nUpdated template body from the mission.\n"
+
+
+def _seed_template(project_path: Path, stem: str, body: str) -> None:
+    templates = project_path / ".kittify" / "missions" / "software-dev" / "command-templates"
+    templates.mkdir(parents=True, exist_ok=True)
+    (templates / f"{stem}.md").write_text(body, encoding="utf-8")
+
+
+def _seed_claude_agent(project_path: Path) -> Path:
+    kittify = project_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text("agents:\n  available:\n  - claude\n", encoding="utf-8")
+    cmd = project_path / ".claude" / "commands"
+    cmd.mkdir(parents=True, exist_ok=True)
+    return cmd
+
+
+def test_apply_preserves_user_authored_canonical_command(tmp_path: Path) -> None:
+    """#6247: a user's own spec-kitty.<cmd>.md (no marker) is not clobbered by the template.
+
+    RED on base (the unconditional ``write_generated_file`` overwrites it);
+    GREEN once the overwrite routes through ``guard_destructive_overwrite``.
+    """
+    _seed_template(tmp_path, "specify", _TEMPLATE_BODY)
+    cmd = _seed_claude_agent(tmp_path)
+    user_cmd = cmd / "spec-kitty.specify.md"
+    user_body = "# my own specify\nhand written, no version marker\n"
+    user_cmd.write_text(user_body, encoding="utf-8")
+
+    result = UpdateSlashCommandsMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert user_cmd.read_text(encoding="utf-8") == user_body, "a user-authored canonical command must be preserved verbatim"
+    assert any("spec-kitty.specify.md" in warning for warning in result.warnings)
+
+
+def test_apply_overwrites_marker_bearing_canonical_command(tmp_path: Path) -> None:
+    """A proven package-generated command IS updated with the template (non-vacuity)."""
+    _seed_template(tmp_path, "specify", _TEMPLATE_BODY)
+    cmd = _seed_claude_agent(tmp_path)
+    owned = cmd / "spec-kitty.specify.md"
+    owned.write_text(f"{_MARKER}\n# stale generated specify\n", encoding="utf-8")
+
+    result = UpdateSlashCommandsMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert owned.read_text(encoding="utf-8") == _TEMPLATE_BODY, "a generated command must be updated to the template"
+
+
+def test_apply_creates_absent_canonical_command(tmp_path: Path) -> None:
+    """An absent command is still created — the migration's populate behavior is intact."""
+    _seed_template(tmp_path, "specify", _TEMPLATE_BODY)
+    cmd = _seed_claude_agent(tmp_path)
+    dest = cmd / "spec-kitty.specify.md"
+    assert not dest.exists()
+
+    result = UpdateSlashCommandsMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert dest.read_text(encoding="utf-8") == _TEMPLATE_BODY
