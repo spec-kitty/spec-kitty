@@ -16,6 +16,8 @@ never-retry-to-green flakiness policy, the one correct parallel-run command,
 local mutation testing, browser regressions, and time-dependent test discipline.
 
 - [CLI acceptance scenarios](acceptance-scenarios.md) — Gherkin scenarios run nightly against the built CLI on three operating systems.
+- [Test-pyramid rebalance plan](test-pyramid-rebalance.md) — which layer a test belongs in, and how integration and e2e coverage moves into the scenarios.
+- [Integration and e2e test inventory](integration-e2e-inventory.md) — the 2026-10-15 per-file audit behind the plan.
 - [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
 - [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
 - [Run mutation tests locally](run-mutation-tests.md) — `mutmut`-based assertion-quality checks.

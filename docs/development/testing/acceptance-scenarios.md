@@ -2,13 +2,15 @@
 title: CLI Acceptance Scenarios (Cucumber-JVM nightly)
 description: How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows.
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
 - docs/development/testing/index.md
 - docs/development/testing/testing-flakiness.md
 - docs/adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md
+- docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md
+- docs/development/testing/test-pyramid-rebalance.md
 ---
 
 # CLI Acceptance Scenarios (Cucumber-JVM nightly)
@@ -23,7 +25,21 @@ nightly red on every supported operating system.
 | Scenarios (Gherkin) | `tests/scenarios/<area>/*.feature` |
 | Runner, step definitions, driver | `acceptance-jvm/` (Gradle, Cucumber-JVM 7, Java 25) |
 | Nightly job | `acceptance-bdd` in `.github/workflows/ci-nightly.yml` |
-| Decision record | ADR `2026-10-11-3` (acceptance testing and BDD support) |
+| Decision records | ADR `2026-10-11-3` (acceptance testing and BDD support), ADR `2026-10-13-1` (promise links, per-PR check, evidence), ADR `2026-10-15-1` (ownership and absorption) |
+| Absorbed engineering tests | `tests/scenarios/absorption-ledger.json` |
+
+## Who owns what
+
+| Part | Owners | Review |
+|------|--------|--------|
+| Scenarios, the absorption ledger, this guide | QA (spec-kitty-qa) and core | a scenario change asks a QA owner and a core owner (`.github/CODEOWNERS`) |
+| Runner, step definitions, driver, fixture builders (`acceptance-jvm/`) | core | core |
+| Promise pages, promise index, trace lint, Allure report | spec-kitty-qa | spec-kitty-qa |
+
+QA drafts a scenario from a promise and lands it as `@wip`; an engineer binds its steps and adds
+a positive control; `@wip` comes off in a pull request a QA owner and a core owner reviewed.
+`tests/architectural/test_scenario_contract.py` checks the CODEOWNERS rules on every pull
+request. Requiring code-owner review on GitHub is a repository setting, not set today.
 
 ## Write a scenario
 
@@ -98,6 +114,24 @@ uv run --frozen pytest -q tests/architectural/test_scenario_contract.py
 
 The gating run has no retries. A flaky scenario is a defect to fix, not to retry
 (see [the flakiness policy](testing-flakiness.md)).
+
+## Absorb an engineering test
+
+A test in `tests/integration` or `tests/e2e` that checks something a user can see from the
+built CLI can move into a scenario. The rules are in the
+[test-pyramid rebalance plan](test-pyramid-rebalance.md#moving-a-test-into-a-scenario); in short:
+
+1. Write an untagged scenario with at least the test's assertions, on an equal or stronger arrange.
+2. Run it, then put the defect the test guards back in the source and watch the scenario go red.
+   Restore the source.
+3. Delete the test in the same pull request, and add a row to
+   `tests/scenarios/absorption-ledger.json` naming the retired test, the scenario that replaces it,
+   the issue and a note on any difference.
+
+The per-PR check fails when a retired test still exists, a replacement scenario is missing or is
+`@wip`/`@manual`, or a file the ledger's baseline lists was deleted without a row. A red gating
+night on `main` files one P0 issue through the `acceptance-bdd-escalation` job, as a red
+`integration-next` night does.
 
 ## Run the scenarios locally
 

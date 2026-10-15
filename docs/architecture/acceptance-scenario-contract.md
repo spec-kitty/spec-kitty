@@ -2,7 +2,7 @@
 title: The acceptance scenario contract
 description: 'How CLI acceptance scenarios link to product promises by identifier only, what a pull request checks about them, and what evidence each nightly run hands on.'
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -14,12 +14,14 @@ related:
 ---
 # The acceptance scenario contract
 
-> **Status: design of record, not yet shipped.** The scenario tree, the Cucumber-JVM runner and
-> the nightly job already exist ([ADR 2026-10-11-3](../adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md)).
+> **Status: design of record, mostly shipped.** The scenario tree, the Cucumber-JVM runner and
+> the nightly job exist ([ADR 2026-10-11-3](../adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md)).
 > This page designs the four additions in
 > [ADR 2026-10-13-1](../adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md):
-> the scenario contract, a per-pull-request check, a versioned evidence bundle and fixture builders.
-> Sections say what is built today and what is not.
+> the scenario contract (A), the per-pull-request check (B) and the evidence bundle (C) are built;
+> of the fixture builders (D), a project with a Mission is built and a work package in a given
+> lane is not. Ownership and the absorption of engineering tests are in
+> [ADR 2026-10-15-1](../adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md).
 
 **Reader:** a maintainer or contributor who writes, reviews or generates scenarios under
 `tests/scenarios/`, or who changes the `acceptance-jvm/` runner or the nightly job.
@@ -102,10 +104,11 @@ An engineer binds or rewords the steps, adds the positive control
 ([acceptance scenarios guide](../development/testing/acceptance-scenarios.md)) and removes
 `@wip`. The tag is added by a person; tooling never invents a promise identifier.
 
-## B. The per-pull-request scenario check (not built)
+## B. The per-pull-request scenario check (built)
 
-The nightly is the only thing that runs scenarios today, so a malformed feature file or a typo'd
-step is found the next morning. The check below finds it on the pull request, without a JDK.
+Without it, the nightly would be the only thing that reads scenarios, so a malformed feature file
+or a typo'd step would be found the next morning. The check finds it on the pull request, without
+a JDK.
 
 - **Where:** `tests/architectural/test_scenario_contract.py`, Python standard library plus first-party
   `kernel.clock` (no third-party dependency), with
@@ -128,12 +131,12 @@ step is found the next morning. The check below finds it on the pull request, wi
   groups in `ci-router.yml` start gating the job that runs this file. Contributors still need no
   JDK.
 
-## C. The evidence bundle (not built)
+## C. The evidence bundle (built)
 
 Each nightly leg hands its results to spec-kitty-qa. A result is only useful there if it says
 which CLI build, on which OS, in which pass produced it. The current upload does not.
 
-**Problems today:**
+**Problems it fixed** (the job had these before the bundle was built):
 
 - The gating pass and the `@wip` pass write into the same `build/` folders, and the second pass
   runs with `--rerun-tasks`, so it **overwrites the gating pass's Cucumber JSON and JUnit XML**
@@ -163,7 +166,7 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   (`if-no-files-found: error`), and sets `retention-days: 30`.
 - The job's `if:` drops the `pull_request` clause.
 
-## D. Fixture builders (not built)
+## D. Fixture builders (partly built)
 
 Today's Arrange steps can set up an initialised project and a git repository with history. The
 promises that matter next (mission creation, the status lane walk, review and consolidation)
@@ -178,6 +181,11 @@ need a project with a mission in a known state.
   --json` output.
 - **First scenarios:** a small mission-lifecycle area that proves the builders, each with a
   positive control.
+- **Built so far:** `Given a project with a mission "<slug>"` (`MissionFixture`, through `init` and
+  `agent mission create`), and plain-git builders for sparse-checkout state, linked worktrees and an
+  in-progress merge (`GitStates`). A work package in a given lane is not built: it needs the spec,
+  tasks and work-package files an agent authors, which this section's rule does not allow yet
+  (ADR 2026-10-15-1, decision 6).
 
 ## What this design does not cover
 
