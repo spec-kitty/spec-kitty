@@ -1057,8 +1057,11 @@ def projection_nulls_problems(fixtures: list[gen.Fixture], found: Found, scratch
     head = entry_of(found, "head-dates-nulled", GET_MISSION, KEY)
     expect(
         problems,
-        head.get("acceptedAt") == "not-an-instant" and head.get("lifecycleStatus") == "discarded",
-        "head-dates-nulled: the oracle must serve the stored text (V19)",
+        head.get("acceptedAt", "x") is None
+        and head.get("mergedAt", "x") is None
+        and head.get("discardedAt", "x") is None
+        and head.get("lifecycleStatus") == "planned",
+        "head-dates-nulled: the oracle nulls an off-shape head date and derives the lifecycle without it (V19 is retired: oracle and service agree)",
     )
     expect(
         problems,
@@ -1558,7 +1561,6 @@ ROW_TO_ENTRY: Mapping[str, str] = {
     "M9": "V16",
     "M10": "V14",
     "M13": "V15",
-    "M14": "V19",
     "W2": "V12",
     "W3 over 1 MiB": "V17",
     "M11": "V17",
@@ -1566,7 +1568,11 @@ ROW_TO_ENTRY: Mapping[str, str] = {
     "A5": "V13",
     "A8": "V15",
 }
-EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 26)]
+# V19 is RETIRED, not reused and not renumbered: main's oracle fix (29d49cd77) nulls an off-shape head date before it derives the lifecycle, so row M14 no longer
+# diverges and `projection-nulls/head-dates-nulled` is an ordinary conformance case. V20 to V25 keep their numbers.
+RETIRED_ENTRY_IDS = frozenset({"V19"})
+RETIRED_ROWS = frozenset({"M14"})
+EXPECTED_ENTRY_IDS = [f"V{number}" for number in range(1, 26) if f"V{number}" not in RETIRED_ENTRY_IDS]
 DETAIL_FIXTURE_TOTAL = 8 + 1 + 1 + 19 + 28 + 3 + 1 + 13 + 4 + 1 + 12 + 7 + 1 + 1 + 1 + 3 + 1 + 3 + 6 + 4
 
 
@@ -1579,7 +1585,11 @@ def divergence_problems(manifest: Mapping[str, Any]) -> list[str]:
     problems: list[str] = []
     entries = {entry["id"]: entry for entry in manifest.get(gen.KNOWN_DIVERGENCES_KEY, [])}
     if list(entries) != EXPECTED_ENTRY_IDS:
-        problems.append(f"the entry ids are {list(entries)}, not V1 to V25")
+        problems.append(f"the entry ids are {list(entries)}, not V1 to V25 without the retired {sorted(RETIRED_ENTRY_IDS)}")
+    for retired in RETIRED_ENTRY_IDS & set(entries):
+        problems.append(f"{retired} is retired and must stay absent")
+    for row in RETIRED_ROWS & set(ROW_TO_ENTRY):
+        problems.append(f"row {row} no longer diverges and must have no entry")
     for row, entry_id in ROW_TO_ENTRY.items():
         if entry_id not in entries:
             problems.append(f"row {row} has no entry {entry_id}")
@@ -1628,8 +1638,19 @@ def test_the_known_divergences_are_complete_distinct_and_pinned() -> None:
     ]
     assert divergence_problems(mutated_equal), "equal outcomes turn it red"
     mutated_fixture = copy.deepcopy(manifest)
-    next(entry for entry in mutated_fixture[gen.KNOWN_DIVERGENCES_KEY] if entry["id"] == "V19")["fixtures"] = ["projection-nulls/no-such-fixture"]
+    next(entry for entry in mutated_fixture[gen.KNOWN_DIVERGENCES_KEY] if entry["id"] == "V20")["fixtures"] = ["projection-nulls/no-such-fixture"]
     assert divergence_problems(mutated_fixture), "an entry naming a fixture the manifest lacks turns it red"
+    revived = copy.deepcopy(manifest)
+    revived[gen.KNOWN_DIVERGENCES_KEY].append(
+        {"id": "V19", "cause": "revived", "fixture": "projection-nulls", "fixtures": [], "oracleOutcome": "a", "javaAssertion": "b"}
+    )
+    assert any("V19 is retired" in problem for problem in divergence_problems(revived)), "a revived V19 turns it red"
+    untagged_fixture = copy.deepcopy(manifest)
+    next(item for entry in untagged_fixture["classes"] if entry["tag"] == "projection-nulls" for item in entry["fixtures"] if item["name"] == "head-dates-nulled")[
+        "tags"
+    ] = [gen.TAG_KNOWN_DIVERGENCE]
+    assert any("no entry" in problem for problem in divergence_problems(untagged_fixture)), "re-tagging head-dates-nulled turns it red"
+    assert "V19" in RETIRED_ENTRY_IDS and "M14" not in ROW_TO_ENTRY
 
 
 D159_ENTRY_IDS = ["V21", "V22", "V23", "V24", "V25"]
@@ -1683,7 +1704,6 @@ def test_the_tagged_divergence_fixtures_are_exactly_the_ones_whose_golden_differ
         "phases-matrix/ps-link-neither",
         "worktree-states/directory-symlink",
         "worktree-states/git-entry-symlink",
-        "projection-nulls/head-dates-nulled",
         "wp-malformed-frontmatter/wpm-28",
         "resolved-state/float-agent-and-actor",
         "resolved-state/annotation-at-float",

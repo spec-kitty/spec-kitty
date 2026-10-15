@@ -293,7 +293,6 @@ FIXTURE_TAGS: Mapping[str, tuple[str, ...]] = {
     "phases-matrix/ps-link-neither": (TAG_KNOWN_DIVERGENCE,),
     "worktree-states/directory-symlink": (TAG_KNOWN_DIVERGENCE,),
     "worktree-states/git-entry-symlink": (TAG_KNOWN_DIVERGENCE,),
-    "projection-nulls/head-dates-nulled": (TAG_KNOWN_DIVERGENCE,),
     "wp-malformed-frontmatter/wpm-28": (TAG_KNOWN_DIVERGENCE,),
     # The five D-159 candidates (a) to (e), V21 to V25: the oracle serves a value that the Java reduction reads as null or refuses.
     "resolved-state/float-agent-and-actor": (TAG_KNOWN_DIVERGENCE,),
@@ -306,6 +305,7 @@ FIXTURE_TAGS: Mapping[str, tuple[str, ...]] = {
 }
 
 # The known divergences of the detail and artifact surface (spec FR-014 table V1 to V20, plus the five resolved-state candidates of D-159).
+# V19 is retired (reserved, not reused): the oracle now nulls an off-shape head date too, so it has no entry here.
 # An entry: id, cause, fixture (a class/name, "injected" or "generated at test time"), fixtures (the committed keys it covers), the oracle outcome and
 # the Java assertion. The two outcomes of an entry differ (a stale entry whose outcomes are equal is a test failure). V3 and V4 also carry
 # defaultPathFixtures: the generator runs the oracle's default read_authored_files path on each and stores the outcome beside the entry.
@@ -465,14 +465,6 @@ KNOWN_DIVERGENCES: tuple[Mapping[str, Any], ...] = (
         ],
         "oracleOutcome": "the stored text is served, or ProjectionError",
         "javaAssertion": "500 projection_refused (source_unreadable on the detail)",
-    },
-    {
-        "id": "V19",
-        "cause": "a nullable head date that is not an instant (acceptedAt, mergedAt, discardedAt; #5529 ruling 1)",
-        "fixture": "projection-nulls",
-        "fixtures": ["projection-nulls/head-dates-nulled"],
-        "oracleOutcome": "the stored text is served and the lifecycle status is derived from it",
-        "javaAssertion": "null, and the lifecycle status is derived without it",
     },
     {
         "id": "V20",

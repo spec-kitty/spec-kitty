@@ -42,7 +42,14 @@ class DetailManifestCensusTest {
   private static final Set<String> ROUTE_GOLDENS =
       Set.of("get-mission.json", "get-work-package.json", "get-work-package-prompt.json", "get-work-package-detail.json", "list-artifacts.json", "get-artifact-content.json");
 
-  private static final Set<String> ENTRY_IDS = new TreeSet<>(Set.of("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", "V21", "V22", "V23", "V24", "V25"));
+  /**
+   * Retired divergence ids: reserved, never reused and never renumbered. V19 (a nullable head date that is not an instant) retired when main's oracle fix
+   * (29d49cd77) began nulling an off-shape head date before it derives the lifecycle; {@code projection-nulls/head-dates-nulled} is now an ordinary conformance
+   * case. V20 to V25 keep their numbers.
+   */
+  private static final Set<String> RETIRED_ENTRY_IDS = Set.of("V19");
+
+  private static final Set<String> ENTRY_IDS = new TreeSet<>(Set.of("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V20", "V21", "V22", "V23", "V24", "V25"));
 
   /** The census over fixture names per tag: the tags equal the floors' keys and each class holds its floor. Empty when it holds. */
   static List<String> censusProblems(Map<String, List<String>> fixturesByTag, Map<String, Integer> floors) {
@@ -143,6 +150,12 @@ class DetailManifestCensusTest {
   void theKnownDivergencesAreReadableAndEveryNamedFixtureIsInTheManifest() {
     List<Map<String, Object>> entries = ConformanceTree.knownDivergences();
     assertThat(entries.stream().map(entry -> entry.get("id").toString()).toList()).containsExactlyElementsOf(ENTRY_IDS.stream().sorted(DetailManifestCensusTest::byNumber).toList());
+    assertThat(entries.stream().map(entry -> entry.get("id").toString()).toList()).as("a retired id stays absent").doesNotContainAnyElementsOf(RETIRED_ENTRY_IDS);
+    assertThat(ENTRY_IDS).as("a retired id is not silently dropped from a range: it is named").doesNotContainAnyElementsOf(RETIRED_ENTRY_IDS);
+    assertThat(ConformanceTree.allClasses().stream().flatMap(entry -> entry.fixtures().stream()).filter(fixture -> fixture.key().equals("projection-nulls/head-dates-nulled")).toList())
+        .as("head-dates-nulled is an ordinary conformance case")
+        .singleElement()
+        .satisfies(fixture -> assertThat(fixture.knownDivergence()).isFalse());
     Set<String> keys = ConformanceTree.allClasses().stream().flatMap(entry -> entry.fixtures().stream()).map(TreeFixture::key).collect(Collectors.toSet());
     for (Map<String, Object> entry : entries) {
       assertThat(entry.get("oracleOutcome")).as(entry.get("id") + " has two different outcomes").isNotEqualTo(entry.get("javaAssertion"));
