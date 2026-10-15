@@ -30,30 +30,6 @@ def _branch_exists(repo: Path, branch: str) -> bool:
     return subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", f"refs/heads/{branch}"], capture_output=True).returncode == 0
 
 
-def test_discard_from_mission_branch_switches_to_target_and_deletes_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, slug, minted, _feature_dir = _finalized_protected_mission(tmp_path, monkeypatch, "discard-on-branch")
-    assert _git(repo, "branch", "--show-current") == minted
-    old_tip = _git(repo, "rev-parse", minted)
-    lost = len(_git(repo, "rev-list", minted, "--not", "main").split())
-    assert lost > 0, "the minted branch carries the Mission's own commits"
-
-    result = runner.invoke(root_app, ["mission", "close", "--mission", slug, "--discard", "--force"])
-
-    assert result.exit_code == 0, result.output
-    # The loss is shown even under --force (no prompt): branch, tip, and how many commits exist nowhere else.
-    assert f"Branch {minted} (tip {old_tip[:12]}): {lost} commit(s) that exist on no other branch will be deleted" in result.output
-    assert _git(repo, "branch", "--show-current") == "main"
-    assert not _branch_exists(repo, minted)
-    # A way back: the old tip is kept under a hidden ref and the output says how to restore it.
-    assert _git(repo, "rev-parse", f"refs/spec-kitty/discarded/{minted}") == old_tip
-    assert f"Deleted {minted} (was {old_tip[:12]}); restore with: git branch {minted} refs/spec-kitty/discarded/{minted}" in result.output
-    assert "Error" not in result.output
-    assert "lane branch(es)" not in result.output, "nothing but the mission branch was deleted; do not claim lane branches"
-    assert "Deleted mission/coordination branch" in result.output
-    assert _git(repo, "status", "--porcelain", "--untracked-files=no") == ""
-    assert f"kitty-specs/{slug}" not in _git(repo, "ls-tree", "-r", "--name-only", "main")
-
-
 def test_discard_off_branch_without_meta_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A checkout that does not carry the mission (no meta.json) must not report a discard."""
     repo, slug, minted, feature_dir = _finalized_protected_mission(tmp_path, monkeypatch, "discard-no-meta")
@@ -67,20 +43,3 @@ def test_discard_off_branch_without_meta_fails_closed(tmp_path: Path, monkeypatc
     assert result.exit_code != 0, result.output
     assert "discarded" not in result.output.lower().replace("did not", "")
     assert _branch_exists(repo, minted), "the branch and its work must be left untouched"
-
-
-def test_discard_refuses_dirty_checkout_before_deleting_anything(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A checkout git will not switch (dirty, conflicting) aborts the discard with the branch intact."""
-    repo, slug, minted, _feature_dir = _finalized_protected_mission(tmp_path, monkeypatch, "discard-dirty")
-    (repo / "README.md").write_text("mission-branch edit\n", encoding="utf-8")
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-q", "-m", "diverge README on the mission branch")
-    (repo / "README.md").write_text("uncommitted edit\n", encoding="utf-8")
-
-    result = runner.invoke(root_app, ["mission", "close", "--mission", slug, "--discard", "--force"])
-
-    assert result.exit_code != 0, result.output
-    assert "cannot discard" in result.output
-    assert _branch_exists(repo, minted), "nothing may be deleted when the checkout cannot leave the branch"
-    assert _git(repo, "branch", "--show-current") == minted
-    assert (repo / "README.md").read_text(encoding="utf-8") == "uncommitted edit\n"

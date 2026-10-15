@@ -27,7 +27,6 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -90,18 +89,6 @@ def _write_cli_wp(wp_path: Path) -> None:
         },
         "# WP01 Prompt\n",
     )
-
-
-def _count_cycle_artifacts(sub_artifact_dir: Path) -> int:
-    if not sub_artifact_dir.exists():
-        return 0
-    return len(list(sub_artifact_dir.glob("review-cycle-*.md")))
-
-
-def _list_cycle_artifacts(sub_artifact_dir: Path) -> list[str]:
-    if not sub_artifact_dir.exists():
-        return []
-    return sorted(p.name for p in sub_artifact_dir.glob("review-cycle-*.md"))
 
 
 # ---------------------------------------------------------------------------
@@ -258,114 +245,6 @@ def _trigger_rejection(repo: Path, body: str) -> Path:
 # ---------------------------------------------------------------------------
 # T022 — End-to-end integration test
 # ---------------------------------------------------------------------------
-
-
-def test_review_cycle_counter_advances_only_on_real_rejection(
-    for_review_repo: tuple[Path, Path, Path],
-) -> None:
-    """Counter advances by exactly 1 per rejection; reruns are no-ops."""
-    repo, _feature_dir, sub_artifact_dir = for_review_repo
-
-    # Step 1: WP is in for_review with zero artifacts.
-    assert _count_cycle_artifacts(sub_artifact_dir) == 0
-    assert _list_cycle_artifacts(sub_artifact_dir) == []
-
-    # Step 2: Re-run `agent action implement WP01` two times against the
-    # for_review WP. Each invocation must be a counter no-op.
-    runner = CliRunner()
-    for attempt in range(2):
-        result = runner.invoke(
-            workflow.app,
-            [
-                "implement",
-                "WP01",
-                "--mission",
-                MISSION_SLUG,
-                "--agent",
-                "claude",
-            ],
-        )
-        # Exit code 2 is a Typer usage error (e.g. an unknown/misspelled
-        # option) -- that means `implement` never actually ran, which would
-        # make the artifact-count assertion below vacuously true. The CLI
-        # may legitimately exit 0 (successful no-op resume) or 1 (a real
-        # workspace-plumbing failure) depending on fixture completeness, but
-        # 2 must never pass silently as if it proved the no-op contract.
-        assert result.exit_code in (0, 1), (
-            f"Implement rerun #{attempt + 1} returned a Typer usage error "
-            f"(exit {result.exit_code}) -- `implement` never ran, so this "
-            f"assertion would otherwise be vacuous. CLI stdout:\n{result.stdout}"
-        )
-        assert _count_cycle_artifacts(sub_artifact_dir) == 0, (
-            f"Implement rerun #{attempt + 1} unexpectedly created an artifact: "
-            f"{_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
-        )
-
-    # Step 3: Trigger a real rejection event. Counter must advance by 1.
-    persisted = _trigger_rejection(repo, "## Cycle 1 issues\n\nFix me.")
-    assert persisted.name == "review-cycle-1.md"
-    assert persisted.exists()
-    assert _count_cycle_artifacts(sub_artifact_dir) == 1
-    assert _list_cycle_artifacts(sub_artifact_dir) == ["review-cycle-1.md"]
-
-    # Capture the file's signature so we can prove subsequent reruns do not
-    # rewrite it.
-    artifact_mtime = persisted.stat().st_mtime_ns
-    artifact_size = persisted.stat().st_size
-
-    # Step 4: Re-run `agent action implement WP01` again. Counter unchanged;
-    # the existing artifact must not be touched.
-    result = runner.invoke(
-        workflow.app,
-        [
-            "implement",
-            "WP01",
-            "--mission",
-            MISSION_SLUG,
-            "--agent",
-            "claude",
-        ],
-    )
-    # As above: 2 is a Typer usage error and would mean `implement` never
-    # ran, making the no-inflation assertion below vacuous.
-    assert result.exit_code in (0, 1), (
-        f"Implement rerun after rejection returned a Typer usage error "
-        f"(exit {result.exit_code}) -- `implement` never ran. "
-        f"CLI stdout:\n{result.stdout}"
-    )
-    assert _count_cycle_artifacts(sub_artifact_dir) == 1, (
-        f"Implement rerun after rejection unexpectedly inflated counter; "
-        f"artifacts now: {_list_cycle_artifacts(sub_artifact_dir)}\nstdout:\n{result.stdout}"
-    )
-    assert persisted.stat().st_mtime_ns == artifact_mtime, (
-        "Existing review-cycle-1.md must not be rewritten by an implement rerun."
-    )
-    assert persisted.stat().st_size == artifact_size
-
-    # Bonus: confirm that the canonical artifact-set is exactly {1}.
-    assert _list_cycle_artifacts(sub_artifact_dir) == ["review-cycle-1.md"]
-
-
-def test_two_rejections_produce_two_distinct_artifacts(
-    for_review_repo: tuple[Path, Path, Path],
-) -> None:
-    """A second rejection writes review-cycle-2.md without disturbing review-cycle-1.md."""
-    repo, _feature_dir, sub_artifact_dir = for_review_repo
-
-    p1 = _trigger_rejection(repo, "## First rejection issues")
-    assert p1.name == "review-cycle-1.md"
-    assert _count_cycle_artifacts(sub_artifact_dir) == 1
-    p1_mtime = p1.stat().st_mtime_ns
-
-    p2 = _trigger_rejection(repo, "## Second rejection issues")
-    assert p2.name == "review-cycle-2.md"
-    assert _count_cycle_artifacts(sub_artifact_dir) == 2
-    assert _list_cycle_artifacts(sub_artifact_dir) == [
-        "review-cycle-1.md",
-        "review-cycle-2.md",
-    ]
-    # First artifact untouched.
-    assert p1.stat().st_mtime_ns == p1_mtime
 
 
 # ---------------------------------------------------------------------------

@@ -34,8 +34,7 @@ from specify_cli.cli.commands.consolidate import (
     _run_lane_based_consolidation,
 )
 from specify_cli.consolidation.config import MergeStrategy
-from tests.terminus.conftest import build_coord_mission, run_terminus
-from tests._support.git_cli import git_out
+from tests.terminus.conftest import build_coord_mission
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -94,29 +93,6 @@ class TestClassifyPorcelainLines:
 
 class TestMergeToleratesUntrackedFiles:
     """End to end on real git: the merge succeeds when only untracked entries exist."""
-
-    @pytest.mark.slow  # real `spec-kitty consolidate` subprocess on a real coord mission (>30s)
-    def test_merge_succeeds_with_untracked_worktrees_and_tmp(self, tmp_path: Path) -> None:
-        mission = build_coord_mission(tmp_path)
-        scratch = mission.repo / ".worktrees" / "scratch"
-        scratch.mkdir(parents=True)
-        (scratch / "notes.txt").write_text("operator scratch\n", encoding="utf-8")
-        (mission.repo / "tmp.txt").write_text("stray\n", encoding="utf-8")
-        target_before = mission.rev(mission.target_branch)
-
-        result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
-
-        assert result.returncode == 0, f"untracked entries must not block the merge\nstdout={result.stdout}\nstderr={result.stderr}"
-        assert "invariant violated" not in result.stdout
-        # The merge really landed: the WP01 lane code is on the target branch...
-        assert mission.rev(mission.target_branch) != target_before
-        assert "def wp01()" in git_out(mission.repo, "show", f"{mission.target_branch}:src/pkg/wp01.py")
-        # ...and the operator's untracked files were neither committed nor destroyed.
-        tracked = git_out(mission.repo, "ls-tree", "-r", "--name-only", mission.target_branch).splitlines()
-        assert "tmp.txt" not in tracked
-        assert not any(name.startswith(".worktrees/") for name in tracked)
-        assert (mission.repo / "tmp.txt").read_text(encoding="utf-8") == "stray\n"
-        assert (scratch / "notes.txt").exists()
 
     def test_merge_aborts_on_unrelated_tracked_change(
         self,

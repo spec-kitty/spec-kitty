@@ -17,7 +17,7 @@ One folder per CLI area, one or more `.feature` files per folder:
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
 | `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
-| `mission/` | Missions: creating one, refusals without a Mission, looking one up by name, and discarding one |
+| `mission/` | Missions: creating one and its refusals, looking one up, planning to review (`lifecycle`), rejecting in review (`review`), the single-branch write checkout (`single-branch`) and discarding one (`mission-close`) |
 
 ## Available steps
 
@@ -36,10 +36,24 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Arrange | `Given the project has a linked worktree "<path>" with sparse-checkout turned on` |
 | Arrange | `Given I have a git merge in progress with a conflict in "<file>"` |
 | Arrange | `Given every change in the project is committed` |
+| Arrange | `Given a mission "<name>" on a topic branch whose spec is written and committed` |
+| Arrange | `Given a mission "<name>" planned on a topic branch with the work packages "<WP01,WP02>"` |
+| Arrange | `Given a single-branch mission "<name>" planned on a topic branch with the work packages "<WP01>"` |
+| Arrange | `Given a single-branch mission "<name>" planned for the primary branch with the work packages "<WP01>"` |
+| Arrange | `Given the work package "<wp>" of mission "<name>" has been moved to lane "<lane>"` |
+| Arrange | `Given the work package "<wp>" of mission "<name>" has committed its work` |
+| Arrange | `Given the subtasks of the work package "<wp>" of mission "<name>" are marked done` |
+| Arrange | `Given the work package "<wp>" of mission "<name>" has been rejected with the feedback "<text>"` |
+| Arrange | `Given the review feedback file "<../path>" says "<text>"` |
+| Arrange | `Given an empty review feedback file "<../path>"` |
+| Arrange | `Given the file "<path>" is committed with the text "<text>"` |
+| Arrange | `Given the file "<path>" has the uncommitted text "<text>"` |
 | Assume | `Given the folder "<path>" is present` |
 | Assume | `Given the file "<path>" is present` |
 | Assume | `Given the repository has at least one commit` |
 | Assume | `Given the repository's branches are recorded` |
+| Assume | `Given the file "<path>" of mission "<name>" on the coordination branch is recorded` |
+| Assume | `Given the tip of the mission branch of mission "<name>" is recorded` |
 | Act | `When I run "<command line>"` |
 | Assert | `Then the command succeeds` |
 | Assert | `Then the command fails` |
@@ -59,6 +73,24 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then the file "<path>" mentions "<text>"` |
 | Assert | `Then the file "<name>" of the mission "<mission>" mentions "<text>"` |
 | Assert | `Then the file "<name>" of the mission "<mission>" does not mention "<text>"` |
+| Assert | `Then the work package "<wp>" of mission "<name>" is in lane "<lane>"` |
+| Assert | `Then the folder of mission "<name>" has a non-empty "<file>" file` |
+| Assert | `Then the folder of mission "<name>" has no "<file>" file` |
+| Assert | `Then the branch "<branch>" holds no status file of mission "<name>"` |
+| Assert | `Then the branch "<branch>" has no folder of mission "<name>"` |
+| Assert | `Then the status log on the coordination branch of mission "<name>" mentions "<text>"` |
+| Assert | `Then the status log on the coordination branch of mission "<name>" records a move of "<wp>" to "<lane>"` |
+| Assert | `Then the file "<path>" of mission "<name>" on the coordination branch mentions "<text>"` |
+| Assert | `Then the file "<path>" of mission "<name>" on the coordination branch is unchanged` |
+| Assert | `Then the coordination branch of mission "<name>" has no file "<path>"` |
+| Assert | `Then the history of branch "<branch>" mentions "<text>"` |
+| Assert | `Then the current branch is "<branch>"` |
+| Assert | `Then the current branch is the mission branch of mission "<name>"` |
+| Assert | `Then the mission branch of mission "<name>" no longer exists` |
+| Assert | `Then the mission branch of mission "<name>" still exists` |
+| Assert | `Then the old tip of the mission branch of mission "<name>" can be restored from its kept ref` |
+| Assert | `Then the file "<path>" is not tracked by git` |
+| Assert | `Then the working tree has no uncommitted changes to tracked files` |
 | Assert | `Then the mission "<name>" is listed` |
 | Assert | `Then the mission "<name>" is not listed` |
 | Assert | `Then the folder "<path>" exists` |
@@ -70,7 +102,15 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then the repository has no new commits` |
 
 Paths are relative to the scenario's working directory. "Unchanged" compares against
-the state an Assume step recorded. "The output" is stdout and stderr together.
+the state an Assume step recorded. "The output" is stdout and stderr together, compared with
+line wrapping ignored.
+
+The Mission builders run the CLI and plain git, and write only what an agent or a user authors:
+the planning files (`spec.md`, `plan.md`, `tasks.md`, `tasks/WP*.md`), a work package's code,
+review feedback outside the repository, and plain files a user edits in git. They never write
+CLI-managed state (ADR 2026-10-15-1, decision 6). A planned Mission lives on the topic branch
+`work`; its work package `WP01` owns `src/wp01/` and has the one subtask `T01`, and its prompt is
+`tasks/WP01-wp01.md`. The repository's first branch is `main`.
 
 ## Ownership
 

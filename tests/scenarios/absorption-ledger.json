@@ -546,6 +546,138 @@
       ],
       "issue": 6101,
       "note": "Moved, not absorbed: three in-process diagnostics checks and a source scan, now in the unit tier. Its fourth test (test_no_red_ansi_after_success_marker) could not fail: it wrote red output only when a flag it had just set was false, so it was deleted rather than moved."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_setup_plan",
+      "replaced_by": [
+        "tests/scenarios/mission/lifecycle.feature::Setting up the plan of a committed spec writes the plan"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (exit 0, result success, a non-empty plan.md) through the built CLI after a real init; the old test also wrote .kittify/templates/plan-template.md, which the scenario does not need: the shipped template is used. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_full_workflow_sequence",
+      "replaced_by": [
+        "tests/scenarios/mission/lifecycle.feature::Committed work of a work package is handed to review"
+      ],
+      "issue": 6101,
+      "note": "Same flow (create, setup-plan, finalize-tasks, implement in a lane worktree, a commit there, move to for_review) without the old meta.json patch. Stronger: the move to for_review is asserted (the old test only checked it when it exited 0) and the lane is read back. Kept: spec, plan and tasks files present, and spec/plan/tasks commits in the history. Not kept: the check that finalize-tasks wrote a dependencies key into the prompt file, which the authored prompt already carries. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/e2e/test_coord_status_off_target_lifecycle.py",
+      "replaced_by": [
+        "tests/scenarios/mission/lifecycle.feature::A coordination Mission keeps its status off the target branch through to review",
+        "tests/scenarios/mission/lifecycle.feature::Planning a coordination Mission keeps its status off the target branch"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (#5440): no status file of the Mission on the target branch, none in the primary Mission folder, and the coordination branch's status log carries MissionCreated, TasksStarted, WPCreated, TasksCompleted and the move to for_review. The old test checked after each step; the scenarios check after planning and after the move to review. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/review/test_reject_from_in_review.py::test_move_task_rejects_from_in_review_with_canonical_review_result",
+      "replaced_by": [
+        "tests/scenarios/mission/review.feature::Rejecting with written feedback sends the work package back and records the review cycle"
+      ],
+      "issue": 6101,
+      "note": "Same assertions through the built CLI: the move from in_review to planned succeeds, the output names review-cycle-1.md, the work package is planned, and the review-cycle record (read from the coordination branch, where a coordination Mission commits it) holds the feedback. The old test patched project-root lookup, the readiness check and the mission type. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/review/test_reject_from_in_review.py::test_empty_feedback_fails_before_status_mutation",
+      "replaced_by": [
+        "tests/scenarios/mission/review.feature::Rejecting with an empty feedback file is refused and changes nothing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: exit 1, 'Review feedback file is empty', the work package stays in_review and no review-cycle record is written. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/review/test_reject_from_in_review.py::test_move_task_reject_threads_declared_reviewer_into_artifact",
+      "replaced_by": [
+        "tests/scenarios/mission/review.feature::Rejecting with written feedback sends the work package back and records the review cycle"
+      ],
+      "issue": 6101,
+      "note": "Same assertion: the declared --reviewer name is the record's reviewer_agent. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_review_cycle_rejection_only.py::test_review_cycle_counter_advances_only_on_real_rejection",
+      "replaced_by": [
+        "tests/scenarios/mission/review.feature::Re-running implement on a work package in review opens no review cycle",
+        "tests/scenarios/mission/review.feature::Re-running implement after a rejection keeps the one review cycle as it was"
+      ],
+      "issue": 6101,
+      "note": "Same promise (#676) through the built CLI on a real Mission instead of a hand-written lanes manifest and seeded events: re-running implement opens no review cycle, a real rejection opens exactly review-cycle-1.md, and implementing again leaves it byte-identical and opens no second one. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_review_cycle_rejection_only.py::test_two_rejections_produce_two_distinct_artifacts",
+      "replaced_by": [
+        "tests/scenarios/mission/review.feature::A second rejection opens a second review cycle and keeps the first"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: a second real rejection writes review-cycle-2.md with its own feedback and leaves review-cycle-1.md unchanged. The old test called the private _persist_review_feedback; the scenario rejects through move-task. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_single_branch_write_checkout_e2e.py::test_for_review_without_force",
+      "replaced_by": [
+        "tests/scenarios/mission/single-branch.feature::A work package with no committed work cannot go to review",
+        "tests/scenarios/mission/single-branch.feature::Committed work of a work package goes to review without forcing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: with ticked subtasks but no commit the move is refused with 'no implementation commit'; with the work committed it succeeds without --force. Not kept: the execution_mode=direct_repo field of the status event, an internal stamp. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_single_branch_write_checkout_e2e.py::test_first_claim_meta_lock_commit_is_not_qualifying_work",
+      "replaced_by": [
+        "tests/scenarios/mission/single-branch.feature::Claiming a work package is not work that review can accept",
+        "tests/scenarios/mission/single-branch.feature::A work package with no committed work cannot go to review"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: after the claim commit alone, both `agent status emit --to for_review` and `move-task --to for_review` refuse with 'no implementation commit', and the work package stays in_progress. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_single_branch_write_checkout_e2e.py::test_for_review_never_auto_commits_stray_repo_root_files",
+      "replaced_by": [
+        "tests/scenarios/mission/single-branch.feature::A stray file in the checkout is never committed when asking for review"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: the move is refused, HEAD has not moved, .env.local is not tracked and the work package stays in_progress. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_refuses_occupied_checkout",
+      "replaced_by": [
+        "tests/scenarios/mission/single-branch.feature::Starting a second work package while one is in progress in the same checkout is refused"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: WRITE_CHECKOUT_OCCUPIED and the second work package stays planned. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_single_branch_write_checkout_e2e.py::test_action_implement_refuses_dirty_checkout",
+      "replaced_by": [
+        "tests/scenarios/mission/single-branch.feature::Starting a work package in a checkout with uncommitted changes is refused"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: WRITE_CHECKOUT_DIRTY and the work package stays planned. Not kept: that no claim base was recorded, an internal record. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_mission_close_discard_single_branch.py::test_discard_from_mission_branch_switches_to_target_and_deletes_branch",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-close.feature::Discarding a single-branch Mission returns me to the primary branch and keeps a way back"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (#5100) through the built CLI: exit 0, the loss line, 'Deleted mission/coordination branch', no lane branches claimed, the checkout back on main, the minted branch gone, its old tip kept under refs/spec-kitty/discarded/ with the restore command printed, no tracked change left, and no Mission folder on main. The exact commit count and short sha in the loss line are not pinned. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_mission_close_discard_single_branch.py::test_discard_refuses_dirty_checkout_before_deleting_anything",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-close.feature::Discarding a single-branch Mission from a checkout that cannot leave its branch deletes nothing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: the discard fails with 'cannot discard', the mission branch still exists and is still checked out, and README.md keeps the uncommitted edit. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows, on the topic branch the Mission targets."
+    },
+    {
+      "retired": "tests/integration/test_post_merge_unrelated_untracked.py::TestMergeToleratesUntrackedFiles::test_merge_succeeds_with_untracked_worktrees_and_tmp",
+      "replaced_by": [
+        "tests/scenarios/consolidate/consolidate.feature::Consolidating lands the approved work and leaves my untracked files alone"
+      ],
+      "issue": 6101,
+      "note": "Same assertions through the built CLI on a Mission planned, implemented, reviewed, approved and accepted by the CLI (instead of the tests/terminus coordination fixture): consolidate exits 0 without 'invariant violated', the work package's code is on the target branch, the work package is done, tmp.txt and .worktrees/ are not tracked on the target, and both untracked files are byte-identical. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows."
     }
   ]
 }
