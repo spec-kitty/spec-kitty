@@ -315,8 +315,13 @@ def test_gitignore_rules_rewritten_with_negations_and_comments_kept(tmp_path: Pa
     migration = CharterPackCutoverMigration()
     assert migration.detect(tmp_path) is True
     result = _apply(tmp_path)
-    assert path.read_text(encoding="utf-8") == (f"# {LEGACY} rules\nnode_modules/\n{NEW}/**\n!{NEW}/graph.yaml\n!{NEW}/directive/\n{LEGACY}-other/\n")
+    # #6076: the cutover also emits the `pack.yaml` allow-rule beside the sibling
+    # charter-pack allow-rules so the rc7 pack_level backfill stays trackable.
+    assert path.read_text(encoding="utf-8") == (
+        f"# {LEGACY} rules\nnode_modules/\n{NEW}/**\n!{NEW}/graph.yaml\n!{NEW}/directive/\n!{NEW}/pack.yaml\n{LEGACY}-other/\n"
+    )
     assert _report(result)["rewritten"][0] == f".gitignore: rule {LEGACY}/** -> {NEW}/**"
+    assert _report(result)["rewritten"][-1] == f".gitignore: added !{NEW}/pack.yaml (keeps the project pack.yaml tracked under the charter-pack ignore rule)"
     assert migration.detect(tmp_path) is False
 
 
@@ -324,8 +329,14 @@ def test_gitignore_rule_already_canonical_drops_the_legacy_line(tmp_path: Path) 
     path = tmp_path / ".gitignore"
     path.write_bytes(f"{NEW}/**\r\n{LEGACY}/**\r\n!{NEW}/graph.yaml\r\n".encode())
     result = _apply(tmp_path)
-    assert path.read_bytes() == f"{NEW}/**\r\n!{NEW}/graph.yaml\r\n".encode()
-    assert _report(result)["rewritten"] == [f".gitignore: dropped rule {LEGACY}/** ({NEW}/** is already present)"]
+    # The legacy blanket line drops (the canonical one is already present), and
+    # the #6076 `pack.yaml` allow-rule is added after the sibling allow-rule, in
+    # the file's own CRLF line ending.
+    assert path.read_bytes() == f"{NEW}/**\r\n!{NEW}/graph.yaml\r\n!{NEW}/pack.yaml\r\n".encode()
+    assert _report(result)["rewritten"] == [
+        f".gitignore: dropped rule {LEGACY}/** ({NEW}/** is already present)",
+        f".gitignore: added !{NEW}/pack.yaml (keeps the project pack.yaml tracked under the charter-pack ignore rule)",
+    ]
 
 
 def test_gitignore_with_the_root_only_in_comments_is_untouched(tmp_path: Path) -> None:
