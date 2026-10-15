@@ -26,7 +26,6 @@ def _bypass_startup_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     [
         ([], ["Usage:", "Options", "Commands"]),
         (["agent"], ["Usage:", "mission", "tasks"]),
-        (["auth"], ["Usage:", "login", "status"]),
         (["agent", "mission"], ["Usage:", "create", "finalize-tasks"]),
         (["agent", "tasks"], ["Usage:", "list-tasks", "mark-status"]),
     ],

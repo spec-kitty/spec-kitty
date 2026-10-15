@@ -104,6 +104,12 @@ def test_empty_activated_roster_is_json_success(project: Path, app: Any, args: l
 )
 def test_mutating_siblings_outside_project_are_json_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
     monkeypatch.chdir(tmp_path)
+    # Hermeticity (#6221): locate_project_root's Tier-1 honours SPECIFY_REPO_ROOT, so a
+    # sibling test leaking that env var makes these commands resolve a real project and
+    # reach mission-specific codes (mission_unrecoverable / mission_identity_missing)
+    # instead of the not_in_project guard -- an order-dependent nightly red. Clearing it
+    # here forces the genuine "outside any project" condition the assertions pin.
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     human = runner.invoke(mission_type_app, args)
     machine = runner.invoke(mission_type_app, [*args, "--json"])
     assert human.exit_code == machine.exit_code == 1

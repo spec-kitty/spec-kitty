@@ -23,8 +23,8 @@ proves ``SPEC_KITTY_TEMPLATE_ROOT`` still governs asset resolution with the
 scaffold on disk.
 
 **Secret vars are never seeded by value either.** A var in
-:data:`GOVERNED_SECRET_VARS` (e.g. ``SPEC_KITTY_SAAS_TOKEN``) is emitted only
-as a commented, blank template line (``# SPEC_KITTY_SAAS_TOKEN=``) -- never
+:data:`GOVERNED_SECRET_VARS` (e.g. ``SPEC_KITTY_ORG_TOKEN``) is emitted only
+as a commented, blank template line (``# SPEC_KITTY_ORG_TOKEN=``) -- never
 the live value, even when one happens to be set in the invoking shell.
 Copying a live credential into a generated file (however well-gitignored)
 would still create a second at-rest copy of a secret nobody asked this

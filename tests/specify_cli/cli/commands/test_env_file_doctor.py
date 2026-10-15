@@ -195,34 +195,50 @@ class TestGovernedVarRedaction:
     def test_secret_var_from_real_env_never_shows_value(
         self, tmp_path: Path, isolated_home: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "tok_fixture_supersecret_notreal")
+        monkeypatch.setenv("SPEC_KITTY_ORG_TOKEN", "tok_fixture_supersecret_notreal")
         monkeypatch.setattr(_env_file_doctor, "locate_project_root", lambda *a, **k: tmp_path)
 
         result = runner.invoke(doctor_module.app, ["env-file", "--json"])
         payload = json.loads(result.output)
 
-        entry = next(v for v in payload["governed_vars"] if v["name"] == "SPEC_KITTY_SAAS_TOKEN")
+        entry = next(v for v in payload["governed_vars"] if v["name"] == "SPEC_KITTY_ORG_TOKEN")
         assert entry["present"] is True
         assert entry["value"] is None
         assert "tok_fixture_supersecret_notreal" not in result.output
+
+    def test_second_secret_var_from_real_env_never_shows_value(
+        self, tmp_path: Path, isolated_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """C-SEC-1 holds for every GOVERNED_SECRET_VARS member, not just the first:
+        SPEC_KITTY_ORG_AUTH_HEADER is also redacted (#6164 hosted->org retirement)."""
+        monkeypatch.setenv("SPEC_KITTY_ORG_AUTH_HEADER", "Bearer fixture_header_notreal")
+        monkeypatch.setattr(_env_file_doctor, "locate_project_root", lambda *a, **k: tmp_path)
+
+        result = runner.invoke(doctor_module.app, ["env-file", "--json"])
+        payload = json.loads(result.output)
+
+        entry = next(v for v in payload["governed_vars"] if v["name"] == "SPEC_KITTY_ORG_AUTH_HEADER")
+        assert entry["present"] is True
+        assert entry["value"] is None
+        assert "fixture_header_notreal" not in result.output
 
     def test_var_set_only_in_repo_tier_shows_repo_tier(
         self, tmp_path: Path, isolated_home: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         env_path = _repo_env_path(tmp_path)
         env_path.parent.mkdir(parents=True)
-        env_path.write_text("SPEC_KITTY_TEAM_SLUG=my-team\n", encoding="utf-8")
+        env_path.write_text("SPEC_KITTY_NO_BANNER=1\n", encoding="utf-8")
         (tmp_path / ".gitignore").write_text(".kittify/.kitty.env\n", encoding="utf-8")
         (tmp_path / ".claudeignore").write_text(".kittify/.kitty.env\n", encoding="utf-8")
-        monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_NO_BANNER", raising=False)
         monkeypatch.setattr(_env_file_doctor, "locate_project_root", lambda *a, **k: tmp_path)
 
         result = runner.invoke(doctor_module.app, ["env-file", "--json"])
         payload = json.loads(result.output)
 
-        entry = next(v for v in payload["governed_vars"] if v["name"] == "SPEC_KITTY_TEAM_SLUG")
+        entry = next(v for v in payload["governed_vars"] if v["name"] == "SPEC_KITTY_NO_BANNER")
         assert entry["tier"] == "repo"
-        assert entry["value"] == "my-team"
+        assert entry["value"] == "1"
 
     def test_unset_var_reports_unset_tier(self, tmp_path: Path, isolated_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_NON_INTERACTIVE", raising=False)
