@@ -62,18 +62,6 @@ def _assert_started_wp02_kept_lane_b(mission: _Mission, started: _Started, resul
     assert branch == started.branch
 
 
-def test_started_wp_keeps_its_lane_when_a_planned_wp_joins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    mission = _setup_mission(tmp_path, monkeypatch)
-    started = _start(mission, "WP02", commit_work=True, in_progress=True)
-    _amend_overlap(mission, joiner="WP01", owner="WP02")
-    _commit_amendment(mission)
-
-    result = _finalize(mission.slug)
-
-    _assert_started_wp02_kept_lane_b(mission, started, result)
-    assert (started.worktree / "b.py").read_text(encoding="utf-8") == "b = 42\n"
-
-
 def test_claimed_only_wp_keeps_its_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission = _setup_mission(tmp_path, monkeypatch)
     started = _start(mission, "WP02", commit_work=False, in_progress=False)
@@ -83,25 +71,6 @@ def test_claimed_only_wp_keeps_its_lane(tmp_path: Path, monkeypatch: pytest.Monk
     result = _finalize(mission.slug)
 
     _assert_started_wp02_kept_lane_b(mission, started, result)
-
-
-def test_lane_follows_the_started_wp_not_lane_id_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Positive control: WP01 started on lane-a, WP02 joins it; the merged lane is lane-a."""
-    mission = _setup_mission(tmp_path, monkeypatch)
-    started = _start(mission, "WP01", commit_work=True, in_progress=True)
-    _amend_overlap(mission, joiner="WP02", owner="WP01")
-    _commit_amendment(mission)
-
-    result = _finalize(mission.slug)
-
-    assert result.exit_code == 0, result.output
-    _assert_saw_overlap(result)
-    after = read_lanes_json(mission.feature_dir)
-    assert after is not None
-    assert _topology(after) == [("lane-a", ("WP01", "WP02"))], _topology(after)
-    worktree, _branch = allocate_lane_worktree(mission.repo, mission.slug, "WP01", after)
-    assert worktree == started.worktree
-    assert (worktree / "a.py").read_text(encoding="utf-8") == "a = 42\n"
 
 
 def test_two_started_lanes_forced_together_refuse_before_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

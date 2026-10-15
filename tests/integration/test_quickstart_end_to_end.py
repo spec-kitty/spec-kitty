@@ -106,29 +106,6 @@ def _write_charter_and_metadata(repo: Path) -> None:
         )
 
 
-def _write_built_in_only_manifest(repo: Path) -> None:
-    """Write a synthesis-manifest declaring ``built_in_only: true`` (no graph)."""
-    path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        dedent(
-            f"""\
-            schema_version: '2'
-            mission_id: null
-            created_at: '2099-01-01T00:00:00+00:00'
-            run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
-            adapter_id: test
-            adapter_version: '0.0.0'
-            synthesizer_version: '0.0.0'
-            manifest_hash: {"a" * 64}
-            artifacts: []
-            built_in_only: true
-            """
-        ),
-        encoding="utf-8",
-    )
-
-
 def _invoke_charter(repo: Path, *args: str) -> Any:
     """Invoke the ``spec-kitty charter`` typer app with the bundle/repo
     resolvers patched to the ``tmp_path`` fixture."""
@@ -186,60 +163,6 @@ def _parse_json_stdout(stdout: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Step 1 — Fresh-checkout freshness reporting (FR-001..FR-005, FR-009).
 # ---------------------------------------------------------------------------
-
-
-class TestStep1_FreshnessAndLint:
-    def test_step1_charter_status_json_has_freshness_shape(
-        self, tmp_path: Path
-    ) -> None:
-        _seed_minimum_repo(tmp_path)
-
-        result = _invoke_charter(tmp_path, "status", "--json")
-        assert result.exit_code == 0, (
-            f"charter status failed: exit={result.exit_code} "
-            f"stdout={result.stdout!r} exc={result.exception!r}"
-        )
-
-        payload = _parse_json_stdout(result.stdout)
-        assert "freshness" in payload, payload.keys()
-        freshness = payload["freshness"]
-        assert isinstance(freshness, dict)
-        assert set(freshness.keys()) == {
-            "charter_source",
-            "synced_bundle",
-            "synthesized_drg",
-        }, freshness.keys()
-        # Every sub-layer carries the contract triple.
-        for sub_name, sub in freshness.items():
-            assert "state" in sub, f"{sub_name} missing state"
-            assert "last_change" in sub, f"{sub_name} missing last_change"
-            assert "remediation" in sub, f"{sub_name} missing remediation"
-
-    def test_step1_charter_lint_runs_on_fresh_checkout(
-        self, tmp_path: Path
-    ) -> None:
-        """``charter lint`` is invokable on a freshly-cloned repo.
-
-        The quickstart promises ``graph_state="built_in_only"`` from the
-        ``--json`` payload; the live ``charter lint --json`` shape is
-        report-driven (categorised findings, not a top-level layer state),
-        so we assert the durable operator-observable contract: the command
-        runs without crashing on a built-in-only checkout and emits a valid
-        JSON payload via ``--json``.
-        """
-        _seed_minimum_repo(tmp_path)
-        _write_charter_and_metadata(tmp_path)
-        _write_built_in_only_manifest(tmp_path)
-
-        result = _invoke_charter(tmp_path, "lint", "--json")
-        # Lint may report findings (non-zero exit isn't a smoke failure); the
-        # assertion is that it produced a parseable JSON payload.
-        assert result.stdout.strip(), (
-            f"charter lint produced no JSON: exit={result.exit_code} "
-            f"stdout={result.stdout!r} exc={result.exception!r}"
-        )
-        parsed = _parse_json_stdout(result.stdout)
-        assert isinstance(parsed, dict), parsed
 
 
 # ---------------------------------------------------------------------------
@@ -331,32 +254,6 @@ class TestStep2_PreflightBlocksAndAutoRefresh:
 # ---------------------------------------------------------------------------
 # Step 3 — Synthesize bootstrap contract (FR-009).
 # ---------------------------------------------------------------------------
-
-
-class TestStep3_SynthesizePostCondition:
-    def test_step3_built_in_only_state_is_recognised_by_freshness(
-        self, tmp_path: Path
-    ) -> None:
-        """Quickstart Step 3 post-condition: after synthesize either
-        ``graph.yaml`` exists OR the manifest reports ``built_in_only=true``.
-
-        Both states are operator-legal. We exercise the manifest path here:
-        a manifest with ``built_in_only: true`` and no graph file should
-        produce ``synthesized_drg.state == "built_in_only"`` (and the
-        remediation is ``None`` — operators are unblocked).
-        """
-        _seed_minimum_repo(tmp_path)
-        _write_charter_and_metadata(tmp_path)
-        _write_built_in_only_manifest(tmp_path)
-        # No graph.yaml on disk.
-
-        result = _invoke_charter(tmp_path, "status", "--json")
-        assert result.exit_code == 0, result.stdout
-
-        payload = _parse_json_stdout(result.stdout)
-        drg = payload["freshness"]["synthesized_drg"]
-        assert drg["state"] == "built_in_only", drg
-        assert drg["remediation"] is None, drg
 
 
 # ---------------------------------------------------------------------------
@@ -489,105 +386,4 @@ class TestStep4_PackValidatorVocabulary:
         )
         assert "totally-bogus-built-in-id-zzz" in unknown[0].message, (
             unknown[0].message
-        )
-
-
-# ---------------------------------------------------------------------------
-# Step 5 — Vocabulary cutover (FR-015, FR-016).
-# ---------------------------------------------------------------------------
-
-
-_FORBIDDEN_LAYER_LABEL = "shipped"
-_LAYER_LABEL_KEYS = frozenset(
-    {"source", "layer", "provenance", "layer_label"}
-)
-
-
-def _iter_layer_label_values(payload: Any):
-    """Yield string values at layer-label keys (recursive)."""
-    if isinstance(payload, dict):
-        for k, v in payload.items():
-            if k in _LAYER_LABEL_KEYS and isinstance(v, str):
-                yield v
-            yield from _iter_layer_label_values(v)
-    elif isinstance(payload, list):
-        for item in payload:
-            yield from _iter_layer_label_values(item)
-
-
-class TestStep5_NoShippedLayerLabel:
-    def test_step5_charter_status_json_has_no_shipped_layer_label(
-        self, tmp_path: Path
-    ) -> None:
-        _seed_minimum_repo(tmp_path)
-        _write_charter_and_metadata(tmp_path)
-        _write_built_in_only_manifest(tmp_path)
-
-        result = _invoke_charter(tmp_path, "status", "--json")
-        assert result.exit_code == 0, result.stdout
-        payload = _parse_json_stdout(result.stdout)
-
-        violations = [
-            v
-            for v in _iter_layer_label_values(payload)
-            if v == _FORBIDDEN_LAYER_LABEL
-        ]
-        assert violations == [], (
-            f"charter status --json emitted forbidden layer label "
-            f"{_FORBIDDEN_LAYER_LABEL!r}; payload keys: {payload.keys()}"
-        )
-
-    def test_step5_preflight_json_has_no_shipped_layer_label(
-        self, tmp_path: Path
-    ) -> None:
-        _seed_minimum_repo(tmp_path)
-        _write_charter_and_metadata(tmp_path)
-        _write_built_in_only_manifest(tmp_path)
-
-        result = _invoke_charter(tmp_path, "preflight", "--json")
-        assert result.exit_code == 0, result.stdout
-        payload = _parse_json_stdout(result.stdout)
-
-        violations = [
-            v
-            for v in _iter_layer_label_values(payload)
-            if v == _FORBIDDEN_LAYER_LABEL
-        ]
-        assert violations == [], (
-            f"charter preflight --json emitted forbidden layer label "
-            f"{_FORBIDDEN_LAYER_LABEL!r}; payload: {payload}"
-        )
-
-    def test_step5_pack_validate_json_has_no_shipped_layer_label(
-        self, tmp_path: Path
-    ) -> None:
-        """``pack validate --json`` must not surface ``"shipped"``."""
-        _assert_built_in_fixture_tactic_present()
-
-        from charter.offering.packs.pack_validator import (
-            render_validation_result,
-            validate_pack,
-        )
-
-        _write_pack_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
-        result = validate_pack(tmp_path)
-
-        import io
-        import contextlib
-
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            render_validation_result(result, json_output=True)
-        captured = buf.getvalue().strip()
-        assert captured, "pack validate produced no JSON"
-
-        parsed = json.loads(captured)
-        violations = [
-            v
-            for v in _iter_layer_label_values(parsed)
-            if v == _FORBIDDEN_LAYER_LABEL
-        ]
-        assert violations == [], (
-            f"pack validate --json emitted forbidden layer label "
-            f"{_FORBIDDEN_LAYER_LABEL!r}; payload: {parsed}"
         )

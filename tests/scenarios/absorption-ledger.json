@@ -678,6 +678,143 @@
       ],
       "issue": 6101,
       "note": "Same assertions through the built CLI on a Mission planned, implemented, reviewed, approved and accepted by the CLI (instead of the tests/terminus coordination fixture): consolidate exits 0 without 'invariant violated', the work package's code is on the target branch, the work package is done, tmp.txt and .worktrees/ are not tracked on the target, and both untracked files are byte-identical. Arrange uses the authored planning files ADR 2026-10-15-1 decision 6 allows."
+    },
+    {
+      "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_on_fresh_project_via_public_cli",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Synthesizing a fresh project seeds the built-in charter packs",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (result success, mode fresh_project_seed, PROVENANCE.md and synthesis-manifest.yaml written and listed, built_in_only: true, a seed entry, no PROJECT_000) through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/. The per-entry field shape of written_artifacts is pinned by the synthesize CLI tests."
+    },
+    {
+      "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_dry_run_on_fresh_project_does_not_fall_through",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::A dry run of synthesize plans the seed and writes nothing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: result dry_run, mode fresh_project_seed_dry_run, both files planned, no charter-packs folder written. through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/."
+    },
+    {
+      "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_is_idempotent",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Synthesizing again changes nothing"
+      ],
+      "issue": 6101,
+      "note": "Same assertion: a second synthesize leaves .kittify/charter-packs and synthesis-manifest.yaml byte-identical. through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/."
+    },
+    {
+      "retired": "tests/integration/test_charter_synthesize_fresh.py::test_synthesize_without_charter_md_fails_actionably",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Synthesizing before a charter is generated is refused with the way forward"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: a non-zero exit, and the output names the charter and the remedy (`spec-kitty charter generate`). through the built CLI after a real init; the interview is answered with `charter interview --defaults --profile minimal` instead of a hand-written answers.yaml under .kittify/."
+    },
+    {
+      "retired": "tests/integration/test_charter_status_freshness.py::test_payload_includes_freshness_with_three_sub_objects",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Charter status reports every layer, with what to run, on a project with no charter yet"
+      ],
+      "issue": 6101,
+      "note": "Same assertions on a real fresh project (no patched bundle or repository root): the three freshness entries are present with state, last_change and remediation, plus the 'no charter at all' detail."
+    },
+    {
+      "retired": "tests/integration/test_charter_status_freshness.py::test_freshness_state_missing_when_no_synthesis_artifacts",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Charter status names synthesize when only synthesis is missing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: synthesized_drg is missing and its remediation is `spec-kitty charter synthesize`, on a charter generated through the CLI."
+    },
+    {
+      "retired": "tests/integration/test_quickstart_end_to_end.py::TestStep1_FreshnessAndLint::test_step1_charter_status_json_has_freshness_shape",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Charter status reports every layer, with what to run, on a project with no charter yet"
+      ],
+      "issue": 6101,
+      "note": "Same freshness-shape assertions through the built CLI."
+    },
+    {
+      "retired": "tests/integration/test_quickstart_end_to_end.py::TestStep1_FreshnessAndLint::test_step1_charter_lint_runs_on_fresh_checkout",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Preflight and lint run on a built-in-only charter and never label a layer \"shipped\""
+      ],
+      "issue": 6101,
+      "note": "Same assertion: `charter lint --json` emits a JSON object on a built-in-only charter, here reached through interview, generate and synthesize instead of hand-written charter files."
+    },
+    {
+      "retired": "tests/integration/test_quickstart_end_to_end.py::TestStep3_SynthesizePostCondition::test_step3_built_in_only_state_is_recognised_by_freshness",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::After synthesis a built-in-only charter is reported as such, with nothing left to run"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: synthesized_drg is built_in_only with a null remediation, after a real synthesize instead of a hand-written manifest."
+    },
+    {
+      "retired": "tests/integration/test_quickstart_end_to_end.py::TestStep5_NoShippedLayerLabel::test_step5_charter_status_json_has_no_shipped_layer_label",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::After synthesis a built-in-only charter is reported as such, with nothing left to run"
+      ],
+      "issue": 6101,
+      "note": "Stronger: the word 'shipped' appears nowhere in the status output, not only at the layer-label keys."
+    },
+    {
+      "retired": "tests/integration/test_quickstart_end_to_end.py::TestStep5_NoShippedLayerLabel::test_step5_preflight_json_has_no_shipped_layer_label",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::Preflight and lint run on a built-in-only charter and never label a layer \"shipped\""
+      ],
+      "issue": 6101,
+      "note": "Stronger: preflight succeeds and the word 'shipped' appears nowhere in its output."
+    },
+    {
+      "retired": "tests/integration/test_specify_plan_commit_boundary.py::test_mission_create_does_not_commit_spec_md",
+      "replaced_by": [
+        "tests/scenarios/mission/plan.feature::Creating a Mission scaffolds its spec without committing it"
+      ],
+      "issue": 6101,
+      "note": "Same assertions through the built CLI (no patched create core): spec.md and meta.json exist and spec.md is not committed. Arrange uses the topic branch the Mission targets (ADR 2026-10-15-1, decision 6)."
+    },
+    {
+      "retired": "tests/integration/test_specify_plan_commit_boundary.py::test_setup_plan_blocks_when_spec_uncommitted",
+      "replaced_by": [
+        "tests/scenarios/mission/plan.feature::Setting up the plan of a spec that is not committed is refused"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: result blocked, phase_complete false, the 'committed AND substantive' reason, plan.md not committed; through the built CLI instead of a CliRunner with six patched collaborators."
+    },
+    {
+      "retired": "tests/integration/test_specify_plan_commit_boundary.py::test_setup_plan_blocks_when_spec_committed_but_scaffold",
+      "replaced_by": [
+        "tests/scenarios/mission/plan.feature::Setting up the plan of a committed placeholder spec is refused"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: result blocked, phase_complete false, spec_committed true, spec_substantive false, plan.md not committed."
+    },
+    {
+      "retired": "tests/integration/test_specify_plan_commit_boundary.py::test_setup_plan_commits_substantive_plan",
+      "replaced_by": [
+        "tests/scenarios/mission/plan.feature::Setting up the plan of a real, committed spec commits the plan to the target branch"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: result success, phase_complete true, plan.md committed on the target branch and absent from the coordination branch."
+    },
+    {
+      "retired": "tests/integration/test_refinalize_keeps_started_lanes.py::test_started_wp_keeps_its_lane_when_a_planned_wp_joins",
+      "replaced_by": [
+        "tests/scenarios/mission/refinalize.feature::A planned work package that now builds on a started one joins the started one's lane"
+      ],
+      "issue": 6101,
+      "note": "Same assertions through the built CLI (#5573): the overlap is seen (write_scope_overlap), the lanes are lane-b = [WP02, WP01], and the started lane's worktree still holds its committed work. The started work package is implemented and committed through the CLI instead of an in-process allocation and seeded events; the amendment edits the authored prompt and tasks.md (ADR 2026-10-15-1, decision 6)."
+    },
+    {
+      "retired": "tests/integration/test_refinalize_keeps_started_lanes.py::test_lane_follows_the_started_wp_not_lane_id_order",
+      "replaced_by": [
+        "tests/scenarios/mission/refinalize.feature::The joined lane is the started work package's lane, whatever its name"
+      ],
+      "issue": 6101,
+      "note": "Same assertions with the lane order reversed: lane-a = [WP01, WP02] and the started worktree keeps its work."
     }
   ]
 }

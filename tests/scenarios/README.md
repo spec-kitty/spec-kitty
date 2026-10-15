@@ -14,10 +14,11 @@ One folder per CLI area, one or more `.feature` files per folder:
 | Folder | Covers |
 |--------|--------|
 | `consolidate/` | `spec-kitty consolidate`: refusing under sparse-checkout, and `--abort` without touching the user's own git merge |
+| `charter/` | `spec-kitty charter`: synthesizing a fresh project and the freshness of each layer |
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
 | `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
-| `mission/` | Missions: creating one and its refusals, looking one up, planning to review (`lifecycle`), rejecting in review (`review`), the single-branch write checkout (`single-branch`) and discarding one (`mission-close`) |
+| `mission/` | Missions: creating one and its refusals, looking one up, planning to review (`lifecycle`), rejecting in review (`review`), the plan gate (`plan`), re-planning around started work (`refinalize`), the single-branch write checkout (`single-branch`) and discarding one (`mission-close`) |
 | `status/` | Status: tracing a work package's lane to the events behind it |
 
 ## Available steps
@@ -49,6 +50,17 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Arrange | `Given an empty review feedback file "<../path>"` |
 | Arrange | `Given the file "<path>" is committed with the text "<text>"` |
 | Arrange | `Given the file "<path>" has the uncommitted text "<text>"` |
+| Arrange | `Given a project set up with Spec Kitty on the topic branch "work"` |
+| Arrange | `Given a mission "<name>" created on a topic branch` |
+| Arrange | `Given the spec of mission "<name>" is written but not committed` |
+| Arrange | `Given the spec of mission "<name>" is committed as it was scaffolded` |
+| Arrange | `Given the plan of mission "<name>" is written` |
+| Arrange | `Given a lanes mission "<name>" planned on a topic branch with the work packages "<WP01,WP02>"` |
+| Arrange | `Given the work package "<wp>" of mission "<name>" is amended to build on "<wp>"` |
+| Arrange | `Given the mission "<name>" has been accepted` |
+| Arrange | `Given the charter interview has been answered with its defaults` |
+| Arrange | `Given a charter has been generated from the interview` |
+| Arrange | `Given the charter has been synthesized` |
 | Assume | `Given the folder "<path>" is present` |
 | Assume | `Given the file "<path>" is present` |
 | Assume | `Given the repository has at least one commit` |
@@ -92,6 +104,17 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then the old tip of the mission branch of mission "<name>" can be restored from its kept ref` |
 | Assert | `Then the file "<path>" is not tracked by git` |
 | Assert | `Then the working tree has no uncommitted changes to tracked files` |
+| Assert | `Then the JSON flag "<field>" of the output is <true\|false\|null>` |
+| Assert | `Then the "<entry>" entry of the JSON field "<field>" of the output is "<value>"` |
+| Assert | `Then the "<entry>" entry of the JSON field "<field>" of the output is null` |
+| Assert | `Then the output is a JSON object` |
+| Assert | `Then the file "<path>" exists` |
+| Assert | `Then the file "<file>" of mission "<name>" is committed on the current branch` |
+| Assert | `Then the file "<file>" of mission "<name>" is not committed` |
+| Assert | `Then the lanes of mission "<name>" are "<lane-a: WP01; lane-b: WP02>"` |
+| Assert | `Then the lane worktree of the work package "<wp>" of mission "<name>" still holds its committed work` |
+| Assert | `Then the branch "<branch>" has the file "<path>" mentioning "<text>"` |
+| Assert | `Then the branch "<branch>" tracks no file under "<path>"` |
 | Assert | `Then the mission "<name>" is listed` |
 | Assert | `Then the mission "<name>" is not listed` |
 | Assert | `Then the folder "<path>" exists` |

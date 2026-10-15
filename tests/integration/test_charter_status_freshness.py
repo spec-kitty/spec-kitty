@@ -184,19 +184,6 @@ def _invoke_status_json(repo: Path) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
-def test_payload_includes_freshness_with_three_sub_objects(tmp_path: Path) -> None:
-    _seed_minimum_repo(tmp_path)
-    payload = _invoke_status_json(tmp_path)
-    assert "freshness" in payload, payload.keys()
-    freshness = payload["freshness"]
-    assert isinstance(freshness, dict)
-    assert set(freshness.keys()) == {"charter_source", "synced_bundle", "synthesized_drg"}
-    for sub in freshness.values():
-        assert "state" in sub
-        assert "last_change" in sub
-        assert "remediation" in sub
-
-
 def test_freshness_state_fresh_when_all_artifacts_aligned(tmp_path: Path) -> None:
     """Tightened per research fact #21: the old ``in {"fresh", "stale"}``
     assertion was a live SYMPTOM of the #2681 mtime-comparison bug (it
@@ -238,18 +225,6 @@ def test_freshness_state_invalid_when_charter_yaml_unparseable(tmp_path: Path) -
     assert freshness["charter_source"]["state"] == "invalid"
     assert freshness["charter_source"]["remediation"] is None
     assert freshness["charter_source"]["detail"]
-
-
-def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> None:
-    """Preserved by the #2681 fix — the ``missing`` branch sits above the
-    content-hash comparison. A regress here means T015 touched a branch it
-    should not have."""
-    _seed_minimum_repo(tmp_path)
-    _write_charter_and_metadata(tmp_path)
-    payload = _invoke_status_json(tmp_path)
-    freshness = payload["freshness"]
-    assert freshness["synthesized_drg"]["state"] == "missing"
-    assert freshness["synthesized_drg"]["remediation"] == "spec-kitty charter synthesize"
 
 
 def test_freshness_missing_detail_distinguishes_no_charter_from_legacy_bundle(

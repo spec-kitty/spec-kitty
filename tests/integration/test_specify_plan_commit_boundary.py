@@ -262,19 +262,6 @@ def test_is_committed_returns_false_for_staged_only(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_mission_create_does_not_commit_spec_md(tmp_path: Path) -> None:
-    """meta.json is written; spec.md is left untracked on disk."""
-    _init_git_repo(tmp_path)
-    feature_dir = _create_mission(tmp_path, "mission-a")
-
-    rel_root = feature_dir.relative_to(tmp_path)
-    spec_rel = str(rel_root / "spec.md")
-
-    assert (feature_dir / "spec.md").exists(), "spec.md scaffold must remain on disk"
-    assert (feature_dir / "meta.json").exists(), "meta.json must still be written"
-    assert _file_in_head(tmp_path, spec_rel) is False, "spec.md must NOT be committed at create"
-
-
 # ---------------------------------------------------------------------------
 # setup-plan invocation helpers
 # ---------------------------------------------------------------------------
@@ -336,95 +323,14 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
-def test_setup_plan_blocks_when_spec_uncommitted(tmp_path: Path) -> None:
-    _init_git_repo(tmp_path)
-    feature_dir = _create_mission(tmp_path, "mission-b")
-    handle = feature_dir.name
-    # Populate spec but do NOT commit it.
-    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
-
-    payload = _run_setup_plan(tmp_path, handle)
-
-    assert payload.get("phase_complete") is False
-    assert payload.get("result") == "blocked"
-    reason = str(payload.get("blocked_reason", ""))
-    assert "committed AND substantive" in reason
-    # plan.md must not have been written / committed
-    plan_path = feature_dir / "plan.md"
-    plan_rel = str(plan_path.relative_to(tmp_path))
-    assert _file_in_head(tmp_path, plan_rel) is False
-
-
 # ---------------------------------------------------------------------------
 # Scenario (c) — committed but scaffold-only spec blocks setup-plan
 # ---------------------------------------------------------------------------
 
 
-def test_setup_plan_blocks_when_spec_committed_but_scaffold(tmp_path: Path) -> None:
-    _init_git_repo(tmp_path)
-    feature_dir = _create_mission(tmp_path, "mission-c")
-    handle = feature_dir.name
-    # Commit a scaffold-only spec.md.
-    (feature_dir / "spec.md").write_text(_SCAFFOLD_SPEC, encoding="utf-8")
-    spec_rel = str((feature_dir / "spec.md").relative_to(tmp_path))
-    _commit_file(tmp_path, spec_rel, "add scaffold spec")
-
-    payload = _run_setup_plan(tmp_path, handle)
-
-    assert payload.get("phase_complete") is False
-    assert payload.get("result") == "blocked"
-    assert payload.get("spec_committed") is True
-    assert payload.get("spec_substantive") is False
-    plan_rel = str((feature_dir / "plan.md").relative_to(tmp_path))
-    assert _file_in_head(tmp_path, plan_rel) is False
-
-
 # ---------------------------------------------------------------------------
 # Scenario (d) — committed substantive spec + populated plan -> commit + phase_complete=True
 # ---------------------------------------------------------------------------
-
-
-def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
-    _init_git_repo(tmp_path)
-    feature_dir = _create_mission(tmp_path, "mission-d")
-    handle = feature_dir.name
-
-    # Populate + commit substantive spec.
-    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
-    spec_rel = str((feature_dir / "spec.md").relative_to(tmp_path))
-    _commit_file(tmp_path, spec_rel, "add substantive spec")
-
-    # Pre-write the plan so setup-plan does NOT overwrite it (C-007).
-    (feature_dir / "plan.md").write_text(_SUBSTANTIVE_PLAN, encoding="utf-8")
-
-    payload = _run_setup_plan(tmp_path, handle)
-
-    assert payload.get("phase_complete") is True
-    assert payload.get("result") == "success"
-    plan_rel = str((feature_dir / "plan.md").relative_to(tmp_path))
-    # Placement is artifact-class-determined (write-surface coherence,
-    # planning-on-primary contract): ``plan.md`` is a FINALIZED_EXECUTION_PLAN
-    # planning artifact, so its auto-commit ALWAYS lands on the primary
-    # ``target_branch`` (HEAD here is ``main``) for every mission shape — even
-    # when ``mission create`` declares a coordination_branch in meta.json. Only
-    # status/bookkeeping artifacts (status.events.jsonl, issue-matrix, etc.)
-    # land on the coordination ref. Assert the planning artifact on primary.
-    assert _file_in_head(tmp_path, plan_rel) is True
-    # Bifurcation proof: when a coordination_branch is declared, the planning
-    # artifact must NOT have been routed onto it — that was the overturned
-    # planning-on-coord contract.
-    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
-    coord_branch = meta.get("coordination_branch")
-    if coord_branch:
-        shown = subprocess.run(
-            ["git", "-C", str(tmp_path), "cat-file", "-e", f"{coord_branch}:{plan_rel}"],
-            capture_output=True,
-        )
-        assert shown.returncode != 0, (
-            f"plan.md must NOT be committed on the coordination branch "
-            f"{coord_branch!r}; planning artifacts land on the primary "
-            f"target_branch under the write-surface coherence contract"
-        )
 
 
 def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, object]:
