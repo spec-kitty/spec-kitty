@@ -102,7 +102,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_merge_lane_planning_data_loss.py` | keep | - | Mocked merge plan, 61 patches. |
 | `test_merge_lane_worktree_safety.py` | keep | - | Mocked harness, private preflight. |
 | `test_merge_primary_checkout_safety.py` | keep | - | Mocked harness; its promise needs a mergeable-Mission builder (wave 2). |
-| `test_merge_resume.py` | keep | - | Mocked lane merges, 19 patches. |
+| `test_merge_resume.py` | keep | - | Mocked lane consolidations, 19 patches. |
 | `test_migration_backfill.py` | keep | - | Fault-injected corrupt seed. |
 | `test_mission_archiving.py` | partly | 1c | The non-terminal refusal can go through `archive create`; the rest is API or unit. |
 | `test_mission_close.py` | duplicate | R (done) | Verified: its two product tests are covered by `tests/specify_cli/coordination/test_workspace.py` (one HEAD check folded in); its other five ran only plain git or tested the test's own branch. |
