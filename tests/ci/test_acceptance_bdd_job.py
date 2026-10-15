@@ -154,3 +154,8 @@ def test_escalation_is_fail_closed(jobs: dict[str, Any]) -> None:
 def test_acceptance_jobs_are_aggregated_by_nightly_summary(jobs: dict[str, Any]) -> None:
     needs = jobs["nightly-summary"]["needs"]
     assert {"acceptance-bdd", "acceptance-bdd-escalation"} <= set(needs)
+
+
+def test_job_timeout_fits_the_slowest_measured_leg(job: dict[str, Any]) -> None:
+    """The Windows leg took over 30 minutes for 56 scenarios (run 38761757042); the cap must not drop back."""
+    assert int(job["timeout-minutes"]) >= 60

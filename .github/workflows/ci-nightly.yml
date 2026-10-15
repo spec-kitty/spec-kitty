@@ -1574,7 +1574,8 @@ jobs:
   # non-gating `@wip` run is continue-on-error so WIP scenarios never fail the
   # leg (FR-014). timeout-minutes: the job is new and unmeasured; sized
   # generously from the stages (one env sync, a Gradle download, a JVM compile
-  # and two scenario runs) -- a generous cap costs nothing unless a leg hangs.
+  # and two scenario runs) -- a generous cap costs nothing unless a leg hangs. Since the
+  # Mission lifecycle scenarios landed (ADR 2026-10-15-1) the cap is sized from measured legs.
   # ---------------------------------------------------------------------------
   acceptance-bdd:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
@@ -1584,7 +1585,10 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # Measured on run 38761757042 (56 gating scenarios, four at a time): Linux 6 min, macOS
+    # 16 min, Windows over 30 min (a Mission lifecycle scenario runs dozens of CLI commands,
+    # 200-450 s each on Windows). 60 minutes leaves headroom without hiding a hang for long.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
