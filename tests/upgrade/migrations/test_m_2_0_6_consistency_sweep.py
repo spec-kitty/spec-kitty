@@ -11,6 +11,7 @@ from specify_cli.status.store import EVENTS_FILENAME
 from specify_cli.status.transitions import CANONICAL_LANES
 from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import (
     ConsistencySweepMigration,
+    _migrate_runtime_assets,
 )
 
 pytestmark = pytest.mark.fast
@@ -203,3 +204,42 @@ def test_apply_cleans_legacy_worktree_assets(
     assert not commands_dir.exists()
     assert not scripts_dir.exists()
     assert any("cleaned 1 worktree" in change for change in result.changes_made)
+
+
+def _runtime_asset_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, twin: bool) -> Path:
+    global_home = tmp_path / "global"
+    (global_home / "missions").mkdir(parents=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
+    kittify = tmp_path / "project" / ".kittify"
+    legacy = kittify / "missions" / "erp" / "mission.yaml"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("LEGACY v1", encoding="utf-8")
+    if twin:
+        override = kittify / "overrides" / "missions" / "erp" / "mission.yaml"
+        override.parent.mkdir(parents=True)
+        override.write_text("OVERRIDE v2", encoding="utf-8")
+    return tmp_path / "project"
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_runtime_asset_conflicts_surface_as_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
+    """#5450: a legacy file that cannot move onto its override is a warning, not silence."""
+    project = _runtime_asset_project(tmp_path, monkeypatch, twin=True)
+
+    _changes, warnings = _migrate_runtime_assets(project, dry_run=dry_run)
+
+    assert len(warnings) == 1
+    assert "1 customized legacy runtime asset(s) not moved" in warnings[0]
+    assert "spec-kitty migrate --dry-run --verbose" in warnings[0]
+    override = project / ".kittify" / "overrides" / "missions" / "erp" / "mission.yaml"
+    assert override.read_text(encoding="utf-8") == "OVERRIDE v2"
+
+
+def test_runtime_asset_without_conflicts_has_no_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = _runtime_asset_project(tmp_path, monkeypatch, twin=False)
+
+    _changes, warnings = _migrate_runtime_assets(project, dry_run=True)
+
+    assert warnings == []
