@@ -1,5 +1,4 @@
 {
-  "accept_commit": "4fd3cae899f13d51518a29985cbc26e926881f90",
   "acceptance_history": [
     {
       "accept_commit": "4fd3cae899f13d51518a29985cbc26e926881f90",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-10-14T14:45:14.747219+00:00",
       "accepted_by": "claude",
       "accepted_from_commit": "6237acb95804a272d7a88c45b570c2b89a724e75"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-15T14:22:44.508324+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "5083b542ea41a3fa339f182e556a626f0a4d980b"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-10-14T14:45:14.747219+00:00",
+  "accepted_at": "2026-10-15T14:22:44.508324+00:00",
   "accepted_by": "claude",
-  "accepted_from_commit": "6237acb95804a272d7a88c45b570c2b89a724e75",
+  "accepted_from_commit": "5083b542ea41a3fa339f182e556a626f0a4d980b",
   "created_at": "2026-10-12T23:15:46.854694+00:00",
   "flattened": false,
   "friendly_name": "Mission Status Read API: mission detail, work packages and artifacts",
