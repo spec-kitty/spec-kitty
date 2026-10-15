@@ -1765,36 +1765,42 @@ def _repair_meta_phase(
 
 def _repair_events_phase(
     repo_root: Path,
-    status_path: Path,
+    events_path: Path,
     raw_rows: Sequence[_RawJsonlRow],
     canonical_lines: Sequence[str],
     state: _RepairState,
 ) -> bool:
-    """Write the canonical event log when its text changed; return whether it did."""
-    before_events = _file_fingerprint(status_path)
-    original_bytes = status_path.read_bytes()
-    status_bytes = _render_event_log(canonical_lines, original_bytes)
-    # Backstop (#2376): never silently empty a previously-populated event
-    # log. Legitimate non-lane events are now preserved in
-    # ``canonical_lines``, so an empty result despite non-empty input means
-    # every row was dropped as genuinely foreign — an extraordinary
-    # outcome that fails loud (recorded as a mission error with a reason)
-    # rather than wiping the canonical log. Originals remain in the
-    # quarantine directory.
-    if raw_rows and not canonical_lines:
-        raise MissionStateRepairError(
-            f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
-            f"all {len(raw_rows)} row(s) were dropped by repair. This "
-            "usually indicates a row-classification bug; the original "
-            "rows are preserved verbatim in the quarantine directory."
-        )
-    # Bytes, not text: universal newlines would hide a CRLF or missing-final-newline
-    # difference and make a healthy log look rewritten (or the reverse).
-    if original_bytes != status_bytes:
-        atomic_write(status_path, status_bytes)
-    changes_before = len(state.file_changes)
-    state.record_change(repo_root, status_path, before_events)
-    return len(state.file_changes) > changes_before
+    """Write the canonical event log when its text changed; return whether it did.
+
+    The read, the render and the whole-file replace sit in one lexical hold of the Mission write
+    lock (#5974). The caller already holds it (the lock is re-entrant per thread, so this costs
+    nothing); it is spelled out here so the whole-file rewrite is visibly locked where it happens.
+    """
+    with mission_write_lock(events_path.parent, repo_root=repo_root, fallback_to_dir_name=True):
+        before_events = _file_fingerprint(events_path)
+        original_bytes = events_path.read_bytes()
+        status_bytes = _render_event_log(canonical_lines, original_bytes)
+        # Backstop (#2376): never silently empty a previously-populated event
+        # log. Legitimate non-lane events are now preserved in
+        # ``canonical_lines``, so an empty result despite non-empty input means
+        # every row was dropped as genuinely foreign — an extraordinary
+        # outcome that fails loud (recorded as a mission error with a reason)
+        # rather than wiping the canonical log. Originals remain in the
+        # quarantine directory.
+        if raw_rows and not canonical_lines:
+            raise MissionStateRepairError(
+                f"Refusing to empty {_repo_relpath(repo_root, events_path)}: "
+                f"all {len(raw_rows)} row(s) were dropped by repair. This "
+                "usually indicates a row-classification bug; the original "
+                "rows are preserved verbatim in the quarantine directory."
+            )
+        # Bytes, not text: universal newlines would hide a CRLF or missing-final-newline
+        # difference and make a healthy log look rewritten (or the reverse).
+        if original_bytes != status_bytes:
+            atomic_write(events_path, status_bytes)
+        changes_before = len(state.file_changes)
+        state.record_change(repo_root, events_path, before_events)
+        return len(state.file_changes) > changes_before
 
 
 def _render_event_log(canonical_lines: Sequence[str], original: bytes) -> bytes:
@@ -1909,18 +1915,20 @@ def _repair_status_log_phases(
     repo_root: Path,
     mission_dir: Path,
     raw_rows: Sequence[_RawJsonlRow],
-    meta: Mapping[str, Any],
     state: _RepairState,
     *,
     run_id: str,
     generated_ids: list[str] | None,
-) -> bool:
+) -> StatusSnapshot | None:
     """Canonicalize the event log and refresh the files derived from it.
 
-    Returns ``False`` when row-level errors stop the repair before anything
-    is written (the caller reports an ``error`` result), ``True`` otherwise.
+    Returns ``None`` when row-level errors stop the repair before anything
+    is written (the caller reports an ``error`` result), otherwise the
+    refreshed snapshot. The caller holds the Mission write lock (#5974); the
+    lanes rebuild is deliberately NOT part of this hold (lock order: the
+    lanes lock is never awaited while a Mission lock is held).
     """
-    status_path = mission_dir / EVENTS_FILENAME
+    events_path = mission_dir / EVENTS_FILENAME
     canonical_lines, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
         repo_root,
         mission_dir,
@@ -1948,14 +1956,12 @@ def _repair_status_log_phases(
         # Nothing was written yet, so no quarantine file exists on disk
         # despite ``quarantined_rows`` being nonzero.
         state.quarantined_rows = len(quarantine_lines)
-        return False
+        return None
 
-    log_changed = _repair_events_phase(repo_root, status_path, raw_rows, canonical_lines, state)
+    log_changed = _repair_events_phase(repo_root, events_path, raw_rows, canonical_lines, state)
     if quarantine_lines:
         _repair_quarantine_phase(repo_root, mission_dir, run_id, quarantine_lines, state)
-    snapshot = _repair_status_json_phase(repo_root, mission_dir, state, log_changed=log_changed)
-    _repair_lanes_phase(repo_root, mission_dir, snapshot, meta, state)
-    return True
+    return _repair_status_json_phase(repo_root, mission_dir, state, log_changed=log_changed)
 
 
 def _repair_mission(
@@ -1977,12 +1983,22 @@ def _repair_mission(
     # changed on disk (report-fidelity, #4780).
     state = _RepairState(mission_slug=mission_dir.name)
     try:
-        raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
-        meta = _repair_meta_phase(repo_root, mission_dir, raw_rows, state, generated_ids=generated_ids)
-        if (mission_dir / EVENTS_FILENAME).exists() and not _repair_status_log_phases(
-            repo_root, mission_dir, raw_rows, meta, state, run_id=run_id, generated_ids=generated_ids
-        ):
-            return state.result("error")
+        # One hold of the Mission write lock covers the read of the log, the meta repair, the
+        # canonicalization, the log replace, the quarantine write and the status.json refresh, so
+        # a status event appended meanwhile is never erased by a stale read (#5974). A lock
+        # timeout raises here, before anything was written, and becomes this Mission's error.
+        with mission_write_lock(mission_dir, repo_root=repo_root, fallback_to_dir_name=True):
+            raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
+            meta = _repair_meta_phase(repo_root, mission_dir, raw_rows, state, generated_ids=generated_ids)
+            snapshot: StatusSnapshot | None = None
+            if (mission_dir / EVENTS_FILENAME).exists():
+                snapshot = _repair_status_log_phases(repo_root, mission_dir, raw_rows, state, run_id=run_id, generated_ids=generated_ids)
+                if snapshot is None:
+                    return state.result("error")
+        # The lanes rebuild runs after the Mission hold (lock order: never wait on the lanes
+        # lock while holding a Mission lock), still inside the try so its errors are reported.
+        if snapshot is not None:
+            _repair_lanes_phase(repo_root, mission_dir, snapshot, meta, state)
         return state.result()
     except Exception as exc:
         state.validation_errors.append(str(exc))
