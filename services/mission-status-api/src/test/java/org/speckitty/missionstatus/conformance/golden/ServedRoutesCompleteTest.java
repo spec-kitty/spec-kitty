@@ -21,7 +21,7 @@ import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
  *
  * <ul>
  *   <li>the fixtures tagged {@code knownDivergence}: their golden is the oracle's outcome and the Java outcome differs on purpose, each with its
- *       own Java-outcome test (V1, V19, V20 and the {@code resolved-state} V21 to V25 on the routes that serve them);
+ *       own Java-outcome test (V1, V20 and the {@code resolved-state} V21 to V25 on the routes that serve them);
  *   <li>the pairs whose golden holds no request key ({@code {}}), e.g. the 17 {@code wp-malformed-frontmatter} Work Package files the oracle's
  *       index skipped: {@code DetailGoldenSuiteTest} refuses an empty golden, so no provider can serve one.
  * </ul>
@@ -110,12 +110,13 @@ class ServedRoutesCompleteTest {
   }
 
   @Test
-  void theSixKnownDivergenceFixturesOfGetMissionAreExemptedFromTheManifestTags() {
+  void theFiveKnownDivergenceFixturesOfGetMissionAreExemptedFromTheManifestTags() {
     Set<String> keys = new TreeSet<>();
     taggedPairs().stream().filter(entry -> entry.goldenFile().equals("get-mission.json")).forEach(entry -> keys.add(entry.fixtureKey()));
 
-    assertThat(keys).hasSizeGreaterThanOrEqualTo(6);
-    assertThat(keys).as("V1, V19 and V20 are tagged").anyMatch(key -> key.endsWith("head-dates-nulled")).anyMatch(key -> key.endsWith("wpm-28"));
+    assertThat(keys).hasSizeGreaterThanOrEqualTo(5);
+    assertThat(keys).as("V1 and V20 are tagged").anyMatch(key -> key.endsWith("wpm-28"));
+    assertThat(keys).as("V19 is retired: head-dates-nulled is an ordinary conformance case").noneMatch(key -> key.endsWith("head-dates-nulled"));
     assertThat(keys.stream().filter(key -> key.contains("ps-link-")).count()).isEqualTo(4);
   }
 

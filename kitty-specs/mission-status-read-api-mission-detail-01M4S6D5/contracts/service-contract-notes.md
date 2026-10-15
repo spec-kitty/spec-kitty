@@ -25,4 +25,4 @@ Every non-2xx body is the shared Problem (`contracts/_shared/responses/Problem.y
 ## Clarifications for the next contract touch (recorded, not edited; C-001)
 
 - `ArtifactPath`: the pattern accepts U+FFFD, but the service refuses a path holding it (the path cannot be told apart from an undecodable name).
-- Known divergences V1 to V26 (V19 retired) between the Python oracle and the service are listed in `services/mission-status-api/README.md` and in the conformance manifest. They are behaviour differences, not contract changes.
+- Known divergences V1 to V27 (V19 retired) between the Python oracle and the service are listed in `services/mission-status-api/README.md` and in the conformance manifest. They are behaviour differences, not contract changes.

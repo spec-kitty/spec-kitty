@@ -24,7 +24,7 @@ import org.speckitty.missionstatus.testsupport.DetailFixture;
  * The four {@code knownDivergence} fixtures of the detail golden. {@code WorkPackageDetailServedRoute#served} leaves them out of the golden
  * comparison (their golden is the oracle's outcome), and each is asserted here against the Java outcome, with the proof that the two outcomes
  * differ where the manifest says they do (D-P9-3): V7 for the two symbolic-link worktrees, V20 for the subtasks written as mappings, and
- * V19 for the head dates, which {@code getMission} nulls and this route never serves.
+ * V19 (retired) for the head dates, which both the oracle and {@code getMission} null and this route never serves.
  */
 class WorkPackageDetailDivergenceTest {
 
@@ -80,9 +80,9 @@ class WorkPackageDetailDivergenceTest {
     assertThat(fixture.diagnostics()).extracting(Diagnostic::code).containsExactly(DiagnosticCode.PROJECTION_REFUSED);
   }
 
-  /** V19 nulls the head dates of {@code getMission}; the detail serves no head, so on this route the Java outcome equals the oracle's golden. */
+  /** V19 is retired: the oracle nulls the head dates too, and the detail serves no head, so the fixture is an ordinary case whose golden holds byte for byte. */
   @Test
-  void theHeadDatesThatGetMissionNullsAreNotServedHereAndTheGoldenHoldsByteForByte() {
+  void theHeadDatesFixtureIsAnOrdinaryCaseHereAndItsGoldenHoldsByteForByte() {
     TreeFixture tree = fixture("projection-nulls/head-dates-nulled");
     Entry entry = new Entry(tree.key(), WorkPackageDetailServedRoute.GOLDEN);
     WorkPackageDetailServedRoute route = new WorkPackageDetailServedRoute();
@@ -90,8 +90,8 @@ class WorkPackageDetailDivergenceTest {
     for (String wp : WorkPackageDetailServedRoute.requestKeys(tree)) {
       CanonicalJson.assertBodyEqualsGolden(route.body(entry, wp), CanonicalJson.toBytes(golden(tree, wp)));
     }
-    assertThat(route.served()).doesNotContain(entry);
-    assertThat(WorkPackageDetailServedRoute.divergentEntries()).contains(entry);
+    assertThat(route.served()).contains(entry);
+    assertThat(WorkPackageDetailServedRoute.divergentEntries()).doesNotContain(entry);
   }
 
   @Test

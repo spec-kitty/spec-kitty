@@ -22,8 +22,8 @@ import org.speckitty.missionstatus.testsupport.http.HttpHarness;
 /**
  * The provider of {@code getMission} for the golden harness (T094), and the fixture helpers the route's tests share. {@link #served()} is every manifest fixture whose {@code golden/} holds {@code get-mission.json}, derived by
  * {@link ServedRoutes#expectedEntries} and not from a list, except the fixtures tagged {@code knownDivergence}: their golden is the
- * oracle's outcome and the Java outcome differs on purpose, so a byte comparison with it could only be red. Those six are served and
- * asserted by the route's own tests against the Java outcome (V1, V19, V20), and {@link #divergentEntries()} names them so a test pins
+ * oracle's outcome and the Java outcome differs on purpose, so a byte comparison with it could only be red. Those five are served and
+ * asserted by the route's own tests against the Java outcome (V1, V20; V19 is retired), and {@link #divergentEntries()} names them so a test pins
  * the exclusion.
  *
  * <p>The request key is {@code "-"}: {@code GET /api/v1/missions/{missionId}} over the real HTTP server with the production wiring, with the id

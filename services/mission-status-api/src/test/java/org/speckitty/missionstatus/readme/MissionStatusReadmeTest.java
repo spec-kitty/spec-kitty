@@ -59,13 +59,13 @@ class MissionStatusReadmeTest {
   }
 
   @Test
-  void everyDivergenceFromV1ToV19IsNamedInTheDivergenceListAndTheResolvedStateOnesAreCoveredByRange() {
+  void everyDivergenceFromV1ToV19IsNamedInTheDivergenceListAndV19IsMarkedRetiredAndTheResolvedStateOnesAreCoveredByRange() {
     String section = between(read(), "### Divergences of the detail routes", "## Release and binaries");
 
     for (int number = 1; number <= 19; number++) {
       assertThat(section).as("V" + number).containsPattern("\\bV" + number + "\\b");
     }
-    assertThat(section).contains("V20 to V25").contains("V26").contains("V27");
+    assertThat(section).contains("V19 (retired)").contains("V20 to V25").contains("V26").contains("V27");
   }
 
   @Test

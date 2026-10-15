@@ -28,14 +28,13 @@ import org.speckitty.missionstatus.testsupport.http.HttpHarness;
  */
 class MissionDetailServedRouteTest {
 
-  /** The fixtures whose golden is the oracle's outcome and whose Java outcome differs on purpose (V1, V19, V20). */
+  /** The fixtures whose golden is the oracle's outcome and whose Java outcome differs on purpose (V1, V20). V19 is retired: head-dates-nulled is an ordinary conformance case, served and compared byte for byte. */
   private static final Set<String> DIVERGENT =
       Set.of(
           "phases-matrix/ps-link-file",
           "phases-matrix/ps-link-completed",
           "phases-matrix/ps-link-started",
           "phases-matrix/ps-link-neither",
-          "projection-nulls/head-dates-nulled",
           "wp-malformed-frontmatter/wpm-28");
 
   /** The classes the review checklist names, with the number of fixtures of each that holds a get-mission golden. */

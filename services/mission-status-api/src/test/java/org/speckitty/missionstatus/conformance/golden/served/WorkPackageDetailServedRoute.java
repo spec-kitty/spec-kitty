@@ -22,7 +22,7 @@ import org.speckitty.missionstatus.testsupport.http.HttpHarness;
  * The provider of {@code getWorkPackageDetail} for the golden harness (T109). {@link #served()} is every manifest fixture whose {@code golden/}
  * holds {@code get-work-package-detail.json}, derived by {@link ServedRoutes#expectedEntries} and not from a list, except the fixtures tagged
  * {@code knownDivergence}: their golden is the oracle's outcome and the Java outcome differs on purpose (V7 for the two symbolic-link worktrees,
- * V19 for the head dates, V20 for the subtasks written as mappings). Those four are served and asserted by the route's own tests against the
+ * V20 for the subtasks written as mappings; V19 is retired). Those three are served and asserted by the route's own tests against the
  * Java outcome, and {@link #divergentEntries()} names them so a test pins the exclusion.
  *
  * <p>The golden of this route is an object keyed by Work Package id whose values are {@code {"body", "status"}}: one request per key, over the

@@ -22,9 +22,9 @@ import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
  */
 class WorkPackageDetailServedRouteTest {
 
-  /** The fixtures whose golden is the oracle's outcome and whose Java outcome differs on purpose (V7, V19, V20). */
+  /** The fixtures whose golden is the oracle's outcome and whose Java outcome differs on purpose (V7, V20). V19 is retired: head-dates-nulled is an ordinary conformance case. */
   private static final Set<String> DIVERGENT =
-      Set.of("worktree-states/directory-symlink", "worktree-states/git-entry-symlink", "projection-nulls/head-dates-nulled", "wp-malformed-frontmatter/wpm-28");
+      Set.of("worktree-states/directory-symlink", "worktree-states/git-entry-symlink", "wp-malformed-frontmatter/wpm-28");
 
   /** The classes the review checklist names, with the number of fixtures of each that holds a detail golden. */
   private static final Map<String, Integer> PER_CLASS =
@@ -84,7 +84,7 @@ class WorkPackageDetailServedRouteTest {
     }
     assertThat(served.get("worktree-states")).as("seven fixtures, the two symbolic-link rows left to their own test").isEqualTo(5);
     assertThat(served.get("wp-malformed-frontmatter")).as("28 fixtures, the SK-353 fixture left to its own test").isEqualTo(27);
-    assertThat(served.get("projection-nulls")).isEqualTo(5);
+    assertThat(served.get("projection-nulls")).as("six fixtures, all served: V19 is retired, so head-dates-nulled is no longer left to its own test").isEqualTo(6);
   }
 
   @Test
