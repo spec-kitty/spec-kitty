@@ -33,7 +33,7 @@ from specify_cli import completion
 from specify_cli.cli.commands.profile_invocation import profile_invocation_app
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH
 from tests._support.ansi import strip_ansi
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
@@ -258,6 +258,115 @@ def test_cli_evidence_accepted_for_task_execution(tmp_path: Path) -> None:
     assert completed["event"] == "completed"
     assert completed["closed_by"] == "agent"
     assert (project / ".kittify" / "evidence" / inv_id / "evidence.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# Unstorable evidence is refused before the terminal write (#5397)
+# ---------------------------------------------------------------------------
+
+_PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+
+
+def _event_names(project: Path, invocation_id: str) -> list[object]:
+    return [e["event"] for e in _read_events(project, invocation_id)]
+
+
+@pytest.mark.regression
+def test_cli_binary_evidence_refused_before_close_then_text_retry_completes(tmp_path: Path) -> None:
+    """Regression #5397: PNG evidence must not close the Op before being refused.
+
+    Before the fix the ``completed`` event was written, the PNG then failed to
+    decode, and every corrected retry was refused as ``already_closed``.
+    """
+    project = _setup_project(tmp_path)
+    inv_id = _open_invocation(project)
+    shot = tmp_path / "shot.png"
+    shot.write_bytes(_PNG_BYTES)
+    proof = tmp_path / "proof.txt"
+    proof.write_text("all checks passed\n", encoding="utf-8")
+    (project / "README.md").write_text("# readme\n", encoding="utf-8")
+    record = project / EVENTS_DIR / f"{inv_id}.jsonl"
+    before = record.read_bytes()
+    original_commit = ProfileInvocationExecutor._commit_op_record
+
+    with patch.object(ProfileInvocationExecutor, "_commit_op_record", autospec=True, side_effect=original_commit) as commit_spy:
+        refused = _run_complete(
+            project,
+            "--invocation-id",
+            inv_id,
+            "--outcome",
+            "done",
+            "--evidence",
+            str(shot),
+            "--artifact",
+            "README.md",
+            "--commit",
+            "a" * 40,
+            "--json",
+        )
+        assert refused.exit_code == 1, refused.output
+        error_obj = json.loads(refused.output.strip().splitlines()[-1])
+        assert error_obj["error"] == "complete_failed"
+        message = error_obj["message"].lower()
+        assert "shot.png" in message
+        assert inv_id.lower() in message
+        assert "utf-8" in message
+        assert "no completion was recorded" in message
+        assert record.read_bytes() == before
+        assert _event_names(project, inv_id) == ["started"]
+        assert not (project / OP_CLOSURES_RELATIVE_PATH).exists()
+        assert not (project / ".kittify" / "evidence" / inv_id).exists()
+        assert commit_spy.call_count == 0
+
+        # Positive control: the corrected retry on the SAME Op now completes.
+        retried = _run_complete(
+            project,
+            "--invocation-id",
+            inv_id,
+            "--outcome",
+            "done",
+            "--evidence",
+            str(proof),
+            "--artifact",
+            "README.md",
+            "--commit",
+            "a" * 40,
+            "--json",
+        )
+        assert retried.exit_code == 0, retried.output
+        assert commit_spy.call_count == 1
+
+    assert _event_names(project, inv_id) == ["started", "completed", "artifact_link", "commit_link"]
+    stored = project / ".kittify" / "evidence" / inv_id / "evidence.md"
+    assert stored.read_text(encoding="utf-8") == "all checks passed\n"
+
+
+@pytest.mark.regression
+def test_cli_inline_evidence_that_cannot_be_encoded_is_refused_before_close(tmp_path: Path) -> None:
+    """Regression #5397: inline evidence text that is not UTF-8-encodable is refused pre-close.
+
+    A lone surrogate is what CPython's ``surrogateescape`` yields for an
+    undecodable argv byte; it used to fail ``write_text`` after the close.
+    """
+    project = _setup_project(tmp_path)
+    inv_id = _open_invocation(project)
+
+    result = _run_complete(
+        project,
+        "--invocation-id",
+        inv_id,
+        "--outcome",
+        "done",
+        "--evidence",
+        "missing-\udcff.txt",
+        "--json",
+    )
+
+    assert result.exit_code == 1, result.output
+    error_obj = json.loads(result.output.strip().splitlines()[-1])
+    assert error_obj["error"] == "complete_failed"
+    assert _event_names(project, inv_id) == ["started"]
+    assert not (project / ".kittify" / "evidence" / inv_id).exists()
 
 
 # ---------------------------------------------------------------------------
