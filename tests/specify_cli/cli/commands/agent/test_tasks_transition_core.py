@@ -49,7 +49,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     decide_transition,
     override_persist_signal,
 )
-from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS
+from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, latest_implementer_actor
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -312,6 +312,52 @@ _THIRD = "gemini:2.5-pro:python-pedro:implementer"
 def _role_request(old: str, target: str, agent: str, current: str, **overrides: Any) -> MoveTaskRequest:
     overrides.setdefault("latest_implementer", _IMPL)
     return _base_request(old_lane=old, target_lane=target, agent=agent, current_agent=current, **overrides)
+
+
+def _implementer_of_record_past_a_seed() -> str | None:
+    """What ``tasks_move_task`` passes as ``latest_implementer``: the projection over a log whose last claim is a seed."""
+
+    def _ev(n: int, src: Lane, dst: Lane, actor: str) -> StatusEvent:
+        return StatusEvent(
+            event_id=f"01HZ{n:022d}",
+            mission_slug="seed-fixture-01M4Z9TN",
+            wp_id="WP01",
+            from_lane=src,
+            to_lane=dst,
+            at=f"2026-01-01T00:00:{n:02d}+00:00",
+            actor=actor,
+            force=False,
+            execution_mode="worktree",
+        )
+
+    events = [
+        _ev(1, Lane.PLANNED, Lane.CLAIMED, _IMPL),
+        _ev(2, Lane.CLAIMED, Lane.IN_PROGRESS, _IMPL),
+        _ev(3, Lane.IN_PROGRESS, Lane.FOR_REVIEW, _IMPL),
+        _ev(4, Lane.PLANNED, Lane.CLAIMED, "migration:backfill_runtime_state"),
+    ]
+    return latest_implementer_actor(events, "WP01")
+
+
+@pytest.mark.regression
+def test_reviewer_arm_refuses_the_real_implementer_tool_past_an_appended_seed() -> None:
+    """#6257: with a seed appended, the implementer's own tool is still not admitted as the reviewer.
+
+    ``current_agent`` holds another tool (``_REVW``), so the ownership guard reaches the role check.
+    """
+    latest = _implementer_of_record_past_a_seed()
+    req = _role_request("for_review", "in_review", "claude:opus:reviewer-renata:reviewer", _REVW, latest_implementer=latest)
+    assert _ownership_role_allowance(req) is False
+    assert isinstance(_guard_agent_ownership(req), RefuseExit1)
+
+
+@pytest.mark.regression
+def test_reviewer_arm_admits_a_third_tool_past_an_appended_seed() -> None:
+    """#6257 positive control: same fixture, a tool other than the implementer's is admitted."""
+    latest = _implementer_of_record_past_a_seed()
+    req = _role_request("for_review", "in_review", _THIRD, _REVW, latest_implementer=latest)
+    assert _ownership_role_allowance(req) is True
+    assert _guard_agent_ownership(req) is None
 
 
 @pytest.mark.parametrize("target", ["in_review", "approved", "planned"])

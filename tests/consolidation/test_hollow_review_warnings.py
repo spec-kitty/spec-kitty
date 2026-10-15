@@ -347,3 +347,54 @@ def test_the_approving_reviewer_is_the_latest_appended_approval_whatever_the_clo
     (feature_dir / "status.events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
 
     assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {}
+
+
+_BACKFILL_SEED = "migration:backfill_runtime_state"
+_VERDICT_SEED = "migration:verdict_provenance_backfill"
+_CLAIM_SEED = (_BACKFILL_SEED, "planned", "claimed")
+_APPROVAL_SEED = (_VERDICT_SEED, "in_review", "approved")
+
+
+@pytest.mark.regression
+def test_an_appended_claim_seed_does_not_make_a_self_review_look_independent(tmp_path: Path) -> None:
+    """#6257: a backfill claim seed appended last is not the implementer, so a self-review still warns."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_loop(feature_dir, [*_loop_steps("claude", "claude"), _CLAIM_SEED])
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=3"]}
+
+
+@pytest.mark.regression
+def test_an_appended_approval_seed_is_not_the_approving_reviewer(tmp_path: Path) -> None:
+    """#6257 / FR-009: a ``verdict_provenance_backfill`` seed into ``approved`` restates a verdict; it is not a review."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_loop(feature_dir, [*_loop_steps("claude", "claude"), _APPROVAL_SEED])
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=3"]}
+
+
+def test_an_independent_review_with_both_seeds_still_does_not_warn(tmp_path: Path) -> None:
+    """#6257 positive control: the same seeds around a genuinely independent loop leave no warning."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_loop(feature_dir, [*_loop_steps("claude", "codex"), _CLAIM_SEED, _APPROVAL_SEED])
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {}
+
+
+@pytest.mark.regression
+def test_a_seeds_only_implementer_leaves_independence_unconfirmed(tmp_path: Path) -> None:
+    """#6257: with no real implementer on record (generic ``user`` plus a seed), independence is not confirmed, so the force signal warns."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    _write_loop(feature_dir, [*_loop_steps("user", "codex"), _CLAIM_SEED])
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=3"]}
+
+
+@pytest.mark.regression
+def test_a_verdict_seed_alone_never_confirms_an_independent_review(tmp_path: Path) -> None:
+    """#6257 / FR-009: a WP whose ONLY approval is a verdict seed has no real approver, so independence is unconfirmed and the force signal warns."""
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    without_real_approval = _loop_steps("claude", "claude")[:-1]
+    _write_loop(feature_dir, [*without_real_approval, _APPROVAL_SEED])
+
+    assert _collect_hollow_review_warnings(feature_dir, ["WP01"]) == {"WP01": ["force_count=3"]}

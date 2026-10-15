@@ -14,6 +14,8 @@ pytestmark = pytest.mark.unit
 
 IMPL = "claude:opus:implementer-ivan:implementer"
 REVW = "codex:gpt-5:reviewer-renata:reviewer"
+SEED = "migration:backfill_runtime_state"
+VERDICT_SEED = "migration:verdict_provenance_backfill"
 _SEQ = iter(range(1, 10_000))
 
 
@@ -131,7 +133,12 @@ def test_latest_implementer_event_returns_the_qualifying_event() -> None:
 
 def test_latest_implementer_event_skips_generic_and_migration_actors() -> None:
     claim = _ev(Lane.PLANNED, Lane.CLAIMED, IMPL)
-    events = [claim, _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "unknown"), _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "implement-command")]
+    events = [
+        claim,
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "unknown"),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "implement-command"),
+        _ev(Lane.PLANNED, Lane.CLAIMED, SEED),
+    ]
     assert latest_implementer_event(events, "WP01") is claim
 
 
@@ -159,3 +166,51 @@ def test_actor_full_identity_is_tool_model_profile(actor: object, expected: str 
     from specify_cli.status import actor_full_identity
 
     assert actor_full_identity(actor) == expected
+
+
+@pytest.mark.regression
+def test_latest_implementer_event_skips_an_appended_backfill_seed() -> None:
+    """#6257: a ``migration:`` seed appended after the real claim is not the implementer of record."""
+    first = _ev(Lane.PLANNED, Lane.CLAIMED, IMPL)
+    latest_real = _ev(Lane.CLAIMED, Lane.IN_PROGRESS, IMPL)
+    events = [first, latest_real, _ev(Lane.PLANNED, Lane.CLAIMED, SEED)]
+    assert latest_implementer_event(events, "WP01") is latest_real
+    assert latest_implementer_actor(events, "WP01") == IMPL
+
+
+@pytest.mark.regression
+def test_latest_implementer_event_skips_a_verdict_seed_into_in_progress() -> None:
+    """#6257: the verdict-provenance seed leaves ``in_review`` with no ``review_ref``, so it is not a rework verdict.
+
+    Control: the same real claim is returned when the seed is absent.
+    """
+    claim = _ev(Lane.PLANNED, Lane.CLAIMED, IMPL)
+    assert latest_implementer_actor([claim], "WP01") == IMPL
+    events = [claim, _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, VERDICT_SEED)]
+    assert latest_implementer_event(events, "WP01") is claim
+    assert latest_implementer_actor(events, "WP01") == IMPL
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("with_generic_claim", [False, True], ids=["seeds-only", "seeds-and-generic"])
+def test_seeds_only_has_no_implementer(with_generic_claim: bool) -> None:
+    """#6257 / US2-4: a WP whose only implementing events are seeds has no implementer of record (fails closed)."""
+    events = [_ev(Lane.PLANNED, Lane.CLAIMED, SEED), _ev(Lane.IN_REVIEW, Lane.IN_PROGRESS, VERDICT_SEED)]
+    if with_generic_claim:
+        events.insert(1, _ev(Lane.CLAIMED, Lane.IN_PROGRESS, "user"))
+    assert latest_implementer_event(events, "WP01") is None
+    assert latest_implementer_actor(events, "WP01") is None
+
+
+@pytest.mark.regression
+def test_latest_implementer_event_skips_a_dict_seed_actor() -> None:
+    """#6257: a structured actor whose identity string is ``migration:...`` is a seed too.
+
+    Control: the same dict shape with a real tool name still qualifies.
+    """
+    dict_seed = {"tool": SEED, "model": None, "profile": None, "role": None}
+    dict_real = {"tool": "codex", "model": "gpt-5", "profile": None, "role": "implementer"}
+    claim = _ev(Lane.PLANNED, Lane.CLAIMED, IMPL)
+    assert latest_implementer_event([claim, _ev(Lane.CLAIMED, Lane.IN_PROGRESS, dict_seed)], "WP01") is claim
+    real_dict_event = _ev(Lane.CLAIMED, Lane.IN_PROGRESS, dict_real)
+    assert latest_implementer_event([claim, real_dict_event], "WP01") is real_dict_event

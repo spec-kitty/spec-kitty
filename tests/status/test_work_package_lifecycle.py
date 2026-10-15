@@ -1043,3 +1043,51 @@ def test_review_lane_hint_names_the_route(lane: str, expected: str | None, capsy
 
     out = capsys.readouterr().out
     assert (expected in out) if expected else out == ""
+
+
+_SEED_ACTOR = "migration:backfill_runtime_state"
+
+
+def _append_backfill_seed(feature_dir: Path) -> None:
+    """The corpus seed shape: a ``planned -> claimed`` event by the backfill migration, appended last."""
+    append_event(feature_dir, _event("01AAAA0000000000000000009A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor=_SEED_ACTOR))
+
+
+@pytest.mark.regression
+def test_review_lane_resume_admits_the_real_implementer_past_an_appended_seed(tmp_path: Path) -> None:
+    """#6257: a backfill seed appended after the real claim does not displace the implementer of record."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_review_lane(feature_dir, Lane.FOR_REVIEW)
+    _append_backfill_seed(feature_dir)
+
+    result = _start_wp(feature_dir, tmp_path, actor="claude", review_lane_exit=True)
+
+    assert (result.from_lane, result.to_lane) == (Lane.FOR_REVIEW, Lane.IN_PROGRESS)
+
+
+@pytest.mark.regression
+def test_review_lane_resume_refusal_names_the_real_implementer_not_the_seed(tmp_path: Path) -> None:
+    """#6257: another tool is refused, and the conflict names the real implementer (control: test_start_implementation_refuses_other_actor_on_for_review)."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_review_lane(feature_dir, Lane.FOR_REVIEW)
+    _append_backfill_seed(feature_dir)
+
+    with pytest.raises(WorkPackageClaimConflict) as exc_info:
+        _start_wp(feature_dir, tmp_path, actor="gemini", review_lane_exit=True)
+
+    assert exc_info.value.claimed_by == "claude"
+    assert _SEED_ACTOR not in str(exc_info.value)
+
+
+@pytest.mark.regression
+def test_seeds_only_work_package_has_no_implementer_of_record_on_for_review(tmp_path: Path) -> None:
+    """#6257 (user decision): seeds never qualify, so a generic-plus-seed WP fails closed (control: test_generic_only_implementer_is_refused_on_for_review)."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_review_lane(feature_dir, Lane.FOR_REVIEW, implementer="user")
+    _append_backfill_seed(feature_dir)
+
+    with pytest.raises(WorkPackageClaimConflict) as exc_info:
+        _start_wp(feature_dir, tmp_path, actor="claude", review_lane_exit=True)
+
+    assert exc_info.value.claimed_by == "unknown"
+    assert "implementer of record (none on record)" in str(exc_info.value)
