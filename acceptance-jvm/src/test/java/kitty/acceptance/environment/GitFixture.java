@@ -30,6 +30,9 @@ final class GitFixture {
 
     void initGitRepoWithCommit() {
         git("init");
+        // Name the first branch "main" whatever init.defaultBranch the machine sets, so scenarios that
+        // name the primary branch read the same on every OS and git version.
+        git("symbolic-ref", "HEAD", "refs/heads/main");
         try {
             Files.writeString(workDir.resolve("README.md"), "seed\n");
         } catch (IOException e) {

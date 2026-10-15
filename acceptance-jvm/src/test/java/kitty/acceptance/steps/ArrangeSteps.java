@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 public final class ArrangeSteps {
 
     private final ScenarioContext context;
-    private MissionFixture missions;
 
     public ArrangeSteps(ScenarioContext context) {
         this.context = context;
@@ -73,6 +72,104 @@ public final class ArrangeSteps {
         assertThat(context.world().uncommittedChanges()).as("Uncommitted changes after committing everything").isEmpty();
     }
 
+    @Given("a mission {string} planned on a topic branch with the work packages {string}")
+    public void aMissionPlannedOnATopicBranch(String name, String workPackages) {
+        context.lifecycle().planMission(name, list(workPackages));
+    }
+
+    @Given("a single-branch mission {string} planned on a topic branch with the work packages {string}")
+    public void aSingleBranchMissionOnATopicBranch(String name, String workPackages) {
+        context.lifecycle().planSingleBranchMission(name, list(workPackages), false);
+    }
+
+    @Given("a single-branch mission {string} planned for the primary branch with the work packages {string}")
+    public void aSingleBranchMissionForThePrimaryBranch(String name, String workPackages) {
+        context.lifecycle().planSingleBranchMission(name, list(workPackages), true);
+        assertThat(context.world().git("rev-parse", "--abbrev-ref", "HEAD").trim())
+                .as("Checked-out branch after creating mission '%s'", name).isEqualTo(context.lifecycle().missionBranch(name));
+    }
+
+    @Given("the file {string} is committed with the text {string}")
+    public void theFileIsCommittedWithTheText(String relative, String text) {
+        writeInRepository(relative, text);
+        context.world().git("add", "--", relative);
+        context.world().git("commit", "-m", "edit " + relative);
+    }
+
+    @Given("the file {string} has the uncommitted text {string}")
+    public void theFileHasTheUncommittedText(String relative, String text) {
+        writeInRepository(relative, text);
+    }
+
+    private void writeInRepository(String relative, String text) {
+        Path file = context.world().resolve(relative);
+        try {
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, text + "\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not write " + file, e);
+        }
+    }
+
+    private static List<String> list(String commaSeparated) {
+        return Arrays.stream(commaSeparated.split(",")).map(String::trim).filter(item -> !item.isEmpty()).toList();
+    }
+
+    @Given("a mission {string} on a topic branch whose spec is written and committed")
+    public void aMissionWhoseSpecIsWrittenAndCommitted(String name) {
+        context.lifecycle().specifyMission(name);
+    }
+
+    @Given("the work package {string} of mission {string} has been moved to lane {string}")
+    public void theWorkPackageIsInLane(String wp, String name, String lane) {
+        context.lifecycle().advance(name, wp, lane);
+        CliResult status = context.run(List.of("spec-kitty", "agent", "tasks", "status", "--mission",
+                context.lifecycle().slug(name), "--json"));
+        assertThat(status.stdout()).as("Status after moving %s to %s:%n%s", wp, lane, status)
+                .containsPattern("\"id\"\\s*:\\s*\"" + wp + "\"[^}]*\"lane\"\\s*:\\s*\"" + lane + "\"");
+    }
+
+    @Given("the work package {string} of mission {string} has been rejected with the feedback {string}")
+    public void theWorkPackageHasBeenRejected(String wp, String name, String feedback) {
+        context.lifecycle().reject(name, wp, feedback);
+    }
+
+    @Given("the review feedback file {string} says {string}")
+    public void theReviewFeedbackFileSays(String relative, String text) {
+        writeOutsideRepository(relative, "# Review feedback\n\n" + text + "\n");
+    }
+
+    @Given("an empty review feedback file {string}")
+    public void anEmptyReviewFeedbackFile(String relative) {
+        writeOutsideRepository(relative, "");
+    }
+
+    /** A reviewer's notes live outside the repository, so writing them never dirties the working tree. */
+    private void writeOutsideRepository(String relative, String content) {
+        Path file = context.world().resolve(relative).normalize();
+        assertThat(file.startsWith(context.world().workDir())).as("Feedback file '%s' is outside the repository", relative).isFalse();
+        try {
+            Files.writeString(file, content);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not write " + file, e);
+        }
+    }
+
+    @Given("the mission {string} has been accepted")
+    public void theMissionHasBeenAccepted(String name) {
+        context.lifecycle().accept(name);
+    }
+
+    @Given("the subtasks of the work package {string} of mission {string} are marked done")
+    public void theSubtasksAreMarkedDone(String wp, String name) {
+        context.lifecycle().markSubtasksDone(name, wp);
+    }
+
+    @Given("the work package {string} of mission {string} has committed its work")
+    public void theWorkPackageHasCommittedItsWork(String wp, String name) {
+        context.lifecycle().commitWork(name, wp);
+    }
+
     @Given("a project with a mission {string}")
     public void aProjectWithAMission(String slug) {
         missions().createMission(slug);
@@ -92,11 +189,7 @@ public final class ArrangeSteps {
     }
 
     private MissionFixture missions() {
-        if (missions == null) {
-            missions = new MissionFixture(context.world().workDir(), context.world().environment(),
-                    context.world()::initGitRepoWithCommit, context::run);
-        }
-        return missions;
+        return context.missions();
     }
 
     @Given("the folder {string} has been deleted")

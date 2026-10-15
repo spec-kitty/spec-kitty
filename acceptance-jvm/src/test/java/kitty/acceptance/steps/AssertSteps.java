@@ -85,12 +85,20 @@ public final class AssertSteps {
 
     @Then("the output mentions {string}")
     public void theOutputMentions(String text) {
-        assertThat(output()).as("Output of the command:%n%s", context.lastResult()).contains(text);
+        assertThat(flowed(output())).as("Output of the command:%n%s", context.lastResult()).contains(flowed(text));
     }
 
     @Then("the output does not mention {string}")
     public void theOutputDoesNotMention(String text) {
-        assertThat(output()).as("Output of the command:%n%s", context.lastResult()).doesNotContain(text);
+        assertThat(flowed(output())).as("Output of the command:%n%s", context.lastResult()).doesNotContain(flowed(text));
+    }
+
+    /**
+     * Text with every run of whitespace turned into one space. The CLI wraps long lines at the
+     * terminal width, which is presentation, not part of what it promises to say.
+     */
+    private static String flowed(String text) {
+        return text.replaceAll("\\s+", " ").trim();
     }
 
     @Then("the output is a single line")
@@ -174,6 +182,12 @@ public final class AssertSteps {
         assertThat(context.world().branchesUnchanged()).as("Every local branch still points where it was recorded").isTrue();
     }
 
+    @Then("the working tree has no uncommitted changes to tracked files")
+    public void theWorkingTreeHasNoUncommittedChangesToTrackedFiles() {
+        assertThat(context.world().git("status", "--porcelain", "--untracked-files=no").trim())
+                .as("git status --porcelain --untracked-files=no").isEmpty();
+    }
+
     @Then("the working tree has no uncommitted changes")
     public void theWorkingTreeHasNoUncommittedChanges() {
         assertThat(context.world().uncommittedChanges()).as("git status --porcelain").isEmpty();
@@ -222,6 +236,134 @@ public final class AssertSteps {
         } catch (IOException e) {
             throw new UncheckedIOException("Could not list " + specs, e);
         }
+    }
+
+    @Then("the work package {string} of mission {string} is in lane {string}")
+    public void theWorkPackageOfMissionIsInLane(String wp, String name, String lane) {
+        CliResult status = context.run(List.of("spec-kitty", "agent", "tasks", "status", "--mission",
+                context.lifecycle().slug(name), "--json"));
+        assertThat(status.exitCode()).as("Reading the status of mission '%s':%n%s", name, status).isZero();
+        assertThat(status.stdout()).as("Lane of %s in the status of mission '%s'", wp, name)
+                .containsPattern("\"id\"\\s*:\\s*\"" + Pattern.quote(wp) + "\"[^}]*\"lane\"\\s*:\\s*\"" + Pattern.quote(lane) + "\"");
+    }
+
+    @Then("the branch {string} holds no status file of mission {string}")
+    public void theBranchHoldsNoStatusFileOfMission(String branch, String name) {
+        String prefix = "kitty-specs/" + context.lifecycle().slug(name) + "/status.";
+        List<String> files = context.world().git("ls-tree", "-r", "--name-only", branch).lines()
+                .filter(path -> path.startsWith(prefix)).toList();
+        assertThat(files).as("Status files of mission '%s' on branch '%s'", name, branch).isEmpty();
+    }
+
+    @Then("the folder of mission {string} has a non-empty {string} file")
+    public void theFolderOfMissionHasANonEmptyFile(String name, String file) {
+        Path path = missionFolder(name).resolve(file);
+        assertThat(path).as("'%s' in the folder of mission '%s'", file, name).isRegularFile();
+        assertThat(missionFile(name, file)).as("Contents of '%s'", path).isNotBlank();
+    }
+
+    @Then("the status log on the coordination branch of mission {string} records a move of {string} to {string}")
+    public void theCoordinationStatusLogRecordsAMove(String name, String wp, String lane) {
+        String log = context.world().git("show", context.lifecycle().coordinationBranch(name) + ":kitty-specs/"
+                + context.lifecycle().slug(name) + "/status.events.jsonl");
+        Pattern move = Pattern.compile("\"to_lane\"\\s*:\\s*\"" + Pattern.quote(lane) + "\"[^\\n]*\"wp_id\"\\s*:\\s*\""
+                + Pattern.quote(wp) + "\"|\"wp_id\"\\s*:\\s*\"" + Pattern.quote(wp) + "\"[^\\n]*\"to_lane\"\\s*:\\s*\""
+                + Pattern.quote(lane) + "\"");
+        assertThat(log).as("Move of %s to %s in the coordination status log of mission '%s'", wp, lane, name)
+                .containsPattern(move);
+    }
+
+    @Then("the folder of mission {string} has no {string} file")
+    public void theFolderOfMissionHasNoFile(String name, String file) {
+        assertThat(missionFolder(name).resolve(file)).as("'%s' in the folder of mission '%s'", file, name).doesNotExist();
+    }
+
+    @Then("the status log on the coordination branch of mission {string} mentions {string}")
+    public void theCoordinationStatusLogMentions(String name, String text) {
+        String log = context.world().git("show", context.lifecycle().coordinationBranch(name) + ":kitty-specs/"
+                + context.lifecycle().slug(name) + "/status.events.jsonl");
+        assertThat(log).as("Status log on the coordination branch of mission '%s'", name).contains(text);
+    }
+
+    @Then("the history of branch {string} mentions {string}")
+    public void theHistoryOfBranchMentions(String branch, String text) {
+        assertThat(context.world().git("log", "--format=%s", branch)).as("Commit subjects of branch '%s'", branch)
+                .containsIgnoringCase(text);
+    }
+
+    @Then("the file {string} of mission {string} on the coordination branch mentions {string}")
+    public void theCoordinationFileMentions(String file, String name, String text) {
+        String contents = context.coordinationFile(name, file);
+        assertThat(contents).as("'%s' of mission '%s' on its coordination branch", file, name).isNotNull();
+        assertThat(contents).as("Contents of '%s' on the coordination branch", file).contains(text);
+    }
+
+    @Then("the coordination branch of mission {string} has no file {string}")
+    public void theCoordinationBranchHasNoFile(String name, String file) {
+        assertThat(context.coordinationFile(name, file)).as("'%s' of mission '%s' on its coordination branch", file, name)
+                .isNull();
+    }
+
+    @Then("the file {string} of mission {string} on the coordination branch is unchanged")
+    public void theCoordinationFileIsUnchanged(String file, String name) {
+        assertThat(context.coordinationFile(name, file)).as("'%s' of mission '%s' on its coordination branch", file, name)
+                .isEqualTo(context.recordedCoordinationFile(name, file));
+    }
+
+    @Then("the current branch is {string}")
+    public void theCurrentBranchIs(String branch) {
+        assertThat(context.world().git("rev-parse", "--abbrev-ref", "HEAD").trim()).as("Checked-out branch").isEqualTo(branch);
+    }
+
+    @Then("the current branch is the mission branch of mission {string}")
+    public void theCurrentBranchIsTheMissionBranch(String name) {
+        theCurrentBranchIs(context.lifecycle().missionBranch(name));
+    }
+
+    @Then("the mission branch of mission {string} no longer exists")
+    public void theMissionBranchNoLongerExists(String name) {
+        assertThat(branchExists(context.lifecycle().missionBranch(name))).as("Mission branch of mission '%s'", name).isFalse();
+    }
+
+    @Then("the mission branch of mission {string} still exists")
+    public void theMissionBranchStillExists(String name) {
+        assertThat(branchExists(context.lifecycle().missionBranch(name))).as("Mission branch of mission '%s'", name).isTrue();
+    }
+
+    @Then("the old tip of the mission branch of mission {string} can be restored from its kept ref")
+    public void theOldTipCanBeRestored(String name) {
+        String branch = context.lifecycle().missionBranch(name);
+        assertThat(context.world().git("rev-parse", "refs/spec-kitty/discarded/" + branch).trim())
+                .as("Kept ref of the discarded branch '%s'", branch).isEqualTo(context.recordedMissionBranchTip(name));
+        assertThat(flowed(output())).as("Output of the command").contains("git branch " + branch + " refs/spec-kitty/discarded/" + branch);
+    }
+
+    @Then("the branch {string} has no folder of mission {string}")
+    public void theBranchHasNoFolderOfMission(String branch, String name) {
+        String prefix = "kitty-specs/" + context.lifecycle().slug(name) + "/";
+        assertThat(context.world().git("ls-tree", "-r", "--name-only", branch).lines().filter(path -> path.startsWith(prefix)).toList())
+                .as("Files of mission '%s' on branch '%s'", name, branch).isEmpty();
+    }
+
+    @Then("the branch {string} has the file {string} mentioning {string}")
+    public void theBranchHasTheFileMentioning(String branch, String path, String text) {
+        assertThat(context.world().git("show", branch + ":" + path)).as("'%s' on branch '%s'", path, branch).contains(text);
+    }
+
+    @Then("the branch {string} tracks no file under {string}")
+    public void theBranchTracksNoFileUnder(String branch, String prefix) {
+        assertThat(context.world().git("ls-tree", "-r", "--name-only", branch).lines()
+                .filter(path -> path.equals(prefix) || path.startsWith(prefix.endsWith("/") ? prefix : prefix + "/")).toList())
+                .as("Files under '%s' on branch '%s'", prefix, branch).isEmpty();
+    }
+
+    @Then("the file {string} is not tracked by git")
+    public void theFileIsNotTrackedByGit(String relative) {
+        assertThat(context.world().git("ls-files", "--", relative).trim()).as("git ls-files %s", relative).isEmpty();
+    }
+
+    private boolean branchExists(String branch) {
+        return context.world().git("branch", "--list", branch).trim().length() > 0;
     }
 
     @Then("the folder {string} exists")

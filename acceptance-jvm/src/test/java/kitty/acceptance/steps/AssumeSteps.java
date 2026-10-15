@@ -37,6 +37,16 @@ public final class AssumeSteps {
         context.world().recordBranches();
     }
 
+    @Given("the file {string} of mission {string} on the coordination branch is recorded")
+    public void theCoordinationFileIsRecorded(String file, String name) {
+        context.recordCoordinationFile(name, file);
+    }
+
+    @Given("the tip of the mission branch of mission {string} is recorded")
+    public void theTipOfTheMissionBranchIsRecorded(String name) {
+        context.recordMissionBranchTip(name);
+    }
+
     @Given("the repository has at least one commit")
     public void theRepositoryHasAtLeastOneCommit() {
         assertThat(context.world().recordRepoState()).as("Commits in the repository").isPositive();
