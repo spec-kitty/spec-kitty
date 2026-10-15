@@ -302,6 +302,9 @@ val perfTest = tasks.register<Test>("perfTest") {
     useJUnitPlatform {
         includeTags("perf")
     }
+    // One JVM per perf class: a class that builds a large corpus leaves a heap behind, and in a shared JVM that slows the
+    // next class's timings (the warm-overview ratio of Nfr001OverviewLatencyTest drifted from 24-33 to 45 and above).
+    forkEvery = 1
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------

@@ -646,6 +646,13 @@ PARTITION_TASKS = {
 }
 
 
+def perf_fork_violations(build_text: str) -> list[str]:
+    perf = _block(build_text, 'val perfTest = tasks.register<Test>("perfTest")') or ""
+    if re.search(r"^\s*forkEvery\s*=\s*1\s*$", perf, re.MULTILINE):
+        return []
+    return ["perfTest does not fork every class (forkEvery = 1): one class's heap would slow another's measurement"]
+
+
 def partition_violations(build_text: str) -> list[str]:
     found: list[str] = []
     test_block = _block(build_text, 'tasks.named<Test>("test")') or ""
@@ -671,6 +678,7 @@ def partition_violations(build_text: str) -> list[str]:
         body = _block(build_text, f'val {name} = tasks.register<Test>("{name}")') or ""
         if "requireNativeBinary()" not in body:
             found.append(f"{name} does not call requireNativeBinary()")
+    found.extend(perf_fork_violations(build_text))
     check = _block(build_text, 'tasks.named("check")') or ""
     for dependency in ("perfTest", "nativeTagJvmTest", "kitTest"):
         if f'"{dependency}"' not in check:
@@ -691,6 +699,8 @@ def test_the_partition_pin_turns_red_for_a_dropped_exclusion_a_dropped_check_dep
     assert partition_violations(build.replace('"perfTest", ', "", 1))
     assert partition_violations(build.replace('systemProperty("nativeBinary"', 'systemProperty("nativeBinaryX"'))
     assert partition_violations(build.replace("    requireNativeBinary()\n", "", 1))
+    assert partition_violations(build.replace("    forkEvery = 1\n", "", 1))
+    assert partition_violations(build.replace("    forkEvery = 1\n", "    forkEvery = 2\n", 1))
     assert partition_violations(build.replace('tasks.named<Test>("test") {', 'tasks.named<Test>("test") { useJUnitPlatform { includeTags("native") }; ', 1))
 
 
