@@ -9,6 +9,7 @@ coordination surface in ``060-test-01COORD0``.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import threading
 from collections.abc import Callable
@@ -23,8 +24,8 @@ from specify_cli.coordination.transaction import BookkeepingTransaction
 from specify_cli.lanes.branch_naming import MissionLockKeyUnresolved
 from specify_cli.mission_metadata import flatten_coordination_metadata
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
-from specify_cli.status import FeatureStatusLockTimeoutError, mission_lock_key
-from specify_cli.status.locking import feature_status_lock_path
+from specify_cli.status import FeatureStatusLockTimeoutError, extend_mission_write_lock_to_moved_key, mission_lock_key
+from specify_cli.status.locking import feature_status_lock, feature_status_lock_path
 from specify_cli.status.mission_write import capture_rollback_point, mission_write_lock
 
 pytestmark = [pytest.mark.unit]
@@ -320,3 +321,129 @@ def test_uncontended_lock_costs_no_subprocess_once_the_git_cache_is_warm(bare_co
     with mission_write_lock(primary, repo_root=repo):
         assert mission_lock_key(primary, repo_root=repo) == COORD_NAME
     assert calls == []
+
+
+# ---------------------------------------------------------------------------
+# #5974: extending a hold to the key a meta write moved
+# ---------------------------------------------------------------------------
+
+LEGACY_SLUG = "042-legacy"
+LEGACY_MID = "01MOVED0XXXXXXXXXXXXXXXXXX"
+MOVED_KEY = f"{LEGACY_SLUG}-{LEGACY_MID[:8]}"
+
+
+@pytest.fixture
+def legacy_coord_mission(repo: Path) -> Path:
+    """A legacy ``NNN-`` coordination Mission with no mission_id: its key is the bare slug until one is minted."""
+    return _write_meta(
+        repo / "kitty-specs" / LEGACY_SLUG,
+        {"mission_slug": LEGACY_SLUG, "coordination_branch": f"kitty/mission-{LEGACY_SLUG}"},
+    )
+
+
+def _mint_mission_id(mission: Path) -> None:
+    meta = json.loads((mission / "meta.json").read_text(encoding="utf-8"))
+    meta["mission_id"] = LEGACY_MID
+    (mission / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _lock_is_free_in_another_thread(repo: Path, key: str) -> bool:
+    outcome: list[bool] = []
+
+    def _probe() -> None:
+        try:
+            with feature_status_lock(repo, key, timeout=0):
+                outcome.append(True)
+        except FeatureStatusLockTimeoutError:
+            outcome.append(False)
+
+    thread = threading.Thread(target=_probe)
+    thread.start()
+    thread.join(30)
+    assert not thread.is_alive()
+    return outcome == [True]
+
+
+def test_ignore_held_returns_the_key_on_disk_inside_a_hold(repo: Path, legacy_coord_mission: Path) -> None:
+    assert mission_lock_key(legacy_coord_mission, repo_root=repo) == LEGACY_SLUG
+    with mission_write_lock(legacy_coord_mission, repo_root=repo):
+        _mint_mission_id(legacy_coord_mission)
+        assert mission_lock_key(legacy_coord_mission, repo_root=repo) == LEGACY_SLUG  # the held key
+        assert mission_lock_key(legacy_coord_mission, repo_root=repo, ignore_held=True) == MOVED_KEY
+
+
+def test_extender_yields_false_when_the_key_did_not_move(repo: Path, legacy_coord_mission: Path) -> None:
+    with (
+        mission_write_lock(legacy_coord_mission, repo_root=repo),
+        extend_mission_write_lock_to_moved_key(legacy_coord_mission, repo_root=repo) as moved,
+    ):
+        assert moved is False
+        assert _lock_is_free_in_another_thread(repo, MOVED_KEY)
+
+
+def test_extender_yields_false_when_the_new_key_is_unresolved(repo: Path) -> None:
+    """A modern slug whose mid8 cannot be resolved is the fallback-to-dir-name case: nothing to extend to."""
+    modern = _write_meta(repo / "kitty-specs" / "no-number-mission", {"mission_slug": "no-number-mission", "coordination_branch": "kitty/mission-x"})
+    with (
+        mission_write_lock(modern, repo_root=repo, fallback_to_dir_name=True),
+        extend_mission_write_lock_to_moved_key(modern, repo_root=repo) as moved,
+    ):
+        assert moved is False
+
+
+def test_extender_holds_the_moved_key_until_exit(repo: Path, legacy_coord_mission: Path) -> None:
+    with mission_write_lock(legacy_coord_mission, repo_root=repo):
+        _mint_mission_id(legacy_coord_mission)
+        with extend_mission_write_lock_to_moved_key(legacy_coord_mission, repo_root=repo) as moved:
+            assert moved is True
+            assert not _lock_is_free_in_another_thread(repo, MOVED_KEY)
+            assert not _lock_is_free_in_another_thread(repo, LEGACY_SLUG)
+        assert _lock_is_free_in_another_thread(repo, MOVED_KEY)
+        assert not _lock_is_free_in_another_thread(repo, LEGACY_SLUG)
+    assert _lock_is_free_in_another_thread(repo, LEGACY_SLUG)
+
+
+def test_extender_registers_the_moved_key_in_the_threads_held_map_until_exit(repo: Path, legacy_coord_mission: Path) -> None:
+    """White-box: the moved key is a registered hold, so a nested entry for it reuses it instead of re-locking.
+
+    Removing ``registered_hold(root, new_key, new_key)`` leaves the file lock held (the test above stays green) but
+    drops this registration, which is what the nested-entry reuse rules rely on.
+    """
+    from specify_cli.status.mission_write import _held_keys
+
+    slot = (os.path.realpath(repo), MOVED_KEY)
+    with mission_write_lock(legacy_coord_mission, repo_root=repo):
+        _mint_mission_id(legacy_coord_mission)
+        assert slot not in _held_keys()
+        with extend_mission_write_lock_to_moved_key(legacy_coord_mission, repo_root=repo) as moved:
+            assert moved is True
+            assert _held_keys().get(slot) == MOVED_KEY
+        assert slot not in _held_keys()
+
+
+def test_extender_requires_an_enclosing_hold(repo: Path, legacy_coord_mission: Path) -> None:
+    with pytest.raises(RuntimeError, match="enclosing mission_write_lock"), extend_mission_write_lock_to_moved_key(legacy_coord_mission, repo_root=repo):
+        pass
+
+
+def test_extender_times_out_when_another_writer_holds_the_new_key(repo: Path, legacy_coord_mission: Path) -> None:
+    holding = threading.Event()
+    release = threading.Event()
+
+    def _other_writer() -> None:
+        with feature_status_lock(repo, MOVED_KEY):
+            holding.set()
+            release.wait(30)
+
+    thread = threading.Thread(target=_other_writer)
+    thread.start()
+    try:
+        assert holding.wait(30)
+        with mission_write_lock(legacy_coord_mission, repo_root=repo):
+            _mint_mission_id(legacy_coord_mission)
+            with pytest.raises(FeatureStatusLockTimeoutError), extend_mission_write_lock_to_moved_key(legacy_coord_mission, repo_root=repo, timeout=0):
+                pass
+            assert not _lock_is_free_in_another_thread(repo, LEGACY_SLUG)  # the first key stays held by the enclosing hold
+    finally:
+        release.set()
+        thread.join(30)

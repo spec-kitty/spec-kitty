@@ -69,6 +69,7 @@ __all__ = [
     "append_refusal_to_error",
     "appended_event_ids",
     "capture_rollback_point",
+    "extend_mission_write_lock_to_moved_key",
     "locked_rewrite_text",
     "mission_lock_key",
     "registered_hold",
@@ -183,7 +184,7 @@ def transaction_lock_key(repo_root: Path, mission_slug: str, mid8: str) -> str:
     return _lock_name_from_meta(meta, mission_slug) or mission_slug
 
 
-def mission_lock_key(feature_dir: Path, *, repo_root: Path | None = None) -> str:
+def mission_lock_key(feature_dir: Path, *, repo_root: Path | None = None, ignore_held: bool = False) -> str:
     """The lock key of the Mission that owns *feature_dir*: one key for every directory of one Mission.
 
     Pure and Git-free. A coordination-routed Mission (``coordination_branch`` recorded in
@@ -195,13 +196,15 @@ def mission_lock_key(feature_dir: Path, *, repo_root: Path | None = None) -> str
 
     While the calling thread holds a Mission lock, a nested call for the same Mission returns
     the held key, so a writer that changes ``coordination_branch`` or ``mid8`` inside the hold
-    never takes a second lock.
+    never takes a second lock. *ignore_held* skips that lookup and returns the key the Mission's
+    ``meta.json`` records **now**; it exists for :func:`extend_mission_write_lock_to_moved_key`
+    alone (#5974), the one caller that must see a key a meta write moved inside its own hold.
 
     Raises:
         MissionLockKeyUnresolved: the Mission is coordination-routed but no mid8 resolves.
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
-    held = _held_keys().get((os.path.realpath(root), feature_dir.name))
+    held = None if ignore_held else _held_keys().get((os.path.realpath(root), feature_dir.name))
     if held is not None:
         return held
     return _lock_name_for_dir(feature_dir, root)
@@ -266,7 +269,8 @@ def mission_write_lock(
     * ``migration/backfill_identity.py``: ``backfill_mission`` and ``backfill_mission_ids``
     * ``migration/backfill_topology.py``: ``_stamp_topology`` writer, ``restamp_single_branch_with_code_lanes``
     * ``migration/backfill_mission_type.py``: ``backfill_mission_mission_type``
-    * ``migration/mission_state.py``: ``_repair_meta_phase``
+    * ``migration/mission_state.py``: ``_repair_mission``, ``_repair_events_phase``, ``_repair_meta_phase``,
+      ``_repair_quarantine_phase``
     * ``migration/runtime_state_cutover.py``: ``_flip_phase``
     * ``upgrade/feature_meta.py``: ``write_feature_meta``
     * ``upgrade/migrations/m_0_13_8_target_branch.py``: ``TargetBranchMigration.apply``
@@ -300,6 +304,46 @@ def mission_write_lock(
         registered_hold(root, alias or feature_dir.name, key),
     ):
         yield held
+
+
+@contextmanager
+def extend_mission_write_lock_to_moved_key(
+    mission_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    timeout: float = MISSION_WRITE_LOCK_TIMEOUT_SECONDS,
+) -> Iterator[bool]:
+    """While this thread's hold of *mission_dir*'s Mission lock lasts, also hold the key ``meta.json`` records now.
+
+    A writer that changes ``coordination_branch`` or ``mid8`` inside a :func:`mission_write_lock`
+    hold (the mission-state repair minting a ``mission_id``) moves the Mission's lock key, but
+    :func:`mission_lock_key` keeps returning the *held* key to this thread, so every other process
+    already locks the new key's file. Call this inside the hold after such a write: it yields
+    ``False`` when the key did not move (or cannot be resolved), and ``True`` once the new key's
+    lock is held as well, until the ``with`` block exits. Callers re-read what they read before the
+    move, because a writer holding only the new key may have appended in between.
+
+    Lock order is held key first, then the new key. Every other writer takes exactly one Mission
+    key, so there is no wait cycle. A timeout raises
+    :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError` (the held key stays held by
+    the enclosing hold, which the caller's ``with`` releases).
+
+    Raises:
+        RuntimeError: this thread holds no Mission lock for *mission_dir*.
+    """
+    root = resolve_status_lock_root(mission_dir, repo_root)
+    held_key = _held_keys().get((os.path.realpath(root), mission_dir.name))
+    if held_key is None:
+        raise RuntimeError(f"extend_mission_write_lock_to_moved_key needs an enclosing mission_write_lock for {mission_dir}")
+    try:
+        new_key: str | None = mission_lock_key(mission_dir, repo_root=root, ignore_held=True)
+    except MissionLockKeyUnresolved:
+        new_key = None
+    if new_key is None or new_key == held_key:
+        yield False
+        return
+    with feature_status_lock(root, new_key, timeout=timeout), registered_hold(root, new_key, new_key):
+        yield True
 
 
 def locked_rewrite_text(
