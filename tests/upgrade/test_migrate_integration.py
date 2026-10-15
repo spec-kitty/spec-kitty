@@ -10,6 +10,8 @@ Covers:
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 from specify_cli.runtime.migrate import (
@@ -1182,3 +1184,208 @@ class TestMigratePreservesCustomisedTemplate:
         assert not target.exists()
         assert target in report.removed
         assert target not in report.superseded
+
+
+# ---------------------------------------------------------------------------
+# T001 (#5450): red-first regression — migrate never overwrites an override
+# ---------------------------------------------------------------------------
+
+_POSIX_ONLY = pytest.mark.skipif(
+    sys.platform == "win32", reason="symbolic links need POSIX semantics"
+)
+
+
+def _isolate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the runtime at an empty global home so user files classify CUSTOMIZED."""
+    global_home = tmp_path / "global"
+    _setup_global(global_home)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
+    return tmp_path / "project"
+
+
+def _put(path: Path, text: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+class TestMigrateNeverOverwritesExistingOverride:
+    """Red-first regression for #5450.
+
+    ``execute_migration`` moved a CUSTOMIZED legacy file to
+    ``.kittify/overrides/<rel>`` with ``Path.rename``, which on POSIX silently
+    replaces whatever already lives at the destination. A team's existing
+    override was therefore overwritten by the stale legacy copy (and listed as
+    "kept"); a folder at the destination or a file in a destination parent
+    raised mid-run; a dangling link at the destination was replaced; and a
+    relative symbolic-link source dangled after being moved one level deeper.
+    The move must only happen when nothing occupies the destination.
+    """
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize(
+        "rel",
+        [
+            "missions/erp/mission.yaml",
+            "templates/qa-review.md",
+            "scripts/qa.sh",
+            "command-templates/qa.md",
+        ],
+    )
+    def test_twin_in_each_shared_folder_keeps_override(
+        self, rel: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: an existing override survives; a free-destination file still moves."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        legacy = _put(kittify / rel, "LEGACY v1")
+        override = _put(kittify / "overrides" / rel, "OVERRIDE v2")
+        fresh = _put(kittify / "templates" / "fresh.md", "fresh")
+
+        report = execute_migration(project, dry_run=False)
+
+        assert override.read_text() == "OVERRIDE v2"
+        assert legacy.read_text() == "LEGACY v1"
+        assert (legacy, override) not in report.moved
+        # Same-fixture positive control (FR-008).
+        assert not fresh.exists()
+        assert (kittify / "overrides" / "templates" / "fresh.md").read_text() == "fresh"
+
+    @pytest.mark.regression
+    def test_dry_run_never_lists_a_file_as_moved_and_kept(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: dry run does not double-list the occupied destination."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        legacy = _put(kittify / "templates" / "qa-review.md", "LEGACY v1")
+        override = _put(kittify / "overrides" / "templates" / "qa-review.md", "OVERRIDE v2")
+
+        report = execute_migration(project, dry_run=True)
+
+        assert not ({dst for _, dst in report.moved} & set(report.kept))
+        assert legacy not in {src for src, _ in report.moved}
+        assert legacy.read_text() == "LEGACY v1"
+        assert override.read_text() == "OVERRIDE v2"
+
+    @pytest.mark.regression
+    def test_folder_at_destination_does_not_raise_or_stop_the_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: a folder at the destination is left alone; later files still move."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        legacy = _put(kittify / "templates" / "x.md", "LEGACY")
+        inner = _put(kittify / "overrides" / "templates" / "x.md" / "inner.txt", "keep")
+        later = _put(kittify / "templates" / "zzz.md", "later")
+
+        execute_migration(project, dry_run=False)
+
+        assert inner.read_text() == "keep"
+        assert legacy.read_text() == "LEGACY"
+        assert not later.exists()
+        assert (kittify / "overrides" / "templates" / "zzz.md").read_text() == "later"
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("blocker", ["templates_file", "overrides_file", "overrides_dangling"])
+    def test_blocked_destination_parent_does_not_raise(
+        self, blocker: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: a file or dangling link where a destination parent folder belongs."""
+        if blocker == "overrides_dangling" and sys.platform == "win32":
+            pytest.skip("symbolic links need POSIX semantics")
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        if blocker == "templates_file":
+            legacy = _put(kittify / "templates" / "sub" / "x.md", "LEGACY")
+            blocked = _put(kittify / "overrides" / "templates", "i am a file")
+        else:
+            legacy = _put(kittify / "templates" / "x.md", "LEGACY")
+            blocked = kittify / "overrides"
+            if blocker == "overrides_file":
+                _put(blocked, "i am a file")
+            else:
+                os.symlink("nowhere", blocked)
+
+        execute_migration(project, dry_run=False)
+
+        assert legacy.read_text() == "LEGACY"
+        if blocker == "overrides_dangling":
+            assert blocked.is_symlink() and not blocked.exists()
+        else:
+            assert blocked.is_file() and blocked.read_text() == "i am a file"
+
+    @pytest.mark.regression
+    @_POSIX_ONLY
+    def test_dangling_symlink_at_destination_is_not_replaced(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: a dangling link at the destination still occupies it."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        legacy = _put(kittify / "templates" / "y.md", "LEGACY")
+        dest = kittify / "overrides" / "templates" / "y.md"
+        dest.parent.mkdir(parents=True)
+        os.symlink("nowhere", dest)
+
+        execute_migration(project, dry_run=False)
+
+        assert dest.is_symlink()
+        assert os.readlink(dest) == "nowhere"
+        assert legacy.read_text() == "LEGACY"
+
+    @pytest.mark.regression
+    @_POSIX_ONLY
+    def test_symlinked_external_overrides_folder_is_not_clobbered(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: a shared overrides folder outside the repo keeps its files."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        external = tmp_path / "org-shared"
+        org_file = _put(external / "templates" / "qa-review.md", "ORG-WIDE v3")
+        kittify.mkdir(parents=True)
+        os.symlink(external, kittify / "overrides")
+        _put(kittify / "templates" / "qa-review.md", "stale draft")
+        _put(kittify / "templates" / "new.md", "new")
+
+        execute_migration(project, dry_run=False)
+
+        assert org_file.read_text() == "ORG-WIDE v3"
+        # Positive control: a free destination still moves through the link (FR-008).
+        assert (external / "templates" / "new.md").read_text() == "new"
+
+    @pytest.mark.regression
+    @_POSIX_ONLY
+    def test_relative_symlink_source_is_not_moved(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450: a relative link moved one folder deeper would dangle; keep it."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        _put(project / "docs" / "shared.md", "shared")
+        link = kittify / "templates" / "qa-link.md"
+        link.parent.mkdir(parents=True)
+        os.symlink("../../docs/shared.md", link)
+
+        execute_migration(project, dry_run=False)
+
+        assert link.is_symlink()
+        assert link.exists()
+        assert not (kittify / "overrides" / "templates" / "qa-link.md").exists()
+
+    @pytest.mark.regression
+    def test_byte_identical_twin_is_never_deleted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5450 / C-002: an identical twin is reported, not removed."""
+        project = _isolate(tmp_path, monkeypatch)
+        kittify = project / ".kittify"
+        legacy = _put(kittify / "templates" / "same.md", "SAME")
+        override = _put(kittify / "overrides" / "templates" / "same.md", "SAME")
+
+        execute_migration(project, dry_run=False)
+
+        assert legacy.read_text() == "SAME"
+        assert override.read_text() == "SAME"
