@@ -100,3 +100,48 @@ def test_apply_refuses_changed_input_before_publishing_receipt(tmp_path: Path, m
     assert target.read_bytes() == desired  # A completed write is not a completed proof.
     with pytest.raises(ValueError, match="no completion receipt"):
         prepared.recheck_applied()
+
+
+def _handle_stat_with(monkeypatch: pytest.MonkeyPatch, target: Path, **changes: int) -> None:
+    """Make ``os.fstat`` of the open write handle report ``changes`` over what the path shows."""
+    from types import SimpleNamespace
+
+    real_fstat = yaml_io.os.fstat
+
+    def fstat(fd: int) -> object:
+        info = real_fstat(fd)
+        if not target.exists() or info.st_ino != target.lstat().st_ino:
+            return info
+        fields = {name: getattr(info, name) for name in ("st_dev", "st_ino", "st_mode", "st_mtime_ns", "st_ctime_ns", "st_size", "st_nlink")}
+        fields.update(changes)
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(yaml_io.os, "fstat", fstat)
+
+
+def test_apply_accepts_a_handle_whose_timestamps_lag_the_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6276: on NTFS an open handle's timestamps need not match the path's until close.
+
+    The write is ours (same file, our bytes); only the timestamps differ, so it
+    must not be refused, and its completion receipt must still verify afterwards.
+    """
+    target = tmp_path / "charter.yaml"
+    desired = b"metadata: {owner: writer}\n"
+    prepared = yaml_io.prepare_yaml_write(target, desired, section="metadata")
+    with monkeypatch.context() as patch:
+        _handle_stat_with(patch, target, st_mtime_ns=1, st_ctime_ns=1)
+        assert yaml_io.apply_yaml_write(prepared)
+    assert target.read_bytes() == desired
+    assert prepared.recheck_applied() == (target,)
+
+
+def test_apply_still_refuses_a_handle_on_another_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The timestamp relaxation keeps file identity: a handle that is not the path's file is refused."""
+    target = tmp_path / "charter.yaml"
+    prepared = yaml_io.prepare_yaml_write(target, b"metadata: {owner: writer}\n", section="metadata")
+    with monkeypatch.context() as patch:
+        _handle_stat_with(patch, target, st_ino=0)
+        with pytest.raises(ValueError, match="precondition_changed: YAML written target"):
+            yaml_io.apply_yaml_write(prepared)
+    with pytest.raises(ValueError, match="no completion receipt"):
+        prepared.recheck_applied()

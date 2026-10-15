@@ -201,15 +201,22 @@ def apply_yaml_write(prepared: PreparedYamlWrite) -> bool:
         stream.write(prepared.desired_bytes)
         stream.flush()
         actual = os.fstat(stream.fileno())
-        written = observe_yaml_input(prepared.target)
-        expected = (actual.st_dev, actual.st_ino, actual.st_mode, actual.st_mtime_ns, actual.st_ctime_ns, actual.st_size, actual.st_nlink)
-        if (
-            written.identity != expected
-            or written.content != prepared.desired_bytes
-            or (prepared.before_bytes is None and actual.st_nlink != 1)
-            or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)
-        ):
-            raise ValueError(f"precondition_changed: YAML written target {prepared.target}")
+    # Observe the target only once the handle is closed (#6276): on NTFS the path's
+    # timestamps need not match the open handle's until close, and the receipt kept
+    # below must describe the settled file that later rechecks compare with. The
+    # handle and the path must still be the same file (device, inode, mode, size,
+    # link count) holding exactly our bytes; only the open handle's timestamps are
+    # not compared.
+    written = observe_yaml_input(prepared.target)
+    handle = (actual.st_dev, actual.st_ino, actual.st_mode, actual.st_size, actual.st_nlink)
+    if (
+        written.identity is None
+        or (*written.identity[:3], *written.identity[5:]) != handle
+        or written.content != prepared.desired_bytes
+        or (prepared.before_bytes is None and actual.st_nlink != 1)
+        or (os.name != "nt" and stat.S_IMODE(actual.st_mode) != prepared.mode)
+    ):
+        raise ValueError(f"precondition_changed: YAML written target {prepared.target}")
     completed.append(written)
     # Check all unchanged inputs and each directory created by this writer before
     # publishing proof. Failed writes never mint or replace a completion receipt.
