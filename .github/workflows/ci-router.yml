@@ -700,12 +700,14 @@ jobs:
           # mirroring ci-modules.yml's own selection-forced-full handling.
           prose_only="false"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
-            if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
-              # The raw diff is threaded through an env var, NOT piped to
-              # stdin: `python3 -` reads its OWN script text from stdin (the
-              # heredoc below), so a concurrent stdin pipe would never reach
-              # the script's own input reads.
-              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
+            diff_file="$RUNNER_TEMP/prose-scan-diff-paths.txt"
+            if git diff --name-only "$base" "$HEAD_SHA" > "$diff_file" 2>/dev/null; then
+              # The raw diff is handed over as a FILE PATH, NOT piped to
+              # stdin (`python3 -` reads its OWN script text from stdin, the
+              # heredoc below) and NOT put in an env var: one env/argv string
+              # is capped at 128 KiB (MAX_ARG_STRLEN) and a large PR overflows
+              # it ("Argument list too long", exit 126).
+              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS_FILE="$diff_file" python3 - <<'PY'
           import os
           import subprocess
           import sys
@@ -716,7 +718,11 @@ jobs:
 
           _base_sha = os.environ["SCAN_BASE_SHA"]
           _head_sha = os.environ["SCAN_HEAD_SHA"]
-          _raw_paths = os.environ.get("SCAN_DIFF_PATHS", "")
+          try:
+              with open(os.environ["SCAN_DIFF_PATHS_FILE"], encoding="utf-8") as _fh:
+                  _raw_paths = _fh.read()
+          except (KeyError, OSError):
+              _raw_paths = ""
 
 
           def _show(sha: str, path: str) -> str | None:

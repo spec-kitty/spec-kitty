@@ -197,10 +197,15 @@ jobs:
             push) base="$PUSH_BEFORE" ;;
           esac
 
-          files_json="[]"
+          # The list lives in a FILE under $RUNNER_TEMP; only its path is passed on. One
+          # env/argv string is capped at 128 KiB (MAX_ARG_STRLEN) and a large PR overflows
+          # it ("Argument list too long", exit 126).
+          changed_path="$RUNNER_TEMP/ci-modules-changed-files.json"
+          diff_file="$RUNNER_TEMP/ci-modules-diff-paths.txt"
+          printf '[]' > "$changed_path"
           outcome="failure"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
-            if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
+            if git diff --name-only "$base" "$HEAD_SHA" > "$diff_file" 2>/dev/null; then
               # Reduce the raw diff list through the WP01 prose-only classifier
               # (scripts/ci/prose_only.reduced_paths, mission
               # ci-prose-only-downroute-01M31T5S) before it reaches
@@ -209,11 +214,10 @@ jobs:
               # with no base blob) is caught by `reduced_paths` and the path is
               # KEPT -- fail-closed, never dropped on uncertainty.
               # select_modules / gate_selection.py are never touched (FR-007).
-              # The raw diff is threaded through an env var, NOT piped to
-              # stdin: `python3 -` reads its OWN script text from stdin (the
-              # heredoc below), so a concurrent stdin pipe would never reach
-              # the script's own input reads.
-              files_json="$(REDUCE_BASE_SHA="$base" REDUCE_HEAD_SHA="$HEAD_SHA" REDUCE_DIFF_PATHS="$diff_output" python3 - <<'PY'
+              # The raw diff is handed over as a file path, NOT piped to
+              # stdin (`python3 -` reads its OWN script text from stdin, the
+              # heredoc below) and NOT put in an env var (128 KiB cap).
+              REDUCE_BASE_SHA="$base" REDUCE_HEAD_SHA="$HEAD_SHA" REDUCE_DIFF_PATHS_FILE="$diff_file" python3 - > "$changed_path" <<'PY'
           import json
           import os
           import subprocess
@@ -224,7 +228,11 @@ jobs:
 
           _base_sha = os.environ["REDUCE_BASE_SHA"]
           _head_sha = os.environ["REDUCE_HEAD_SHA"]
-          _raw_paths = os.environ.get("REDUCE_DIFF_PATHS", "")
+          try:
+              with open(os.environ["REDUCE_DIFF_PATHS_FILE"], encoding="utf-8") as _fh:
+                  _raw_paths = _fh.read()
+          except (KeyError, OSError):
+              _raw_paths = ""
 
 
           def _show(sha: str, path: str) -> str | None:
@@ -244,11 +252,10 @@ jobs:
           _paths = [line for line in _raw_paths.splitlines() if line]
           print(json.dumps(reduced_paths(_paths, _blob_getter)))
           PY
-              )"
               outcome="success"
             fi
           fi
-          echo "files=$files_json" >> "$GITHUB_OUTPUT"
+          echo "files-path=$changed_path" >> "$GITHUB_OUTPUT"
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
 
       - name: Build the matrix from the committed module registry
@@ -257,7 +264,7 @@ jobs:
         env:
           MODE: ${{ steps.resolve-mode.outputs.mode }}
           SELECTION_FORCED_FULL: ${{ steps.resolve-mode.outputs.selection-forced-full }}
-          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+          CHANGED_FILES_PATH: ${{ steps.changed-files.outputs.files-path }}
           CHANGED_FILTER_OUTCOME: ${{ steps.changed-files.outputs.outcome || steps.changed-files.outcome }}
           GREEN_SKIP: ${{ steps.green.outputs.skip }}
           PYTHONPATH: ${{ github.workspace }}
@@ -278,7 +285,14 @@ jobs:
           mode = sys.argv[1]
           selection_forced_full = os.environ.get("SELECTION_FORCED_FULL") == "true"
           changed_outcome = os.environ.get("CHANGED_FILTER_OUTCOME", "")
-          changed_files_raw = os.environ.get("CHANGED_FILES", "")
+          # The changed-files step writes the list to a FILE (a single env string is capped
+          # at 128 KiB); an absent path (the step was skipped) or an unreadable file is the
+          # same empty list the old empty env var meant.
+          changed_files_path = os.environ.get("CHANGED_FILES_PATH", "")
+          try:
+              changed_files_raw = open(changed_files_path, encoding="utf-8").read() if changed_files_path else ""
+          except OSError:
+              changed_files_raw = ""
 
           try:
               changed_files = json.loads(changed_files_raw) if changed_files_raw else []

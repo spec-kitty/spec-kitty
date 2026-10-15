@@ -448,6 +448,8 @@ def _run_selection_step(tmp_path: Path, *, event: str, changed_path: str) -> str
     head = run_git("rev-parse", "HEAD")
 
     github_output = tmp_path / "github_output.txt"
+    runner_temp = tmp_path / "runner_temp"  # the step writes its changed-file list under $RUNNER_TEMP
+    runner_temp.mkdir()
     env = {
         **{k: v for k, v in os.environ.items() if k in {"PATH", "HOME", "LANG", "LC_ALL"}},
         "EVENT_NAME": event,
@@ -456,6 +458,7 @@ def _run_selection_step(tmp_path: Path, *, event: str, changed_path: str) -> str
         "MODE": "pr",
         "PYTHONPATH": str(_REPO_ROOT),
         "GITHUB_OUTPUT": str(github_output),
+        "RUNNER_TEMP": str(runner_temp),
         **hermetic_git,
     }
     subprocess.run([bash, "-c", script], cwd=tmp_path, env=env, check=True, capture_output=True, text=True)
