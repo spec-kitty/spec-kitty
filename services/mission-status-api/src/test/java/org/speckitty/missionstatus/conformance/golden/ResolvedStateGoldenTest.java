@@ -38,11 +38,11 @@ import org.speckitty.missionstatus.testsupport.DetailFixture;
  * body; the members compared are exactly the ones the reduction owns (actor, assignment, history, review result and override, subtasks and
  * their progress, lane, force count, last event id and instant). The rest of the body is the route work packages'.
  *
- * <p>Seven fixtures carry the {@code knownDivergence} tag: the oracle serves there what Java deliberately does not (V21 to V25 of the
- * manifest). They are not compared byte for byte; each is asserted against its manifest entry, so a divergence cannot drift unseen,
- * and the set of tagged fixtures must equal the set the entries name. Two oracle facts are pinned here: {@code history-mixed-offsets}
- * ends {@code approved}, not {@code done} (the fold orders by text, the history by instant: D-P4b-4), and the V25 golden carries a
- * non-text event id as its raw JSON value.
+ * <p>Eight fixtures carry the {@code knownDivergence} tag: the oracle serves there what Java deliberately does not (V21 to V25 and V28
+ * of the manifest). They are not compared byte for byte; each is asserted against its manifest entry, so a divergence cannot drift unseen,
+ * and the set of tagged fixtures must equal the set the entries name. Two facts are pinned here: in Java {@code history-mixed-offsets}
+ * ends {@code approved}, not {@code done} (the fold orders by text, the history by instant: D-P4b-4), where the 10.5.1 oracle ends
+ * {@code done} (V28, until spec-kitty#6268 ports the rule), and the V25 golden carries a non-text event id as its raw JSON value.
  */
 class ResolvedStateGoldenTest {
 
@@ -204,11 +204,12 @@ class ResolvedStateGoldenTest {
   }
 
   @Test
-  void thereAreTwentyOneFixturesFourteenCompared() {
+  void thereAreTwentyOneFixturesThirteenCompared() {
     assertThat(all()).hasSize(21);
-    assertThat(compared().count()).isEqualTo(14);
+    assertThat(compared().count()).isEqualTo(13);
     assertThat(diverging().map(TreeFixture::name)).containsExactlyInAnyOrder(
-        "float-agent-and-actor", "annotation-at-float", "annotation-at-list", "override-member-float", "verdict-not-text", "subtask-status-genesis", "history-event-id-not-text");
+        "float-agent-and-actor", "annotation-at-float", "annotation-at-list", "override-member-float", "verdict-not-text", "subtask-status-genesis", "history-event-id-not-text",
+        "history-mixed-offsets");
   }
 
   @Test
@@ -247,28 +248,39 @@ class ResolvedStateGoldenTest {
   // ---- the oracle facts ------------------------------------------------------------------------------------------------------
 
   @Test
-  void historyMixedOffsetsEndsApprovedNotDoneBecauseTheFoldOrdersByTextAndTheHistoryByInstant() {
-    TreeFixture fixture = all().stream().filter(candidate -> candidate.name().equals("history-mixed-offsets")).findFirst().orElseThrow();
+  void v28HistoryMixedOffsetsEndsApprovedInJavaAndDoneInThe1051Oracle() {
+    TreeFixture fixture = fixture("history-mixed-offsets");
     StatusSnapshot snapshot = reduce(fixture);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> goldenWp = (Map<String, Object>) golden(fixture).get("WP01");
 
     assertThat(mapAt(golden(fixture), "WP01", "assignment")).isNotNull();
-    assertThat(((Map<?, ?>) golden(fixture).get("WP01")).get("statusLane")).isEqualTo("approved");
-    assertThat(snapshot.workPackages().get("WP01").lane()).isEqualTo(Lane.APPROVED);
+    // the 10.5.1 oracle sorts the done departure after the clock-ahead approval it followed (spec-kitty#4941), so it ends done
+    assertThat(goldenWp).containsEntry("statusLane", "done").containsEntry("lastEventId", "0000000000000000000000R104").containsEntry("lastTransitionAt", "2026-09-01T10:31:00Z");
+    assertThat(mapAt(golden(fixture), "WP01", "actor")).containsEntry("tool", "claude");
+    // Java keeps the 10.4.6 text order: the fold put the done transition before the approval
+    assertThat(snapshot.workPackages().get("WP01").lane())
+        .as("V28: Java ends approved until spec-kitty#6268 ports the 10.5.1 approved-departure rule; once Java ends done, retire V28 and untag the fixture")
+        .isEqualTo(Lane.APPROVED);
+    assertThat(snapshot.workPackages().get("WP01").lastEventId()).isEqualTo("0000000000000000000000R0A2");
+    assertThat(snapshot.resolved().get("WP01").actor().tool()).isEqualTo("reviewer-renata");
     // the last row of the history by instant is the done transition, which the fold (by text) put before the approval
     List<HistoryRow> history = snapshot.resolved().get("WP01").history();
     assertThat(history.stream().map(HistoryRow::toLane)).contains("done");
     assertThat(history.getLast().toLane()).isNotEqualTo("approved");
+    // every other member agrees, the history included
+    assertEqualsExcept(snapshot, golden(fixture), Map.of("WP01", Set.of("actor", "statusLane", "lastEventId", "lastTransitionAt")));
   }
 
   // ---- the knownDivergence fixtures, by their manifest entries ---------------------------------------------------------------
 
   @Test
-  void theTaggedFixturesAreExactlyTheOnesTheEntriesV21ToV25Name() {
+  void theTaggedFixturesAreExactlyTheOnesTheEntriesV21ToV25AndV28Name() {
     Set<String> named = new LinkedHashSet<>();
     Set<String> ids = new TreeSet<>();
     for (Map<String, Object> entry : ConformanceTree.knownDivergences()) {
       String id = (String) entry.get("id");
-      if (List.of("V21", "V22", "V23", "V24", "V25").contains(id)) {
+      if (List.of("V21", "V22", "V23", "V24", "V25", "V28").contains(id)) {
         ids.add(id);
         for (Object fixtureKey : (List<?>) entry.get("fixtures")) {
           named.add(fixtureKey.toString());
@@ -276,7 +288,7 @@ class ResolvedStateGoldenTest {
       }
     }
 
-    assertThat(ids).containsExactly("V21", "V22", "V23", "V24", "V25");
+    assertThat(ids).containsExactly("V21", "V22", "V23", "V24", "V25", "V28");
     assertThat(named).isEqualTo(new LinkedHashSet<>(diverging().map(TreeFixture::key).toList()));
   }
 

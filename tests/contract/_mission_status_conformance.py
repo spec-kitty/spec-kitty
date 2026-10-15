@@ -302,10 +302,13 @@ FIXTURE_TAGS: Mapping[str, tuple[str, ...]] = {
     "resolved-state/verdict-not-text": (TAG_KNOWN_DIVERGENCE,),
     "resolved-state/subtask-status-genesis": (TAG_KNOWN_DIVERGENCE,),
     "resolved-state/history-event-id-not-text": (TAG_KNOWN_DIVERGENCE,),
+    # V28: the 10.5.1 oracle lifts a clock-ahead approval's departure; Java keeps text order until spec-kitty#6268 ports that rule.
+    "resolved-state/history-mixed-offsets": (TAG_KNOWN_DIVERGENCE,),
 }
 
-# The known divergences of the detail and artifact surface (spec FR-014 table V1 to V20, plus the five resolved-state candidates of D-159).
+# The known divergences of the detail and artifact surface (spec FR-014 table V1 to V20, plus the five resolved-state candidates of D-159, plus V28).
 # V19 is retired (reserved, not reused): the oracle now nulls an off-shape head date too, so it has no entry here.
+# V26 and V27 belong to the route slice; V28 records the spec-kitty-events 10.5.1 ordering rule that Java does not port yet (spec-kitty#6268).
 # An entry: id, cause, fixture (a class/name, "injected" or "generated at test time"), fixtures (the committed keys it covers), the oracle outcome and
 # the Java assertion. The two outcomes of an entry differ (a stale entry whose outcomes are equal is a test failure). V3 and V4 also carry
 # defaultPathFixtures: the generator runs the oracle's default read_authored_files path on each and stores the outcome beside the entry.
@@ -516,6 +519,17 @@ KNOWN_DIVERGENCES: tuple[Mapping[str, Any], ...] = (
             "a non-text at or lane makes the oracle refuse the Mission (TypeError, StoreError), so only the event_id case has a golden"
         ),
         "javaAssertion": "its str() when Java reproduces it, else null, and refused by the mapper (T12, T13)",
+    },
+    {
+        "id": "V28",
+        "cause": (
+            "spec-kitty-events 10.5.1 sorts a departure from approved after the clock-ahead approval it followed (spec-kitty#4941); "
+            "the Java reduction keeps the 10.4.6 text order until spec-kitty#6268 ports the rule"
+        ),
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/history-mixed-offsets"],
+        "oracleOutcome": "WP01 ends done: last event 0000000000000000000000R104 at 2026-09-01T10:31:00Z, actor claude",
+        "javaAssertion": "WP01 ends approved: last event 0000000000000000000000R0A2 at 2026-09-01T11:30:00+01:00, actor reviewer-renata",
     },
 )
 
