@@ -17,7 +17,10 @@ from pathlib import Path
 from specify_cli.runtime.migrate import (
 
     AssetDisposition,
+    ConflictReason,
+    MigrationConflict,
     MigrationReport,
+    _move_blocker,
     classify_asset,
     execute_migration,
 )
@@ -812,6 +815,7 @@ class TestMigrationReport:
         assert report.moved == []
         assert report.kept == []
         assert report.unknown == []
+        assert report.conflicts == []
         assert report.dry_run is False
 
     def test_dry_run_flag(self) -> None:
@@ -1280,8 +1284,9 @@ class TestMigrateNeverOverwritesExistingOverride:
         inner = _put(kittify / "overrides" / "templates" / "x.md" / "inner.txt", "keep")
         later = _put(kittify / "templates" / "zzz.md", "later")
 
-        execute_migration(project, dry_run=False)
+        report = execute_migration(project, dry_run=False)
 
+        assert [(c.source, c.reason) for c in report.conflicts] == [(legacy, ConflictReason.DESTINATION_EXISTS)]
         assert inner.read_text() == "keep"
         assert legacy.read_text() == "LEGACY"
         assert not later.exists()
@@ -1308,8 +1313,9 @@ class TestMigrateNeverOverwritesExistingOverride:
             else:
                 os.symlink("nowhere", blocked)
 
-        execute_migration(project, dry_run=False)
+        report = execute_migration(project, dry_run=False)
 
+        assert [(c.source, c.reason) for c in report.conflicts] == [(legacy, ConflictReason.DESTINATION_PARENT_BLOCKED)]
         assert legacy.read_text() == "LEGACY"
         if blocker == "overrides_dangling":
             assert blocked.is_symlink() and not blocked.exists()
@@ -1329,8 +1335,9 @@ class TestMigrateNeverOverwritesExistingOverride:
         dest.parent.mkdir(parents=True)
         os.symlink("nowhere", dest)
 
-        execute_migration(project, dry_run=False)
+        report = execute_migration(project, dry_run=False)
 
+        assert report.conflicts == [MigrationConflict(legacy, dest, ConflictReason.DESTINATION_EXISTS)]
         assert dest.is_symlink()
         assert os.readlink(dest) == "nowhere"
         assert legacy.read_text() == "LEGACY"
@@ -1389,3 +1396,138 @@ class TestMigrateNeverOverwritesExistingOverride:
 
         assert legacy.read_text() == "SAME"
         assert override.read_text() == "SAME"
+
+
+# ---------------------------------------------------------------------------
+# T005 (#5450): focused unit tests for the move decision and conflict record
+# ---------------------------------------------------------------------------
+
+
+class TestMoveBlocker:
+    """Each branch of ``_move_blocker`` (not regression-marked; see the class above)."""
+
+    @staticmethod
+    def _paths(tmp_path: Path) -> tuple[Path, Path, Path]:
+        kittify = tmp_path / ".kittify"
+        root = kittify / "overrides"
+        source = _put(kittify / "templates" / "x.md", "src")
+        return source, root / "templates" / "x.md", root
+
+    @_POSIX_ONLY
+    def test_source_symlink(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        link = source.parent / "link.md"
+        os.symlink(source, link)
+        assert _move_blocker(link, root / "templates" / "link.md", root) is ConflictReason.SOURCE_IS_SYMLINK
+
+    @_POSIX_ONLY
+    def test_source_symlink_wins_over_occupied_destination(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        link = source.parent / "link.md"
+        os.symlink(source, link)
+        _put(root / "templates" / "link.md", "occupied")
+        assert _move_blocker(link, root / "templates" / "link.md", root) is ConflictReason.SOURCE_IS_SYMLINK
+
+    def test_destination_file(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        _put(dest, "other")
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_EXISTS
+
+    def test_destination_folder(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        dest.mkdir(parents=True)
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_EXISTS
+
+    @_POSIX_ONLY
+    def test_destination_dangling_link(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        dest.parent.mkdir(parents=True)
+        os.symlink("nowhere", dest)
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_EXISTS
+
+    def test_parent_is_file(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        _put(dest.parent, "file")
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_PARENT_BLOCKED
+
+    def test_overrides_root_is_file(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        _put(root, "file")
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_PARENT_BLOCKED
+
+    @_POSIX_ONLY
+    def test_overrides_root_dangling_link(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        root.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink("nowhere", root)
+        assert _move_blocker(source, dest, root) is ConflictReason.DESTINATION_PARENT_BLOCKED
+
+    def test_free_destination_with_missing_parents(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        assert _move_blocker(source, dest, root) is None
+
+    @_POSIX_ONLY
+    def test_free_destination_through_linked_overrides_folder(self, tmp_path: Path) -> None:
+        source, dest, root = self._paths(tmp_path)
+        external = tmp_path / "org"
+        external.mkdir()
+        root.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(external, root)
+        assert _move_blocker(source, dest, root) is None
+
+
+class TestMigrationConflictRecord:
+    """Conflict records, dry-vs-real parity and idempotence (#5450)."""
+
+    @staticmethod
+    def _fixture(project: Path) -> dict[str, Path]:
+        kittify = project / ".kittify"
+        twin = _put(kittify / "templates" / "twin.md", "LEGACY")
+        _put(kittify / "overrides" / "templates" / "twin.md", "OVERRIDE")
+        fresh = _put(kittify / "templates" / "fresh.md", "fresh")
+        _put(project / "docs" / "shared.md", "shared")
+        link = kittify / "templates" / "link.md"
+        os.symlink("../../docs/shared.md", link)
+        return {"twin": twin, "fresh": fresh, "link": link}
+
+    @_POSIX_ONLY
+    def test_conflict_records_and_move_exclusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = _isolate(tmp_path, monkeypatch)
+        files = self._fixture(project)
+        overrides = project / ".kittify" / "overrides" / "templates"
+
+        report = execute_migration(project, dry_run=False)
+
+        assert report.conflicts == [
+            MigrationConflict(files["link"], overrides / "link.md", ConflictReason.SOURCE_IS_SYMLINK),
+            MigrationConflict(files["twin"], overrides / "twin.md", ConflictReason.DESTINATION_EXISTS),
+        ]
+        assert report.moved == [(files["fresh"], overrides / "fresh.md")]
+
+    @_POSIX_ONLY
+    def test_dry_run_and_real_run_agree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        project = _isolate(tmp_path, monkeypatch)
+        self._fixture(project)
+
+        dry = execute_migration(project, dry_run=True)
+        real = execute_migration(project, dry_run=False)
+
+        assert dry.conflicts == real.conflicts
+        assert dry.moved == real.moved
+        assert dry.conflicts
+
+    @_POSIX_ONLY
+    def test_second_run_is_idempotent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        project = _isolate(tmp_path, monkeypatch)
+        files = self._fixture(project)
+        override = project / ".kittify" / "overrides" / "templates" / "twin.md"
+
+        first = execute_migration(project, dry_run=False)
+        before = (files["twin"].read_bytes(), override.read_bytes())
+        second = execute_migration(project, dry_run=False)
+
+        assert second.conflicts == first.conflicts
+        assert second.moved == []
+        assert (files["twin"].read_bytes(), override.read_bytes()) == before

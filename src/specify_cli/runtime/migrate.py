@@ -7,7 +7,9 @@ and migrates them accordingly:
   outdated default) — routed through the ownership guard, which cannot prove
   ownership of differing bytes and therefore PRESERVES it in place (#4961).
   Removal only ever happens for a byte-identical (proven) counterpart.
-- CUSTOMIZED: moved to .kittify/overrides/ (no shipped counterpart at all)
+- CUSTOMIZED: moved to .kittify/overrides/ (no shipped counterpart at all), but
+  only when nothing occupies the destination and the file is not a symbolic
+  link; otherwise left in place and recorded as a conflict (#5450)
 - PROJECT_SPECIFIC: kept in place
 - UNKNOWN: kept in place with warning
 
@@ -21,7 +23,7 @@ from __future__ import annotations
 
 import filecmp
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
 
 from specify_cli.asset_preservation import (
@@ -185,6 +187,26 @@ def classify_asset(
     return AssetDisposition.UNKNOWN
 
 
+class ConflictReason(StrEnum):
+    """Why a CUSTOMIZED file was NOT moved to .kittify/overrides/ (#5450)."""
+
+    DESTINATION_EXISTS = "destination_exists"
+    DESTINATION_PARENT_BLOCKED = "destination_parent_blocked"
+    SOURCE_IS_SYMLINK = "source_is_symlink"
+
+
+@dataclass(frozen=True)
+class MigrationConflict:
+    """A CUSTOMIZED move that was refused.
+
+    The source is left in place and the destination is never written.
+    """
+
+    source: Path
+    destination: Path
+    reason: ConflictReason
+
+
 @dataclass
 class MigrationReport:
     """Report of migration actions taken (or planned in dry-run mode)."""
@@ -194,7 +216,52 @@ class MigrationReport:
     moved: list[tuple[Path, Path]] = field(default_factory=list)  # (from, to)
     kept: list[Path] = field(default_factory=list)
     unknown: list[Path] = field(default_factory=list)
+    # CUSTOMIZED files NOT moved: destination occupied, parent blocked or source is a link (#5450)
+    conflicts: list[MigrationConflict] = field(default_factory=list)
     dry_run: bool = False
+
+
+def _move_blocker(source: Path, destination: Path, overrides_root: Path) -> ConflictReason | None:
+    """Return why ``source`` must not be moved to ``destination``, or ``None``.
+
+    Read-only (``lstat``/``stat``). Checks, first match wins: the source is a
+    symbolic link; the destination is occupied by anything (file, folder, link,
+    dangling link included); a destination parent, ``overrides_root`` itself
+    included, exists but is not a folder (a link to a folder counts as a
+    folder). The check-then-rename window is not atomic; that is accepted for
+    a single-operator CLI (#5450).
+    """
+    if source.is_symlink():
+        return ConflictReason.SOURCE_IS_SYMLINK
+    if destination.is_symlink() or destination.exists():
+        return ConflictReason.DESTINATION_EXISTS
+    parent = overrides_root
+    chain = [parent]
+    for part in destination.parent.relative_to(overrides_root).parts:
+        parent = parent / part
+        chain.append(parent)
+    for candidate in chain:
+        if (candidate.is_symlink() or candidate.exists()) and not candidate.is_dir():
+            return ConflictReason.DESTINATION_PARENT_BLOCKED
+    return None
+
+
+def _move_customized(path: Path, kittify_dir: Path, report: MigrationReport, *, dry_run: bool) -> None:
+    """Move a CUSTOMIZED file to ``.kittify/overrides/`` unless that would overwrite or break.
+
+    A blocked move is never written; it is recorded in ``report.conflicts``
+    (identically for dry and real runs) and the source stays in place (#5450).
+    """
+    overrides_root = kittify_dir / "overrides"
+    dest = overrides_root / path.relative_to(kittify_dir)
+    reason = _move_blocker(path, dest, overrides_root)
+    if reason is not None:
+        report.conflicts.append(MigrationConflict(source=path, destination=dest, reason=reason))
+        return
+    report.moved.append((path, dest))
+    if not dry_run:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        path.rename(dest)
 
 
 def _route_shared_removal(
@@ -251,7 +318,9 @@ def execute_migration(
     Files byte-identical to their shipped counterpart are removed (proven
     package-owned); files that differ (customisations or outdated defaults) are
     PRESERVED in place via the ownership guard (#4961); genuinely user-created
-    files (no counterpart) are moved to .kittify/overrides/; project-specific
+    files (no counterpart) are moved to .kittify/overrides/ unless that would
+    overwrite something or break a link (then kept and reported as a conflict,
+    #5450); project-specific
     files are kept in place.
 
     Compares shared assets against immutable package-bundled defaults (not the
@@ -306,12 +375,7 @@ def execute_migration(
             else:
                 report.superseded.append(path)
         elif disposition == AssetDisposition.CUSTOMIZED:
-            rel = path.relative_to(kittify_dir)
-            dest = kittify_dir / "overrides" / rel
-            report.moved.append((path, dest))
-            if not dry_run:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                path.rename(dest)
+            _move_customized(path, kittify_dir, report, dry_run=dry_run)
         elif disposition == AssetDisposition.PROJECT_SPECIFIC:
             report.kept.append(path)
         else:
