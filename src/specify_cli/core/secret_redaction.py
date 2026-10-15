@@ -2,7 +2,7 @@
 
 Contract: ``kitty-specs/operator-config-ergonomics-01M04YK8/contracts/
 provenance-and-channel.md`` C-SEC-1 -- a var NOT on the printable-var
-allowlist below (e.g. ``SPEC_KITTY_SAAS_TOKEN``) must never appear BY VALUE
+allowlist below (e.g. ``SPEC_KITTY_ORG_TOKEN``) must never appear BY VALUE
 in ``doctor``/``sync status``/logs; only its name and presence may be
 reported. This is the single authority every such rendering surface routes
 through (starting with the env-file doctor sibling, T019) -- a var never

@@ -108,7 +108,9 @@ def test_mutating_siblings_outside_project_are_json_errors(tmp_path: Path, monke
     # sibling test leaking that env var makes these commands resolve a real project and
     # reach mission-specific codes (mission_unrecoverable / mission_identity_missing)
     # instead of the not_in_project guard -- an order-dependent nightly red. Clearing it
-    # here forces the genuine "outside any project" condition the assertions pin.
+    # here forces the genuine "outside any project" condition the assertions pin. (Tier-2,
+    # the .git/.kittify ancestor walk, stays clean by virtue of tmp_path living under the
+    # system temp tree, whose ancestors carry no .kittify marker.)
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     human = runner.invoke(mission_type_app, args)
     machine = runner.invoke(mission_type_app, [*args, "--json"])
