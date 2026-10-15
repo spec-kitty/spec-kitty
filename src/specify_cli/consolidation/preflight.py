@@ -51,6 +51,7 @@ from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import (
     REVIEWER_SELF_APPROVAL,
     actor_full_identity,
+    is_migration_actor,
     latest_implementer_event,
     read_events_lenient,
 )
@@ -529,10 +530,15 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     actor-bearing transition exists for this WP. An operator attestation of an
     approval (``--attest-approved-reviewed``, #5668) is a forced ``approved ->
     approved`` record, not a review, so it is never the approving transition.
+    A migration seed (#6257) is never the actor of record either: a
+    ``verdict_provenance_backfill`` seed into ``approved`` restates a verdict, it
+    is not a review.
     """
     latest: str | None = None
     for event in read_events_lenient(feature_dir):
-        if event.wp_id != wp_id or str(event.to_lane) != to_lane or is_approved_reviewed_attestation(event.policy_metadata):
+        if event.wp_id != wp_id or str(event.to_lane) != to_lane:
+            continue
+        if is_approved_reviewed_attestation(event.policy_metadata) or is_migration_actor(event.actor):
             continue
         latest = actor_full_identity(event.actor) or latest
     return latest
