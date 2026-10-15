@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -81,6 +82,92 @@ public final class AssertSteps {
         Matcher matcher = pair.matcher(context.lastResult().stdout());
         assertThat(matcher.find()).as("JSON field '%s' in the output:%n%s", field, context.lastResult()).isTrue();
         assertThat(matcher.group(1)).as("JSON field '%s'", field).isEqualTo(value);
+    }
+
+    @Then("the {string} entry of the JSON field {string} of the output is {string}")
+    public void theNestedJsonEntryIs(String entry, String field, String value) {
+        assertThat(context.lastResult().stdout()).as("%s.%s in the output:%n%s", field, entry, context.lastResult())
+                .containsPattern(nestedEntry(field, entry, "\"" + Pattern.quote(value) + "\""));
+    }
+
+    @Then("the {string} entry of the JSON field {string} of the output is null")
+    public void theNestedJsonEntryIsNull(String entry, String field) {
+        assertThat(context.lastResult().stdout()).as("%s.%s in the output:%n%s", field, entry, context.lastResult())
+                .containsPattern(nestedEntry(field, entry, "null"));
+    }
+
+    /** {@code "field": { ... "entry": <value> ... }} inside one flat JSON object (no nested braces). */
+    private static Pattern nestedEntry(String field, String entry, String valuePattern) {
+        return Pattern.compile("\"" + Pattern.quote(field) + "\"\\s*:\\s*\\{[^{}]*\"" + Pattern.quote(entry)
+                + "\"\\s*:\\s*" + valuePattern);
+    }
+
+    @Then("the JSON flag {string} of the output is {word}")
+    public void theJsonFlagIs(String field, String literal) {
+        assertThat(literal).as("A JSON literal").isIn("true", "false", "null");
+        assertThat(context.lastResult().stdout()).as("JSON field '%s' in the output:%n%s", field, context.lastResult())
+                .containsPattern("\"" + Pattern.quote(field) + "\"\\s*:\\s*" + literal + "\\b");
+    }
+
+    @Then("the file {string} of mission {string} is committed on the current branch")
+    public void theMissionFileIsCommitted(String file, String name) {
+        assertThat(committedAtHead(missionPath(name, file))).as("'%s' of mission '%s' at HEAD", file, name).isTrue();
+    }
+
+    @Then("the file {string} of mission {string} is not committed")
+    public void theMissionFileIsNotCommitted(String file, String name) {
+        assertThat(committedAtHead(missionPath(name, file))).as("'%s' of mission '%s' at HEAD", file, name).isFalse();
+    }
+
+    private String missionPath(String name, String file) {
+        Path folder = missionFolder(name);
+        return context.world().workDir().relativize(folder).toString().replace('\\', '/') + "/" + file;
+    }
+
+    private boolean committedAtHead(String path) {
+        return !context.world().git("ls-tree", "--name-only", "HEAD", "--", path).trim().isEmpty();
+    }
+
+    @Then("the lanes of mission {string} are {string}")
+    public void theLanesOfMissionAre(String name, String expected) {
+        Path lanesFile = missionFolder(name).resolve("lanes.json");
+        String json;
+        try {
+            json = Files.readString(lanesFile);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + lanesFile, e);
+        }
+        Matcher lane = Pattern.compile("\"lane_id\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"wp_ids\"\\s*:\\s*\\[([^\\]]*)\\]").matcher(json);
+        List<String> lanes = new ArrayList<>();
+        while (lane.find()) {
+            lanes.add(lane.group(1) + ": " + String.join(", ", lane.group(2).replaceAll("[\"\\s]", "").split(",")));
+        }
+        assertThat(String.join("; ", lanes)).as("Lanes of mission '%s' in %s", name, lanesFile).isEqualTo(expected);
+    }
+
+    @Then("the lane worktree of the work package {string} of mission {string} still holds its committed work")
+    public void theLaneWorktreeStillHoldsItsWork(String wp, String name) {
+        Path worktree = context.lifecycle().worktree(name, wp);
+        Path module = worktree.resolve("src").resolve(wp.toLowerCase(Locale.ROOT)).resolve("__init__.py");
+        assertThat(module).as("The committed work of %s in its lane worktree", wp).isRegularFile();
+        try {
+            assertThat(Files.readString(module)).as("Contents of %s", module).contains("hello from " + wp);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + module, e);
+        }
+        assertThat(context.world().git("-C", worktree.toString(), "status", "--porcelain").trim())
+                .as("Uncommitted changes in the lane worktree of %s", wp).isEmpty();
+    }
+
+    @Then("the output is a JSON object")
+    public void theOutputIsAJsonObject() {
+        String stdout = context.lastResult().stdout().trim();
+        assertThat(stdout).as("stdout of the command:%n%s", context.lastResult()).startsWith("{").endsWith("}");
+    }
+
+    @Then("the file {string} exists")
+    public void theFileExists(String relative) {
+        assertThat(context.world().resolve(relative)).as("File '%s'", relative).isRegularFile();
     }
 
     @Then("the output mentions {string}")

@@ -6,6 +6,7 @@ import io.cucumber.java.en.Given;
 
 import kitty.acceptance.driver.CliResult;
 import kitty.acceptance.environment.MissionFixture;
+import kitty.acceptance.environment.MissionLifecycle;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -77,6 +78,16 @@ public final class ArrangeSteps {
         context.lifecycle().planMission(name, list(workPackages));
     }
 
+    @Given("a lanes mission {string} planned on a topic branch with the work packages {string}")
+    public void aLanesMissionPlannedOnATopicBranch(String name, String workPackages) {
+        context.lifecycle().planMission(name, list(workPackages), List.of("--topology", "lanes"));
+    }
+
+    @Given("the work package {string} of mission {string} is amended to build on {string}")
+    public void theWorkPackageIsAmendedToBuildOn(String joiner, String name, String owner) {
+        context.lifecycle().amendToJoin(name, joiner, owner);
+    }
+
     @Given("a single-branch mission {string} planned on a topic branch with the work packages {string}")
     public void aSingleBranchMissionOnATopicBranch(String name, String workPackages) {
         context.lifecycle().planSingleBranchMission(name, list(workPackages), false);
@@ -113,6 +124,32 @@ public final class ArrangeSteps {
 
     private static List<String> list(String commaSeparated) {
         return Arrays.stream(commaSeparated.split(",")).map(String::trim).filter(item -> !item.isEmpty()).toList();
+    }
+
+    @Given("a project set up with Spec Kitty on the topic branch {string}")
+    public void aProjectOnTheTopicBranch(String branch) {
+        assertThat(branch).as("The topic branch the builders use").isEqualTo(MissionLifecycle.TOPIC_BRANCH);
+        context.lifecycle().useTopicBranch();
+    }
+
+    @Given("a mission {string} created on a topic branch")
+    public void aMissionCreatedOnATopicBranch(String name) {
+        context.lifecycle().createMission(name);
+    }
+
+    @Given("the spec of mission {string} is written but not committed")
+    public void theSpecIsWrittenButNotCommitted(String name) {
+        context.lifecycle().writeSpec(name, false);
+    }
+
+    @Given("the spec of mission {string} is committed as it was scaffolded")
+    public void theSpecIsCommittedAsScaffolded(String name) {
+        context.lifecycle().commitAsCreated(name);
+    }
+
+    @Given("the plan of mission {string} is written")
+    public void thePlanIsWritten(String name) {
+        context.lifecycle().writePlan(name);
     }
 
     @Given("a mission {string} on a topic branch whose spec is written and committed")
@@ -153,6 +190,27 @@ public final class ArrangeSteps {
         } catch (IOException e) {
             throw new UncheckedIOException("Could not write " + file, e);
         }
+    }
+
+    @Given("the charter interview has been answered with its defaults")
+    public void theCharterInterviewHasBeenAnsweredWithItsDefaults() {
+        succeed(List.of("spec-kitty", "charter", "interview", "--defaults", "--profile", "minimal", "--json"),
+                "Answering the charter interview with its defaults");
+    }
+
+    @Given("a charter has been generated from the interview")
+    public void aCharterHasBeenGeneratedFromTheInterview() {
+        succeed(List.of("spec-kitty", "charter", "generate", "--from-interview"), "Generating the charter");
+    }
+
+    @Given("the charter has been synthesized")
+    public void theCharterHasBeenSynthesized() {
+        succeed(List.of("spec-kitty", "charter", "synthesize", "--json"), "Synthesizing the charter");
+    }
+
+    private void succeed(List<String> args, String what) {
+        CliResult result = context.run(args);
+        assertThat(result.exitCode()).as("%s failed:%n%s", what, result).isZero();
     }
 
     @Given("the mission {string} has been accepted")

@@ -72,7 +72,13 @@ public final class MissionLifecycle {
      * a recorded analysis. Returns the full Mission slug.
      */
     public String planMission(String name, List<String> workPackages) {
-        String slug = specifyMission(name);
+        return planMission(name, workPackages, List.of());
+    }
+
+    /** Plans a Mission with explicit {@code mission create} options, such as {@code --topology lanes}. */
+    public String planMission(String name, List<String> workPackages, List<String> createOptions) {
+        String slug = createMission(name, createOptions);
+        writeSpec(name, true);
         succeed(List.of("spec-kitty", "agent", "mission", "setup-plan", "--mission", slug, "--json"));
         return finishPlanning(name, slug, workPackages);
     }
@@ -144,18 +150,59 @@ public final class MissionLifecycle {
      * state {@code setup-plan} starts from. Returns the full Mission slug.
      */
     public String specifyMission(String name) {
+        String slug = createMission(name);
+        writeSpec(name, true);
+        return slug;
+    }
+
+    /** Creates the Mission {@code name} on the topic branch and nothing else: its spec is the scaffold. */
+    public String createMission(String name) {
+        return createMission(name, List.of());
+    }
+
+    private String createMission(String name, List<String> createOptions) {
         missions.ensureProject();
         onTopicBranch();
-        CliResult created = succeed(List.of("spec-kitty", "agent", "mission", "create", name, "--json"));
+        List<String> create = new ArrayList<>(List.of("spec-kitty", "agent", "mission", "create", name, "--json"));
+        create.addAll(createOptions);
+        CliResult created = succeed(create);
         String slug = mission(created);
         Matcher coordination = COORDINATION_BRANCH.matcher(created.stdout());
         if (coordination.find()) {
             coordinationBranches.put(name, coordination.group(1));
         }
-        write(workDir.resolve("kitty-specs").resolve(slug).resolve("spec.md"), spec(name));
-        commit("spec for " + name);
         slugs.put(name, slug);
         return slug;
+    }
+
+    /** Writes a real spec (a functional requirement row) for the Mission, committing it or not. */
+    public void writeSpec(String name, boolean commitIt) {
+        write(folder(name).resolve("spec.md"), spec(name));
+        if (commitIt) {
+            commit("spec for " + name);
+        }
+    }
+
+    /** Commits the Mission's files as {@code mission create} left them, scaffold spec included. */
+    public void commitAsCreated(String name) {
+        folder(name);
+        commit("mission " + name + " as created");
+    }
+
+    /** Writes a real plan for the Mission without committing it, as an agent does before setup-plan. */
+    public void writePlan(String name) {
+        write(folder(name).resolve("plan.md"), PLAN);
+    }
+
+    /** The Mission's folder in the working tree. */
+    public Path folder(String name) {
+        return workDir.resolve("kitty-specs").resolve(slug(name));
+    }
+
+    /** Puts the project on the topic branch, as a user does before planning. */
+    public void useTopicBranch() {
+        missions.ensureProject();
+        onTopicBranch();
     }
 
     /** Walks a planned work package forward, one real step at a time, until it is in {@code lane}. */
@@ -234,6 +281,37 @@ public final class MissionLifecycle {
         succeed(List.of("spec-kitty", "agent", "acceptance-verdict", "--mission", slug, "--criterion", "FR-001",
                 "--result", "pass", "--actor", "operator", "--evidence", "acceptance harness"));
         succeed(List.of("spec-kitty", "accept", "--mission", slug, "--json", "--lenient"));
+    }
+
+    /**
+     * The author amends {@code joiner}'s prompt so it also owns {@code owner}'s module and depends on
+     * {@code owner} (front matter and {@code tasks.md}), and commits the amendment, as a re-plan does.
+     */
+    public void amendToJoin(String name, String joiner, String owner) {
+        Path prompt = folder(name).resolve("tasks").resolve(joiner + "-" + module(joiner) + ".md");
+        String text = read(prompt);
+        String ownLine = "- src/" + module(joiner) + "/**";
+        if (!text.contains(ownLine + "\n") || !text.contains("dependencies: []")) {
+            throw new IllegalStateException("Unexpected front matter in " + prompt + ":\n" + text);
+        }
+        write(prompt, text.replace(ownLine + "\n", ownLine + "\n- src/" + module(owner) + "/**\n")
+                .replace("dependencies: []", "dependencies: [" + owner + "]"));
+        Path tasks = folder(name).resolve("tasks.md");
+        String heading = "## Work Package " + joiner + ": " + module(joiner) + "\n**Dependencies**: None";
+        String tasksText = read(tasks);
+        if (!tasksText.contains(heading)) {
+            throw new IllegalStateException("No dependency line for " + joiner + " in " + tasks);
+        }
+        write(tasks, tasksText.replace(heading, "## Work Package " + joiner + ": " + module(joiner) + "\n**Dependencies**: " + owner));
+        commit("amend " + joiner + " to build on " + owner);
+    }
+
+    private static String read(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + path, e);
+        }
     }
 
     /** Ticks the work package's subtask without committing any work, as an agent may do too early. */
