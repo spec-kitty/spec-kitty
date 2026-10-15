@@ -313,6 +313,7 @@
         "**/specify_cli/cli/commands/_mission_state_doctor.py",
         "**/specify_cli/cli/commands/doctor.py",
         "**/specify_cli/cli/commands/_doctor_shared.py",
+        "**/specify_cli/cli/helpers.py",
         "**/kernel/meta_decode.py",
         "**/kernel/git/listing.py",
         "**/kernel/git/paths.py",

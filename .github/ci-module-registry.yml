@@ -66,6 +66,15 @@ modules:
   - charter.offering.missions
   tier: standard
   shard_count: 1
+  # issue #6221: claim tests/specify_cli/mission_step_contracts (previously out_of_matrix, so it ran in
+  # no per-PR shard -- only the nightly interpreter sweep) into per-PR execution. Its tests exercise
+  # charter.offering.missions.step_contracts (this row's cov_target) and specify_cli.mission_step_contracts;
+  # the `missions` row is a clean, shard_count=1 home (no LPT split, so no committed-durations drift).
+  # Naming an explicit test_dirs list REPLACES the tests/missions fallback claim, so tests/missions is
+  # named explicitly alongside it or the coverage guard reds.
+  test_dirs:
+  - tests/missions
+  - tests/specify_cli/mission_step_contracts
 - module: post_merge
   roots:
   - src/specify_cli/post_merge/**
@@ -660,7 +669,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
   - tests/specify_cli/migration
-  - tests/specify_cli/mission_step_contracts
   - tests/specify_cli/orchestrator_api
   - tests/specify_cli/ownership
   - tests/specify_cli/regression

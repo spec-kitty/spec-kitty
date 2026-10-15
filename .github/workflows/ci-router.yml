@@ -144,6 +144,22 @@ jobs:
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
       cli_lifecycle: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_lifecycle }}
+      # Per-command fan-out groups (#6221): non-src, like cli_lifecycle above; each gates no job BY DESIGN
+      # (fanned out to its command's test-owning modules via gate_selection.CLI_COMMAND_MODULE_FANOUT). Never in the unmatched loop.
+      cli_cmd_charter: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_charter }}
+      cli_cmd_consolidate: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_consolidate }}
+      cli_cmd_agent: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_agent }}
+      cli_cmd_implement: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_implement }}
+      cli_cmd_init: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_init }}
+      cli_cmd_doctor: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_doctor }}
+      cli_cmd_upgrade: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_upgrade }}
+      cli_cmd_next: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_next }}
+      cli_cmd_mission_type: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_mission_type }}
+      cli_cmd_merge_driver: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_merge_driver }}
+      cli_cmd_charter_pack: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_charter_pack }}
+      cli_cmd_status: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_status }}
+      cli_cmd_plugin: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_plugin }}
+      cli_cmd_agent_subdir: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_agent_subdir }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
       # acceptance-bdd job). Never in the unmatched loop.
@@ -271,6 +287,52 @@ jobs:
             # gates no router job BY DESIGN.
             cli_lifecycle:
               - '**/specify_cli/cli/commands/lifecycle.py'
+            # Per-command fan-out groups (#6221, generalising the #6166 cli_lifecycle pattern to the rest of
+            # the cli/commands surface). Each is NON-src (**/-prefixed, never src/...), so it stays out of the
+            # unmatched loop and gates no router job BY DESIGN: gate_selection.CLI_COMMAND_MODULE_FANOUT fans
+            # each out to the command's test-owning modules (the #6166/#6174 maintainer inventory), and the
+            # module matrix is its per-PR executor. Pinned by tests/architectural/test_cli_commands_routing.py.
+            cli_cmd_charter:
+              - '**/specify_cli/cli/commands/charter/**'
+            cli_cmd_consolidate:
+              - '**/specify_cli/cli/commands/consolidate.py'
+            cli_cmd_agent:
+              - '**/specify_cli/cli/commands/tracker.py'
+              - '**/specify_cli/cli/commands/accept.py'
+              - '**/specify_cli/cli/commands/research.py'
+              - '**/specify_cli/cli/commands/glossary.py'
+              - '**/specify_cli/cli/commands/verify.py'
+            cli_cmd_implement:
+              - '**/specify_cli/cli/commands/implement.py'
+              - '**/specify_cli/cli/commands/implement_claim.py'
+              - '**/specify_cli/cli/commands/implement_cores.py'
+              - '**/specify_cli/cli/commands/implement_phases.py'
+              - '**/specify_cli/cli/commands/implement_planning_commit.py'
+              - '**/specify_cli/cli/commands/implement_recover.py'
+            cli_cmd_init:
+              - '**/specify_cli/cli/commands/init.py'
+              - '**/specify_cli/cli/commands/init_help.py'
+            cli_cmd_doctor:
+              - '**/specify_cli/cli/commands/doctor.py'
+            cli_cmd_upgrade:
+              - '**/specify_cli/cli/commands/upgrade.py'
+            cli_cmd_next:
+              - '**/specify_cli/cli/commands/next_cmd.py'
+            cli_cmd_mission_type:
+              - '**/specify_cli/cli/commands/mission_type.py'
+            cli_cmd_merge_driver:
+              - '**/specify_cli/cli/commands/merge_driver.py'
+            cli_cmd_charter_pack:
+              - '**/specify_cli/cli/commands/_charter_pack_collect.py'
+              - '**/specify_cli/cli/commands/_charter_pack_health.py'
+              - '**/specify_cli/cli/commands/profiles_cmd.py'
+            cli_cmd_status:
+              - '**/specify_cli/cli/commands/materialize.py'
+              - '**/specify_cli/cli/commands/_decisions_doctor.py'
+            cli_cmd_plugin:
+              - '**/specify_cli/cli/commands/plugin.py'
+            cli_cmd_agent_subdir:
+              - '**/specify_cli/cli/commands/agent/**'
             agent:
               - 'src/specify_cli/agent_utils/**'
             kernel:
@@ -360,6 +422,10 @@ jobs:
               - '**/specify_cli/cli/commands/_mission_state_doctor.py'
               - '**/specify_cli/cli/commands/doctor.py'
               - '**/specify_cli/cli/commands/_doctor_shared.py'
+              # #6244: the audit runs through the root app, whose build retargets every leaf command to
+              # MissionAgnosticCommand (cli/helpers.py). helpers.py therefore executes on the audit's parse
+              # path in CI, so a change to it can change what the audit does; route it like the doctor modules above.
+              - '**/specify_cli/cli/helpers.py'
               - '**/kernel/meta_decode.py'
               - '**/kernel/git/listing.py'
               - '**/kernel/git/paths.py'

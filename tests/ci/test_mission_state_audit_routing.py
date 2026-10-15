@@ -321,6 +321,42 @@ def _run_audit_over_fixture(repo_root: Path) -> _AuditRun:
     return _AuditRun(result.exit_code, json.loads(result.stdout))
 
 
+def _apply_root_app_command_mutation(repo_root: Path) -> None:
+    """Invoke the ROOT app once so ``make_leaf_commands_mission_agnostic`` (``cli/helpers.py``)
+    is applied to ``doctor.app``'s commands in place -- exactly as CI's real
+    ``spec-kitty doctor mission-state --audit`` goes through the root app (#6244).
+
+    Building/invoking the root app retargets every leaf command's click class to
+    ``MissionAgnosticCommand`` (``cli/helpers.py``), so the subsequently-profiled
+    ``doctor.app`` audit run deterministically exercises ``helpers.py`` on its parse
+    path on EVERY run -- no longer only when an unrelated sibling test happened to build
+    the root app earlier in the same xdist worker (the #6244 order-dependence). The
+    one-time startup side effects (runtime + global agent command/skill installs +
+    project gates) are suppressed so the warm-up neither writes to the real home nor
+    pulls bootstrap modules (``__init__.py`` main_callback, ``_owned_checkout.py``) into
+    the subsequent profile; profiling ``doctor.app`` directly keeps the captured set
+    scoped to the audit plus its ``helpers.py`` command-parse path.
+    """
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    import specify_cli
+
+    def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    with (
+        contextlib.chdir(repo_root),
+        patch.object(specify_cli, "root_callback", _noop),
+        patch.object(specify_cli, "_run_startup_project_gates", _noop),
+        patch("specify_cli.runtime.bootstrap.ensure_runtime", _noop),
+        patch("specify_cli.runtime.agent_skills.ensure_global_agent_skills", _noop),
+        patch("specify_cli.runtime.agent_commands.ensure_global_agent_commands", _noop),
+    ):
+        CliRunner().invoke(specify_cli.app, ["doctor", *_doctor_audit_argv()])
+
+
 class _AuditCapture(NamedTuple):
     modules: frozenset[str]
     run: _AuditRun
@@ -329,12 +365,18 @@ class _AuditCapture(NamedTuple):
 def _executed_audit_src_modules(repo_root: Path) -> _AuditCapture:
     """Return the ``src/`` modules whose functions run during the audit over ``repo_root``.
 
-    A warm-up run resolves every lazy import first; the profiled second run then records
-    only function-call frames (``co_name != "<module>"``), so one-time import-body
-    execution of eagerly-imported siblings is never mistaken for an audit dependency.
-    This makes the derived set deterministic and order-independent (profiling the first
-    run instead would wrongly fold in ~12 import-only modules — see #6090 grounding).
+    The root-app command-class mutation is applied FIRST (``_apply_root_app_command_mutation``)
+    so ``doctor.app``'s commands carry ``MissionAgnosticCommand`` and the profiled run
+    exercises ``cli/helpers.py`` on every run, exactly as CI's root-app invocation does --
+    deterministically, no longer depending on whether a sibling test built the root app
+    earlier in the worker (#6244). Then a warm-up run resolves every lazy import; the
+    profiled second run records only function-call frames (``co_name != "<module>"``), so
+    one-time import-body execution of eagerly-imported siblings is never mistaken for an
+    audit dependency. Together these make the derived set deterministic and
+    order-independent (profiling the first run instead would wrongly fold in ~12
+    import-only modules — see #6090 grounding).
     """
+    _apply_root_app_command_mutation(repo_root)  # #6244: put helpers.py on the audit parse path deterministically
     _run_audit_over_fixture(repo_root)  # warm-up: resolve lazy imports
     executed: set[str] = set()
 

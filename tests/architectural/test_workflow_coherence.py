@@ -338,6 +338,13 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 # * ``reducer_lock`` (#6238) — ``uv.lock`` alone. Gates no router job BY DESIGN; fanned out to
 #   upgrade + status by the non-census ``DEPENDENCY_MODULE_FANOUT``. ``pyproject.toml`` is
 #   deliberately absent (operator ruling).
+#
+# * the ``cli_cmd_*`` family (#6221) — the per-command fan-out groups generalising ``cli_lifecycle``
+#   to the rest of ``src/specify_cli/cli/commands/**``. Each gates no router job BY DESIGN:
+#   ``gate_selection.CLI_COMMAND_MODULE_FANOUT`` (non-census, like ``DEPENDENCY_MODULE_FANOUT``) fans
+#   each out to the command's test-owning modules, so the module matrix is its per-PR executor. Every
+#   glob is ``**/``-prefixed (non-src), so the group stays out of the ``unmatched`` union. Pinned
+#   against the #6166/#6174 maintainer inventory by tests/architectural/test_cli_commands_routing.py.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
     {
         "any_src",
@@ -349,6 +356,20 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "cli_lifecycle",
         "mission_type_definitions",
         "reducer_lock",
+        "cli_cmd_charter",
+        "cli_cmd_consolidate",
+        "cli_cmd_agent",
+        "cli_cmd_implement",
+        "cli_cmd_init",
+        "cli_cmd_doctor",
+        "cli_cmd_upgrade",
+        "cli_cmd_next",
+        "cli_cmd_mission_type",
+        "cli_cmd_merge_driver",
+        "cli_cmd_charter_pack",
+        "cli_cmd_status",
+        "cli_cmd_plugin",
+        "cli_cmd_agent_subdir",
     }
 )
 

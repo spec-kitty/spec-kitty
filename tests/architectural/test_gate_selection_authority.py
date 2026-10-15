@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from scripts.ci.gate_selection import (
+    CLI_COMMAND_MODULE_FANOUT,
     DEFAULT_ROUTER_PATH,
     DEPENDENCY_MODULE_FANOUT,
     GROUP_MODULE_FANOUT,
@@ -289,7 +290,9 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     assert GROUP_MODULE_FANOUT["mission_type_definitions"] == frozenset({"charter", "core_misc", "upgrade"})
     # #6238: the non-census dependency fan-out, pinned separately from the pack fan-out.
     assert DEPENDENCY_MODULE_FANOUT["reducer_lock"] == frozenset({"upgrade", "status"})
-    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items()):
+    # #6221: the non-census cli/commands fan-out is non-empty and generalises cli_lifecycle.
+    assert CLI_COMMAND_MODULE_FANOUT, "the cli/commands fan-out must not be empty"
+    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items(), *CLI_COMMAND_MODULE_FANOUT.items()):
         assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
         assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"
 

@@ -36,6 +36,7 @@ __all__ = [
     "DEFAULT_ROUTER_PATH",
     "FANOUT_ALLOWLIST",
     "DEPENDENCY_MODULE_FANOUT",
+    "CLI_COMMAND_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
     "PROBE_GROUPS",
@@ -101,6 +102,45 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # so a manifest rename or non-version edit never triggers the upgrade shards.
 DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "reducer_lock": frozenset({"upgrade", "status"}),
+}
+
+# CLI command fan-out (#6221). NON-CENSUS BY DESIGN, exactly like DEPENDENCY_MODULE_FANOUT above:
+# these groups glob src/specify_cli/cli/commands/** files, which the pack-scoped consumer census does
+# not record, so they are kept OUT of GROUP_MODULE_FANOUT / FANOUT_GROUPS to leave the census,
+# census-routing and census-cost machinery pack-scoped (test_fanout_derivation.py requires every
+# FANOUT_GROUPS member to derive >=1 census module, which a src-path group never would).
+#
+# The defect (#6221, #6166 residue): a change under cli/commands/** matches only the broad `cli` group
+# -> the `cli` module, whose shard runs tests/cli alone. But the command modules DELEGATE into domain
+# packages whose tests live in OTHER modules, so a PR that breaks a command went green per-PR and first
+# red the nightly. cli_lifecycle (GROUP_MODULE_FANOUT) closed this for lifecycle.py only; these groups
+# generalise it to the rest of the command surface, per the #6166/#6174 maintainer inventory table.
+# Each group's glob is **/-prefixed (never src/...), so the group is non-src and stays out of the
+# FR-004 `unmatched` union; it gates no router job BY DESIGN (the module matrix is its per-PR executor),
+# recorded in test_workflow_coherence._DELIBERATELY_UNGATED_FILTER_GROUPS and pinned against the
+# maintainer inventory by tests/architectural/test_cli_commands_routing.py. The fan-out ADDS the
+# command's test-owning modules; the owning `cli` module always rides along via the `cli` group.
+CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "cli_cmd_charter": frozenset({"charter", "agent", "upgrade", "consolidation", "core_misc"}),
+    "cli_cmd_consolidate": frozenset({"consolidation", "agent", "core_misc", "execution_context", "lanes", "post_merge", "missions"}),
+    "cli_cmd_agent": frozenset({"agent"}),
+    # implement.py + its helpers; implement_claim's tests also reach execution_context, so the whole
+    # cluster carries it (a one-module over-route of the siblings, kept to one group for a smaller diff).
+    "cli_cmd_implement": frozenset({"agent", "lanes", "core_misc", "execution_context"}),
+    "cli_cmd_init": frozenset({"core_misc", "upgrade", "agent", "execution_context"}),
+    "cli_cmd_doctor": frozenset({"charter", "core_misc", "agent", "consolidation", "upgrade"}),
+    "cli_cmd_upgrade": frozenset({"upgrade", "core_misc", "kernel"}),
+    "cli_cmd_next": frozenset({"next"}),
+    "cli_cmd_mission_type": frozenset({"missions", "core_misc", "unit"}),
+    "cli_cmd_merge_driver": frozenset({"consolidation"}),
+    "cli_cmd_charter_pack": frozenset({"charter"}),
+    # materialize.py -> status; _decisions_doctor.py -> status + core_misc. One group with the union
+    # (materialize picks up core_misc, a one-module over-route) keeps the diff to a single group.
+    "cli_cmd_status": frozenset({"status", "core_misc"}),
+    "cli_cmd_plugin": frozenset({"core_misc"}),
+    # agent/** already selects execution_context via that module's own glob; this adds the modules whose
+    # tests exercise the agent command package but that execution_context does not reach.
+    "cli_cmd_agent_subdir": frozenset({"agent", "status", "review", "core_misc", "lanes", "consolidation", "release"}),
 }
 
 # The groups that fan out: the keys of GROUP_MODULE_FANOUT, named once so the census
@@ -450,7 +490,7 @@ def select_modules(
     if mode == "full" or selection.unmatched_src:
         return modules
     src_selected = selection.matched_groups & modules
-    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items()):
+    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items(), *CLI_COMMAND_MODULE_FANOUT.items()):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
