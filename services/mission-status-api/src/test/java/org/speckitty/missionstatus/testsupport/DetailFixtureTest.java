@@ -332,6 +332,25 @@ class DetailFixtureTest {
     assertThat(Utf8Host.isUtf8()).isEqualTo(NameEncoding.host().trustworthy());
   }
 
+  @Test
+  void aChildWhoseLocaleDoesNotSetTheNameEncodingSkipsTheRefusalTestAndWritesTheLine() throws IOException {
+    Path some = report();
+    assertThatThrownBy(() -> Utf8Host.assumeChildNamesUntrustworthy("child-locale", NameEncoding.fixed(true), some)).isInstanceOf(TestAbortedException.class);
+    assertThat(Files.readAllLines(some)).containsExactly("not run: precondition unmet: child-locale");
+
+    Path none = report();
+    Utf8Host.assumeChildNamesUntrustworthy("child-locale", NameEncoding.fixed(false), none);
+    assertThat(none).doesNotExist();
+  }
+
+  @Test
+  void theChildProbeReadsTheChildsOwnNameEncoding() {
+    assertThat(Utf8Host.childJnuEncoding(java.util.Map.of("LC_ALL", "C"))).isNotBlank();
+    if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("linux")) {
+      assertThat(Utf8Host.isUtf8(new NameEncoding(false, Utf8Host.childJnuEncoding(java.util.Map.of("LC_ALL", "C"))))).isFalse();
+    }
+  }
+
   // ---- MetaReadCounter -------------------------------------------------------------------------------------------------------
 
   @Test

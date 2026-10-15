@@ -80,6 +80,7 @@ class WorkPackageIndexLocaleProcessTest {
   @Timeout(300)
   void underLcAllCTheThreeRoutesRefuseWithOneDiagnosticEachAndOmitNothingSilently(@TempDir Path dir) throws Exception {
     Utf8Host.assumeUtf8("WorkPackageIndexLocaleProcessTest#underLcAllC");
+    Utf8Host.assumeChildNamesUntrustworthy("WorkPackageIndexLocaleProcessTest#underLcAllC.childLocale", Map.of("LC_ALL", "C"));
 
     List<Answer> answers = ask(dir, project(true), Map.of("LC_ALL", "C"));
 

@@ -1,7 +1,11 @@
 package org.speckitty.missionstatus.testsupport;
 
 import org.speckitty.missionstatus.testsupport.RealPermissionFixture.NotRun;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Map;
 import org.junit.jupiter.api.Assumptions;
 import org.speckitty.missionstatus.adapter.out.filesystem.NameEncoding;
 
@@ -34,5 +38,39 @@ public final class Utf8Host {
       NotRun.record(report, NotRun.unmet(testId));
     }
     Assumptions.assumeTrue(isUtf8(encoding), NotRun.unmet(testId));
+  }
+
+  /**
+   * Skips the calling test unless a child JVM started with {@code environment} would see names it cannot trust (the child's own
+   * {@code sun.jnu.encoding} is read, not guessed from the operating system). On macOS the property is always UTF-8 and on Windows the
+   * JDK decodes names itself, so the locale variable changes nothing there and a test that expects the refusal must not run.
+   */
+  public static void assumeChildNamesUntrustworthy(String testId, Map<String, String> environment) {
+    NameEncoding child = new NameEncoding(NameEncoding.host().windows(), childJnuEncoding(environment));
+    assumeChildNamesUntrustworthy(testId, child, NotRun.DEFAULT_FILE);
+  }
+
+  static void assumeChildNamesUntrustworthy(String testId, NameEncoding child, Path report) {
+    if (isUtf8(child)) {
+      NotRun.record(report, NotRun.unmet(testId));
+    }
+    Assumptions.assumeFalse(isUtf8(child), NotRun.unmet(testId));
+  }
+
+  /** The {@code sun.jnu.encoding} a child JVM reports under {@code environment}, or null when it does not say. */
+  static String childJnuEncoding(Map<String, String> environment) {
+    try {
+      ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-XshowSettings:properties", "-version").redirectErrorStream(true);
+      builder.environment().putAll(environment);
+      Process process = builder.start();
+      String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.ISO_8859_1);
+      process.waitFor();
+      return output.lines().map(String::strip).filter(line -> line.startsWith("sun.jnu.encoding =")).map(line -> line.substring(line.indexOf('=') + 1).strip()).findFirst().orElse(null);
+    } catch (IOException failure) {
+      throw new UncheckedIOException(failure);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(interrupted);
+    }
   }
 }
