@@ -101,7 +101,7 @@ def _render_complete_response(
 def complete_invocation(
     invocation_id: str = typer.Option(..., "--invocation-id", "-i", help="Invocation ULID to close"),
     outcome: str = typer.Option(..., "--outcome", help="done | failed | abandoned"),
-    evidence: str | None = typer.Option(None, "--evidence", help="Path to evidence file (Tier 2 promotion)"),
+    evidence: str | None = typer.Option(None, "--evidence", help="Path to a UTF-8 text evidence file (Tier 2 promotion); checked before the Op closes"),
     artifact: list[str] = typer.Option(
         None,
         "--artifact",

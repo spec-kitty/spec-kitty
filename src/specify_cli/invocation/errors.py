@@ -84,6 +84,27 @@ class InvalidModeForEvidenceError(InvocationError):
         )
 
 
+class UnsupportedEvidenceError(InvocationError):
+    """Evidence content cannot be stored as Tier 2 UTF-8 text (#5397).
+
+    Raised by ``complete_invocation`` BEFORE any write, so the Op is left
+    exactly as it was and a corrected retry can still close it.
+    Deliberately NOT a subclass of InvalidModeForEvidenceError: the CLI maps
+    that one to a human-only exit 2, while this one must reach the generic
+    ``complete_failed`` JSON handler (exit 1, contract-frozen shape).
+    """
+
+    def __init__(self, invocation_id: str, evidence_label: str, reason: str) -> None:
+        self.invocation_id = invocation_id
+        self.evidence_label = evidence_label
+        self.reason = reason
+        super().__init__(
+            f"Cannot use {evidence_label} as evidence for invocation {invocation_id}: "
+            f"{reason}. Tier 2 evidence must be UTF-8 text. No completion was recorded "
+            f"by this call; re-run complete with a UTF-8 text evidence file."
+        )
+
+
 class UndeterminedModeForEvidenceError(InvalidModeForEvidenceError):
     """--evidence supplied on an Op whose recorded ``mode_of_work`` is unreadable.
 

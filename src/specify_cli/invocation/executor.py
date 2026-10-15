@@ -40,6 +40,7 @@ from specify_cli.invocation.errors import (
     InvocationError,
     RouterAmbiguityError,
     UndeterminedModeForEvidenceError,
+    UnsupportedEvidenceError,
 )
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
@@ -762,6 +763,8 @@ class ProfileInvocationExecutor:
         Raises ``AlreadyClosedError`` if already closed (idempotent guard).
         Raises ``InvocationError`` if invocation_id is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
+        Raises ``UnsupportedEvidenceError`` (a pre-write check; no JSONL line is
+        written) if the evidence is not UTF-8 text (#5397).
         Raises ``InvalidModeForEvidenceError`` if evidence_ref is supplied on an
             non-evidence-eligible invocation (FR-009), or its
             ``UndeterminedModeForEvidenceError`` subclass when the record's
@@ -815,6 +818,11 @@ class ProfileInvocationExecutor:
         if already_closed:
             raise AlreadyClosedError(invocation_id)
 
+        # Step 2b (#5397): resolve and validate evidence content BEFORE the terminal
+        # write. A read/encode failure after the close used to strand the Op closed
+        # without its links and refuse every corrected retry as already_closed.
+        evidence_content = self._resolve_evidence_content(invocation_id, evidence_ref) if evidence_ref is not None else None
+
         # Step 3: Append the completed event to its recording surface.
         # Agent closes append to the per-record file (minted this session);
         # the doctor sweep records on the append-only closure spine because
@@ -832,7 +840,7 @@ class ProfileInvocationExecutor:
             self._writer.write_completed(completed)
 
         # Step 4: Promote to Tier 2 evidence artifact if --evidence was supplied (existing behaviour).
-        self._promote_evidence_if_requested(completed, evidence_ref)
+        self._promote_evidence_if_requested(completed, evidence_content)
 
         # Step 5 (NEW): Append artifact_link events (FR-007).
         self._append_artifact_links(invocation_id, artifact_refs)
@@ -885,20 +893,33 @@ class ProfileInvocationExecutor:
     def _promote_evidence_if_requested(
         self,
         completed: OpCompletedEvent,
-        evidence_ref: str | None,
+        evidence_content: str | None,
     ) -> None:
-        if evidence_ref is None:
+        if evidence_content is None:
             return
-        content = self._resolve_evidence_content(evidence_ref)
         evidence_base_dir = self._repo_root / ".kittify" / "evidence"
-        promote_to_evidence(completed, evidence_base_dir, content)
+        promote_to_evidence(completed, evidence_base_dir, evidence_content)
 
-    def _resolve_evidence_content(self, evidence_ref: str) -> str:
+    def _resolve_evidence_content(self, invocation_id: str, evidence_ref: str) -> str:
+        """Return the Tier 2 text for *evidence_ref*, or refuse it before any write (#5397)."""
         candidate_path = self._resolve_evidence_path(evidence_ref)
+        if candidate_path is not None:
+            try:
+                return candidate_path.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                raise UnsupportedEvidenceError(invocation_id, evidence_ref, "the file is not UTF-8 text") from exc
+            except OSError:
+                return self._inline_evidence(invocation_id, evidence_ref)
+        return self._inline_evidence(invocation_id, evidence_ref)
+
+    @staticmethod
+    def _inline_evidence(invocation_id: str, evidence_ref: str) -> str:
+        """Use *evidence_ref* itself as evidence text, provided it is UTF-8-encodable."""
         try:
-            return candidate_path.read_text(encoding="utf-8") if candidate_path is not None else evidence_ref
-        except OSError:
-            return evidence_ref
+            evidence_ref.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise UnsupportedEvidenceError(invocation_id, "inline evidence text", "the text cannot be encoded as UTF-8") from exc
+        return evidence_ref
 
     def _resolve_evidence_path(self, evidence_ref: str) -> Path | None:
         evidence_path = Path(evidence_ref)
