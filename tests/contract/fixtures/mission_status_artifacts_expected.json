@@ -6,6 +6,7 @@
   "refused_content": [
     {"mission": "charter-contract-cleanup-tranche-1-01KQATS4", "path": "research/_artifacts/test-gate-5-ruff.txt", "status": 413, "code": "artifact_too_large", "why": "over the 262144 byte cap"},
     {"mission": "unblock-sync-identity-boundary-canary-01KRZJ07", "path": "canary-evidence/full-pytest.txt", "status": 413, "code": "artifact_too_large", "why": "over the 262144 byte cap"},
+    {"mission": "mission-status-read-api-mission-detail-01M4S6D5", "path": "plan.md", "status": 413, "code": "artifact_too_large", "why": "over the 262144 byte cap"},
     {"mission": "004-modular-code-refactoring", "path": "research/evidence-log.csv", "status": 415, "code": "artifact_not_text", "why": "not valid UTF-8"},
     {"mission": "004-modular-code-refactoring", "path": "research/source-register.csv", "status": 415, "code": "artifact_not_text", "why": "not valid UTF-8"},
     {"mission": "003-auto-protect-agent", "path": "data-model.md", "status": 415, "code": "artifact_not_text", "why": "holds a NUL byte"},
