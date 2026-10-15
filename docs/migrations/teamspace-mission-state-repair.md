@@ -67,6 +67,10 @@ The dry-run synthesizes canonical Spec Kitty event envelopes in memory and valid
 
 `--fix` refuses to run when relevant mission paths are dirty unless `--allow-dirty` is supplied. It also checks linked worktrees that share the same Git common directory and takes an exclusive `.git/spec-kitty-mission-state.lock` while writing.
 
+`--fix` also holds each Mission's write lock while it rewrites that Mission's status files, from reading `status.events.jsonl` to refreshing `status.json`. A concurrent status writer waits for the lock or times out with a lock-held error; it never has an event erased. Still ask contributors and agents to stop writing status while the repair runs, so nobody waits on the lock.
+
+If a Mission's repair reports a lock timeout after it already rewrote that Mission's `meta.json` (the lock key of a legacy coordination Mission moves when its `mission_id` is minted), `meta.json` is left changed and the next `--fix` refuses the dirty path. Review the change, then commit it or re-run with `--allow-dirty`.
+
 For teams, use this sequence:
 
 1. Ask contributors to stop editing `kitty-specs/` temporarily.

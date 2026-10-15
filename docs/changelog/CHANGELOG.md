@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc8 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Fixed
+
+- **`doctor mission-state --fix` no longer erases a status change recorded while it runs** (#5974). **Before:** the repair read `status.events.jsonl` outside the Mission write lock and rewrote the file from that read, so a transition another agent recorded in between was silently lost while the repair reported `updated`, and `status.json` could be replaced by a stale copy. **After:** one Mission-lock hold covers the read through the rewrite (extended to the new lock key when the repair mints the `mission_id` of a coordination Mission), and the `lanes.json` rebuild is one check-and-write under the lanes lock, so it never overwrites a manifest created meanwhile. A writer whose wait is bounded may now get the lock-timeout error during a long repair: its transition is not recorded and erases nothing, so retry it.
+
 ## [4.0.0rc7] - 2026-10-15
 
 ### Breaking
