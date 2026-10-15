@@ -111,6 +111,7 @@ MERGE_BASE_DEFINITION_NAMES: tuple[str, ...] = (
     "_isolate_global_encoding_provenance",
     "_isolated_route",
     "_plain_cli_console_seam",
+    "_isolate_init_console_seam",
     "reset_spec_kitty_queue_state",
     "_truncate_db",
     "clean_spec_kitty_queue",
