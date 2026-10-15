@@ -372,6 +372,7 @@ def test_lanes_rebuild_never_overwrites_a_concurrently_created_manifest(tmp_path
     )
     key = mission_lock_key(feature_dir, repo_root=tmp_path)
     mission_lock_held_at_pause: list[bool] = []
+    on_disk_keys_at_pause: list[str] = []
     fired = False
     real_lock = persistence.lanes_json_lock
 
@@ -380,6 +381,7 @@ def test_lanes_rebuild_never_overwrites_a_concurrently_created_manifest(tmp_path
         if directory == feature_dir and not fired:
             fired = True  # before the nested write: that write goes through this wrapper again
             mission_lock_held_at_pause.append(holds_status_lock(feature_status_lock_path(tmp_path, key)))
+            on_disk_keys_at_pause.append(mission_lock_key(feature_dir, repo_root=tmp_path, ignore_held=True))
             write_lanes_json(feature_dir, manifest_b)
         return real_lock(directory)
 
@@ -389,6 +391,9 @@ def test_lanes_rebuild_never_overwrites_a_concurrently_created_manifest(tmp_path
 
     assert fired, "the pause point never fired: the test would pass vacuously"
     assert mission_lock_held_at_pause == [False], "NFR-002: the lanes phase must run outside the Mission lock hold"
+    # This fixture's key never moves (it records a mission_id), so checking K covers the on-disk key too. The
+    # moved-key hold is covered by test_repair_key_move_extends_hold_to_new_key in tests/migration.
+    assert on_disk_keys_at_pause == [key], "fixture precondition: the Mission lock key does not move during this repair"
     final_lanes = (feature_dir / "lanes.json").read_text(encoding="utf-8")
     result = next(m for m in report.missions if m.mission_slug == _MISSION_SLUG)
     assert result.status != "error", result.validation_errors

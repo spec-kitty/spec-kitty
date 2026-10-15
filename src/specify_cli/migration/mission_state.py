@@ -23,6 +23,9 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
+    from mission_runtime import MissionTopology
+
+    from specify_cli.ownership.models import OwnershipManifest
     from specify_cli.status.dup_key_repair import ArtifactRepairPlan, DuplicateKeyFinding
     from specify_cli.status.models import StatusSnapshot
     from specify_cli.status.wp_metadata import WPMetadata
@@ -1613,14 +1616,9 @@ def _rebuild_lanes_if_wedged(
             the fail-closed path: never a partial rebuild that masks a
             corrupt/inconsistent WP ownership declaration.
     """
-    from mission_runtime import MissionTopology, TopologyManifestMismatch
+    from mission_runtime import MissionTopology
 
-    from specify_cli.core.vcs.git import capture_branch_tip
-    from specify_cli.lanes.compute_and_persist import (
-        LaneGlobValidationError,
-        compute_and_write_lanes,
-    )
-    from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+    from specify_cli.lanes.persistence import is_execution_wedged, lanes_json_lock, read_lanes_json
     from specify_cli.migration.backfill_topology import topology_from_meta
     from specify_cli.ownership.frontmatter_source import (
         InMemoryFrontmatterSource,
@@ -1650,6 +1648,51 @@ def _rebuild_lanes_if_wedged(
     wp_manifests = resolve_wp_manifests(InMemoryFrontmatterSource(wp_frontmatters))
     if not wp_manifests:
         return LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION
+
+    # #5974: the cheap checks above stay unlocked. On the rebuild path alone, the "still absent"
+    # re-check and the write are ONE ``lanes_json_lock`` hold, so a manifest another process
+    # created since the first check is never overwritten. The caller runs outside any Mission hold.
+    with lanes_json_lock(mission_dir):
+        if read_lanes_json(mission_dir) is not None:
+            return None  # #3311 guard, re-checked under the lock.
+        return _write_rebuilt_lanes(
+            repo_root,
+            mission_dir,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            target_branch=target_branch,
+            meta=meta,
+            topology=topology,
+            wp_frontmatters=wp_frontmatters,
+            wp_bodies=wp_bodies,
+            wp_manifests=wp_manifests,
+        )
+
+
+def _write_rebuilt_lanes(
+    repo_root: Path,
+    mission_dir: Path,
+    *,
+    mission_slug: str,
+    mission_id: str | None,
+    target_branch: str,
+    meta: Mapping[str, Any],
+    topology: MissionTopology,
+    wp_frontmatters: dict[str, WPMetadata],
+    wp_bodies: dict[str, str],
+    wp_manifests: dict[str, OwnershipManifest],
+) -> str:
+    """Compute and write the rebuilt ``lanes.json``; the caller holds ``lanes_json_lock`` (#5974).
+
+    Returns the action recorded for the outcome (see :func:`_rebuild_lanes_if_wedged`).
+    """
+    from mission_runtime import TopologyManifestMismatch
+
+    from specify_cli.core.vcs.git import capture_branch_tip
+    from specify_cli.lanes.compute_and_persist import (
+        LaneGlobValidationError,
+        compute_and_write_lanes,
+    )
 
     wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
     planning_commit_sha = capture_branch_tip(repo_root, target_branch)
@@ -1906,7 +1949,10 @@ def _repair_lanes_phase(
         snapshot=snapshot,
         meta=meta,
     )
-    state.record_change(repo_root, lanes_path, before_lanes)
+    if lanes_action == LANES_REBUILT_ACTION:
+        # Only this repair's own write is its change (#5974): a manifest another process created
+        # concurrently is reported as nothing.
+        state.record_change(repo_root, lanes_path, before_lanes)
     if lanes_action is not None:
         state.meta_actions = (*state.meta_actions, lanes_action)
 
