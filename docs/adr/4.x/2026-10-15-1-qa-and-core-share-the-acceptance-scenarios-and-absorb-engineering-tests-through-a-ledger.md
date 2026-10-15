@@ -104,7 +104,7 @@ The audit behind this ADR classified all 184 files (the [inventory](../../develo
 
 * Contributors deleting or renaming a baseline file must add a ledger row.
 * The ledger only grows; it is the history of the move.
-* Lifecycle tests that need an owned checkout, a mergeable or approved Mission, or crafted older-version state are still to move or stay; the waves so far took `tests/integration` from 177 to 151 files and 64,552 to 58,874 lines, and `tests/e2e` from 7 to 4 files.
+* Many integration tests rightly stay pytest: every baseline file now has a recorded decision, and the move took `tests/integration` from 177 to 151 baseline files (64,552 to 58,396 lines) and `tests/e2e` from 7 to 4, with 56 gating scenarios. Three org-pack files wait on [#6267](https://github.com/spec-kitty/spec-kitty/issues/6267).
 
 #### Neutral
 
@@ -116,7 +116,7 @@ The audit behind this ADR classified all 184 files (the [inventory](../../develo
 * `tests/architectural/test_scenario_contract.py` passes on the real tree, and each planted ledger fails its own rule.
 * The same file fails when a planted CODEOWNERS line takes `tests/scenarios/` away from the shared owners.
 * `tests/ci/test_acceptance_bdd_job.py` pins one escalation job with one key, fail-closed, mainline-only, aggregated by `nightly-summary`.
-* For every absorbing scenario, putting the guarded defect back turned it red and left the others green: the #4754 abort, sparse-checkout detection, the sparse-checkout preflight of `implement` and `consolidate`, the #4863 no-state abort, the #3716 discard provenance, the #840 schema stamp, the not-initialised gate, the single-branch review commit gate, the empty-feedback refusal (both layers), the declared reviewer, the occupied and dirty write checkout, and the kept ref of a discarded Mission branch.
+* For every absorbing scenario, putting the guarded defect back turned it red and left the others green: the #4754 abort, sparse-checkout detection, the sparse-checkout preflight of `implement` and `consolidate`, the #4863 no-state abort, the #3716 discard provenance, the #840 schema stamp, the not-initialised gate, the single-branch review commit gate, the empty-feedback refusal (both layers), the declared reviewer, the occupied and dirty write checkout, the kept ref of a discarded Mission branch, the setup-plan spec gate, the frozen lane membership, the synthesize dry run, the missing-bundle remedy, the synthesize remediation and the no-charter detail.
 * `acceptance-jvm/build.gradle` declares the test task never up to date, because the wheel under test is built at run time from a checkout Gradle does not track; without that, a re-run after a source change reported the previous results.
 
 ## More Information

@@ -25,19 +25,19 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | duplicate | Covered by the test named in the reason. "Unverified" means the overlap still needs a reviewer. |
 | p0 | A P0 reproduction (nightly `p0-repro` lane). |
 
-**Wave** is the plan's wave that moves it, with "(done)" once it has: 1, 1b, 1c, 2 (authored-content Arrange, ADR 2026-10-15-1 decision 6), 3 (needs an org-pack CLI command, #6267), D (moved to the unit tier), R (duplicate review). Verdicts are as audited on 2026-10-15, corrected where checking a file changed its verdict.
+**Wave** is the plan's wave that moves it, with "(done)" once it has, or "(decided)" where the wave decided the file stays pytest: 1, 1b, 1c, 2 (authored-content Arrange, ADR 2026-10-15-1 decision 6), 3 (needs an org-pack CLI command, #6267), D (moved to the unit tier), R (duplicate review). Verdicts are as audited on 2026-10-15, corrected where checking a file changed its verdict.
 
 ## tests/e2e
 
 | File | Verdict | Wave | Reason |
 |---|---|---|---|
-| `test_charter_epic_golden_path.py` | partly | 2 | Charter chain, strict JSON, next and retrospect are black-box; it reads an internal lifecycle log, patches `meta.json`, and guards source pollution, which means nothing against a wheel. Only test of `charter bundle validate`. |
+| `test_charter_epic_golden_path.py` | keep | 2 (decided) | One chained run whose distinctive checks read the internal lifecycle log and guard the source tree against pollution, which means nothing against a wheel; its charter, planning and status steps are covered by `charter/charter.feature` and `mission/lifecycle.feature`. It is the only test of `charter bundle validate`. |
 | `test_cli_smoke.py` | partly | 1, 2 (done) | Create, documentation create, the refusals, `setup-plan` and the full flow to review moved to `mission/mission-create.feature` and `mission/lifecycle.feature`. The template-override test writes `.kittify/overrides/` (CLI-managed) and stays. |
 | `test_coord_status_off_target_lifecycle.py` | scenario | 2 (done) | Moved to `mission/lifecycle.feature`: status stays off the target branch and on the coordination branch. |
 | `test_feature_alias_smoke.py` | scenario | 1 (done) | The retired Mission alias option is refused with exit 2 ([migration note](../../migrations/feature-flag-deprecation.md)). Retired into `mission-create.feature`. |
 | `test_mission_create_clean_output.py` | unit | D (done) | A source scan and three in-process checks of the diagnostics module; moved to `tests/specify_cli/cli/commands/agent/`, and the one test that could not fail was deleted. |
 | `test_upgrade_post_state.py` | keep | - | Writes a legacy `.kittify/metadata.yaml`; a scenario would need an older wheel. |
-| `test_worktree_owned_root_concurrency.py` | partly | 2 | Concurrency with a barrier and timing stays; the skipped owned-checkout refusals (#4017) could become scenarios; the four retry tests are unit tests. |
+| `test_worktree_owned_root_concurrency.py` | keep | 2 (decided) | Concurrency with a barrier and measured overlap, and the retry helper's unit tests; scenarios run one CLI command at a time. |
 
 ## tests/integration (top level)
 
@@ -50,12 +50,12 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_agent_identity_prompt.py` | unit | D (done) | Pure prompt rendering. |
 | `test_analysis_template_mirrors.py` | keep | - | Patched resolver home, injected write race. |
 | `test_branch_strategy_gate.py` | unit | D (done) | Pure `evaluate_branch_strategy`. |
-| `test_catalog_miss_cli_visibility.py` | scenario | 3 | Unknown styleguide warns in `charter context`; arrange writes `.kittify` config. |
-| `test_charter_lint_lints_all_layers.py` | scenario | 3 | Lint names every layer; registering the org pack writes `.kittify/config.yaml`. |
-| `test_charter_status_freshness.py` | partly | 1c | `fresh` and `missing` reachable by the CLI; the other states need crafted bundle files. |
-| `test_charter_status_reports_three_layers.py` | scenario | 3 | Same org-pack arrange as lint. |
+| `test_catalog_miss_cli_visibility.py` | scenario | 3 (blocked on #6267) | Unknown styleguide warns in `charter context`; registering the org pack today means writing `.kittify/config.yaml`. |
+| `test_charter_lint_lints_all_layers.py` | scenario | 3 (blocked on #6267) | Lint names every layer; registering the org pack today means writing `.kittify/config.yaml`. |
+| `test_charter_status_freshness.py` | partly | 1c (done) | The freshness shape and synthesis-missing cases moved to `charter/charter.feature`; the all-fresh, invalid and legacy-bundle states need crafted bundle files and stay. |
+| `test_charter_status_reports_three_layers.py` | scenario | 3 (blocked on #6267) | Same org-pack arrange as lint. |
 | `test_charter_synthesize_built_in_only.py` | unit | D (done) | Post-condition helper on temporary files. |
-| `test_charter_synthesize_fresh.py` | partly | 1c | First four cases with `charter interview --defaults`; the stale-graph cases stay. |
+| `test_charter_synthesize_fresh.py` | partly | 1c (done) | The fresh seed, dry run, re-run and missing-charter cases moved to `charter/charter.feature`; the stale-graph unlink and registered-artifact cases need crafted files under `.kittify/` and stay. |
 | `test_clean_install_next.py` | keep | - | Builds its own wheel and checks that importing the CLI loads no retired runtime package; `next --json` from a wheel is now also in `init.feature`. |
 | `test_cli_status_mediation.py` | keep | - | In-process read-path resolution. |
 | `test_colliding_mission_flow.py` | keep | - | Legacy number collisions the CLI cannot create. |
@@ -65,7 +65,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_coord_loop_workflow.py` | keep | - | Same seam, workflow call sites. |
 | `test_coord_loop_workspace.py` | keep | - | Same seam, workspace call sites. |
 | `test_coord_read_residuals_proof.py` | keep | - | Sentinel-husk divergence, 21 patches. |
-| `test_coord_single_home_workflow.py` | partly | 2 | Full coordination lifecycle through the CLI; needs authored work packages. |
+| `test_coord_single_home_workflow.py` | keep | 2b (decided) | Its decisive check is that no coordination-only path reached the target before consolidation, which needs the coordination/primary file split; the flow itself is covered by `mission/lifecycle.feature` and `consolidate/consolidate.feature`. |
 | `test_coord_topology_smoke.py` | keep | - | Self-test of a shared fixture. |
 | `test_coord_unprotected_lifecycle_loop.py` | keep | - | Imports allocator internals, writes `meta.json`. |
 | `test_custom_mission_runtime_walk.py` | keep | - | Patched step executor. |
@@ -104,12 +104,12 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_merge_primary_checkout_safety.py` | keep | - | Mocked harness; its promise needs a mergeable-Mission builder (wave 2). |
 | `test_merge_resume.py` | keep | - | Mocked lane consolidations, 19 patches. |
 | `test_migration_backfill.py` | keep | - | Fault-injected corrupt seed. |
-| `test_mission_archiving.py` | partly | 1c | The non-terminal refusal can go through `archive create`; the rest is API or unit. |
+| `test_mission_archiving.py` | keep | 1c (decided) | Pins the archive API's refusal codes (AM-1, AM-2) on hand-made terminal states; a CLI scenario would be extra coverage, not a replacement. |
 | `test_mission_close.py` | duplicate | R (done) | Verified: its two product tests are covered by `tests/specify_cli/coordination/test_workspace.py` (one HEAD check folded in); its other five ran only plain git or tested the test's own branch. |
 | `test_mission_close_discard_coord_teardown.py` | keep | - | Hand-made split-brain `meta.json` and lanes. |
 | `test_mission_close_discard_single_branch.py` | partly | 2 (done) | The discard from the minted branch and the dirty-checkout refusal moved to `mission/mission-close.feature`; the no-meta case writes a crafted residue file and stays. |
 | `test_mission_review_contract_gate.py` | keep | - | Writes status events, calls `review_mission`. |
-| `test_mission_run_command.py` | partly | 1c | Error envelopes for a broken custom Mission; the definition lives under `.kittify/missions/` (borderline). |
+| `test_mission_run_command.py` | keep | 1c (decided) | The broken custom Mission definitions live under `.kittify/missions/`, CLI-managed state a scenario builder may not write (ADR 2026-10-15-1, decision 6); the happy path stubs the run. |
 | `test_mission_type_profile_live_wiring.py` | keep | - | Private prompt builder, hand-made `meta.json`. |
 | `test_mission_type_resolution_integration.py` | keep | - | Resolver against hand-made `meta.json`. |
 | `test_monorepo_charter_scope.py` | unit | D (done) | `CharterScope.resolve` over a temporary tree. |
@@ -124,10 +124,10 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_owned_checkout_mark_status.py` | keep | - | Rollback, concurrent events, counters. |
 | `test_owned_decision_runtime_lock.py` | keep | - | Hand-written locks, hook rejections. |
 | `test_owned_fixtures_selftest.py` | keep | - | Fixture self-tests. |
-| `test_owned_lifecycle_acceptance_cli.py` | partly | 2 | Bad `--owned-checkout` paths refused with a typed code; needs an owned-checkout builder. |
+| `test_owned_lifecycle_acceptance_cli.py` | keep | 2b (decided) | The refusal matrix runs five commands over six paths with snapshots of the repository, the owned checkout and the home directory; in-process that is seconds, as black-box scenarios about thirty per OS, and the home snapshot has no black-box equivalent. |
 | `test_owned_lifecycle_acceptance_context.py` | keep | - | Hand-made stale copies and pointers. |
 | `test_owned_lifecycle_acceptance_documentation.py` | keep | - | Stale-copy fixture. |
-| `test_owned_lifecycle_acceptance_e2e.py` | partly | 2 | The quickstart walk in an owned checkout; counters stay. |
+| `test_owned_lifecycle_acceptance_e2e.py` | keep | 2b (decided) | The walk counts validations and subprocesses and uses a provisioned test charter; the quickstart part restates flows `mission/lifecycle.feature` checks. |
 | `test_owned_lifecycle_acceptance_finalize.py` | keep | - | Commit-failure injection, cyclic lanes. |
 | `test_owned_lifecycle_acceptance_next.py` | keep | - | 81 patches, injected failures. |
 | `test_owned_lifecycle_acceptance_review.py` | keep | - | Private gate flag, 57 patches. |
@@ -136,7 +136,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_owned_next_runtime.py` | keep | - | In-process runtime, injected git failures. |
 | `test_owned_pr_bound_finalization.py` | keep | - | Patched legacy finalize helpers. |
 | `test_owned_protected_single_branch.py` | keep | - | In-process minter chain. |
-| `test_owned_research_placement.py` | scenario | 2 | Research lands in the owned checkout; template seeding must be dropped. |
+| `test_owned_research_placement.py` | keep | 2b (decided) | The arrange writes `.kittify/config.yaml` and research templates, CLI-managed state a builder may not write. |
 | `test_p0_pinning_regressions.py` | keep | - | Internal errors and a flattened `meta.json`. |
 | `test_p0_repro_5932_consolidate_canceled_dependency.py` | p0 | - | CLI-only; a scenario with `@defect:5932` once fixed. |
 | `test_p0_repro_5939_single_branch_autowalk.py` | p0 | - | CLI-only; a scenario with `@defect:5939` once fixed. |
@@ -150,9 +150,9 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_pre30_layout_coord_husk_noop.py` | keep | - | Crafted husk. |
 | `test_prompt_builder_owned_arms.py` | keep | - | `build_prompt` with seeded events. |
 | `test_protected_primary_spec_commit.py` | keep | - | Stubbed `commit_for_mission`. |
-| `test_quickstart_end_to_end.py` | partly | 1c | Charter status, lint and pack validate are user-facing; others stub freshness. |
-| `test_refinalize_frozen_lane_refusals.py` | partly | 2 | Validate-only refusal and remedies; spies and malformed logs stay. |
-| `test_refinalize_keeps_started_lanes.py` | scenario | 2 | Re-finalizing never moves a started work package. |
+| `test_quickstart_end_to_end.py` | partly | 1c (done) | Steps 1, 3 and 5 moved to `charter/charter.feature`; step 2 stubs freshness and step 4 calls the pack validator API, so they stay. |
+| `test_refinalize_frozen_lane_refusals.py` | keep | 2b (decided) | Every row needs two started lanes and several finalize runs; its spy and malformed-log rows need internals, and its black-box rows restate the refusal the kept spy test pins and the lane rule `mission/refinalize.feature` checks. |
+| `test_refinalize_keeps_started_lanes.py` | partly | 2 (done) | The two started-lane cases moved to `mission/refinalize.feature`; the claimed-only case needs an allocated worktree with a claimed status, which the CLI never leaves, and the refusal pair uses writer spies, so they stay. |
 | `test_rejection_cycle.py` | keep | - | Helper checks on a hand-made manifest. |
 | `test_render_parity_golden.py` | unit | D (done) | Render compared with a golden file. |
 | `test_research_runtime_walk.py` | keep | - | Runtime engine internals. |
@@ -163,15 +163,15 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_single_branch_lane_preview.py` | keep | - | Preview vs finalize parity through `compute`. |
 | `test_single_branch_write_checkout_e2e.py` | partly | 2 (done) | The review commit gate, the claim commit, stray files, and the occupied and dirty checkout moved to `mission/single-branch.feature`; the lanes control, claim-base, resume and cross-mission cases read internal records and stay. |
 | `test_slice_f_cross_axis.py` | keep | - | In-process DRG composition. |
-| `test_specify_plan_commit_boundary.py` | partly | 2 | Create and `setup-plan` gates; the `is_substantive` checks are unit tests. |
-| `test_status_emit_on_alloc_failure.py` | partly | 2 | A failed `implement` leaves the work package planned; injected cases stay. |
+| `test_specify_plan_commit_boundary.py` | partly | 2 (done) | The create and setup-plan gate cases moved to `mission/plan.feature`; the `is_substantive`/`is_committed` checks are unit-level and the template-override cases need `SPEC_KITTY_HOME`/template-root overrides, so they stay. |
+| `test_status_emit_on_alloc_failure.py` | keep | 2b (decided) | The dependency-lane conflict is seeded with canonical status state, and the other cases inject the failure. |
 | `test_surface_translation_seam.py` | keep | - | Surface-translation invariants. |
 | `test_target_owned_fixtures_selftest.py` | keep | - | Fixture self-test. |
 | `test_three_layer_drg_end_to_end.py` | unit | D (done) | Loader and merge on temporary files; never runs the CLI. |
 | `test_tool_artifact_owner.py` | keep | - | Compensator and a SIGKILL barrier. |
 | `test_two_partition_preview.py` | keep | - | Seeded events, preview vs consolidation. |
 | `test_upgrade_live_lanes_cli.py` | keep | - | Crafts older-version state. |
-| `test_user_doctrine_artifact_lifecycle.py` | partly | 2 | A selected styleguide reaches the implement prompt; schema tests stay. |
+| `test_user_doctrine_artifact_lifecycle.py` | keep | 2b (decided) | Builds the charter context in-process; the implement prompt's location is internal, so a black-box check would read an internal file. |
 | `test_workflow_sequence_runtime.py` | unit | D (done) | Planner output from a hand-made `meta.json`. |
 | `test_worktree_topology_claim_base.py` | keep | - | Seeded coordination events. |
 | `test_wp_file_hash_stability.py` | keep | - | Patched subprocess and sleep. |
@@ -190,7 +190,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `migration/test_canonicalization_pipeline.py` | unit | D (done) | Private canonicalization functions. |
 | `migration/test_lifecycle_events_preserved.py` | keep | - | Private `_repair_mission`. |
 | `migration/test_mission_state_repair_fidelity_e2e.py` | keep | - | Hand-made `meta.json` and a corrupt log. |
-| `migration/test_noop_upgrade_leaves_history_untouched.py` | partly | 2 | `upgrade --yes` on an up-to-date project commits nothing; the out-of-order log stays. |
+| `migration/test_noop_upgrade_leaves_history_untouched.py` | keep | 2b (decided) | Its value is crafted out-of-order and identity-less legacy history, which the CLI cannot produce; on CLI-made history the no-op is trivially true. |
 | `migration/test_repair_normalizes_change_mode.py` | keep | - | Legacy `change_mode` in `meta.json`. |
 | `migration/test_repair_primary_anchor.py` | keep | - | Crafted drift state. |
 | `migration/test_residue_dir_not_treated_as_mission.py` | keep | - | The arrange is a crash leftover written under `kitty-specs/`, which a scenario builder may not write (ADR 2026-10-13-1, decision 5). |
@@ -209,7 +209,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `retrospective/test_strict_flow_skip.py` | keep | - | `emit_skipped` ordering. |
 | `retrospective/test_strict_flow_skip_empty_reason_rejected.py` | unit | D (done) | One `ValueError` check. |
 | `retrospective/test_wp04_coverage_branches.py` | unit | D (done) | Private classification helpers. |
-| `review/test_approve_without_force.py` | partly | 2 | Approving with only the review lock left; needs a work package in review. |
+| `review/test_approve_without_force.py` | keep | 2 (decided) | Drives the readiness check and pins the deny-list and lock cleanup directly, for approval and rejection; approving after review without `--force` is exercised through the CLI by every scenario that reaches `approved`. |
 | `review/test_canonical_review_diff_refs.py` | keep | - | Private review context. |
 | `review/test_reject_from_in_review.py` | partly | 2 (done) | The rejection, the empty-feedback refusal and the declared reviewer moved to `mission/review.feature`; the stale review-override case needs crafted events and stays. |
 | `review/test_reject_without_force.py` | duplicate | R (done) | Verified: folded into `test_approve_without_force.py` as a parametrize over approved and planned, plus its default-lane case. |
