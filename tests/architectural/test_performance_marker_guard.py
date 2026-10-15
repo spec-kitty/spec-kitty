@@ -650,7 +650,7 @@ def test_nightly_workflow_actions_are_sha_pinned() -> None:
 # caught by CI, not left to human inspection.
 # ---------------------------------------------------------------------------
 
-_SUITE_KEY_JOB_NAMES: tuple[str, ...] = ("performance", "e2e", "stress", *INTERPRETER_SHARD_JOB_KEYS, "integration-next")
+_SUITE_KEY_JOB_NAMES: tuple[str, ...] = ("performance", "e2e", "stress", *INTERPRETER_SHARD_JOB_KEYS, "integration-next", "acceptance-bdd-escalation")
 
 # Matches THREE quoting forms: double-quoted, single-quoted, and bare/
 # unquoted (most of today's real committed keys -- performance/e2e/stress/

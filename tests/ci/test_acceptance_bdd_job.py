@@ -102,3 +102,55 @@ def test_evidence_runs_before_upload(job: dict[str, Any]) -> None:
     evidence = next(i for i, n in enumerate(names) if "acceptance_evidence" in n)
     upload = next(i for i, n in enumerate(names) if n.startswith("actions/upload-artifact@"))
     assert evidence < upload
+
+
+# --- acceptance-bdd-escalation (ADR 2026-10-15-1, decision 5) -------------------------------------
+
+
+@pytest.fixture(scope="module")
+def jobs() -> dict[str, Any]:
+    return load_spliced_workflow(WORKFLOW)["jobs"]
+
+
+def _escalation_keys(job: dict[str, Any]) -> list[str]:
+    keys: list[str] = []
+    for step in job["steps"]:
+        run = str(step.get("run") or "")
+        if "nightly_escalation.py" in run:
+            tokens = run.split()
+            keys.append(tokens[tokens.index("--suite-key") + 1])
+    return keys
+
+
+def test_one_escalation_for_every_leg(jobs: dict[str, Any]) -> None:
+    escalation = jobs["acceptance-bdd-escalation"]
+    assert escalation["needs"] == ["acceptance-bdd"]
+    assert "strategy" not in escalation, "one job, not one per OS: a break that reds every leg files one issue"
+    assert str(escalation["runs-on"]).startswith("ubuntu")
+    assert _escalation_keys(escalation) == ["acceptance-bdd"]
+    assert _escalation_keys(jobs["acceptance-bdd"]) == [], "the matrix legs must not escalate on their own"
+
+
+def test_escalation_runs_after_a_red_matrix_and_only_files_from_main(jobs: dict[str, Any]) -> None:
+    escalation = jobs["acceptance-bdd-escalation"]
+    # Fork guard first (tests/ci/test_fork_guard.py), then always(): it must run after a red matrix.
+    assert str(escalation["if"]).endswith("&& always()")
+    assert escalation["permissions"] == {"contents": "read", "issues": "write"}
+    (step,) = [s for s in escalation["steps"] if "nightly_escalation.py" in str(s.get("run") or "")]
+    assert step["if"] == "always() && github.ref == 'refs/heads/main'"
+    assert step["env"]["ACCEPTANCE_RESULT"] == "${{ needs.acceptance-bdd.result }}"
+
+
+def test_escalation_is_fail_closed(jobs: dict[str, Any]) -> None:
+    """Only an explicit ``success`` of the matrix closes the P0; any other result files one."""
+    escalation = jobs["acceptance-bdd-escalation"]
+    runs = [str(s.get("run") or "") for s in escalation["steps"]]
+    (decide,) = [run for run in runs if "nightly_escalation.py" in run]
+    assert '"${ACCEPTANCE_RESULT:-failure}" = "success" ]; then conclusion=success; else conclusion=failure' in decide
+    (verdict,) = [run for run in runs if run.strip().endswith('= "success" ]')]
+    assert "${ACCEPTANCE_RESULT:-failure}" in verdict
+
+
+def test_acceptance_jobs_are_aggregated_by_nightly_summary(jobs: dict[str, Any]) -> None:
+    needs = jobs["nightly-summary"]["needs"]
+    assert {"acceptance-bdd", "acceptance-bdd-escalation"} <= set(needs)

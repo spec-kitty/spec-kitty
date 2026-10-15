@@ -1546,14 +1546,14 @@ jobs:
   # the other legs (matches every other matrix in this file).
   #
   # Nightly-only (NFR-004: 0 per-PR JDK cost) -- it lives ONLY here, never in
-  # any pull_request workflow. It is deliberately LEFT OUT of
-  # nightly-summary.needs: it is non-gating, uploads its own artifacts, and
-  # nothing in core consumes them (spec-kitty-qa consumes them cross-repo,
-  # US-3). The release/ownership guards -- tests/release/test_release_ci_ownership.py
-  # and .github/workflows/release-readiness.yml -- do NOT require every nightly
-  # job in the summary (ci-nightly.yml is asserted only as an INTRODUCED
-  # WORKFLOW name, not a frozen job set), so omitting it keeps this hot file's
-  # diff minimal and additive (research.md §6, IC-06).
+  # any pull_request workflow. A red gating pass fails this job, and so the
+  # whole ci-nightly run, which is what the release gate reads
+  # (scripts/ci/release_nightly_gate.py). Since ADR 2026-10-15-1 the gating
+  # scenarios also carry coverage absorbed from tests/integration and tests/e2e
+  # (tests/scenarios/absorption-ledger.json), so their red is escalated like
+  # the suites it replaced: the `acceptance-bdd-escalation` job below files one
+  # deduped P0 for all three legs, and both jobs are in nightly-summary.needs.
+  # spec-kitty-qa still consumes the uploaded artifacts cross-repo (US-3).
   #
   # Gradle is the pinned 8.14.5 distribution (acceptance-jvm/tools/pins.json),
   # downloaded + sha256-checked + $GITHUB_PATH-wired by the shared, reused
@@ -1666,6 +1666,52 @@ jobs:
           retention-days: 30
 
   # ---------------------------------------------------------------------------
+  # acceptance-bdd-escalation (ADR 2026-10-15-1): one deduped P0 for a red
+  # acceptance-bdd run on main, whichever legs went red. The gating scenarios
+  # carry coverage absorbed from tests/integration and tests/e2e, whose nightly
+  # lanes escalate (suite keys `integration`, `e2e`); this keeps that signal.
+  # ONE job and ONE suite key (`acceptance-bdd`), not one per OS: a product
+  # break usually reds every leg and must file one issue, and the escalation
+  # script runs under a bare `python3`, which the Windows leg does not provide.
+  # Fail-closed: only an explicit `success` of the matrix closes the P0; a
+  # failed, cancelled or skipped acceptance-bdd run escalates. ADR 2026-10-15-1
+  # (decision 5, proposed) asks the spec-kitty-qa acceptance nightly to reuse
+  # this suite key when it files into this repository, so one red opens one issue.
+  # ---------------------------------------------------------------------------
+  acceptance-bdd-escalation:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch') && always()
+    name: Acceptance BDD escalation (red -> deduped P0)
+    needs: [acceptance-bdd]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # `issues: write` for the nightly red -> deduped-P0 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Escalate acceptance-bdd red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCEPTANCE_RESULT: ${{ needs.acceptance-bdd.result }}
+        run: |
+          if [ "${ACCEPTANCE_RESULT:-failure}" = "success" ]; then conclusion=success; else conclusion=failure; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      # The job mirrors the matrix verdict so nightly-summary shows a red acceptance run in one row.
+      - name: Fail the job if the acceptance-bdd run was not green
+        if: always()
+        shell: bash
+        env:
+          ACCEPTANCE_RESULT: ${{ needs.acceptance-bdd.result }}
+        run: |
+          echo "acceptance-bdd: ${ACCEPTANCE_RESULT:-unknown}"
+          [ "${ACCEPTANCE_RESULT:-failure}" = "success" ]
+
+  # ---------------------------------------------------------------------------
   # mission-state-audit (#6058): the post-merge backstop of the router's `mission-state audit`.
   # The router job runs only when a path in the `mission_state` group changes, and no `changes` output may
   # force run-all on push (test_changes_outputs_never_force_run_all_on_push), so a verdict-changing input
@@ -1739,7 +1785,7 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, windows-p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit]
+    needs: [performance, e2e, stress, p0-repro, windows-p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, acceptance-bdd, acceptance-bdd-escalation]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1762,3 +1808,5 @@ jobs:
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
           echo "universe-equivalence: ${{ needs.universe-equivalence.result }}"
           echo "mission-state-audit: ${{ needs.mission-state-audit.result }}"
+          echo "acceptance-bdd: ${{ needs.acceptance-bdd.result }}"
+          echo "acceptance-bdd-escalation: ${{ needs.acceptance-bdd-escalation.result }}"
