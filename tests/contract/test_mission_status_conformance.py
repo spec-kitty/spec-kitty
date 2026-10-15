@@ -19,7 +19,6 @@ import shutil
 import subprocess
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -27,7 +26,7 @@ from typing import Any
 import pytest
 import yaml
 
-from kernel.clock import parse_iso
+from kernel.clock import datetime, parse_iso
 from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
 from specify_cli.migration import schema_version as schema
 from specify_cli.status.reducer import materialize_snapshot
