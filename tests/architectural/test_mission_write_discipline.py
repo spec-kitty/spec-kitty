@@ -44,7 +44,7 @@ other's data:
    never by an allowlist entry.
 
 2. **Read/sink pairs in one locked region (FR-006, A11).** A registered sink
-   (``append_activity_log``, ``_append_entry``) must sit in a *locked region*. A
+   (``_append_entry``, ``_repair_status_log_phases``) must sit in a *locked region*. A
    callable passed into a lock region is accepted only when its reference is
    *solely* the function of a call: passing it as an argument or keyword
    (``Thread(target=f)``, ``submit(f)``, ``partial(f)``), returning it, assigning
@@ -108,6 +108,7 @@ _RUNTIME = _REPO_ROOT / "src" / "runtime"
 _PRIMITIVE = "src/specify_cli/status/mission_write.py"
 _TASKS = "src/specify_cli/cli/commands/agent/tasks.py"
 _TRACER = "src/specify_cli/retrospective/tracer_writer.py"
+_MISSION_STATE = "src/specify_cli/migration/mission_state.py"
 _BOOKKEEPING = "src/specify_cli/consolidation/bookkeeping_projection.py"
 _AUTO_REBASE = "src/specify_cli/lanes/auto_rebase.py"
 _MIN_SCANNED_FILES = 300
@@ -183,6 +184,12 @@ SINK_PAIRS: tuple[SinkPair, ...] = (
         read="_read_current_coord_content",
         path=_TRACER,
         rationale="tracer-append: read and merge happen in the stage thunk run under mission_write_lock",
+    ),
+    SinkPair(
+        sink="_repair_status_log_phases",
+        read="_read_jsonl_rows",
+        path=_MISSION_STATE,
+        rationale="mission-state repair (#5974): the event-log read and the canonicalize/replace phases share one mission_write_lock hold in _repair_mission",
     ),
 )
 
@@ -1071,6 +1078,20 @@ def test_rule1_floor_runtime_engine_is_scanned() -> None:
     assert find_wholefile_rewrite_sites(tree) == [], "the engine's append + tmp-replace publish are structural non-sinks"
 
 
+def test_rule1_floor_mission_state_repair_events_rewrite_is_seen() -> None:
+    """Non-vacuity for #5974: the repair's event-log ``atomic_write`` is recognised as a log sink (and is locked).
+
+    ``_wholefile_sinks`` lists every ``atomic_write`` whatever its target, so the floor asserts the target IS the
+    event log. A rename of ``events_path`` to an unrecognised name would blind rule 1 and turn this red.
+    """
+    tree = _parse(_REPO_ROOT / _MISSION_STATE)
+    func = next(f for f in _functions(tree) if getattr(f, "name", None) == "_repair_events_phase")
+    tracked = _tracked_log_names(func)
+    log_writes = [node for node, target, kind, _ in _wholefile_sinks(func) if kind == "atomic_write" and _is_log_target(target, tracked)]
+    assert log_writes, "_repair_events_phase's atomic_write onto the event log is no longer recognised as a log sink"
+    assert find_wholefile_rewrite_sites(tree) == [], "the repair's event-log rewrite must sit in a Mission-lock region"
+
+
 def test_rule2_sinks_are_in_a_locked_region() -> None:
     found = _scan_tree()["sink"]
     assert not found, f"registered sink outside a locked read/write region:\n{_fmt(found)}"
@@ -1085,6 +1106,25 @@ def test_rule2_floor_every_registered_sink_site_is_visible() -> None:
         for pair in SINK_PAIRS:
             census.update((_rel(path), pair.sink) for ref in _references(tree, pair.sink) if _is_call_func(ref, parents))
     assert all(census[(p.path, p.sink)] >= 1 for p in SINK_PAIRS), dict(census)
+
+
+def test_rule2_floor_every_registered_read_is_called_beside_its_sink() -> None:
+    """Non-vacuity: each sink's outermost function still calls its registered read.
+
+    ``_read_shares_region`` passes when the outermost function makes no call to the read, so moving the read into a
+    helper outside the lock would otherwise go unseen. Known one-frame limit: a function that keeps one read inline
+    and moves another into a helper called outside the lock still passes (cross-function tracking is #5975's scope).
+    """
+    for pair in SINK_PAIRS:
+        tree = _parse(_REPO_ROOT / pair.path)
+        parents = _parents(tree)
+        sink_calls = [ref for ref in _references(tree, pair.sink) if _is_call_func(ref, parents)]
+        assert sink_calls, f"{pair.sink} is not called in {pair.path}"
+        for ref in sink_calls:
+            outer = _outermost_function(ref, parents)
+            assert outer is not None, f"{pair.sink} is called outside a function in {pair.path}"
+            reads = [r for r in _references(outer, pair.read) if _is_call_func(r, parents)]
+            assert reads, f"{pair.read} is not called in {getattr(outer, 'name', '?')}, the outermost function of {pair.sink}"
 
 
 def test_rule3_locks_use_canonical_key_and_path() -> None:
@@ -1398,6 +1438,7 @@ class _ExclusiveCreateToClobber(_Mutation):
 
 
 def _mutate(rel: str, transformer: _Mutation) -> ast.AST:
+    transformer.changed = 0  # a parametrized instance is reused on a rerun; count this application only
     tree = ast.fix_missing_locations(transformer.visit(copy.deepcopy(_parse(_REPO_ROOT / rel))))
     assert transformer.changed, f"mutation did not apply to {rel}; the self-mutation test would be vacuous"
     assert isinstance(tree, ast.AST)
@@ -1426,3 +1467,94 @@ def test_self_mutation_meta_writer_without_the_lock_is_flagged() -> None:
     mutated = _mutate(_META_MODULE, _StripLockWith())
     self_locked = collect_self_locked_named_sinks((mutated,))
     assert find_mission_file_sink_findings(mutated, self_locked=self_locked), "stripping the lock must expose the meta.json writers"
+
+
+# --------------------------------------------------------------------------- SC-002: mission-state repair lock mutants (#5974)
+
+_REPAIR_OUTER = "_repair_mission"
+_REPAIR_INNER = "_repair_events_phase"
+_MSG_RULE1 = "atomic_write whole-file rewrite of a status/run log outside a Mission-lock region"
+_MSG_NOT_LOCKED = "_repair_status_log_phases: not inside a locked region"
+_MSG_READ_SPLIT = "_repair_status_log_phases: its read _read_jsonl_rows is not in the same locked region"
+
+
+class _UnwrapLocksIn(_Mutation):
+    """``with <lock>: body`` -> ``body``, only inside the named function(s)."""
+
+    def __init__(self, *names: str) -> None:
+        super().__init__()
+        self._names = frozenset(names)
+        self._depth = 0
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
+        entered = node.name in self._names
+        self._depth += entered
+        self.generic_visit(node)
+        self._depth -= entered
+        return node
+
+    def visit_With(self, node: ast.With) -> ast.AST | list[ast.stmt]:
+        self.generic_visit(node)
+        if self._depth and _is_lock_with(node):
+            self.changed += 1
+            return node.body
+        return node
+
+
+class _MoveFirstReadBeforeLock(_Mutation):
+    """In ``_repair_mission`` move the first ``_read_jsonl_rows`` assignment out of the lock, just before it."""
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
+        if node.name != _REPAIR_OUTER:
+            return node
+        for parent in ast.walk(node):
+            body = getattr(parent, "body", None)
+            if not isinstance(body, list):
+                continue
+            for index, stmt in enumerate(body):
+                if not _is_lock_with(stmt):
+                    continue
+                read = next((s for s in stmt.body if isinstance(s, ast.Assign) and _call_name(getattr(s.value, "func", s.value)) == "_read_jsonl_rows"), None)
+                if read is None:
+                    continue
+                stmt.body.remove(read)
+                body.insert(index, read)
+                self.changed += 1
+                return node
+        return node
+
+
+def _repair_findings(tree: ast.AST) -> tuple[list[str], list[str]]:
+    rule1 = [why for _, why in find_wholefile_rewrite_sites(tree)]
+    rule2 = [why for _, why in find_sink_findings(tree, _MISSION_STATE)]
+    return rule1, rule2
+
+
+def test_mission_state_repair_unmutated_tree_is_green_on_rules_1_and_2() -> None:
+    """Positive control: the fixed tree has no finding, so the mutant tests below can only go red because of the mutation."""
+    assert _repair_findings(_parse(_REPO_ROOT / _MISSION_STATE)) == ([], [])
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_rule1", "expected_rule2"),
+    [
+        pytest.param(_UnwrapLocksIn(_REPAIR_INNER), [_MSG_RULE1], [], id="inner-lock-dropped"),
+        pytest.param(_UnwrapLocksIn(_REPAIR_OUTER), [], [_MSG_NOT_LOCKED], id="outer-hold-dropped"),
+        pytest.param(_UnwrapLocksIn(_REPAIR_INNER, _REPAIR_OUTER), [_MSG_RULE1], [_MSG_NOT_LOCKED], id="both-dropped"),
+        pytest.param(_MoveFirstReadBeforeLock(), [], [_MSG_READ_SPLIT], id="read-moved-out-of-the-lock"),
+    ],
+)
+def test_rule1_rule2_red_on_mission_state_repair_lock_mutants(mutation: _Mutation, expected_rule1: list[str], expected_rule2: list[str]) -> None:
+    """SC-002: each way of reopening #5974 turns the gate red, with the finding that names it."""
+    mutant = _mutate(_MISSION_STATE, mutation)
+    assert _repair_findings(mutant) == (expected_rule1, expected_rule2)
+
+
+def test_mission_state_repair_unwrap_mutations_remove_the_locks_they_claim() -> None:
+    """Non-vacuity of the mutation itself: each named function really loses at least one lock ``with``."""
+    for name in (_REPAIR_INNER, _REPAIR_OUTER):
+        mutation = _UnwrapLocksIn(name)
+        mutant = _mutate(_MISSION_STATE, mutation)
+        assert mutation.changed >= 1, f"{name} has no Mission-lock with to unwrap"
+        func = next(n for n in ast.walk(mutant) if isinstance(n, ast.FunctionDef) and n.name == name)
+        assert not [n for n in ast.walk(func) if isinstance(n, ast.With) and _is_lock_with(n)], f"{name} still holds a Mission-lock with"
