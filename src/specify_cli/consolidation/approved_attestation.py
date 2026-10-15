@@ -109,7 +109,7 @@ def approved_claim_lanes(
 ) -> dict[str, str]:
     """Work package id -> current lane for every manifest work package in the approved claim.
 
-    Membership is read the way the claim builder reads it: the Lamport snapshot's lane is
+    Membership is read the way the claim builder reads it: the reduced snapshot's lane is
     ``approved`` or ``done``, and a work package canceled with provenance is not in it.
     """
     excluded = frozenset(excluded_canceled_wp_ids)

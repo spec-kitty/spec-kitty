@@ -858,25 +858,25 @@ def test_build_claim_sources_shas_from_lane_tips(tmp_path: Path) -> None:
         assert set(shas) == set(git_probes.commits_in_range(repo, coord_base, branch))
 
 
-def test_build_claim_excludes_committed_rejection_lamport(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A WP walked to ``approved`` then ``canceled`` is NOT in the approved claim,
-    and the builder never touches the LWW ``reduce_parsed`` path (C-002 / Lamport)."""
-    # WP02: approve chain then a committed cancel (later in the log).
+def test_build_claim_excludes_a_committed_cancel(tmp_path: Path) -> None:
+    """A WP walked to ``approved`` then committed ``canceled`` (later in the log)
+    is NOT in the approved claim.
+
+    The claim reads WP membership through the reduced snapshot
+    (``materialize_snapshot`` → the wall-clock diary reducer), so the later cancel
+    wins and WP02 drops out. (This replaced ``..._committed_rejection_lamport``,
+    which patched ``specify_cli.status.reducer.reduce_parsed`` — a name
+    ``materialize_snapshot`` never calls — and so could never fail on the
+    "Lamport wrapper" property it claimed: spec-kitty#4941 / #6213.)"""
     cancel_events = [
         _event(9000, "WP02", "approved", "canceled", at="2026-02-01T00:00:00+00:00", lamport=6),
     ]
     repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"), extra_events=cancel_events)
 
-    # If the builder used LWW reduce_parsed, this raise would surface.
-    def _boom(*_args: object, **_kwargs: object) -> object:
-        raise AssertionError("build_approved_wp_set must use the Lamport wrapper, not reduce_parsed")
-
-    monkeypatch.setattr("specify_cli.status.reducer.reduce_parsed", _boom)
-
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
     assert claim.surface_resolved
     assert "WP01" in claim.approved
-    assert "WP02" not in claim.approved  # committed rejection honored
+    assert "WP02" not in claim.approved  # committed cancel honored
 
 
 def test_build_claim_collects_excluded_from_canceled_lane_tips(tmp_path: Path) -> None:

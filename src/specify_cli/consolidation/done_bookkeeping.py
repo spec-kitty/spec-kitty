@@ -538,9 +538,9 @@ def _target_lane_per_wp(
     (``read_events_from_text`` + ``reduce``) — NOT a second, hand-rolled
     wall-clock ``(at, event_id)`` fold. Note this is the ``reduce_parsed``
     sibling of the two reducers the codebase ships (see the reducer-duality note
-    in ``CLAUDE.md``), NOT the merge gate's Lamport ``reduce_shared_state``
+    in ``CLAUDE.md``), NOT the merge gate's wall-clock ``reduce_shared_state``
     path; what fixes #1772 here is the fold's ROLLBACK-AWARE PRECEDENCE, not
-    Lamport/causal sort ordering. The old fold (introduced by #5354 to beat a
+    sort ordering. The old fold (introduced by #5354 to beat a
     stale migration seed written physically after a newer ``done``) sorted
     purely by wall-clock: a WP folded ``approved -> done`` whose ``approved``
     event carries a LATER ``at`` than its ``done`` event (the two are emitted

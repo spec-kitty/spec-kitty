@@ -502,7 +502,7 @@ def _run_lane_based_consolidation_locked(
         _persist_executed_strategy(run.state, run.strategy, is_resume=run.is_resume, main_repo=run.main_repo)
         _phase_gates_and_state(run)
         # terminus-merge-integrity WP06 (T027/T029): capture the fail-closed,
-        # Lamport-sourced reconciliation claim + the transaction-start target tip
+        # reduced-snapshot reconciliation claim + the transaction-start target tip
         # (CAS anchor / excluded-window base) NOW — before any mutation — and refuse
         # a resumed pre-fix in-flight state (FR-012). The teardown gate compares the
         # post-merge target against this pre-mutation claim.

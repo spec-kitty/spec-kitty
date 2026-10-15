@@ -484,7 +484,7 @@ def _clear_fresh_record_on_pre_mutation_exit(run: _MergeRunState) -> Iterator[No
 
 
 def _capture_reconciliation_claim(run: _MergeRunState) -> None:
-    """Capture the fail-closed, Lamport-sourced claim ONCE at transaction start.
+    """Capture the fail-closed, reduced-snapshot claim ONCE at transaction start.
 
     terminus-merge-integrity WP06 (T027/T029). Runs BEFORE any mutating phase so
     the teardown gate (:func:`_phase_reconcile_before_teardown`) compares the

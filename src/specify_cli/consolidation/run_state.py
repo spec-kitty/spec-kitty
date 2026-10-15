@@ -287,7 +287,7 @@ class _MergeRunState:
     # ``_CoordCheckpoint`` annotation is a forward reference (resolved lazily via
     # ``from __future__ import annotations``); the class is defined below.
     #
-    # ``approved_wp_set`` (T027) — the fail-closed, Lamport-sourced claim,
+    # ``approved_wp_set`` (T027) — the fail-closed, reduced-snapshot claim,
     # captured ONCE at transaction start (before any mutation) so the teardown
     # gate compares the post-merge target against PRE-mutation lane tips.
     approved_wp_set: ApprovedWpCommitSet | None = None

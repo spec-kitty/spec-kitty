@@ -22,12 +22,18 @@ Claim integrity (D3+, non-negotiable):
   forbids the vacuous ``_assert_merged_wps_done_on_target`` pattern — bounded by the
   approval stamps (#5668): a lane tip holding content beyond what review approved
   refuses before any collector reads it (:func:`_approved_bound_verdict`);
-* WP membership (approved vs canceled) is read through the **Lamport** reduction
-  wrapper (:func:`specify_cli.status.reducer.materialize_snapshot`), never LWW
-  ``reduce_parsed`` — so a wall-clock-later approval cannot green-wash a
-  committed rejection *in the gate's own claim*. This routing choice lives
-  entirely inside ``specify_cli``; it does NOT import or touch
-  ``spec_kitty_events`` (C-002);
+* WP membership (approved vs canceled) is read through
+  :func:`specify_cli.status.reducer.materialize_snapshot`, which reduces via
+  ``spec_kitty_events.status.reduce`` — the **wall-clock** diary reducer (it is
+  NOT the Lamport ``reduce_status_events``; CLI lane rows carry no Lamport
+  clock). A wall-clock-later approval cannot green-wash a committed rejection
+  *in the gate's own claim* because that reducer (spec-kitty-events#101,
+  ``spec-kitty-events>=10.5.1``) sorts a non-seed departure from ``approved``
+  after the approval it followed, so a real-time ``approved -> in_progress``
+  rejection applies even when a clock-ahead approval carried a later ``at``
+  (spec-kitty#4941 / #6213 corrected the earlier "Lamport wrapper" claim). The
+  consolidation module reaches the reducer through the ``specify_cli.status``
+  facade, not a direct ``spec_kitty_events`` import (C-002);
 * the claim is **fail-closed**: an unresolved/unmaterialized coord surface, or a
   claim that is empty while the manifest lists WPs, refuses rather than passing
   vacuously (closes PP-F3). This claim-integrity refusal is **strategy-
@@ -1448,13 +1454,18 @@ def build_approved_wp_set(
     excluded_canceled_wp_ids: Iterable[str] = (),
     excluded_window_base: str | None = None,
 ) -> ApprovedWpCommitSet:
-    """Derive the fail-closed, Lamport-sourced claim once per transaction (T027).
+    """Derive the fail-closed, reduced-snapshot claim once per transaction (T027).
 
-    * WP membership is read through the **Lamport** reduction wrapper
-      :func:`specify_cli.status.reducer.materialize_snapshot` (never LWW
-      ``reduce_parsed``), so a wall-clock-later approval cannot override a
-      committed rejection in the claim (C-002 preserved — no ``spec_kitty_events``
-      edit);
+    * WP membership is read through
+      :func:`specify_cli.status.reducer.materialize_snapshot`, which reduces via
+      the **wall-clock** diary reducer ``spec_kitty_events.status.reduce`` (not
+      the Lamport ``reduce_status_events`` — CLI lane rows carry no Lamport
+      clock). A wall-clock-later approval cannot override a committed rejection in
+      the claim because that reducer (spec-kitty-events#101,
+      ``spec-kitty-events>=10.5.1``) sorts a non-seed departure from ``approved``
+      after the approval it followed (spec-kitty#4941 / #6213 corrected the
+      earlier "Lamport wrapper" wording); the consolidation module reaches it
+      through the ``specify_cli.status`` facade (C-002);
     * approved commit SHAs still come from **lane-branch git tips** relative to
       *coord_base_ref* (never status rows), but the approved-bound check in front of the
       collectors (:func:`_approved_bound_verdict`, #5668) refuses a lane whose tip holds
@@ -1464,7 +1475,8 @@ def build_approved_wp_set(
       while the manifest lists WPs, yields a REFUSE-shaped claim.
     """
     # Imported lazily so this module stays import-light and the status facade is
-    # resolved through ``specify_cli.status`` (C-002: the Lamport wrapper only).
+    # resolved through ``specify_cli.status`` (C-002: the status facade, not a
+    # direct ``spec_kitty_events`` import).
     from specify_cli.status import materialize_snapshot
 
     manifest_wp_ids = frozenset(wp for lane in lanes_manifest.lanes for wp in lane.wp_ids)
@@ -1683,7 +1695,7 @@ def _mixed_lanes(
     shape): a lane whose EVERY WP is canceled-with-provenance is not "mixed" —
     there is no surviving WP to compare against — even when
     :func:`_lane_is_approved` alone still counts it true (a WP can be BOTH
-    ``approved`` in the Lamport snapshot AND canceled-with-provenance per the
+    ``approved`` in the reduced snapshot AND canceled-with-provenance per the
     caller's *excluded_canceled_wp_ids*, the "provenance override" shape). Such
     a lane's created branch may legitimately not even exist.
     """
@@ -1755,7 +1767,7 @@ def _resolve_mixed_lane_canceled_content(
     (*event_log*, shared with :func:`_resolve_canceled_dependency_lanes` and the
     approved-bound check, :func:`_approved_bound_verdict`; a
     caller that passes none gets its own). This function itself reads only when
-    at least one mixed lane exists (decided from ``lanes.json`` + the Lamport
+    at least one mixed lane exists (decided from ``lanes.json`` + the reduced
     snapshot + *excluded_canceled_wp_ids* alone); since #5668 every claim with a
     code lane reads the log once, through the approved-bound check, and its
     mixed-lane verdicts stay byte-identical to pre-#5046 behaviour. A
@@ -2010,7 +2022,7 @@ def approved_bound_refusal(
 
     The claim builder's approved-bound check as a public entry point for the one other
     caller, ``orchestrator-api consolidate-mission`` (``consolidate`` runs the same check
-    inside :func:`build_approved_wp_set`, on a fresh run and on ``--resume``): the Lamport
+    inside :func:`build_approved_wp_set`, on a fresh run and on ``--resume``): the reduced
     snapshot gives membership exactly as :func:`build_approved_wp_set` reads it, the
     status events come from *event_log* (one read per claim; a caller that passes none
     gets its own), and the refusal codes are rendered by
@@ -2515,7 +2527,7 @@ def _collect_approved_shas(
     coord_base_ref: str,
     sb_window: tuple[str, str] | None = None,
 ) -> dict[str, tuple[str, ...]]:
-    """Approved WPs → their lane-tip commit SHAs (Lamport membership + git tips)."""
+    """Approved WPs → their lane-tip commit SHAs (reduced-snapshot membership + git tips)."""
     approved: dict[str, tuple[str, ...]] = {}
     for lane in lanes_manifest.lanes:
         base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
