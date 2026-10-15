@@ -36,7 +36,7 @@ load_operator_env_file()
 import logging  # noqa: E402
 import os  # noqa: E402
 import sys  # noqa: E402
-from collections.abc import Callable  # noqa: E402
+from collections.abc import Callable, Sequence  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import TYPE_CHECKING, Any, TypeVar  # noqa: E402
 
@@ -199,6 +199,7 @@ def _check_legacy_charter_layout(ctx: typer.Context, project_root: Path) -> None
         invoked_subcommand=ctx.invoked_subcommand,
         argv=args,
         before_refusal=usage_errors_first(ctx, args),
+        json_mode=_args_request_json_mode(args),
     )
 
 
@@ -409,8 +410,13 @@ _JSON_VALUE_OPTIONS = {
 
 def _argv_requests_json_mode(argv: list[str]) -> bool:
     """Return True when raw argv contains ``--json`` as a flag, not a value."""
+    return _args_request_json_mode(argv[1:])
+
+
+def _args_request_json_mode(args: Sequence[str]) -> bool:
+    """Return True when *args* (the command line after the program name) contain ``--json`` as a flag, not as an option value; stop at ``--``."""
     skip_next = False
-    for arg in argv[1:]:
+    for arg in args:
         if skip_next:
             skip_next = False
             continue

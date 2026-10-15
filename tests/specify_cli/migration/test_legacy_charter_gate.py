@@ -29,6 +29,7 @@ from specify_cli.migration.legacy_charter_gate import (
     current_checkout_root,
     find_checkout_root,
     first_legacy_finding,
+    legacy_charter_body,
     render_legacy_charter_message,
     usage_errors_first,
 )
@@ -194,8 +195,15 @@ def test_unresolvable_roots_compare_by_path(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _check(project: Path, *, sub: str | None = "charter", argv: tuple[str, ...] = ("charter", "list"), hook: Callable[[], None] | None = None) -> None:
-    check_legacy_charter_layout(project, None, invoked_subcommand=sub, argv=argv, before_refusal=hook)
+def _check(
+    project: Path,
+    *,
+    sub: str | None = "charter",
+    argv: tuple[str, ...] = ("charter", "list"),
+    hook: Callable[[], None] | None = None,
+    json_mode: bool = False,
+) -> None:
+    check_legacy_charter_layout(project, None, invoked_subcommand=sub, argv=argv, before_refusal=hook, json_mode=json_mode)
 
 
 def test_refusal_exits_1_and_writes_the_message_to_stderr(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -245,6 +253,57 @@ def test_only_the_live_work_hook_is_exempt(tmp_path: Path, argv: tuple[str, ...]
 def test_a_late_version_flag_is_not_an_exemption(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         _check(_project(tmp_path, layout="legacy_project_root"), argv=("charter", "list", "-v"))
+
+
+# --------------------------------------------------------------------------- #
+# --json refusal: gate units (#6232)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("in_checkout", [False, True])
+def test_body_has_no_prefix_and_the_message_is_prefix_plus_body(in_checkout: bool) -> None:
+    body = legacy_charter_body("legacy_project_root", in_checkout=in_checkout)
+
+    assert not body.startswith("Error (")
+    assert render_legacy_charter_message("legacy_project_root", in_checkout=in_checkout) == f"Error ({LEGACY_CHARTER_STATE}): " + body
+
+
+def test_json_refusal_writes_one_object_to_stdout_and_nothing_to_stderr(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    project = _project(tmp_path, layout="legacy_org_packs_key")
+    hook_calls: list[str] = []
+
+    with pytest.raises(SystemExit) as caught:
+        _check(project, hook=lambda: hook_calls.append("probed"), json_mode=True)
+
+    assert caught.value.code == 1
+    captured = capsys.readouterr()
+    expected_message = legacy_charter_body("legacy_org_packs_key", in_checkout=False)
+    assert json.loads(captured.out) == {"ok": False, "error": {"code": LEGACY_CHARTER_STATE, "message": expected_message}}
+    assert captured.err == ""
+    assert hook_calls == ["probed"]
+
+
+def test_json_refusal_of_a_checkout_finding_carries_the_worktree_sentence(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    clean = _project(tmp_path / "root")
+    legacy = _project(tmp_path / "lane", layout="legacy_project_root")
+
+    with pytest.raises(SystemExit) as caught:
+        check_legacy_charter_layout(clean, legacy, invoked_subcommand="charter", argv=("charter", "list", "--json"), json_mode=True)
+
+    assert caught.value.code == 1
+    message = json.loads(capsys.readouterr().out)["error"]["message"]
+    assert all(word in message for word in WORKTREE_WORDS)
+
+
+def test_json_mode_does_not_change_exemptions_or_clean_projects(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    hook_calls: list[str] = []
+    legacy = _project(tmp_path / "legacy", layout="legacy_project_root")
+
+    _check(legacy, sub="upgrade", argv=("upgrade", "--agent-check", "--json"), hook=lambda: hook_calls.append("probed"), json_mode=True)
+    _check(_project(tmp_path / "clean"), hook=lambda: hook_calls.append("probed"), json_mode=True)
+
+    assert hook_calls == []
+    assert capsys.readouterr() == ("", "")
 
 
 # --------------------------------------------------------------------------- #
@@ -557,3 +616,42 @@ def test_gate_latency_on_a_clean_project(tmp_path: Path) -> None:
     median_ms = statistics.median(samples) * 1000
     print(f"legacy charter gate, clean project: median {median_ms:.3f} ms over 5 runs ({os.name})")
     assert median_ms >= 0
+
+
+def _gate_tree() -> ast.Module:
+    return ast.parse(Path(gate.__file__).read_text(encoding="utf-8"))
+
+
+def _import_names(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.ImportFrom):
+        if node.level:
+            # Resolve a relative import against the gate's package so ``from .. import x`` counts too.
+            package = gate.__name__.rsplit(".", node.level)[0]
+            return [f"{package}.{node.module}" if node.module else package]
+        return [node.module or ""]
+    if isinstance(node, ast.Import):
+        return [alias.name for alias in node.names]
+    return []
+
+
+def test_gate_module_never_imports_the_cli_root() -> None:
+    """C-001: the migration layer must not import the CLI root package (exact name)."""
+    names = {name for node in ast.walk(_gate_tree()) for name in _import_names(node)}
+
+    assert "specify_cli" not in names, names
+
+
+def test_output_layer_imports_live_only_in_the_refusal_path() -> None:
+    """NFR-002, by AST: a ``sys.modules`` probe is vacuous (the package root already loads the console)."""
+    tree = _gate_tree()
+
+    def is_cli(name: str) -> bool:
+        return name == "specify_cli.cli" or name.startswith("specify_cli.cli.")
+
+    assert not [name for node in tree.body for name in _import_names(node) if is_cli(name)]
+
+    refusal = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_emit_refusal")
+    inside = {id(n) for n in ast.walk(refusal)}
+    outside = [name for node in ast.walk(tree) if id(node) not in inside for name in _import_names(node) if is_cli(name)]
+    assert not outside
+    assert {name for node in ast.walk(refusal) for name in _import_names(node)} >= {"specify_cli.cli.console", "specify_cli.cli.json_contract"}

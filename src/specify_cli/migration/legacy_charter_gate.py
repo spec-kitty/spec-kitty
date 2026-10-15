@@ -14,6 +14,10 @@ for a pre-upgrade lane) and the hook entry points (``live-work hook``,
 ``session-start``, ``session-stop``, ``commit-guard-hook``: git and harness
 plumbing that must keep exiting 0; the rest of ``live-work`` is gated).
 
+Under ``--json`` the refusal is one ``json_error`` object on stdout instead of
+prose on stderr (``contracts/cli.md``: a failure under ``--json`` emits
+``json_error(code, message)`` and exits 1; #6232).
+
 Cost (research/runtime-seams.md §3): the predicate's two ``stat`` calls and one
 small read per checked root, plus an ``lstat`` per directory while finding the
 checkout root. No subprocess, no ``charter.*`` import, and no YAML parse unless
@@ -63,11 +67,16 @@ _MESSAGE_TAIL = "See docs/migrations/charter-pack-cutover.md."
 LegacyFinding = tuple[str, bool]
 
 
-def render_legacy_charter_message(finding: str, *, in_checkout: bool) -> str:
-    """Return the refusal text, with the worktree sentence only for a checkout finding."""
+def legacy_charter_body(finding: str, *, in_checkout: bool) -> str:
+    """Return the refusal text without the ``Error (LEGACY_CHARTER_STATE): `` prefix."""
     head = _MESSAGE_HEAD.format(finding=finding)
     body = f"{head} {_WORKTREE_SENTENCE}" if in_checkout else head
-    return f"Error ({LEGACY_CHARTER_STATE}): {body}\n{_MESSAGE_TAIL}"
+    return f"{body}\n{_MESSAGE_TAIL}"
+
+
+def render_legacy_charter_message(finding: str, *, in_checkout: bool) -> str:
+    """Return the refusal text, with the worktree sentence only for a checkout finding."""
+    return f"Error ({LEGACY_CHARTER_STATE}): {legacy_charter_body(finding, in_checkout=in_checkout)}"
 
 
 def find_checkout_root(start: Path) -> Path | None:
@@ -134,6 +143,17 @@ def _is_exempt(invoked_subcommand: str | None, argv: Sequence[str]) -> bool:
     return bool(argv) and argv[0] in _VERSION_FLAGS
 
 
+def _emit_refusal(finding: str, *, in_checkout: bool, json_mode: bool) -> None:
+    if json_mode:
+        # Lazy: the output layer is only needed on the refusal path (NFR-002).
+        from specify_cli.cli.console import console
+        from specify_cli.cli.json_contract import json_error
+
+        console.emit_json(json_error(LEGACY_CHARTER_STATE, legacy_charter_body(finding, in_checkout=in_checkout)))
+        return
+    sys.stderr.write(render_legacy_charter_message(finding, in_checkout=in_checkout) + "\n")
+
+
 def check_legacy_charter_layout(
     project_root: Path,
     repo_root_checkout: Path | None,
@@ -141,6 +161,7 @@ def check_legacy_charter_layout(
     invoked_subcommand: str | None,
     argv: Sequence[str],
     before_refusal: Callable[[], None] | None = None,
+    json_mode: bool = False,
 ) -> None:
     """Refuse the invocation with ``LEGACY_CHARTER_STATE`` when a checked root is unmigrated.
 
@@ -149,8 +170,11 @@ def check_legacy_charter_layout(
     Click report an unknown option first (exit 2), so a usage error is reported
     as one whatever the project state.
 
+    Under *json_mode* the refusal is one ``json_error`` object on stdout and
+    nothing on stderr; otherwise the prose goes to stderr.
+
     Raises:
-        SystemExit: code 1, after the refusal text is written to stderr.
+        SystemExit: code 1, after the refusal is written.
     """
     if _is_exempt(invoked_subcommand, argv):
         return
@@ -160,7 +184,7 @@ def check_legacy_charter_layout(
     if before_refusal is not None:
         before_refusal()
     finding, in_checkout = found
-    sys.stderr.write(render_legacy_charter_message(finding, in_checkout=in_checkout) + "\n")
+    _emit_refusal(finding, in_checkout=in_checkout, json_mode=json_mode)
     raise SystemExit(_REFUSAL_EXIT_CODE)
 
 

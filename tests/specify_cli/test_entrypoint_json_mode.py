@@ -34,3 +34,25 @@ def test_argv_requests_json_mode_detects_second_json_after_value() -> None:
     ]
 
     assert specify_cli._argv_requests_json_mode(argv) is True
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        (["doctor", "skills", "--json"], True),
+        (("charter", "status", "--json"), True),
+        (["agent", "tasks", "status", "--mission", "--json"], False),
+        (["charter", "status", "--", "--json"], False),
+        (["--json"], True),
+        ([], False),
+    ],
+    ids=["list", "tuple", "option-value", "after-double-dash", "first-element-not-skipped", "empty"],
+)
+def test_args_request_json_mode_reads_args_after_the_program_name(args: list[str] | tuple[str, ...], expected: bool) -> None:
+    assert specify_cli._args_request_json_mode(args) is expected
+
+
+def test_argv_requests_json_mode_skips_the_program_name() -> None:
+    """The argv form drops argv[0]; only the args form reads the first element."""
+    assert specify_cli._argv_requests_json_mode(["--json"]) is False
+    assert specify_cli._argv_requests_json_mode(["spec-kitty", "--json"]) is True
