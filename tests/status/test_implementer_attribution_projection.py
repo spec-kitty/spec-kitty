@@ -30,6 +30,7 @@ import pytest
 
 from specify_cli.status.doctor import Category, check_blanked_runtime_slots
 from specify_cli.status.models import (
+    ActorField,
     InnerStateChanged,
     Lane,
     StatusEvent,
@@ -52,9 +53,10 @@ def _claim_event(
     wp_id: str,
     at: str,
     agent: str,
-    actor: str | None = None,
+    actor: ActorField | None = None,
+    claimant: bool = True,
 ) -> StatusEvent:
-    """A real ``planned -> claimed`` transition carrying the claimant sidecar."""
+    """A ``planned -> claimed`` transition, by default carrying the claimant sidecar."""
     return StatusEvent(
         event_id=event_id,
         mission_slug=_MISSION_SLUG,
@@ -65,7 +67,7 @@ def _claim_event(
         actor=actor or agent,
         force=False,
         execution_mode="worktree",
-        policy_metadata={"agent": agent},
+        policy_metadata={"agent": agent} if claimant else None,
     )
 
 
@@ -208,3 +210,124 @@ def test_other_blank_scalar_slots_are_unaffected_by_the_narrowing() -> None:
     findings = check_blanked_runtime_slots(snapshot)
     assert len(findings) == 1
     assert findings[0].message.startswith("WP01 runtime slot 'assignee'")
+
+
+# ---------------------------------------------------------------------------
+# #6093 — a migration seed never outranks the real implementer
+# ---------------------------------------------------------------------------
+
+_SEED = "migration:backfill_runtime_state"
+_IMPL = "claude:sonnet:python-pedro:implementer"
+_REVIEWER = "claude:sonnet:reviewer-renata:reviewer"
+_T0 = "2026-09-20T00:00:01+00:00"
+_T1 = "2026-09-20T00:00:02+00:00"
+_T2 = "2026-09-20T00:00:03+00:00"
+_T3 = "2026-09-20T00:00:04+00:00"
+_REAL_ID = "01KY2C8R3YM6MR80Y3PZ112XCB"
+_SEED_AFTER_ID = "37N51H7B1KFWEX49VSZ7DZHRNX"
+_SEED_BEFORE_ID = "00N51H7B1KFWEX49VSZ7DZHRNX"
+_DICT_SEED: ActorField = {"tool": _SEED, "model": None, "profile": None, "role": None}
+
+
+def _lane_event(*, event_id: str, wp_id: str = "WP01", from_lane: Lane, to_lane: Lane, at: str, actor: str = "operator") -> StatusEvent:
+    """A forced non-claim transition (rollback / reject), as the CLI emits it."""
+    return StatusEvent(
+        event_id=event_id,
+        mission_slug=_MISSION_SLUG,
+        wp_id=wp_id,
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at=at,
+        actor=actor,
+        force=True,
+        execution_mode="worktree",
+        review_ref="review-cycle-1" if from_lane == Lane.IN_PROGRESS else None,
+    )
+
+
+def _record(events: list[StatusEvent], wp_id: str = "WP01") -> str | None:
+    value = reduce(events, []).work_packages[wp_id].get(IMPLEMENTER_OF_RECORD_SLOT)
+    return None if value is None else str(value)
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("seed_actor", [_SEED, _DICT_SEED], ids=["string-seed", "dict-seed"])
+def test_seed_sorting_after_the_real_claim_does_not_replace_the_implementer(seed_actor: ActorField) -> None:
+    """#6093 US1-1: same-`at` seed sorting after the real claim must not win."""
+    real = _claim_event(event_id=_REAL_ID, wp_id="WP01", at=_T0, agent=_IMPL)
+    seed = _claim_event(event_id=_SEED_AFTER_ID, wp_id="WP01", at=_T0, agent=_REVIEWER, actor=seed_actor)
+    assert _record([real, seed]) == _IMPL
+
+
+@pytest.mark.regression
+def test_seed_sorting_before_the_real_claim_keeps_the_implementer() -> None:
+    """#6093 US1-2 (ratchet): a seed sorting first is already outranked."""
+    real = _claim_event(event_id=_REAL_ID, wp_id="WP01", at=_T0, agent=_IMPL)
+    seed = _claim_event(event_id=_SEED_BEFORE_ID, wp_id="WP01", at=_T0, agent=_REVIEWER, actor=_SEED)
+    assert _record([real, seed]) == _IMPL
+
+
+@pytest.mark.regression
+def test_seed_only_and_two_seeds_name_the_latest_seed_claimant() -> None:
+    """#6093 US1-3 (ratchet): with no real claim, the latest seed's claimant stays."""
+    first = _claim_event(event_id=_ulid("S1"), wp_id="WP01", at=_T0, agent="seed-one", actor=_SEED)
+    assert _record([first]) == "seed-one"
+    second = _claim_event(event_id=_ulid("S2"), wp_id="WP01", at=_T1, agent="seed-two", actor=_SEED)
+    assert _record([first, second]) == "seed-two"
+
+
+@pytest.mark.regression
+def test_claimant_less_real_claim_leaves_the_seed_claimant() -> None:
+    """#6093 US1-4 (ratchet): a real claim with no claimant does not suppress a seed."""
+    real = _claim_event(event_id=_REAL_ID, wp_id="WP01", at=_T0, agent=_IMPL, claimant=False)
+    seed = _claim_event(event_id=_SEED_AFTER_ID, wp_id="WP01", at=_T0, agent=_REVIEWER, actor=_SEED)
+    assert _record([real, seed]) == _REVIEWER
+
+
+@pytest.mark.regression
+def test_real_reclaim_after_rollback_still_wins() -> None:
+    """#6093 US1-5 (ratchet): latest-wins among real claims is unchanged."""
+    first = _claim_event(event_id=_ulid("R1"), wp_id="WP01", at=_T0, agent="impl-a")
+    rollback = _lane_event(event_id=_ulid("R2"), from_lane=Lane.CLAIMED, to_lane=Lane.PLANNED, at=_T1)
+    reclaim = _claim_event(event_id=_ulid("R3"), wp_id="WP01", at=_T2, agent="impl-c")
+    assert _record([first, rollback, reclaim]) == "impl-c"
+
+
+@pytest.mark.regression
+def test_seed_at_a_claimant_less_reclaim_keeps_the_seed_claimant() -> None:
+    """#6093 US1-6 (B13): no real claimant-bearing claim is at or after the seed."""
+    first = _claim_event(event_id=_ulid("B1"), wp_id="WP01", at=_T0, agent="impl-a")
+    rollback = _lane_event(event_id=_ulid("B2"), from_lane=Lane.CLAIMED, to_lane=Lane.PLANNED, at=_T1)
+    reclaim = _claim_event(event_id=_ulid("B3"), wp_id="WP01", at=_T2, agent="impl-x", claimant=False)
+    seed = _claim_event(event_id=_ulid("B4"), wp_id="WP01", at=_T2, agent="seed-c-prime", actor=_SEED)
+    assert _record([first, rollback, reclaim, seed]) == "seed-c-prime"
+
+
+@pytest.mark.regression
+def test_seed_after_a_rejection_keeps_the_seed_claimant() -> None:
+    """#6093 US1-7 (F): a seed later than every real claim counts (matches the live slot)."""
+    first = _claim_event(event_id=_ulid("F1"), wp_id="WP01", at=_T0, agent="impl-a")
+    started = _lane_event(event_id=_ulid("F2"), from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, at=_T1)
+    rejected = _lane_event(event_id=_ulid("F3"), from_lane=Lane.IN_PROGRESS, to_lane=Lane.PLANNED, at=_T2)
+    seed = _claim_event(event_id=_ulid("F4"), wp_id="WP01", at=_T3, agent="seed-s", actor=_SEED)
+    assert _record([first, started, rejected, seed]) == "seed-s"
+
+
+@pytest.mark.regression
+def test_a_real_claim_on_another_wp_never_suppresses_a_seed() -> None:
+    """#6093 per-WP isolation: the recency rule is keyed by work package."""
+    seed = _claim_event(event_id=_ulid("P1"), wp_id="WP01", at=_T0, agent="seed-s1", actor=_SEED)
+    other = _claim_event(event_id=_ulid("P2"), wp_id="WP02", at=_T2, agent="impl-other")
+    snapshot = reduce([seed, other], [])
+    assert snapshot.work_packages["WP01"][IMPLEMENTER_OF_RECORD_SLOT] == "seed-s1"
+    assert snapshot.work_packages["WP02"][IMPLEMENTER_OF_RECORD_SLOT] == "impl-other"
+
+
+@pytest.mark.regression
+def test_real_reclaim_after_a_seed_wins() -> None:
+    """#6093 (ratchet): real A, later seed, rollback, real C -> C."""
+    first = _claim_event(event_id=_ulid("Q1"), wp_id="WP01", at=_T0, agent="impl-a")
+    seed = _claim_event(event_id=_ulid("Q2"), wp_id="WP01", at=_T1, agent="seed-s", actor=_SEED)
+    rollback = _lane_event(event_id=_ulid("Q3"), from_lane=Lane.CLAIMED, to_lane=Lane.PLANNED, at=_T2)
+    reclaim = _claim_event(event_id=_ulid("Q4"), wp_id="WP01", at=_T3, agent="impl-c")
+    assert _record([first, seed, rollback, reclaim]) == "impl-c"
