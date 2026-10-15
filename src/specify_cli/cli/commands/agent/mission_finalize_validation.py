@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+from pydantic import ValidationError
 
 
 if TYPE_CHECKING:
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 from kernel._safe_re import re
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from mission_runtime import OwnedCheckout
+from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status import WPMetadata
 from specify_cli.requirement_mapping import (
     FAILING_REASONS,
@@ -236,6 +238,32 @@ class _DependencyResolution:
     requirement_diagnostics: dict[str, object] = field(default_factory=dict)
 
 
+def _frontmatter_fallback_dependencies(wp_files: list[Path], explicit_ids: set[str]) -> dict[str, list[str]]:
+    """Return non-empty WP-file ``dependencies`` for every WP whose manifest entry does not declare them.
+
+    WPs in ``explicit_ids`` (an explicit ``dependencies`` key in wps.yaml, ``[]``
+    included) are skipped: the manifest is authoritative for them. An unreadable
+    WP file is skipped too -- the bootstrap phase already warns about and skips
+    it, so the resolver must not become a second crash point.
+    """
+
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    fallback: dict[str, list[str]] = {}
+    for wp_file in wp_files:
+        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+        if not wp_id_match or wp_id_match.group(1) in explicit_ids:
+            continue
+        try:
+            wp_meta, _ = _mf._read_wp_frontmatter(wp_file)
+        except (FrontmatterError, ValidationError, OSError, UnicodeDecodeError):
+            continue
+        frontmatter_deps = list(wp_meta.dependencies)
+        if frontmatter_deps:
+            fallback[wp_id_match.group(1)] = frontmatter_deps
+    return fallback
+
+
 def _resolve_dependencies_and_refs(
     planning_dir: Path,
     wps_manifest: WpsManifest | None,
@@ -247,11 +275,14 @@ def _resolve_dependencies_and_refs(
 ) -> _DependencyResolution:
     """Phase: TIER 1+ — 3-tier dependency + requirement-ref resolution.
 
-    1. wps.yaml manifest when present
+    1. wps.yaml manifest when present — an explicit ``dependencies`` key is
+       authoritative (``[]`` included). An entry without the key, or a WP file
+       with no entry at all, falls through to tier 2 (#5448).
     2. non-empty WP frontmatter dependencies — an *empty* ``dependencies: []``
        is treated as absent (see below), not as an authoritative declaration
     3. tasks.md text parsing when frontmatter lacks a usable dependencies
-       value (field absent entirely, or present-but-empty)
+       value (field absent entirely, or present-but-empty); only when there is
+       no manifest
 
     Requirement refs (T011): the PRIMARY source is
     :func:`specify_cli.requirement_mapping.read_all_wp_raw_requirement_refs`
@@ -283,6 +314,8 @@ def _resolve_dependencies_and_refs(
     if wps_manifest is not None:
         for entry in wps_manifest.work_packages:
             res.wp_dependencies[entry.id] = list(entry.dependencies) if dependencies_are_explicit(entry) else []
+        explicit_ids = {entry.id for entry in wps_manifest.work_packages if dependencies_are_explicit(entry)}
+        res.wp_dependencies.update(_frontmatter_fallback_dependencies(wp_files, explicit_ids))
 
     # PRIMARY: WP frontmatter, raw authored tokens (map-requirements writes
     # here directly; see the docstring above for why this must be the raw

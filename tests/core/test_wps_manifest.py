@@ -218,6 +218,27 @@ class TestGenerateTasksMd:
         md = generate_tasks_md_from_manifest(manifest, "Feature")
         assert "tasks/WP01-with-prompt.md" in md
 
+    @staticmethod
+    def _deps_line(md: str, wp_id: str) -> str:
+        section = md.split(f"## Work Package {wp_id}:")[1].split("---")[0]
+        return next(line for line in section.splitlines() if line.startswith("**Dependencies**"))
+
+    def test_resolved_dependencies_override_manifest_value(self) -> None:
+        md = generate_tasks_md_from_manifest(self._make_manifest(), "F", resolved_dependencies={"WP01": ["WP00"]})
+        assert self._deps_line(md, "WP01") == "**Dependencies**: WP00"
+
+    def test_wp_absent_from_resolved_map_keeps_manifest_value(self) -> None:
+        md = generate_tasks_md_from_manifest(self._make_manifest(), "F", resolved_dependencies={"WP01": ["WP00"]})
+        assert self._deps_line(md, "WP02") == "**Dependencies**: WP01"
+
+    def test_empty_resolved_list_renders_none(self) -> None:
+        md = generate_tasks_md_from_manifest(self._make_manifest(), "F", resolved_dependencies={"WP02": []})
+        assert self._deps_line(md, "WP02") == "**Dependencies**: None"
+
+    def test_default_output_matches_empty_resolved_map(self) -> None:
+        manifest = self._make_manifest()
+        assert generate_tasks_md_from_manifest(manifest, "F") == generate_tasks_md_from_manifest(manifest, "F", resolved_dependencies={})
+
 
 class TestPlanConcernRefs:
     """Tests for plan_concern_refs field (T005) and cross_cutting field (T006)."""

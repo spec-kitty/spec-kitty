@@ -16,6 +16,7 @@ another finalize module go through a lazy in-function
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -694,6 +695,7 @@ def _regenerate_or_report_tasks_md(
     validate_only: bool,
     json_output: bool,
     repo_root: Path | None = None,
+    wp_dependencies: Mapping[str, Sequence[str]] | None = None,
 ) -> bool:
     """Phase: T017 tasks.md regeneration from wps.yaml (FR-008, FR-011) — #3221.
 
@@ -706,13 +708,17 @@ def _regenerate_or_report_tasks_md(
     relative to wps.yaml (computed from an in-memory regeneration, never from
     a write); always ``False`` when there is no manifest or when the file was
     just (re)written by the commit phase.
+
+    ``wp_dependencies`` is finalize's resolved dependency map (manifest value or
+    WP-file fallback); it is rendered instead of the raw manifest value so
+    ``tasks.md`` agrees with what finalize writes to the WP files (#5448).
     """
 
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
     if wps_manifest is None:
         return False
-    generated = generate_tasks_md_from_manifest(wps_manifest, mission_slug)
+    generated = generate_tasks_md_from_manifest(wps_manifest, mission_slug, resolved_dependencies=wp_dependencies)
     tasks_md = planning_dir / TASKS_MD_FILENAME
     if validate_only:
         try:

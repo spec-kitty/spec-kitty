@@ -15,6 +15,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
+from specify_cli.cli.commands.agent import mission_finalize
 from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.core.dependency_graph import dependency_readiness_for_wp
 from specify_cli.core.wps_manifest import generate_tasks_md_from_manifest, load_wps_manifest
@@ -581,3 +582,57 @@ class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
 
         assert result.exit_code != 0
         assert "Dependency disagreement" in result.stdout
+
+
+class TestFrontmatterFallbackDependencies:
+    """Focused cases for ``_frontmatter_fallback_dependencies`` (#5448)."""
+
+    @staticmethod
+    def _write(tmp_path: Path, name: str, content: str) -> Path:
+        path = tmp_path / name
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    def test_re_exported_from_mission_finalize(self) -> None:
+        from specify_cli.cli.commands.agent import mission_finalize_validation
+
+        assert (
+            mission_finalize._frontmatter_fallback_dependencies
+            is mission_finalize_validation._frontmatter_fallback_dependencies
+        )
+
+    def test_non_empty_frontmatter_is_returned(self, tmp_path: Path) -> None:
+        wp = self._write(tmp_path, "WP03-x.md", _wp_file(3, "[WP02]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([wp], set()) == {"WP03": ["WP02"]}
+
+    def test_explicit_id_is_skipped_even_with_non_empty_frontmatter(self, tmp_path: Path) -> None:
+        wp = self._write(tmp_path, "WP03-x.md", _wp_file(3, "[WP02]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([wp], {"WP03"}) == {}
+
+    def test_empty_frontmatter_is_not_in_map(self, tmp_path: Path) -> None:
+        wp = self._write(tmp_path, "WP03-x.md", _wp_file(3, "[]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([wp], set()) == {}
+
+    @pytest.mark.parametrize(
+        "bad_content",
+        [
+            pytest.param(b"---\nwork_package_id: [unclosed\n---\n", id="bad-yaml"),
+            pytest.param(b"---\nwork_package_id: WP02\ntitle: x\ndependencies:\n  a: b\n---\n", id="invalid-metadata"),
+            pytest.param(b"---\nwork_package_id: WP02\ntitle: \xff\xfe\n---\n", id="non-utf8"),
+        ],
+    )
+    def test_unreadable_file_is_skipped_without_raising(self, tmp_path: Path, bad_content: bytes) -> None:
+        bad = tmp_path / "WP02-x.md"
+        bad.write_bytes(bad_content)
+        good = self._write(tmp_path, "WP03-x.md", _wp_file(3, "[WP02]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([bad, good], set()) == {"WP03": ["WP02"]}
+
+    def test_os_error_on_read_is_skipped_without_raising(self, tmp_path: Path) -> None:
+        not_a_file = tmp_path / "WP02-x.md"
+        not_a_file.mkdir()
+        good = self._write(tmp_path, "WP03-x.md", _wp_file(3, "[WP02]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([not_a_file, good], set()) == {"WP03": ["WP02"]}
+
+    def test_non_wp_filename_is_ignored(self, tmp_path: Path) -> None:
+        other = self._write(tmp_path, "notes.md", _wp_file(3, "[WP02]"))
+        assert mission_finalize._frontmatter_fallback_dependencies([other], set()) == {}

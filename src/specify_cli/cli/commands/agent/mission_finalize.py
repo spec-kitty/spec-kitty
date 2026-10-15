@@ -157,6 +157,7 @@ from specify_cli.cli.commands.agent.mission_finalize_validation import (
     _detect_bare_prose_requirement_ids_fail_loud as _detect_bare_prose_requirement_ids_fail_loud,
     _detect_dependency_conflicts as _detect_dependency_conflicts,
     _emit_requirement_mapping_report as _emit_requirement_mapping_report,
+    _frontmatter_fallback_dependencies as _frontmatter_fallback_dependencies,
     _load_manifest as _load_manifest,
     _mission_protection_policy as _mission_protection_policy,
     _read_spec_requirement_ids as _read_spec_requirement_ids,
@@ -1095,6 +1096,7 @@ def _run_finalize_ownership_gates(
         validate_only=validate_only,
         json_output=json_output,
         repo_root=_lock_root_of(ctx),
+        wp_dependencies=gates.dep_resolution.wp_dependencies,
     )
 
     wp_frontmatters, wp_bodies = _gather_validation_frontmatter(gates.wp_files, state)

@@ -6,6 +6,7 @@ for spec-kitty missions that use wps.yaml as their primary WP source.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -164,7 +165,9 @@ def dependencies_are_explicit(entry: WorkPackageEntry) -> bool:
     """Return True if the 'dependencies' key was present in the source YAML.
 
     When True, the pipeline must not overwrite or augment the value.
-    When False, the field was absent from YAML and may be populated by tasks-packages.
+    When False, the field was absent from YAML and may be populated by
+    tasks-packages; finalize then uses the WP file's non-empty frontmatter
+    dependencies instead of treating the entry as dependency-free (#5448).
     """
     return getattr(entry, "_dependencies_explicit", False)
 
@@ -211,7 +214,12 @@ def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
     return warnings
 
 
-def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) -> str:
+def generate_tasks_md_from_manifest(
+    manifest: WpsManifest,
+    feature_name: str,
+    *,
+    resolved_dependencies: Mapping[str, Sequence[str]] | None = None,
+) -> str:
     """Generate tasks.md content from a WpsManifest.
 
     Output is a human-readable markdown document following tasks-template.md
@@ -221,6 +229,9 @@ def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) ->
     Args:
         manifest: Loaded WpsManifest.
         feature_name: Mission slug or friendly name for the heading.
+        resolved_dependencies: Optional per-WP dependency map (finalize's
+            resolved value, which can come from the WP file when the manifest
+            omits the key). WPs absent from the map keep the manifest value.
     """
     lines: list[str] = [
         f"# Work Packages: {feature_name}",
@@ -235,8 +246,9 @@ def generate_tasks_md_from_manifest(manifest: WpsManifest, feature_name: str) ->
         lines.append(f"## Work Package {wp.id}: {wp.title}")
         lines.append("")
 
-        if wp.dependencies:
-            lines.append(f"**Dependencies**: {', '.join(wp.dependencies)}")
+        deps = list(resolved_dependencies.get(wp.id, wp.dependencies)) if resolved_dependencies is not None else list(wp.dependencies)
+        if deps:
+            lines.append(f"**Dependencies**: {', '.join(deps)}")
         else:
             lines.append("**Dependencies**: None")
 
