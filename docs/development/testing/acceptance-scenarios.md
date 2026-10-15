@@ -150,7 +150,7 @@ gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 The runner builds a wheel from your checkout with `uv build` and installs it into a
 throwaway virtual environment, so it tests your working tree as a user would install
 it. Each scenario gets its own temporary directory, home directory and git repository. Scenarios run four at a time
-(`acceptance-jvm/src/test/resources/junit-platform.properties`), so a step must never share
+(the runner's `junit-platform.properties`), so a step must never share
 mutable state across scenarios. The test task never resolves UP-TO-DATE: the wheel is rebuilt on
 every run, so a change under `src/` is always tested.
 
