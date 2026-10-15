@@ -326,3 +326,72 @@ def test_nfr002_detect_cure_parity_for_the_wedge_condition(
 
     condition_cleared = not detect(feature_dir)  # type: ignore[operator]
     assert condition_cleared == cure_clears_condition, f"{condition}: detect-without-cure gap"
+
+
+# ---------------------------------------------------------------------------
+# #5974: the rebuild's absent-check and write are one lanes.json lock hold
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.regression
+def test_lanes_rebuild_never_overwrites_a_concurrently_created_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-003: a ``lanes.json`` created between the repair's absent-check and its write survives.
+
+    RED before the fix: the absent-check ran outside ``lanes_json_lock`` and only the write was
+    locked, so a manifest written by another process in between was overwritten. The lock wrapper
+    writes the concurrent manifest on the FIRST lock take for this Mission (the same thread, so the
+    re-entrant lock lets it through); after the fix that first take is the repair's own, before its
+    re-check. It also proves the lanes phase runs outside the Mission hold (NFR-002).
+    """
+    from specify_cli.lanes import persistence
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+    from specify_cli.status import mission_lock_key
+    from specify_cli.status.locking import feature_status_lock_path, holds_status_lock
+
+    feature_dir = _build_wedged_mission(tmp_path)
+    manifest_b = LanesManifest(
+        version=1,
+        mission_slug=_MISSION_SLUG,
+        mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        mission_branch=f"kitty/mission-{_MISSION_SLUG}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=["WP01", "WP02"],
+                write_scope=["src/**"],
+                predicted_surfaces=[],
+                depends_on_lanes=[],
+                parallel_group=0,
+            )
+        ],
+        computed_at="2026-01-02T00:00:00+00:00",
+        computed_from="concurrent-writer-b",
+        planning_commit_sha="b" * 40,
+    )
+    key = mission_lock_key(feature_dir, repo_root=tmp_path)
+    mission_lock_held_at_pause: list[bool] = []
+    fired = False
+    real_lock = persistence.lanes_json_lock
+
+    def _lock_after_a_concurrent_manifest(directory: Path) -> object:
+        nonlocal fired
+        if directory == feature_dir and not fired:
+            fired = True  # before the nested write: that write goes through this wrapper again
+            mission_lock_held_at_pause.append(holds_status_lock(feature_status_lock_path(tmp_path, key)))
+            write_lanes_json(feature_dir, manifest_b)
+        return real_lock(directory)
+
+    monkeypatch.setattr(persistence, "lanes_json_lock", _lock_after_a_concurrent_manifest)
+
+    report = repair_repo(tmp_path, mission=_MISSION_SLUG)
+
+    assert fired, "the pause point never fired: the test would pass vacuously"
+    assert mission_lock_held_at_pause == [False], "NFR-002: the lanes phase must run outside the Mission lock hold"
+    final_lanes = (feature_dir / "lanes.json").read_text(encoding="utf-8")
+    result = next(m for m in report.missions if m.mission_slug == _MISSION_SLUG)
+    assert result.status != "error", result.validation_errors
+    assert json.loads(final_lanes)["computed_from"] == "concurrent-writer-b", "#5974: the repair overwrote a concurrently created lanes.json"
+    assert LANES_REBUILT_ACTION not in result.meta_actions
+    assert not any(change.path.endswith("lanes.json") for change in result.file_changes)

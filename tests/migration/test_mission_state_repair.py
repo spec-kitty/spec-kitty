@@ -1713,3 +1713,418 @@ def test_second_fix_not_blocked_by_own_uncommitted_audit_trail(tmp_path: Path) -
     # repair's own output, dropped from the safety-checked set.
     report = repair_repo(repo)
     assert report.missions[0].status == "unchanged"
+
+
+# ---------------------------------------------------------------------------
+# #5974 -- the repair holds the Mission write lock across its read-to-replace window
+# ---------------------------------------------------------------------------
+
+_B_EVENT_ID = "01KQHRB8GCFJAX7HM4ZY52AQB1"
+_HANG_GUARD_SECONDS = 30.0
+_LEGACY_ROW = {
+    "actor": "Claude Code",
+    "at": "2026-01-01T00:00:00+00:00",
+    "event_id": "01KQHRB8GCFJAX7HM4ZY52AQA1",
+    "execution_mode": "worktree",
+    "feature_slug": "999-mini",
+    "force": False,
+    "from_lane": "genesis",
+    "to_lane": "planned",
+    "work_package_id": "WP01",
+}
+
+
+def _seed_legacy_log(mission: Path, slug: str) -> None:
+    """A log whose only row is a legacy-shaped one, so the repair must rewrite the file."""
+    row = {**_LEGACY_ROW, "feature_slug": slug}
+    (mission / "status.events.jsonl").write_text(json.dumps(row, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _b_event(slug: str) -> Any:
+    from specify_cli.status import Lane, StatusEvent
+
+    return StatusEvent(
+        event_id=_B_EVENT_ID,
+        mission_slug=slug,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.CLAIMED,
+        at="2026-01-02T00:00:00+00:00",
+        actor="writer-b",
+        force=False,
+        execution_mode="worktree",
+    )
+
+
+def _log_event_ids(mission: Path) -> list[str]:
+    lines = (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+    return [str(json.loads(line)["event_id"]) for line in lines if line.strip()]
+
+
+def _lock_is_free(repo: Path, key: str) -> bool:
+    """Whether another thread acquires the Mission lock *key* at once (``timeout=0``, one attempt)."""
+    import threading
+
+    from specify_cli.status import FeatureStatusLockTimeoutError
+    from specify_cli.status.locking import feature_status_lock
+
+    outcome: list[bool] = []
+
+    def _probe() -> None:
+        try:
+            with feature_status_lock(repo, key, timeout=0):
+                outcome.append(True)
+        except FeatureStatusLockTimeoutError:
+            outcome.append(False)
+
+    thread = threading.Thread(target=_probe)
+    thread.start()
+    thread.join(_HANG_GUARD_SECONDS)
+    assert not thread.is_alive()
+    return outcome == [True]
+
+
+class _ConcurrentWriter:
+    """Writer B: a canonical status appender using the real emit lock discipline.
+
+    ``start_and_settle`` starts B in a thread and returns once B is either finished (it was NOT
+    blocked: the bug) or inside its blocking lock acquire (it was blocked: the fix). "Blocked" is
+    observed with a ``timeout=0`` probe, never a sleep.
+    """
+
+    def __init__(self, repo: Path, mission: Path, *, rewrite_status_json: bool = False) -> None:
+        import threading
+
+        self.repo = repo
+        self.mission = mission
+        self.rewrite_status_json = rewrite_status_json
+        self.waiting = threading.Event()
+        self.done = threading.Event()
+        self._settled = threading.Event()
+        self.error: BaseException | None = None
+        self.pause_fired = False
+        self._thread = threading.Thread(target=self._run)
+
+    def _run(self) -> None:
+        from kernel.atomic import atomic_write
+        from specify_cli.status import (
+            FeatureStatusLockTimeoutError,
+            materialize_snapshot,
+            materialize_to_json,
+            mission_lock_key,
+        )
+        from specify_cli.status.locking import feature_status_lock
+        from specify_cli.status.store import append_event
+        from specify_cli.workspace.root_resolver import resolve_status_lock_root
+
+        try:
+            root = resolve_status_lock_root(self.mission, self.repo)
+            key = mission_lock_key(self.mission, repo_root=self.repo)
+            try:
+                with feature_status_lock(root, key, timeout=0):
+                    pass
+            except FeatureStatusLockTimeoutError:
+                self.waiting.set()
+                self._settled.set()
+            with feature_status_lock(root, key):
+                append_event(self.mission, _b_event(self.mission.name))
+                if self.rewrite_status_json:
+                    snapshot = materialize_snapshot(self.mission)
+                    atomic_write(self.mission / "status.json", materialize_to_json(snapshot))
+            self.done.set()
+        except BaseException as exc:  # noqa: BLE001 - surfaced by assert_clean
+            self.error = exc
+        finally:
+            self._settled.set()
+
+    def start_and_settle(self) -> None:
+        self.pause_fired = True
+        self._thread.start()
+        assert self._settled.wait(_HANG_GUARD_SECONDS), "writer B neither finished nor blocked"
+
+    def finish(self) -> None:
+        """Join B after the repair returned and require that it raised nothing."""
+        assert self.pause_fired, "the pause point never fired: the test would pass vacuously"
+        self._thread.join(_HANG_GUARD_SECONDS)
+        assert not self._thread.is_alive()
+        assert self.error is None, repr(self.error)
+        assert self.done.is_set()
+
+
+def _legacy_mission(repo: Path, slug: str = "999-mini") -> Path:
+    _minimal_mission(repo, slug)
+    mission = repo / "kitty-specs" / slug
+    _seed_legacy_log(mission, slug)
+    return mission
+
+
+@pytest.mark.regression
+def test_repair_does_not_erase_status_event_appended_after_its_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-001: a status event appended between the repair's read and its replace survives.
+
+    RED before the fix: the repair read the log without the Mission lock, so writer B appended
+    straight after that read and the repair's whole-file replace erased B's event while reporting
+    ``updated``.
+    """
+    from specify_cli.migration import mission_state
+
+    mission = _legacy_mission(tmp_path)
+    _init_git_repo(tmp_path)
+    writer = _ConcurrentWriter(tmp_path, mission)
+    real_read = mission_state._read_jsonl_rows
+
+    def _read_then_pause(path: Path) -> Any:
+        rows = real_read(path)
+        if path == mission / "status.events.jsonl" and not writer.pause_fired:
+            writer.start_and_settle()
+        return rows
+
+    monkeypatch.setattr(mission_state, "_read_jsonl_rows", _read_then_pause)
+
+    report = repair_repo(tmp_path)
+
+    writer.finish()
+    result = report.missions[0]
+    assert result.status == "updated"
+    assert not result.validation_errors
+    ids = _log_event_ids(mission)
+    assert _B_EVENT_ID in ids, f"#5974: writer B's event was erased by the repair (log has {ids})"
+    assert _LEGACY_ROW["event_id"] in ids
+    first = json.loads((mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert first["wp_id"] == "WP01"
+    assert "work_package_id" not in first
+    assert writer.waiting.is_set(), "writer B was not blocked while the repair held the Mission lock"
+
+
+@pytest.mark.regression
+def test_repair_status_json_refresh_never_goes_stale_under_concurrent_append(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-002: the status.json refresh and a concurrent emit-style writer never leave a stale file.
+
+    Writer B behaves like emit: under the Mission lock it appends and rewrites ``status.json``.
+    RED before the fix: B ran unblocked, then the repair's stale ``status.json`` replaced B's.
+    """
+    from specify_cli.migration import mission_state
+    from specify_cli.status import materialize_snapshot, materialize_to_json
+
+    mission = _legacy_mission(tmp_path)
+    (mission / "status.json").write_text('{"stale": true}\n', encoding="utf-8")
+    _init_git_repo(tmp_path)  # status.json is tracked and differs from the snapshot: the refresh writes it
+    writer = _ConcurrentWriter(tmp_path, mission, rewrite_status_json=True)
+    real_write = mission_state.atomic_write
+
+    def _pause_before_status_json(path: Path, *args: Any, **kwargs: Any) -> Any:
+        if Path(path).name == "status.json" and not writer.pause_fired:
+            writer.start_and_settle()
+        return real_write(path, *args, **kwargs)
+
+    monkeypatch.setattr(mission_state, "atomic_write", _pause_before_status_json)
+
+    report = repair_repo(tmp_path)
+
+    writer.finish()
+    assert report.missions[0].status == "updated"
+    assert _B_EVENT_ID in _log_event_ids(mission)
+    final = (mission / "status.json").read_text(encoding="utf-8")
+    assert final == materialize_to_json(materialize_snapshot(mission)), "#5974: status.json is stale against the final log"
+    assert json.loads(final)["work_packages"]["WP01"]["lane"] == "claimed"
+    assert writer.waiting.is_set(), "writer B was not blocked while the repair held the Mission lock"
+
+
+def _key_moving_mission(repo: Path) -> Path:
+    """A legacy ``NNN-`` coordination Mission with no mission_id: the meta repair mints one and the key moves."""
+    slug = "042-legacy"
+    mission = repo / "kitty-specs" / slug
+    _write_json(
+        mission / "meta.json",
+        {
+            "coordination_branch": f"kitty/mission-{slug}",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Legacy",
+            "mission_number": 42,
+            "mission_slug": slug,
+            "mission_type": "software-dev",
+            "slug": slug,
+            "target_branch": "main",
+        },
+    )
+    _seed_legacy_log(mission, slug)
+    _init_git_repo(repo)
+    return mission
+
+
+def _assert_key_moved(repo: Path, mission: Path) -> None:
+    import threading
+
+    from specify_cli.status import mission_lock_key
+
+    keys: list[str] = []
+    thread = threading.Thread(target=lambda: keys.append(mission_lock_key(mission, repo_root=repo)))
+    thread.start()
+    thread.join(_HANG_GUARD_SECONDS)
+    assert keys and keys[0] != mission.name and keys[0].startswith(f"{mission.name}-"), keys
+
+
+@pytest.mark.regression
+def test_repair_key_move_rereads_log_after_meta_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-008: when the meta repair moves the lock key, an append under the new key survives.
+
+    The pause is right after ``write_meta``; writer B resolves and takes the NEW key. Kills "no re-read".
+    """
+    from specify_cli.migration import mission_state
+
+    mission = _key_moving_mission(tmp_path)
+    assert mission_state.mission_write_lock is not None
+    from specify_cli.status import mission_lock_key
+
+    assert mission_lock_key(mission, repo_root=tmp_path) == mission.name  # precondition: pre-repair key
+    writer = _ConcurrentWriter(tmp_path, mission)
+    real_write_meta = mission_state.write_meta
+
+    def _write_then_pause(mission_dir: Path, meta: Any) -> Any:
+        result = real_write_meta(mission_dir, meta)
+        if mission_dir == mission and not writer.pause_fired:
+            _assert_key_moved(tmp_path, mission)  # precondition: post-meta key
+            writer.start_and_settle()
+        return result
+
+    monkeypatch.setattr(mission_state, "write_meta", _write_then_pause)
+
+    report = repair_repo(tmp_path)
+
+    writer.finish()
+    assert report.missions[0].status == "updated", report.missions[0].validation_errors
+    ids = _log_event_ids(mission)
+    assert _B_EVENT_ID in ids, f"#5974: an append under the moved key was erased (log has {ids})"
+
+
+@pytest.mark.regression
+def test_repair_key_move_extends_hold_to_new_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-008: while the status-log phases run, the repair also holds the NEW key.
+
+    The pause is inside the status-log phases; writer B takes the new key and must be blocked until
+    the repair releases. Kills a single-key hold and "re-read without extending the hold".
+    """
+    from specify_cli.migration import mission_state
+
+    mission = _key_moving_mission(tmp_path)
+    writer = _ConcurrentWriter(tmp_path, mission)
+    real_canonicalize = mission_state._canonicalize_status_rows
+
+    def _canonicalize_then_pause(*args: Any, **kwargs: Any) -> Any:
+        result = real_canonicalize(*args, **kwargs)
+        if not writer.pause_fired:
+            _assert_key_moved(tmp_path, mission)
+            writer.start_and_settle()
+        return result
+
+    monkeypatch.setattr(mission_state, "_canonicalize_status_rows", _canonicalize_then_pause)
+
+    report = repair_repo(tmp_path)
+
+    writer.finish()
+    assert report.missions[0].status == "updated", report.missions[0].validation_errors
+    assert _B_EVENT_ID in _log_event_ids(mission), "#5974: an append under the moved key was erased"
+    assert writer.waiting.is_set(), "writer B was not blocked on the new key while the repair held it"
+
+
+def _timeout_error() -> Exception:
+    from specify_cli.status import FeatureStatusLockTimeoutError
+
+    error: Exception = FeatureStatusLockTimeoutError("lock held (test)", timeout=0.0)
+    return error
+
+
+def test_repair_lock_timeout_is_a_per_mission_error_without_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-006 (ratchet): a lock timeout is one Mission's error, writes nothing, and other Missions still run."""
+    from contextlib import contextmanager
+
+    from specify_cli.migration import mission_state
+
+    blocked = _legacy_mission(tmp_path, "998-blocked")
+    other = _legacy_mission(tmp_path, "999-other")
+    _init_git_repo(tmp_path)
+    before = {name: (blocked / name).read_bytes() for name in ("meta.json", "status.events.jsonl")}
+    real_lock = mission_state.mission_write_lock
+
+    @contextmanager
+    def _lock(feature_dir: Path, **kwargs: Any) -> Any:
+        if feature_dir.name == blocked.name:
+            raise _timeout_error()
+        with real_lock(feature_dir, **kwargs) as held:
+            yield held
+
+    monkeypatch.setattr(mission_state, "mission_write_lock", _lock)
+
+    report = repair_repo(tmp_path)
+
+    results = {m.mission_slug: m for m in report.missions}
+    assert results[blocked.name].status == "error"
+    assert not results[blocked.name].file_changes
+    assert {name: (blocked / name).read_bytes() for name in before} == before
+    assert not (blocked / "status.json").exists()
+    assert results[other.name].status == "updated"
+
+
+def test_repair_key_move_extender_timeout_reports_the_meta_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 FR-006/#4780: a timeout taking the NEW key is an error that still reports the meta.json write."""
+    from contextlib import contextmanager
+
+    from specify_cli.migration import mission_state
+
+    mission = _key_moving_mission(tmp_path)
+    log_before = (mission / "status.events.jsonl").read_bytes()
+
+    @contextmanager
+    def _extender_times_out(*_args: Any, **_kwargs: Any) -> Any:
+        raise _timeout_error()
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(mission_state, "extend_mission_write_lock_to_moved_key", _extender_times_out, raising=False)
+
+    report = repair_repo(tmp_path)
+
+    result = report.missions[0]
+    assert result.status == "error"
+    assert any(change.path.endswith("meta.json") for change in result.file_changes)
+    assert (mission / "status.events.jsonl").read_bytes() == log_before
+
+
+def test_repair_of_canonical_mission_is_unchanged_under_hold(tmp_path: Path) -> None:
+    """#5974 FR-007 (ratchet): an already-canonical Mission stays ``unchanged`` with byte-identical files."""
+    mission = _legacy_mission(tmp_path)
+    _init_git_repo(tmp_path)
+    assert repair_repo(tmp_path).missions[0].status == "updated"
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "repaired"], cwd=tmp_path, check=True)
+    files = ("meta.json", "status.events.jsonl")
+    before = {name: (mission / name).read_bytes() for name in files}
+
+    report = repair_repo(tmp_path)
+
+    assert report.missions[0].status == "unchanged"
+    assert {name: (mission / name).read_bytes() for name in files} == before
+
+
+def test_repair_releases_mission_lock_on_error_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5974 (ratchet): the Mission lock is free after a row-error repair and after a phase that raises."""
+    from specify_cli.migration import mission_state
+
+    mission = _legacy_mission(tmp_path)
+    key = mission.name
+    error_row = {k: v for k, v in _LEGACY_ROW.items() if k != "work_package_id"}
+    (mission / "status.events.jsonl").write_text(json.dumps(error_row, sort_keys=True) + "\n", encoding="utf-8")
+
+    assert repair_repo(tmp_path).missions[0].status == "error"
+    assert _lock_is_free(tmp_path, key)
+
+    _seed_legacy_log(mission, mission.name)
+
+    def _boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("phase exploded")
+
+    monkeypatch.setattr(mission_state, "_repair_status_log_phases", _boom)
+
+    result = repair_repo(tmp_path).missions[0]
+    assert result.status == "error"
+    assert any("phase exploded" in e for e in result.validation_errors)
+    assert _lock_is_free(tmp_path, key)
