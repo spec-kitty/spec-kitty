@@ -171,6 +171,15 @@
         }
       ]
     },
+    "missions": {
+      "consumes": [
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/step.yaml",
+          "provenance": "runtime",
+          "via": "tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py [step_contract]"
+        }
+      ]
+    },
     "next": {
       "consumes": [
         {
