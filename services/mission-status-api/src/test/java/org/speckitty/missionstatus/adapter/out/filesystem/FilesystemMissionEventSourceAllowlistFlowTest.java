@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
@@ -27,6 +26,7 @@ import org.speckitty.missionstatus.application.query.port.in.dto.StreamScope;
 import org.speckitty.missionstatus.application.query.port.in.Subscription;
 import org.speckitty.missionstatus.domain.readmodel.cursor.StreamCursor;
 import org.speckitty.missionstatus.domain.model.MissionId;
+import org.speckitty.missionstatus.testsupport.PosixHost;
 import org.speckitty.missionstatus.testsupport.Rows;
 
 /**
@@ -227,7 +227,7 @@ class FilesystemMissionEventSourceAllowlistFlowTest {
 
   @Test
   void aProjectWhoseDirectoriesAreReadOnlyIsServedTheSame() throws Exception {
-    assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"), "POSIX permissions are unavailable on this file system (Windows)");
+    PosixHost.assumePosix("FilesystemMissionEventSourceAllowlistFlowTest.aProjectWhoseDirectoriesAreReadOnlyIsServedTheSame");
     String expected = harness.query.project() + "|" + harness.overviews();
     List<Path> directories;
     try (Stream<Path> walk = Files.walk(root)) {

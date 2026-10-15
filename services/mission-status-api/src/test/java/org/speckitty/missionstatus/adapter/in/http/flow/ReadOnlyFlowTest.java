@@ -2,7 +2,6 @@ package org.speckitty.missionstatus.adapter.in.http.flow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
@@ -16,6 +15,7 @@ import org.speckitty.missionstatus.adapter.out.filesystem.RecordingAllowlistAcce
 import org.speckitty.missionstatus.adapter.out.filesystem.Allowlist;
 import org.speckitty.missionstatus.testsupport.ConformanceTree;
 import org.speckitty.missionstatus.testsupport.FilesystemFixtureFactory;
+import org.speckitty.missionstatus.testsupport.PosixHost;
 import org.speckitty.missionstatus.testsupport.http.StreamRig;
 
 /**
@@ -100,7 +100,7 @@ class ReadOnlyFlowTest {
 
   @Test
   void ac16dAReadOnlyProjectDirectoryIsServedUnchanged() throws Exception {
-    Assumptions.assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"), "POSIX permissions are unavailable on this file system (Windows)");
+    PosixHost.assumePosix("ReadOnlyFlowTest.ac16dAReadOnlyProjectDirectoryIsServedUnchanged");
     List<String> writable;
     try (StreamRig rig = StreamRig.over(recorded())) {
       writable = flow(rig);

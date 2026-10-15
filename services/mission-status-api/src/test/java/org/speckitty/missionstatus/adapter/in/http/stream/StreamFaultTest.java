@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.speckitty.missionstatus.testsupport.http.StreamRig.BOUND;
 import static org.speckitty.missionstatus.testsupport.http.StreamRig.QUIET;
 
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -19,6 +18,7 @@ import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.model.DiagnosticCode;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
 import org.speckitty.missionstatus.testsupport.PortFixtures;
+import org.speckitty.missionstatus.testsupport.PosixHost;
 import org.speckitty.missionstatus.testsupport.Rows;
 import org.speckitty.missionstatus.testsupport.http.SseClient;
 import org.speckitty.missionstatus.testsupport.http.StreamRig;
@@ -380,7 +380,7 @@ class StreamFaultTest {
 
   @Test
   void ac3nAnUnscopedConnectWithAnUnlistableKittySpecsIs500MissionDirUnreadable() throws Exception {
-    Assumptions.assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"), "POSIX permissions are unavailable on this file system (Windows)");
+    PosixHost.assumePosix("StreamFaultTest.ac3nAnUnscopedConnectWithAnUnlistableKittySpecsIs500MissionDirUnreadable");
     Path specs = rig.built.root().resolve("kitty-specs");
     Files.setPosixFilePermissions(specs, PosixFilePermissions.fromString("--x------"));
     try {
@@ -424,7 +424,7 @@ class StreamFaultTest {
 
   @Test
   void ac3oAnUnlistableKittySpecsKeepsTheConnectionAndWritesOneDiagnosticPerTransitionIntoFailure() throws Exception {
-    Assumptions.assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"), "POSIX permissions are unavailable on this file system (Windows)");
+    PosixHost.assumePosix("StreamFaultTest.ac3oAnUnlistableKittySpecsKeepsTheConnectionAndWritesOneDiagnosticPerTransitionIntoFailure");
     Path specs = rig.built.root().resolve("kitty-specs");
     try (SseClient client = rig.unscoped()) {
       Files.setPosixFilePermissions(specs, PosixFilePermissions.fromString("--x------"));

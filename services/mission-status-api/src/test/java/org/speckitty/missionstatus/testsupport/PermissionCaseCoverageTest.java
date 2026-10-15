@@ -148,6 +148,7 @@ class PermissionCaseCoverageTest {
 
   @Test
   void whenTheOperatingSystemRefusesThePermissionsAreGoneUntilTheFixtureIsClosed() throws IOException {
+    PosixHost.assumePosix("PermissionCaseCoverageTest.whenTheOperatingSystemRefusesThePermissionsAreGoneUntilTheFixtureIsClosed");
     Path file = scratchFile();
 
     try (RealPermissionFixture fixture = RealPermissionFixture.refusedForThisUser(file, "refuses", path -> false, report())) {
@@ -160,6 +161,7 @@ class PermissionCaseCoverageTest {
 
   @Test
   void whenTheOperatingSystemDoesNotRefuseTheTestIsSkippedTheLineIsWrittenAndThePermissionsAreBack() throws IOException {
+    PosixHost.assumePosix("PermissionCaseCoverageTest.whenTheOperatingSystemDoesNotRefuseTheTestIsSkippedTheLineIsWrittenAndThePermissionsAreBack");
     Path file = scratchFile();
     Set<PosixFilePermission> before = Files.getPosixFilePermissions(file);
     Path report = report();
@@ -172,6 +174,7 @@ class PermissionCaseCoverageTest {
 
   @Test
   void aDirectoryIsHandledLikeAFileAndTheLinesAccumulate() throws IOException {
+    PosixHost.assumePosix("PermissionCaseCoverageTest.aDirectoryIsHandledLikeAFileAndTheLinesAccumulate");
     Path dir = Files.createDirectory(ScratchDirs.create().resolve("listed"));
     Path report = report();
 
@@ -192,6 +195,24 @@ class PermissionCaseCoverageTest {
     assertThatThrownBy(() -> RealPermissionFixture.refusedForThisUser(missing, "missing", path -> false, report)).isInstanceOf(TestAbortedException.class);
 
     assertThat(report).exists();
+  }
+
+  @Test
+  void withoutAPosixViewTheTestIsSkippedAndTheNotRunLineIsWritten() throws IOException {
+    Path report = report();
+
+    assertThatThrownBy(() -> PosixHost.assumePosix("no-posix-test-id", false, report)).isInstanceOf(TestAbortedException.class);
+
+    assertThat(Files.readAllLines(report)).containsExactly("not run: precondition unmet: no-posix-test-id");
+  }
+
+  @Test
+  void withAPosixViewTheGuardWritesNothingAndLetsTheTestRun() {
+    Path report = report();
+
+    PosixHost.assumePosix("posix-test-id", true, report);
+
+    assertThat(report).doesNotExist();
   }
 
   @Test
