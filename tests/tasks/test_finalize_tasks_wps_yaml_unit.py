@@ -6,6 +6,7 @@ parser when present, and that tasks.md is regenerated from the manifest.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from contextlib import AbstractContextManager
 from unittest.mock import MagicMock, patch
@@ -15,6 +16,9 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
 from specify_cli.coordination.commit_router import CommitRouterResult
+from specify_cli.core.dependency_graph import dependency_readiness_for_wp
+from specify_cli.core.wps_manifest import generate_tasks_md_from_manifest, load_wps_manifest
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 pytestmark = pytest.mark.fast
 
@@ -417,3 +421,163 @@ class TestFinalizTasksWithWpsYaml:
             f"WP02 should be in WP01 dependencies when parsed from tasks.md prose "
             f"(no wps.yaml), but frontmatter was:\n{fm_section}"
         )
+
+
+# ---------------------------------------------------------------------------
+# #5448: wps.yaml that leaves a WP's dependencies out must not erase the WP file's
+# ---------------------------------------------------------------------------
+
+
+def _wp_file(n: int, deps: str) -> str:
+    """Return a minimal WP prompt file whose frontmatter ``dependencies`` is ``deps``."""
+    return (
+        "---\n"
+        f"work_package_id: WP0{n}\n"
+        f"title: Test {n}\n"
+        f"dependencies: {deps}\n"
+        "requirement_refs: [FR-001]\n"
+        "subtasks: []\n"
+        "owned_files:\n"
+        f"  - src/m{n}/**\n"
+        f"authoritative_surface: src/m{n}/\n"
+        "execution_mode: code_change\n"
+        "---\n"
+        f"# WP0{n}\n"
+    )
+
+
+def _wp03_manifest_lines(variant: str) -> str:
+    """Return the WP03 manifest row for ``variant`` (empty string for ``no_entry``)."""
+    head = "  - id: WP03\n    title: Test 3\n"
+    tail = "    requirement_refs: [FR-001]\n"
+    middle = {
+        "absent": "",
+        "depends_on": "    depends_on: [WP02]\n",
+        "no_entry": None,
+        "explicit_agree": "    dependencies: [WP02]\n",
+        "explicit_disagree": "    dependencies: [WP01]\n",
+    }[variant]
+    return "" if middle is None else head + middle + tail
+
+
+def _build_three_wp_feature(tmp_path: Path, variant: str) -> Path:
+    """WP01 [] <- WP02 [WP01] <- WP03 [WP02] in the files; WP03's manifest row follows ``variant``."""
+    wps_yaml = (
+        "work_packages:\n"
+        "  - id: WP01\n    title: Test 1\n    dependencies: []\n    requirement_refs: [FR-001]\n"
+        "  - id: WP02\n    title: Test 2\n    dependencies: [WP01]\n    requirement_refs: [FR-001]\n"
+    ) + _wp03_manifest_lines(variant)
+    return _build_feature_with_wps_yaml(
+        tmp_path,
+        wps_yaml,
+        extra_wp_files={
+            "WP02-test.md": _wp_file(2, "[WP01]"),
+            "WP03-test.md": _wp_file(3, "[WP02]"),
+        },
+    )
+
+
+def _report(result: object) -> dict[str, object]:
+    out = result.stdout  # type: ignore[attr-defined]
+    return json.loads(out[out.find("{") :])
+
+
+def _wp03_deps_after(feature_dir: Path) -> list[str]:
+    meta, _ = read_wp_frontmatter(feature_dir / "tasks" / "WP03-test.md")
+    return list(meta.dependencies)
+
+
+def _lane_of(feature_dir: Path, wp_id: str) -> dict[str, object]:
+    lanes = json.loads((feature_dir / "lanes.json").read_text(encoding="utf-8"))["lanes"]
+    return next(lane for lane in lanes if wp_id in lane["wp_ids"])
+
+
+_ABSENT_ARMS = ["absent", "depends_on", "no_entry"]
+
+
+class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
+    """#5448: an absent/misspelled ``dependencies`` key or a missing entry falls back to the WP file.
+
+    The explicit-``[]`` control is ``test_explicit_empty_deps_not_overwritten`` above.
+    """
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("variant", _ABSENT_ARMS)
+    def test_absent_key_keeps_frontmatter_dependencies(self, tmp_path: Path, variant: str) -> None:
+        """Issue #5448 (arms: absent key, ``depends_on`` typo, no entry): WP03 keeps ``[WP02]``."""
+        feature_dir = _build_three_wp_feature(tmp_path, variant)
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir)
+
+        assert result.exit_code == 0, result.stdout
+        deps = _wp03_deps_after(feature_dir)
+        assert deps == ["WP02"]
+        wp02_lane = _lane_of(feature_dir, "WP02")
+        wp03_lane = _lane_of(feature_dir, "WP03")
+        assert wp02_lane["lane_id"] in wp03_lane["depends_on_lanes"]
+        assert _report(result)["dependencies_parsed"]["WP03"] == ["WP02"]  # type: ignore[index]
+        readiness = dependency_readiness_for_wp("WP03", deps, {"WP01": "planned", "WP02": "planned", "WP03": "planned"})
+        assert readiness.satisfied is False
+        assert "WP02" in readiness.unsatisfied
+
+    @pytest.mark.regression
+    def test_absent_key_tasks_md_lists_resolved_dependencies(self, tmp_path: Path) -> None:
+        """Issue #5448: the regenerated tasks.md prints the resolved dependencies, not "None"."""
+        feature_dir = _build_three_wp_feature(tmp_path, "absent")
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir)
+
+        assert result.exit_code == 0, result.stdout
+        section = (feature_dir / "tasks.md").read_text(encoding="utf-8").split("## Work Package WP03")[1]
+        assert "**Dependencies**: WP02" in section
+
+    @pytest.mark.regression
+    @pytest.mark.parametrize("variant", _ABSENT_ARMS)
+    def test_validate_only_previews_resolved_dependencies(self, tmp_path: Path, variant: str) -> None:
+        """Issue #5448: ``--validate-only`` no longer plans to erase WP03's dependencies, and writes nothing."""
+        feature_dir = _build_three_wp_feature(tmp_path, variant)
+        wp03 = feature_dir / "tasks" / "WP03-test.md"
+        before = wp03.read_bytes()
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir, extra_args=["--validate-only"])
+
+        assert result.exit_code == 0, result.stdout
+        entry = next(e for e in _report(result)["would_modify"] if e["wp_id"] == "WP03")  # type: ignore[attr-defined,union-attr]
+        assert "dependencies" not in entry["changes"]
+        assert wp03.read_bytes() == before
+
+    @pytest.mark.regression
+    def test_validate_only_tasks_md_staleness_uses_resolved_dependencies(self, tmp_path: Path) -> None:
+        """Issue #5448: staleness is judged against the resolved (not manifest-only) dependencies."""
+        feature_dir = _build_three_wp_feature(tmp_path, "absent")
+        manifest = load_wps_manifest(feature_dir)
+        assert manifest is not None
+        rendered = generate_tasks_md_from_manifest(manifest, "069-test")
+        head, sep, tail = rendered.partition("## Work Package WP03")
+        assert sep
+        assert tail.count("**Dependencies**: None") == 1
+        (feature_dir / "tasks.md").write_text(head + sep + tail.replace("**Dependencies**: None", "**Dependencies**: WP02"), encoding="utf-8")
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir, extra_args=["--validate-only"])
+
+        assert result.exit_code == 0, result.stdout
+        assert _report(result)["tasks_md_stale"] is False
+
+    def test_explicit_agreeing_key_is_kept(self, tmp_path: Path) -> None:
+        """Control: an explicit manifest key that agrees with the WP file stays as is."""
+        feature_dir = _build_three_wp_feature(tmp_path, "explicit_agree")
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir)
+
+        assert result.exit_code == 0, result.stdout
+        assert _wp03_deps_after(feature_dir) == ["WP02"]
+        assert _lane_of(feature_dir, "WP02")["lane_id"] in _lane_of(feature_dir, "WP03")["depends_on_lanes"]
+
+    def test_explicit_disagreeing_key_is_refused(self, tmp_path: Path) -> None:
+        """Control: two disagreeing non-empty values still refuse."""
+        feature_dir = _build_three_wp_feature(tmp_path, "explicit_disagree")
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir)
+
+        assert result.exit_code != 0
+        assert "Dependency disagreement" in result.stdout
