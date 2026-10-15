@@ -4,7 +4,7 @@ description: 'Runbook for the charter pack cutover (#3732): run spec-kitty upgra
 doc_status: active
 type: how-to
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-08'
+updated: '2026-10-15'
 related:
 - docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md
 - docs/context/charter.md
@@ -86,6 +86,9 @@ See docs/migrations/charter-pack-cutover.md.
 ```
 
 In a lane worktree the message adds: upgrade the repository root and merge the target into this lane (do not rebase).
+
+With `--json`, the refusal is one JSON object on stdout instead, with the same exit code 1: `{"ok": false, "error": {"code": "LEGACY_CHARTER_STATE", "message": "..."}}`. The message is the text above without the `Error (LEGACY_CHARTER_STATE):` prefix.
+
 These still run on an unmigrated project, so you can always reach the fix: `spec-kitty upgrade`, `spec-kitty init`, `--version`, `--help`, the git merge drivers (`spec-kitty merge-driver-*`) and the hook entry points (`spec-kitty live-work hook`, `session-start`, `session-stop`, `commit-guard-hook`).
 The findings are: the `.kittify/doctrine/` directory, a `governance.yaml` with the old selection key, or one of the old keys in `.kittify/config.yaml` (`doctrine.org`, `organisation_packs`, `governance.doctrine`, `tracker.doctrine`).
 
