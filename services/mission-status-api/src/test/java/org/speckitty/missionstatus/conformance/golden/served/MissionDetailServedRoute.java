@@ -17,6 +17,7 @@ import org.speckitty.missionstatus.testsupport.ConformanceTree.TreeFixture;
 import org.speckitty.missionstatus.testsupport.DetailFixture;
 import org.speckitty.missionstatus.testsupport.FilesystemFixtureFactory;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
+import org.speckitty.missionstatus.testsupport.Utf8Host;
 import org.speckitty.missionstatus.testsupport.http.HttpHarness;
 
 /**
@@ -100,8 +101,14 @@ public final class MissionDetailServedRoute implements ServedRoute {
     return DetailFixture.of(source);
   }
 
-  /** Writes a text file below a Mission directory of the tree, creating the directories. */
+  /**
+   * Writes a text file below a Mission directory of the tree, creating the directories. A non-ASCII {@code relative} name cannot be created on a
+   * host that does not decode file names as UTF-8 (D-128): the calling test is then skipped and the not-run recorded, never failed.
+   */
   public static void write(Path root, String mission, String relative, String text) {
+    if (!StandardCharsets.US_ASCII.newEncoder().canEncode(relative)) {
+      Utf8Host.assumeUtf8("MissionDetailServedRoute.write " + relative);
+    }
     Path file = root.resolve("kitty-specs").resolve(mission).resolve(relative);
     try {
       Files.createDirectories(file.getParent());
