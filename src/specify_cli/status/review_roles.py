@@ -13,6 +13,10 @@ projects its actor). The reducer's ``implementer_of_record`` snapshot slot is
 claim provenance (the ``planned -> claimed`` claimant), not an implementer
 authority; do not read it to decide who implemented a WP. (#5340)
 
+A migration seed (#6257) is never an implementing claim: its actor is a migration
+identity, never a person, so a work package whose only implementing events are
+seeds has no implementer authority and the guards fail closed.
+
 This is a pure leaf: it performs no I/O and reads only the events it is given
 (precedent: :mod:`specify_cli.status.review_claim_predicate`). Contract:
 ``kitty-specs/rework-is-not-an-override-01M3MQV6/contracts/ownership-role-allowance.md``.
@@ -22,7 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from specify_cli.status.models import Lane, StatusEvent, actor_identity_str
+from specify_cli.status.models import Lane, StatusEvent, actor_identity_str, is_migration_actor
 from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACTORS, _actor_key
 
 __all__ = ["is_latest_implementer", "latest_implementer_actor", "latest_implementer_event"]
@@ -46,6 +50,13 @@ def _is_reviewer_rework_verdict(event: StatusEvent) -> bool:
 
 
 def _qualifies(event: StatusEvent) -> bool:
+    """Whether ``event`` is an implementing claim by a real, non-generic actor.
+
+    A migration seed (:func:`is_migration_actor`, #6257) never qualifies, however
+    it is shaped: it restates history and is not governed work.
+    """
+    if is_migration_actor(event.actor):
+        return False
     if Lane(event.to_lane).value not in _IMPLEMENTING_LANES:
         return False
     if _is_reviewer_rework_verdict(event):
@@ -57,8 +68,8 @@ def latest_implementer_event(events: Sequence[StatusEvent], wp_id: str) -> Statu
     """Return ``wp_id``'s latest qualifying implementing claim event, or ``None``.
 
     Scans newest-first (append order) for the first event into
-    ``claimed``/``in_progress`` that is neither a reviewer rework verdict nor
-    made by a generic placeholder actor. Callers needing the full recorded
+    ``claimed``/``in_progress`` that is neither a reviewer rework verdict, nor
+    made by a generic placeholder actor, nor a migration seed (#6257). Callers needing the full recorded
     identity (not the tool-scoped key) read it from the returned event.
     """
     for event in reversed(events):
@@ -80,7 +91,7 @@ def latest_implementer_actor(events: Sequence[StatusEvent], wp_id: str) -> str |
 
 
 def is_latest_implementer(latest: str | None, actor: object) -> bool:
-    """Whether ``actor`` is the WP's implementer of record ``latest``.
+    """Whether ``actor`` is the WP's implementer authority ``latest``.
 
     ``latest`` is the result of :func:`latest_implementer_actor`. ``None``, empty,
     or a generic placeholder ``latest`` names no implementer and admits nothing;
