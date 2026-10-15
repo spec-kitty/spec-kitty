@@ -2128,3 +2128,25 @@ def test_repair_releases_mission_lock_on_error_paths(tmp_path: Path, monkeypatch
     assert result.status == "error"
     assert any("phase exploded" in e for e in result.validation_errors)
     assert _lock_is_free(tmp_path, key)
+
+
+def test_repair_refuses_to_empty_a_populated_log_when_every_row_is_dropped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#2376 backstop in ``_repair_events_phase``: an all-dropped canonicalization is an ``error``, never an emptied log.
+
+    No real classification reaches this today (the per-row guards fire first), so the canonicalization is stubbed to
+    drop every row without an error or a quarantine line; the backstop is the last defence.
+    """
+    from specify_cli.migration import mission_state
+
+    mission = _legacy_mission(tmp_path)
+    _init_git_repo(tmp_path)
+    log = mission / "status.events.jsonl"
+    log_before = log.read_bytes()
+    assert log_before, "fixture precondition: a populated log"
+    monkeypatch.setattr(mission_state, "_canonicalize_status_rows", lambda *_a, **_k: ([], [], [], [], set()))
+
+    result = repair_repo(tmp_path).missions[0]
+
+    assert result.status == "error"
+    assert any("Refusing to empty" in e for e in result.validation_errors), result.validation_errors
+    assert log.read_bytes() == log_before

@@ -400,3 +400,20 @@ def test_lanes_rebuild_never_overwrites_a_concurrently_created_manifest(tmp_path
     assert json.loads(final_lanes)["computed_from"] == "concurrent-writer-b", "#5974: the repair overwrote a concurrently created lanes.json"
     assert LANES_REBUILT_ACTION not in result.meta_actions
     assert not any(change.path.endswith("lanes.json") for change in result.file_changes)
+
+
+def test_rebuild_turns_a_literal_owned_path_matching_nothing_into_a_repair_error(tmp_path: Path) -> None:
+    """``_write_rebuilt_lanes`` maps ``LaneGlobValidationError`` to ``MissionStateRepairError``: ``error``, no ``lanes.json``."""
+    feature_dir = _build_wedged_mission(tmp_path)
+    for wp_file in (feature_dir / "tasks").glob("WP*.md"):
+        text = wp_file.read_text(encoding="utf-8")
+        text = text.replace("src/wp01/**", "src/does-not-exist.py").replace("src/wp02/**", "src/also-missing.py")
+        wp_file.write_text(text, encoding="utf-8")
+
+    report = repair_repo(tmp_path, mission=_MISSION_SLUG)
+
+    result = next(m for m in report.missions if m.mission_slug == _MISSION_SLUG)
+    assert result.status == "error"
+    assert any("Cannot rebuild lanes.json" in e and "match zero files" in e for e in result.validation_errors), result.validation_errors
+    assert read_lanes_json(feature_dir) is None
+    assert LANES_REBUILT_ACTION not in result.meta_actions
