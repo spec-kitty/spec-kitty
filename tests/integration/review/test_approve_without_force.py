@@ -12,6 +12,10 @@ set to ``approved`` and confirms:
 3. When genuine drift blocks, the retry hint names ``approved`` (the caller's
    target lane), not a hard-coded ``for_review``.
 
+Cases 1 and 3 also run for a rejection (``--to planned``), the same guard on the
+other way out of review (formerly ``test_reject_without_force.py``), and a caller
+that names no target lane still gets the ``for_review`` hint.
+
 It also covers the ``ReviewLock.release()`` cleanup contract: after a
 successful release the parent ``.spec-kitty/`` directory is removed when it
 is empty.
@@ -146,10 +150,17 @@ def test_filter_preserves_non_denylisted_paths() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Approval (``approved``) and rejection back to ``planned`` share the guard; the
+# rejection case was test_reject_without_force.py until it was folded in here.
+LEAVING_REVIEW_LANES = pytest.mark.parametrize("target_lane", ["approved", "planned"])
+
+
+@LEAVING_REVIEW_LANES
 @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
 def test_approve_passes_without_force_when_only_spec_kitty_dirty(
     _mock_mission: Mock,
     lane_worktree_repo: tuple[Path, Path, str],
+    target_lane: str,
 ) -> None:
     repo, worktree, mission_slug = lane_worktree_repo
 
@@ -162,9 +173,9 @@ def test_approve_passes_without_force_when_only_spec_kitty_dirty(
         mission_slug=mission_slug,
         wp_id="WP01",
         force=False,
-        target_lane="approved",
+        target_lane=target_lane,
     )
-    assert is_valid is True, f"Guidance unexpectedly blocked approve: {guidance}"
+    assert is_valid is True, f"Guidance unexpectedly blocked the move to {target_lane}: {guidance}"
     assert guidance == []
 
 
@@ -222,10 +233,12 @@ def test_release_preserves_directory_with_other_content(
 # ---------------------------------------------------------------------------
 
 
+@LEAVING_REVIEW_LANES
 @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
 def test_genuine_drift_still_blocks_approve_and_retry_says_approved(
     _mock_mission: Mock,
     lane_worktree_repo: tuple[Path, Path, str],
+    target_lane: str,
 ) -> None:
     repo, worktree, mission_slug = lane_worktree_repo
 
@@ -238,7 +251,7 @@ def test_genuine_drift_still_blocks_approve_and_retry_says_approved(
         mission_slug=mission_slug,
         wp_id="WP01",
         force=False,
-        target_lane="approved",
+        target_lane=target_lane,
     )
 
     assert is_valid is False, "Genuine uncommitted source code must still block (C-004)"
@@ -246,5 +259,30 @@ def test_genuine_drift_still_blocks_approve_and_retry_says_approved(
     assert "uncommitted.py" in joined, f"Real drift file must be named in guidance:\n{joined}"
     assert ".spec-kitty/" not in joined, "Runtime-state paths must be filtered out of guidance"
     # FR-015 retry text parameterized on target_lane
-    assert "--to approved" in joined
+    assert f"--to {target_lane}" in joined
     assert "--to for_review" not in joined
+
+
+# ---------------------------------------------------------------------------
+# Backward compatibility: a caller that names no target_lane gets the
+# for_review retry hint.
+# ---------------------------------------------------------------------------
+
+
+@patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
+def test_default_target_lane_is_for_review(
+    _mock_mission: Mock,
+    lane_worktree_repo: tuple[Path, Path, str],
+) -> None:
+    _, worktree, mission_slug = lane_worktree_repo
+    (worktree / "drift.py").write_text("# drift\n")
+
+    is_valid, guidance = _validate_ready_for_review(
+        repo_root=worktree,
+        mission_slug=mission_slug,
+        wp_id="WP01",
+        force=False,
+    )
+    assert is_valid is False
+    joined = "\n".join(guidance)
+    assert "--to for_review" in joined

@@ -11,6 +11,12 @@ printing the contradictory pair "No active merge state to abort." followed by
 Post-fix: a git-level merge abort only ever runs when active spec-kitty merge
 state exists, scoped to that mission's own merge workspace -- never
 ``repo_root`` -- and messaging is internally consistent (FR-005/FR-006).
+
+The red-first #4754 case (no spec-kitty state: the operator's own merge
+survives ``consolidate --abort``) moved to
+``tests/scenarios/consolidate/abort.feature``, which drives the built CLI
+(ADR 2026-10-15-1; row in ``tests/scenarios/absorption-ledger.json``). The
+parity cases below need fabricated merge state (``save_state``) and stay here.
 """
 
 from __future__ import annotations
@@ -69,49 +75,6 @@ def _create_conflicting_merge(repo_root: Path, base_branch: str) -> None:
     merge_result = _git("merge", "incoming", cwd=repo_root)
     assert merge_result.returncode != 0, "expected a real conflict"
     assert (repo_root / ".git" / "MERGE_HEAD").exists()
-
-
-class TestAbortNeverTouchesRepoRootWithoutSpecKittyState:
-    """T017: red-first #4754 -- the operator's own merge must survive --abort."""
-
-    def test_abort_preserves_users_in_progress_merge_when_no_spec_kitty_state(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        """No spec-kitty merge state anywhere: --abort must not touch repo_root.
-
-        Pre-fix this was RED: ``_dispatch_abort`` ran ``git merge --abort`` in
-        ``repo_root`` unconditionally, destroying the operator's own conflict
-        resolution and the MERGE_HEAD marker, while still printing "No active
-        merge state to abort." -- a contradictory pair with "Aborted
-        in-progress git merge.".
-        """
-        branch = _init_repo(tmp_path)
-        _create_conflicting_merge(tmp_path, branch)
-
-        merge_head_path = tmp_path / ".git" / "MERGE_HEAD"
-        merge_head_sha_before = merge_head_path.read_text(encoding="utf-8")
-        conflicted_contents_before = (tmp_path / "file.txt").read_text(encoding="utf-8")
-        assert "<<<<<<<" in conflicted_contents_before
-
-        monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
-        monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
-
-        _dispatch_abort(tmp_path, None)
-
-        output = capsys.readouterr().out
-        # The genuine bug: MERGE_HEAD destroyed and the operator's conflict
-        # resolution work wiped out.
-        assert merge_head_path.exists(), "spec-kitty merge --abort destroyed the operator's own in-progress git merge (#4754 regression)"
-        assert merge_head_path.read_text(encoding="utf-8") == merge_head_sha_before
-        assert (tmp_path / "file.txt").read_text(encoding="utf-8") == conflicted_contents_before
-
-        # FR-006: messaging must be internally consistent -- never claim an
-        # abort happened when nothing was aborted.
-        assert "No active merge state to abort." in output
-        assert "Aborted in-progress git merge" not in output
 
 
 class TestAbortActiveStateParity:

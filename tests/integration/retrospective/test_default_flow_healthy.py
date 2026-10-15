@@ -132,3 +132,13 @@ def test_default_flow_healthy_writes_record_and_emits_captured(tmp_path: Path) -
 
     # (e) provenance_kind matches what we passed.
     assert captured.get("provenance_kind") == "runtime_post_completion"
+
+    # (f) Every retrospective event carries policy_source, and with no charter or
+    # config present every one of its values is '<default>' (T021).
+    retro_events = [e for e in events if str(e.get("type", "")).startswith("Retrospective")]
+    for event in retro_events:
+        policy_source = event.get("policy_source")
+        assert policy_source, f"policy_source must be non-empty on {event.get('type')}"
+        assert set(policy_source.values()) == {"<default>"}, (
+            f"Expected only '<default>' policy sources with no config on {event.get('type')}; got {policy_source!r}"
+        )

@@ -73,36 +73,6 @@ def _prepare_setup_plan_inputs(repo: Path, feature_dir: Path) -> None:
 class TestFullCLIWorkflow:
     """Exercise the complete spec-kitty CLI workflow end-to-end."""
 
-    def test_create_feature(self, e2e_project: Path, run_cli) -> None:
-        """Step 1: mission create produces a mission directory and spec.md."""
-        result = run_cli(
-            e2e_project,
-            "agent",
-            "mission",
-            "create",
-            "smoke-test",
-            "--json",
-        )
-        assert result.returncode == 0, f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-
-        output = json.loads(result.stdout)
-        assert output["result"] == "success"
-        assert "smoke-test" in output["mission_slug"]
-
-        feature_dir = Path(output["feature_dir"])
-        assert feature_dir.exists(), f"Feature dir missing: {feature_dir}"
-        assert (feature_dir / "spec.md").exists(), "spec.md not created"
-        assert (feature_dir / "tasks").is_dir(), "tasks/ directory not created"
-
-        # No execution (lane) worktree is created during planning. Since #5440 a
-        # coordination-routed create seeds the status log in the mission's
-        # coordination worktree, which is the only worktree allowed here.
-        worktrees_dir = e2e_project / ".worktrees"
-        if worktrees_dir.exists():
-            allowed = {f"{output['mission_slug']}-coord"} if output.get("coordination_branch") else set()
-            unexpected = [path.name for path in worktrees_dir.iterdir() if path.name not in allowed]
-            assert unexpected == [], f"Worktree created during mission creation: {unexpected}"
-
     def test_setup_plan(self, e2e_project: Path, run_cli) -> None:
         """Step 2: setup-plan produces plan.md in feature directory."""
         # Create feature first
@@ -199,35 +169,6 @@ class TestFullCLIWorkflow:
         )
         assert result.returncode == 0, result.stderr
         assert (feature_dir / "plan.md").read_bytes() == plan_bytes
-
-    def test_documentation_mission_create_resolves_authored_template(
-        self,
-        e2e_project: Path,
-        run_cli,
-    ) -> None:
-        """documentation is creatable end-to-end: its authored spec mapping
-        resolves and a mission directory is materialised (#2689).
-
-        Before the mission-step-creatability slice this ``create`` failed closed
-        ("has no configured template mapping") because the shipped type carried a
-        null spec mapping; it now resolves the per-type authored template.
-        """
-        result = run_cli(
-            e2e_project,
-            "agent",
-            "mission",
-            "create",
-            "documentation-template-smoke",
-            "--mission-type",
-            "documentation",
-            "--json",
-        )
-
-        assert result.returncode == 0, f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        output = json.loads(result.stdout)
-        assert output["result"] == "success"
-        assert "documentation-template-smoke" in output["mission_slug"]
-        assert any(path.name.startswith("documentation-template-smoke-") for path in (e2e_project / "kitty-specs").glob("*"))
 
     def test_full_workflow_sequence(self, e2e_project: Path, run_cli) -> None:
         """Full mission create -> setup-plan -> finalize-tasks -> implement -> move-task.
@@ -499,47 +440,3 @@ Create a hello module.
         assert "spec" in log_text, "spec commit missing from git log"
         assert "plan" in log_text, "plan commit missing from git log"
         assert "tasks" in log_text or "finalize" in log_text, "tasks/finalize commit missing from git log"
-
-
-@pytest.mark.e2e
-class TestWorkflowEdgeCases:
-    """Edge case tests for the CLI workflow."""
-
-    def test_create_feature_rejects_bad_slug(self, e2e_project: Path, run_cli) -> None:
-        """mission create rejects non-kebab-case slugs."""
-        result = run_cli(
-            e2e_project,
-            "agent",
-            "mission",
-            "create",
-            "Bad_Slug",
-            "--json",
-        )
-        assert result.returncode != 0, "Should reject non-kebab-case slug"
-        # The JSON output may contain Rich console formatting escape codes,
-        # so we check the raw text for the error indicator rather than parsing JSON.
-        combined = result.stdout + result.stderr
-        assert "error" in combined.lower() or "invalid" in combined.lower(), (
-            f"Expected error message in output, got:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
-
-    def test_setup_plan_requires_feature(self, e2e_project: Path, run_cli) -> None:
-        """setup-plan fails gracefully when no feature exists."""
-        result = run_cli(
-            e2e_project,
-            "agent",
-            "mission",
-            "setup-plan",
-            "--json",
-        )
-        # Should fail because no feature exists yet
-        assert result.returncode != 0, "setup-plan should fail when no feature exists"
-
-    def test_implement_requires_existing_wp(self, e2e_project: Path, run_cli) -> None:
-        """implement fails gracefully when WP does not exist."""
-        result = run_cli(
-            e2e_project,
-            "implement",
-            "WP99",
-        )
-        assert result.returncode != 0, "implement should fail for non-existent WP"

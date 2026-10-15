@@ -946,7 +946,7 @@ special_tiers:
       - {path: tests/architectural/test_pytest_ini_timeout_default.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_makefile_tier_topology.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
       - {path: tests/architectural/test_workflow_coherence.py, budget_seconds: 10, reason: "CI-config wiring verdict"}
-      - {path: tests/architectural/test_scenario_contract.py, budget_seconds: 10, reason: "per-PR scenario contract: .feature parse, tag vocabulary, step binding against the Java step definitions (no JDK); static, measured well under 5 s"}
+      - {path: tests/architectural/test_scenario_contract.py, budget_seconds: 10, reason: "per-PR scenario contract: .feature parse, tag vocabulary, step binding against the Java step definitions (no JDK), the absorption ledger and the CODEOWNERS ownership rules (ADR 2026-10-15-1); static, measured well under 5 s"}
       - {path: tests/architectural/test_dead_symbol_allowlist_loader.py, budget_seconds: 10, reason: "schema gate over the committed dead_symbol_allowlist.yaml (L1-L10 + real-file invariants); post-census file, measured 0.7 s / 47 tests single-file on 2026-10-01; never walks src/"}
       - {path: tests/architectural/test_battery_partition_proof.py, budget_seconds: 10, reason: "static three-way partition proof (FR-004); no collection, must gate every battery change"}
     shards:

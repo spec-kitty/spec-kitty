@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 import ulid as _ulid_mod
 
@@ -34,7 +34,7 @@ def _scaffold_minimal_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, 
     return feature_dir, mission_id
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_emit_skipped_rejects_empty_reason(tmp_path: Path) -> None:
     """emit_skipped raises ValueError when skip_reason is empty string."""
     from specify_cli.retrospective.lifecycle_events import emit_skipped, Actor
@@ -58,7 +58,7 @@ def test_emit_skipped_rejects_empty_reason(tmp_path: Path) -> None:
         )
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_emit_skipped_rejects_whitespace_only_reason(tmp_path: Path) -> None:
     """emit_skipped raises ValueError when skip_reason is whitespace only."""
     from specify_cli.retrospective.lifecycle_events import emit_skipped, Actor

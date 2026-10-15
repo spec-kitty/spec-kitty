@@ -37,7 +37,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import mission_type
@@ -166,54 +165,6 @@ def _run_discard(repo: Path) -> None:
 def _porcelain_paths(repo: Path) -> list[str]:
     out = _git(repo, "status", "--porcelain").stdout
     return [line[3:] for line in out.splitlines() if line.strip()]
-
-
-def test_close_discard_commits_meta_flatten(coord_mission: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Defect 1: after ``--discard`` reports success, its own ``meta.json``
-    flatten is committed — the WHOLE working tree is clean, not just
-    ``meta.json`` in isolation.
-
-    (squad) Strengthened from a ``meta.json``-only check to a whole-tree
-    ``git status --porcelain`` empty assertion: the retrospective the discard
-    path persists (``retrospective.yaml``, pinned by
-    ``test_teardown_seam_persist_before_destroy``) is written to the SAME
-    working tree by the SAME command invocation, so a narrower check that
-    only inspects ``meta.json`` would miss an uncommitted retrospective write
-    landing alongside it. A real spec-kitty project's own ambient
-    ``.kittify/sync-state.json`` is gitignored by the fixture above so it
-    cannot produce a false positive here.
-    """
-    repo = coord_mission
-    monkeypatch.chdir(repo)
-
-    _run_discard(repo)
-
-    dirty = _porcelain_paths(repo)
-    assert dirty == [], (
-        "issue #3716 defect 1 (squad-strengthened): `mission close --discard` "
-        "reported success but left the working tree dirty — either its own "
-        "meta.json flatten, or the retrospective it persists alongside it, is "
-        f"uncommitted. git status --porcelain: {dirty!r}"
-    )
-
-
-def test_close_discard_retrospective_provenance_is_abandoned(coord_mission: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Defect 2: the retrospective persisted by ``--discard`` is stamped with
-    abandonment provenance, never completion provenance.
-    """
-    repo = coord_mission
-    monkeypatch.chdir(repo)
-
-    _run_discard(repo)
-
-    retro_path = repo / "kitty-specs" / SLUG / "retrospective.yaml"
-    assert retro_path.exists(), "the discard path is expected to persist a retrospective (pinned by test_teardown_seam_persist_before_destroy)"
-    data = yaml.safe_load(retro_path.read_text(encoding="utf-8"))
-    kind = (data.get("provenance") or {}).get("kind")
-    assert kind != _COMPLETION_PROVENANCE_KIND, f"issue #3716 defect 2: a discarded/abandoned mission must NOT be stamped with completion provenance ({kind!r})."
-    assert kind == _ABANDONED_PROVENANCE_KIND, (
-        f"issue #3716 defect 2: the discard leg must stamp the abandonment provenance kind {_ABANDONED_PROVENANCE_KIND!r}; got {kind!r}."
-    )
 
 
 @pytest.mark.regression

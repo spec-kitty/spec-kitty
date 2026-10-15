@@ -27,7 +27,7 @@ from specify_cli.intake.scanner import (
 )
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _peak_rss_bytes() -> int:

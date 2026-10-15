@@ -36,7 +36,7 @@ from runtime.next._internal_runtime.schema import (
 )
 from runtime.next._internal_runtime.events import NullEmitter
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 # ---------------------------------------------------------------------------

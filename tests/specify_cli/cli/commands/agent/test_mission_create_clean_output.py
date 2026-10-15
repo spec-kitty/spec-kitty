@@ -1,4 +1,4 @@
-"""E2E contract test for ``agent mission create --json`` clean output.
+"""Contract test for ``agent mission create --json`` clean output (moved from tests/e2e: it runs in-process).
 
 This test verifies the FR-008 / FR-009 contract IN-PROCESS rather than
 shelling out to the installed ``spec-kitty`` binary, because the
@@ -38,7 +38,7 @@ from specify_cli.diagnostics import (
 )
 
 
-pytestmark = [pytest.mark.e2e]
+pytestmark = [pytest.mark.unit]
 
 ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE)
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
@@ -127,30 +127,3 @@ def test_invocation_success_flag_round_trips() -> None:
     assert invocation_succeeded() is True
 
 
-def test_no_red_ansi_after_success_marker(capsys: pytest.CaptureFixture[str]) -> None:
-    """If success was marked, downstream code that respects the gate
-    must not emit any red ANSI to stderr.
-
-    This test asserts the discipline at the contract layer: after
-    ``mark_invocation_succeeded()`` is called, no further ``[red]`` or
-    raw ANSI red escapes should land on stderr from any of our
-    cooperating modules. Since this is an in-process unit, we simulate
-    the post-success state and assert that the well-behaved gate
-    produces clean stderr.
-    """
-    import sys
-
-    mark_invocation_succeeded()
-
-    # Simulate the post-success shutdown path: no red lines should be
-    # written. This stands in for "no atexit warning paints red on
-    # stderr after the JSON payload."
-    if not invocation_succeeded():
-        # Failure path — would emit a red warning.
-        print("[red]Shutdown error[/red]", file=sys.stderr)
-
-    captured = capsys.readouterr()
-    assert not ANSI_RED_RE.search(captured.err), (
-        f"Found red styling on stderr after mark_invocation_succeeded():\n"
-        f"{captured.err}"
-    )

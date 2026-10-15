@@ -190,6 +190,13 @@ def test_teardown_prunes_stale_missing_registration(
 def test_teardown_does_not_delete_branch(
     repo_with_coord_branch: Path,
 ) -> None:
+    def head() -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo_with_coord_branch), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    head_before = head()
     CoordinationWorkspace.resolve(
         repo_with_coord_branch, MISSION_SLUG, MID8,
     )
@@ -203,6 +210,8 @@ def test_teardown_does_not_delete_branch(
         capture_output=True, text=True,
     )
     assert result.returncode == 0
+    # Tearing the coordination worktree down never moves the primary checkout's branch.
+    assert head() == head_before
 
 
 def test_is_present(repo_with_coord_branch: Path) -> None:

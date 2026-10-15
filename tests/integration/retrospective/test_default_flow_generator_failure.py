@@ -97,3 +97,8 @@ def test_default_flow_generator_failure_emits_capture_failed(
     failed = failed_events[0]
     assert failed.get("policy_source"), "policy_source must be non-empty on CaptureFailed"
     assert failed.get("failure_category") == "missing_artifacts"
+
+    # Every retrospective event emitted on the failure path carries policy_source (T021).
+    for event in events:
+        if str(event.get("type", "")).startswith("Retrospective"):
+            assert event.get("policy_source"), f"policy_source empty on {event.get('type')}: {event}"

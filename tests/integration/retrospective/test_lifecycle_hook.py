@@ -41,6 +41,7 @@ from specify_cli.retrospective.schema import (
     RecordProvenance,
     RetrospectiveRecord,
 )
+from specify_cli.retrospective.reader import read_record
 from specify_cli.retrospective.writer import write_record  # noqa: F401 (used by fixture comment)
 
 # ---------------------------------------------------------------------------
@@ -248,9 +249,12 @@ def test_hic_operator_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert requested_event["actor"]["kind"] == "human"
     assert requested_event["actor"]["id"] == _HUMAN_ACTOR.id
 
-    # Record persisted.
+    # Record persisted, as the completed record of this mission.
     canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), "Record was not persisted"
+    persisted = read_record(canonical)
+    assert persisted.status == "completed"
+    assert persisted.mission.mission_id == _MISSION_ID
 
 
 # ---------------------------------------------------------------------------
@@ -293,14 +297,15 @@ def test_hic_operator_skips(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     # Persisted record must have status=skipped with skip_reason.
     canonical = feature_dir / "retrospective.yaml"
     assert canonical.exists(), "Skipped record was not persisted"
-    from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
     persisted = read_record(canonical)
     assert persisted.status == "skipped"
     assert persisted.skip_reason == skip_reason
+    assert persisted.mission.mission_id == _MISSION_ID
 
     # requested event must carry human actor.
     requested_event = events[0]
     assert requested_event["actor"]["kind"] == "human"
+    assert requested_event["actor"]["id"] == _HUMAN_ACTOR.id
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +368,6 @@ def test_hic_skip_empty_reason_loops(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     # Persisted record has non-empty skip_reason.
     canonical = feature_dir / "retrospective.yaml"
-    from specify_cli.retrospective.reader import read_record  # noqa: PLC0415
     persisted = read_record(canonical)
     assert persisted.skip_reason == "low-value fix"
 

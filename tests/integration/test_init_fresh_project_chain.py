@@ -7,11 +7,10 @@ in ``.kittify/metadata.yaml``. Downstream commands (``charter setup``,
 failed with a "missing schema" error on a fresh project, forcing operators
 to hand-edit the YAML.
 
-This test exercises the actual ``init`` command via Typer's ``CliRunner`` (the
-same surface used in ``tests/specify_cli/cli/commands/test_init_integration.py``)
-to prove the schema stamp lands inside the real init pipeline. It then runs
-the schema compatibility gate against the resulting project to prove the
-fresh project chain is unblocked end-to-end without any operator edit.
+The end-to-end promise (a fresh project runs ``next`` without hand-editing)
+moved to ``tests/scenarios/init/init.feature``, which runs the built CLI after a
+real ``init`` (ADR 2026-10-15-1; row in ``tests/scenarios/absorption-ledger.json``).
+What stays here re-invokes the private stamp helper to pin that it is additive.
 """
 
 from __future__ import annotations
@@ -75,58 +74,6 @@ def _run(app: Typer, args: list[str]) -> object:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
-
-def test_init_then_next_no_missing_schema_error(
-    cli_app: tuple[Typer, Console],
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """A fresh project produced by ``init`` passes the schema gate.
-
-    Concretely: after init, ``get_project_schema_version`` returns the
-    canonical version and ``check_compatibility`` reports COMPATIBLE — the
-    exact gate that previously fired the "missing schema" / "Project requires
-    migration" error on fresh projects (issue #840).
-    """
-    app, _console = cli_app
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        init_module, "get_local_repo_root", lambda override_path=None: None
-    )
-    monkeypatch.setattr(
-        init_module, "copy_specify_base_from_package", _fake_copy_package
-    )
-
-    result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
-
-    assert result.exit_code == 0, getattr(result, "output", "")
-    metadata_path = tmp_path / ".kittify" / "metadata.yaml"
-    assert metadata_path.exists(), "init should have produced .kittify/metadata.yaml"
-
-    # Read via plain yaml — exactly what downstream consumers do.
-    data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
-    assert isinstance(data, dict)
-    spec_kitty = data["spec_kitty"]
-    assert isinstance(spec_kitty, dict)
-
-    # Both stamp fields are present and equal to the canonical values.
-    assert spec_kitty["schema_version"] == CURRENT_SCHEMA_VERSION
-    assert (
-        dict(spec_kitty["schema_capabilities"]) == CURRENT_SCHEMA_CAPABILITIES
-    )
-
-    # The downstream gate is satisfied without hand-editing.
-    project_version = get_project_schema_version(tmp_path)
-    assert project_version == CURRENT_SCHEMA_VERSION
-    compat = check_compatibility(project_version, CURRENT_SCHEMA_VERSION)
-    assert compat.is_compatible, (
-        f"fresh project must pass the schema gate; got {compat.status}: {compat.message}"
-    )
-    assert compat.exit_code == 0
-    # The pre-fix message that used to fire here was about a missing schema.
-    assert "missing schema" not in compat.message.lower()
-    assert "requires migration" not in compat.message.lower()
 
 
 def test_init_is_idempotent_for_schema_stamp(

@@ -348,6 +348,23 @@ class TestWarnOnce:
         assert str(tmp_path) in msg
         assert "spec-kitty doctor sparse-checkout --fix" in msg
 
+    def test_first_command_label_wins_across_call_sites(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Many CLI surfaces in one process: one warning, labelled with the first caller."""
+        _init_git_repo(tmp_path)
+        _enable_sparse_config(tmp_path)
+        caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
+
+        for command in ("implement", "merge", "review", "accept", "tasks:move-task", "doctor"):
+            warn_if_sparse_once(tmp_path, command=command)
+
+        marker_hits = [
+            r for r in caplog.records if "spec_kitty.sparse_checkout.detected" in r.getMessage()
+        ]
+        assert len(marker_hits) == 1
+        assert "command=implement" in marker_hits[0].getMessage()
+
     def test_no_emit_on_clean_repo(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:

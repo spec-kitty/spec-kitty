@@ -21,7 +21,6 @@ owns:
   - tests/cross_cutting/misc/test_gitignore_manager_simple.py
   - tests/cross_cutting/misc/test_performance.py
   - tests/cross_cutting/test_gitignore_manager_unit.py
-  - tests/e2e/test_feature_alias_smoke.py
   - tests/glossary/bench_chokepoint.py
   - tests/glossary/test_import_paths.py
   - tests/init/test_fresh_clone_no_sync.py

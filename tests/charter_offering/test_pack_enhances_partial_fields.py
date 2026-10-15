@@ -21,7 +21,7 @@ import pytest
 from charter.offering.tactics.models import Tactic, TacticStep
 from charter.offering.tactics.repository import TacticRepository
 
-pytestmark = [pytest.mark.integration, pytest.mark.doctrine]
+pytestmark = [pytest.mark.unit, pytest.mark.doctrine]
 
 
 # ---------------------------------------------------------------------------

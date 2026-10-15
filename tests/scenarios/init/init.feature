@@ -2,7 +2,10 @@
 # - Each scenario restates a promise from `spec-kitty init --help`
 #   (src/specify_cli/cli/commands/init_help.py, INIT_COMMAND_DOC).
 # - Steps follow Arrange / Assume / Act / Assert; see tests/scenarios/README.md.
-# - Untagged, so both scenarios run in the gating nightly.
+# - The third scenario absorbs tests/integration/test_init_fresh_project_chain.py
+#   (test_init_then_next_no_missing_schema_error, #840); see tests/scenarios/absorption-ledger.json.
+#   Every non-exempt command passes the project schema gate first, so `next` succeeding is the check.
+# - Untagged, so every scenario runs in the gating nightly.
 
 Feature: Set up Spec Kitty in a repository
   As a developer adopting Spec Kitty
@@ -31,3 +34,13 @@ Feature: Set up Spec Kitty in a repository
     And no ".git" folder exists in "app"
     And the repository HEAD is unchanged
     And the repository has no new commits
+
+  Scenario: A freshly set up project works with the next command without hand-editing
+    Given a project with a mission "demo-mission"
+    When I run "spec-kitty next --agent claude --mission demo-mission --json"
+    Then the command succeeds
+    And the JSON field "kind" of the output is "query"
+    And the output does not mention "requires migration"
+    And the output does not mention "missing schema"
+    And the file ".kittify/metadata.yaml" mentions "schema_version:"
+    And the file ".kittify/metadata.yaml" mentions "schema_capabilities:"

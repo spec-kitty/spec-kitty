@@ -33,3 +33,12 @@
 
 # The Mission Status API service tree (a standalone Gradle build; see services/mission-status-api/).
 /services/mission-status-api/ @stijn-dejongh @MOES-Media
+
+# Acceptance scenarios (ADR 2026-10-15-1). The Gherkin scenarios, the absorption ledger beside them
+# and the scenario-writing guide are shared by QA (spec-kitty-qa) and core: a scenario change asks
+# both for review. The Cucumber-JVM runner, its step definitions and its driver are engineering code,
+# owned by core. tests/architectural/test_scenario_contract.py checks these rules.
+/tests/scenarios/ @stijn-dejongh @kentonium3 @Ivan-Melck
+/docs/development/testing/acceptance-scenarios.md @stijn-dejongh @kentonium3 @Ivan-Melck
+/docs/development/testing/test-pyramid-rebalance.md @stijn-dejongh @kentonium3 @Ivan-Melck
+/acceptance-jvm/ @stijn-dejongh

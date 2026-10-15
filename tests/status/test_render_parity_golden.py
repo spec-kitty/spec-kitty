@@ -29,7 +29,7 @@ from specify_cli.status.reducer import reduce as reduce_snapshot
 from specify_cli.status.store import append_event, read_event_stream
 from specify_cli.task_utils.support import activity_entries
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 _MISSION_SLUG = "001-render-parity"
 _WP_ID = "WP01"

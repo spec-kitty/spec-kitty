@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "description": "Engineering tests retired from tests/integration and tests/e2e, and what now carries their coverage. Checked on every pull request by tests/architectural/test_scenario_contract.py (scripts/ci/absorption_ledger.py). See ADR 2026-10-15-1 and docs/development/testing/test-pyramid-rebalance.md.",
+  "baseline": {
+    "captured_at": "2026-10-15",
+    "commit": "f87ecb8a21",
+    "roots": [
+      "tests/integration",
+      "tests/e2e"
+    ],
+    "files": [
+      "tests/e2e/test_charter_epic_golden_path.py",
+      "tests/e2e/test_cli_smoke.py",
+      "tests/e2e/test_coord_status_off_target_lifecycle.py",
+      "tests/e2e/test_feature_alias_smoke.py",
+      "tests/e2e/test_mission_create_clean_output.py",
+      "tests/e2e/test_upgrade_post_state.py",
+      "tests/e2e/test_worktree_owned_root_concurrency.py",
+      "tests/integration/git/test_safe_commit_backstop.py",
+      "tests/integration/migration/test_audit_primary_anchor.py",
+      "tests/integration/migration/test_audit_trail_durability_4928.py",
+      "tests/integration/migration/test_canonicalization_pipeline.py",
+      "tests/integration/migration/test_lifecycle_events_preserved.py",
+      "tests/integration/migration/test_mission_state_repair_fidelity_e2e.py",
+      "tests/integration/migration/test_noop_upgrade_leaves_history_untouched.py",
+      "tests/integration/migration/test_repair_normalizes_change_mode.py",
+      "tests/integration/migration/test_repair_primary_anchor.py",
+      "tests/integration/migration/test_residue_dir_not_treated_as_mission.py",
+      "tests/integration/migration/test_wp03_advance_to_approval.py",
+      "tests/integration/retrospective/test_autonomous_terminus_e2e.py",
+      "tests/integration/retrospective/test_default_flow_generator_failure.py",
+      "tests/integration/retrospective/test_default_flow_healthy.py",
+      "tests/integration/retrospective/test_hic_terminus_e2e.py",
+      "tests/integration/retrospective/test_lifecycle_hook.py",
+      "tests/integration/retrospective/test_next_mission_sees_change.py",
+      "tests/integration/retrospective/test_opt_out.py",
+      "tests/integration/retrospective/test_policy_source_attribution.py",
+      "tests/integration/retrospective/test_silent_auto_run_blocked.py",
+      "tests/integration/retrospective/test_silent_skip_blocked.py",
+      "tests/integration/retrospective/test_strict_flow_block.py",
+      "tests/integration/retrospective/test_strict_flow_skip_empty_reason_rejected.py",
+      "tests/integration/retrospective/test_strict_flow_skip.py",
+      "tests/integration/retrospective/test_wp04_coverage_branches.py",
+      "tests/integration/review/test_approve_without_force.py",
+      "tests/integration/review/test_canonical_review_diff_refs.py",
+      "tests/integration/review/test_reject_from_in_review.py",
+      "tests/integration/review/test_reject_without_force.py",
+      "tests/integration/review/test_verdict_save_topologies.py",
+      "tests/integration/sparse_checkout/test_detection.py",
+      "tests/integration/sparse_checkout/test_doctor_finding.py",
+      "tests/integration/sparse_checkout/test_doctor_non_interactive.py",
+      "tests/integration/sparse_checkout/test_implement_preflight_blocks.py",
+      "tests/integration/sparse_checkout/test_merge_preflight_blocks.py",
+      "tests/integration/sparse_checkout/test_merge_refresh_and_invariant.py",
+      "tests/integration/sparse_checkout/test_merge_with_allow_override.py",
+      "tests/integration/sparse_checkout/test_remediation_primary_and_worktrees.py",
+      "tests/integration/sparse_checkout/test_remediation_primary.py",
+      "tests/integration/sparse_checkout/test_remediation_refuses_on_dirty.py",
+      "tests/integration/sparse_checkout/test_session_warning_once.py",
+      "tests/integration/test_2646_stale_verdict_closes_via_fr001.py",
+      "tests/integration/test_2939_move_task_clean_tree_after_rejection.py",
+      "tests/integration/test_ac5_hash_guard.py",
+      "tests/integration/test_accept_matrix_coord_partition.py",
+      "tests/integration/test_agent_identity_prompt.py",
+      "tests/integration/test_analysis_template_mirrors.py",
+      "tests/integration/test_branch_strategy_gate.py",
+      "tests/integration/test_catalog_miss_cli_visibility.py",
+      "tests/integration/test_charter_lint_lints_all_layers.py",
+      "tests/integration/test_charter_status_freshness.py",
+      "tests/integration/test_charter_status_reports_three_layers.py",
+      "tests/integration/test_charter_synthesize_built_in_only.py",
+      "tests/integration/test_charter_synthesize_fresh.py",
+      "tests/integration/test_clean_install_next.py",
+      "tests/integration/test_cli_status_mediation.py",
+      "tests/integration/test_colliding_mission_flow.py",
+      "tests/integration/test_consolidate_upgraded_mission_recovery.py",
+      "tests/integration/test_coord_loop_depgraph.py",
+      "tests/integration/test_coord_loop_tasks.py",
+      "tests/integration/test_coord_loop_workflow.py",
+      "tests/integration/test_coord_loop_workspace.py",
+      "tests/integration/test_coord_read_residuals_proof.py",
+      "tests/integration/test_coord_single_home_workflow.py",
+      "tests/integration/test_coord_topology_smoke.py",
+      "tests/integration/test_coord_unprotected_lifecycle_loop.py",
+      "tests/integration/test_custom_mission_runtime_walk.py",
+      "tests/integration/test_deferral_enforcement_and_disclosure.py",
+      "tests/integration/test_documentation_runtime_walk.py",
+      "tests/integration/test_dossier_snapshot_no_self_block.py",
+      "tests/integration/test_explicit_checkout_commands.py",
+      "tests/integration/test_fail_loud_uninitialized_repo.py",
+      "tests/integration/test_handoff_lane_read_coord.py",
+      "tests/integration/test_identity_coord_read.py",
+      "tests/integration/test_implement_review_flow.py",
+      "tests/integration/test_implement_review_retrospect_smoke.py",
+      "tests/integration/test_init_fresh_project_chain.py",
+      "tests/integration/test_intake_atomic_writes.py",
+      "tests/integration/test_intake_size_cap.py",
+      "tests/integration/test_internal_runtime_engine.py",
+      "tests/integration/test_is_committed_contract.py",
+      "tests/integration/test_issue_2404_acceptance_matrix_write_surface.py",
+      "tests/integration/test_issue_3716_discard_transactional_close_guard.py",
+      "tests/integration/test_issue_3784_coord_tasks_md_primary_bundle_guard.py",
+      "tests/integration/test_issue_4765_close_guard.py",
+      "tests/integration/test_issue_4863_merge_abort_no_state.py",
+      "tests/integration/test_issue_verdict_concurrent_lock.py",
+      "tests/integration/test_issue_verdict_coord_legacy_md_preservation.py",
+      "tests/integration/test_issue_verdict_selfmat_hardening.py",
+      "tests/integration/test_lane_db_isolation.py",
+      "tests/integration/test_lane_lifecycle_sync.py",
+      "tests/integration/test_lanes_core_coord_read.py",
+      "tests/integration/test_legacy_feature_alias.py",
+      "tests/integration/test_legacy_mission_fallback.py",
+      "tests/integration/test_merge_abort_scope.py",
+      "tests/integration/test_merge_cluster_coord_read.py",
+      "tests/integration/test_merge_gates_coord_per_leg.py",
+      "tests/integration/test_merge_lane_planning_data_loss.py",
+      "tests/integration/test_merge_lane_worktree_safety.py",
+      "tests/integration/test_merge_primary_checkout_safety.py",
+      "tests/integration/test_merge_resume.py",
+      "tests/integration/test_migration_backfill.py",
+      "tests/integration/test_mission_archiving.py",
+      "tests/integration/test_mission_close_discard_coord_teardown.py",
+      "tests/integration/test_mission_close_discard_single_branch.py",
+      "tests/integration/test_mission_close.py",
+      "tests/integration/test_mission_review_contract_gate.py",
+      "tests/integration/test_mission_run_command.py",
+      "tests/integration/test_mission_type_profile_live_wiring.py",
+      "tests/integration/test_mission_type_resolution_integration.py",
+      "tests/integration/test_monorepo_charter_scope.py",
+      "tests/integration/test_next_lifecycle_records.py",
+      "tests/integration/test_next_preview_primary_routing.py",
+      "tests/integration/test_org_pack_artifact_lifecycle.py",
+      "tests/integration/test_org_pack_chain_delivery.py",
+      "tests/integration/test_org_pack_missing_path_hard_fails.py",
+      "tests/integration/test_org_pack_subdir_e2e.py",
+      "tests/integration/test_owned_analysis_recording.py",
+      "tests/integration/test_owned_charter_generation.py",
+      "tests/integration/test_owned_checkout_mark_status.py",
+      "tests/integration/test_owned_decision_runtime_lock.py",
+      "tests/integration/test_owned_fixtures_selftest.py",
+      "tests/integration/test_owned_lifecycle_acceptance_cli.py",
+      "tests/integration/test_owned_lifecycle_acceptance_context.py",
+      "tests/integration/test_owned_lifecycle_acceptance_documentation.py",
+      "tests/integration/test_owned_lifecycle_acceptance_e2e.py",
+      "tests/integration/test_owned_lifecycle_acceptance_finalize.py",
+      "tests/integration/test_owned_lifecycle_acceptance_next.py",
+      "tests/integration/test_owned_lifecycle_acceptance_review.py",
+      "tests/integration/test_owned_lifecycle_acceptance_status.py",
+      "tests/integration/test_owned_map_requirements.py",
+      "tests/integration/test_owned_next_runtime.py",
+      "tests/integration/test_owned_pr_bound_finalization.py",
+      "tests/integration/test_owned_protected_single_branch.py",
+      "tests/integration/test_owned_research_placement.py",
+      "tests/integration/test_p0_pinning_regressions.py",
+      "tests/integration/test_p0_repro_5932_consolidate_canceled_dependency.py",
+      "tests/integration/test_p0_repro_5939_single_branch_autowalk.py",
+      "tests/integration/test_pack_enhances_partial_fields.py",
+      "tests/integration/test_pack_skill_lifecycle.py",
+      "tests/integration/test_placement_partition_golden_path.py",
+      "tests/integration/test_planning_artifact_wp.py",
+      "tests/integration/test_post_merge_custom_mission_loader.py",
+      "tests/integration/test_post_merge_index_refresh.py",
+      "tests/integration/test_post_merge_unrelated_untracked.py",
+      "tests/integration/test_pre30_layout_coord_husk_noop.py",
+      "tests/integration/test_prompt_builder_owned_arms.py",
+      "tests/integration/test_protected_primary_spec_commit.py",
+      "tests/integration/test_quickstart_end_to_end.py",
+      "tests/integration/test_refinalize_frozen_lane_refusals.py",
+      "tests/integration/test_refinalize_keeps_started_lanes.py",
+      "tests/integration/test_rejection_cycle.py",
+      "tests/integration/test_render_parity_golden.py",
+      "tests/integration/test_research_runtime_walk.py",
+      "tests/integration/test_review_cycle_rejection_only.py",
+      "tests/integration/test_review_durability_matrix.py",
+      "tests/integration/test_review_handoff.py",
+      "tests/integration/test_sc008_topology_resolution.py",
+      "tests/integration/test_single_branch_lane_preview.py",
+      "tests/integration/test_single_branch_write_checkout_e2e.py",
+      "tests/integration/test_slice_f_cross_axis.py",
+      "tests/integration/test_specify_plan_commit_boundary.py",
+      "tests/integration/test_status_emit_on_alloc_failure.py",
+      "tests/integration/test_surface_translation_seam.py",
+      "tests/integration/test_target_owned_fixtures_selftest.py",
+      "tests/integration/test_three_layer_drg_end_to_end.py",
+      "tests/integration/test_tool_artifact_owner.py",
+      "tests/integration/test_two_partition_preview.py",
+      "tests/integration/test_upgrade_live_lanes_cli.py",
+      "tests/integration/test_user_doctrine_artifact_lifecycle.py",
+      "tests/integration/test_workflow_sequence_runtime.py",
+      "tests/integration/test_worktree_topology_claim_base.py",
+      "tests/integration/test_wp_file_hash_stability.py",
+      "tests/integration/test_wp_integrity_checkout_identity.py",
+      "tests/integration/test_wp_integrity_crash_recovery.py",
+      "tests/integration/test_wp_integrity_cross_partition_scan.py",
+      "tests/integration/test_wp_integrity_p0_repro.py"
+    ]
+  },
+  "retired": [
+    {
+      "retired": "tests/integration/sparse_checkout/test_doctor_finding.py::test_doctor_clean_repo_no_sparse_finding",
+      "replaced_by": [
+        "tests/scenarios/doctor/sparse-checkout.feature::A project without sparse-checkout is reported clean"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (exit 0, the 'no legacy state' line, no finding) on a project made by a real `spec-kitty init` instead of a bare .kittify folder with a patched project-root lookup."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_doctor_finding.py::test_doctor_sparse_primary_emits_finding",
+      "replaced_by": [
+        "tests/scenarios/doctor/sparse-checkout.feature::Sparse-checkout in the project's own checkout is reported with the way to fix it"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: exit 1, finding header, core.sparseCheckout line, the primary path, the --fix pointer, no stale_claim. Sparse state built with plain git config plus git's pattern file, as before."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_doctor_finding.py::test_doctor_sparse_primary_and_worktrees_lists_all_paths",
+      "replaced_by": [
+        "tests/scenarios/doctor/sparse-checkout.feature::Every linked worktree with sparse-checkout is listed next to the project's own checkout"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: exit 1, 'Lane worktrees', both worktree paths and the primary path. Worktrees made with git worktree add and worktree-scoped config, as before."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_doctor_non_interactive.py::test_non_interactive_stdin_not_tty",
+      "replaced_by": [
+        "tests/scenarios/doctor/sparse-checkout.feature::Asking for the fix without a terminal points to the fix and changes nothing"
+      ],
+      "issue": 6101,
+      "note": "Stronger arrange: a real non-terminal stdin instead of a patched interactivity probe. Same assertions: exit 1, the --fix pointer as one line, core.sparseCheckout still true, pattern file byte-identical. The one-line check covers stdout and stderr together, where the old test read stdout only."
+    },
+    {
+      "retired": "tests/integration/test_merge_abort_scope.py::TestAbortNeverTouchesRepoRootWithoutSpecKittyState::test_abort_preserves_users_in_progress_merge_when_no_spec_kitty_state",
+      "replaced_by": [
+        "tests/scenarios/consolidate/abort.feature::Aborting when no consolidation is running keeps my in-progress git merge"
+      ],
+      "issue": 6101,
+      "note": "Red-first #4754 regression, now through the real `spec-kitty consolidate --abort` entry point instead of calling _dispatch_abort with a patched repo root. Same assertions: MERGE_HEAD and the conflicted file unchanged, 'No active merge state to abort.' printed, 'Aborted in-progress git merge' never printed."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_create_feature",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::A new Mission gets a folder with a spec and a tasks folder, and no work package worktree"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: exit 0, result success, the slug in mission_slug, spec.md and tasks/ in feature_dir, no worktree other than the coordination one. Arrange is a real `spec-kitty init` instead of a copy of this repository's .kittify."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestFullCLIWorkflow::test_documentation_mission_create_resolves_authored_template",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::A documentation Mission can be created"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (exit 0, slug listed, the Mission folder exists, here with spec.md). Arrange differs: a real init resolves the built-in documentation template, where the old fixture copied this repository's .kittify (with its overrides); the built-in path is the one users take."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestWorkflowEdgeCases::test_create_feature_rejects_bad_slug",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::A Mission name that is not kebab-case is refused"
+      ],
+      "issue": 6101,
+      "note": "Stronger: besides a non-zero exit it pins the 'Invalid mission slug' and 'kebab-case' message and that no kitty-specs folder was created."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestWorkflowEdgeCases::test_setup_plan_requires_feature",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::Setting up a plan without any Mission is refused"
+      ],
+      "issue": 6101,
+      "note": "Same arrange (a project with no Mission) and non-zero exit, plus the 'No missions found' reason."
+    },
+    {
+      "retired": "tests/e2e/test_cli_smoke.py::TestWorkflowEdgeCases::test_implement_requires_existing_wp",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::Implementing a work package without naming a Mission is refused"
+      ],
+      "issue": 6101,
+      "note": "Same arrange (no Mission at all) and non-zero exit, plus the reason it gives today (--mission is required) and that no worktree was created. Neither test checks the refusal of an unknown work package inside an existing Mission; that is not claimed as covered."
+    },
+    {
+      "retired": "tests/e2e/test_feature_alias_smoke.py",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-create.feature::The retired --feature option is refused in favour of --mission",
+        "tests/contract/test_terminology_guards.py::test_no_visible_feature_alias_in_cli_commands"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (exit 2, 'No such option: --feature') through the built CLI instead of an in-process CliRunner, with a positive control that the Mission's status can be read with --mission. The static guard bans --feature from every command."
+    },
+    {
+      "retired": "tests/integration/test_legacy_feature_alias.py",
+      "replaced_by": [
+        "tests/contract/test_terminology_guards.py::test_no_visible_feature_alias_in_cli_commands",
+        "tests/specify_cli/cli/commands/test_charter_lint.py"
+      ],
+      "issue": 6101,
+      "note": "Duplicate. Its scan that --feature options are hidden is subsumed by the stricter static guard (no --feature option at all); its check that charter lint declares --mission is exercised by the charter lint tests that invoke `lint --mission`."
+    },
+    {
+      "retired": "tests/integration/retrospective/test_hic_terminus_e2e.py",
+      "replaced_by": [
+        "tests/integration/retrospective/test_lifecycle_hook.py::test_hic_operator_runs",
+        "tests/integration/retrospective/test_lifecycle_hook.py::test_hic_operator_skips"
+      ],
+      "issue": 6101,
+      "note": "Duplicate of the human-in-command run and skip cases. Its two extra assertions (the persisted record's status and mission_id, the requested actor id) were folded into the surviving tests first."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_implement_preflight_blocks.py",
+      "replaced_by": [
+        "tests/scenarios/implement/sparse-checkout.feature::Starting a work package under sparse-checkout is refused and creates no worktree",
+        "tests/scenarios/implement/sparse-checkout.feature::Forcing the start of a work package does not get around the sparse-checkout refusal"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (non-zero exit, a sparse-checkout refusal, no worktree created) through the built CLI on a Mission made by `agent mission create`, instead of a CliRunner over a hand-written lanes.json and WP file. Stronger for --force: the old test passed --force without --note, which the parser rejects whatever the sparse state is; the scenario passes --force --note and still sees the sparse-checkout refusal."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_merge_preflight_blocks.py",
+      "replaced_by": [
+        "tests/scenarios/consolidate/sparse-checkout.feature::Consolidating under sparse-checkout is refused and moves no branch",
+        "tests/scenarios/consolidate/sparse-checkout.feature::Consolidate offers no --force that could get around the refusal"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (non-zero exit, a sparse-checkout refusal, HEAD unchanged), plus no new commits and every branch unchanged, through the built `spec-kitty consolidate`. The old check that .kittify/runtime/merge-state.json is not written is replaced by the git-state checks. consolidate has no --force option: the scenario pins that the parser refuses it (exit 2), which is what the old --force case actually observed."
+    },
+    {
+      "retired": "tests/integration/test_issue_4863_merge_abort_no_state.py::test_abort_valid_coord_mission_without_state_is_true_noop",
+      "replaced_by": [
+        "tests/scenarios/consolidate/abort.feature::Aborting a Mission that has no consolidation running changes nothing"
+      ],
+      "issue": 6101,
+      "note": "Same assertions through the built CLI: exit 0, 'No active merge state found', no 'Workspace cleaned up', HEAD unchanged. The coordination ledger and worktree checks become 'every branch unchanged' and byte-identical .worktrees and kitty-specs folders (which also covers no status log or retrospective written). Arrange: a coordination Mission from `agent mission create` on a project made by `init`."
+    },
+    {
+      "retired": "tests/integration/test_issue_3716_discard_transactional_close_guard.py::test_close_discard_commits_meta_flatten",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-close.feature::Discarding a Mission records it as abandoned and leaves a clean working tree"
+      ],
+      "issue": 6101,
+      "note": "Same assertion (git status --porcelain is empty after `mission close --discard --force`) through the built CLI, on a coordination Mission made by `agent mission create` and committed with plain git, instead of a hand-made one."
+    },
+    {
+      "retired": "tests/integration/test_issue_3716_discard_transactional_close_guard.py::test_close_discard_retrospective_provenance_is_abandoned",
+      "replaced_by": [
+        "tests/scenarios/mission/mission-close.feature::Discarding a Mission records it as abandoned and leaves a clean working tree"
+      ],
+      "issue": 6101,
+      "note": "Same assertions: the retrospective carries runtime_abandoned provenance and not runtime_post_completion."
+    },
+    {
+      "retired": "tests/integration/sparse_checkout/test_session_warning_once.py",
+      "replaced_by": [
+        "tests/unit/git/test_sparse_checkout_detection.py::TestWarnOnce::test_emits_once_on_active_repo",
+        "tests/unit/git/test_sparse_checkout_detection.py::TestWarnOnce::test_first_command_label_wins_across_call_sites",
+        "tests/unit/git/test_sparse_checkout_detection.py::TestWarnOnce::test_no_emit_on_clean_repo",
+        "tests/unit/git/test_sparse_checkout_detection.py::TestWarnOnce::test_reset_helper_rearms_emitter"
+      ],
+      "issue": 6101,
+      "note": "Duplicate. Its one unique check (the first caller's command label wins across different call sites) was folded into the unit tests first. Its module-global sanity check is covered by the reset/re-arm test."
+    },
+    {
+      "retired": "tests/integration/retrospective/test_policy_source_attribution.py",
+      "replaced_by": [
+        "tests/integration/retrospective/test_default_flow_healthy.py::test_default_flow_healthy_writes_record_and_emits_captured",
+        "tests/integration/retrospective/test_default_flow_generator_failure.py::test_default_flow_generator_failure_emits_capture_failed"
+      ],
+      "issue": 6101,
+      "note": "Duplicate of the default-flow tests, which drive the same callback. Its two unique checks were folded in first: every retrospective event carries policy_source (healthy and failure paths), and with no charter or config every policy_source value is '<default>'. The failure path now raises FileNotFoundError rather than RuntimeError; both emit CaptureFailed."
+    },
+    {
+      "retired": "tests/integration/review/test_reject_without_force.py",
+      "replaced_by": [
+        "tests/integration/review/test_approve_without_force.py::test_approve_passes_without_force_when_only_spec_kitty_dirty",
+        "tests/integration/review/test_approve_without_force.py::test_genuine_drift_still_blocks_approve_and_retry_says_approved",
+        "tests/integration/review/test_approve_without_force.py::test_default_target_lane_is_for_review",
+        "tests/integration/review/test_approve_without_force.py::test_release_removes_empty_spec_kitty_directory"
+      ],
+      "issue": 6101,
+      "note": "Mirror of the approve file for --to planned. The approve tests are now parametrized over approved and planned, and its unique default-lane case (no target lane gives the for_review hint) moved over. Its release cleanup test was identical to the approve one, which is lane-independent."
+    },
+    {
+      "retired": "tests/integration/test_mission_close.py",
+      "replaced_by": [
+        "tests/specify_cli/coordination/test_workspace.py::test_teardown_idempotent",
+        "tests/specify_cli/coordination/test_workspace.py::test_is_present",
+        "tests/specify_cli/coordination/test_workspace.py::test_teardown_does_not_delete_branch",
+        "tests/integration/test_coord_single_home_workflow.py"
+      ],
+      "issue": 6101,
+      "note": "Its two product tests (coordination worktree teardown, idempotent, presence gone) are covered by the workspace tests; the one extra check, that teardown leaves the primary checkout's HEAD where it was, was folded into test_teardown_does_not_delete_branch first. Its other five tests exercised no product code: four ran plain git merges and one tested an if statement in the test itself. Consolidation through the coordination branch is covered end to end by test_coord_single_home_workflow.py."
+    },
+    {
+      "retired": "tests/integration/test_init_fresh_project_chain.py::test_init_then_next_no_missing_schema_error",
+      "replaced_by": [
+        "tests/scenarios/init/init.feature::A freshly set up project works with the next command without hand-editing"
+      ],
+      "issue": 6101,
+      "note": "The promise of #840 checked through the built CLI: after a real `spec-kitty init` (no mocked template copy or banner), `next --json` passes the project schema gate that every non-exempt command runs first, and metadata.yaml carries schema_version and schema_capabilities. The old test compared the stamped values with the in-process constants and called check_compatibility directly; the scenario checks the observable outcome instead. Without the stamp, every command of a fresh project exits 4, which turns the scenario red."
+    },
+    {
+      "retired": "tests/integration/test_agent_identity_prompt.py",
+      "replaced_by": [
+        "tests/specify_cli/cli/commands/agent/test_agent_identity_prompt.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_branch_strategy_gate.py",
+      "replaced_by": [
+        "tests/specify_cli/cli/commands/test_branch_strategy_gate.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_charter_synthesize_built_in_only.py",
+      "replaced_by": [
+        "tests/charter/synthesizer/test_charter_synthesize_built_in_only.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_deferral_enforcement_and_disclosure.py",
+      "replaced_by": [
+        "tests/specify_cli/acceptance/test_deferral_enforcement_and_disclosure.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_intake_size_cap.py",
+      "replaced_by": [
+        "tests/unit/intake/test_scanner_size_cap.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_internal_runtime_engine.py",
+      "replaced_by": [
+        "tests/next/test_internal_runtime_engine.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_lane_db_isolation.py",
+      "replaced_by": [
+        "tests/lanes/test_lane_db_isolation.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_monorepo_charter_scope.py",
+      "replaced_by": [
+        "tests/charter/test_monorepo_charter_scope.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_pack_enhances_partial_fields.py",
+      "replaced_by": [
+        "tests/charter_offering/test_pack_enhances_partial_fields.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_planning_artifact_wp.py",
+      "replaced_by": [
+        "tests/lanes/test_planning_artifact_wp.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_post_merge_custom_mission_loader.py",
+      "replaced_by": [
+        "tests/unit/mission_loader/test_post_merge_custom_mission_loader.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_render_parity_golden.py",
+      "replaced_by": [
+        "tests/status/test_render_parity_golden.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_three_layer_drg_end_to_end.py",
+      "replaced_by": [
+        "tests/charter/test_three_layer_drg_end_to_end.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_workflow_sequence_runtime.py",
+      "replaced_by": [
+        "tests/next/test_workflow_sequence_runtime.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/test_fail_loud_uninitialized_repo.py",
+      "replaced_by": [
+        "tests/specify_cli/workspace/test_fail_loud_uninitialized_repo.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit. The CLI-level refusal is now also checked black-box by tests/scenarios/mission/mission-create.feature (new coverage)."
+    },
+    {
+      "retired": "tests/integration/migration/test_canonicalization_pipeline.py",
+      "replaced_by": [
+        "tests/unit/migration/test_canonicalization_pipeline.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit. Its fixtures folder moved with it."
+    },
+    {
+      "retired": "tests/integration/retrospective/test_strict_flow_skip_empty_reason_rejected.py",
+      "replaced_by": [
+        "tests/retrospective/test_strict_flow_skip_empty_reason_rejected.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/integration/retrospective/test_wp04_coverage_branches.py",
+      "replaced_by": [
+        "tests/retrospective/test_wp04_coverage_branches.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: it integrates nothing (no git, no CLI process; pure functions or in-process APIs on temporary files), so it belongs in the unit tier of its module's tree, where it runs on every pull request instead of only nightly. Its integration marker became unit."
+    },
+    {
+      "retired": "tests/e2e/test_mission_create_clean_output.py",
+      "replaced_by": [
+        "tests/specify_cli/cli/commands/agent/test_mission_create_clean_output.py"
+      ],
+      "issue": 6101,
+      "note": "Moved, not absorbed: three in-process diagnostics checks and a source scan, now in the unit tier. Its fourth test (test_no_red_ansi_after_success_marker) could not fail: it wrote red output only when a flag it had just set was false, so it was deleted rather than moved."
+    }
+  ]
+}

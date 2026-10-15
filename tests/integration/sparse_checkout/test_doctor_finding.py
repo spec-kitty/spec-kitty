@@ -1,19 +1,15 @@
 """Integration test: ``spec-kitty doctor sparse-checkout`` finding surface (FR-002).
 
-Three fixtures exercise the detection-only path of the new doctor
-subcommand (WP04 T016):
+The detection-only cases that a user can reach with plain git (a clean
+project, sparse-checkout in the primary checkout, and in the primary plus
+two linked worktrees) moved to the acceptance scenarios in
+``tests/scenarios/doctor/sparse-checkout.feature``, which run the built CLI
+on Linux, macOS and Windows (ADR 2026-10-15-1; rows in
+``tests/scenarios/absorption-ledger.json``).
 
-1. A clean 3.x-born repo: no sparse-checkout finding, exit 0.
-2. A sparse-configured primary repo: finding emitted naming the primary
-   path and the pattern file line count.
-3. A sparse-configured primary plus two sparse-inherited worktrees:
-   finding lists all three paths.
-
-The existing doctor findings (stale claims, orphans, materialization
-drift) must not be reordered by the new finding — the regression
-assertion at the bottom of ``test_sparse_finding_lists_primary`` checks
-that prior findings continue to appear before the new one when they
-would be triggered simultaneously.
+What stays here needs Spec Kitty's own lane registration
+(``register_lane_sparse_checkout``), which no CLI command exposes: a managed
+lane's sparse-checkout is never reported or remediated as legacy state.
 """
 
 from __future__ import annotations
@@ -122,78 +118,6 @@ def _add_worktree(repo: Path, name: str) -> Path:
         ["git", "-C", str(wt), "config", "--worktree", "core.sparseCheckout", "true"],
     )
     return wt
-
-
-def test_doctor_clean_repo_no_sparse_finding(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A 3.x repo with no sparse state must not emit the finding."""
-    repo = tmp_path / "clean"
-    _init_bare_repo(repo)
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
-        lambda: repo,
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(doctor_app, ["sparse-checkout"])
-    assert result.exit_code == 0, result.stdout
-    assert "No legacy sparse-checkout state detected" in result.stdout
-    assert "Legacy sparse-checkout state detected" not in result.stdout
-
-
-def test_doctor_sparse_primary_emits_finding(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Sparse-configured primary repo surfaces the finding with pattern info."""
-    repo = tmp_path / "sparse"
-    _init_bare_repo(repo)
-    _enable_sparse(repo, pattern="README.md\nsrc/\n")
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
-        lambda: repo,
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(doctor_app, ["sparse-checkout"])
-    # Detection-only surface exits non-zero when state is present so CI
-    # scripts can gate on it.
-    assert result.exit_code == 1, result.stdout
-    assert "Legacy sparse-checkout state detected" in result.stdout
-    assert "core.sparseCheckout = true" in result.stdout
-    # The primary path must be rendered verbatim.
-    assert str(repo) in result.stdout
-    # Fix pointer present.
-    assert "spec-kitty doctor sparse-checkout --fix" in result.stdout
-    # Clean repo regression: no stale-claim or orphan entries bleed through
-    # into this repo-level subcommand.
-    assert "stale_claim" not in result.stdout
-
-
-def test_doctor_sparse_primary_and_worktrees_lists_all_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Primary + two inherited worktrees each appear in the finding."""
-    repo = tmp_path / "sparse-wts"
-    _init_bare_repo(repo)
-    _enable_sparse(repo)
-    wt_a = _add_worktree(repo, "lane-a")
-    wt_b = _add_worktree(repo, "lane-b")
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
-        lambda: repo,
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(doctor_app, ["sparse-checkout"])
-    assert result.exit_code == 1, result.stdout
-    assert "Lane worktrees" in result.stdout
-    assert str(wt_a) in result.stdout
-    assert str(wt_b) in result.stdout
-    assert str(repo) in result.stdout
 
 
 def test_doctor_managed_lane_sparse_checkout_is_not_legacy_finding(

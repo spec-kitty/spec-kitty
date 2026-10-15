@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 import ulid as _ulid_mod
 
@@ -66,7 +66,7 @@ def _scaffold_minimal_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_classify_exc_record_exists_error() -> None:
     """_classify_exc returns 'other' for RecordExistsError."""
     from runtime.next.runtime_bridge_retrospective import _classify_exc
@@ -76,7 +76,7 @@ def test_classify_exc_record_exists_error() -> None:
     assert _classify_exc(exc) == "other"
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_classify_exc_file_not_found() -> None:
     """_classify_exc returns 'missing_artifacts' for FileNotFoundError."""
     from runtime.next.runtime_bridge_retrospective import _classify_exc
@@ -84,7 +84,7 @@ def test_classify_exc_file_not_found() -> None:
     assert _classify_exc(FileNotFoundError("missing")) == "missing_artifacts"
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_classify_exc_is_a_directory() -> None:
     """_classify_exc returns 'missing_artifacts' for IsADirectoryError."""
     from runtime.next.runtime_bridge_retrospective import _classify_exc
@@ -92,7 +92,7 @@ def test_classify_exc_is_a_directory() -> None:
     assert _classify_exc(IsADirectoryError("is a dir")) == "missing_artifacts"
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_classify_exc_generic_exception() -> None:
     """_classify_exc returns 'generator_exception' for generic exceptions."""
     from runtime.next.runtime_bridge_retrospective import _classify_exc
@@ -106,7 +106,7 @@ def test_classify_exc_generic_exception() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_remediation_hint_record_exists() -> None:
     """_remediation_hint returns overwrite hint for RecordExistsError."""
     from runtime.next.runtime_bridge_retrospective import _remediation_hint
@@ -118,7 +118,7 @@ def test_remediation_hint_record_exists() -> None:
     assert "overwrite" in hint.lower()
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_remediation_hint_file_not_found() -> None:
     """_remediation_hint returns migrate hint for FileNotFoundError."""
     from runtime.next.runtime_bridge_retrospective import _remediation_hint
@@ -128,7 +128,7 @@ def test_remediation_hint_file_not_found() -> None:
     assert "normalize-lifecycle" in hint or "migrate" in hint
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_remediation_hint_generic_uses_source_map() -> None:
     """_remediation_hint returns source-map info for generic exceptions."""
     from runtime.next.runtime_bridge_retrospective import _remediation_hint
@@ -139,7 +139,7 @@ def test_remediation_hint_generic_uses_source_map() -> None:
     assert "Check policy configuration" in hint
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_remediation_hint_empty_source_map() -> None:
     """_remediation_hint handles empty source_map gracefully."""
     from runtime.next.runtime_bridge_retrospective import _remediation_hint
@@ -154,7 +154,7 @@ def test_remediation_hint_empty_source_map() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_record_exists_error_is_non_fatal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -203,7 +203,7 @@ def test_record_exists_error_is_non_fatal(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_policy_resolution_error_is_re_raised(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -238,7 +238,7 @@ def test_policy_resolution_error_is_re_raised(
         )
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 def test_write_io_error_emits_failure_and_re_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

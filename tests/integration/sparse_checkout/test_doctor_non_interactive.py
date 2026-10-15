@@ -6,18 +6,15 @@ exits non-zero **without mutating repo state**. This is the guardrail
 that keeps unattended pipelines from silently altering an operator's
 repo configuration.
 
-Two scenarios:
+The end-to-end case (stdin is not a terminal: a one-line pointer, a
+non-zero exit, ``core.sparseCheckout`` and the pattern file untouched) moved
+to ``tests/scenarios/doctor/sparse-checkout.feature``, where the built CLI
+runs with a real non-terminal stdin instead of a patched probe (ADR
+2026-10-15-1; row in ``tests/scenarios/absorption-ledger.json``).
 
-1. ``stdin.isatty() == False`` (simulated via monkeypatching
-   ``sys.stdin.isatty``). No CI env var set.
-2. Real ``isatty`` may be True, but ``CI=true`` is exported. This models
-   GitHub Actions / other CI runners that leave stdin attached.
-
-Both must:
-- Emit a remediation pointer mentioning the ``--fix`` action.
-- Exit with a non-zero status.
-- Leave ``git config --get core.sparseCheckout`` returning ``true`` (no mutation).
-- Leave the pattern file in place with its original body.
+What stays here needs the interactivity probe or ``input`` patched: the
+probe's own CI / ``GITHUB_ACTIONS`` / non-TTY rules, and the interactive
+yes, no and dirty-tree answers.
 """
 
 from __future__ import annotations
@@ -87,39 +84,6 @@ def _force_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
         "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
         lambda: True,
     )
-
-
-def _force_non_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
-        lambda: False,
-    )
-
-
-def test_non_interactive_stdin_not_tty(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """When stdin is not a TTY, --fix prints a pointer and exits non-zero."""
-    repo = _seed_sparse_repo(tmp_path)
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root", lambda: repo
-    )
-    _force_non_interactive(monkeypatch)
-
-    runner = CliRunner()
-    result = runner.invoke(doctor_app, ["sparse-checkout", "--fix"])
-    assert result.exit_code == 1, result.stdout
-    assert "spec-kitty doctor sparse-checkout --fix" in result.stdout
-    # FR-023 fast-follow: non-interactive output must be a single-line
-    # pointer so CI log readers / grep invocations get a deterministic
-    # surface. Rich/console may append a trailing newline — splitlines
-    # strips it, so the expected count is 1 content line.
-    non_empty_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-    assert len(non_empty_lines) == 1, (
-        f"expected single-line pointer, got {len(non_empty_lines)} lines: {result.stdout!r}"
-    )
-    _assert_state_unchanged(repo)
 
 
 def test_non_interactive_via_helper_level(

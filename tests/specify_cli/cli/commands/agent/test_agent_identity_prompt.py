@@ -17,7 +17,7 @@ import pytest
 from specify_cli.cli.commands.agent.workflow_cores import render_resolved_agent_identity as _render_resolved_agent_identity
 from specify_cli.status.wp_metadata import WPMetadata
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
 
 def _render_prompt_identity_block(agent_string: str) -> str:

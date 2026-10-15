@@ -21,7 +21,7 @@ from textwrap import dedent
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 _FIXTURE_ORG_PACK: Path = (

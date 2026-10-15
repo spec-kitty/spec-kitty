@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Any:

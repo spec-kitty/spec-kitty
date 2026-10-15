@@ -46,9 +46,9 @@ from specify_cli.acceptance.gates_core import (
 )
 from specify_cli.acceptance.matrix import AcceptanceMatrix, NegativeInvariant
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.unit
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCRIPT_PATH = _REPO_ROOT / "scripts" / "ci" / "check_dangling_deferrals.py"
 
 

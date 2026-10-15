@@ -24,7 +24,7 @@ import pytest
 from charter.activation.synthesizer.manifest import SynthesisManifest, finalize_manifest
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------

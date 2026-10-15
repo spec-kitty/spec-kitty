@@ -28,7 +28,7 @@ from specify_cli.workspace.assert_initialized import (
 )
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 def _git_init(path: Path) -> None:
     subprocess.run(
