@@ -757,9 +757,6 @@ entries:
   name: AssetDisposition
   category: category_b_grandfathered_legacy
 - module: specify_cli.runtime
-  name: MigrationReport
-  category: category_b_grandfathered_legacy
-- module: specify_cli.runtime
   name: OriginEntry
   category: category_b_grandfathered_legacy
 - module: specify_cli.runtime

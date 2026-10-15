@@ -63,7 +63,7 @@ from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
 from specify_cli.paths.windows_migrate import MigrationOutcome
 from specify_cli.runtime.bootstrap import ensure_runtime
-from specify_cli.runtime.migrate import execute_migration
+from specify_cli.runtime.migrate import ConflictReason, MigrationReport, execute_migration
 
 app = typer.Typer(
     name="migrate",
@@ -247,6 +247,48 @@ def _forward_or_refuse_group_flags(ctx: typer.Context) -> None:
         ctx.default_map = {**default_map, sub_name: sub_defaults}
 
 
+#: Operator wording per conflict reason (#5450); keyed by the stable enum.
+_CONFLICT_REASON_TEXT: dict[ConflictReason, str] = {
+    ConflictReason.DESTINATION_EXISTS: "override already exists",
+    ConflictReason.DESTINATION_PARENT_BLOCKED: "a non-folder blocks the overrides path",
+    ConflictReason.SOURCE_IS_SYMLINK: "legacy file is a symbolic link",
+}
+
+_MIGRATION_COMPLETE_CLEAN = "\n[green]Migration complete.[/green] Zero legacy warnings expected. Run `spec-kitty config --show-origin` to verify resolution tiers."
+
+
+def _render_conflict_summary(report: MigrationReport, *, dry_run: bool) -> None:
+    """Print the always-visible count of legacy files that were NOT moved (#5450)."""
+    if not report.conflicts:
+        return
+    count = len(report.conflicts)
+    if dry_run:
+        console.print(f"  [yellow]{count} files would NOT be moved to overrides/ -- would be kept in place (review the legacy copies)[/yellow]")
+    else:
+        console.print(f"  [yellow]{count} files NOT moved to overrides/ -- kept in place (review the legacy copies)[/yellow]")
+
+
+def _render_conflict_details(report: MigrationReport) -> None:
+    """Print one verbose line per conflict, naming the reason (#5450)."""
+    for conflict in report.conflicts:
+        reason = _CONFLICT_REASON_TEXT[conflict.reason]
+        console.print(f"    [yellow]not moved ({reason}): {conflict.source} -> {conflict.destination}[/yellow]")
+
+
+def _render_completion(report: MigrationReport) -> None:
+    """Print the closing message of a real run, honest about conflicts (#5450)."""
+    if not report.conflicts:
+        console.print(_MIGRATION_COMPLETE_CLEAN)
+        return
+    console.print(
+        f"\n[yellow]Migration complete with {len(report.conflicts)} file(s) not moved.[/yellow] "
+        "The legacy copies were left in place because an override already exists, a non-folder blocks "
+        "the overrides path, or the file is a symbolic link; run `spec-kitty migrate --dry-run --verbose` "
+        "to list them, then delete the ones you no longer need. "
+        "Run `spec-kitty config --show-origin` to verify resolution tiers."
+    )
+
+
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
@@ -347,6 +389,7 @@ def migrate(  # noqa: C901
         console.print(f"  {len(report.superseded)} files differ from package defaults (customised or outdated) -- {action_preserved} in place")
     console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
+    _render_conflict_summary(report, dry_run=dry_run)
 
     if report.unknown:
         console.print(f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]")
@@ -358,13 +401,14 @@ def migrate(  # noqa: C901
             console.print(f"    [dim]preserved (differs from package default): {path}[/dim]")
         for src, dst in report.moved:
             console.print(f"    [blue]moved: {src} -> {dst}[/blue]")
+        _render_conflict_details(report)
         for path in report.kept:
             console.print(f"    [green]kept: {path}[/green]")
         for path in report.unknown:
             console.print(f"    [yellow]unknown: {path}[/yellow]")
 
     if not dry_run:
-        console.print("\n[green]Migration complete.[/green] Zero legacy warnings expected. Run `spec-kitty config --show-origin` to verify resolution tiers.")
+        _render_completion(report)
 
     # Credential path decision: auth credentials stay in the runtime auth/ subdir.
     # This is a security boundary decision -- credentials have a different

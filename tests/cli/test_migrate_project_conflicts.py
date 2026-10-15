@@ -21,6 +21,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import migrate_cmd
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
+from specify_cli.runtime.migrate import ConflictReason
 
 pytestmark = pytest.mark.integration
 
@@ -123,6 +124,9 @@ def test_conflict_count_line_is_visible_without_verbose(tmp_path: Path, monkeypa
     assert exit_code == 0
     assert "1 files NOT moved to overrides/" in out
     assert "not moved (" not in out
+    # Without --verbose nothing is listed, so the closing line must not say it is; it names how to list them.
+    assert "listed above" not in out
+    assert "run `spec-kitty migrate --dry-run --verbose` to list them" in out
     # The count sits with the other per-category counts, after the kept line.
     assert out.index("files customized -- moved") < out.index("files project-specific -- kept") < out.index("1 files NOT moved")
 
@@ -151,3 +155,13 @@ def test_symlink_source_reason_is_named(tmp_path: Path, monkeypatch: pytest.Monk
     assert exit_code == 0
     assert "not moved (legacy file is a symbolic link):" in out
     assert (templates / "alias.md").is_symlink()
+
+
+def test_every_conflict_reason_has_operator_wording() -> None:
+    """Each reason renders its own text; a new reason without wording would raise KeyError mid-report."""
+    assert set(migrate_cmd._CONFLICT_REASON_TEXT) == set(ConflictReason)
+    assert migrate_cmd._CONFLICT_REASON_TEXT == {
+        ConflictReason.DESTINATION_EXISTS: "override already exists",
+        ConflictReason.DESTINATION_PARENT_BLOCKED: "a non-folder blocks the overrides path",
+        ConflictReason.SOURCE_IS_SYMLINK: "legacy file is a symbolic link",
+    }

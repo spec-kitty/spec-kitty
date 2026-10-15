@@ -232,6 +232,7 @@ def test_runtime_asset_conflicts_surface_as_warning(tmp_path: Path, monkeypatch:
 
     assert len(warnings) == 1
     assert "1 customized legacy runtime asset(s) not moved" in warnings[0]
+    assert "a non-folder blocks the overrides path" in warnings[0]
     assert "spec-kitty migrate --dry-run --verbose" in warnings[0]
     override = project / ".kittify" / "overrides" / "missions" / "erp" / "mission.yaml"
     assert override.read_text(encoding="utf-8") == "OVERRIDE v2"

@@ -411,7 +411,14 @@ def _migrate_runtime_assets(project_path: Path, dry_run: bool) -> tuple[list[str
     if moved or removed:
         verb = "Would migrate" if dry_run else "Migrated"
         changes.append(f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)")
-    return changes, []
+    warnings: list[str] = []
+    if report.conflicts:
+        warnings.append(
+            f"{len(report.conflicts)} customized legacy runtime asset(s) not moved: an override already exists, "
+            "a non-folder blocks the overrides path, or the file is a symbolic link; review the legacy copies "
+            "(run 'spec-kitty migrate --dry-run --verbose' to list them)"
+        )
+    return changes, warnings
 
 
 def _has_legacy_worktree_assets(project_path: Path) -> bool:
