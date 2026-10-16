@@ -545,7 +545,6 @@ jobs:
           # does not import the Linux-oriented p0_repro modules on a Windows runner.
           "$VENV_PYTHON" -m pytest -m p0_repro -q -rf \
             --junitxml=out/reports/xunit-nightly-windows-p0-repro.xml \
-            tests/core/test_p0_repro_6228_windows_readonly_overwrite.py \
             tests/core/test_p0_repro_6295_windows_deep_root_backup.py
           code=$?
           echo "WINDOWS_P0_REPRO_EXIT=$code" >> "$GITHUB_ENV"

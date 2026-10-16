@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import stat
 import tempfile
 from collections.abc import Callable
 from contextvars import ContextVar, Token
@@ -94,6 +95,26 @@ def notify_written(path: Path, content: bytes) -> None:
 StripFn = Callable[[str, frozenset[str]], str]
 
 
+def _clear_readonly_for_replace(path: Path) -> int | None:
+    """Make a read-only destination replaceable; return its mode to re-apply.
+
+    NO-FOLLOW + MASKED (mirrors ``specify_cli.core.safe_delete.force_writable``):
+    a symlink destination is skipped (never chmod through the link onto a target
+    that may live outside the managed tree), and only the ``S_IMODE`` permission
+    bits are considered. Returns the destination's original mode when its owner
+    write bit had to be restored (so the caller re-applies it after the replace),
+    or ``None`` when the destination is absent, a symlink, or already writable
+    (the cases where today's behaviour is unchanged).
+    """
+    if path.is_symlink() or not path.exists():
+        return None
+    original = stat.S_IMODE(path.lstat().st_mode)
+    if original & stat.S_IWRITE:
+        return None
+    path.chmod(original | stat.S_IWRITE)
+    return original
+
+
 def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> None:
     """Write *content* atomically to *path*.
 
@@ -111,6 +132,14 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
 
     raw = content.encode("utf-8") if isinstance(content, str) else content
 
+    # On Windows ``os.replace`` REFUSES a read-only destination with WinError 5;
+    # POSIX ignores the target mode (#6228). Restore the destination's owner
+    # write bit before the replace so the overwrite succeeds on every platform,
+    # then re-apply its original mode afterward so a managed read-only file stays
+    # read-only and the upgrade self-converges. NO-FOLLOW + MASKED: a symlink
+    # destination is left untouched (never chmod through the link).
+    restore_mode = _clear_readonly_for_replace(path)
+
     fd, tmp_path = tempfile.mkstemp(
         dir=path.parent,
         prefix=".atomic-",
@@ -121,6 +150,9 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
             f.write(raw)
         # fd is now closed by the context manager
         Path(tmp_path).replace(path)
+        if restore_mode is not None:
+            with contextlib.suppress(OSError):
+                path.chmod(restore_mode)
         notify_written(path, raw)
     except BaseException:
         with contextlib.suppress(OSError):

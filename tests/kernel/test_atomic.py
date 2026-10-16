@@ -11,6 +11,7 @@ Coverage:
 
 from __future__ import annotations
 
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -406,6 +407,25 @@ class TestAtomicWriteCleanupSuppressesOSError:
 # ---------------------------------------------------------------------------
 # Write observers (mission-writer-followups WP04: the finalize write ledger)
 # ---------------------------------------------------------------------------
+
+
+def test_atomic_write_overwrites_read_only_destination_and_restores_mode(tmp_path: Path) -> None:
+    """A read-only destination is overwritten and left read-only again (#6228).
+
+    Cross-platform gate for the write-bit-restore path in ``kernel.atomic``: the
+    overwrite must succeed over a read-only file (on Windows ``os.replace`` would
+    otherwise raise WinError 5) and the destination's original mode must be re-applied.
+    The mode is the POSIX-observable proof -- without the fix the file would end at the
+    temp file's writable ``0o600`` instead of its original ``0o400``.
+    """
+    target = tmp_path / "managed.txt"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(stat.S_IREAD)  # 0o400: a managed read-only asset
+
+    atomic_write(target, "new")
+
+    assert target.read_text(encoding="utf-8") == "new"
+    assert stat.S_IMODE(target.stat().st_mode) == stat.S_IREAD
 
 
 def test_observer_hears_every_atomic_write_and_stops_when_removed(tmp_path: Path) -> None:
