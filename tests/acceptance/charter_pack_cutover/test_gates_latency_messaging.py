@@ -331,10 +331,21 @@ def test_fr018_closed_lists_match_spec() -> None:
 # --------------------------------------------------------------------------------------
 
 
-def unreleased_section(text: str) -> str:
-    match = re.search(r"^## \[Unreleased\].*?(?=^## \[)", text, flags=re.MULTILINE | re.DOTALL)
-    assert match, "no Unreleased section"
-    return match.group(0)
+def cutover_changelog_section(text: str) -> str:
+    """The changelog section that carries the charter-pack cutover entries.
+
+    FR-017 requires every removed name to stay documented in the changelog.
+    The cutover shipped in one release, so once that release closes
+    ``[Unreleased]`` its entries move under the dated version heading, and a
+    release-cycle commit renaming ``[Unreleased]`` must not invalidate this
+    gate (#6289). Reading the section that *contains* the cutover entries,
+    rather than hard-coding ``[Unreleased]``, survives that move.
+    """
+    sections = re.split(r"(?m)^(?=## \[)", text)
+    carrying = [s for s in sections if "Charter pack cutover:" in s]
+    assert carrying, "no changelog section carries the charter-pack cutover entries"
+    assert len(carrying) == 1, f"the cutover entries span {len(carrying)} changelog sections; expected one"
+    return carrying[0]
 
 
 def _contract_before_names() -> list[str]:
@@ -363,10 +374,34 @@ REMOVED_KEYS_AND_PATHS = ("doctrine.org.packs", "organisation_packs", "governanc
 def test_fr017_changelog_before_after_lists_every_removed_name() -> None:
     names = _contract_before_names()
     assert len(names) >= 15, "control: the contract tables parse"
-    section = unreleased_section(CHANGELOG.read_text(encoding="utf-8"))
+    section = cutover_changelog_section(CHANGELOG.read_text(encoding="utf-8"))
     expected = [*names, *REMOVED_SKILL_IDS, *REMOVED_KEYS_AND_PATHS]
     missing = sorted({name for name in expected if not changelog_names(section, name)})
     assert missing == [], missing
+
+
+@covers("FR-017", "SC-005")
+def test_fr017_reads_the_section_that_carries_the_cutover() -> None:
+    """The gate follows the cutover entries across a release-cycle move (#6289).
+
+    Before #6289 the gate read ``[Unreleased]`` by name, so dating that
+    section at release (its entries moving under the version heading) made the
+    gate red although the changelog was still complete. The section is now
+    located by the cutover entries it carries, not by the ``[Unreleased]``
+    label.
+    """
+    changelog = (
+        "# Changelog\n\n"
+        "## [Unreleased] - 9.9.9rcX\n\n_cycle open._\n\n"
+        "## [1.2.3] - 2026-01-01\n\n### Breaking\n\n"
+        "- **Charter pack cutover: `doctrine` is now `charter`** removed `accompanies_doctrine_pack`.\n\n"
+        "## [1.2.2] - 2025-12-01\n\n- older entry.\n"
+    )
+    section = cutover_changelog_section(changelog)
+    assert "[1.2.3]" in section and "[Unreleased]" not in section
+    assert changelog_names(section, "accompanies_doctrine_pack")
+    with pytest.raises(AssertionError, match="no changelog section carries"):
+        cutover_changelog_section("# Changelog\n\n## [Unreleased]\n\n_empty._\n")
 
 
 _ELLIPSIS = re.compile(r"\s*(?:\u2026|\.\.\.)\s*")
