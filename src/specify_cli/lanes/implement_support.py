@@ -112,13 +112,32 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
     (``_ensure_vcs_in_meta`` locks the VCS backend on a mission's first
     claim) -- without this, that self-inflicted write would make every
     first-ever single_branch claim refuse itself as "dirty".
+
+    ``spec-kitty next`` writes this Mission's runtime event log
+    (``mission-events.jsonl``) and its invocation records under ``kitty-ops/``
+    (the shared ``lifecycle.jsonl``) into the write checkout and leaves them
+    uncommitted, so without those two entries the claim that follows ``next``
+    refuses itself (#5930). ``kitty-ops/`` is a directory prefix because git
+    reports a wholly untracked directory as one collapsed entry; it holds only
+    spec-kitty writer surfaces. The event log is exact and this Mission only,
+    like the other per-Mission entries: another Mission's log still counts as
+    uncommitted work.
+
+    These exemptions apply to this claim check only. The consolidate, accept and
+    merge gates keep using ``coordination.coherence.is_self_bookkeeping_churn``,
+    which deliberately still treats the log as dirt. The whole-directory
+    ``kitty-ops/`` exemption is deliberately wider than that rule (only
+    ``kitty-ops/<ULID>.jsonl`` Op records): the claim is non-destructive, so
+    exempting the directory never discards anything. Do not "align" the lists.
     """
     return (
         f"kitty-specs/{mission_slug}/status.events.jsonl",
         f"kitty-specs/{mission_slug}/status.json",
         f"kitty-specs/{mission_slug}/meta.json",
+        f"kitty-specs/{mission_slug}/mission-events.jsonl",
         ".kittify/",
         ".spec-kitty/",
+        "kitty-ops/",
     )
 
 

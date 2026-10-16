@@ -333,7 +333,7 @@ def dirty_paths(write_checkout: Path, *, owned_prefixes: Sequence[str]) -> list[
     instead of duplicating its subprocess call. A path equal to, or nested
     under (prefix ending in ``/``), any of *owned_prefixes* -- spec-kitty's
     own status/runtime artifacts, e.g. ``kitty-specs/<slug>/status.events.jsonl``,
-    ``kitty-specs/<slug>/status.json``, ``.kittify/`` -- is never reported as
+    ``kitty-specs/<slug>/status.json``, ``.kittify/``, ``kitty-ops/`` -- is never reported as
     dirty; the caller decides the concrete prefix list (NFR-004: names what
     it excludes). A rename reports its new path.
 
