@@ -390,8 +390,13 @@ def _handle_index_read_error(exc: DecisionIndexReadError) -> None:
 def _handle_event_log_read_error(exc: DecisionEventLogReadError) -> None:
     """Render a corrupt ``status.events.jsonl`` as a structured diagnostic.
 
+    All four write verbs reach this read on an idempotent retry: ``open`` via
+    ``_repair_missing_opened_event`` → ``_opened_event_exists``, and
+    ``resolve``/``defer``/``cancel`` (#5681) via ``_repair_missing_terminal_event``
+    → ``_terminal_event_exists``.
+
     #2899 landing squad (MAJOR): ``decision open``'s idempotent re-open repair
-    path (``_repair_missing_opened_event`` → ``_opened_event_exists``) reads
+    path reads
     ``status.events.jsonl`` and, when it exists but is corrupt, fails closed
     with :class:`DecisionEventLogReadError` (a ``RuntimeError``, NOT a
     ``DecisionError``). WP07 introduced that type and the orchestrator-api
@@ -510,9 +515,10 @@ def cmd_open(  # noqa: PLR0913
         return  # unreachable — _handle_index_read_error raises
     except DecisionEventLogReadError as exc:
         # #2899 landing squad: corrupt status.events.jsonl reached via the
-        # idempotent re-open repair path — only ``open`` reaches
-        # ``_opened_event_exists`` (resolve/defer/cancel cannot), so the catch
-        # lives here, not on the other verbs (catch the type the callee raises).
+        # idempotent re-open repair path (``_opened_event_exists``). All four
+        # write verbs reach an event-log read: open via the opened-event repair,
+        # resolve/defer/cancel (#5681) via the terminal-event repair, so each
+        # verb catches the type the callee raises.
         _handle_event_log_read_error(exc)
         return  # unreachable — _handle_event_log_read_error raises
     except StatusReadPathNotFound as exc:
@@ -584,6 +590,12 @@ def cmd_resolve(  # noqa: PLR0913
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except DecisionEventLogReadError as exc:
+        # #5681: an idempotent retry reads the event log (terminal-event
+        # repair); a corrupt log fails closed. Before ``StatusReadPathNotFound``,
+        # mirroring ``cmd_open``.
+        _handle_event_log_read_error(exc)
+        return  # unreachable — _handle_event_log_read_error raises
     except StatusReadPathNotFound as exc:
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
@@ -652,6 +664,12 @@ def cmd_defer(
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except DecisionEventLogReadError as exc:
+        # #5681: an idempotent retry reads the event log (terminal-event
+        # repair); a corrupt log fails closed. Before ``StatusReadPathNotFound``,
+        # mirroring ``cmd_open``.
+        _handle_event_log_read_error(exc)
+        return  # unreachable — _handle_event_log_read_error raises
     except StatusReadPathNotFound as exc:
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
@@ -720,6 +738,12 @@ def cmd_cancel(
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except DecisionEventLogReadError as exc:
+        # #5681: an idempotent retry reads the event log (terminal-event
+        # repair); a corrupt log fails closed. Before ``StatusReadPathNotFound``,
+        # mirroring ``cmd_open``.
+        _handle_event_log_read_error(exc)
+        return  # unreachable — _handle_event_log_read_error raises
     except StatusReadPathNotFound as exc:
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
