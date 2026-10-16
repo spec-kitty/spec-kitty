@@ -74,3 +74,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-13 | [the event ledger is the publication seam, on by default, with a versioned row contract and local-log retention](2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md) |
 | 2026-10-14 | [an event-native core with one canonical event writer behind a domain port](2026-10-14-1-event-native-core-one-canonical-event-writer.md) |
 | 2026-10-15 | [QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger](2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md) |
+| 2026-10-16 | [extract the charter offering layer first as the GA gate leg; the activation rework rides the post-GA stable line](2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md) |

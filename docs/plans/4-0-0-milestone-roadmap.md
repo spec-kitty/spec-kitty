@@ -82,8 +82,8 @@ below (which still holds where this one is silent); where the two differ, this o
 4. **The mission-status read API is the open-core producer surface** (internally "Build
    Kitty"), not a Team Kitty surface. Its Java implementation (`services/mission-status-api/`,
    epic #5528) is to **start in-repo as a modular component** and be **extracted as needed as
-   an open-core surface** — never into a Team Kitty repository (direction; the service
-   directory does not exist yet). `contracts/mission-status/` and the conformance fixtures
+   an open-core surface** — never into a Team Kitty repository (the service directory is
+   in-repo and the read service is substantially built). `contracts/mission-status/` and the conformance fixtures
    already ship and stay canonical beside the Python reducer
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
    Accepted). Its backend is the GA-gating piece from rule 2.
@@ -227,16 +227,17 @@ Never design against or "re-enable" the old sync path; see
      │    green nightly (#5419, 1 of 57 jobs red) · landing+create residuals (#5638 #5704 #5726)
      │    agent integration (#702) · docs (#5428) · structural hygiene (#2560-2 #3732 #4836 #5538 ...)
      │    UNDECIDED: pushed-rejection P0s (#5780 #5758), orchestrator-api gate+rollback (#5722 #5603)
-     ├ CHARTER MODULAR EXTRACTION
-     │    #645 stable application API ──▶ ~129 specify_cli→charter imports move onto it
-     │    ──▶ charter ships as its own external contract package, in its own repository
-     └ MISSION-STATUS API BACKEND (open-core producer surface, "Build Kitty")
-          #5528 Mission Status Read API (contract `1.0.0-SNAPSHOT` in-repo, unreleased; services/mission-status-api/ to start in-repo — direction, dir not created yet)
-          ──▶ #5532 readers re-point · #5533 routes rehome
+     ├ CHARTER MODULAR EXTRACTION (offering leg only — ADR 2026-10-16-1)
+     │    #6188 imports onto charter.offering.api (DONE) ──▶ #6099 extract charter.offering (4 phases)
+     │    ──▶ charter.offering ships as its own external contract package, in its own repository
+     └ MISSION-STATUS API BACKEND + READ SURFACE (open-core producer surface, "Build Kitty")
+          #5528 Mission Status Read API (contract `1.0.0-SNAPSHOT` in-repo, unreleased; services/mission-status-api/ in-repo, read service substantially built)
+          ──▶ #957 mission detail (GA) ; #5532 readers re-point / #5533 routes rehome (OFF-GATE, CLI 4.x stable)
                                                                      ──▶  4.0.0 GA
 
    OFF-GATE 4.x STRUCTURAL (continues after GA)
        produce / drain decoupling (ADR tbd) ──▶ adapter seam as pub/sub (consumer side unblocked 2026-10-12)
+       charter.activation drain (236 reaches) + activation rework (CLI 4.x stable — ADR 2026-10-16-1)
        #2519 later Java charter writes (CLI 4.x stable) · #1619 one execution context (CLI 4.x stable)
        Team Kitty = "Multiplayer Mode": consumer UI/multiplayer on the producer API
 
@@ -256,15 +257,18 @@ Never design against or "re-enable" the old sync path; see
    unguarded API landing path (#5722, #5603) are in the same "says success, did the wrong
    thing" class as the defects the cycle fixed. Either pull them onto milestone 11 or record
    why GA ships without them.
-3. **Two structural pieces are now on the GA gate (2026-10-12).** #645 (move the ~129
-   `specify_cli → charter` imports onto the stable API) is the precondition for extracting the
-   charter into its own externally-released repository — **GA-gating**. The mission-status API
+3. **Two structural pieces are now on the GA gate (2026-10-12).** Charter modular extraction —
+   scoped to **`charter.offering`** (ADR 2026-10-16-1) — is **GA-gating** via epic #6099 (four
+   offering-extraction phases). Its import-move precondition #6188 is **done** and #645 is closed
+   `not_planned`; the `charter.activation` drain is **post-GA** (CLI 4.x stable). The mission-status API
    **backend** — the open-core producer surface
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
    Accepted) — is also **GA-gating**: the bundled dashboard is already removed (#5530) and the
-   contract is in-repo as `1.0.0-SNAPSHOT`, unreleased (`contracts/mission-status/`). The Java service
-   `services/mission-status-api/` is the ratified target — it is **slated to start in-repo** as
-   a modular component (direction; the directory does not exist yet). What stays **off** the GA
+   contract is in-repo as `1.0.0-SNAPSHOT`, unreleased (`contracts/mission-status/`). The Java read service
+   `services/mission-status-api/` is **in-repo and substantially built** (read-only, loopback). The
+   value-bearing read surface (epic #5528 + #957 mission detail) is GA-gating; the ledger already has
+   live readers, so the reader-consolidation refactors #5532/#5533 stay **off-gate** (CLI 4.x stable),
+   per ADR 2026-10-16-1. What stays **off** the GA
    gate and continues on the 4.x line: produce/drain decoupling
    (the precondition for any external *consumer*), the consumer-side UI/multiplayer ("Multiplayer
    Mode"), the charter read/write service strangler
@@ -393,12 +397,15 @@ record false-positive rulings.
 4. **No new shadow path.** Every landing routes onto an existing authority. No re-introduction
    of the retired sync transport, and no module other than the adapter seam talks to an
    external system.
-5. **Charter modular extraction (GA-gating, 2026-10-12).** #645 moves the ~129
-   `specify_cli → charter` imports onto the stable charter API, and the charter is released as
-   its own external contract package in its own repository (its extraction epic/ADR filed).
-6. **Mission-status API backend (GA-gating, 2026-10-12).** The open-core producer surface
-   (ADR 2026-10-01-2) ships its backend: contract canonical beside the Python reducer,
-   `services/mission-status-api/` in-repo, extracted when its contract freezes.
+5. **Charter modular extraction — offering leg (GA-gating; ADR 2026-10-16-1).** The import move
+   (#6188) is done and #645 is closed `not_planned`; the GA leg is extracting **`charter.offering`**
+   (epic #6099, four phases) as its own external contract package in its own repository. The
+   `charter.activation` drain/rework is **post-GA** (CLI 4.x stable).
+6. **Mission-status API backend + read surface (GA-gating; ADR 2026-10-01-2, 2026-10-16-1).**
+   The open-core producer surface ships its backend (contract canonical beside the Python reducer,
+   `services/mission-status-api/` in-repo) and the value-bearing read surface that realizes event
+   value (epic #5528 + #957 mission detail). The ledger already has live readers; the
+   reader-consolidation refactors #5532/#5533 stay off-gate (CLI 4.x stable).
 7. **(Post-GA) Off-gate structural dispositioned.** The produce/drain decoupling, #901, #1619
    and the consumer-side "Multiplayer Mode" UI land or are re-milestoned on the 4.x line with a
    rationale.
