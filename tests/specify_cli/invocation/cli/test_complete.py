@@ -271,7 +271,6 @@ def _event_names(project: Path, invocation_id: str) -> list[object]:
     return [e["event"] for e in _read_events(project, invocation_id)]
 
 
-@pytest.mark.regression
 def test_cli_binary_evidence_refused_before_close_then_text_retry_completes(tmp_path: Path) -> None:
     """Regression #5397: PNG evidence must not close the Op before being refused.
 
@@ -341,7 +340,6 @@ def test_cli_binary_evidence_refused_before_close_then_text_retry_completes(tmp_
     assert stored.read_text(encoding="utf-8") == "all checks passed\n"
 
 
-@pytest.mark.regression
 def test_cli_inline_evidence_that_cannot_be_encoded_is_refused_before_close(tmp_path: Path) -> None:
     """Regression #5397: inline evidence text that is not UTF-8-encodable is refused pre-close.
 
