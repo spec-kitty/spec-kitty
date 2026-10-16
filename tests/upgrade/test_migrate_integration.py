@@ -1227,7 +1227,6 @@ class TestMigrateNeverOverwritesExistingOverride:
     The move must only happen when nothing occupies the destination.
     """
 
-    @pytest.mark.regression
     @pytest.mark.parametrize(
         "rel",
         [
@@ -1256,7 +1255,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         assert not fresh.exists()
         assert (kittify / "overrides" / "templates" / "fresh.md").read_text() == "fresh"
 
-    @pytest.mark.regression
     def test_dry_run_never_lists_a_file_as_moved_and_kept(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1273,7 +1271,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         assert legacy.read_text() == "LEGACY v1"
         assert override.read_text() == "OVERRIDE v2"
 
-    @pytest.mark.regression
     def test_folder_at_destination_does_not_raise_or_stop_the_run(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1292,7 +1289,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         assert not later.exists()
         assert (kittify / "overrides" / "templates" / "zzz.md").read_text() == "later"
 
-    @pytest.mark.regression
     @pytest.mark.parametrize("blocker", ["templates_file", "overrides_file", "overrides_dangling"])
     def test_blocked_destination_parent_does_not_raise(
         self, blocker: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1322,7 +1318,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         else:
             assert blocked.is_file() and blocked.read_text() == "i am a file"
 
-    @pytest.mark.regression
     @_POSIX_ONLY
     def test_dangling_symlink_at_destination_is_not_replaced(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1342,7 +1337,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         assert os.readlink(dest) == "nowhere"
         assert legacy.read_text() == "LEGACY"
 
-    @pytest.mark.regression
     @_POSIX_ONLY
     def test_symlinked_external_overrides_folder_is_not_clobbered(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1363,7 +1357,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         # Positive control: a free destination still moves through the link (FR-008).
         assert (external / "templates" / "new.md").read_text() == "new"
 
-    @pytest.mark.regression
     @_POSIX_ONLY
     def test_relative_symlink_source_is_not_moved(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1382,7 +1375,6 @@ class TestMigrateNeverOverwritesExistingOverride:
         assert link.exists()
         assert not (kittify / "overrides" / "templates" / "qa-link.md").exists()
 
-    @pytest.mark.regression
     def test_byte_identical_twin_is_never_deleted(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1404,7 +1396,7 @@ class TestMigrateNeverOverwritesExistingOverride:
 
 
 class TestMoveBlocker:
-    """Each branch of ``_move_blocker`` (not regression-marked; see the class above)."""
+    """Each branch of ``_move_blocker``."""
 
     @staticmethod
     def _paths(tmp_path: Path) -> tuple[Path, Path, Path]:

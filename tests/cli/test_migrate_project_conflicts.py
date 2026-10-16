@@ -82,7 +82,6 @@ def _invoke(project: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> tuple
     return result.exit_code, " ".join(_ANSI.sub("", result.output).split())
 
 
-@pytest.mark.regression
 def test_dry_run_reports_conflict_and_keeps_legacy_off_the_move_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5450: the dry run names the file it would NOT move and writes nothing."""
     project = _project(tmp_path)
@@ -97,7 +96,6 @@ def test_dry_run_reports_conflict_and_keeps_legacy_off_the_move_list(tmp_path: P
     assert (project / ".kittify" / "overrides" / "missions" / "erp" / "mission.yaml").read_text(encoding="utf-8") == _OVERRIDE
 
 
-@pytest.mark.regression
 def test_real_run_reports_conflict_and_drops_the_zero_warnings_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5450: the real run keeps the override, says what was not moved, exits 0."""
     project = _project(tmp_path)
@@ -115,7 +113,6 @@ def test_real_run_reports_conflict_and_drops_the_zero_warnings_claim(tmp_path: P
     assert "Migration complete with 1 file(s) not moved." in out
 
 
-@pytest.mark.regression
 def test_conflict_count_line_is_visible_without_verbose(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5450: the signal is not hidden behind --verbose."""
     project = _project(tmp_path)
@@ -143,7 +140,6 @@ def test_without_conflicts_wording_is_unchanged(tmp_path: Path, monkeypatch: pyt
     assert (project / ".kittify" / "overrides" / "templates" / "fresh.md").exists()
 
 
-@pytest.mark.regression
 @pytest.mark.skipif(sys.platform == "win32", reason="symbolic links need privileges on Windows")
 def test_symlink_source_reason_is_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5450: a legacy symbolic link is left in place and the reason says so."""

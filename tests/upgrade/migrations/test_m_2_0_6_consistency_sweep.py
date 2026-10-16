@@ -222,7 +222,6 @@ def _runtime_asset_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, t
     return tmp_path / "project"
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_runtime_asset_conflicts_surface_as_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
     """#5450: a legacy file that cannot move onto its override is a warning, not silence."""
