@@ -1,28 +1,24 @@
-"""OPEN P0 #5814 -- red-first reproduction (nightly ``p0_repro`` lane only).
+"""Regression guard for #5814 -- consolidate-mission must skip a fully-canceled lane.
 
-``spec-kitty orchestrator-api consolidate-mission`` has no canceled-with-provenance
-exclusion: its lane loop merges EVERY lane in ``lanes.json`` into the mission branch
-and squashes onto the target. So a fully-canceled lane whose work package committed
-content before it was canceled (with operator provenance) is merged anyway -- the
-canceled code lands on the target, the envelope answers ``success: true``, and the
-status log still records the work package as ``canceled``. The host
-``spec-kitty consolidate`` skips such a lane
-(``consolidation/executor.py``: ``if _lane_fully_canceled(...): continue``); the
-orchestrator-api path has no equivalent guard (``orchestrator_api/consolidation.py``'s
-unconditional lane loop). ``main`` carries the #5722 approved-bound fix and still
-reproduces this -- a canceled lane is not an approved lane, so that gate does not catch it.
+``spec-kitty orchestrator-api consolidate-mission`` previously had no
+canceled-with-provenance exclusion: its lane loop merged EVERY lane in ``lanes.json``
+into the mission branch and squashed onto the target, so a fully-canceled lane whose
+work package committed content before it was canceled (with operator provenance) was
+merged anyway -- the canceled code landed on the target at ``success: true`` while the
+status log still recorded the work package as ``canceled``. The host
+``spec-kitty consolidate`` skips such a lane (``consolidation/phase_advance.py``:
+``if lane_fully_canceled(...): continue``); the orchestrator-api path now reuses the
+same canonical predicate (``lanes.compute.lane_fully_canceled``) and excluded set
+(``acceptably_canceled_wp_ids``) before its lane loop.
 
 Reuses the allocator-faithful terminus harness (same one the #5668/#5722 sibling
 ``test_consolidate_mission_post_approval.py`` drives): ``WP01`` on ``lane-a`` commits
 content, is approved, then reopened and canceled with operator provenance; ``WP02`` on
 an independent ``lane-b`` is approved. Then the REAL ``orchestrator-api consolidate-mission``
-runs.
-
-Ideal, asserted here and RED until #5814 is fixed: the canceled ``WP01``'s content
-(``src/pkg/wp01.py``) must NOT be on the target after consolidate-mission -- the same
-outcome host ``consolidate`` produces. Today it lands at ``success: true``. The fix PR
-removes the ``p0_repro`` marker. See ADR 2026-07-17-1 and
-docs/development/reference/red-main-and-release-readiness.md.
+runs. Asserted: the canceled ``WP01``'s content (``src/pkg/wp01.py``) is NOT on the
+target -- the same outcome host ``consolidate`` produces -- while the approved survivor
+``WP02`` still lands. Fixed in #5814; this is now a per-PR regression guard (runs beside
+its sibling in the nightly integration/shard lanes).
 """
 
 from __future__ import annotations
@@ -44,7 +40,6 @@ def _consolidate_mission(mission: CoordMission) -> subprocess.CompletedProcess[s
     return run_terminus(mission, ["orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--strategy", "squash"])
 
 
-@pytest.mark.p0_repro(issue=5814)
 def test_consolidate_mission_must_not_land_fully_canceled_lane_content(tmp_path) -> None:  # noqa: ANN001 -- pytest tmp_path
     built = build_canceled_dependency_mission(tmp_path, wp01_final="canceled", depends=False, target_branch=_TARGET)
     mission = built.mission
