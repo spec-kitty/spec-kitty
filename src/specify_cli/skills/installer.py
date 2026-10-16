@@ -71,6 +71,13 @@ logger = logging.getLogger(__name__)
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
 
+#: Hex characters of the SHA-256 retained-backup identity kept in the on-disk
+#: ``state-v1-<id>`` directory name. Truncated from the full 64 so the backup path
+#: stays within the Windows MAX_PATH (260) ceiling on deep project roots (#6295);
+#: 64 bits is ample for the few backups a project holds and the ``-{index}`` suffix
+#: still resolves any real collision.
+_BACKUP_ID_HEX = 16
+
 
 @dataclass(frozen=True)
 class SkillBackupReplacement:
@@ -113,7 +120,12 @@ def prepare_skill_backup(
             ]
         )
     serialized = json.dumps(["agent-skills-backup-v1", records], separators=(",", ":")).encode("utf-8")
-    digest = hashlib.sha256(serialized).hexdigest()  # noqa: TID251 -- deterministic backup identity, not charter hashing
+    # A truncated digest keeps the backup identity deterministic and content-sensitive
+    # while bounding the path length: the full 64-hex id plus the mirrored member tree
+    # overran the Windows MAX_PATH (260) ceiling on deep project roots (#6295). 64 bits
+    # is ample collision resistance for the handful of backups a project holds, and any
+    # real on-disk clash is still resolved by the ``-{index}`` suffix below.
+    digest = hashlib.sha256(serialized).hexdigest()[:_BACKUP_ID_HEX]  # noqa: TID251 -- deterministic backup identity, not charter hashing
     parent = _backup_parent(project_path)
     candidate = explicit_root or parent / f"state-v1-{digest}"
     if candidate.parent != parent:
