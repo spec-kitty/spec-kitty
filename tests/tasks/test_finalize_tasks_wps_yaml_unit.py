@@ -632,3 +632,22 @@ class TestFrontmatterFallbackDependencies:
     def test_non_wp_filename_is_ignored(self, tmp_path: Path) -> None:
         other = self._write(tmp_path, "notes.md", _wp_file(3, "[WP02]"))
         assert mission_finalize._frontmatter_fallback_dependencies([other], set()) == {}
+
+    def test_corrupt_status_log_is_skipped_without_raising(self, tmp_path: Path) -> None:
+        """A corrupt status.events.jsonl must not crash the fallback (#5448).
+
+        ``_read_wp_frontmatter`` resolves runtime fields from the status
+        snapshot (``feature_dir = wp.parent.parent``), so a WP in a realistic
+        ``<feature>/tasks/WPxx.md`` layout with a corrupt sibling
+        ``status.events.jsonl`` raises ``StoreError`` -- which is not an
+        ``OSError``. The flat-``tmp_path`` cases above never build a status log,
+        so they do not exercise this. The fallback must skip the WP, not
+        propagate.
+        """
+        feature = tmp_path / "007-feat"
+        (feature / "tasks").mkdir(parents=True)
+        wp = feature / "tasks" / "WP03-x.md"
+        wp.write_text(_wp_file(3, "[WP02]"), encoding="utf-8")
+        (feature / "status.events.jsonl").write_text("{ not valid json\n", encoding="utf-8")
+
+        assert mission_finalize._frontmatter_fallback_dependencies([wp], set()) == {}

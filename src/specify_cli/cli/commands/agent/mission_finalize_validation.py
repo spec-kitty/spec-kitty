@@ -30,7 +30,7 @@ from kernel._safe_re import re
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from mission_runtime import OwnedCheckout
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status import WPMetadata
+from specify_cli.status import StoreError, WPMetadata
 from specify_cli.requirement_mapping import (
     FAILING_REASONS,
     grammar,
@@ -256,7 +256,11 @@ def _frontmatter_fallback_dependencies(wp_files: list[Path], explicit_ids: set[s
             continue
         try:
             wp_meta, _ = _mf._read_wp_frontmatter(wp_file)
-        except (FrontmatterError, ValidationError, OSError, UnicodeDecodeError):
+        except (FrontmatterError, ValidationError, OSError, UnicodeDecodeError, StoreError):
+            # _read_wp_frontmatter resolves runtime fields from the status
+            # snapshot, so a corrupt or symlinked status.events.jsonl raises
+            # StoreError (not an OSError); like the bootstrap reader, skip the
+            # WP rather than become a second crash point (#5448).
             continue
         frontmatter_deps = list(wp_meta.dependencies)
         if frontmatter_deps:
