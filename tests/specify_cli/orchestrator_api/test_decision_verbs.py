@@ -49,6 +49,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from click.testing import Result
@@ -942,3 +943,99 @@ def test_write_verb_corrupt_decisions_index_fails_closed_not_bare_traceback(tmp_
     assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE", envelope
     assert "message" in envelope["data"]
     assert envelope["data"]["mission_slug"] == mission_slug
+
+
+# ---------------------------------------------------------------------------
+# #5681 -- idempotent terminal retry repairs the missing terminal event
+# ---------------------------------------------------------------------------
+
+_TERMINAL_VERBS = ["resolve-decision", "defer-decision", "cancel-decision"]
+
+
+def _interrupt_terminal_verb(repo: Path, verb: str, mission_slug: str, decision_id: str) -> None:
+    """Run ``verb`` with the event append failing: index terminal, no terminal row."""
+    args = _write_verb_args(verb, mission_slug, decision_id)
+    with (
+        patch("specify_cli.decisions.emit.emit_decision_resolved", side_effect=RuntimeError("simulated crash")),
+        contextlib.chdir(repo),
+    ):
+        runner.invoke(app, args)  # outcome irrelevant: the index write already landed
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_terminal_verb_retry_repairs_event_and_reports_lamport(tmp_path: Path, verb: str) -> None:
+    """#5681: a retried interrupted terminal call re-writes the event and reports its lamport.
+
+    Red on main de63bcfe1 (before WP01): ``event_lamport`` was always null on an idempotent call.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, f"wp02-repair-{verb}")
+    decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
+    _interrupt_terminal_verb(repo, verb, mission_slug, decision_id)
+
+    envelope = _envelope(_run(repo, _write_verb_args(verb, mission_slug, decision_id)))
+
+    assert envelope["success"] is True, envelope
+    assert envelope["data"]["idempotent"] is True
+    assert isinstance(envelope["data"]["event_lamport"], int)
+    events = (feature_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert events.count("DecisionPointResolved") == 1
+
+    # A further retry finds the event present: idempotent, lamport null, no second row.
+    again = _envelope(_run(repo, _write_verb_args(verb, mission_slug, decision_id)))
+    assert again["success"] is True and again["data"]["idempotent"] is True
+    assert again["data"]["event_lamport"] is None
+    assert (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").count("DecisionPointResolved") == 1
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_terminal_verb_retry_failed_repair_returns_repair_failed_envelope(tmp_path: Path, verb: str) -> None:
+    """#5681: a failed repair is a DECISION_EVENT_REPAIR_FAILED envelope, not a silent success.
+
+    Red on main de63bcfe1 (before WP01): the retry reported success without attempting the repair.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, f"wp02-repairfail-{verb}")
+    decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
+    _interrupt_terminal_verb(repo, verb, mission_slug, decision_id)
+    index_before = (feature_dir / "decisions" / "index.json").read_bytes()
+
+    _interrupt_args = _write_verb_args(verb, mission_slug, decision_id)
+    with patch("specify_cli.decisions.emit.emit_decision_resolved", side_effect=RuntimeError("still down")):
+        result = _run(repo, _interrupt_args)
+    envelope = _envelope(result)
+
+    assert result.exit_code == 1, result.output
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_EVENT_REPAIR_FAILED", envelope
+    assert (feature_dir / "decisions" / "index.json").read_bytes() == index_before
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_terminal_verb_retry_with_corrupt_event_log_emits_json_envelope(tmp_path: Path, verb: str) -> None:
+    """#5681: a terminal retry now reads the event log; a corrupt log is a JSON envelope.
+
+    Writes nothing: the index and the event log keep their bytes. The envelope
+    catch on the terminal verbs already existed; its red evidence is on main
+    de63bcfe1 (before the service fix), where a terminal retry never read the log.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, f"wp02-corruptlog-{verb}")
+    decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
+    _interrupt_terminal_verb(repo, verb, mission_slug, decision_id)
+
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as fh:
+        fh.write("{not valid json\n")
+    index_path = feature_dir / "decisions" / "index.json"
+    index_before = index_path.read_bytes()
+    events_before = events_path.read_bytes()
+
+    result = _run(repo, _write_verb_args(verb, mission_slug, decision_id))
+    envelope = _envelope(result)
+
+    assert result.exit_code == 1, result.output
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE", envelope
+    assert index_path.read_bytes() == index_before
+    assert events_path.read_bytes() == events_before

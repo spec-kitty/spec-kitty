@@ -88,9 +88,11 @@ Error codes used:
                                  (propagated verbatim from DecisionError, same code
                                  the host-CLI ``decision_app`` subcommands raise for
                                  this case; WP05)
-  DECISION_EVENT_REPAIR_FAILED -- open-decision (idempotent-open path): the missing
-                                 DecisionPointOpened event could not be re-emitted
-                                 (propagated verbatim from DecisionError; WP05)
+  DECISION_EVENT_REPAIR_FAILED -- open-decision (idempotent-open path) and
+                                 resolve/defer/cancel-decision (idempotent terminal
+                                 path): the missing DecisionPointOpened /
+                                 DecisionPointResolved event could not be re-written
+                                 (propagated verbatim from DecisionError; WP05, #5681)
   DESIGN_STATUS_EVENT_LOG_UNREADABLE -- design-status: status.events.jsonl could
                                  not be read cleanly (a torn/truncated line --
                                  ledger SK-131) while deriving the tasks/-finalized
@@ -103,7 +105,10 @@ Error codes used:
                                  fails closed on (#4642), reused here rather than
                                  registering a second contract code for the
                                  identical failure shape (see
-                                 ``_fail_decision_index_unreadable``).
+                                 ``_fail_decision_index_unreadable``). ALSO emitted
+                                 by all four when the idempotent-retry repair finds
+                                 status.events.jsonl unreadable (open-decision since
+                                 #2899; resolve/defer/cancel-decision since #5681).
   RESULT_REQUIRED              -- answer-decision: --result is required alongside
                                  --answer (WP08)
   INVALID_RESULT                -- answer-decision: --result is not one of the host
