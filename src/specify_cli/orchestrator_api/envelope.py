@@ -139,7 +139,15 @@ from kernel.clock import now_utc_iso
 # ``DecisionPointResolved`` event, and reports its ``event_lamport`` (previously always null on
 # an idempotent call). A newly reachable ``error_code`` on existing verbs and a non-null
 # ``event_lamport`` on idempotent calls, so a minor bump; no field is removed or renamed.
-CONTRACT_VERSION = "1.17.0"
+# 1.18.0: ``consolidate-mission`` now skips a fully-canceled-with-provenance lane at parity
+# with host ``consolidate`` (#5814): a lane whose every work package is an acceptable
+# canceled-with-provenance ending is no longer merged, so its committed content never lands on
+# the target and its work packages are neither gate-evaluated nor marked merged/done. A call
+# that used to answer ``success: true`` while shipping that canceled content now still answers
+# ``success: true`` but with the canceled lane left off the target (the approved survivor lanes
+# land unchanged). A behaviour change to the shipped tree of a previously-``success`` call, so a
+# minor bump; no envelope field or ``error_code`` is added, removed or renamed.
+CONTRACT_VERSION = "1.18.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

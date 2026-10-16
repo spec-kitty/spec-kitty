@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.17.0`
+- `CONTRACT_VERSION`: `1.18.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -160,6 +160,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   is present only when non-empty — a clean commit leaves the payload
   byte-identical — so this is a purely additive, optional field; no field is
   removed or renamed.
+- `1.18.0` — `consolidate-mission` now skips a fully-canceled-with-provenance lane at
+  parity with host `consolidate` (#5814): a lane whose every work package is an acceptable
+  canceled-with-provenance ending is no longer merged, so its committed content never lands
+  on the target and its work packages are neither gate-evaluated nor marked merged/done. A
+  call that used to answer `success: true` while shipping that canceled content now still
+  answers `success: true` but leaves the canceled lane off the target (the approved survivor
+  lanes land unchanged). A behaviour change to the shipped tree of a previously-`success`
+  call, so a minor bump; no envelope field or `error_code` is added, removed or renamed.
 - `1.17.0` — `resolve-decision`, `defer-decision` and `cancel-decision` can newly
   fail with `DECISION_EVENT_REPAIR_FAILED` (#5681), and
   `DESIGN_STATUS_EVENT_LOG_UNREADABLE` (already returned there for an unreadable
@@ -176,7 +184,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.17.0",
+  "contract_version": "1.18.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

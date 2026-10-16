@@ -535,10 +535,11 @@ def _execute_lane_merge(
     """Execute the lane-based merge flow without emitting console prose."""
     from specify_cli.cli.commands.consolidate import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
-    from specify_cli.lanes.compute import is_planning_artifact_only
+    from specify_cli.lanes.compute import is_planning_artifact_only, lane_fully_canceled
     from specify_cli.lanes.consolidation import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.consolidation.config import MergeStrategy
+    from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
     from specify_cli.consolidation.entry_preflight import pre_mutation_safety_preflight
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
@@ -573,7 +574,15 @@ def _execute_lane_merge(
     )
 
     policy = load_policy_config(main_repo_root)
-    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    # #5814: exclude fully-canceled-with-provenance lanes at parity with host
+    # `consolidate` (phase_advance.py: `if lane_fully_canceled(...): continue`).
+    # A fully-canceled lane's committed content must never ride onto the target,
+    # and its work packages are neither gate-evaluated nor marked merged/done.
+    # Reuses the canonical predicate (`lanes.compute.lane_fully_canceled`) and the
+    # canonical excluded set (`acceptably_canceled_wp_ids`) the host loop and the
+    # approved-bound refusal already use -- no second authority.
+    excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo_root, mission_slug))
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
     gate_eval = evaluate_merge_gates(
         mission_dir,
         mission_slug,
@@ -618,6 +627,8 @@ def _execute_lane_merge(
     )
 
     for lane in lanes_manifest.lanes:
+        if lane_fully_canceled(lane, excluded_canceled_wp_ids):
+            continue  # #5814: never integrate a fully-canceled lane's content (host parity)
         lane_result = consolidate_lane_into_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
         if not lane_result.success:
             raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
@@ -632,6 +643,8 @@ def _execute_lane_merge(
         raise RuntimeError("; ".join(mission_result.errors) or "Mission merge failed.")
 
     for lane in lanes_manifest.lanes:
+        if lane_fully_canceled(lane, excluded_canceled_wp_ids):
+            continue  # #5814: a skipped fully-canceled lane's WPs stay canceled, never marked done
         for wp_id in lane.wp_ids:
             _mark_wp_merged_done(main_repo_root, mission_slug, wp_id, lanes_manifest.target_branch)
 
