@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
 from specify_cli.lanes.compute import PLANNING_LANE_ID
+from specify_cli.lanes.implement_support import _owned_status_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from tests.utils import _seed_canonical_wp_state, write_wp
@@ -447,3 +449,112 @@ def test_dirty_paths_excludes_dot_kittify_directory(tmp_path: Path) -> None:
     (repo / ".kittify" / "workspaces" / "some-context.json").write_text("{}\n", encoding="utf-8")
 
     assert dirty_paths(repo, owned_prefixes=(".kittify/",)) == []
+
+
+# ---------------------------------------------------------------------------
+# #5930: the REAL claim exemption list accepts ``spec-kitty next``'s own files.
+# ---------------------------------------------------------------------------
+
+_SLUG = "claim-bookkeeping-01ABCDEF"
+_OTHER_SLUG = "other-mission-01ZYXWVU"
+
+
+def _commit_file(repo: Path, rel: str, content: str = "{}\n") -> None:
+    if _git(repo, "ls-files", rel):
+        return
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _git(repo, "add", rel)
+    _git(repo, "commit", "-q", "-m", f"add {rel}")
+
+
+def _write_file(repo: Path, rel: str) -> None:
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}\n", encoding="utf-8")
+
+
+def _append_line(repo: Path, rel: str) -> None:
+    with (repo / rel).open("a", encoding="utf-8") as handle:
+        handle.write("{}\n")
+
+
+def _collapsed_ops_dir(repo: Path) -> None:
+    _write_file(repo, "kitty-ops/lifecycle.jsonl")
+
+
+def _modified_ops_file(repo: Path) -> None:
+    _commit_file(repo, "kitty-ops/lifecycle.jsonl")
+    _append_line(repo, "kitty-ops/lifecycle.jsonl")
+
+
+def _untracked_log(repo: Path) -> None:
+    _commit_file(repo, f"kitty-specs/{_SLUG}/meta.json")
+    _write_file(repo, f"kitty-specs/{_SLUG}/mission-events.jsonl")
+
+
+def _modified_log(repo: Path) -> None:
+    _commit_file(repo, f"kitty-specs/{_SLUG}/mission-events.jsonl")
+    _append_line(repo, f"kitty-specs/{_SLUG}/mission-events.jsonl")
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [_collapsed_ops_dir, _modified_ops_file, _untracked_log, _modified_log],
+    ids=["ops-collapsed-dir", "ops-tracked-modified", "log-untracked", "log-tracked-modified"],
+)
+def test_dirty_paths_real_claim_list_accepts_next_bookkeeping(tmp_path: Path, setup: Callable[[Path], None]) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    setup(repo)
+    assert _git(repo, "status", "--porcelain"), "setup left nothing dirty"
+
+    assert dirty_paths(repo, owned_prefixes=_owned_status_prefixes(_SLUG)) == []
+
+
+def _lookalike_ops(repo: Path) -> str:
+    _commit_file(repo, "src/kitty-ops/.keep")
+    _write_file(repo, "src/kitty-ops/notes.txt")
+    return "src/kitty-ops/notes.txt"
+
+
+def _sibling_spec(repo: Path) -> str:
+    _commit_file(repo, f"kitty-specs/{_SLUG}/meta.json")
+    _write_file(repo, f"kitty-specs/{_SLUG}/spec.md")
+    return f"kitty-specs/{_SLUG}/spec.md"
+
+
+def _log_backup(repo: Path) -> str:
+    _commit_file(repo, f"kitty-specs/{_SLUG}/meta.json")
+    _write_file(repo, f"kitty-specs/{_SLUG}/mission-events.jsonl.bak")
+    return f"kitty-specs/{_SLUG}/mission-events.jsonl.bak"
+
+
+def _other_mission_log(repo: Path) -> str:
+    _commit_file(repo, f"kitty-specs/{_OTHER_SLUG}/meta.json")
+    _write_file(repo, f"kitty-specs/{_OTHER_SLUG}/mission-events.jsonl")
+    return f"kitty-specs/{_OTHER_SLUG}/mission-events.jsonl"
+
+
+def _operator_file(repo: Path) -> str:
+    _write_file(repo, "real_change.py")
+    return "real_change.py"
+
+
+@pytest.mark.parametrize(
+    "offender",
+    [_lookalike_ops, _sibling_spec, _log_backup, _other_mission_log, _operator_file],
+    ids=["lookalike-ops", "same-mission-spec", "log-backup", "other-mission-log", "operator-file"],
+)
+def test_dirty_paths_real_claim_list_still_refuses_look_alikes(tmp_path: Path, offender: Callable[[Path], str]) -> None:
+    """Each offender sits beside the accepted bookkeeping; a sibling is committed first
+    so git lists the exact file (a collapsed directory would never reach the matcher)."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_file(repo, "kitty-ops/lifecycle.jsonl")
+    _commit_file(repo, f"kitty-specs/{_SLUG}/meta.json")
+    _write_file(repo, f"kitty-specs/{_SLUG}/mission-events.jsonl")
+    offending_path = offender(repo)
+
+    assert dirty_paths(repo, owned_prefixes=_owned_status_prefixes(_SLUG)) == [offending_path]

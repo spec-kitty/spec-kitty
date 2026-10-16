@@ -531,6 +531,103 @@ def test_review_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #5930: the claim accepts ``spec-kitty next``'s own uncommitted bookkeeping.
+# ---------------------------------------------------------------------------
+
+_OPS_FILE = "kitty-ops/lifecycle.jsonl"
+
+
+def _write_bookkeeping(repo: Path, mission_slug: str, *, ops_file: str = _OPS_FILE) -> None:
+    log = repo / "kitty-specs" / mission_slug / "mission-events.jsonl"
+    for path in (repo / ops_file, log):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"n": 1}\n', encoding="utf-8")
+
+
+def _form_collapsed_untracked(repo: Path, mission_slug: str) -> None:
+    _write_bookkeeping(repo, mission_slug)
+
+
+def _form_tracked_modified(repo: Path, mission_slug: str) -> None:
+    _write_bookkeeping(repo, mission_slug)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "commit bookkeeping")
+    for rel in (_OPS_FILE, f"kitty-specs/{mission_slug}/mission-events.jsonl"):
+        with (repo / rel).open("a", encoding="utf-8") as handle:
+            handle.write('{"n": 2}\n')
+
+
+def _form_partly_tracked_ops(repo: Path, mission_slug: str) -> None:
+    archived = repo / "kitty-ops" / "01ARCHIVEDOPRECORD.jsonl"
+    archived.parent.mkdir(parents=True, exist_ok=True)
+    archived.write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "archived op record")
+    _write_bookkeeping(repo, mission_slug, ops_file="kitty-ops/op-closures.jsonl")
+
+
+@pytest.mark.parametrize(
+    "form",
+    [_form_collapsed_untracked, _form_tracked_modified, _form_partly_tracked_ops],
+    ids=["collapsed-untracked", "tracked-modified", "partly-tracked-ops"],
+)
+def test_next_bookkeeping_in_write_checkout_is_not_dirty(repo: Path, form: Any) -> None:
+    """``spec-kitty next`` leaves ``kitty-ops/`` and this Mission's event log
+    uncommitted; the claim must accept every git form of them (#5930)."""
+    mission_slug = "impl-next-bookkeeping"
+    _build_mission(repo, mission_slug, "01IMPLNEXTBOOKKEEP00001")
+    form(repo, mission_slug)
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws) is True
+
+
+def test_operator_edit_beside_next_bookkeeping_still_refuses_naming_only_the_edit(repo: Path) -> None:
+    """The exemption is not "any dirt": the refusal lists only the operator file (#5930)."""
+    mission_slug = "impl-next-bookkeeping-edit"
+    _build_mission(repo, mission_slug, "01IMPLNEXTBOOKKEEP00002")
+    _write_bookkeeping(repo, mission_slug)
+    (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+
+    assert excinfo.value.error_code == "WRITE_CHECKOUT_DIRTY"
+    listed = str(excinfo.value).split("uncommitted changes: ", 1)[1].split(". Commit or stash", 1)[0].split(", ")
+    assert listed == ["README.md"]
+
+
+def test_cli_implement_accepts_next_ops_records(repo: Path) -> None:
+    """``spec-kitty implement`` with only ``kitty-ops/`` uncommitted claims (#5930)."""
+    mission_slug = "impl-cli-ops"
+    _build_mission(repo, mission_slug, "01IMPLCLIOPS00000000001")
+    (repo / "kitty-ops").mkdir()
+    (repo / _OPS_FILE).write_text("{}\n", encoding="utf-8")
+
+    result = _run_implement(repo, mission_slug)
+
+    assert result.exit_code == 0, result.output
+
+
+def test_cli_implement_refuses_operator_edit_beside_next_ops_records(repo: Path) -> None:
+    """The CLI verb names only the operator file, never ``kitty-ops/`` (#5930)."""
+    mission_slug = "impl-cli-ops-edit"
+    _build_mission(repo, mission_slug, "01IMPLCLIOPS00000000002")
+    (repo / "kitty-ops").mkdir()
+    (repo / _OPS_FILE).write_text("{}\n", encoding="utf-8")
+    (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+
+    result = _run_implement(repo, mission_slug)
+
+    output = " ".join(result.output.split())
+    assert result.exit_code != 0
+    assert "Workspace allocation failed" in output, output
+    assert "README.md" in output
+    assert "kitty-ops/" not in output
+
+
+# ---------------------------------------------------------------------------
 # Review cycle-1 issue 1: the refusals are scoped to single_branch missions.
 # ---------------------------------------------------------------------------
 

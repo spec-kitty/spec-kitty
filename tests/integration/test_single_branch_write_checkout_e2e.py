@@ -11,7 +11,10 @@ guard that keeps only what no cheaper test pins:
   lane worktree stamped ``worktree``), and
 - the ``agent action implement`` loop on a real finalized mission: claim base,
   refusals and resume (#5459), and write-checkout occupancy across missions,
-  including the refusal's ``move-task`` remedy (#5680).
+  including the refusal's ``move-task`` remedy (#5680), and
+- the claim accepting ``spec-kitty next``'s own uncommitted bookkeeping
+  (``kitty-ops/`` and the Mission's ``mission-events.jsonl``) while a real
+  operator edit beside it still refuses (#5930).
 
 The finalize lane shape, the implement refusals (wrong branch, occupancy,
 dirty checkout, resume exemption), the ``direct_repo`` stamp, the protected
@@ -386,6 +389,91 @@ def test_action_implement_resume_in_dirty_checkout_is_allowed(agent_loop_mission
     (repo / "src" / "wp01.py").write_text("VALUE = 11\n", encoding="utf-8")
     _assert_setup_ok("resume WP01", _action_implement("WP01", slug))
     assert read_claim_base(repo, slug, "WP01") == base
+
+
+def _next(mission_slug: str, expected_wp: str) -> None:
+    """Run ``spec-kitty next`` and assert it dispatched ``implement <expected_wp>``."""
+    result = runner.invoke(root_app, ["next", "--agent", "claude", "--mission", mission_slug, "--result", "success", "--json"])
+    _assert_setup_ok("next", result)
+    assert '"step_id": "implement"' in result.output, result.output
+    assert f'"wp_id": "{expected_wp}"' in result.output, result.output
+
+
+def _assert_next_bookkeeping_dirty(repo: Path, slug: str) -> None:
+    """Non-vacuity guard: ``next`` really left its own bookkeeping uncommitted."""
+    status = _git(repo, "status", "--porcelain")
+    assert "kitty-ops/" in status, status
+    assert f"kitty-specs/{slug}/mission-events.jsonl" in status, status
+
+
+def test_action_implement_accepts_next_bookkeeping(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5930 FR-001: the claim right after ``next`` is not refused by ``next``'s own files."""
+    repo, slug, feature_dir = agent_loop_mission
+    _next(slug, "WP01")
+    _assert_next_bookkeeping_dirty(repo, slug)
+    result = _action_implement("WP01", slug)
+    assert result.exit_code == 0, result.output
+    assert "WRITE_CHECKOUT_DIRTY" not in result.output
+    assert read_claim_base(repo, slug, "WP01") is not None
+    assert _lane_of(feature_dir, "WP01") not in (None, "planned")
+    # The claim neither stages nor commits the bookkeeping.
+    _assert_next_bookkeeping_dirty(repo, slug)
+    committed = _git(repo, "show", "--name-only", "--format=", "HEAD")
+    assert "kitty-ops/" not in committed
+    assert "mission-events.jsonl" not in committed
+
+
+def test_cli_implement_accepts_next_bookkeeping(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5930 FR-002: ``spec-kitty implement`` right after ``next`` is not refused either.
+
+    This verb auto-commits ``kitty-specs/<slug>/`` before the guard runs
+    (pre-existing), so its only post-``next`` blocker on the base is ``kitty-ops/``.
+    """
+    repo, slug, feature_dir = agent_loop_mission
+    _next(slug, "WP01")
+    _assert_next_bookkeeping_dirty(repo, slug)
+    result = _implement("WP01", slug)
+    assert result.exit_code == 0, result.output
+    assert "uncommitted changes" not in result.output
+    assert _lane_of(feature_dir, "WP01") == "in_progress"
+
+
+def test_next_loop_claims_the_next_wp_after_residue_is_committed(agent_loop_mission: tuple[Path, str, Path]) -> None:
+    """#5930 SC-002: the tracked-and-modified form of the bookkeeping is accepted too."""
+    repo, slug, _ = agent_loop_mission
+    _next(slug, "WP01")
+    _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
+    (repo / "src" / "wp01.py").write_text("VALUE = 10\n", encoding="utf-8")
+    _git(repo, "add", "src/wp01.py")
+    _git(repo, "commit", "-m", "WP01 work")
+    _assert_setup_ok("mark-status T001", _mark_done("T001", slug))
+    _assert_setup_ok("move-task WP01 for_review", _move_to_for_review("WP01", slug))
+    _commit_all(repo, "operator commits next residue")
+    assert _git(repo, "status", "--porcelain") == ""
+
+    _next(slug, "WP02")
+    modified = _git(repo, "status", "--porcelain", "--untracked-files=no")
+    assert "kitty-ops/" in modified, modified
+    assert f"kitty-specs/{slug}/mission-events.jsonl" in modified, modified
+    result = _action_implement("WP02", slug)
+    assert result.exit_code == 0, result.output
+
+
+def test_action_implement_refuses_operator_edit_beside_next_bookkeeping(agent_loop_mission: tuple[Path, str, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5930 FR-005: an operator edit beside ``next``'s files still refuses, naming only the edit."""
+    monkeypatch.setenv("COLUMNS", "400")
+    repo, slug, feature_dir = agent_loop_mission
+    _next(slug, "WP01")
+    _assert_next_bookkeeping_dirty(repo, slug)
+    (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+    result = _action_implement("WP01", slug)
+    assert result.exit_code != 0
+    output = " ".join(result.output.split())
+    assert "WRITE_CHECKOUT_DIRTY" in output, output
+    listed = output.split("uncommitted changes: ", 1)[1].split(". Commit or stash", 1)[0].split(", ")
+    assert listed == ["README.md"], listed
+    assert _lane_of(feature_dir, "WP01") in (None, "planned")
+    assert read_claim_base(repo, slug, "WP01") is None
 
 
 def test_mission_writing_to_another_branch_does_not_occupy_the_checkout(agent_loop_mission: tuple[Path, str, Path], tmp_path: Path) -> None:
