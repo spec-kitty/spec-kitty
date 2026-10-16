@@ -665,6 +665,70 @@ def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     return None if entry is None else entry.oid
 
 
+def added_lines_of(repo_root: Path, sha: str, path: str) -> list[str]:
+    """Return the ``+`` hunk lines *sha* added at *path* (the content it introduced).
+
+    ``git show --format= --no-color --no-renames <sha> -- <path>`` diffs the commit
+    against its first parent — equivalently ``git diff <sha>^ <sha> -- <path>`` — and
+    for a ROOT commit shows every line as added, so the probe needs no parent-existence
+    special case. The unified diff's added-content lines start with ``+`` (the ``+++``
+    file header is excluded); the single leading ``+`` is stripped so each returned
+    entry is the verbatim line as it appears in the blob.
+
+    Only called for a non-merge commit (``is_merge_commit`` filters merges out before a
+    toucher is recorded). Raises :class:`GitProbeError` on any git error (fail-closed;
+    mirrors every probe here), so the caller REFUSEs rather than reading an unevaluable
+    diff as "no added content".
+    """
+    ret, out, err = run_command(
+        ["git", "show", "--format=", "--no-color", "--no-renames", sha, "--", path],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git show --format= {sha} -- {path} failed (exit {ret}): {(err or '').strip()}")
+    return [line[1:] for line in out.splitlines() if line.startswith("+") and not line.startswith("+++")]
+
+
+def canceled_content_survives(repo_root: Path, canceled_sha: str, path: str, final_ref: str) -> bool:
+    """Does *canceled_sha*'s added content at *path* still live in *final_ref*'s blob? (#5932)
+
+    The content-level supersession test. A later commit that merely TOUCHED *path* —
+    an append, or a partial rework that keeps the canceled lines — does NOT remove the
+    canceled commit's content, even though a path-touch heuristic would call the path
+    superseded. The canceled commit's added lines (:func:`added_lines_of`) are compared
+    against the blob at *final_ref* (the lane's final state for the path):
+
+    * the path deleted in *final_ref* → the content is gone (``False``);
+    * the canceled commit added no content (a pure deletion) → nothing to survive (``False``);
+    * every added line still present in the final blob → the content survives (``True``);
+      a full overwrite drops at least one added line, so it is gone, while an append or a
+      partial keep preserves them all.
+
+    Fail-closed (mirrors every probe here): any git error raises :class:`GitProbeError`,
+    so the caller REFUSEs rather than reading an unevaluable probe as "superseded".
+    Keeping content live (over-refusing) is the safe direction; silently dropping
+    surviving canceled content from the approved claim is the #5932 defect.
+    """
+    final_oid = path_state_at(repo_root, final_ref, path)
+    if final_oid is None:
+        return False  # the path is gone in the final tree — the canceled content did not survive
+    added = added_lines_of(repo_root, canceled_sha, path)
+    if not added:
+        return False  # the canceled commit introduced no content at this path
+    ret, out, err = run_command(
+        ["git", "cat-file", "blob", final_oid],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git cat-file blob {final_oid} failed (exit {ret}): {(err or '').strip()}")
+    final_lines = set(out.splitlines())
+    return set(added) <= final_lines
+
+
 def is_merge_commit(repo_root: Path, sha: str) -> bool:
     """Return True when *sha* has 2 or more parents (a merge commit).
 
@@ -960,6 +1024,8 @@ __all__ = [
     "first_parent_commits_in_range",
     "blob_id_at",
     "path_state_at",
+    "added_lines_of",
+    "canceled_content_survives",
     "is_merge_commit",
     "changed_paths_in_range",
     "changed_paths_of",

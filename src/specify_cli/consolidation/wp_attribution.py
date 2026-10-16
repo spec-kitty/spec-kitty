@@ -31,6 +31,7 @@ from specify_cli.status import LANE_HEAD_KEY, StatusEvent, is_migration_actor
 
 from .git_probes import (
     GitProbeError,
+    canceled_content_survives,
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
@@ -499,10 +500,15 @@ def _canceled_content_walk(
     commit seen (newest) is recorded as that path's ``newest_toucher``; every
     commit IN ``canceled_commits`` that touches the path OVERWRITES
     ``oldest_canceled_{idx,sha}`` for it, so after the full walk that holds
-    the LAST (oldest) canceled touch. A path only produces a
-    :class:`CanceledPathState` when its newest toucher IS a canceled commit
-    (R7 supersession — a later survivor touch already dropped it before this
-    point).  ``pre_state_by_survivor`` compares walk POSITIONS (index 0 =
+    the LAST (oldest) canceled touch. A path produces a
+    :class:`CanceledPathState` when a canceled commit touched it AND that
+    canceled content still lives in the lane's final blob
+    (:func:`~specify_cli.consolidation.git_probes.canceled_content_survives`,
+    #5932): a later survivor toucher that merely APPENDED or partially reworked
+    the path keeps the canceled lines, so content-level supersession — not a
+    bare path-touch (the pre-#5932 R7 rule) — decides. A full overwrite drops
+    the canceled lines, so that path is genuinely superseded and no entry is
+    produced.  ``pre_state_by_survivor`` compares walk POSITIONS (index 0 =
     newest): a survivor's oldest recorded touch index strictly greater than
     the canceled WP's oldest touch index means some survivor commit is OLDER
     on the spine than the canceled WP's first change to that path (R1).
@@ -532,13 +538,24 @@ def _canceled_content_walk(
 
     results: set[CanceledPathState] = set()
     for path, toucher in newest_toucher.items():
-        if toucher not in canceled_commits:
-            continue  # superseded by a later (newer) non-canceled toucher — R7
+        if path not in oldest_canceled_sha:
+            continue  # no canceled commit touched this path — not canceled content
         oldest_c_sha = oldest_canceled_sha[path]
+        # ``toucher`` is the path's newest NON-MERGE toucher, so its blob IS the lane's
+        # final state for the path. When that toucher is a SURVIVOR (the pre-#5932 R7
+        # drop), keep the path only when the canceled content still lives in that final
+        # blob (#5932, content-level): a full overwrite drops it (superseded), an append
+        # or partial keep preserves it (ships, embedded). A probe error raises
+        # GitProbeError (fail-closed; the caller maps it onto SPINE_UNREADABLE).
+        if toucher not in canceled_commits and not canceled_content_survives(repo_root, oldest_c_sha, path, toucher):
+            continue  # superseded — the canceled content no longer lives in the final blob
+        # When a survivor appended on top, ``canceled_state`` is that final blob, which is
+        # what the integrated target carries; when the canceled commit is itself the newest
+        # toucher this is unchanged from the pre-#5932 behaviour.
         canceled_state = path_state_at(repo_root, toucher, path)
         pre_state = path_state_at(repo_root, f"{oldest_c_sha}^", path)
         if canceled_state == pre_state:
-            continue  # net-zero self-revert
+            continue  # net-zero: the final blob is back at the pre-canceled state
         pre_state_by_survivor = oldest_survivor_idx.get(path, -1) > oldest_canceled_idx[path]
         results.add(
             CanceledPathState(
@@ -811,27 +828,29 @@ def canceled_spine_content(
 
     *spine* is newest-first. Returns ``(superseded, live)``:
 
-    * ``superseded`` -- canceled commits on the spine EVERY content path of which a
-      newer, non-canceled, non-merge spine commit touched again. Nothing of such a
-      commit is the lane's final state, so nothing of it ships.
-    * ``live`` -- content path -> ``(newest canceled toucher, its state there)`` for
-      every path whose newest non-merge toucher on the spine is a canceled commit.
-      The state is a blob id, or ``None`` when that commit deleted the path.
+    * ``superseded`` -- canceled commits EVERY content path of which is CONTENT-level
+      superseded on the spine: the canceled lines no longer live in the carrier lane's
+      final blob (a later survivor fully overwrote the path). Nothing of such a commit
+      is the lane's final state, so nothing of it ships. A survivor that merely APPENDED
+      to or partially reworked the path keeps the canceled lines, so the commit is NOT
+      superseded (content-level, not path-touch — #5932).
+    * ``live`` -- content path -> ``(newest canceled toucher, the FINAL blob there)`` for
+      every path a canceled commit touched whose content still lives in the lane's final
+      blob. The state is the blob id at the carrier lane's final state for the path (what
+      the integrated target carries), or ``None`` when the path is absent there.
 
     A merge commit neither supersedes nor is superseded (its first-parent diff can
     carry the canceled content itself). A canceled commit that touches no content
     path is not superseded: it stays out of the approved claim, as before. Raises
     :class:`GitProbeError` when a commit cannot be read; the caller decides.
-
-    Unlike :func:`_canceled_content_walk`, a path the canceled commits changed and
-    then restored is still reported in ``live`` (with the restored state): the
-    verifier only counts an entry whose state the pre-consolidation target did not
-    already hold, which is where a net-zero change drops out.
     """
     # Nothing older than the oldest canceled commit can supersede or be canceled
     # content, so the walk (the same per-commit step as :func:`_canceled_content_walk`)
     # ends there; a spine without a canceled commit reads nothing.
     oldest_canceled = max((idx for idx, sha in enumerate(spine) if sha in canceled_commits), default=-1)
+    if oldest_canceled < 0:
+        return frozenset(), {}
+    final_ref = spine[0]  # newest-first: the carrier lane's final state for every path
     survivor_paths: set[str] = set()
     superseded: set[str] = set()
     newest_canceled: dict[str, str] = {}
@@ -839,12 +858,16 @@ def canceled_spine_content(
         if sha not in canceled_commits:
             survivor_paths.update(paths)
             continue
-        unsuperseded = [path for path in paths if path not in survivor_paths]
+        # A canceled commit's path is superseded only when a LATER survivor touched it
+        # AND the canceled content no longer lives in the carrier's final blob (#5932,
+        # content-level): a later survivor that merely appended to or partially kept the
+        # path is NOT a supersession, so the canceled content stays live and subtracted.
+        unsuperseded = [path for path in paths if path not in survivor_paths or canceled_content_survives(repo_root, sha, path, final_ref)]
         if paths and not unsuperseded:
             superseded.add(sha)
         for path in unsuperseded:
             newest_canceled.setdefault(path, sha)
-    live = {path: (sha, path_state_at(repo_root, sha, path)) for path, sha in newest_canceled.items()}
+    live = {path: (sha, path_state_at(repo_root, final_ref, path)) for path, sha in newest_canceled.items()}
     return frozenset(superseded), live
 
 

@@ -4,14 +4,19 @@ Each test below is a git-backed, strict ``xfail`` that asserts the **ideal**
 verdict for a known, documented limitation of the mixed-lane canceled-content
 axis (``wp_attribution.resolve_canceled_wp`` + ``MergeOutcomeVerifier.
 _canceled_content_divergence``, mission ``mixed-lane-authorship-soundness-
-01M3M7Y0`` WP04/WP05). Hunk-level supersession, the other-lane-identical
-direction, the never-claimed-WP shape, the post-cancel-reintroduction shape,
-and the never-entered-implementation-sibling misattribution shape are
-explicitly out of scope for a fix in this mission (spec.md C-007); pinning
-them here means any future
+01M3M7Y0`` WP04/WP05). The other-lane-identical direction, the never-claimed-WP
+shape, the post-cancel-reintroduction shape, and the
+never-entered-implementation-sibling misattribution shape are out of scope for a
+fix in that mission (spec.md C-007); pinning them here means any future
 change to the axis that silently alters this behaviour turns the test RED
 (``strict=True``) rather than drifting unnoticed (charter tactic
 ``delete-the-assertion-not-the-test``).
+
+**#5932 update.** Residual 1 (hunk-level supersession) is FIXED: content-level
+supersession (``git_probes.canceled_content_survives``) replaces the path-touch
+rule in both ``wp_attribution`` axes, so a survivor that appends to or partially
+keeps a canceled WP's content no longer launders it. It is now a regular test
+pinning the FAIL (``test_hunk_level_supersession_fails``), not a strict ``xfail``.
 
 Every scenario is driven through the SAME production seam WP06's other
 subtasks use: real git commits on a real lane branch, real
@@ -31,8 +36,9 @@ residuals no longer leak: the post-cancel reintroduction (residual 3) and the
 never-claimed-WP commit (residual 4) both land a content commit outside every
 resolved WP window, which the closed-world check now REFUSEs. Their leak is
 closed (the verdict is a safe non-PASS), so they are regular tests pinning the
-REFUSE instead of strict ``xfail`` pins. Residuals 1, 2 and 5 stay strict
-``xfail`` (their commits all sit inside a resolved window). Residual 6
+REFUSE instead of strict ``xfail`` pins. Residuals 2 and 5 stay strict
+``xfail`` (their commits all sit inside a resolved window); residual 1 is now
+fixed (see the #5932 update below). Residual 6
 (landing review, #5330) is a gap of the closed-world ANCHORS: a pre-claim
 out-of-workflow commit (first-claim anchor), still a strict ``xfail``.
 
@@ -219,22 +225,18 @@ def _verify_today(
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="hunk-level supersession residual (FR-009, C-007) — follow-up under the parent epic")
-def test_hunk_level_supersession_ideally_fails(tmp_path: Path) -> None:
+def test_hunk_level_supersession_fails(tmp_path: Path) -> None:
     """A survivor's rework edits ON TOP of the canceled WP's change, keeping
     PART of its content verbatim (the final blob still contains WP02's line,
     concatenated with WP01's own new line).
 
-    The axis compares whole-path blobs, not hunks (``wp_attribution.
-    _canceled_content_walk``'s R7 rule: a path only produces a
-    ``CanceledPathState`` when its NEWEST toucher IS a canceled commit — any
-    later non-canceled toucher, even one that only partially rewrites the
-    blob, drops the path from ``canceled_content`` entirely). TODAY: the
-    canceled content still literally ships (embedded in WP01's rework blob)
-    and the gate PASSes. IDEAL: FAIL, since the canceled WP's content did
-    not fully leave the tree. Explicitly out of scope for a fix in this
-    mission (spec.md C-007 "hunk-level supersession... become follow-up
-    issues"; plan.md IC-05/IC-06).
+    Fixed in #5932: ``wp_attribution._canceled_content_walk`` no longer drops a
+    path because its newest toucher is a survivor. It keeps the path's canceled
+    content when that content still lives in the lane's final blob
+    (``git_probes.canceled_content_survives``), and records the FINAL blob as the
+    ``CanceledPathState`` state, so the divergence axis sees the target carry it.
+    The canceled WP's content survives embedded in WP01's rework blob, so the gate
+    now FAILs — the reviewer's rejection is not silently undone.
     """
     slug = "residual-hunk"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
@@ -279,7 +281,7 @@ def test_hunk_level_supersession_ideally_fails(tmp_path: Path) -> None:
     target_ref = _squash_target(repo, _TARGET, lane_branch)
 
     status = _verify_today(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02"}))
-    assert status == VerifyStatus.FAIL, "ideal: hunk-level supersession must still FAIL (canceled content survives, embedded)"
+    assert status == VerifyStatus.FAIL, "hunk-level supersession must FAIL (canceled content survives, embedded) — #5932"
 
 
 # --------------------------------------------------------------------------- #

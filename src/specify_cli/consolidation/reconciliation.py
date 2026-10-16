@@ -238,8 +238,10 @@ class CanceledDependencyContent:
     ``wp_ids`` are the canceled lane's WPs (the lane is the unit the allocator
     merges, so the content is named by all of them), ``canceled_lane_id`` is that
     lane and ``carrier_lane_id`` the approved lane whose first-parent spine carries
-    its commit. ``state`` is the blob the newest canceled commit left at ``path``,
-    or ``None`` when it deleted the path.
+    its commit. ``state`` is the carrier lane's FINAL blob at ``path`` — the content
+    the integrated target carries, which embeds the surviving canceled content even
+    when an approved commit later appended to the same file (#5932) — or ``None`` when
+    the path is absent in that final state.
     """
 
     wp_ids: tuple[str, ...]
