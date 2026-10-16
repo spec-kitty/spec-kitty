@@ -1,6 +1,6 @@
 ---
 title: 'ADR: extract the charter offering layer first as the GA gate leg; the activation rework rides the post-GA stable line'
-description: 'Charter modular extraction splits by seam: offering extracts first as the 4.0.0 GA gate leg because it has zero code dependency on activation; the activation drain/rework moves off the GA gate to the CLI 4.x stable line. Amends 2026-10-12-2.'
+description: 'Charter extraction splits by seam: offering extracts first as the 4.0.0 GA gate leg; the activation drain/rework moves off-gate to CLI 4.x stable. Amends 2026-10-12-2.'
 status: Accepted
 date: '2026-10-16'
 updated: '2026-10-16'
