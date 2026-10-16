@@ -244,7 +244,13 @@ def _approved_session(m: CoordMission, wp: str, worktree: Path, path: str) -> li
     return events
 
 
-def build_lanes_mission_canceled_dependency(tmp_path: Path, *, cancel_dependency: bool, mid8: str = "01M5569A") -> CoordMission:
+def build_lanes_mission_canceled_dependency(
+    tmp_path: Path,
+    *,
+    cancel_dependency: bool,
+    mid8: str = "01M5569A",
+    dependency_never_started: bool = False,
+) -> CoordMission:
     """LANES mission where approved ``WP02`` (``lane-b``) depends on ``WP01`` (``lane-a``) (#5569).
 
     Both lane worktrees come from the REAL allocator
@@ -255,7 +261,13 @@ def build_lanes_mission_canceled_dependency(tmp_path: Path, *, cancel_dependency
     commits ``src/alpha/mod.py`` and is approved; with ``cancel_dependency`` it
     is then canceled with operator provenance (``lane-a`` holds only a canceled
     WP), otherwise it stays approved (positive control).
+
+    With ``dependency_never_started`` (spec-kitty#5937; requires
+    ``cancel_dependency``) ``WP01`` is canceled while still ``planned``: it is
+    never claimed, ``lane-a`` is never allocated and its branch never exists.
     """
+    if dependency_never_started and not cancel_dependency:
+        raise ValueError("dependency_never_started=True needs cancel_dependency=True: a never-started dependency is a canceled one")
     mid8 = mid8.upper()
     mission_id = (mid8 + "0" * 26)[:26]
     slug = f"terminus-{mid8}"
@@ -292,14 +304,21 @@ def build_lanes_mission_canceled_dependency(tmp_path: Path, *, cancel_dependency
     _git(m.repo, "commit", "-qm", f"chore({slug}): bootstrap canceled-dependency mission")
     _git(m.repo, "branch", mission_branch)
 
-    lane_a, branch_a = allocate_lane_worktree(m.repo, slug, "WP01", manifest)
-    events = _approved_session(m, "WP01", lane_a, _DEP_CANCELED_PATH)
-    lane_b, branch_b = allocate_lane_worktree(m.repo, slug, "WP02", manifest)
-    events.extend(_approved_session(m, "WP02", lane_b, _DEP_DEPENDENT_PATH))
-    if cancel_dependency:
-        events.append(_cancel_event(m, "WP01", from_lane="approved", policy_metadata={"lane_head": git_rev(lane_a, "HEAD")}))
+    if dependency_never_started:
+        events = [_cancel_event(m, "WP01", from_lane="planned")]
+        lane_b, branch_b = allocate_lane_worktree(m.repo, slug, "WP02", manifest)
+        events.extend(_approved_session(m, "WP02", lane_b, _DEP_DEPENDENT_PATH))
         m.canceled_wps.add("WP01")
-    m.lane_branches.update({"WP01": branch_a, "WP02": branch_b})
+        m.lane_branches["WP02"] = branch_b
+    else:
+        lane_a, branch_a = allocate_lane_worktree(m.repo, slug, "WP01", manifest)
+        events = _approved_session(m, "WP01", lane_a, _DEP_CANCELED_PATH)
+        lane_b, branch_b = allocate_lane_worktree(m.repo, slug, "WP02", manifest)
+        events.extend(_approved_session(m, "WP02", lane_b, _DEP_DEPENDENT_PATH))
+        if cancel_dependency:
+            events.append(_cancel_event(m, "WP01", from_lane="approved", policy_metadata={"lane_head": git_rev(lane_a, "HEAD")}))
+            m.canceled_wps.add("WP01")
+        m.lane_branches.update({"WP01": branch_a, "WP02": branch_b})
 
     events_path = m.feature_dir / _STATUS_EVENTS_FILENAME
     events_path.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events))

@@ -57,6 +57,15 @@ class CanceledDependencyMission:
     lane_b_branch: str
 
 
+@dataclass(frozen=True)
+class NeverStartedDependencyMission:
+    """The #5937 scenario: ``WP01`` was canceled while ``planned``, so ``lane-a`` was never created."""
+
+    mission: CoordMission
+    lane_a_branch: str
+    lane_b_branch: str
+
+
 def _wp_file(wp: str, *, dependencies: tuple[str, ...]) -> str:
     deps = "[" + ", ".join(dependencies) + "]"
     return f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: {deps}\nsubtasks: []\n---\n# {wp}\n"
@@ -83,6 +92,24 @@ def _manifest(mission: CoordMission, *, depends: bool) -> LanesManifest:
         computed_at=_now_iso(),
         computed_from="terminus-canceled-dependency-allocator-fixture",
     )
+
+
+def _bootstrap_coord_mission(tmp_path: Path, *, mid8: str, depends: bool, target_branch: str) -> tuple[CoordMission, LanesManifest]:
+    """Planning artifacts (two WPs, ``lane-a``/``lane-b`` manifest, empty event log) committed and the coord branch cut."""
+    mid8 = mid8.upper()
+    slug = f"terminus-{mid8}"
+    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=target_branch)
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(mission)
+    manifest = _manifest(mission, depends=depends)
+    write_lanes_json(mission.feature_dir, manifest)
+    (mission.feature_dir / "tasks" / "WP01-work.md").write_text(_wp_file("WP01", dependencies=()), encoding="utf-8")
+    (mission.feature_dir / "tasks" / "WP02-work.md").write_text(_wp_file("WP02", dependencies=("WP01",) if depends else ()), encoding="utf-8")
+    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")
+    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap canceled-dependency mission")
+    _cut_coord_branch(mission)
+    _finish_coord_mission(mission)
+    return mission, read_lanes_json(mission.feature_dir) or manifest
 
 
 def _commit_in(worktree: Path, rel_path: str, text: str, message: str) -> str:
@@ -133,21 +160,9 @@ def build_canceled_dependency_mission(
     ``wp01_final`` decides whether it is canceled with operator provenance, left
     rejected, or re-approved; ``WP02`` finishes and is approved.
     """
-    mid8 = mid8.upper()
-    slug = f"terminus-{mid8}"
-    mission = _init_fixture_repo(tmp_path, mid8=mid8, slug=slug, target_branch=target_branch)
-    (mission.feature_dir / "tasks").mkdir(parents=True)
-    _write_meta(mission)
-    manifest = _manifest(mission, depends=depends)
-    write_lanes_json(mission.feature_dir, manifest)
-    (mission.feature_dir / "tasks" / "WP01-work.md").write_text(_wp_file("WP01", dependencies=()), encoding="utf-8")
-    (mission.feature_dir / "tasks" / "WP02-work.md").write_text(_wp_file("WP02", dependencies=("WP01",) if depends else ()), encoding="utf-8")
-    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")
-    _commit_planning_artifacts(mission, f"chore({slug}): bootstrap canceled-dependency mission")
-    _cut_coord_branch(mission)
-    _finish_coord_mission(mission)
+    mission, manifest = _bootstrap_coord_mission(tmp_path, mid8=mid8, depends=depends, target_branch=target_branch)
+    slug = mission.slug
     repo = mission.repo
-    manifest = read_lanes_json(mission.feature_dir) or manifest
 
     # Both lanes are allocated up front, at the same coordination tip (the
     # orchestrator's start-implementation shape), so lane-b's base is an ancestor
@@ -182,6 +197,31 @@ def build_canceled_dependency_mission(
         mission.canceled_wps.add("WP01")
     assert lane_a_branch == lane_branch_name(slug, LANE_A, target_branch=target_branch)
     return CanceledDependencyMission(mission=mission, wp01_sha=wp01_sha, lane_a_branch=lane_a_branch, lane_b_branch=lane_b_branch)
+
+
+def build_never_started_dependency_mission(tmp_path: Path, *, mid8: str, target_branch: str = "main") -> NeverStartedDependencyMission:
+    """Build a coordination mission whose canceled dependency never started (spec-kitty#5937).
+
+    ``WP01`` goes ``planned -> canceled`` with operator provenance and is never
+    claimed, so ``lane-a`` is never allocated and its branch never exists.
+    ``WP02`` depends on ``WP01``; it is claimed, allocated ``lane-b`` by the REAL
+    allocator (whose dependency step skips the missing, non-approved ``lane-a``),
+    implemented and approved. There is no ``WP01`` commit, so no ``wp01_sha``.
+    """
+    mission, manifest = _bootstrap_coord_mission(tmp_path, mid8=mid8, depends=True, target_branch=target_branch)
+    slug = mission.slug
+    transition(mission, "WP01", "planned", actor=ACTOR)
+    transition(mission, "WP01", "canceled", actor=ACTOR, reason_source="operator", reason="operator: descoped before it started")
+    transition(mission, "WP02", "planned", actor=ACTOR)
+    transition(mission, "WP02", "claimed", actor=ACTOR)
+    lane_b_tree, lane_b_branch = allocate_lane_worktree(mission.repo, slug, "WP02", manifest)
+    transition(mission, "WP02", "in_progress", actor=ACTOR)
+    _commit_in(lane_b_tree, WP02_PATH, "def wp02() -> int:\n    return 2\n", f"feat({slug}): WP02 work")
+    _approve(mission, "WP02", reference="review-WP02")
+    mission.lane_branches["WP02"] = lane_b_branch
+    mission.canceled_wps.add("WP01")
+    lane_a_branch = lane_branch_name(slug, LANE_A, target_branch=target_branch)
+    return NeverStartedDependencyMission(mission=mission, lane_a_branch=lane_a_branch, lane_b_branch=lane_b_branch)
 
 
 def first_parent_shas(repo: Path, base: str, tip: str) -> list[str]:

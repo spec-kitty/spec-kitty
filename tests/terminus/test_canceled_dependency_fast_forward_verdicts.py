@@ -12,26 +12,35 @@ every status transition runs through the production status shell -- never
 ``plant_canceled_commit`` (a true merge commit, which is why #4977 went green).
 Each negative has a same-fixture positive control, so a refusal here cannot be
 an artefact of the fixture.
+
+The spec-kitty#5937 tests cover the other shape: WP01 is canceled while still
+``planned``, so ``lane-a`` is never created, and approved WP02 must land (lanes,
+lanes attested, and coord) instead of being refused for an unreadable branch.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
+from specify_cli.lanes.branch_naming import lane_branch_name
 from tests.terminus.canceled_dependency_support import (
+    LANE_A,
     LANE_B,
     WP01_PATH,
     WP02_PATH,
     CanceledDependencyMission,
     build_canceled_dependency_mission,
+    build_never_started_dependency_mission,
     first_parent_shas,
     merge_commits,
     strip_lane_head_stamps,
 )
 from tests.terminus.conftest import _git as git
-from tests.terminus.conftest import blob_present_at, run_terminus
+from tests.terminus.conftest import CoordMission, blob_present_at, run_terminus
+from tests.terminus.lanes_fixture import build_lanes_mission_canceled_dependency
 from tests.terminus.mixed_lane_support import ATTEST_FLAG, REFUSE_HEADER, collapse
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -178,3 +187,68 @@ def test_twin_attested_unattributable_canceled_dependency_consolidates_when_supe
     assert _ERROR_CODE not in flat
     assert git(mission.repo, "show", f"{mission.target_branch}:{WP01_PATH}").stdout == _SUPERSEDING_BODY, "only WP02's version of the file lands"
     assert blob_present_at(mission.repo, mission.target_branch, WP02_PATH)
+
+
+# --- spec-kitty#5937: a canceled dependency that never started -------------------
+
+_LANES_WP01_PATH = "src/alpha/mod.py"
+_LANES_WP02_PATH = "src/beta/mod.py"
+_NEVER_STARTED_ATTEST_REASON = "WP01 was canceled before it started; it has no lane branch and no commits"
+
+
+def _consolidate_mission(mission: CoordMission, *extra: str) -> tuple[int, str]:
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes", *extra])
+    return result.returncode, collapse(result.stdout + "\n" + result.stderr)
+
+
+def _wp_lane(mission: CoordMission, wp_id: str) -> str:
+    """WP state through the topology-neutral CLI reader (the coord worktree is torn down after a coord consolidate)."""
+    status = run_terminus(mission, ["agent", "tasks", "status", "--mission", mission.slug, "--json"])
+    assert status.returncode == 0, status.stderr
+    payload = json.loads(status.stdout)
+    return str(next(wp["lane"] for wp in payload["work_packages"] if wp["id"] == wp_id))
+
+
+def _assert_branch_never_existed(mission: CoordMission, branch: str) -> None:
+    listed = git(mission.repo, "branch", "--list", branch).stdout.strip()
+    assert listed == "", f"fixture precondition: the never-started lane branch {branch!r} must not exist, got {listed!r}"
+
+
+def _assert_dependent_landed(mission: CoordMission, rc: int, flat: str, *, wp01_path: str, wp02_path: str) -> None:
+    assert rc == 0, f"an approved WP whose canceled dependency never started must consolidate:\n{flat}"
+    assert blob_present_at(mission.repo, mission.target_branch, wp02_path), "WP02's approved work must be on the target"
+    assert not blob_present_at(mission.repo, mission.target_branch, wp01_path), "canceled WP01 has no content to ship"
+    assert _wp_lane(mission, "WP01") == "canceled", "WP01 must stay canceled"
+
+
+def _never_started_lanes_mission(tmp_path: Path, mid8: str) -> CoordMission:
+    mission = build_lanes_mission_canceled_dependency(tmp_path, cancel_dependency=True, dependency_never_started=True, mid8=mid8)
+    _assert_branch_never_existed(mission, lane_branch_name(mission.slug, LANE_A, target_branch=mission.target_branch))
+    return mission
+
+
+def test_never_started_canceled_dependency_lands_dependent_work_lanes(tmp_path: Path) -> None:
+    mission = _never_started_lanes_mission(tmp_path, "01M5937A")
+
+    rc, flat = _consolidate_mission(mission)
+
+    _assert_dependent_landed(mission, rc, flat, wp01_path=_LANES_WP01_PATH, wp02_path=_LANES_WP02_PATH)
+
+
+def test_never_started_canceled_dependency_lands_dependent_work_lanes_attested(tmp_path: Path) -> None:
+    """The attestation changes nothing here: the never-started lane is accepted with or without it."""
+    mission = _never_started_lanes_mission(tmp_path, "01M5937B")
+
+    rc, flat = _consolidate_mission(mission, ATTEST_FLAG, "WP01", "--attest-reason", _NEVER_STARTED_ATTEST_REASON)
+
+    _assert_dependent_landed(mission, rc, flat, wp01_path=_LANES_WP01_PATH, wp02_path=_LANES_WP02_PATH)
+
+
+def test_never_started_canceled_dependency_lands_dependent_work_coord(tmp_path: Path) -> None:
+    built = build_never_started_dependency_mission(tmp_path, mid8="01M5937C")
+    mission = built.mission
+    _assert_branch_never_existed(mission, built.lane_a_branch)
+
+    rc, flat = _consolidate_mission(mission)
+
+    _assert_dependent_landed(mission, rc, flat, wp01_path=WP01_PATH, wp02_path=WP02_PATH)
