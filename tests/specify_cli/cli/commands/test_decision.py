@@ -1139,3 +1139,70 @@ def test_open_corrupt_events_log_exits_1_structured_no_traceback(tmp_path: Path)
     payload = json.loads(result.stderr)
     assert payload["code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
     assert payload["details"]["events_path"] == str(events_file)
+
+
+# ---------------------------------------------------------------------------
+# #5681 — interrupted resolve/defer/cancel: the retry repairs the missing
+# terminal event, and an unreadable event log is a structured diagnostic.
+# ---------------------------------------------------------------------------
+
+_TERMINAL_VERB_ARGS: dict[str, list[str]] = {
+    "resolve": ["--final-answer", "6-20"],
+    "defer": ["--rationale", "later"],
+    "cancel": ["--rationale", "not needed"],
+}
+
+
+def _terminal_args(verb: str, decision_id: str) -> list[str]:
+    return ["decision", verb, decision_id, "--mission", MISSION_SLUG, *_TERMINAL_VERB_ARGS[verb]]
+
+
+def _interrupt_terminal(tmp_path: Path, verb: str, decision_id: str) -> None:
+    """Run ``verb`` with the event append failing: index terminal, no terminal row."""
+    with (
+        patch("specify_cli.decisions.emit.emit_decision_resolved", side_effect=RuntimeError("simulated crash")),
+        pytest.raises(RuntimeError, match="simulated crash"),
+    ):
+        _invoke(_terminal_args(verb, decision_id), cwd=tmp_path)
+
+
+def _tree_bytes(root: Path) -> dict[str, bytes]:
+    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+@pytest.mark.parametrize("verb", ["resolve", "defer", "cancel"])
+def test_terminal_retry_with_corrupt_events_log_exits_1_structured(tmp_path: Path, verb: str) -> None:
+    """#5681 FR-012: the terminal retry reads the log; a corrupt log is structured, nothing written."""
+    mission_dir = _setup_mission(tmp_path)
+    decision_id = _open_decision(tmp_path)
+    _interrupt_terminal(tmp_path, verb, decision_id)
+    events_file = mission_dir / "status.events.jsonl"
+    events_file.write_bytes(_MALFORMED_JSON)
+    before = _tree_bytes(mission_dir)
+
+    result = _invoke(_terminal_args(verb, decision_id), cwd=tmp_path)
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Traceback (most recent call last)" not in result.output
+    payload = json.loads(result.stderr)
+    assert payload["code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    assert payload["details"]["events_path"] == str(events_file)
+    assert _tree_bytes(mission_dir) == before
+
+
+@pytest.mark.parametrize("verb", ["resolve", "defer", "cancel"])
+def test_terminal_retry_repairs_missing_event_via_cli(tmp_path: Path, verb: str) -> None:
+    """#5681: the CLI retry of an interrupted terminal call writes the event and reports its lamport."""
+    mission_dir = _setup_mission(tmp_path)
+    decision_id = _open_decision(tmp_path)
+    _interrupt_terminal(tmp_path, verb, decision_id)
+
+    result = _invoke(_terminal_args(verb, decision_id), cwd=tmp_path)
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["idempotent"] is True
+    assert isinstance(data["event_lamport"], int)
+    events = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert events.count("DecisionPointResolved") == 1
