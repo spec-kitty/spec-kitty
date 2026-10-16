@@ -55,10 +55,11 @@ _FORWARD_ORDER: list[str] = [
 def _is_backward_transition(current_lane: str, target_lane: str) -> bool:
     """Return True iff target precedes current in the canonical forward order.
 
-    Purely directional: terminal-lane exit semantics (e.g. leaving ``done``)
-    are enforced upstream by ``validate_transition``; this helper does not
-    re-impose them. Lanes outside ``_FORWARD_ORDER`` (``blocked``,
-    ``canceled``) always return False.
+    Purely directional; it does not encode terminal-lane exit semantics. An
+    unforced ``move-task`` out of ``done`` is refused by the decision guard
+    ``_guard_done_exit``, and ``build_transition_plan`` never promotes a
+    ``done`` source to a forced move (#5447). Lanes outside ``_FORWARD_ORDER``
+    (``blocked``, ``canceled``) always return False.
     """
     c = resolve_lane_alias(current_lane)
     t = resolve_lane_alias(target_lane)

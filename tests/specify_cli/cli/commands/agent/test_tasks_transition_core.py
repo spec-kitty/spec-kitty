@@ -41,9 +41,14 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     MoveTaskRequest,
     RefuseExit1,
     TransitionPlan,
+    _done_exit_message,
     _guard_agent_ownership,
+    _guard_done_exit,
+    _guard_rejected_verdict,
     _guard_subtasks,
+    _GUARDS,
     _ownership_role_allowance,
+    _planned_rollback_message,
     arbiter_persist_signal,
     build_transition_plan,
     decide_transition,
@@ -1428,7 +1433,7 @@ def test_fabricated_feedback_cannot_launder_blocked_to_planned(tmp_path: Path) -
 
 
 def _rejected_override_request(**overrides: Any) -> MoveTaskRequest:
-    """A rejected-verdict override request whose guards 1-4 all clear."""
+    """A rejected-verdict override request whose guards 1-5 all clear."""
     fields: dict[str, Any] = {
         "target_lane": "approved",
         "review_artifact_name": "review-cycle-1.md",
@@ -1463,7 +1468,7 @@ def test_override_persist_signal_false_without_note() -> None:
 
 
 def _arbiter_request(**overrides: Any) -> MoveTaskRequest:
-    """A forward arbiter-override request whose guards 1-10 all clear."""
+    """A forward arbiter-override request whose guards 1-11 all clear."""
     fields: dict[str, Any] = {
         "old_lane": "planned",
         "target_lane": "approved",
@@ -1483,7 +1488,7 @@ def test_arbiter_persist_signal_false_when_not_arbiter() -> None:
 
 
 def test_arbiter_persist_signal_false_when_done_ancestry_refuses() -> None:
-    # done-ancestry guard (position 10) refuses BEFORE the arbiter persist, so OLD
+    # done-ancestry guard (position 11) refuses BEFORE the arbiter persist, so OLD
     # never reached it.
     req = _arbiter_request(
         target_lane="done",
@@ -1499,3 +1504,151 @@ def test_arbiter_persist_signal_true_ignores_issue_matrix_blocker() -> None:
     # signal still fires (partial write survives the later refusal).
     req = _arbiter_request(issue_matrix_blocker="blocked by open issues")
     assert arbiter_persist_signal(req) is True
+
+
+# ---------------------------------------------------------------------------
+# unforced exit from done (#5447)
+# ---------------------------------------------------------------------------
+#
+# ``done`` is terminal: an unforced move out of it is refused by
+# ``_guard_done_exit`` before anything is recorded, and ``build_transition_plan``
+# never promotes a ``done`` source to a forced move.
+
+_DONE_EXIT_TARGETS = ("approved", "in_progress", "for_review", "in_review", "claimed", "planned")
+_DONE_EXIT_MISSION = "m-01ABC"
+_VALID_FEEDBACK: dict[str, Any] = {
+    "feedback_provided": True,
+    "feedback_source": "/abs/fb.md",
+    "feedback_exists": True,
+    "feedback_is_file": True,
+    "feedback_content": "x",
+}
+
+
+def _done_exit_request(target: str, **overrides: Any) -> MoveTaskRequest:
+    """``done -> target``; a ``planned`` target carries valid feedback facts."""
+    fields: dict[str, Any] = {"old_lane": "done", "target_lane": target, "mission_slug": _DONE_EXIT_MISSION}
+    if target == "planned":
+        fields.update(_VALID_FEEDBACK)
+    fields.update(overrides)
+    return _base_request(**fields)
+
+
+@pytest.mark.parametrize("target", [*_DONE_EXIT_TARGETS, "doing"])
+def test_unforced_exit_from_done_refuses_with_recovery_hint(target: str) -> None:
+    outcome = decide_transition(_done_exit_request(target))
+    assert isinstance(outcome, RefuseExit1)
+    canonical = "in_progress" if target == "doing" else target
+    assert f"Cannot move WP01 from 'done' to '{canonical}' without --force" in outcome.error
+    flags = "--review-feedback-file <file> --force --note" if canonical == "planned" else "--force --note"
+    assert f"move-task WP01 --mission {_DONE_EXIT_MISSION} --to {canonical} {flags}" in outcome.error
+    assert f"spec-kitty mission reopen {_DONE_EXIT_MISSION} --reason" in outcome.error
+    assert "Lane." not in outcome.error
+    assert "backward rewind" not in outcome.error
+
+
+def test_done_exit_message_without_mission_uses_placeholder() -> None:
+    message = _done_exit_message("WP01", "in_progress", None)
+    assert "--mission <mission> --to in_progress --force" in message
+    assert "spec-kitty mission reopen <mission> --reason" in message
+
+
+@pytest.mark.parametrize("target", _DONE_EXIT_TARGETS)
+def test_forced_exit_from_done_is_unchanged(target: str) -> None:
+    req = _done_exit_request(target, force=True)
+    assert _guard_done_exit(req) is None
+    outcome = decide_transition(req)
+    assert isinstance(outcome, Emit)
+    assert outcome.plan.emit_force is True
+
+
+def test_bare_force_exit_from_done_keeps_synthesized_reason() -> None:
+    outcome = decide_transition(_done_exit_request("in_progress", force=True))
+    assert isinstance(outcome, Emit)
+    assert outcome.plan.emit_reason == "Force move to in_progress"
+
+
+def test_forced_exit_from_done_to_approved_keeps_the_note_as_reason() -> None:
+    # bare_review_exit_force applies to in_review/approved SOURCES only.
+    outcome = decide_transition(_done_exit_request("approved", force=True, note="x"))
+    assert isinstance(outcome, Emit)
+    assert outcome.plan.emit_reason == "x"
+
+
+def test_done_to_planned_without_feedback_keeps_the_planned_rollback_text() -> None:
+    outcome = decide_transition(_base_request(old_lane="done", target_lane="planned"))
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.error == _planned_rollback_message("WP01", "done", "planned")
+
+
+@pytest.mark.parametrize(
+    ("facts", "expected"),
+    [
+        ({"feedback_exists": False}, "Review feedback file not found"),
+        ({"feedback_is_file": False}, "Review feedback path is not a file"),
+        ({"feedback_content": "   "}, "Review feedback file is empty"),
+    ],
+)
+def test_done_to_planned_with_unusable_feedback_keeps_the_feedback_errors(facts: dict[str, Any], expected: str) -> None:
+    req = _done_exit_request("planned", **facts)
+    assert _guard_done_exit(req) is None
+    outcome = decide_transition(req)
+    assert isinstance(outcome, RefuseExit1)
+    assert expected in outcome.error
+
+
+_NOT_A_DONE_EXIT = [("done", "blocked"), ("done", "canceled"), ("done", "done"), ("approved", "in_progress"), ("for_review", "in_progress")]
+
+
+@pytest.mark.parametrize(("old", "target"), _NOT_A_DONE_EXIT)
+def test_done_exit_guard_ignores_non_backward_and_non_done_moves(old: str, target: str) -> None:
+    assert _guard_done_exit(_base_request(old_lane=old, target_lane=target)) is None
+
+
+def test_done_exit_guard_gates_the_override_persist() -> None:
+    assert override_persist_signal(_rejected_override_request(old_lane="done", force=False)) is False
+    assert override_persist_signal(_rejected_override_request(old_lane="done", force=True)) is True
+
+
+def test_done_exit_guard_gates_the_arbiter_persist() -> None:
+    req = _base_request(old_lane="done", target_lane="approved", is_arbiter_override=True)
+    assert arbiter_persist_signal(req) is False
+
+
+def test_done_exit_guard_sits_between_ownership_and_rejected_verdict() -> None:
+    index = _GUARDS.index(_guard_done_exit)
+    assert _GUARDS.index(_guard_agent_ownership) < index < _GUARDS.index(_guard_rejected_verdict)
+
+
+def test_agent_ownership_pre_empts_the_done_exit_refusal() -> None:
+    outcome = decide_transition(_base_request(old_lane="done", target_lane="approved", agent="bob", current_agent="alice"))
+    assert isinstance(outcome, RefuseExit1)
+    assert "Agent mismatch" in outcome.error
+    assert "Cannot move WP01 from 'done'" not in outcome.error
+
+
+@pytest.mark.parametrize("target", _DONE_EXIT_TARGETS)
+def test_planner_never_promotes_an_unforced_done_source(target: str) -> None:
+    plan = build_transition_plan(
+        old_lane="done",
+        target_lane=target,
+        force=False,
+        review_feedback_pointer=None,
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is False
+    assert not (plan.emit_reason or "").startswith("backward rewind")
+
+
+def test_planner_forced_done_exit_keeps_force_shape() -> None:
+    plan = build_transition_plan(
+        old_lane="done",
+        target_lane="in_progress",
+        force=True,
+        review_feedback_pointer=None,
+        arb_review_ref=None,
+        note_text=None,
+    )
+    assert plan.emit_force is True
+    assert plan.emit_reason == "Force move to in_progress"

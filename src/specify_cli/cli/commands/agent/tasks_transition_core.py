@@ -33,6 +33,14 @@ EXCEPTION (FIX-M2-03): :func:`_guard_agent_ownership`'s
 one-off behaviour change, not a pure-parity reproduction. See that function's
 docstring for the full rationale.
 
+EXCEPTION (#5447): :func:`_guard_done_exit` is a third INTENTIONAL behaviour
+change, not a pure-parity reproduction. An unforced move out of the terminal
+``done`` lane used to exit 0 as a forced "backward rewind"; it is now refused.
+The guard sits immediately before :func:`_guard_rejected_verdict` so it also
+gates the two durable proceed persists (:func:`override_persist_signal` and
+:func:`arbiter_persist_signal` evaluate the guards that precede their
+positions): a refused exit from ``done`` writes nothing.
+
 Design (functional core / imperative shell):
 
 * The orchestrator (``move_task``) performs all filesystem / git / clock reads
@@ -57,8 +65,9 @@ terminal — because ``move_task`` still emits the transition to the coordinatio
 branch and exits 0 in that arm (spec §Behavior-parity guard). ``move_task`` has
 no exit-0-without-emit path, so no separate ``SkipExit0`` terminal is minted here.
 
-The guard sequence mirrors the live command exactly (order is load-bearing — the
-first failing guard wins). Each guard is a small pure helper so the aggregate
+The guard sequence mirrors the live command exactly, except for the inserted
+done-exit guard (EXCEPTION #5447 above); order is load-bearing — the first
+failing guard wins. Each guard is a small pure helper so the aggregate
 complexity stays within the ≤15 ceiling (NFR-003) and every branch is directly
 unit-testable (NFR-002).
 """
@@ -348,7 +357,9 @@ def build_transition_plan(
     if not emit_reason and not bare_review_exit_force:
         emit_reason = f"Force move to {target_lane}" if force else f"move-task: {old_lane} -> {target_lane}"
 
-    if not force and _is_backward_transition(old_lane, canonical_lane):
+    # #5447: never manufacture force for a move out of the terminal ``done`` lane. The decision
+    # guard refuses it; if anything reaches here, the pipeline refuses the unforced edge.
+    if not force and resolve_lane_alias(old_lane) != Lane.DONE and _is_backward_transition(old_lane, canonical_lane):
         # FR-015: ask the FSM whether this backward edge is legal WITHOUT force,
         # given the plan-layer evidence we carry. Only promote emit_force when the
         # FSM genuinely rejects the force-free transition. Edge-agnostic by design —
@@ -694,6 +705,63 @@ def _guard_planned_rollback(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
+def _done_exit_message(task_id: str, target_lane: str, mission_slug: str | None) -> str:
+    """Refusal text for an unforced move out of ``done`` (#5447).
+
+    Names the WP, ``done``, the requested target, the forced command for that
+    target (``planned`` keeps ``--review-feedback-file``: a forced rollback to
+    ``planned`` without feedback is still refused) and ``mission reopen`` for a
+    merged mission. ``<mission>`` stands in when the slug is unknown.
+    """
+    target = resolve_lane_alias(target_lane)
+    feedback = " --review-feedback-file <file>" if target == Lane.PLANNED else ""
+    mission = mission_slug or "<mission>"
+    return (
+        f"❌ Cannot move {task_id} from 'done' to '{target}' without --force: "
+        "'done' is a terminal lane, and leaving it needs an explicit force.\n\n"
+        "To rework this work package deliberately, run:\n"
+        f'  spec-kitty agent tasks move-task {task_id} --mission {mission} --to {target}{feedback} --force --note "<why>"\n\n'
+        "For a merged mission, reopen it first (this does not move work package lanes):\n"
+        f'  spec-kitty mission reopen {mission} --reason "<why>"'
+    )
+
+
+def _feedback_usable(req: MoveTaskRequest) -> bool:
+    """True when ``--review-feedback-file`` names an existing, non-empty file."""
+    return req.feedback_provided and req.feedback_exists and req.feedback_is_file and bool((req.feedback_content or "").strip())
+
+
+def _guard_done_exit(req: MoveTaskRequest) -> RefuseExit1 | None:
+    """Refuse an unforced move out of ``done`` before anything is recorded (#5447).
+
+    ``done`` is terminal, so every exit needs ``--force``. Without it,
+    :func:`build_transition_plan` used to promote the move to a forced
+    "backward rewind" and the command exited 0.
+
+    The condition is the old promotion condition for a ``done`` source
+    (unforced and :func:`_is_backward_transition`), so ``done -> blocked``,
+    ``done -> canceled`` and ``done -> done`` are not matched and keep today's
+    pipeline refusal.
+
+    It sits immediately BEFORE :func:`_guard_rejected_verdict`: the shell fires
+    the review-override persist when :func:`override_persist_signal` clears the
+    guards preceding that position, so a later slot would write override
+    evidence for a move this guard then refuses.
+
+    Planned carve-out: a ``done -> planned`` move without usable feedback is
+    left to :func:`_guard_feedback_file` and :func:`_guard_planned_rollback`,
+    whose texts (spec-kitty#4689) stay byte-stable.
+    """
+    if req.force or resolve_lane_alias(req.old_lane) != Lane.DONE:
+        return None
+    target = resolve_lane_alias(req.target_lane)
+    if not _is_backward_transition(Lane.DONE, target):
+        return None
+    if target == Lane.PLANNED and not _feedback_usable(req):
+        return None
+    return RefuseExit1(_done_exit_message(req.task_id, req.target_lane, req.mission_slug))
+
+
 def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None:
     """Incomplete subtask ids from the WP01 reduced-snapshot ``subtasks`` slot.
 
@@ -788,6 +856,7 @@ _GUARDS = (
     _guard_unsupported_skip_metadata,
     _guard_protected_branch,
     _guard_agent_ownership,
+    _guard_done_exit,
     _guard_rejected_verdict,
     _guard_feedback_file,
     _guard_planned_rollback,
@@ -813,14 +882,14 @@ def override_persist_signal(req: MoveTaskRequest) -> bool:
     """OLD-timing gate for the review-artifact override persist (FR-004).
 
     In the un-refactored ``move_task`` the override evidence is written INSIDE the
-    rejected-verdict guard's proceed arm (guard position 5), BEFORE the
+    rejected-verdict guard's proceed arm (guard position 6), BEFORE the
     feedback-file, subtasks, review-currency, done-ancestry and issue-matrix
     guards run. The shell fires the persist when this returns ``True``, so a LATER
     guard's refusal (exit 1) still leaves the OLD partial write on disk.
 
     Returns ``True`` only when every guard that PRECEDES the rejected-verdict arm
-    (self-review, unsupported-skip, protected-branch, agent-ownership) clears AND
-    the rejected-verdict proceed arm authorises the override — mirroring the
+    (self-review, unsupported-skip, protected-branch, agent-ownership, done-exit)
+    clears AND the rejected-verdict proceed arm authorises the override — mirroring the
     original short-circuit where an earlier guard refusal never reached the
     persist. Pure: consumes early facts only.
     """
