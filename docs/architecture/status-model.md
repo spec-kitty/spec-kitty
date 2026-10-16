@@ -487,13 +487,17 @@ Two of them can let canceled or unowned content reach the target under a PASS:
 A fully-canceled dependency lane whose content fast-forwards into a dependent
 lane is no longer a residual: its commits are subtracted from the dependency-tip
 exemption (#5569), and a fully-canceled dependency lane whose branch is deleted
-or unreadable REFUSEs at claim time. A canceled lane nobody depends on is still
-tolerated when its branch is gone. Since #5613 a canceled commit that every
-carrying lane fully superseded stays in the claim, live content FAILs with
-`CANCELED_REACHABLE_VIA_DEPENDENCY`, and a canceled dependency WP without a
-`lane_head` stamp REFUSEs at claim time; the attestation lifts that refusal
-only, per attested WP, and never the FAIL. Supersession is per path here too: an
-approved WP that touches a canceled WP's file supersedes the whole path.
+or unreadable REFUSEs at claim time, unless the status event log proves the lane
+never started (every WP canceled from `planned`/`blocked` and none ever moved
+into any other lane than `planned`, `blocked` or `canceled`, so no branch was
+created) and no lane-tip ref is recorded for it (#5937). A
+canceled lane nobody depends on is still tolerated when its branch is gone.
+Since #5613 a canceled commit that every carrying lane fully superseded stays in
+the claim, live content FAILs with `CANCELED_REACHABLE_VIA_DEPENDENCY`, and a
+canceled dependency WP without a `lane_head` stamp REFUSEs at claim time; the
+attestation lifts that refusal only, per attested WP, and never the FAIL.
+Supersession is per path here too: an approved WP that touches a canceled WP's
+file supersedes the whole path.
 
 Each is pinned by a strict expected-failure test that asserts the ideal
 outcome, and is tracked as follow-up work under the parent epic. Two former

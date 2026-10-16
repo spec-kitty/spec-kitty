@@ -209,3 +209,16 @@ message (ADR 2026-10-04-5, "Operator guidance"), and the operator does both: the
 attestation lifts the closed-world refusal, and approving the work package again
 lifts the bound. Neither lifts the other, and the order does not matter. The
 decisions above are otherwise unchanged.
+
+## Follow-up 2026-10-16: a canceled dependency lane that never started (#5937)
+
+The 2026-10-03 amendment REFUSEs a fully-canceled dependency lane whose branch
+is deleted or unreadable. One exception: a missing branch is tolerated when the
+status event log proves the lane never started, that is, every work package of
+the lane was canceled from `planned` or `blocked` and none ever moved into any
+other lane than `planned`, `blocked` or `canceled`
+(`wp_attribution.lane_never_started`). Such a lane never had a branch, so none
+of its commits can be on a dependent lane's spine. An unreadable or incomplete
+event log, a lane-tip ref still recorded for the branch, and an existing branch
+whose range cannot be read keep refusing. The decisions above are otherwise
+unchanged.
