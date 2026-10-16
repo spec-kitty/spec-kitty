@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 from unittest.mock import patch
 
@@ -95,3 +97,39 @@ def test_atomic_write_temp_in_same_dir(tmp_path: Path) -> None:
     temps = list(tmp_path.glob(".atomic-*.tmp"))
     assert temps == []
     assert target.read_text(encoding="utf-8") == "some content"
+
+
+def test_atomic_write_overwrites_read_only_destination_and_restores_mode(tmp_path: Path) -> None:
+    """A read-only destination is overwritten and left read-only again (#6228).
+
+    Cross-platform gate for the write-bit-restore path: the overwrite must succeed
+    over a read-only file (on Windows ``os.replace`` would otherwise raise WinError 5),
+    and the destination's original mode must be re-applied afterward. The mode is the
+    POSIX-observable proof -- without the fix the file would end at the temp file's
+    writable ``0o600`` instead of its original ``0o400``.
+    """
+    target = tmp_path / "SKILL.md"
+    target.write_text("old project skill\n", encoding="utf-8")
+    target.chmod(stat.S_IREAD)  # 0o400: a managed read-only asset
+
+    atomic_write(target, "new project skill\n")
+
+    assert target.read_text(encoding="utf-8") == "new project skill\n"
+    assert stat.S_IMODE(target.stat().st_mode) == stat.S_IREAD
+
+
+def test_atomic_write_leaves_a_writable_destination_untouched_in_mode(tmp_path: Path) -> None:
+    """A writable destination is overwritten with no read-only dance (#6228 scope guard).
+
+    The write-bit restore is scoped to read-only destinations, so a normal writable
+    target behaves exactly as before: content replaced and still owner-writable.
+    """
+    target = tmp_path / "data.txt"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(0o644)
+
+    atomic_write(target, "new")
+
+    assert target.read_text(encoding="utf-8") == "new"
+    assert stat.S_IMODE(target.stat().st_mode) & stat.S_IWRITE
+    assert os.access(target, os.W_OK)
