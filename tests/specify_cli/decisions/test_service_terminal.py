@@ -158,34 +158,29 @@ def test_resolve_writes_artifact(tmp_path: Path) -> None:
 
 
 def test_resolve_twice_same_answer_is_idempotent(tmp_path: Path) -> None:
-    did = _open_decision(tmp_path)
-    _resolve(tmp_path, did, final_answer="1-5")
-    resp2 = _resolve(tmp_path, did, final_answer="1-5")
+    # Re-pinned (#5681, NFR-004): real emit, so the second call is a true no-op
+    # rather than silently taking the missing-event repair branch under a mock.
+    did = _open_real(tmp_path)
+    _call("resolve", tmp_path, did)
+    resp2 = _call("resolve", tmp_path, did)
 
     assert resp2.idempotent is True
+    assert resp2.event_lamport is None
+    assert len(_rows(tmp_path, did, "resolved")) == 1
 
 
 def test_resolve_idempotent_emits_no_second_event(tmp_path: Path) -> None:
-    _setup_meta(tmp_path)
-    did = _open_decision(tmp_path)
-    with patch(
-        "specify_cli.decisions.emit.emit_decision_resolved", return_value=2
-    ) as mock_emit:
-        resolve_decision(
-            tmp_path,
-            MISSION_SLUG,
-            did,
-            final_answer="1-5",
-            actor="alice",
-        )
-        resolve_decision(
-            tmp_path,
-            MISSION_SLUG,
-            did,
-            final_answer="1-5",
-            actor="alice",
-        )
-    assert mock_emit.call_count == 1
+    # Re-pinned (#5681, NFR-004): the old version mocked the emit, so no row ever
+    # landed and a correct retry must now treat that as interrupted. With a real
+    # emit: the retry neither calls the emit nor adds a second row.
+    did = _open_real(tmp_path)
+    _call("resolve", tmp_path, did)
+    with patch("specify_cli.decisions.emit.emit_decision_resolved") as mock_emit:
+        resp = _call("resolve", tmp_path, did)
+
+    mock_emit.assert_not_called()
+    assert resp.idempotent is True
+    assert len(_rows(tmp_path, did, "resolved")) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -410,10 +405,14 @@ def test_resolve_other_answer_recorded(tmp_path: Path) -> None:
 
 
 def test_defer_twice_same_rationale_is_idempotent(tmp_path: Path) -> None:
-    did = _open_decision(tmp_path)
-    _defer(tmp_path, did, rationale="wait for input")
-    resp2 = _defer(tmp_path, did, rationale="wait for input")
+    # Re-pinned (#5681, NFR-004): real emit; the retry writes nothing.
+    did = _open_real(tmp_path)
+    _call("defer", tmp_path, did)
+    resp2 = _call("defer", tmp_path, did)
+
     assert resp2.idempotent is True
+    assert resp2.event_lamport is None
+    assert len(_rows(tmp_path, did, "deferred")) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -422,10 +421,14 @@ def test_defer_twice_same_rationale_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_cancel_twice_same_rationale_is_idempotent(tmp_path: Path) -> None:
-    did = _open_decision(tmp_path)
-    _cancel(tmp_path, did, rationale="obsolete")
-    resp2 = _cancel(tmp_path, did, rationale="obsolete")
+    # Re-pinned (#5681, NFR-004): real emit; the retry writes nothing.
+    did = _open_real(tmp_path)
+    _call("cancel", tmp_path, did)
+    resp2 = _call("cancel", tmp_path, did)
+
     assert resp2.idempotent is True
+    assert resp2.event_lamport is None
+    assert len(_rows(tmp_path, did, "canceled")) == 1
 
 
 # ---------------------------------------------------------------------------
