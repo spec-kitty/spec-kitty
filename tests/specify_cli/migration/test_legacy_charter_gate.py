@@ -480,7 +480,6 @@ def _lane_of_a_migrated_root(tmp_path: Path) -> Path:
     return lane
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("args", JSON_COMMANDS, ids=lambda a: " ".join(a[:-1]))
 def test_cli_json_refusal_is_one_json_object_on_stdout(tmp_path: Path, args: list[str]) -> None:
     """#6232: RED on f0e17e47e: stdout is empty, the prose is on stderr."""
@@ -493,7 +492,6 @@ def test_cli_json_refusal_is_one_json_object_on_stdout(tmp_path: Path, args: lis
     assert result.stderr == ""
 
 
-@pytest.mark.regression
 def test_cli_text_refusal_is_the_json_message_with_the_prefix(tmp_path: Path) -> None:
     """FR-003/FR-004: the prose is the prefix plus the JSON message; text mode stays on stderr."""
     project = _project(tmp_path, layout="legacy_project_root")
@@ -506,7 +504,6 @@ def test_cli_text_refusal_is_the_json_message_with_the_prefix(tmp_path: Path) ->
     assert as_text.stderr == _REFUSAL_PREFIX + message + "\n"
 
 
-@pytest.mark.regression
 def test_cli_json_refusal_message_is_actionable_and_unprefixed(tmp_path: Path) -> None:
     result = _run(["charter", "status", "--json"], _project(tmp_path, layout="legacy_project_root"))
 
@@ -516,7 +513,6 @@ def test_cli_json_refusal_message_is_actionable_and_unprefixed(tmp_path: Path) -
     assert not message.startswith("Error (")
 
 
-@pytest.mark.regression
 def test_cli_json_refusal_in_a_stale_lane_worktree_carries_the_worktree_sentence(tmp_path: Path) -> None:
     result = _run(["charter", "status", "--json"], _lane_of_a_migrated_root(tmp_path))
 
@@ -560,7 +556,6 @@ def test_cli_json_command_on_a_migrated_project_is_not_refused(tmp_path: Path) -
     assert isinstance(json.loads(result.stdout), dict), result.output
 
 
-@pytest.mark.regression
 def test_cli_migrate_json_refusal_is_one_json_object_on_stdout(tmp_path: Path) -> None:
     """FR-007: the deferred-bootstrap ``migrate`` path honors ``--json`` too."""
     result = _run(["migrate", "backfill-identity", "--json"], _project(tmp_path, layout="legacy_project_root"))
@@ -570,7 +565,6 @@ def test_cli_migrate_json_refusal_is_one_json_object_on_stdout(tmp_path: Path) -
     assert result.stderr == ""
 
 
-@pytest.mark.regression
 def test_cli_json_refusal_merged_stream_parses_as_one_object(tmp_path: Path) -> None:
     """SC-003: ``result.output`` is the merged stream; the only deliberate use of it."""
     result = _run(["charter", "status", "--json"], _project(tmp_path, layout="legacy_project_root"))
