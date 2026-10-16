@@ -423,6 +423,50 @@ def test_canceled_spine_content_skips_merges_and_bookkeeping(tmp_path: Path, mon
     assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: False) == (frozenset(), {})
 
 
+def test_append_carrier_keeps_the_canceled_commit_live_not_superseded(tmp_path: Path) -> None:
+    """#5932 at the ``canceled_spine_content`` slice: an approved dependent that APPENDS
+    to a canceled dependency's file must NOT launder the canceled content.
+
+    The pre-#5932 rule superseded the canceled commit the moment a later survivor
+    TOUCHED the path — an append counted as a full overwrite — so the commit left the
+    approved claim and its body shipped. Content-level supersession keeps it live
+    (subtracted, reported) because its lines still live in the carrier's final blob.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.email", "t@example.invalid")
+    git(repo, "config", "user.name", "Test")
+    git(repo, "config", "commit.gpgsign", "false")
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "bootstrap")
+    base = git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    path = "src/pkg/wp01.py"
+    (repo / "src" / "pkg").mkdir(parents=True)
+    (repo / path).write_text("def wp01() -> int:\n    return 1\n\nMARK = 'canceled dependency body'\n", encoding="utf-8")
+    git(repo, "add", path)
+    git(repo, "commit", "-qm", "canceled WP01 body")
+    canceled_sha = git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    with (repo / path).open("a", encoding="utf-8") as handle:
+        handle.write("EXTRA = 2\n")
+    git(repo, "add", path)
+    git(repo, "commit", "-qm", "approved dependent appends")
+
+    spine = first_parent_commits_in_range(repo, base, "HEAD")  # newest-first: [append, canceled]
+    final_blob = git(repo, "rev-parse", f"HEAD:{path}").stdout.strip()
+
+    superseded, live = wpa.canceled_spine_content(repo, spine, frozenset({canceled_sha}), lambda _p: False)
+
+    assert superseded == frozenset(), "an append must not supersede the canceled commit — its content survives"
+    assert list(live) == [path]
+    reported_sha, reported_state = live[path]
+    assert reported_sha == canceled_sha
+    assert reported_state == final_blob, "live reports the carrier's final blob (what the integrated target carries)"
+
+
 def test_describe_names_the_code_wps_lanes_and_path_and_offers_no_attestation() -> None:
     changed = _describe_canceled_reachable(_entry())
     deleted = _describe_canceled_reachable(_entry(deleted=True))
