@@ -105,6 +105,7 @@ from specify_cli.consolidation.wp_attribution import (
     canceled_spine_content,
     first_governed_open_stamp,
     lacks_lane_head_stamps,
+    lane_never_started,
     lane_own_commits,
     resolve_canceled_wp,
 )
@@ -1504,7 +1505,11 @@ def build_approved_wp_set(
             excluded_window_base,
             _missing_branch_refusal_text(unresolvable),
         )
-    unreadable_canceled = _unreadable_canceled_dependency_lanes(repo_root, lanes_manifest, excluded_ids, coord_base_ref)
+    # One event-log reader for the whole claim (NFR-001): the canceled-dependency
+    # branch check below, the canceled-dependency resolution, the mixed-lane
+    # resolution and the bound verdict all share it, so the log is read at most once.
+    event_log = _ClaimEventLog(feature_dir)
+    unreadable_canceled = _unreadable_canceled_dependency_lanes(repo_root, lanes_manifest, excluded_ids, coord_base_ref, event_log)
     if unreadable_canceled:
         return _refusal_claim(
             lanes_manifest,
@@ -1520,7 +1525,6 @@ def build_approved_wp_set(
     # snapshot and the branch-resolvability check, before any of the existing
     # collectors, per plan.md D-3. Any Unattributable outcome refuses the WHOLE
     # claim immediately (refusals take precedence over FAIL by construction).
-    event_log = _ClaimEventLog(feature_dir)
     dependency = _resolve_canceled_dependency_lanes(
         _CanceledLaneQuery(repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, coord_base_ref, planning_prefix, excluded_window_base, sb_window),
         event_log,
@@ -2157,9 +2161,10 @@ def _fully_canceled_lane_commits(
     lane's own anchors, so ancestry the lane inherited from approved dependency
     lanes or the target is never counted. A canceled lane whose branch is gone
     yields nothing (claim building tolerates an unresolvable lane, as
-    :func:`_lane_tip_commits` documents) — but only because
-    :func:`_unreadable_canceled_dependency_lanes` has already refused the claim
-    when a live lane depends on that lane; call this only after that check.
+    :func:`_lane_tip_commits` documents). A live lane's dependency on such a
+    lane is refused by :func:`_unreadable_canceled_dependency_lanes` unless the
+    event log proves the lane never started (no branch was ever created, so
+    there is nothing to subtract; spec-kitty#5937); call this only after that check.
     """
     by_lane = _fully_canceled_lane_own_commits(repo_root, lanes_manifest, excluded_canceled_wp_ids, coord_base_ref, target_base)
     return frozenset().union(*by_lane.values())
@@ -2342,13 +2347,57 @@ def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _Cl
     return _CanceledDependencyResolution(unapproved_commits=own - superseded, content=content)
 
 
+class _UnreadableCanceledLane(NamedTuple):
+    """A fully-canceled dependency lane the claim refuses (#5569), and why.
+
+    ``log_detail`` is set only when the status event log could not be read to
+    prove the lane never started (spec-kitty#5937); it carries the store error.
+    """
+
+    lane_id: str
+    branch: str
+    log_detail: str | None = None
+
+    @property
+    def events_unreadable(self) -> bool:
+        return self.log_detail is not None
+
+
+def _missing_canceled_branch_refusal(
+    repo_root: Path,
+    lane: ExecutionLane,
+    branch: str,
+    event_log: _ClaimEventLog,
+) -> _UnreadableCanceledLane | None:
+    """Refuse a fully-canceled dependency lane whose branch is missing, unless it provably never started.
+
+    In order: an unreadable event log refuses (with the store error); a log that
+    does not prove :func:`~specify_cli.consolidation.wp_attribution.lane_never_started`
+    refuses; a lane-tip ref still recorded for the branch refuses (it is positive
+    evidence that the branch existed); otherwise the lane is tolerated (``None``).
+    """
+    events = event_log.read()
+    if events is None:
+        detail = event_log.unreadable(lane.lane_id, lane.wp_ids[0]).detail
+        return _UnreadableCanceledLane(lane.lane_id, branch, detail)
+    if not lane_never_started(events, lane.wp_ids):
+        return _UnreadableCanceledLane(lane.lane_id, branch)
+    # Lazy import, as phase_teardown does: only this rare arm needs the lane-tip refs.
+    from specify_cli.lanes.lane_tip import read_tip
+
+    if read_tip(repo_root, branch) is not None:
+        return _UnreadableCanceledLane(lane.lane_id, branch)
+    return None
+
+
 def _unreadable_canceled_dependency_lanes(
     repo_root: Path,
     lanes_manifest: LanesManifest,
     excluded_canceled_wp_ids: frozenset[str],
     coord_base_ref: str,
-) -> list[tuple[str, str]]:
-    """``(lane_id, branch)`` of every fully-canceled lane a live lane depends on whose tip is unreadable (#5569).
+    event_log: _ClaimEventLog,
+) -> list[_UnreadableCanceledLane]:
+    """Every fully-canceled lane a live lane depends on whose tip is unreadable (#5569).
 
     :func:`_fully_canceled_lane_commits` tolerates a canceled lane whose branch is gone
     (or whose range git cannot read) and yields nothing for it. That is only safe while
@@ -2358,6 +2407,26 @@ def _unreadable_canceled_dependency_lanes(
     canceled content would be attributed as approved authorship and ship. For such a
     dependency lane the unreadable tip must therefore refuse. A canceled lane nobody
     depends on stays tolerated (its commits are on no live lane's spine).
+
+    One exception (spec-kitty#5937): a missing branch is tolerated when the event log
+    positively proves the lane never started
+    (:func:`~specify_cli.consolidation.wp_attribution.lane_never_started`: every WP
+    canceled from ``planned``/``blocked``, none ever moved into any lane other than
+    ``planned``/``blocked``/``canceled``, migration seeds included). A lane branch is
+    created only when a WP moves past those lanes (a claim, or ``agent action review``
+    on a WP forced into ``for_review``), so such a lane never had a branch and nothing
+    of it can be on a dependent's spine. Every
+    other case keeps refusing: the log cannot be read, the log does not prove it
+    (an empty or partial log is never proof), a lane-tip ref is still recorded for
+    the branch, or the branch exists but its range cannot be read.
+
+    *event_log* is the claim's one shared :class:`_ClaimEventLog`; it is read only
+    when a canceled dependency's branch is missing. Its unreadable arm is defensive:
+    :func:`build_approved_wp_set` materializes the snapshot first, which already
+    refuses a malformed log, so it is reached only when the reader fails and the
+    snapshot did not. The lane-tip arm (``read_tip``) is an extra fail-closed arm,
+    not the proof: ``read_tip`` returns ``None`` on any git failure, and the ref is
+    normally cleared when a lane becomes fully terminal.
     """
     live_dependencies = {
         dep
@@ -2365,31 +2434,45 @@ def _unreadable_canceled_dependency_lanes(
         if not is_planning_lane(lane) and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
         for dep in _dependency_lane_ids(lanes_manifest, lane)
     }
-    unreadable: list[tuple[str, str]] = []
+    unreadable: list[_UnreadableCanceledLane] = []
     for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
         if lane.lane_id not in live_dependencies or is_planning_lane(lane) or not lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
         if not branch_exists(repo_root, branch):
-            unreadable.append((lane.lane_id, branch))
+            refused = _missing_canceled_branch_refusal(repo_root, lane, branch, event_log)
+            if refused is not None:
+                unreadable.append(refused)
             continue
         try:
             commits_in_range(repo_root, coord_base_ref, branch)
         except GitProbeError:
-            unreadable.append((lane.lane_id, branch))
+            unreadable.append(_UnreadableCanceledLane(lane.lane_id, branch))
     return unreadable
 
 
-def _unreadable_canceled_dependency_refusal_text(unreadable: list[tuple[str, str]]) -> str:
-    """The #5569 fail-closed refusal for a canceled dependency lane whose tip cannot be read."""
-    return "; ".join(
+def _unreadable_canceled_dependency_clause(lane: _UnreadableCanceledLane) -> str:
+    """One lane's clause of the #5569 refusal; the unreadable-log arm names the log, never a branch restore."""
+    lane_id, branch = lane.lane_id, lane.branch
+    if lane.events_unreadable:
+        return (
+            f"fully-canceled lane {lane_id} (branch '{branch}') is a dependency of a live lane but its branch is missing, "
+            f"and the status event log could not be read to prove the lane never started ({lane.log_detail}). "
+            "Recovery: repair or restore the Mission's status.events.jsonl (for example from git history), "
+            "then re-run `spec-kitty consolidate`"
+        )
+    return (
         f"fully-canceled lane {lane_id} (branch '{branch}') is a dependency of a live lane but its commits cannot be read "
         "(the branch is missing or its history is unreadable): its canceled content, which the dependent lane inherited, "
         f"cannot be told apart from approved work. Recovery: restore '{branch}' (for example "
         f"`git branch {branch} refs/spec-kitty/lane-tip/{branch}` when a lane-tip ref was recorded, or from `git reflog`), "
         "then re-run `spec-kitty consolidate`; if the branch was rebuilt, run `spec-kitty consolidate --abort` before re-running"
-        for lane_id, branch in unreadable
     )
+
+
+def _unreadable_canceled_dependency_refusal_text(unreadable: list[_UnreadableCanceledLane]) -> str:
+    """The #5569 fail-closed refusal for a canceled dependency lane whose tip cannot be read."""
+    return "; ".join(_unreadable_canceled_dependency_clause(lane) for lane in unreadable)
 
 
 def claim_integrity_refusal(claim: ApprovedWpCommitSet) -> str | None:

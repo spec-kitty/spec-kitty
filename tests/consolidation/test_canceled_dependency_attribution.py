@@ -6,7 +6,9 @@ lane's first-parent spine -- and these tests drive ``build_approved_wp_set`` +
 ``MergeOutcomeVerifier`` directly. They pin what #5613 adds on top of the
 fully-canceled-lane subtraction: the stable ``CANCELED_REACHABLE_VIA_DEPENDENCY``
 code next to the strategy axis's own clause, a superseded canceled dependency that
-consolidates, and a legacy unstamped WP that REFUSEs until it is attested.
+consolidates, and a legacy unstamped WP that REFUSEs until it is attested. The
+spec-kitty#5937 never-started dependency (no lane-a branch) is pinned here at
+claim level too: one ``_ClaimEventLog`` read, and the unreadable-log refusal text.
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ from tests.terminus.canceled_dependency_support import (
     WP01_PATH,
     CanceledDependencyMission,
     build_canceled_dependency_mission,
+    build_never_started_dependency_mission,
     strip_lane_head_stamps,
 )
 from tests.terminus.conftest import CoordMission, PlantedChange, build_coord_mission_mixed_lane_canceled
@@ -297,6 +300,63 @@ def test_unreadable_event_log_refuses_and_cannot_be_overridden(tmp_path: Path, m
 
     assert claim.refusal is not None
     assert "WP01" in claim.refusal and "corrupt line 3" in claim.refusal and "cannot be overridden" in claim.refusal
+
+
+def _never_started_claim(tmp_path: Path, mid8: str) -> ApprovedWpCommitSet:
+    built = build_never_started_dependency_mission(tmp_path, mid8=mid8)
+    mission = built.mission
+    assert git(mission.repo, "branch", "--list", built.lane_a_branch).stdout.strip() == "", "fixture precondition: lane-a never existed"
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    return build_approved_wp_set(
+        mission.repo,
+        _status_dir(mission),
+        manifest,
+        coord_base_ref=mission.target_branch,
+        excluded_canceled_wp_ids=frozenset({"WP01"}),
+        excluded_window_base=mission.target_branch,
+    )
+
+
+def test_never_started_dependency_claim_reads_the_event_log_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001 (spec-kitty#5937): the never-started proof shares the claim's one ``_ClaimEventLog`` read.
+
+    Same spy shape as ``tests/consolidation/test_reconciliation.py::test_claim_reads_the_event_log_exactly_once``.
+    It pins reads through the ``_ClaimEventLog`` reader (``specify_cli.status.read_events``),
+    not every read of the file: ``materialize_snapshot`` reads it separately through
+    ``read_event_stream``, which the spy does not see.
+    """
+    from specify_cli.status import read_events as real_read_events
+
+    reads: list[Path] = []
+
+    def _counting_read(read_dir: Path) -> object:
+        reads.append(read_dir)
+        return real_read_events(read_dir)
+
+    monkeypatch.setattr("specify_cli.status.read_events", _counting_read)
+    claim = _never_started_claim(tmp_path, "01M5937D")
+
+    assert claim.refusal is None, claim.refusal
+    assert len(reads) == 1, f"the claim must read the event log through _ClaimEventLog exactly once, got {reads}"
+
+
+def test_never_started_dependency_with_an_unreadable_event_log_refuses_naming_the_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-005 (a) through the claim: the log arm is defensive (the snapshot refuses a malformed file first),
+    so the reader is made to fail on its own, as in :func:`test_unreadable_event_log_refuses_and_cannot_be_overridden`."""
+    from specify_cli.status import StoreError
+
+    def unreadable(_feature_dir: Path) -> list[object]:
+        raise StoreError("corrupt line 7")
+
+    monkeypatch.setattr("specify_cli.status.read_events", unreadable)
+    claim = _never_started_claim(tmp_path, "01M5937E")
+
+    assert claim.refusal is not None
+    assert "status event log could not be read to prove the lane never started" in claim.refusal
+    assert "corrupt line 7" in claim.refusal
+    assert "repair or restore the Mission's status.events.jsonl" in claim.refusal
+    assert "refs/spec-kitty/lane-tip" not in claim.refusal
 
 
 def test_unreadable_carrier_spine_keeps_the_stricter_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

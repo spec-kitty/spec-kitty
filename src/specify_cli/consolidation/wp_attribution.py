@@ -50,6 +50,13 @@ _REVIEW_LANES: frozenset[str] = frozenset({"for_review", "in_review"})
 # canceled) is not, by itself, entering implementation (review cycle 1,
 # issue 4).
 _ENTERED_IMPLEMENTATION_LANES: frozenset[str] = frozenset({"claimed", "in_progress"})
+# The lanes a WP may be canceled FROM and still have provably never started
+# (spec-kitty#5937).
+_NEVER_STARTED_CANCEL_FROM: frozenset[str] = frozenset({"planned", "blocked"})
+# The only lanes a WP of a never-started lane may ever have moved INTO
+# (spec-kitty#5937). Any other lane can create the lane branch: claiming does,
+# and so does ``agent action review`` on a WP forced into ``for_review``.
+_NEVER_STARTED_LANES: frozenset[str] = frozenset({"planned", "blocked", "canceled"})
 
 # ``MIGRATION_ACTOR_PREFIX`` (``specify_cli.status``): a migration-synthesized event reconstructs
 # state and never opens, closes or extends a work window (FR-011).
@@ -258,6 +265,44 @@ def _entered_implementation(events: Sequence[StatusEvent], wp_id: str) -> bool:
     ``planned -> claimed`` for a WP canceled from ``planned`` is not work.
     """
     return any(event.wp_id == wp_id and event.to_lane in _ENTERED_IMPLEMENTATION_LANES and not is_migration_event(event) for event in events)
+
+
+def lane_never_started(events: Sequence[StatusEvent], wp_ids: Iterable[str]) -> bool:
+    """True iff the event log positively proves that no WP of a lane ever started (spec-kitty#5937).
+
+    The proof holds when *wp_ids* is non-empty, every id has a recorded
+    transition into ``canceled`` from ``planned`` or ``blocked``, and every
+    event of every id is a transition into ``planned``, ``blocked`` or
+    ``canceled`` (:data:`_NEVER_STARTED_LANES`). A lane branch is created only
+    when a WP of the lane moves past those lanes (a claim creates it, and so
+    does ``agent action review`` on a WP forced into ``for_review``), so such a
+    lane never had a branch and has no commits a dependent lane could have
+    inherited.
+
+    The proof must be positive: an empty, missing or partial log (a WP with no
+    events, or canceled from a later lane with its claim missing) is never
+    proof, so the caller keeps refusing.
+
+    Migration-synthesized events COUNT here, unlike in
+    :func:`_entered_implementation` and the :func:`resolve_canceled_wp` early
+    return. The backfill mints a seed ``planned -> claimed`` only from real
+    legacy claim state (``migration/backfill_runtime_state._resolve_anchor``),
+    so a seed is evidence that the WP did start and a branch may have existed.
+    Those two reconstruct work windows inside a branch that exists, where a
+    seed opens no window; this predicate decides whether a branch ever existed.
+    """
+    ids = frozenset(wp_ids)
+    if not ids:
+        return False
+    canceled_unstarted: set[str] = set()
+    for event in events:
+        if event.wp_id not in ids:
+            continue
+        if event.to_lane not in _NEVER_STARTED_LANES:
+            return False
+        if event.to_lane == "canceled" and event.from_lane in _NEVER_STARTED_CANCEL_FROM:
+            canceled_unstarted.add(event.wp_id)
+    return canceled_unstarted == ids
 
 
 def _windows(events: Sequence[StatusEvent], wp_ids: frozenset[str]) -> dict[str, list[WorkWindow]]:
@@ -814,6 +859,7 @@ __all__ = [
     "is_migration_event",
     "lacks_lane_head_stamps",
     "lane_exempt_commits",
+    "lane_never_started",
     "lane_own_commits",
     "resolve_canceled_wp",
     "stamp_of",

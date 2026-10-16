@@ -954,6 +954,108 @@ def test_seed_event_for_wp_canceled_from_planned_is_not_entered_implementation()
     assert wpa._entered_implementation([*events, _event("e3", "WP02", Lane.PLANNED, Lane.CLAIMED, "t2")], "WP02") is True
 
 
+# ---------------------------------------------------------------------------
+# lane_never_started -- spec-kitty#5937: positive proof a lane never had a branch
+# ---------------------------------------------------------------------------
+
+
+def _canceled_from(wp_id: str, from_lane: Lane, event_id: str = "c1") -> StatusEvent:
+    return _event(event_id, wp_id, from_lane, Lane.CANCELED, "t9")
+
+
+def test_lane_never_started_planned_to_canceled_is_proof() -> None:
+    assert wpa.lane_never_started([_canceled_from("WP01", Lane.PLANNED)], ["WP01"]) is True
+
+
+def test_lane_never_started_planned_blocked_canceled_is_proof() -> None:
+    events = [_event("b1", "WP01", Lane.PLANNED, Lane.BLOCKED, "t0"), _canceled_from("WP01", Lane.BLOCKED)]
+    assert wpa.lane_never_started(events, ["WP01"]) is True
+
+
+def test_lane_never_started_empty_log_is_not_proof() -> None:
+    assert wpa.lane_never_started([], ["WP01"]) is False
+
+
+def test_lane_never_started_no_wp_ids_is_not_proof() -> None:
+    assert wpa.lane_never_started([_canceled_from("WP01", Lane.PLANNED)], []) is False
+
+
+def test_lane_never_started_counts_a_migration_seed_claim() -> None:
+    """Unlike ``_entered_implementation``: a backfill seed claim is minted from real legacy claim state."""
+    events = [
+        _event("s1", "WP01", Lane.PLANNED, Lane.CLAIMED, "t0", actor=_BACKFILL_ACTOR),
+        _canceled_from("WP01", Lane.PLANNED),
+    ]
+    assert wpa.lane_never_started(events, ["WP01"]) is False
+
+
+def test_lane_never_started_claimed_then_canceled_is_not_proof() -> None:
+    events = [
+        _event("e1", "WP01", Lane.PLANNED, Lane.CLAIMED, "t0"),
+        _event("e2", "WP01", Lane.CLAIMED, Lane.IN_PROGRESS, "t1"),
+        _event("e3", "WP01", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "t2"),
+        _canceled_from("WP01", Lane.FOR_REVIEW),
+    ]
+    assert wpa.lane_never_started(events, ["WP01"]) is False
+
+
+def test_lane_never_started_reopened_to_planned_then_canceled_is_not_proof() -> None:
+    """A real (non-seed) claim refutes the proof even when the WP was reopened to ``planned`` before the cancel."""
+    events = [
+        _event("e1", "WP01", Lane.PLANNED, Lane.CLAIMED, "t0"),
+        _event("e2", "WP01", Lane.CLAIMED, Lane.IN_PROGRESS, "t1"),
+        _event("e3", "WP01", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "t2"),
+        _event("e4", "WP01", Lane.FOR_REVIEW, Lane.APPROVED, "t3"),
+        _event("e5", "WP01", Lane.APPROVED, Lane.PLANNED, "t4"),
+        _canceled_from("WP01", Lane.PLANNED),
+    ]
+    assert wpa.lane_never_started(events, ["WP01"]) is False
+
+
+def test_lane_never_started_forced_review_without_a_claim_is_not_proof() -> None:
+    """A WP forced into ``for_review`` gets its lane branch from ``agent action review``, never from a claim.
+
+    Pre-PR lens B1: forced ``planned -> for_review``, reviewed and approved (the
+    review creates the branch and a dependent may inherit its commits), then
+    forced back to ``planned`` and canceled. No claim is ever recorded, yet the
+    lane had a branch, so the log proves nothing.
+    """
+    events = [
+        _event("e1", "WP01", Lane.PLANNED, Lane.FOR_REVIEW, "t0"),
+        _event("e2", "WP01", Lane.FOR_REVIEW, Lane.IN_REVIEW, "t1"),
+        _event("e3", "WP01", Lane.IN_REVIEW, Lane.APPROVED, "t2"),
+        _event("e4", "WP01", Lane.APPROVED, Lane.PLANNED, "t3"),
+        _canceled_from("WP01", Lane.PLANNED),
+    ]
+    assert wpa.lane_never_started(events, ["WP01"]) is False
+
+
+def test_lane_never_started_attestation_restatement_keeps_the_proof() -> None:
+    """The ``canceled -> canceled`` attestation event (``--attest-canceled-superseded``) is no start."""
+    events = [
+        _canceled_from("WP01", Lane.PLANNED),
+        _event("a1", "WP01", Lane.CANCELED, Lane.CANCELED, "t10"),
+    ]
+    assert wpa.lane_never_started(events, ["WP01"]) is True
+
+
+def test_lane_never_started_cancel_from_a_later_lane_without_a_claim_is_not_proof() -> None:
+    """A truncated log (canceled from ``approved``, its claim missing) does not prove anything."""
+    assert wpa.lane_never_started([_canceled_from("WP01", Lane.APPROVED)], ["WP01"]) is False
+
+
+def test_lane_never_started_needs_every_wp_of_the_lane() -> None:
+    one = [_canceled_from("WP01", Lane.PLANNED)]
+    assert wpa.lane_never_started(one, ["WP01", "WP03"]) is False
+    both = [*one, _canceled_from("WP03", Lane.PLANNED, event_id="c3")]
+    assert wpa.lane_never_started(both, ["WP01", "WP03"]) is True
+
+
+def test_lane_never_started_ignores_other_wps() -> None:
+    events = [_event("o1", "WP09", Lane.PLANNED, Lane.CLAIMED, "t0"), _canceled_from("WP01", Lane.PLANNED)]
+    assert wpa.lane_never_started(events, ["WP01"]) is True
+
+
 def test_seed_events_after_fail_keep_resolution_attributed(tmp_path: Path) -> None:
     """FR-011 end to end through the resolver: seeds for BOTH lane WPs appended
     after the cancel leave the canceled content resolvable (no ``open_window``)."""

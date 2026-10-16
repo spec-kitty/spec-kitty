@@ -7,6 +7,10 @@ These tests drive real git through the shared lane-base helper
 consumers in ``reconciliation``: the canceled-commit set, the authored claim and
 the closed-world anchors. The CLI-level reproduction is
 ``tests/terminus/test_canceled_dependency_content_refused.py``.
+
+The missing-branch arm of ``_unreadable_canceled_dependency_lanes`` tolerates a
+lane the event log proves never started (spec-kitty#5937); every other arm keeps
+refusing, and each has a unit here.
 """
 
 from __future__ import annotations
@@ -20,9 +24,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation.reconciliation import (
+    _ClaimEventLog,
     _closed_world_anchors,
     _collect_authored,
     _fully_canceled_lane_commits,
+    _UnreadableCanceledLane,
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
 )
@@ -36,8 +42,10 @@ from specify_cli.consolidation.wp_attribution import (
     resolve_canceled_wp,
 )
 from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.lane_tip import record_tip
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -240,46 +248,200 @@ def test_never_exempt_is_a_no_op_without_outside_commits(dep: Dep) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _ev(event_id: str, wp_id: str, from_lane: Lane, to_lane: Lane, *, actor: str = "claude") -> StatusEvent:
+    return StatusEvent(
+        event_id=event_id,
+        mission_slug=_SLUG,
+        wp_id=wp_id,
+        from_lane=from_lane,
+        to_lane=to_lane,
+        at=f"2026-10-16T00:00:{event_id[-2:]}+00:00",
+        actor=actor,
+        force=False,
+        execution_mode="worktree",
+    )
+
+
+def _started_then_canceled(wp_id: str, prefix: str = "s") -> list[StatusEvent]:
+    """*wp_id* entered implementation (so its lane branch existed), then was canceled."""
+    return [
+        _ev(f"{prefix}01", wp_id, Lane.PLANNED, Lane.CLAIMED),
+        _ev(f"{prefix}02", wp_id, Lane.CLAIMED, Lane.IN_PROGRESS),
+        _ev(f"{prefix}03", wp_id, Lane.IN_PROGRESS, Lane.CANCELED),
+    ]
+
+
+def _never_started(wp_id: str, prefix: str = "n") -> list[StatusEvent]:
+    return [_ev(f"{prefix}01", wp_id, Lane.PLANNED, Lane.CANCELED)]
+
+
+def _event_log(dep: Dep, events: list[StatusEvent] | None) -> _ClaimEventLog:
+    """A claim event-log reader over a feature dir holding *events* (``None``: no events file at all)."""
+    feature_dir = dep.repo.parent / "feature"
+    feature_dir.mkdir(exist_ok=True)
+    for event in events or []:
+        append_event(feature_dir, event)
+    if events == []:
+        (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    return _ClaimEventLog(feature_dir)
+
+
+def _corrupt_event_log(dep: Dep) -> _ClaimEventLog:
+    feature_dir = dep.repo.parent / "feature"
+    feature_dir.mkdir(exist_ok=True)
+    (feature_dir / "status.events.jsonl").write_text("{not json\n", encoding="utf-8")
+    return _ClaimEventLog(feature_dir)
+
+
+def _unreadable(
+    dep: Dep, events: list[StatusEvent] | None, manifest: LanesManifest | None = None, excluded: frozenset[str] = frozenset({"WP01"})
+) -> list[_UnreadableCanceledLane]:
+    unreadable: list[_UnreadableCanceledLane] = _unreadable_canceled_dependency_lanes(
+        dep.repo, manifest or dep.manifest, excluded, dep.base, _event_log(dep, events)
+    )
+    return unreadable
+
+
+# The #5569 refusal text for a missing or unreadable lane-a, as it read before spec-kitty#5937 (byte-identity pin).
+_PRE_5937_LANE_A_TEXT = (
+    "fully-canceled lane lane-a (branch 'kitty/mission-canceled-dep-lane-a') is a dependency of a live lane but its commits "
+    "cannot be read (the branch is missing or its history is unreadable): its canceled content, which the dependent lane "
+    "inherited, cannot be told apart from approved work. Recovery: restore 'kitty/mission-canceled-dep-lane-a' (for example "
+    "`git branch kitty/mission-canceled-dep-lane-a refs/spec-kitty/lane-tip/kitty/mission-canceled-dep-lane-a` when a "
+    "lane-tip ref was recorded, or from `git reflog`), then re-run `spec-kitty consolidate`; if the branch was rebuilt, run "
+    "`spec-kitty consolidate --abort` before re-running"
+)
+
+
 def test_fully_canceled_dependency_lane_whose_branch_is_gone_refuses(dep: Dep) -> None:
     """lane-b inherited lane-a's canceled commit; with lane-a's branch gone nothing can subtract it."""
     _git(dep.repo, "branch", "-D", _branch("lane-a"))
 
-    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base)
+    unreadable = _unreadable(dep, _started_then_canceled("WP01"))
 
-    assert unreadable == [("lane-a", _branch("lane-a"))]
-    text = _unreadable_canceled_dependency_refusal_text(unreadable)
-    assert "lane-a" in text
-    assert _branch("lane-a") in text
+    assert unreadable == [_UnreadableCanceledLane("lane-a", _branch("lane-a"))]
+    assert _unreadable_canceled_dependency_refusal_text(unreadable) == _PRE_5937_LANE_A_TEXT
 
 
 def test_fully_canceled_dependency_lane_with_an_unreadable_range_refuses(dep: Dep) -> None:
-    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), "no-such-base")
+    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), "no-such-base", _event_log(dep, _never_started("WP01")))
 
-    assert [lane_id for lane_id, _branch_name in unreadable] == ["lane-a"]
+    assert [entry.lane_id for entry in unreadable] == ["lane-a"]
+    assert not unreadable[0].events_unreadable
 
 
 def test_readable_fully_canceled_dependency_lane_does_not_refuse(dep: Dep) -> None:
-    assert _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base) == []
+    assert _unreadable(dep, _started_then_canceled("WP01")) == []
 
 
 def test_fully_canceled_lane_nobody_depends_on_stays_tolerated(dep: Dep) -> None:
     gone = _manifest(_lane("lane-a", "WP01"), _lane("lane-gone", "WP09"), _lane("lane-b", "WP02", ("lane-a",)))
 
-    assert _unreadable_canceled_dependency_lanes(dep.repo, gone, frozenset({"WP09"}), dep.base) == []
+    assert _unreadable(dep, _started_then_canceled("WP09"), gone, frozenset({"WP09"})) == []
 
 
 def test_missing_branch_of_a_dependency_lane_that_is_not_canceled_is_not_this_check(dep: Dep) -> None:
     """An approved lane's missing branch is the PD-5 check's business, not this one's."""
     _git(dep.repo, "branch", "-D", _branch("lane-a"))
 
-    assert _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset(), dep.base) == []
+    assert _unreadable(dep, _started_then_canceled("WP01"), excluded=frozenset()) == []
 
 
 def test_canceled_lane_depending_on_a_canceled_lane_does_not_count_as_a_live_dependent(dep: Dep) -> None:
     both = _manifest(_lane("lane-a", "WP01"), _lane("lane-c", "WP03", ("lane-a",)))
     _git(dep.repo, "branch", "-D", _branch("lane-a"))
 
-    assert _unreadable_canceled_dependency_lanes(dep.repo, both, frozenset({"WP01", "WP03"}), dep.base) == []
+    assert _unreadable(dep, _started_then_canceled("WP01"), both, frozenset({"WP01", "WP03"})) == []
+
+
+# --------------------------------------------------------------------------- #
+# spec-kitty#5937 -- a canceled dependency lane that provably never started
+# --------------------------------------------------------------------------- #
+
+
+def test_never_started_dependency_lane_with_no_branch_is_tolerated(dep: Dep) -> None:
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    assert _unreadable(dep, _never_started("WP01")) == []
+
+
+def test_planned_blocked_canceled_dependency_lane_is_tolerated(dep: Dep) -> None:
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+    events = [_ev("b01", "WP01", Lane.PLANNED, Lane.BLOCKED), _ev("b02", "WP01", Lane.BLOCKED, Lane.CANCELED)]
+
+    assert _unreadable(dep, events) == []
+
+
+def test_migration_seed_claim_keeps_the_missing_branch_refused(dep: Dep) -> None:
+    """A backfill seed ``planned -> claimed`` is minted from real legacy claim state: the branch may have existed."""
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+    events = [_ev("m01", "WP01", Lane.PLANNED, Lane.CLAIMED, actor="migration:backfill_runtime_state"), *_never_started("WP01")]
+
+    assert _unreadable(dep, events) == [_UnreadableCanceledLane("lane-a", _branch("lane-a"))]
+
+
+@pytest.mark.parametrize("events", [[], None], ids=["empty-events-file", "no-events-file"])
+def test_an_empty_or_missing_event_log_is_not_proof(dep: Dep, events: list[StatusEvent] | None) -> None:
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    assert _unreadable(dep, events) == [_UnreadableCanceledLane("lane-a", _branch("lane-a"))]
+
+
+def test_unreadable_event_log_refuses_naming_the_log_not_a_branch_restore(dep: Dep) -> None:
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+
+    unreadable = _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, _corrupt_event_log(dep))
+
+    assert [(entry.lane_id, entry.events_unreadable) for entry in unreadable] == [("lane-a", True)]
+    text = _unreadable_canceled_dependency_refusal_text(unreadable)
+    assert "status event log could not be read" in text
+    assert unreadable[0].log_detail is not None and unreadable[0].log_detail in text
+    assert "Invalid JSON" in text or "line 1" in text, f"the store error must be named:\n{text}"
+    assert "repair or restore the Mission's status.events.jsonl" in text
+    assert f"restore '{_branch('lane-a')}'" not in text
+    assert "refs/spec-kitty/lane-tip" not in text
+
+
+def test_recorded_lane_tip_ref_keeps_the_never_started_lane_refused(dep: Dep) -> None:
+    """A lane-tip ref still recorded for the missing branch is positive evidence the branch existed."""
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+    assert record_tip(dep.repo, _branch("lane-a"), dep.base) is not None
+
+    assert _unreadable(dep, _never_started("WP01")) == [_UnreadableCanceledLane("lane-a", _branch("lane-a"))]
+
+
+def test_two_wp_canceled_lane_with_one_started_wp_refuses(dep: Dep) -> None:
+    two = _manifest(
+        ExecutionLane(lane_id="lane-a", wp_ids=("WP01", "WP03"), write_scope=("src",), predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0),
+        _lane("lane-b", "WP02", ("lane-a",)),
+    )
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+    events = [*_never_started("WP01"), *_started_then_canceled("WP03")]
+
+    assert _unreadable(dep, events, two, frozenset({"WP01", "WP03"})) == [_UnreadableCanceledLane("lane-a", _branch("lane-a"))]
+
+
+def test_only_the_unprovable_canceled_dependency_is_named(dep: Dep) -> None:
+    """lane-b depends on never-started lane-a and on claimed-then-canceled lane-c: only lane-c is refused."""
+    lane_c = ExecutionLane(lane_id="lane-c", wp_ids=("WP03",), write_scope=("src",), predicted_surfaces=("code",), depends_on_lanes=(), parallel_group=0)
+    manifest = _manifest(_lane("lane-a", "WP01"), lane_c, _lane("lane-b", "WP02", ("lane-a", "lane-c")))
+    _git(dep.repo, "branch", "-D", _branch("lane-a"))
+    events = [*_never_started("WP01"), *_started_then_canceled("WP03")]
+
+    unreadable = _unreadable(dep, events, manifest, frozenset({"WP01", "WP03"}))
+
+    assert unreadable == [_UnreadableCanceledLane("lane-c", _branch("lane-c"))]
+    text = _unreadable_canceled_dependency_refusal_text(unreadable)
+    assert "lane-c" in text
+    assert "lane-a" not in text
+
+
+def test_event_log_is_not_read_while_every_canceled_dependency_branch_exists(dep: Dep) -> None:
+    """Laziness: lane-a's branch exists, so the corrupt log is never read and nothing is refused."""
+    log = _corrupt_event_log(dep)
+
+    assert _unreadable_canceled_dependency_lanes(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, log) == []
+    assert log._events is None and log._error is None
 
 
 def test_multi_lane_contribution_is_recorded_at_an_authored_commit_not_a_canceled_tip(dep: Dep) -> None:
