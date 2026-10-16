@@ -12,11 +12,16 @@ change to the axis that silently alters this behaviour turns the test RED
 (``strict=True``) rather than drifting unnoticed (charter tactic
 ``delete-the-assertion-not-the-test``).
 
-**#5932 update.** Residual 1 (hunk-level supersession) is FIXED: content-level
-supersession (``git_probes.canceled_content_survives``) replaces the path-touch
-rule in both ``wp_attribution`` axes, so a survivor that appends to or partially
-keeps a canceled WP's content no longer launders it. It is now a regular test
-pinning the FAIL (``test_hunk_level_supersession_fails``), not a strict ``xfail``.
+**#5932 update.** Residual 1 (hunk-level supersession) is NARROWED, not fully
+fixed: content-level supersession (``git_probes.canceled_content_survives``)
+replaces the path-touch rule in both ``wp_attribution`` axes, so a survivor that
+APPENDS to or FULLY keeps a canceled WP's content no longer launders it — that
+case is now a regular test pinning the FAIL (``test_hunk_level_supersession_fails``),
+not a strict ``xfail``. But the survival test is a line-SUBSET check, so a survivor
+that keeps SOME of a canceled commit's added lines while dropping others still
+launders the kept remainder; that partial-removal fail-open stays a strict ``xfail``
+(``test_partial_removal_of_canceled_lines_ideally_fails``). The full fix is
+line-level authorship attribution, tracked in #6309.
 
 Every scenario is driven through the SAME production seam WP06's other
 subtasks use: real git commits on a real lane branch, real
@@ -38,7 +43,8 @@ resolved WP window, which the closed-world check now REFUSEs. Their leak is
 closed (the verdict is a safe non-PASS), so they are regular tests pinning the
 REFUSE instead of strict ``xfail`` pins. Residuals 2 and 5 stay strict
 ``xfail`` (their commits all sit inside a resolved window); residual 1 is now
-fixed (see the #5932 update below). Residual 6
+narrowed (its residual partial-removal fail-open is pinned as residual 8 — see the
+#5932 update below). Residual 6
 (landing review, #5330) is a gap of the closed-world ANCHORS: a pre-claim
 out-of-workflow commit (first-claim anchor), still a strict ``xfail``.
 
@@ -230,13 +236,16 @@ def test_hunk_level_supersession_fails(tmp_path: Path) -> None:
     PART of its content verbatim (the final blob still contains WP02's line,
     concatenated with WP01's own new line).
 
-    Fixed in #5932: ``wp_attribution._canceled_content_walk`` no longer drops a
-    path because its newest toucher is a survivor. It keeps the path's canceled
-    content when that content still lives in the lane's final blob
-    (``git_probes.canceled_content_survives``), and records the FINAL blob as the
-    ``CanceledPathState`` state, so the divergence axis sees the target carry it.
-    The canceled WP's content survives embedded in WP01's rework blob, so the gate
-    now FAILs — the reviewer's rejection is not silently undone.
+    Narrowed in #5932 (this append/full-keep arm is now caught): ``wp_attribution.
+    _canceled_content_walk`` no longer drops a path because its newest toucher is a
+    survivor. It keeps the path's canceled content when that content still lives in
+    the lane's final blob (``git_probes.canceled_content_survives``), and records the
+    FINAL blob as the ``CanceledPathState`` state, so the divergence axis sees the
+    target carry it. Here WP01's rework keeps WP02's WHOLE line, so every added line
+    survives the line-SUBSET test, the content is attributed, and the gate FAILs — the
+    reviewer's rejection is not silently undone. The PARTIAL-removal arm (a survivor
+    that keeps some of a canceled commit's added lines while dropping others) is NOT
+    closed by this subset test and stays a strict ``xfail`` (residual 8, #6309).
     """
     slug = "residual-hunk"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
@@ -282,6 +291,78 @@ def test_hunk_level_supersession_fails(tmp_path: Path) -> None:
 
     status = _verify_today(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02"}))
     assert status == VerifyStatus.FAIL, "hunk-level supersession must FAIL (canceled content survives, embedded) — #5932"
+
+
+# --------------------------------------------------------------------------- #
+# Residual 8 -- partial removal of a canceled commit's added lines (#6309)
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason="partial-removal fail-open of the #5932 line-subset survival test — full fix is line-level attribution (#6309)",
+)
+def test_partial_removal_of_canceled_lines_ideally_fails(tmp_path: Path) -> None:
+    """A survivor's rework keeps SOME of the canceled WP's added lines and drops
+    others: the final blob still ships two of WP02's three canceled lines.
+
+    The #5932 fix (``git_probes.canceled_content_survives``) is a line-SUBSET
+    test — the canceled commit's content counts as surviving only when EVERY added
+    line is still present. Here WP01's rework drops WP02's third line, so the subset
+    check reads the whole path as superseded and drops it from ``canceled_content``,
+    even though WP02's first two canceled lines genuinely ship on the target. TODAY:
+    PASS (the kept remainder is laundered). IDEAL: FAIL, since canceled content did
+    not fully leave the tree. The full fix is line-level authorship attribution,
+    tracked in #6309.
+    """
+    slug = "residual-partialdrop"
+    repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
+    lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
+    _git(repo, "branch", lane_branch, coord_base)
+    _git(repo, "checkout", "-q", lane_branch)
+
+    path = "src/pkg/shared.py"
+    (repo / path).parent.mkdir(parents=True, exist_ok=True)
+
+    events: list[dict[str, object]] = []
+    events.append(_event(1, "WP01", "planned", "claimed", slug=slug, at="2026-01-01T00:00:00+00:00", stamp=coord_base))
+    events.append(_event(2, "WP01", "claimed", "in_progress", slug=slug, at="2026-01-01T00:01:00+00:00", stamp=coord_base))
+    (repo / path).write_text("BASE = 'shared base'\n", encoding="utf-8")
+    _git(repo, "add", path)
+    _git(repo, "commit", "-qm", "wp01 seeds shared.py")
+    events.append(_event(3, "WP01", "in_progress", "for_review", slug=slug, at="2026-01-01T00:02:00+00:00", stamp=_rev(repo)))
+    events.append(_event(4, "WP01", "for_review", "in_review", slug=slug, at="2026-01-01T00:03:00+00:00", stamp=None))
+    events.append(_event(5, "WP01", "in_review", "approved", slug=slug, at="2026-01-01T00:04:00+00:00", stamp=_rev(repo)))
+
+    events.append(_event(6, "WP02", "planned", "claimed", slug=slug, at="2026-01-02T00:00:00+00:00", stamp=_rev(repo)))
+    events.append(_event(7, "WP02", "claimed", "in_progress", slug=slug, at="2026-01-02T00:01:00+00:00", stamp=_rev(repo)))
+    (repo / path).write_text(
+        "BASE = 'shared base'\nWP02_A = 'canceled line a'\nWP02_B = 'canceled line b'\nWP02_C = 'canceled line c'\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", path)
+    _git(repo, "commit", "-qm", "wp02 adds three lines")
+    events.append(_event(8, "WP02", "in_progress", "canceled", slug=slug, at="2026-01-02T00:02:00+00:00", stamp=_rev(repo)))
+
+    # WP01 rework KEEPS WP02_A and WP02_B, DROPS WP02_C, adds its own line.
+    events.append(_event(9, "WP01", "approved", "in_progress", slug=slug, at="2026-01-03T00:00:00+00:00", stamp=_rev(repo)))
+    (repo / path).write_text(
+        "BASE = 'shared base'\nWP02_A = 'canceled line a'\nWP02_B = 'canceled line b'\nWP01_REWORK = 'wp01 rework line'\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", path)
+    _git(repo, "commit", "-qm", "wp01 reworks, keeping two of wp02's lines, dropping one")
+    events.append(_event(10, "WP01", "in_progress", "for_review", slug=slug, at="2026-01-03T00:01:00+00:00", stamp=_rev(repo)))
+    events.append(_event(11, "WP01", "for_review", "in_review", slug=slug, at="2026-01-03T00:02:00+00:00", stamp=None))
+    events.append(_event(12, "WP01", "in_review", "approved", slug=slug, at="2026-01-03T00:03:00+00:00", stamp=_rev(repo)))
+
+    _git(repo, "checkout", "-q", _TARGET)
+    _write_events(repo, feature_dir, events)
+    target_ref = _squash_target(repo, _TARGET, lane_branch)
+
+    status = _verify_today(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02"}))
+    assert status == VerifyStatus.FAIL, "ideal: partially-kept canceled content must still FAIL (two lines ship) — #6309"
 
 
 # --------------------------------------------------------------------------- #

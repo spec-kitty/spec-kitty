@@ -504,14 +504,19 @@ def _canceled_content_walk(
     :class:`CanceledPathState` when a canceled commit touched it AND that
     canceled content still lives in the lane's final blob
     (:func:`~specify_cli.consolidation.git_probes.canceled_content_survives`,
-    #5932): a later survivor toucher that merely APPENDED or partially reworked
-    the path keeps the canceled lines, so content-level supersession — not a
+    #5932): a later survivor toucher that merely APPENDED or fully kept the
+    path keeps the canceled lines, so content-level supersession — not a
     bare path-touch (the pre-#5932 R7 rule) — decides. A full overwrite drops
     the canceled lines, so that path is genuinely superseded and no entry is
-    produced.  ``pre_state_by_survivor`` compares walk POSITIONS (index 0 =
-    newest): a survivor's oldest recorded touch index strictly greater than
-    the canceled WP's oldest touch index means some survivor commit is OLDER
-    on the spine than the canceled WP's first change to that path (R1).
+    produced.  This NARROWS, but does not fully close, hunk-level supersession:
+    the survival test is a line-SUBSET check, so a survivor that keeps SOME of a
+    canceled commit's added lines while dropping others still launders the kept
+    remainder (it reads as superseded). The full fix is line-level authorship
+    attribution, tracked in #6309.  ``pre_state_by_survivor`` compares walk
+    POSITIONS (index 0 = newest): a survivor's oldest recorded touch index
+    strictly greater than the canceled WP's oldest touch index means some
+    survivor commit is OLDER on the spine than the canceled WP's first change to
+    that path (R1).
 
     A non-merge commit that is not in *covered* (the union of every resolved
     window of every lane WP that entered implementation) and touches at least
@@ -521,6 +526,7 @@ def _canceled_content_walk(
     newest_toucher: dict[str, str] = {}
     oldest_canceled_idx: dict[str, int] = {}
     oldest_canceled_sha: dict[str, str] = {}
+    canceled_shas_by_path: dict[str, list[str]] = {}
     oldest_survivor_idx: dict[str, int] = {}
     outside: list[tuple[str, str]] = []
     for idx, sha, content_paths in _content_commits(repo_root, spine, is_bookkeeping, merge_cache):
@@ -533,6 +539,7 @@ def _canceled_content_walk(
             if is_canceled:
                 oldest_canceled_idx[path] = idx
                 oldest_canceled_sha[path] = sha
+                canceled_shas_by_path.setdefault(path, []).append(sha)
             else:
                 oldest_survivor_idx[path] = idx
 
@@ -543,12 +550,17 @@ def _canceled_content_walk(
         oldest_c_sha = oldest_canceled_sha[path]
         # ``toucher`` is the path's newest NON-MERGE toucher, so its blob IS the lane's
         # final state for the path. When that toucher is a SURVIVOR (the pre-#5932 R7
-        # drop), keep the path only when the canceled content still lives in that final
-        # blob (#5932, content-level): a full overwrite drops it (superseded), an append
-        # or partial keep preserves it (ships, embedded). A probe error raises
-        # GitProbeError (fail-closed; the caller maps it onto SPINE_UNREADABLE).
-        if toucher not in canceled_commits and not canceled_content_survives(repo_root, oldest_c_sha, path, toucher):
-            continue  # superseded — the canceled content no longer lives in the final blob
+        # drop), keep the path when ANY canceled commit's content at it still lives in
+        # that final blob (#5932, content-level — per canceled commit, matching
+        # ``canceled_spine_content``, so a newer canceled touch of the same path is not
+        # missed): a full overwrite drops every canceled commit's lines (superseded), an
+        # append or partial keep preserves them (ships, embedded). This is a line-SUBSET
+        # test, so a survivor that drops only SOME of one canceled commit's added lines
+        # still launders the kept remainder — the full fix is line-level authorship
+        # attribution (#6309). A probe error raises GitProbeError (fail-closed; the
+        # caller maps it onto SPINE_UNREADABLE).
+        if toucher not in canceled_commits and not any(canceled_content_survives(repo_root, c_sha, path, toucher) for c_sha in canceled_shas_by_path[path]):
+            continue  # superseded — no canceled commit's content still lives in the final blob
         # When a survivor appended on top, ``canceled_state`` is that final blob, which is
         # what the integrated target carries; when the canceled commit is itself the newest
         # toucher this is unchanged from the pre-#5932 behaviour.
@@ -843,6 +855,11 @@ def canceled_spine_content(
     carry the canceled content itself). A canceled commit that touches no content
     path is not superseded: it stays out of the approved claim, as before. Raises
     :class:`GitProbeError` when a commit cannot be read; the caller decides.
+
+    The content check is a line-SUBSET test, so this NARROWS but does not fully close
+    partial supersession: a survivor that keeps SOME of a canceled commit's added lines
+    while dropping others reads as superseded and launders the kept remainder. The full
+    fix is line-level authorship attribution, tracked in #6309.
     """
     # Nothing older than the oldest canceled commit can supersede or be canceled
     # content, so the walk (the same per-commit step as :func:`_canceled_content_walk`)
