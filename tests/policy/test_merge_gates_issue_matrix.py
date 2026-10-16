@@ -538,7 +538,6 @@ class TestPolicyModeSpellingFailsClosed:
         result = evaluate_merge_gates(repo / "kitty-specs" / mission_slug, mission_slug, [], policy.merge_gates, repo)
         return result, _gate(result.gates, _TERMINALITY_GATE)
 
-    @pytest.mark.regression
     @pytest.mark.parametrize(
         ("mid8", "written_mode"),
         [("01KZR2A0", "Block"), ("01KZR2A1", "BLOCK"), ("01KZR2A2", "block ")],
@@ -549,7 +548,6 @@ class TestPolicyModeSpellingFailsClosed:
         assert terminality.blocking is True
         assert result.overall_pass is False
 
-    @pytest.mark.regression
     @pytest.mark.parametrize(("mid8", "written_mode"), [("01KZR2B0", "warn"), ("01KZR2B1", "Warn")])
     def test_warn_spelling_stays_advisory(self, repo: Path, mid8: str, written_mode: str):
         result, terminality = self._evaluate(repo, mid8=mid8, written_mode=written_mode)
