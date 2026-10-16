@@ -1,27 +1,30 @@
-"""OPEN P0 #5932 -- red-first reproduction (nightly ``p0_repro`` lane only).
+"""Regression guard for #5932 -- fixed; runs per PR (no ``p0_repro`` marker).
 
-``consolidate`` ships the code of a rejected-then-canceled dependency work
-package when an approved dependent WP edits the SAME file. lane-a holds WP01
+``consolidate`` used to ship the code of a rejected-then-canceled dependency work
+package when an approved dependent WP edited the SAME file. lane-a holds WP01
 (rejected in review, then canceled with operator provenance); lane-b holds the
 approved WP02, which depends on lane-a, fast-forwards it, and APPENDS one line to
 WP01's ``src/alpha/mod.py``. Because the dependent touched the path, the
-canceled-content axis treats the whole path as superseded, lands WP01's body on
-``main``, deletes lane-a and exits 0 -- the reviewer's rejection is silently
-undone in shipped code (residual of #5569; the #5569 fix only covered the shape
-where the dependent leaves the canceled file alone).
+canceled-content axis treated the whole path as superseded, landed WP01's body on
+``main``, deleted lane-a and exited 0 -- the reviewer's rejection silently undone
+in shipped code (residual of #5569; the #5569 fix only covered the shape where the
+dependent leaves the canceled file alone).
+
+Fixed in #5932: content-level supersession
+(``git_probes.canceled_content_survives``) keeps the canceled content live when an
+append/partial rework preserves its lines, so ``consolidate`` refuses instead of
+shipping it.
 
 This drives the REAL CLI end to end (the full ``consolidate`` pipeline: lane
-skipping, coord teardown, squash), because the defect does not reproduce at the
+skipping, coord teardown, squash), because the defect did not reproduce at the
 ``MergeOutcomeVerifier.verify`` slice -- that gate refuses this fixture for an
 unrelated closed-world reason. The scenario is a Python translation of the
 issue's author-validated ``B-canceled-partial.sh`` ``touch`` arm (default squash
 strategy).
 
-Ideal, asserted here and RED until #5932 is fixed: the canceled WP01 content
-(``MARK_ALPHA``) must NOT be present on ``main`` after consolidate (whether
-consolidate refuses, or lands only WP02's own content). Today it ships at
-exit 0. The fix PR removes the ``p0_repro`` marker, turning this into a per-PR
-guard. See ADR 2026-07-17-1 and docs/development/reference/red-main-and-release-readiness.md.
+Asserted here: the canceled WP01 content (``MARK_ALPHA``) must NOT be present on
+``main`` after consolidate (consolidate refuses, or lands only WP02's own content).
+See ADR 2026-07-17-1 and docs/development/reference/red-main-and-release-readiness.md.
 """
 
 from __future__ import annotations
@@ -79,7 +82,6 @@ def _lane_worktree(repo: Path, lane: str) -> Path:
     return Path(matches[0])
 
 
-@pytest.mark.p0_repro(issue=5932)
 def test_consolidate_must_not_ship_rejected_then_canceled_dependency_content(tmp_path: Path) -> None:
     env = _env(tmp_path)
     repo = tmp_path / "repo"
