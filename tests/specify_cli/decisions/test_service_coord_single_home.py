@@ -454,3 +454,37 @@ def test_emit_decision_opened_seeds_pre_fix_empty_mission_directly(tmp_path: Pat
     # The root checkout's log gained nothing: emit never fell back to read_dir.
     assert event_ids(root_log) == carried_ids
     assert not _opened_rows(root_log)
+
+
+@pytest.mark.parametrize("topology", COORD_TOPOLOGIES)
+def test_retried_resolve_repairs_missing_event_in_coordination_log(tmp_path: Path, topology: MissionTopology, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5681 (FR-003): the repair check reads, and the repair appends to, the write-side (coordination) log."""
+    from specify_cli.decisions import emit as _emit
+    from specify_cli.decisions.service import resolve_decision
+
+    coord: CoordMission = make_prefix_coord_mission(tmp_path, topology, worktree="absent")
+    opened = _decision_open(coord.mission_slug, coord.repo_root, slot_key="s.a", input_key="a", question="A?")
+    did = opened["decision_id"]
+    root_log = coord.root_mission_dir / _STATUS_LOG_FILENAME
+    coord_log = coord.coord_mission_dir / _STATUS_LOG_FILENAME
+    root_before = root_log.read_bytes() if root_log.exists() else None
+
+    def _boom(*_a: object, **_k: object) -> int:
+        raise OSError("simulated interruption")
+
+    with monkeypatch.context() as m:
+        m.setattr(_emit, "_append_raw_event", _boom)
+        with pytest.raises(OSError, match="simulated interruption"):
+            resolve_decision(coord.repo_root, coord.mission_slug, did, final_answer="yes", actor="test-5681")
+    resp = resolve_decision(coord.repo_root, coord.mission_slug, did, final_answer="yes", actor="test-5681")
+    again = resolve_decision(coord.repo_root, coord.mission_slug, did, final_answer="yes", actor="test-5681")
+
+    def _resolved(path: Path) -> list[dict[str, Any]]:
+        return [r for r in _rows(path) if r.get("event_type") == "DecisionPointResolved" and r["payload"]["decision_point_id"] == did]
+
+    assert resp.idempotent is True
+    assert resp.event_lamport is not None
+    assert again.event_lamport is None
+    assert len(_resolved(coord_log)) == 1
+    assert _resolved(root_log) == []
+    assert (root_log.read_bytes() if root_log.exists() else None) == root_before

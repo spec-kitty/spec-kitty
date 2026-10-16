@@ -426,3 +426,233 @@ def test_cancel_twice_same_rationale_is_idempotent(tmp_path: Path) -> None:
     _cancel(tmp_path, did, rationale="obsolete")
     resp2 = _cancel(tmp_path, did, rationale="obsolete")
     assert resp2.idempotent is True
+
+
+# ---------------------------------------------------------------------------
+# Interrupted terminal call: the index is saved but the terminal event (or the
+# artifact) never landed. An identical retry must finish the job (#5681).
+# These use a REAL emit; only the append is made to fail.
+# ---------------------------------------------------------------------------
+
+_TERMINAL_VERBS = ("resolve", "defer", "cancel")
+_OUTCOME = {"resolve": "resolved", "defer": "deferred", "cancel": "canceled"}
+
+
+def _open_real(repo_root: Path, input_key: str = "team_size") -> str:
+    """Open a decision with the real emit so the log carries its opened row."""
+    _setup_meta(repo_root)
+    resp = open_decision(
+        repo_root,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id=f"step-{input_key}",
+        input_key=input_key,
+        question="How large is the team?",
+        options=("1-5", "6-20", "20+"),
+        actor="alice",
+    )
+    return resp.decision_id
+
+
+def _call(verb: str, repo_root: Path, did: str):
+    if verb == "resolve":
+        return resolve_decision(repo_root, MISSION_SLUG, did, final_answer="1-5", actor="alice")
+    if verb == "defer":
+        return defer_decision(repo_root, MISSION_SLUG, did, rationale="not sure yet", actor="alice")
+    return cancel_decision(repo_root, MISSION_SLUG, did, rationale="no longer needed", actor="alice")
+
+
+def _event_log(repo_root: Path) -> Path:
+    return _mission_dir(repo_root) / "status.events.jsonl"
+
+
+def _rows(repo_root: Path, did: str, outcome: str) -> list[dict]:
+    path = _event_log(repo_root)
+    if not path.exists():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        payload = row.get("payload") or {}
+        if (
+            row.get("event_type") == "DecisionPointResolved"
+            and payload.get("decision_point_id") == did
+            and payload.get("terminal_outcome") == outcome
+        ):
+            out.append(row)
+    return out
+
+
+def _row_count(repo_root: Path) -> int:
+    path = _event_log(repo_root)
+    return sum(1 for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip())
+
+
+def _boom(*_a, **_k):
+    raise OSError("simulated interruption")
+
+
+def _interrupt_emit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("specify_cli.decisions.emit._append_raw_event", _boom)
+
+
+def _interrupted(verb: str, repo_root: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Run *verb* so the index is saved but the terminal event never lands."""
+    did = _open_real(repo_root)
+    with monkeypatch.context() as m:
+        _interrupt_emit(m)
+        with pytest.raises(OSError, match="simulated interruption"):
+            _call(verb, repo_root, did)
+    entry = next(e for e in _store.load_index(_mission_dir(repo_root)).entries if e.decision_id == did)
+    assert entry.status != DecisionStatus.OPEN
+    assert _rows(repo_root, did, _OUTCOME[verb]) == []
+    return did
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_retried_terminal_call_writes_missing_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
+    did = _interrupted(verb, tmp_path, monkeypatch)
+
+    resp = _call(verb, tmp_path, did)
+
+    rows = _rows(tmp_path, did, _OUTCOME[verb])
+    assert len(rows) == 1
+    assert resp.idempotent is True
+    assert resp.event_lamport == _row_count(tmp_path)
+    if verb == "resolve":
+        assert rows[0]["payload"]["final_answer"] == "1-5"
+        assert "1-5" in (_mission_dir(tmp_path) / "decisions" / f"DM-{did}.md").read_text(encoding="utf-8")
+    else:
+        assert rows[0]["payload"]["rationale"]
+
+
+def test_retried_resolve_after_defer_repairs_missing_resolved_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    did = _open_real(tmp_path)
+    defer_decision(tmp_path, MISSION_SLUG, did, rationale="not sure yet", actor="alice")
+    with monkeypatch.context() as m:
+        _interrupt_emit(m)
+        with pytest.raises(OSError, match="simulated interruption"):
+            _call("resolve", tmp_path, did)
+    assert len(_rows(tmp_path, did, "deferred")) == 1
+    assert _rows(tmp_path, did, "resolved") == []
+
+    resp = _call("resolve", tmp_path, did)
+
+    assert resp.idempotent is True
+    assert resp.event_lamport is not None
+    assert len(_rows(tmp_path, did, "resolved")) == 1
+    assert len(_rows(tmp_path, did, "deferred")) == 1
+
+
+def test_repair_event_write_failure_raises_event_repair_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    did = _interrupted("resolve", tmp_path, monkeypatch)
+    with monkeypatch.context() as m:
+        _interrupt_emit(m)
+        with pytest.raises(DecisionError) as exc_info:
+            _call("resolve", tmp_path, did)
+    assert exc_info.value.code == DecisionErrorCode.EVENT_REPAIR_FAILED
+    assert _rows(tmp_path, did, "resolved") == []
+
+    resp = _call("resolve", tmp_path, did)
+
+    assert resp.event_lamport is not None
+    assert len(_rows(tmp_path, did, "resolved")) == 1
+
+
+def test_repair_artifact_rewrite_failure_raises_event_repair_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    did = _interrupted("resolve", tmp_path, monkeypatch)
+    monkeypatch.setattr("specify_cli.decisions.store.write_artifact", _boom)
+
+    with pytest.raises(DecisionError) as exc_info:
+        _call("resolve", tmp_path, did)
+
+    assert exc_info.value.code == DecisionErrorCode.EVENT_REPAIR_FAILED
+    assert _rows(tmp_path, did, "resolved") == []
+
+
+def test_retry_heals_artifact_after_interrupted_artifact_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    did = _open_real(tmp_path)
+    with monkeypatch.context() as m:
+        m.setattr("specify_cli.decisions.store.write_artifact", _boom)
+        with pytest.raises(OSError, match="simulated interruption"):
+            _call("resolve", tmp_path, did)
+    artifact = _mission_dir(tmp_path) / "decisions" / f"DM-{did}.md"
+    assert "1-5" not in artifact.read_text(encoding="utf-8").split("Final answer", 1)[-1]
+    assert _rows(tmp_path, did, "resolved") == []
+
+    resp = _call("resolve", tmp_path, did)
+
+    assert resp.event_lamport is not None
+    assert len(_rows(tmp_path, did, "resolved")) == 1
+    assert "1-5" in artifact.read_text(encoding="utf-8").split("Final answer", 1)[-1]
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_retry_on_consistent_decision_writes_nothing(tmp_path: Path, verb: str) -> None:
+    """Ratchet (green on the base): a consistent retry touches nothing."""
+    did = _open_real(tmp_path)
+    _call(verb, tmp_path, did)
+    paths = [
+        _mission_dir(tmp_path) / "decisions" / "index.json",
+        _mission_dir(tmp_path) / "decisions" / f"DM-{did}.md",
+        _event_log(tmp_path),
+    ]
+    before = [(p.read_bytes(), p.stat().st_mtime_ns) for p in paths]
+    count = len(_rows(tmp_path, did, _OUTCOME[verb]))
+
+    resp = _call(verb, tmp_path, did)
+
+    assert resp.idempotent is True
+    assert resp.event_lamport is None
+    assert [(p.read_bytes(), p.stat().st_mtime_ns) for p in paths] == before
+    assert len(_rows(tmp_path, did, _OUTCOME[verb])) == count == 1
+
+
+def test_retry_with_unreadable_log_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.decisions.service import DecisionEventLogReadError
+
+    did = _interrupted("resolve", tmp_path, monkeypatch)
+    log = _event_log(tmp_path)
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write("{not json\n")
+    before = log.read_bytes()
+    artifact = _mission_dir(tmp_path) / "decisions" / f"DM-{did}.md"
+    artifact_before = artifact.read_bytes()
+
+    with pytest.raises(DecisionEventLogReadError):
+        _call("resolve", tmp_path, did)
+
+    assert log.read_bytes() == before
+    assert artifact.read_bytes() == artifact_before
+
+
+def test_retry_with_absent_log_writes_one_terminal_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    did = _interrupted("resolve", tmp_path, monkeypatch)
+    _event_log(tmp_path).unlink()
+
+    resp = _call("resolve", tmp_path, did)
+
+    assert resp.event_lamport is not None
+    assert len(_rows(tmp_path, did, "resolved")) == 1
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_retry_repair_ignores_other_decisions_terminal_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
+    """FR-003: another decision's terminal row must not mask B's missing event."""
+    did_a = _open_real(tmp_path, "team_size")
+    did_b = _open_real(tmp_path, "budget")
+    _call(verb, tmp_path, did_a)
+    with monkeypatch.context() as m:
+        _interrupt_emit(m)
+        with pytest.raises(OSError, match="simulated interruption"):
+            _call(verb, tmp_path, did_b)
+    outcome = _OUTCOME[verb]
+    assert _rows(tmp_path, did_b, outcome) == []
+
+    resp = _call(verb, tmp_path, did_b)
+
+    assert resp.event_lamport is not None
+    assert len(_rows(tmp_path, did_b, outcome)) == 1
+    assert len(_rows(tmp_path, did_a, outcome)) == 1

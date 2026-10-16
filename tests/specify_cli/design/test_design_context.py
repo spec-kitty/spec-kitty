@@ -71,16 +71,52 @@ def test_absent_interviews_fail_instead_of_vacuous_completion(project: Path) -> 
 def test_record_answers_reuses_canonical_decisions_and_exact_retry(project: Path) -> None:
     module = context_module()
     answers = {"problem_statement": "Create governed clients", "success_criteria": "API only journey", "scope_boundaries": "No new execution engine"}
-    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1), patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2):
+    log = project / "kitty-specs" / "example" / "status.events.jsonl"
+
+    def resolved_rows() -> list[str]:
+        rows = [json.loads(ln) for ln in log.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        return [r["payload"]["decision_point_id"] for r in rows if r["event_type"] == "DecisionPointResolved"]
+
+    # Real terminal event writes, so the exact retry is checked against a consistent log (#5681).
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
         first = module.record_interview_answers(project, "example", "specify", answers, "alice")
+        after_first = resolved_rows()
         second = module.record_interview_answers(project, "example", "specify", answers, "alice")
     assert first["decision_ids"] == second["decision_ids"]
+    assert len(after_first) == 3
+    assert resolved_rows() == after_first
     assert module.resolved_interview_answers(project, "example", "specify") == answers
     from specify_cli.decisions.store import load_index
 
     index = load_index(project / "kitty-specs" / "example")
     assert len(index.entries) == 3
     assert index.entries[0].step_id == "specify.problem_statement"
+
+
+def test_record_answers_retry_heals_interrupted_terminal_event(project: Path) -> None:
+    """#5681: a record whose first terminal event write failed is finished by an identical retry."""
+    module = context_module()
+    answers = {"problem_statement": "Create governed clients", "success_criteria": "API only journey", "scope_boundaries": "No new execution engine"}
+    from specify_cli.decisions import emit as _emit
+
+    real_append = _emit._append_raw_event
+    calls = {"n": 0}
+
+    def fail_once(*args: object, **kwargs: object) -> int:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise OSError("simulated interruption")
+        return int(real_append(*args, **kwargs))  # type: ignore[arg-type]
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1), patch("specify_cli.decisions.emit._append_raw_event", fail_once):
+        with pytest.raises(module.DesignContextError):
+            module.record_interview_answers(project, "example", "specify", answers, "alice")
+        module.record_interview_answers(project, "example", "specify", answers, "alice")
+
+    rows = [json.loads(ln) for ln in (project / "kitty-specs" / "example" / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
+    resolved = [r["payload"]["decision_point_id"] for r in rows if r["event_type"] == "DecisionPointResolved"]
+    assert len(resolved) == 3
+    assert len(set(resolved)) == 3
 
 
 @pytest.mark.parametrize("answers", [{"unknown": "x"}, {"problem_statement": " "}, {"problem_statement": 42}, []])

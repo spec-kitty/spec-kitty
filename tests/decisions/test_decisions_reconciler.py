@@ -276,6 +276,38 @@ def test_repair_heals_log_8_index_5_corpus(tmp_path: Path) -> None:
     assert len(healed.entries) == 8
 
 
+def test_doctor_agrees_after_interrupted_resolve_is_retried(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5681 (FR-009): once the retry has written the missing terminal event the
+    doctor sees a consistent decision and ``--repair`` keeps the answer."""
+    import typer
+
+    from specify_cli.cli.commands._decisions_doctor import _diagnose, _ledger_dir, _mission_dir as _doctor_mission_dir, run_decisions_reconciliation
+    from specify_cli.decisions import emit as _emit
+
+    _setup_meta(tmp_path)
+    did = open_decision(
+        tmp_path, MISSION_SLUG, origin_flow=OriginFlow.CHARTER, step_id="s", input_key="k", question="Q?", options=("a", "b"), actor="alice"
+    ).decision_id
+
+    def _boom(*_a: object, **_k: object) -> int:
+        raise OSError("simulated interruption")
+
+    with monkeypatch.context() as m:
+        m.setattr(_emit, "_append_raw_event", _boom)
+        with pytest.raises(OSError, match="simulated interruption"):
+            resolve_decision(tmp_path, MISSION_SLUG, did, final_answer="a", rationale="because", actor="alice")
+    resolve_decision(tmp_path, MISSION_SLUG, did, final_answer="a", rationale="because", actor="alice")
+
+    report, _ = _diagnose(_doctor_mission_dir(tmp_path, MISSION_SLUG), _ledger_dir(tmp_path, MISSION_SLUG), MISSION_SLUG)
+    assert report.clean
+    with pytest.raises(typer.Exit):
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=True)
+    entry = next(e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did)
+    assert entry.status == DecisionStatus.RESOLVED
+    assert entry.final_answer == "a"
+    assert entry.rationale == "because"
+
+
 def test_repair_is_no_op_on_agreeing_corpus(tmp_path: Path) -> None:
     import typer
 

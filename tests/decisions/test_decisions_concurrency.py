@@ -34,12 +34,14 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import OriginFlow
-from specify_cli.decisions.service import open_decision
+from specify_cli.decisions import emit as _emit
+from specify_cli.decisions.service import open_decision, resolve_decision
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 #: Real thread + barrier concurrency, corrupted by co-scheduled xdist workers
@@ -141,3 +143,62 @@ def test_concurrent_distinct_key_opens_preserve_all_entries(tmp_path_factory: py
             "the service-level RMW lock (T010) did not serialize the load->mutate->save span"
         )
         assert index_keys == event_keys
+
+
+_TERMINAL_WORKERS = 8
+_TERMINAL_ITERATIONS = 20
+
+
+def _terminal_rows(mission_dir: Path, decision_id: str) -> list[dict[str, Any]]:
+    path = mission_dir / "status.events.jsonl"
+    rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    return [r for r in rows if r["event_type"] == "DecisionPointResolved" and r["payload"]["decision_point_id"] == decision_id]
+
+
+def _resolve_concurrently(repo_root: Path, slug: str, did: str, iteration: int) -> None:
+    barrier = threading.Barrier(_TERMINAL_WORKERS)
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            barrier.wait(timeout=10)
+            resolve_decision(repo_root, slug, did, final_answer="a", actor="stress")
+        except BaseException as exc:  # noqa: BLE001 - surfaced via `errors`
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(_TERMINAL_WORKERS)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=60)
+    assert all(not t.is_alive() for t in threads)
+    assert not errors, f"iteration {iteration}: {errors}"
+
+
+@pytest.mark.parametrize("start_state", ["open", "interrupted"])
+def test_concurrent_identical_terminal_calls_write_one_event(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch, start_state: str) -> None:
+    """#5681 stress supplement (NFR-001): identical resolves released together write exactly one row.
+
+    ``interrupted`` starts from index-resolved / log-open (the first terminal
+    event write failed once).  Run with ``-n0 -m stress``.
+    """
+    from specify_cli.decisions.index_fold import fold_events
+
+    for iteration in range(_TERMINAL_ITERATIONS):
+        repo_root = tmp_path_factory.mktemp(f"terminal-stress-{start_state}-{iteration}")
+        slug = f"terminal-stress-{iteration}"
+        mission_dir = repo_root / "kitty-specs" / slug
+        _setup_meta(mission_dir, mission_id=f"01KTEST_{slug}", mission_slug=slug)
+        did = open_decision(repo_root, slug, origin_flow=OriginFlow.CHARTER, step_id="s", input_key="k", question="Q?", actor="stress").decision_id
+        if start_state == "interrupted":
+            with monkeypatch.context() as m:
+                m.setattr(_emit, "_append_raw_event", lambda *_a, **_k: (_ for _ in ()).throw(OSError("simulated interruption")))
+                with pytest.raises(OSError, match="simulated interruption"):
+                    resolve_decision(repo_root, slug, did, final_answer="a", actor="stress")
+
+        _resolve_concurrently(repo_root, slug, did, iteration)
+
+        rows = _terminal_rows(mission_dir, did)
+        assert len(rows) == 1, f"iteration {iteration}: {len(rows)} resolved rows"
+        all_rows = [json.loads(ln) for ln in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert fold_events([r for r in all_rows if r["payload"].get("decision_point_id") == did]).final_answer == "a"
