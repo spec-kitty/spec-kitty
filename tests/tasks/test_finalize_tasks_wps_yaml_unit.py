@@ -502,7 +502,6 @@ class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
     The explicit-``[]`` control is ``test_explicit_empty_deps_not_overwritten`` above.
     """
 
-    @pytest.mark.regression
     @pytest.mark.parametrize("variant", _ABSENT_ARMS)
     def test_absent_key_keeps_frontmatter_dependencies(self, tmp_path: Path, variant: str) -> None:
         """Issue #5448 (arms: absent key, ``depends_on`` typo, no entry): WP03 keeps ``[WP02]``."""
@@ -521,7 +520,6 @@ class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
         assert readiness.satisfied is False
         assert "WP02" in readiness.unsatisfied
 
-    @pytest.mark.regression
     def test_absent_key_tasks_md_lists_resolved_dependencies(self, tmp_path: Path) -> None:
         """Issue #5448: the regenerated tasks.md prints the resolved dependencies, not "None"."""
         feature_dir = _build_three_wp_feature(tmp_path, "absent")
@@ -532,7 +530,6 @@ class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
         section = (feature_dir / "tasks.md").read_text(encoding="utf-8").split("## Work Package WP03")[1]
         assert "**Dependencies**: WP02" in section
 
-    @pytest.mark.regression
     @pytest.mark.parametrize("variant", _ABSENT_ARMS)
     def test_validate_only_previews_resolved_dependencies(self, tmp_path: Path, variant: str) -> None:
         """Issue #5448: ``--validate-only`` no longer plans to erase WP03's dependencies, and writes nothing."""
@@ -547,7 +544,6 @@ class TestFinalizeKeepsFrontmatterDepsWhenManifestOmitsThem:
         assert "dependencies" not in entry["changes"]
         assert wp03.read_bytes() == before
 
-    @pytest.mark.regression
     def test_validate_only_tasks_md_staleness_uses_resolved_dependencies(self, tmp_path: Path) -> None:
         """Issue #5448: staleness is judged against the resolved (not manifest-only) dependencies."""
         feature_dir = _build_three_wp_feature(tmp_path, "absent")
