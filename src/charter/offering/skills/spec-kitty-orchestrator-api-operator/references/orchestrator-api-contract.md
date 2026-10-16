@@ -700,7 +700,7 @@ spec-kitty orchestrator-api resolve-decision \
 | `status` | string | Resulting decision status |
 | `terminal_outcome` | string | Terminal outcome recorded |
 | `idempotent` | bool | `true` if this call matched an already-terminal entry with the SAME outcome/payload |
-| `event_lamport` | int | Lamport clock of the recorded event |
+| `event_lamport` | int \| null | Lamport clock of the recorded event. On an idempotent retry (contract >= 1.17.0) it is the lamport of the terminal event the retry re-wrote when it was missing, and null when the event was already present |
 
 **Error codes:**
 
@@ -709,6 +709,8 @@ spec-kitty orchestrator-api resolve-decision \
 | `POLICY_METADATA_REQUIRED` | `--policy` missing |
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written |
+| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 
 ---
 
@@ -743,6 +745,8 @@ spec-kitty orchestrator-api defer-decision \
 | `DECISION_MISSING_STEP_OR_SLOT` | `--rationale` is empty or whitespace-only |
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing terminal event could not be re-written |
+| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 
 ---
 
@@ -906,7 +910,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `INVALID_ORIGIN_FLOW` | open-decision | `--origin` is outside `{charter, specify, plan}` |
 | `DECISION_MISSING_STEP_OR_SLOT` | open-decision, defer-decision, cancel-decision | Neither `--step-id` nor `--slot-key` supplied (open-decision); or an empty `--rationale` (defer-decision, cancel-decision) |
 | `DECISION_ALREADY_CLOSED` | open-decision | A matching logical-key entry already exists in a terminal state |
-| `DECISION_EVENT_REPAIR_FAILED` | open-decision | Idempotent-open path: the missing `DecisionPointOpened` event could not be re-emitted |
+| `DECISION_EVENT_REPAIR_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | Idempotent-open path: the missing `DecisionPointOpened` event could not be re-emitted; idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written |
 | `DECISION_NOT_FOUND` | resolve-decision, defer-decision, cancel-decision | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | resolve-decision, defer-decision, cancel-decision | The decision is already terminal with a DIFFERENT outcome/payload than requested |
 | `RESULT_REQUIRED` | answer-decision | `--result` is required alongside `--answer` |
@@ -915,7 +919,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `AMBIGUOUS_PENDING_DECISION` | answer-decision | More than one pending decision and `--decision-id` was omitted |
 | `DECISION_NOT_PENDING` | answer-decision | `--decision-id` does not match any entry in the current run's pending decisions |
 | `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
-| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal |
+| `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status, open-decision, resolve-decision, defer-decision, cancel-decision | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal (design-status), or on an idempotent decision retry (open-decision; resolve/defer/cancel-decision since contract 1.17.0); all four decision write verbs also return it for an unreadable `decisions/index.json` |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
 | `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step) |
 | `UNSUPPORTED_STRATEGY` | consolidate-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |

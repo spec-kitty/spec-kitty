@@ -132,7 +132,14 @@ from kernel.clock import now_utc_iso
 # host; a clean commit leaves the payload byte-identical. A new optional,
 # additive field on an existing verb, so a minor bump; no field is removed or
 # renamed.
-CONTRACT_VERSION = "1.16.0"
+# 1.17.0: ``resolve-decision``, ``defer-decision`` and ``cancel-decision`` can newly fail with
+# ``DECISION_EVENT_REPAIR_FAILED`` (#5681), and ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` (already
+# returned there for an unreadable decision index) gains a new trigger on them, an unreadable
+# event log: an idempotent retry of an interrupted terminal call now re-writes the missing
+# ``DecisionPointResolved`` event, and reports its ``event_lamport`` (previously always null on
+# an idempotent call). A newly reachable ``error_code`` on existing verbs and a non-null
+# ``event_lamport`` on idempotent calls, so a minor bump; no field is removed or renamed.
+CONTRACT_VERSION = "1.17.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

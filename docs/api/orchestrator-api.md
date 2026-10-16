@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.16.0`
+- `CONTRACT_VERSION`: `1.17.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -160,6 +160,15 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   is present only when non-empty — a clean commit leaves the payload
   byte-identical — so this is a purely additive, optional field; no field is
   removed or renamed.
+- `1.17.0` — `resolve-decision`, `defer-decision` and `cancel-decision` can newly
+  fail with `DECISION_EVENT_REPAIR_FAILED` (#5681), and
+  `DESIGN_STATUS_EVENT_LOG_UNREADABLE` (already returned there for an unreadable
+  decision index) gains a new trigger on them, an unreadable event log: an
+  idempotent retry of an interrupted terminal call now re-writes the missing
+  `DecisionPointResolved` event and reports its `event_lamport` (previously always
+  null on an idempotent call). A newly reachable `error_code` on existing verbs and
+  a non-null `event_lamport` on idempotent calls, so a minor bump; no field is
+  removed or renamed.
 
 ## Response Envelope
 
@@ -167,7 +176,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.16.0",
+  "contract_version": "1.17.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -603,12 +612,20 @@ Response `data`: mission identity fields (`mission_slug` / `mission_number` /
 payload shape documented above), `decision_id`, `status`
 (`"resolved"`), `terminal_outcome`, `idempotent`, `event_lamport`.
 
+On an idempotent retry, `event_lamport` is the lamport of the terminal event the
+retry re-wrote when it was missing (contract >= 1.17.0), and null when the event
+was already present.
+
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `DECISION_NOT_FOUND` (`--decision-id` not present in
 the ledger), `DECISION_TERMINAL_CONFLICT` (the decision is already terminal
 with a **different** outcome/payload than requested — never pre-checked
 locally, always the service layer's own verdict, matching the host-CLI
-`decision_app resolve` subcommand's own error code).
+`decision_app resolve` subcommand's own error code),
+`DECISION_EVENT_REPAIR_FAILED` (an idempotent retry could not re-write the
+missing terminal event; contract >= 1.17.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
+(an idempotent retry found the event log unreadable, or `decisions/index.json`
+is unreadable).
 
 ### defer-decision
 
@@ -639,11 +656,19 @@ Response `data`: mission identity fields (`mission_slug` / `mission_number` /
 payload shape documented above), `decision_id`, `status`
 (`"deferred"`), `terminal_outcome`, `idempotent`, `event_lamport`.
 
+On an idempotent retry, `event_lamport` is the lamport of the terminal event the
+retry re-wrote when it was missing (contract >= 1.17.0), and null when the event
+was already present.
+
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `DECISION_MISSING_STEP_OR_SLOT` (empty/whitespace-only
 `--rationale`, rejected before the service layer is ever called — reuses
 this code rather than minting a new one, matching the host CLI's own
-`cmd_defer` guard verbatim), `DECISION_NOT_FOUND`, `DECISION_TERMINAL_CONFLICT`.
+`cmd_defer` guard verbatim), `DECISION_NOT_FOUND`, `DECISION_TERMINAL_CONFLICT`,
+`DECISION_EVENT_REPAIR_FAILED` (an idempotent retry could not re-write the
+missing terminal event; contract >= 1.17.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
+(an idempotent retry found the event log unreadable, or `decisions/index.json`
+is unreadable).
 
 ### cancel-decision
 
@@ -664,7 +689,10 @@ spec-kitty orchestrator-api cancel-decision \
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `DECISION_MISSING_STEP_OR_SLOT`, `DECISION_NOT_FOUND`,
-`DECISION_TERMINAL_CONFLICT`.
+`DECISION_TERMINAL_CONFLICT`, `DECISION_EVENT_REPAIR_FAILED` (an idempotent
+retry could not re-write the missing terminal event; contract >= 1.17.0),
+`DESIGN_STATUS_EVENT_LOG_UNREADABLE` (an idempotent retry found the event log
+unreadable, or `decisions/index.json` is unreadable).
 
 ### design-status
 
@@ -952,8 +980,8 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `DECISION_ALREADY_CLOSED` — `open-decision`
 - `DECISION_NOT_FOUND` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_TERMINAL_CONFLICT` — `resolve-decision`, `defer-decision`, `cancel-decision`
-- `DECISION_EVENT_REPAIR_FAILED` — `open-decision`
-- `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`
+- `DECISION_EVENT_REPAIR_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
+- `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`, `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
 - `RESULT_REQUIRED` — `answer-decision`
 - `INVALID_RESULT` — `answer-decision`
 - `NO_PENDING_DECISION` — `answer-decision`

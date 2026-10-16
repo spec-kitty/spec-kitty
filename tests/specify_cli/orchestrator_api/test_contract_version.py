@@ -77,13 +77,13 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_16_0() -> None:
+def test_contract_version_response_reports_1_17_0() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.16.0"
-    assert envelope["contract_version"] == "1.16.0"
+    assert envelope["data"]["api_version"] == "1.17.0"
+    assert envelope["contract_version"] == "1.17.0"
 
 
 def test_min_provider_version_unchanged() -> None:
