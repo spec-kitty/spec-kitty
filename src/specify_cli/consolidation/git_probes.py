@@ -665,7 +665,7 @@ def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     return None if entry is None else entry.oid
 
 
-def added_lines_of(repo_root: Path, sha: str, path: str) -> list[str]:
+def _added_lines_of(repo_root: Path, sha: str, path: str) -> list[str]:
     """Return the ``+`` hunk lines *sha* added at *path* (the content it introduced).
 
     ``git show --format= --no-color --no-renames <sha> -- <path>`` diffs the commit
@@ -697,7 +697,7 @@ def canceled_content_survives(repo_root: Path, canceled_sha: str, path: str, fin
     The content-level supersession test. A later commit that merely TOUCHED *path* —
     an append, or a partial rework that keeps the canceled lines — does NOT remove the
     canceled commit's content, even though a path-touch heuristic would call the path
-    superseded. The canceled commit's added lines (:func:`added_lines_of`) are compared
+    superseded. The canceled commit's added lines (:func:`_added_lines_of`) are compared
     against the blob at *final_ref* (the lane's final state for the path):
 
     * the path deleted in *final_ref* → the content is gone (``False``);
@@ -714,7 +714,7 @@ def canceled_content_survives(repo_root: Path, canceled_sha: str, path: str, fin
     final_oid = path_state_at(repo_root, final_ref, path)
     if final_oid is None:
         return False  # the path is gone in the final tree — the canceled content did not survive
-    added = added_lines_of(repo_root, canceled_sha, path)
+    added = _added_lines_of(repo_root, canceled_sha, path)
     if not added:
         return False  # the canceled commit introduced no content at this path
     ret, out, err = run_command(
@@ -1024,7 +1024,6 @@ __all__ = [
     "first_parent_commits_in_range",
     "blob_id_at",
     "path_state_at",
-    "added_lines_of",
     "canceled_content_survives",
     "is_merge_commit",
     "changed_paths_in_range",
