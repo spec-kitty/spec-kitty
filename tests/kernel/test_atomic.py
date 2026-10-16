@@ -475,3 +475,21 @@ def test_a_nested_observer_is_chained_with_the_outer_one(tmp_path: Path) -> None
 
     assert inner == [tmp_path / "both.txt"]
     assert outer == [tmp_path / "both.txt", tmp_path / "outer-only.txt"]
+
+
+def test_atomic_write_restores_read_only_mode_when_replace_fails(tmp_path: Path) -> None:
+    """A failed overwrite must not leave a managed read-only file writable (#6228).
+
+    The owner write bit is relaxed before the replace; if the replace raises, the
+    except path must restore the destination's original read-only mode. The content
+    is untouched (the replace never landed).
+    """
+    target = tmp_path / "managed.txt"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(stat.S_IREAD)  # 0o400
+
+    with patch("kernel.atomic.Path.replace", side_effect=OSError("boom")), pytest.raises(OSError, match="boom"):
+        atomic_write(target, "new")
+
+    assert target.read_text(encoding="utf-8") == "old"
+    assert stat.S_IMODE(target.stat().st_mode) == stat.S_IREAD

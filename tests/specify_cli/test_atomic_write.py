@@ -133,3 +133,24 @@ def test_atomic_write_leaves_a_writable_destination_untouched_in_mode(tmp_path: 
     assert target.read_text(encoding="utf-8") == "new"
     assert stat.S_IMODE(target.stat().st_mode) & stat.S_IWRITE
     assert os.access(target, os.W_OK)
+
+
+def test_atomic_write_restores_read_only_mode_when_replace_fails(tmp_path: Path) -> None:
+    """A failed overwrite must not leave a managed read-only file writable (#6228).
+
+    The owner write bit is relaxed before ``os.replace``; if the replace raises, the
+    except path must restore the destination's original read-only mode. The content
+    is untouched (the replace never landed), and no temp file is left behind.
+    """
+    target = tmp_path / "SKILL.md"
+    target.write_text("old project skill\n", encoding="utf-8")
+    target.chmod(stat.S_IREAD)  # 0o400: a managed read-only asset
+
+    with patch("specify_cli.core.atomic.os.replace", side_effect=OSError("boom")), pytest.raises(OSError, match="boom"):
+        atomic_write(target, "new project skill\n")
+
+    assert target.read_text(encoding="utf-8") == "old project skill\n"
+    # The mode bits are the POSIX-observable proof (os.access is unreliable under
+    # root, which bypasses permission bits).
+    assert stat.S_IMODE(target.stat().st_mode) == stat.S_IREAD
+    assert list(tmp_path.glob(".atomic-*.tmp")) == []

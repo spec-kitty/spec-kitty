@@ -159,6 +159,12 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
             os.close(fd)
         with contextlib.suppress(OSError):
             Path(tmp_path).unlink()
+        # The replace did not land (its content is unchanged), so restore the
+        # destination's original mode we relaxed above — a managed read-only file
+        # must not be left writable by a failed overwrite.
+        if restore_mode is not None:
+            with contextlib.suppress(OSError):
+                path.chmod(restore_mode)
         raise
 
 
