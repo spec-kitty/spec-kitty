@@ -18,6 +18,7 @@ One folder per CLI area, one or more `.feature` files per folder:
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
 | `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
+| `upgrade/` | `spec-kitty upgrade`: refreshing an already-set-up project and repairing its generated files |
 | `mission/` | Missions: creating one and its refusals, looking one up, planning to review (`lifecycle`), rejecting in review (`review`), the plan gate (`plan`), re-planning around started work (`refinalize`), the single-branch write checkout (`single-branch`) and discarding one (`mission-close`) |
 | `status/` | Status: tracing a work package's lane to the events behind it |
 
