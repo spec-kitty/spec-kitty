@@ -2,11 +2,18 @@
 # - Each scenario restates a promise from `spec-kitty upgrade --help`
 #   (src/specify_cli/cli/commands/upgrade.py, the module docstring's flag surface).
 # - Steps follow Arrange / Assume / Act / Assert; see tests/scenarios/README.md.
-# - Tagging: the three untagged scenarios (git history untouched, dry-run preview,
-#   settings preserved) pass on Linux, macOS and Windows today, so they gate the
-#   nightly. The two `@wip` scenarios describe re-running upgrade to converge or
-#   repair a project that was already set up; that convergence is not green on
-#   Windows yet (defect #6228), so they run without gating until it is fixed.
+# - Tagging: all five scenarios pass on Linux, macOS and Windows today, so they
+#   gate the nightly. They describe refreshing, previewing, converging and
+#   repairing an already-set-up project. None of them exercises defect #6228
+#   (a read-only in-place overwrite via atomic_write): the restore scenario
+#   deletes a managed folder and upgrade re-creates it fresh (no read-only
+#   destination to replace), and the repeat-upgrade scenario is idempotent
+#   (write-if-changed), so neither reaches the os.replace-over-read-only path.
+#   #6228 is fixed in atomic_write (it restores the destination write bit before
+#   the replace, then re-applies the mode); its regression guard is the
+#   win32-only pytest tests/core/test_windows_readonly_overwrite_6228.py plus
+#   the cross-platform write-bit assertions in tests/specify_cli/test_atomic_write.py
+#   and tests/kernel/test_atomic.py. These black-box scenarios are not that guard.
 
 Feature: Keep a Spec Kitty project up to date
   As a developer who already adopted Spec Kitty
@@ -42,7 +49,6 @@ Feature: Keep a Spec Kitty project up to date
     And the folder ".claude/skills" is not empty
     And the file ".kittify/config.yaml" is unchanged
 
-  @wip @wip-owner:spec-kitty @wip-since:2026-10-16 @defect:6228
   Scenario: Re-running upgrade restores a missing managed folder and keeps the rest of the project as it was
     Given a project already set up with Spec Kitty for the agents "claude,codex"
     And the folder ".claude/skills" has been deleted
@@ -55,7 +61,6 @@ Feature: Keep a Spec Kitty project up to date
     And the folder ".agents/skills" is unchanged
     And the file ".kittify/config.yaml" is unchanged
 
-  @wip @wip-owner:spec-kitty @wip-since:2026-10-16 @defect:6228
   Scenario: Running upgrade again on an already-upgraded project changes nothing further
     Given a project already set up with Spec Kitty for the agents "claude,codex"
     And the folder ".claude/skills" is present
