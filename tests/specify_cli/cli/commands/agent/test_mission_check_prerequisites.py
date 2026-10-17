@@ -468,3 +468,80 @@ def test_read_meta_for_emission_reads_existing(tmp_path: Path) -> None:
     out = seam._read_meta_for_emission(fd)
     assert out is not None
     assert out["mission_id"] == "01ABC"
+
+
+# ---------------------------------------------------------------------------
+# requires_substantive_spec capability gate (FR-005 / NFR-001)
+# ---------------------------------------------------------------------------
+
+_THIN_SPEC = "# Mission Specification\n\nNothing structured here yet.\n"
+
+
+def _commit_scaffold(repo_root: Path, feature_dir: Path, spec_body: str) -> None:
+    (feature_dir / "spec.md").write_text(spec_body, encoding="utf-8")
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo_root, check=True)
+    subprocess.run(["git", "add", "kitty-specs"], cwd=repo_root, check=True)
+    subprocess.run(["git", "commit", "-m", "spec"], cwd=repo_root, check=True, capture_output=True)
+
+
+@pytest.mark.parametrize(
+    ("mission_type", "expected"),
+    [
+        ("documentation", True),  # capability False -> bypass the substantive check
+        ("plan", True),  # capability False -> bypass
+        ("software-dev", False),  # capability True -> thin spec still fails (parity)
+    ],
+)
+def test_resume_probe_substantive_gate_builtin_controls(tmp_path: Path, mission_type: str, expected: bool) -> None:
+    feature_dir = _write_resume_scaffold(tmp_path, "gate-control", "01ABCDEF", mission_type=mission_type)
+    _commit_scaffold(tmp_path, feature_dir, _THIN_SPEC)
+
+    payload = seam._build_resume_probe_payload(tmp_path, "gate-control")
+
+    assert payload["resume_state"] == "found"
+    assert payload["spec_committed_and_substantive"] is expected
+
+
+def test_resume_probe_custom_type_requiring_substantive_spec_fails_thin_spec(tmp_path: Path) -> None:
+    """FR-005: a custom type declaring requires_substantive_spec is gated by the capability."""
+    from unittest.mock import patch
+
+    from charter.activation.mission_type_profiles import resolve_mission_type_context
+    from charter.offering.missions.mission_type_repository import resolve_layered_mission_types
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir = _write_resume_scaffold(repo, "gate-custom", "01ABCDEF", mission_type="qa")
+    _commit_scaffold(repo, feature_dir, _THIN_SPEC)
+
+    org = tmp_path / "org"
+    (org / "mission_types").mkdir(parents=True)
+    (org / "mission_types" / "qa.yaml").write_text(
+        "schema_version: 1\nid: qa\ndisplay_name: Qa\nrequires_substantive_spec: true\n",
+        encoding="utf-8",
+    )
+    (org / "missions" / "qa").mkdir(parents=True)
+    (org / "missions" / "qa" / "mission-runtime.yaml").write_text(
+        "mission:\n  key: qa\nsteps:\n" + "".join(f"  - id: {s}\n    title: {s}\n" for s in ("specify", "implement", "review")),
+        encoding="utf-8",
+    )
+
+    class _Pack:
+        pack_roots = (Path("/nonexistent-builtin-pack"), org)
+        repo_root = org / "repo"
+
+    resolve_layered_mission_types.cache_clear()
+    try:
+        with (
+            patch("charter.activation.mission_type_profiles.existing_mission_types", return_value=["qa"]),
+            patch("charter.activation.pack_context.PackContext.from_config", return_value=_Pack()),
+        ):
+            assert resolve_mission_type_context(repo, mission_type="qa").requires_substantive_spec is True
+            payload = seam._build_resume_probe_payload(repo, "gate-custom")
+    finally:
+        resolve_layered_mission_types.cache_clear()
+
+    assert payload["resume_state"] == "found"
+    assert payload["spec_committed_and_substantive"] is False

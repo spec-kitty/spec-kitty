@@ -419,16 +419,34 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
     main_root = get_main_repo_root(repo_root)
     spec_is_committed = is_committed(spec_file, main_root)
     mission_type = str(meta["mission_type"])
-    # Research has its own substantive schema; other non-software types keep
-    # the existing resume-probe behavior until their schemas are defined.
+    # The substantive-spec check is gated by the mission type's
+    # ``requires_substantive_spec`` capability, not a literal type list.
     return {
         "result": "success",
         "resume_state": "found",
         **identity_payload,
         "spec_committed_and_substantive": (
-            spec_is_committed and (mission_type not in {"software-dev", "research"} or is_substantive(spec_file, "spec", mission_type=mission_type))
+            spec_is_committed and (not _requires_substantive_spec(repo_root, mission_type) or is_substantive(spec_file, "spec", mission_type=mission_type))
         ),
     }
+
+
+def _requires_substantive_spec(repo_root: Path, mission_type: str) -> bool:
+    """Resolve the ``requires_substantive_spec`` capability for *mission_type*.
+
+    Resolution failures (unknown/unactivated type, unreadable config) must not
+    crash the resume probe; they fall back to the built-in default so the
+    built-in types keep their effective behavior and unknown types bypass.
+    """
+    from charter.activation.mission_type_profiles import (
+        BUILTIN_REQUIRES_SUBSTANTIVE_SPEC,
+        resolve_mission_type_context,
+    )
+
+    try:
+        return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).requires_substantive_spec)
+    except Exception:  # noqa: BLE001 - probe must not crash; fall back to built-in default
+        return bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
 
 
 def _emit_resume_probe_payload(payload: dict[str, object], *, json_output: bool) -> None:
