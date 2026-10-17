@@ -15,6 +15,7 @@ One folder per CLI area, one or more `.feature` files per folder:
 |--------|--------|
 | `consolidate/` | `spec-kitty consolidate`: refusing under sparse-checkout, and `--abort` without touching the user's own git merge |
 | `charter/` | `spec-kitty charter`: synthesizing a fresh project and the freshness of each layer, plus the charter-offering consumer-outcome subtree (`governance-in-force/`, `refuses-unsound-governance/`, `share-governance-safely/`) — what governance a user chose, that unsound governance is refused, and that sharing is safe; mapped to offering FR/ADR in `charter/PROMISES.md` |
+| `charter-activation/` | The charter-**activation** offering's lifecycle verbs the offering suite excluded — adopting/retiring a rule takes effect (`turning-governance-on-and-off/`), turning one thing off keeps the rest sound (`turning-off-keeps-the-rest-sound/`), and adopting a choice brings what it depends on (`brings-what-it-depends-on/`). DRAFT: `@wip`, with the `@promise:` tie-in and ledger pending QA ratification (spec-kitty-qa#801) — see `charter-activation/README.md` |
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
 | `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
