@@ -2147,13 +2147,20 @@ def _sb_owned_files_by_wp(feature_dir: Path, wp_ids: Iterable[str]) -> dict[str,
 
 
 def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
-    """One refusal text for the single_branch evidence axis: a header, a line per WP (code-led), a recovery."""
-    header = f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:"
+    """One refusal text for the single_branch evidence axis: a header, a line per WP (code-led), a recovery.
+
+    The ``mission_slug`` is interpolated as PROSE (a ``": "`` sentence boundary), never joined as a
+    name operand -- the ``.join`` below composes only the non-slug prose body (a pre-bound list,
+    never an inline list of slug/lane operands), so this builds a human-readable message, not a
+    lane/branch/worktree name (test_no_worktree_name_guess).
+    """
     recovery = (
         "Recovery: implement the work package (commit a real change in its owned_files on the "
         "mission branch) and have a reviewer who is not the implementer approve it, then re-run consolidate."
     )
-    return "\n".join([header, *lines, recovery])
+    body_parts = [*lines, recovery]
+    body = "\n".join(body_parts)
+    return f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:\n{body}"
 
 
 def _single_branch_evidence_refusal(
