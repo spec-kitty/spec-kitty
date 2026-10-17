@@ -890,10 +890,16 @@ def evaluate_guards_strict(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]
     guard_table_entry = _GUARD_TABLES.get(snapshot.mission_family)
     if guard_table_entry is not None:
         return guard_table_entry(snapshot)
+    # A custom family whose DAG declares ``implement`` is WP-driven: its implement/review
+    # steps get the same WP-advance guard software-dev has, never the neutral skip.
+    wp_gated = bool(getattr(snapshot, "wp_driven", False)) and snapshot.step_id in ("implement", "review")
+    wp_failures = _evaluate_wp_iteration_guard(snapshot.step_id, snapshot) if wp_gated else []
     if snapshot.blocking_artifact_names is None:
+        if wp_gated:
+            return wp_failures
         raise UnregisteredMissionFamilyError(snapshot.mission_family)
     missing = snapshot.blocking_artifact_names - snapshot.present_artifacts
-    return sorted(missing)
+    return wp_failures + sorted(missing)
 
 
 def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
