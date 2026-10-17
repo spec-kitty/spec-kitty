@@ -15,6 +15,7 @@ net, which stays in place. See `RESEARCH.md` for the extraction trail.
 |---------|--------------------|--------------------|---------|
 | `PR-CHARTER-GOVERNANCE-001` | Sharing a pack does not silently add its commands to every tool; a skill is in force only when the charter requires/selects it, not merely because a pack offers it. | `ArtifactKind.effective_when_absent == "required"` for `skill` — `src/charter/offering/artifact_kinds.py`; ADR `2026-09-27-1`. | bound |
 | `PR-CHARTER-GOVERNANCE-002` | A team's org-wide requirement is honoured on top of the project's own choices (selection overlay). | `ArtifactKind.selection_overlayable` + org `required_<plural>` → `selected_<plural>` union — `src/charter/offering/artifact_kinds.py` / `src/charter/activation/org_charter.py`. | bound |
+| `PR-CHARTER-GOVERNANCE-003` | Governance an org pack provides and the charter puts in force is confirmed sound by the coherence check, the same as a built-in artifact — the org-pack overlay promise extended to the coherence check. | `ActiveCharterService` resolves org-tier artifacts via `pack_context.org_roots` / org DRG fragments; `ArtifactKind.selection_overlayable` + org `required_<plural>` overlay — `src/charter/offering/artifact_kinds.py` / `src/charter/activation/org_charter.py`; epic #6286. | `@wip` (needs the positive outcome step `the shared governance is reported sound`; bound-and-red once wired, then green when the coherence check resolves org-pack governance) |
 
 ## The system refuses unsound governance with a clear reason — `refuses-unsound-governance/`
 
@@ -39,8 +40,11 @@ Every scenario drives, in its Act, the command that actually performs the govern
 is honest: `doctor charter-packs` exits non-zero (not healthy) on an unsound shared pack, and
 `charter synthesize` fails closed on a broken charter — never `charter synthesize` on a fresh
 project, which takes the seed path and evaluates nothing. Eight scenarios are bound to a real
-outcome-verb step; one (`SHARING-002`) is `@wip` because witnessing that the project's choice WINS
-over an org pack needs the black-box override + layer-provenance fixture tracked by #6137.
+outcome-verb step; two are `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
+over an org pack needs the black-box override + layer-provenance fixture tracked by #6137; and
+`GOVERNANCE-003`, because its positive outcome step (`the shared governance is reported sound`) is
+not yet wired — the promise is captured now and becomes bound-and-red once the step lands, then
+green when the coherence check resolves org-pack-provided governance (epic #6286).
 
 A bound scenario may still be red in the nightly Cucumber-JVM run for a real, documented reason
 (a defect's witness surfaces on a surface the Act does not yet drive, or a fixture gap), never
