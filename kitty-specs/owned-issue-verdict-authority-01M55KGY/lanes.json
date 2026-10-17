@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "owned-issue-verdict-authority-01M55KGY",
+  "mission_id": "01M55KGYSD1T77BFVSD0JFHJF6",
+  "mission_branch": "kitty-base-6320",
+  "target_branch": "kitty-base-6320",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/agent-subcommands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/mission_runtime/resolution.py",
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "tests/integration/test_owned_issue_verdict_authority_6320.py",
+        "tests/integration/test_p0_repro_6320_owned_issue_verdict.py",
+        "tests/mission_runtime/test_write_target_degrade_owned_6320.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-17T19:18:18.424200+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "4568bf6686d9f8bd495c865b0bbb1dd568660aa6"
+}

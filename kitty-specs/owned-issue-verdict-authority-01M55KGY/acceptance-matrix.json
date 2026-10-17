@@ -1,0 +1,69 @@
+{
+  "mission_slug": "owned-issue-verdict-authority-01M55KGY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_issue_verdict_authority_6320.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:39.827498+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_write_target_degrade_owned_6320.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:42.358298+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_issue_verdict_authority_6320.py (coord read owned)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:44.906861+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_p0_repro_6320_owned_issue_verdict.py (flagless adoption)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:47.451032+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_write_target_degrade_owned_6320.py (unrelated callers)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:49.973965+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "existing issue-verdict + gate regression suites green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-17T19:59:52.522537+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

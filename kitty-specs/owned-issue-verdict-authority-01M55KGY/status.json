@@ -1,0 +1,124 @@
+{
+  "event_count": 27,
+  "last_event_id": "01M55R8FP7J21ZQQQ4Z6W08VPX",
+  "materialized_at": "2026-10-17T20:18:40.455595+00:00",
+  "mission_number": "234",
+  "mission_slug": "owned-issue-verdict-authority-01M55KGY",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M55R8CMBGM007FQR08STTD8M",
+      "last_transition_at": "2026-10-17T20:18:37.323717+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: gate owned-aware; 3 unrelated callers byte-identical; tests non-vacuous; ruff/mypy clean",
+        "re-stamp: record the independent opus reviewer-renata identity",
+        "Independent review pass (reviewer-renata): APPROVE — gate owned-param additive/None-default; fail-closed preserved (negative control); 3 unrelated callers byte-identical; mirrors #6023"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3458132,
+      "shell_pid_created_at": "1792265618.85",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M55R8E5G8DE0KB5HGKA13Q71",
+      "last_transition_at": "2026-10-17T20:18:38.896307+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: owned threaded end-to-end, mirrors #6023; coord single_branch fallback intact; 4 tests KEEP; legacy-.md migration deferred (non-blocking NOTE)",
+        "re-stamp: stage for operator-recorded independent approval",
+        "Independent review pass (reviewer-renata): APPROVE — owned resolved once (mirror #6023), threaded through resolve_for_write/migrate/write_dir/writer; coord single_branch read still falls back to feature_dir; non-owned path unchanged; fail-closed verified (no-mission refuse + p0-repro)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3515843,
+      "shell_pid_created_at": "1792266524.2",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M55R8FP7J21ZQQQ4Z6W08VPX",
+      "last_transition_at": "2026-10-17T20:18:40.455595+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: changelog mirrors #6023 (681 chars); CLI ref --owned-checkout matches acceptance-verdict; docs gates green",
+        "re-stamp: stage for operator-recorded independent approval",
+        "Independent review pass (reviewer-renata): APPROVE — changelog Fixed entry and CLI-reference --owned-checkout option accurate to the shipped behavior"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3568562,
+      "shell_pid_created_at": "1792267096.3",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
+}
