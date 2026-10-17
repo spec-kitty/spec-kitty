@@ -19,6 +19,7 @@ themselves — mirroring the contract/CLI drift seam of
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,6 +28,7 @@ from typer.core import TyperCommand, TyperGroup
 from typer.main import get_command
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.migrate_cmd import CorpusWideCommand
 from specify_cli.cli.helpers import (
     MissionAgnosticCommand,
     MissionAgnosticGroup,
@@ -109,6 +111,9 @@ def test_every_leaf_command_accepts_mission() -> None:
     ctx = typer_click.Context(root)
     offenders = [path for path, leaf in all_leaves if not any("--mission" in param.opts for param in leaf.get_params(ctx))]
     assert offenders == [], f"commands that reject --mission: {offenders}"
+    # #5294: the reject-set is carved out of "accepts" -- it parses ``--mission`` only to refuse it.
+    rejecting = sorted(leaf.name for _, leaf in all_leaves if isinstance(leaf, CorpusWideCommand))
+    assert rejecting == sorted(p[1] for p in _REJECT_SET)
 
 
 def test_mission_scoped_command_keeps_its_real_option() -> None:
@@ -260,6 +265,9 @@ def test_reregistration_keeps_the_invariant(monkeypatch) -> None:
     ctx = typer_click.Context(click_root)
     offenders = [leaf for leaf in all_leaves if not any("--mission" in p.opts for p in leaf.get_params(ctx))]
     assert offenders == []
+    # #5294: re-registration must not fold the reject-set back into accept-and-ignore.
+    rejecting = sorted(leaf.name for leaf in all_leaves if isinstance(leaf, CorpusWideCommand))
+    assert rejecting == sorted(p[1] for p in _REJECT_SET)
 
 
 def test_walker_recurses_into_nested_sub_apps() -> None:
@@ -327,3 +335,54 @@ def test_walker_leaves_custom_command_classes_alone() -> None:
     assert retargeted == 1
     assert sub.registered_commands[0].cls is MissionAgnosticCommand
     assert sub.registered_commands[1].cls is CustomCommand
+
+
+# --- #5294: non-mission-scoped ``migrate`` commands REJECT ``--mission`` -------
+
+_REJECT_SET: tuple[tuple[str, ...], ...] = (
+    ("migrate", "charter-encoding"),
+    ("migrate", "backfill-provenance"),
+    ("migrate", "rewrite-opposed-by"),
+    ("migrate", "rebaseline-dossier-hashes"),
+    ("migrate", "repin-hooks"),
+)
+_REJECT_IDS = [" ".join(path) for path in _REJECT_SET]
+
+
+def _invoke(path: tuple[str, ...], extra: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Invoke from an empty tmp dir so an un-rejected run can never touch the real repo."""
+    from specify_cli import app
+
+    monkeypatch.chdir(tmp_path)
+    return CliRunner().invoke(app, [*path, *extra])
+
+
+@pytest.mark.parametrize("flag", [["--mission", "ghost"], ["--mission=ghost"]], ids=["space", "equals"])
+@pytest.mark.parametrize("path", _REJECT_SET, ids=_REJECT_IDS)
+def test_non_mission_scoped_migrate_command_rejects_mission(path: tuple[str, ...], flag: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5294: both spellings exit 2 with the scope-neutral message."""
+    result = _invoke(path, flag, tmp_path, monkeypatch)
+    assert result.exit_code == 2, result.output
+    assert "not mission-scoped" in result.output
+
+
+@pytest.mark.parametrize("path", _REJECT_SET, ids=_REJECT_IDS)
+def test_non_mission_scoped_migrate_command_still_runs_without_mission(path: tuple[str, ...], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-003 positive control: no ``--mission`` means no rejection (defaults never trip it)."""
+    result = _invoke(path, [], tmp_path, monkeypatch)
+    assert result.exit_code != 2, result.output
+    assert "not mission-scoped" not in result.output
+
+
+@pytest.mark.parametrize("path", _REJECT_SET, ids=_REJECT_IDS)
+def test_non_mission_scoped_migrate_command_keeps_mission_hidden_in_help(path: tuple[str, ...], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-002: the rejected option stays out of ``--help``."""
+    result = _invoke(path, ["--help"], tmp_path, monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "--mission" not in result.output
+
+
+@pytest.mark.parametrize("path", _REJECT_SET, ids=_REJECT_IDS)
+def test_reject_set_commands_use_corpus_wide_command(path: tuple[str, ...]) -> None:
+    """The five are deliberately NOT folded into the accept-and-ignore walker."""
+    assert isinstance(_resolve(list(path)), CorpusWideCommand)

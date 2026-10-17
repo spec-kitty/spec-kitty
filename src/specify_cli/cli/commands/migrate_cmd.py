@@ -53,9 +53,10 @@ from typing import Annotated, Any
 
 import click
 import typer
+from typer.core import TyperCommand
 from rich.console import Console
 from specify_cli.cli.console import console
-from specify_cli.cli.helpers import parameter_source_name
+from specify_cli.cli.helpers import _with_ignored_mission_option, parameter_source_name
 from specify_cli.cli.console import err_console
 
 from kernel.paths import is_windows
@@ -177,6 +178,30 @@ def _usage_error_class(ctx: Any) -> Callable[..., Exception]:
 def _given_on_command_line(ctx: Any, name: str) -> bool:
     """True when ``name`` was typed on the command line (click-era agnostic)."""
     return parameter_source_name(ctx, name) == _COMMANDLINE_SOURCE
+
+
+#: #5294: scope-neutral on purpose -- accurate for corpus-walk, pack-scoped
+#: (``rewrite-opposed-by``) and repo-repair (``repin-hooks``) commands alike.
+_NOT_MISSION_SCOPED_MSG = "`--mission` is not supported by this command: it is not mission-scoped. Drop `--mission` and re-run."
+
+
+class CorpusWideCommand(TyperCommand):
+    """Leaf command class for non-mission-scoped ``migrate`` commands (#5294).
+
+    Keeps the hidden ``--mission`` option declared (so it parses and
+    ``--help`` is unchanged) but rejects it with a usage error (exit 2)
+    instead of silently accepting and ignoring it. Being a ``TyperCommand``
+    subclass, it is left alone by ``make_leaf_commands_mission_agnostic``.
+    """
+
+    def get_params(self, ctx: Any) -> Any:
+        return _with_ignored_mission_option(super().get_params(ctx))
+
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:
+        remaining = super().parse_args(ctx, args)
+        if _given_on_command_line(ctx, "mission"):
+            raise _usage_error_class(ctx)(_NOT_MISSION_SCOPED_MSG, ctx=ctx)
+        return remaining
 
 
 def _flag_display(opts: list[str]) -> str:
@@ -1010,7 +1035,7 @@ def backfill_mission_type_cmd(
         raise typer.Exit(1)
 
 
-@app.command(name="charter-encoding")
+@app.command(name="charter-encoding", cls=CorpusWideCommand)
 def charter_encoding(
     dry_run: Annotated[
         bool,
@@ -1091,7 +1116,7 @@ def charter_encoding(
         raise typer.Exit(exit_code)
 
 
-@app.command(name="backfill-provenance")
+@app.command(name="backfill-provenance", cls=CorpusWideCommand)
 def backfill_provenance(
     dry_run: Annotated[
         bool,
@@ -1249,7 +1274,7 @@ def normalize_lifecycle(
         raise typer.Exit(1)
 
 
-@app.command(name="rewrite-opposed-by")
+@app.command(name="rewrite-opposed-by", cls=CorpusWideCommand)
 def rewrite_opposed_by(
     pack: Annotated[
         Path,
@@ -1529,7 +1554,7 @@ def backfill_wp_status_cmd(
         raise typer.Exit(exit_code)
 
 
-@app.command(name="rebaseline-dossier-hashes")
+@app.command(name="rebaseline-dossier-hashes", cls=CorpusWideCommand)
 def rebaseline_dossier_hashes(
     json_output: Annotated[
         bool,
@@ -1596,7 +1621,7 @@ def rebaseline_dossier_hashes(
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
 
 
-@app.command(name="repin-hooks")
+@app.command(name="repin-hooks", cls=CorpusWideCommand)
 def repin_hooks(
     json_output: Annotated[
         bool,
