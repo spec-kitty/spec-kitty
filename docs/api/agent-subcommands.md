@@ -773,28 +773,35 @@ _Decision Moment ledger for interview questions._
  Set an issue-matrix row's verdict, routed via ``write_target(ISSUE_MATRIX)``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission               <str>  Mission handle (slug, mission_id, or       │
-│                                   mid8).                                     │
-│                                   [required]                                 │
-│ *  --issue                 <str>  Issue reference, e.g. "#1726". [required]  │
-│ *  --verdict               <str>  fixed | verified-already-fixed |           │
-│                                   deferred-with-followup | in-mission |      │
-│                                   not-applicable (non-gating: cited for      │
-│                                   context or a PR/commit reference, no work  │
-│                                   owed; unlike in-mission it is terminal --  │
-│                                   it also passes the done/merge completeness │
-│                                   gate unchanged)                            │
-│                                   [required]                                 │
-│ *  --actor                 <str>  Identity of the acting agent. [required]   │
-│    --wp                    <str>  Owning work-package id (e.g. WP01).        │
-│    --evidence-ref          <str>  Evidence text or link for the verdict.     │
-│                                   Required when --verdict is                 │
-│                                   deferred-with-followup: the value must     │
-│                                   contain a follow-up handle ('#NNN' or a    │
-│                                   'Follow-up:' substring), or the row fails  │
-│                                   validation.                                │
-│    --json                         Output JSON format.                        │
-│    --help          -h             Show this message and exit.                │
+│ *  --mission                 <str>   Mission handle (slug, mission_id, or    │
+│                                      mid8).                                  │
+│                                      [required]                              │
+│ *  --issue                   <str>   Issue reference, e.g. "#1726".          │
+│                                      [required]                              │
+│ *  --verdict                 <str>   fixed | verified-already-fixed |        │
+│                                      deferred-with-followup | in-mission |   │
+│                                      not-applicable (non-gating: cited for   │
+│                                      context or a PR/commit reference, no    │
+│                                      work owed; unlike in-mission it is      │
+│                                      terminal -- it also passes the          │
+│                                      done/merge completeness gate unchanged) │
+│                                      [required]                              │
+│ *  --actor                   <str>   Identity of the acting agent.           │
+│                                      [required]                              │
+│    --wp                      <str>   Owning work-package id (e.g. WP01).     │
+│    --evidence-ref            <str>   Evidence text or link for the verdict.  │
+│                                      Required when --verdict is              │
+│                                      deferred-with-followup: the value must  │
+│                                      contain a follow-up handle ('#NNN' or a │
+│                                      'Follow-up:' substring), or the row     │
+│                                      fails validation.                       │
+│    --owned-checkout          <path>  Run against an owned checkout: a linked │
+│                                      checkout that owns this mission.        │
+│                                      Refuses the repository root checkout,   │
+│                                      lane worktrees and coordination         │
+│                                      worktrees.                              │
+│    --json                            Output JSON format.                     │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
