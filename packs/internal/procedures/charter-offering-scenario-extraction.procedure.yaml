@@ -1,0 +1,179 @@
+schema_version: "1.0"
+id: charter-offering-scenario-extraction
+name: Charter-Offering Scenario Extraction (promise-first BDD features from docs, with e2e as evidence)
+purpose: >
+  The maintainer method for building the consumer-facing BDD feature/scenario
+  suite for the charter offering domain ahead of the spec-kitty-charter
+  extraction. The suite is the behavioural contract a user relies on — "what
+  should the system do for me" — and it becomes the conformance net that
+  survives the repo split (the offering-first extraction's red-first
+  contract-conformance phase). The method is promise-first: scenarios are
+  derived from the charter's stated guarantees (docs, ADRs, FR docstrings,
+  --help, the charter.offering.api seam), and the existing nightly e2e and
+  fast tests are read only as EVIDENCE that a promise already holds and as a
+  source of concrete commands and outcomes — never transcribed into Gherkin.
+  Every scenario is authored to the feature-and-scenario-authoring styleguide
+  and lands in the existing tests/scenarios Gherkin + Cucumber-JVM scaffold,
+  gated per-PR by the scenario contract and run nightly cross-OS.
+entry_condition: >
+  A maintainer is building, or extending, the charter-offering BDD scenario
+  suite (for the offering extraction or a charter behaviour change). The
+  offering docs, the nightly e2e (tests/e2e/test_charter_epic_golden_path.py
+  and the -m e2e suite) and the fast charter tests (tests/charter,
+  tests/charter_offering) are available at the revision under review, and the
+  tests/scenarios scaffold and its per-PR contract (scripts/ci/scenario_contract.py,
+  tests/architectural/test_scenario_contract.py) are in place.
+exit_condition: >
+  The offering-owned consumer promises in scope are expressed as scenarios
+  under tests/scenarios/charter/<area>/, organised by consumer outcome, each
+  tagged to its FR/ADR in tests/scenarios/charter/PROMISES.md. Scenarios bound
+  to steps pass the nightly Cucumber-JVM run; scenarios not yet bound are
+  @wip and do not gate the nightly. The per-PR scenario contract is green. The
+  lower-level Python e2e/charter tests are left in place as the mechanism net;
+  no promise was invented without evidence, and no scenario describes mechanism
+  that belongs in the unit/e2e tier.
+steps:
+  - title: Fix the scope to offering-owned consumer behaviour
+    description: >
+      Scope the suite to behaviour the offering layer owns and a consumer can
+      observe. The three outcome features are: "the governance in force is what
+      I chose" (default-in-force vs available, selection overlay,
+      effective-when-absent), "the system refuses unsound governance with a
+      clear reason" (enhances/overrides never silently drop steps or strip step
+      I/O; a mistyped DRG reference is named, not dropped; a broken charter
+      fails closed), and "I can share governance across a team or project
+      safely" (packs: org vs project, skill-namespace rules, an invalid pack is
+      not reported healthy). Explicitly EXCLUDE: activation behaviour
+      (activate/deactivate, cascade) — that is the activation layer, which
+      extracts later; put it in a sibling charter-activation tree or leave it
+      @wip. Also exclude command-affordance features (what list / path /
+      context print byte-for-byte) and over-broad framings such as "composition
+      resolves the way I expect" — they fail the litmus in the next step.
+    actor: agent
+  - title: Extract the promises, documentation-first
+    description: >
+      Sweep the offering doctrine and write each consumer-visible guarantee as
+      one plain sentence: the offering README and FR docstrings (for example
+      artifact_kinds.py FR-005), the doctrine-layer-merge and
+      doctrine-integrity ADRs, the kind-vocabulary single-authority facts
+      (activatable, org_requirable, selection_overlayable, effective_when_absent),
+      the default-in-force rules (activated_* absent → required + built-in), the
+      charter.offering.api seam contract, and the charter command --help. These
+      sentences are the candidate scenarios. Run promise extraction and the
+      litmus review as bounded, profile-loaded squads (adversarial-squad-deployment).
+    actor: agent
+  - title: Read the nightly e2e and fast tests as evidence, never as a template
+    description: >
+      For each candidate promise, find the e2e or charter test that already
+      exercises it. A match is confirmation the promise is real plus a concrete
+      command and expected outcome to reuse. Promises with no coverage are
+      recorded as gaps, not invented. Never transcribe a test's mechanism
+      (internal state, file layout, call sequence) into Gherkin:
+      test_charter_epic_golden_path.py answers "does the mechanism work", not
+      "what does the consumer get". Decouple the behaviour from the mechanism
+      before it becomes a scenario. Read the tests; do not run heavy suites
+      (NO_FULL_HEAVY_SUITES_IN_MISSION).
+    actor: agent
+  - title: Apply the litmus before authoring a scenario
+    description: >
+      A promise earns a .feature only if it states a user goal AND a
+      consequence the user cares about, phrased so it is true regardless of
+      which command or internal delivers it. If the whole scenario reduces to
+      "the thing I put in is the thing I get back", it is mechanism: demote it
+      to the Python unit/e2e tier and drop it from the suite. This is the gate
+      that keeps the suite user-first rather than a Gherkin re-skin of the
+      technical tests.
+    actor: agent
+    on_failure: >
+      If a candidate cannot be phrased as a goal-plus-consequence independent
+      of the command, it is not a scenario. Record it as covered by the
+      Python tier and move on; do not force it into Gherkin.
+  - title: Author consumer-first Gherkin to the styleguide
+    description: >
+      Write the surviving promises as scenarios under
+      tests/scenarios/charter/<area>/, organised by the three outcome features,
+      following the feature-and-scenario-authoring styleguide in full: outcome
+      in the Feature title, one promise per Scenario, the consumer's language
+      only (no module names, paths, event logs or implementation vocabulary),
+      and desired behaviour rather than a bug reproduction.
+    actor: agent
+  - title: Bind to a minimal, outcome-verb charter step library
+    description: >
+      Reuse the existing steps before adding any. Where new steps are needed,
+      add the smallest reusable Given/Assume/Act/Assert set plus its Java step
+      definitions under acceptance-jvm/. Steps assert the governed OUTCOME —
+      "Then the governance in force includes <...>", "Then the system refuses
+      with a reason naming <...>" — never "Then the command printed <...>".
+      Building a work-package or governance fixture as a black-box arrangement
+      is the enabling cost; keep it thin and shared. Standing up new step
+      infrastructure versus authoring @wip and deferring is an operator
+      decision — surface it rather than widening the work silently.
+    actor: agent
+  - title: Tag, gate and keep the scenarios honest
+    description: >
+      Tag each scenario @promise:PR-CHARTER-<AREA>-NNN. Mark a draft not yet
+      bound to a step with @wip plus @wip-owner:<handle> and @wip-since:<date>
+      so it runs without gating the nightly. Never tag a scenario @defect and
+      never phrase it as a reproduction — the .feature layer is the spec of
+      desired behaviour. The per-PR scenario contract
+      (tests/architectural/test_scenario_contract.py) enforces the tag and
+      step-binding shape; the nightly acceptance-bdd job runs the bound
+      scenarios cross-OS through Cucumber-JVM.
+    actor: agent
+  - title: Record traceability and keep the mechanism net
+    description: >
+      Map every @promise id to the offering FR/ADR it asserts in
+      tests/scenarios/charter/PROMISES.md, so the suite doubles as the frozen
+      offering-contract index. Leave the Python e2e and tests/charter* suites
+      in place as the lower-level mechanism net — the BDD suite is the consumer
+      contract on top, not a replacement. Report per area: promises extracted,
+      scenarios authored, scenarios bound-and-green versus @wip, and the gaps
+      with no coverage.
+    actor: agent
+anti_patterns:
+  - name: CRUD / affordance echo
+    description: >
+      Re-skinning "list shows X", "path resolves to Y", or the kind vocabulary
+      as Gherkin. These assert the command's output surface, which the Python
+      unit/e2e tier already owns; in Gherkin they read as technical tests with
+      Given/When/Then noise and add a slow cross-OS runner for no consumer
+      meaning.
+  - name: Transcribing the e2e mechanism
+    description: >
+      Copying an e2e's internal-state assertions, file-layout checks or
+      sequencing into a scenario. The e2e proves the mechanism; the scenario
+      states the consumer outcome. Use the e2e as evidence and a fixture
+      source, decoupled from implementation.
+  - name: Command-named steps
+    description: >
+      Steps that assert "the command printed <...>" instead of the governed
+      outcome. The scenario should hold regardless of which command surfaces
+      the result.
+  - name: Defect framing
+    description: >
+      Tagging a scenario @defect or writing it as a bug reproduction. The
+      .feature layer describes what the system should do for a user; defect
+      linkage and reproductions live in the Python/regression tier.
+  - name: Scope creep into activation
+    description: >
+      Writing activate/deactivate/cascade scenarios into the offering suite.
+      Activation is a separate layer that extracts later; mixing it in makes
+      the offering conformance net not match the unit being extracted first.
+  - name: Over-broad, uncheckable scenarios
+    description: >
+      Breadth a step cannot witness, such as "composition resolves the way I
+      expect". Narrow to a single guarantee a consumer can observe and a step
+      can check.
+references:
+  - type: styleguide
+    id: feature-and-scenario-authoring
+    reason: The consumer-first authoring rules, the litmus, the tag contract and the worked exemplars every scenario follows.
+  - type: directive
+    id: NO_FULL_HEAVY_SUITES_IN_MISSION
+    reason: The e2e and charter tests are read as evidence; verification runs the named scenarios, never whole heavy suites.
+  - type: procedure
+    id: adversarial-squad-deployment
+    reason: How to run promise-extraction and litmus review as bounded, profile-loaded lenses.
+  - type: styleguide
+    id: test-desiderata-and-boundaries
+    reason: Non-vacuity — a scenario must go red when the promise it names is broken, and assert observable behaviour, not the call graph.

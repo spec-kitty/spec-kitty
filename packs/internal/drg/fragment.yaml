@@ -178,6 +178,18 @@ nodes:
     kind: procedures
     title: "Issue-to-Mission Delivery (issues to a green, ready-for-review PR)"
     body_path: procedures/issue-to-mission-delivery.procedure.yaml
+  # Charter-offering BDD conformance authoring: the promise-first extraction
+  # method (docs as spec, e2e as evidence) and the consumer-first feature/
+  # scenario authoring styleguide it requires. Maintainer doctrine for building
+  # the offering conformance suite ahead of the spec-kitty-charter extraction.
+  - id: feature-and-scenario-authoring
+    kind: styleguides
+    title: "Feature and Scenario Authoring (consumer-first BDD — what should the system do)"
+    body_path: styleguides/feature-and-scenario-authoring.styleguide.yaml
+  - id: charter-offering-scenario-extraction
+    kind: procedures
+    title: "Charter-Offering Scenario Extraction (promise-first BDD features from docs, e2e as evidence)"
+    body_path: procedures/charter-offering-scenario-extraction.procedure.yaml
   # Pack skills (ADR 2026-09-27-1): thin entry points that require the procedure
   # carrying the substance. Rendered as kitty-<id>.
   - id: land-pr
@@ -471,6 +483,22 @@ edges:
     relation: suggests
   - source: landing-contributor-prs
     target: "agent_profile:reviewer-renata"
+    relation: suggests
+  # Charter-offering scenario extraction binds the authoring styleguide it
+  # follows, the bounded-run directive (e2e read as evidence, not run as a
+  # heavy suite), the squad procedure for promise extraction and litmus review,
+  # and the built-in non-vacuity doctrine every scenario is judged against.
+  - source: charter-offering-scenario-extraction
+    target: "styleguide:feature-and-scenario-authoring"
+    relation: requires
+  - source: charter-offering-scenario-extraction
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: charter-offering-scenario-extraction
+    target: "procedure:adversarial-squad-deployment"
+    relation: suggests
+  - source: charter-offering-scenario-extraction
+    target: "styleguide:test-desiderata-and-boundaries"
     relation: suggests
   # Pack skills: each requires the procedure that carries its substance.
   - source: "skill:land-pr"
