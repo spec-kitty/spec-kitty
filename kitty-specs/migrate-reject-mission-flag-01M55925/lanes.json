@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "migrate-reject-mission-flag-01M55925",
+  "mission_id": "01M55925VM026WCC2C8Y0C1WVD",
+  "mission_branch": "fix/migrate-reject-mission-flag",
+  "target_branch": "fix/migrate-reject-mission-flag",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "tests/cli/test_mission_agnostic_flag.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-17T16:07:17.775073+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4b1471ec0f1fb12069d21a8dbf901caee0dca40c"
+}

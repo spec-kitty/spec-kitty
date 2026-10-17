@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-17T15:53:30.539357Z",
+      "decision_id": "01M5592YNBAT1PC4P7EB2SP3Y9",
+      "final_answer": "Four named + repin-hooks (five total). Operator decision 2026-10-17: include repin-hooks since it is the 5th sibling of the identical class \u2014 trivial marginal cost, closes the whole whack-a-field class. Shared message is scope-neutral 'not mission-scoped'.",
+      "input_key": "reject_set_membership",
+      "mission_id": "01M55925VM026WCC2C8Y0C1WVD",
+      "mission_slug": "migrate-reject-mission-flag-01M55925",
+      "opened_by": "cli",
+      "options": [
+        "Four named + repin-hooks (five total)",
+        "Four named only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which migrate subcommands must reject --mission? The four named in #5294, or those four plus the 5th sibling of the identical silent-swallow class (repin-hooks)?",
+      "rationale": null,
+      "resolved_at": "2026-10-17T15:53:37.862434Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.reject-set-membership",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M55925VM026WCC2C8Y0C1WVD",
+  "version": 1
+}

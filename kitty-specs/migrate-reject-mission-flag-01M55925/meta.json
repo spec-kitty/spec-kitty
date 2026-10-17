@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-10-17T15:53:05.226920+00:00",
+  "flattened": false,
+  "friendly_name": "Reject --mission on non-mission-scoped migrate commands",
+  "mid8": "01M55925",
+  "mission_id": "01M55925VM026WCC2C8Y0C1WVD",
+  "mission_number": null,
+  "mission_slug": "migrate-reject-mission-flag-01M55925",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's skills tell agents to pass --mission to every command, but five migrate subcommands that mutate corpus/repo-wide content silently accept and ignore it (exit 0), so an agent gets an unscoped rewrite from a flag it was told to pass. This mission makes those commands reject --mission with a clear not-mission-scoped error.",
+  "purpose_tldr": "Non-mission-scoped migrate commands reject --mission loudly instead of silently ignoring it.",
+  "slug": "migrate-reject-mission-flag-01M55925",
+  "target_branch": "fix/migrate-reject-mission-flag",
+  "topology": "single_branch",
+  "contracts": "none",
+  "contracts_rationale": "CLI parse-layer refusal: no interfaces, endpoints, or data entities. The mission makes five migrate subcommands reject --mission; there is no contract surface to document."
+}

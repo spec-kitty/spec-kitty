@@ -1,0 +1,54 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M55AXCTZFCKAW0W903CW44DT",
+  "materialized_at": "2026-10-17T16:25:25.599626+00:00",
+  "mission_number": "",
+  "mission_slug": "migrate-reject-mission-flag-01M55925",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M55AXCTZFCKAW0W903CW44DT",
+      "last_transition_at": "2026-10-17T16:25:25.599626+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "APPROVE — independent opus review: seam correct, scope exactly five, #3953 invariant honest, red-first converted, 226+219 green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "review:reviewer-renata-opus:APPROVE:1da15476af",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2998496,
+      "shell_pid_created_at": "1792254241.41",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}
