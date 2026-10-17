@@ -5034,6 +5034,7 @@ pages:
     - {slug: "both-composition-roots", text: "Both composition roots", level: 2}
     - {slug: "the-write-location-write-dir", text: "The write location (write_dir)", level: 3}
     - {slug: "the-compliance-taxonomy", text: "The compliance taxonomy", level: 2}
+    - {slug: "unclassified-kinds-none-have-one-meaning-5697", text: "Unclassified kinds (`None`) have one meaning (#5697)", level: 2}
     - {slug: "honest-bounds", text: "Honest bounds", level: 2}
     - {slug: "partition-move-audit-checklist", text: "Partition-Move Audit Checklist", level: 2}
     - {slug: "worked-example-decision-ledger-moved-coord-to-primary-2026-10-01", text: "Worked example: `DECISION_LEDGER` moved COORD to PRIMARY (2026-10-01)", level: 3}

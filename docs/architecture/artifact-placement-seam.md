@@ -2,7 +2,7 @@
 title: The Artifact Placement Seam
 description: How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-17'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/branch-target-routing.md
@@ -160,6 +160,36 @@ cannot see this, because canonicality and routing-compliance are orthogonal axes
   kind-blind primitives by name (`primary_feature_dir_for_mission` while it existed;
   `resolve_feature_dir_for_mission` today) anywhere outside a named sanction, independent of
   whether the handle passed to them is canonical.
+
+## Unclassified kinds (`None`) have one meaning (#5697)
+
+`kind_for_mission_file(path)` (`src/mission_runtime/artifacts.py`) returns a
+`MissionArtifactKind` for a recognized mission file, or `None` for a path it does not
+recognize. `None` means exactly one thing to every consumer: **"not a coordination
+record."** An unclassified path is primary-bound on write and is **never** projected by the
+squash projection (`consolidation/bookkeeping_projection.py:_post_checkpoint_mission_paths`)
+as coordination bookkeeping. Both the projection and the workflow commit partition
+(`cli/commands/agent/workflow.py:_partition_paths_by_primary_kind`) decide this through the
+single authority `coordination/coherence.py:is_coordination_kind_file` (which returns `False`
+for `None`) — the same authority the write side (`commit_router`, `is_coord_residue_churn`)
+already used. Before #5697 those two consumers each re-derived the opposite answer locally
+(`None` → coordination bookkeeping), which let a byte-identical planning/research file be
+primary on write yet projected-and-refused by a squash `consolidate` (the #5552 class).
+
+The same unified rule routes a **non-mission path** — a repo-root `meta.json` or config file a
+caller stages that never classifies — to primary-bound on the workflow commit partition. That
+is deliberate alignment with the write-side authority (#2533: an unrecognized path routes
+PRIMARY unconditionally), not a regression.
+
+#5697 also classified the Mission files that previously fell through to `None`, all in the
+PRIMARY partition: `research/**` → `RESEARCH` (directory-anchored); `findings.md` /
+`report.md` / `methodology.md` / `synthesis.md` / `literature-review.md` → `RESEARCH_OUTPUT`;
+`gap-analysis.md` / `audit-report.md` → `ANALYSIS_REPORT`; `occurrence_map.yaml` →
+`OCCURRENCE_MAP`; `goals.md` → `MISSION_GOALS`; `release.md` → `RELEASE_RECORD`; `meta.json`
+→ `PRIMARY_METADATA`. Four paths stay deliberately unclassified because they are not
+`kitty-specs/<slug>/` Mission artifacts: `lint-report.json` (under `.kittify/`), `docs/**`
+(project-root repo content), `answers.yaml` (under `.kittify/charter/interview/`), and
+`mission-events.jsonl` (deliberately not a kind, #5669 — keep-local, must stay real dirt).
 
 ## Honest bounds
 
