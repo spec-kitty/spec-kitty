@@ -60,6 +60,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kernel.mission_runtime_shape import step_ids_declare_wp_iteration
 from kernel.pack_tiers import BUILT_IN
 
 from charter.activation.action_grain import aggregate_action_grain
@@ -75,6 +76,7 @@ if TYPE_CHECKING:
     from charter.offering.missions.models import MissionType
 
 __all__ = [
+    "BUILTIN_REQUIRES_SUBSTANTIVE_SPEC",
     "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeEmptyActionSequenceError",
@@ -382,6 +384,19 @@ class ResolvedGovernance:
         return cls(provenance=provenance, **merged)
 
 
+#: Built-in defaults for the authored ``requires_substantive_spec`` capability.
+#: A type's own declared value wins; a custom type that declares nothing is
+#: conservatively ``False``.
+BUILTIN_REQUIRES_SUBSTANTIVE_SPEC: Mapping[str, bool] = MappingProxyType(
+    {
+        "software-dev": True,
+        "research": True,
+        "documentation": False,
+        "plan": False,
+    }
+)
+
+
 @dataclass(frozen=True)
 class ResolvedMissionType:
     """In-memory bundle produced by :func:`resolve_mission_type_context`.
@@ -413,6 +428,9 @@ class ResolvedMissionType:
     governance_text: str
     action_sequence: list[str]
     provenance: str
+    #: Capability: the type iterates work packages (its ``action_sequence``
+    #: declares ``implement``; kernel rule, single authority).
+    wp_driven: bool = False
     #: Deferred resolver for the activated doctrine artifact's template
     #: mapping. ``None`` yields ``None`` for the neutral/typeless bundle.
     _template_set_thunk: Callable[[], Mapping[str, str] | None] | None = field(
@@ -431,10 +449,25 @@ class ResolvedMissionType:
     _expected_artifacts_thunk: Callable[[], _ExpectedArtifactsManifest | None] | None = field(
         default=None, repr=False, compare=False
     )
+    #: Deferred resolver for ``requires_substantive_spec``. ``None`` yields ``False``.
+    _requires_substantive_spec_thunk: Callable[[], bool] | None = field(
+        default=None, repr=False, compare=False
+    )
     #: Deferred resolver for ``step_contracts``. ``None`` yields ``[]``.
     _step_contracts_thunk: Callable[[], list[str]] | None = field(
         default=None, repr=False, compare=False
     )
+
+    @cached_property
+    def requires_substantive_spec(self) -> bool:
+        """Authored capability (lazy, memoised; see :data:`BUILTIN_REQUIRES_SUBSTANTIVE_SPEC`).
+
+        Resolved off the hot ``action_sequence`` path so that path keeps its
+        single layered-roster read (FR-007). ``False`` for the neutral bundle.
+        """
+        if self._requires_substantive_spec_thunk is None:
+            return False
+        return self._requires_substantive_spec_thunk()
 
     @cached_property
     def governance(self) -> ResolvedGovernance | None:
@@ -672,6 +705,10 @@ def resolve_mission_type_context(
         governance_text=governance_text,
         action_sequence=action_sequence,
         provenance=governance_provenance,
+        wp_driven=step_ids_declare_wp_iteration(action_sequence),
+        _requires_substantive_spec_thunk=lambda: _resolve_requires_substantive_spec(
+            type_key, is_registered=is_registered, pack_context=pack_context
+        ),
         # The FR-013 union (governance) + template mapping + WP11
         # (step-contract artefact, FR-008) + WP10 (doctrine gate tree) each read
         # off disk; defer all four so the
@@ -978,6 +1015,28 @@ def _resolve_action_slot(
         raise MissionTypeEmptyActionSequenceError(mission_type, layer)
 
     return action_sequence
+
+
+def _resolve_requires_substantive_spec(
+    mission_type: str,
+    *,
+    is_registered: bool,
+    pack_context: _PackContextLike,
+) -> bool:
+    """Declared ``requires_substantive_spec`` -> built-in default -> ``False``."""
+    declared: bool | None = None
+    if is_registered:
+        from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
+            resolve_layered_mission_types,
+        )
+        from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+        dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+        mission = resolve_layered_mission_types(dirs, pack_context).get(mission_type)
+        declared = mission.requires_substantive_spec if mission is not None else None
+    if declared is not None:
+        return declared
+    return BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False)
 
 
 def _resolve_with_extends_fallback(
