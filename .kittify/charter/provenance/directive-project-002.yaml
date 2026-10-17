@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source 
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash: 
+  0b6762e6a6fca528617ce40d620b8356d1d30214c2e006316181ddc56a06a284
+artifact_kind: directive
+artifact_slug: project-002
+artifact_urn: directive:PROJECT_002
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-10-17T06:18:15+00:00'
+inputs_hash: 0b6762e6a6fca528617ce40d620b8356d1d30214c2e006316181ddc56a06a284
+produced_at: '2026-10-17T06:18:15+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/charter-packs/directive/002-neutrality-posture-directive.directive.yaml
+source_section: 
+  .kittify/charter-packs/directive/002-neutrality-posture-directive.directive.yaml
+source_urns: []
+synthesis_run_id: 01M5485MT6830HP51AKJ7HGKWZ
+synthesizer_version: 4.0.0rc8

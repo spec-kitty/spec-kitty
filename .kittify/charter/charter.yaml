@@ -707,6 +707,12 @@ catalog:
     summary: "Meeting minutes are not a reminder for people who attended — they are the authoritative record for people who did not. Every set of minutes must be independently legible: a reader who was not in the room must be able to understand what was discussed, what was decided, and what action has been assigned, without access to the recording, the transcript, or the attendees.\n"
     source_path: ''
     local_path: _LIBRARY/directive-minutes-stand-alone.md
+  - id: DIRECTIVE:NO_FULL_HEAVY_SUITES_IN_MISSION
+    kind: directive
+    title: No Full Runs of Computationally Heavy Suites in Mission Work
+    summary: "During mission work — implement, review, fold/rework, and closeout/pre-PR — never run a full-directory or whole-repo sweep of a computationally heavy test suite: the architectural suite (`tests/architectural/` as a whole), an end-to-end suite (`tests/e2e/`, a full `tests/integration/` sweep), a performance/stress/timing suite (`-m performance|stress|timing`, the `ci-nightly`-tier run), or `make test-full`. These runs take 20+ minutes per lane, contend with other parallel lanes on the same machine, and duplicate a run CI already owns authoritatively (the module test matrix, the nightly full/performance/interpreter run, and the aggregate gate). Run the targeted set instead: the tests for the files the change touches, the SPECIFIC architectural gate files that guard the change (named, not the whole directory), and the owning module's fast tier — then record the exact commands and pass/fail counts in the PR. This directive supersedes any guidance that reads as \"run tests/architectural/ in full for cross-cutting changes\" when the actor is doing mission work (implement/review/fold/ closeout); that guidance is retargeted to CI's cross-cutting lane, not to a mission agent's local validation pass.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-no-full-heavy-suites-in-mission.md
   - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
     kind: directive
     title: Reconciling Change-Scope Tensions
@@ -821,6 +827,12 @@ catalog:
     summary: "Guide the Formulation, Automation, and Maintenance phases of the BDD cycle, picking up where the Example Mapping Workshop (Discovery phase) leaves off. Covers translating validated examples into Gherkin specifications, wiring them to executable step definitions, and maintaining them as living documentation as the system evolves. Toolchain-agnostic — applicable with Cucumber-JVM, Cucumber-JS, Behave, SpecFlow, or any Given/When/Then runner.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-bdd-scenario-lifecycle.md
+  - id: PROCEDURE:charter-offering-scenario-extraction
+    kind: procedure
+    title: Charter-Offering Scenario Extraction (promise-first BDD features from docs, with e2e as evidence)
+    summary: "The maintainer method for building the consumer-facing BDD feature/scenario suite for the charter offering domain ahead of the spec-kitty-charter extraction. The suite is the behavioural contract a user relies on — \"what should the system do for me\" — and it becomes the conformance net that survives the repo split (the offering-first extraction's red-first contract-conformance phase). The method is promise-first: scenarios are derived from the charter's stated guarantees (docs, ADRs, FR docstrings, --help, the charter.offering.api seam), and the existing nightly e2e and fast tests are read only as EVIDENCE that a promise already holds and as a source of concrete commands and outcomes — never transcribed into Gherkin. Every scenario is authored to the feature-and-scenario-authoring styleguide and lands in the existing tests/scenarios Gherkin + Cucumber-JVM scaffold, gated per-PR by the scenario contract and run nightly cross-OS.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-charter-offering-scenario-extraction.md
   - id: PROCEDURE:development-assist-test-cleanup
     kind: procedure
     title: Development-Assist Test Cleanup
@@ -989,6 +1001,12 @@ catalog:
     summary: "Every page carries a freshness date. Frontmatter carries `updated: YYYY-MM-DD`, set to the date the page's content was last verified against reality — not the date of an incidental typo fix. The freshness date is the input to every staleness check; a page without one cannot be triaged and is treated as stale by default."
     source_path: ''
     local_path: _LIBRARY/styleguide-docs-freshness-sla.md
+  - id: STYLEGUIDE:feature-and-scenario-authoring
+    kind: styleguide
+    title: Feature and Scenario Authoring Styleguide (consumer-first BDD — "what should the system do")
+    summary: A feature describes a job a consumer wants done; a scenario describes one observable outcome they care about. Both are written from the user's point of view — what the system should do for them — never how it does it. The reader is the consumer of the product, not the person who built it.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-feature-and-scenario-authoring.md
   - id: STYLEGUIDE:given-when-then-authoring
     kind: styleguide
     title: Given-When-Then Scenario Authoring
@@ -1867,7 +1885,7 @@ catalog:
     local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-10-10T18:08:22Z'
+  generated_at: '2026-10-17T06:21:56Z'
   bundle_schema_version: 2
 activated_directives:
 - 001-architectural-integrity-standard
@@ -1906,6 +1924,7 @@ activated_directives:
 - 053-choose-op-or-mission-before-starting
 - 051-supply-chain-install-safety
 - disciplined-refactoring
+- no-full-heavy-suites-in-mission
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -2042,6 +2061,7 @@ activated_styleguides:
 - publication-authority
 - research-citation-discipline
 - boring-code-review
+- feature-and-scenario-authoring
 activated_toolguides:
 - contextive
 - efficient-local-tooling
@@ -2079,6 +2099,7 @@ activated_procedures:
 - red-main-release-discipline
 - glossary-maintenance-workflow
 - development-assist-test-cleanup
+- charter-offering-scenario-extraction
 mission_type_activations:
 - software-dev
 - documentation
