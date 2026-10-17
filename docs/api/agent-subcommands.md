@@ -131,18 +131,18 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
  ``--negative-invariant``, both routed through the WP03 write seam.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                   <str>  Mission slug, mid8, or │
+│ *  --mission                                  <str>   Mission slug, mid8, or │
 │                                                       mission_id             │
 │                                                       [required]             │
-│    --criterion                                 <str>  Acceptance criterion   │
+│    --criterion                                <str>   Acceptance criterion   │
 │                                                       id (e.g. FR-001);      │
 │                                                       mutually exclusive     │
 │                                                       with                   │
 │                                                       --negative-invariant   │
-│    --result                                    <str>  pass | fail | pending  │
+│    --result                                   <str>   pass | fail | pending  │
 │                                                       (required with         │
 │                                                       --criterion)           │
-│    --verification-method                       <str>  Criterion mode: how    │
+│    --verification-method                      <str>   Criterion mode: how    │
 │                                                       this was verified      │
 │                                                       (updates proof_type).  │
 │                                                       Negative-invariant     │
@@ -151,34 +151,43 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │                                                       custom_command         │
 │                                                       (required with         │
 │                                                       --negative-invariant). │
-│    --actor                                     <str>  Actor recording this   │
+│    --actor                                    <str>   Actor recording this   │
 │                                                       verdict                │
-│    --evidence                                  <str>  Evidence reference     │
+│    --evidence                                 <str>   Evidence reference     │
 │                                                       (URL/path/etc.)        │
-│    --negative-invariant                        <str>  Negative invariant id  │
+│    --negative-invariant                       <str>   Negative invariant id  │
 │                                                       to register/execute    │
 │                                                       (FR-007/FR-008);       │
 │                                                       mutually exclusive     │
 │                                                       with --criterion       │
-│    --description                               <str>  Negative invariant     │
+│    --description                              <str>   Negative invariant     │
 │                                                       description (required  │
 │                                                       with                   │
 │                                                       --negative-invariant)  │
-│    --verification-command                      <str>  grep pattern or        │
+│    --verification-comma…                      <str>   grep pattern or        │
 │                                                       command verifying the  │
 │                                                       invariant's absence    │
-│    --scope                                     <str>  Whitespace-separated   │
+│    --scope                                    <str>   Whitespace-separated   │
 │                                                       repo-relative search   │
 │                                                       root(s); grep_absence  │
 │                                                       only                   │
-│    --execute                   --no-execute           Run the invariant's    │
+│    --execute                  --no-execute            Run the invariant's    │
 │                                                       verification           │
 │                                                       immediately after      │
 │                                                       registering (FR-008;   │
 │                                                       default: on)           │
 │                                                       [default: execute]     │
+│    --owned-checkout                           <path>  Run against an owned   │
+│                                                       checkout: a linked     │
+│                                                       checkout that owns     │
+│                                                       this mission. Refuses  │
+│                                                       the repository root    │
+│                                                       checkout, lane         │
+│                                                       worktrees and          │
+│                                                       coordination           │
+│                                                       worktrees.             │
 │    --json                                             Output JSON format     │
-│    --help                  -h                         Show this message and  │
+│    --help                 -h                          Show this message and  │
 │                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -894,18 +903,18 @@ _Mission lifecycle commands for AI agents_
  ``--negative-invariant``, both routed through the WP03 write seam.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                                   <str>  Mission slug, mid8, or │
+│ *  --mission                                  <str>   Mission slug, mid8, or │
 │                                                       mission_id             │
 │                                                       [required]             │
-│    --criterion                                 <str>  Acceptance criterion   │
+│    --criterion                                <str>   Acceptance criterion   │
 │                                                       id (e.g. FR-001);      │
 │                                                       mutually exclusive     │
 │                                                       with                   │
 │                                                       --negative-invariant   │
-│    --result                                    <str>  pass | fail | pending  │
+│    --result                                   <str>   pass | fail | pending  │
 │                                                       (required with         │
 │                                                       --criterion)           │
-│    --verification-method                       <str>  Criterion mode: how    │
+│    --verification-method                      <str>   Criterion mode: how    │
 │                                                       this was verified      │
 │                                                       (updates proof_type).  │
 │                                                       Negative-invariant     │
@@ -914,34 +923,43 @@ _Mission lifecycle commands for AI agents_
 │                                                       custom_command         │
 │                                                       (required with         │
 │                                                       --negative-invariant). │
-│    --actor                                     <str>  Actor recording this   │
+│    --actor                                    <str>   Actor recording this   │
 │                                                       verdict                │
-│    --evidence                                  <str>  Evidence reference     │
+│    --evidence                                 <str>   Evidence reference     │
 │                                                       (URL/path/etc.)        │
-│    --negative-invariant                        <str>  Negative invariant id  │
+│    --negative-invariant                       <str>   Negative invariant id  │
 │                                                       to register/execute    │
 │                                                       (FR-007/FR-008);       │
 │                                                       mutually exclusive     │
 │                                                       with --criterion       │
-│    --description                               <str>  Negative invariant     │
+│    --description                              <str>   Negative invariant     │
 │                                                       description (required  │
 │                                                       with                   │
 │                                                       --negative-invariant)  │
-│    --verification-command                      <str>  grep pattern or        │
+│    --verification-comma…                      <str>   grep pattern or        │
 │                                                       command verifying the  │
 │                                                       invariant's absence    │
-│    --scope                                     <str>  Whitespace-separated   │
+│    --scope                                    <str>   Whitespace-separated   │
 │                                                       repo-relative search   │
 │                                                       root(s); grep_absence  │
 │                                                       only                   │
-│    --execute                   --no-execute           Run the invariant's    │
+│    --execute                  --no-execute            Run the invariant's    │
 │                                                       verification           │
 │                                                       immediately after      │
 │                                                       registering (FR-008;   │
 │                                                       default: on)           │
 │                                                       [default: execute]     │
+│    --owned-checkout                           <path>  Run against an owned   │
+│                                                       checkout: a linked     │
+│                                                       checkout that owns     │
+│                                                       this mission. Refuses  │
+│                                                       the repository root    │
+│                                                       checkout, lane         │
+│                                                       worktrees and          │
+│                                                       coordination           │
+│                                                       worktrees.             │
 │    --json                                             Output JSON format     │
-│    --help                  -h                         Show this message and  │
+│    --help                 -h                          Show this message and  │
 │                                                       exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
