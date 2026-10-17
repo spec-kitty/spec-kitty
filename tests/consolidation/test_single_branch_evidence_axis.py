@@ -72,21 +72,33 @@ def _manifest() -> LanesManifest:
 _APPROVED = {"WP01": {"lane": "approved"}}
 
 
-def _refuse(repo: Path, fd: Path, window: tuple[str, str] | None) -> str | None:
-    return reconciliation._single_branch_evidence_refusal(repo, fd, _manifest(), _APPROVED, frozenset(), window)
+def _refuse(repo: Path, fd: Path, window: tuple[str, str] | None, *, is_single_branch: bool = True) -> str | None:
+    return reconciliation._single_branch_evidence_refusal(repo, fd, _manifest(), _APPROVED, frozenset(), window, is_single_branch=is_single_branch)
 
 
-def test_no_window_means_not_single_branch_and_never_refuses(tmp_path: Path) -> None:
+def test_not_single_branch_never_refuses(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     fd = _feature_dir(repo)
-    assert _refuse(repo, fd, None) is None
+    assert _refuse(repo, fd, None, is_single_branch=False) is None
+
+
+def test_single_branch_with_uncomputable_window_fails_closed(tmp_path: Path) -> None:
+    """Change 2: a single_branch mission with approved work but no computable window REFUSES."""
+    repo = _repo(tmp_path)
+    fd = _feature_dir(repo)
+    refusal = _refuse(repo, fd, None, is_single_branch=True)
+    assert refusal is not None
+    assert reconciliation._SB_WINDOW_UNCOMPUTABLE in refusal
+    assert reconciliation.single_branch_refusal_codes(refusal) == [reconciliation._SB_WINDOW_UNCOMPUTABLE]
 
 
 def test_no_approved_wps_never_refuses(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     fd = _feature_dir(repo)
     base = _git(repo, "rev-parse", "HEAD")
-    result = reconciliation._single_branch_evidence_refusal(repo, fd, _manifest(), {"WP01": {"lane": "in_progress"}}, frozenset(), (base, "main"))
+    result = reconciliation._single_branch_evidence_refusal(
+        repo, fd, _manifest(), {"WP01": {"lane": "in_progress"}}, frozenset(), (base, "main"), is_single_branch=True
+    )
     assert result is None
 
 
@@ -134,15 +146,18 @@ def _impl_commit(repo: Path) -> None:
     _git(repo, "commit", "-qm", "feat: implement m1")
 
 
-def test_implementation_present_with_unknown_implementer_does_not_over_refuse(tmp_path: Path) -> None:
+def test_implementation_present_but_unknown_implementer_refuses_strict(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     fd = _feature_dir(repo)
     base = _git(repo, "rev-parse", "HEAD")
-    # A real commit in owned_files clears axis (a); with no event log the implementer identity
-    # is unknown, so axis (b) ABSTAINS (a WP implemented via `spec-kitty implement` records a
-    # generic claim actor -- refusing it would over-refuse legitimate single_branch missions).
+    # A real commit in owned_files clears axis (a); with no recorded implementer identity the
+    # review is not a confirmable independent one, so STRICT axis (b) refuses (operator ruling:
+    # a legit mission records a real implementer via `implement --agent <name>`).
     _impl_commit(repo)
-    assert _refuse(repo, fd, (base, "main")) is None
+    refusal = _refuse(repo, fd, (base, "main"))
+    assert refusal is not None
+    assert reconciliation._SB_REVIEW_NOT_INDEPENDENT in refusal
+    assert reconciliation._SB_IMPLEMENTATION_MISSING not in refusal
 
 
 def test_implementation_present_but_same_actor_review_refuses(tmp_path: Path) -> None:
@@ -195,6 +210,21 @@ def test_owned_pattern_helpers_normalize_and_match() -> None:
     assert reconciliation._sb_matches_owned("src/m1/deep/x.py", ("src/m1/**",))
     assert reconciliation._sb_matches_owned("src/m1/x.py", ("src/m1/**",))
     assert not reconciliation._sb_matches_owned("src/m2/x.py", ("src/m1/**",))
+
+
+def test_mirrored_owned_match_stays_in_lockstep_with_cli_layer() -> None:
+    """N3: the mirrored owned-files match must agree with the CLI-layer original so they can't drift."""
+    from specify_cli.cli.commands.agent import tasks_move_task as mt
+
+    cases = [
+        ("src/m1/deep/x.py", ("src/m1/**",)),
+        ("src/m1/x.py", ("src/m1/**",)),
+        ("src/m2/x.py", ("src/m1/**",)),
+        ("a/b/c.py", ("a/b/*",)),
+        ("./src/m1/y.py", ("src/m1/**",)),
+    ]
+    for path, patterns in cases:
+        assert reconciliation._sb_matches_owned(path, patterns) == mt._mt_matches_owned_file(path, patterns)
 
 
 def test_refusal_codes_reads_each_distinct_leading_code() -> None:

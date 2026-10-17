@@ -178,6 +178,26 @@ def test_move_gate_refuses_autowalk_without_implementation(tmp_path: Path) -> No
     assert lanes.get("WP01") != "approved", f"the refused move must not have landed WP01 in approved; lanes={lanes}"
 
 
+def test_move_gate_fails_closed_when_evidence_window_uncomputable(tmp_path: Path) -> None:
+    """Change 2: a single_branch mission whose lanes.json records no planning commit refuses the move (fail-closed)."""
+    repo, env, slug, fd = _setup_mission(tmp_path)
+
+    for subtask in ("T1", "T2"):
+        _sk(repo, env, "agent", "tasks", "mark-status", subtask, "--status", "done", "--mission", slug)
+    _commit_specs(repo)
+
+    # Strip the recorded planning commit so the evidence window is uncomputable (a legacy manifest).
+    lanes = json.loads((fd / "lanes.json").read_text(encoding="utf-8"))
+    lanes["planning_commit_sha"] = None
+    (fd / "lanes.json").write_text(json.dumps(lanes), encoding="utf-8")
+    _commit_specs(repo)
+
+    mv = _sk(repo, env, "agent", "tasks", "move-task", "WP01", "--to", "approved", "--agent", "bob", "--note", "lgtm", "--mission", slug)
+    combined = mv.stdout + mv.stderr
+    assert mv.returncode != 0, f"an uncomputable evidence window must fail closed at the move. got rc=0\n{mv.stdout}\n{mv.stderr}"
+    assert "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE" in combined or "planning commit" in combined.lower(), combined
+
+
 def test_consolidate_backstop_refuses_hollow_approved_wps(tmp_path: Path) -> None:
     """Layer 1: a hollow-approved single_branch WP that bypassed the move gate (force) is still refused by consolidate."""
     repo, env, slug, _fd = _setup_mission(tmp_path)

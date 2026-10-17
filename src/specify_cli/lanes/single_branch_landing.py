@@ -165,6 +165,23 @@ def authorship_window(repo: Path, mission_slug: str, mission_branch: str, target
     return (base, mission_branch) if result.returncode == 0 and base else None
 
 
+def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
+    """True when the mission's STORED topology is single_branch.
+
+    Distinct from :func:`single_branch_evidence_window`, which also returns ``None`` when the
+    mission IS single_branch but its evidence window is uncomputable (a legacy ``lanes.json``
+    with no ``planning_commit_sha``). The #5939 backstop uses this to fail CLOSED on that
+    uncomputable case rather than silently no-opping it.
+    """
+    from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
+
+    from specify_cli.migration.backfill_topology import stored_topology
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    return is_single_branch(stored_topology(meta))
+
+
 def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[str, str] | None:
     """``(planning_commit, mission_branch)`` implementation-evidence window for ANY single_branch mission, else ``None``.
 
@@ -178,15 +195,11 @@ def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[
     Gated on the STORED topology (never a derived one), so a coord/lanes mission is never
     treated as single_branch here. Returns ``None`` when the mission is not single_branch, or
     when no planning commit / mission branch was recorded (a pre-``planning_commit_sha`` legacy
-    manifest cannot be windowed); the #5939 evidence axis then does not run for it.
+    manifest cannot be windowed). A caller that must distinguish "not single_branch" from
+    "single_branch but uncomputable" (the #5939 fail-closed backstop) pairs this with
+    :func:`is_single_branch_mission`.
     """
-    from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
-
-    from specify_cli.migration.backfill_topology import stored_topology
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
-    if not is_single_branch(stored_topology(meta)):
+    if not is_single_branch_mission(repo, manifest):
         return None
     base = manifest.planning_commit_sha
     tip = manifest.mission_branch

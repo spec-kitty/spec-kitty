@@ -1574,14 +1574,21 @@ def build_approved_wp_set(
     # bound above is a no-op on single_branch (its one lane is a planning lane), so this
     # separate, strategy-independent axis is the fail-closed backstop. REFUSE (before the
     # collectors read tips, so nothing is rolled back) when an approved single_branch WP has
-    # no implementation commit in its owned_files, or no independent review. The evidence
-    # window (planning_commit..mission_branch) covers BOTH a minted-branch and a
-    # commit-to-target single_branch; it is NOT ``sb_window`` (authorship_window, the
-    # protected-minted-only range the collectors use).
-    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+    # no implementation commit in its owned_files, no confirmable independent review, or an
+    # uncomputable evidence window. The evidence window (planning_commit..mission_branch)
+    # covers BOTH a minted-branch and a commit-to-target single_branch; it is NOT ``sb_window``
+    # (authorship_window, the protected-minted-only range the collectors use).
+    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
 
+    sb_is_single_branch = is_single_branch_mission(repo_root, lanes_manifest)
     sb_evidence_refusal = _single_branch_evidence_refusal(
-        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, single_branch_evidence_window(repo_root, lanes_manifest)
+        repo_root,
+        feature_dir,
+        lanes_manifest,
+        work_packages,
+        excluded_ids,
+        single_branch_evidence_window(repo_root, lanes_manifest) if sb_is_single_branch else None,
+        is_single_branch=sb_is_single_branch,
     )
     if sb_evidence_refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, sb_evidence_refusal)
@@ -2084,7 +2091,8 @@ def approved_bound_refusal(
 _SB_IMPLEMENTATION_MISSING = "SINGLE_BRANCH_IMPLEMENTATION_MISSING"
 _SB_REVIEW_NOT_INDEPENDENT = "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT"
 _SB_EVIDENCE_UNREADABLE = "SINGLE_BRANCH_EVIDENCE_UNREADABLE"
-_SB_CODES: tuple[str, ...] = (_SB_IMPLEMENTATION_MISSING, _SB_REVIEW_NOT_INDEPENDENT, _SB_EVIDENCE_UNREADABLE)
+_SB_WINDOW_UNCOMPUTABLE = "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE"
+_SB_CODES: tuple[str, ...] = (_SB_IMPLEMENTATION_MISSING, _SB_REVIEW_NOT_INDEPENDENT, _SB_EVIDENCE_UNREADABLE, _SB_WINDOW_UNCOMPUTABLE)
 
 
 def _sb_owned_patterns(owned_files: Sequence[str]) -> tuple[str, ...]:
@@ -2155,28 +2163,38 @@ def _single_branch_evidence_refusal(
     work_packages: Mapping[str, Any],
     excluded_canceled_wp_ids: frozenset[str],
     evidence_window: tuple[str, str] | None,
+    *,
+    is_single_branch: bool,
 ) -> str | None:
     """#5939 backstop: refuse an approved single_branch WP with no implementation or no independent review.
 
-    Fires only for a single_branch mission (``evidence_window`` resolves, i.e.
-    :func:`~specify_cli.lanes.single_branch_landing.single_branch_evidence_window` is
-    non-``None`` on the STORED topology -- both a minted-branch and a commit-to-target
-    single_branch). For each approved WP it refuses when EITHER (a) no commit in the
-    evidence window ``(planning_commit, mission_branch)`` touches the WP's ``owned_files``
-    (mirroring the move-side owned-files match), OR (b) the review is PROVABLY hollow -- the
-    implementer-of-record and the approving actor are both known and the SAME identity (the
-    #5939 autowalk stamps one actor as both). A merely-unknown implementer (a generic
-    ``implement-command`` claim) does NOT trip (b): that is the normal shape of a WP
-    implemented through ``spec-kitty implement``, so refusing it would over-refuse legitimate
-    single_branch missions -- axis (a) already guarantees real authored content. One refusal
-    per WP, (a) taking precedence over (b). Strategy-independent, and fail-closed on any
-    git-probe error (REFUSE, never pass vacuously).
+    Fires only for a single_branch mission (``is_single_branch``; STORED topology -- both a
+    minted-branch and a commit-to-target single_branch). For each approved WP it refuses when
+    EITHER (a) no commit in the evidence window ``(planning_commit, mission_branch)`` touches
+    the WP's ``owned_files`` (mirroring the move-side owned-files match), OR (b) the review is
+    not independent -- ``preflight._independent_reviewer_confirmed`` is False, i.e. the
+    implementer-of-record and the approving actor are the same identity, or either identity is
+    not recorded (STRICT: absence of a recorded independent reviewer fails closed; a WP
+    implemented through ``spec-kitty implement --agent <name>`` records a real identity, so a
+    legitimate independent review is confirmable). One refusal per WP, (a) taking precedence
+    over (b). Strategy-independent, and fail-closed on both a git-probe error and an
+    uncomputable evidence window (a legacy ``lanes.json`` with no ``planning_commit_sha``).
     """
-    if evidence_window is None:
-        return None
+    if not is_single_branch:
+        return None  # not a single_branch mission -- the stamp bound / other axes own it
     approved = _sb_approved_wp_ids(work_packages, excluded_canceled_wp_ids)
     if not approved:
         return None
+    if evidence_window is None:
+        # single_branch WITH approved work but an uncomputable window (a legacy lanes.json with
+        # no planning_commit_sha): fail CLOSED -- implementation evidence cannot be verified.
+        line = (
+            f"{_SB_WINDOW_UNCOMPUTABLE}: the implementation-evidence window "
+            "(planning_commit..mission_branch) cannot be computed for this single_branch mission "
+            "(no recorded planning commit), so implementation evidence cannot be verified. "
+            "Recovery: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
+        )
+        return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
     base, tip = evidence_window
     try:
         changed = changed_paths_in_range(repo_root, base, tip)
@@ -2185,7 +2203,7 @@ def _single_branch_evidence_refusal(
         return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
     changed_paths = [path for _status, path in changed]
     owned_by_wp = _sb_owned_files_by_wp(feature_dir, approved)
-    from specify_cli.consolidation.preflight import _latest_actor_for_transition, _latest_implementer_identity
+    from specify_cli.consolidation.preflight import _independent_reviewer_confirmed
 
     lines: list[str] = []
     for wp in approved:
@@ -2196,17 +2214,17 @@ def _single_branch_evidence_refusal(
                 f"owned_files in the mission branch window {base}..{tip}."
             )
             continue
-        # Axis (b): refuse only when the review is PROVABLY hollow -- the implementer of record
-        # and the approving actor are both known and the SAME identity (the #5939 autowalk stamps
-        # one actor as both). We deliberately do NOT refuse on a merely-unknown implementer (a
-        # generic ``implement-command`` claim, _latest_implementer_identity -> None): that is the
-        # normal shape of a WP implemented through ``spec-kitty implement``, and refusing it would
-        # over-refuse legitimate single_branch missions. Absence of evidence of independence is not
-        # evidence of a hollow review; axis (a) already guarantees real authored content exists.
-        implementer = _latest_implementer_identity(feature_dir, wp)
-        reviewer = _latest_actor_for_transition(feature_dir, wp, "approved")
-        if implementer and reviewer and implementer == reviewer:
-            lines.append(f"{_SB_REVIEW_NOT_INDEPENDENT}: {wp} was implemented and approved by the same actor ({implementer}), so the review was not independent.")
+        # Axis (b), STRICT (operator ruling #5939): refuse unless an independent review is
+        # positively confirmed -- a different recorded identity approved the WP than the one that
+        # implemented it. False also when either identity is missing (an unknown implementer is
+        # not evidence of independence). A WP implemented via ``spec-kitty implement --agent
+        # <name>`` records a real implementer identity (implement.py: ``actor or
+        # "implement-command"``), so a legitimate independent review is confirmable.
+        if not _independent_reviewer_confirmed(feature_dir, wp):
+            lines.append(
+                f"{_SB_REVIEW_NOT_INDEPENDENT}: {wp} was approved without a confirmable independent review "
+                "(the implementer of record and the approving actor are the same identity, or one of them is not recorded)."
+            )
     if not lines:
         return None
     return _single_branch_refusal_text(lanes_manifest.mission_slug, lines)
@@ -2237,12 +2255,12 @@ def single_branch_evidence_refusal(
     gives WP membership exactly as :func:`build_approved_wp_set` reads it; a snapshot that
     cannot be materialized raises, as it does for the claim builder's own caller.
     """
-    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
     from specify_cli.status import materialize_snapshot
 
-    window = single_branch_evidence_window(repo_root, lanes_manifest)
-    if window is None:
+    if not is_single_branch_mission(repo_root, lanes_manifest):
         return None
+    window = single_branch_evidence_window(repo_root, lanes_manifest)
     snapshot = materialize_snapshot(feature_dir)
     return _single_branch_evidence_refusal(
         repo_root,
@@ -2251,6 +2269,7 @@ def single_branch_evidence_refusal(
         snapshot.work_packages or {},
         frozenset(excluded_canceled_wp_ids),
         window,
+        is_single_branch=True,
     )
 
 

@@ -37,7 +37,10 @@ def _branch_exists(repo: Path, branch: str) -> bool:
 
 def _approved_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, **create_overrides: object) -> tuple[Path, str, str]:
     repo, slug, minted, feature_dir = _finalized_protected_mission(tmp_path, monkeypatch, name, **create_overrides)
-    implement = runner.invoke(root_app, ["implement", "WP01", "--mission", slug, "--json"])
+    # Pass --actor so the implementing claim records a real implementer identity (not the generic
+    # `implement-command` placeholder): the #5939 strict independence axis then confirms the review
+    # is independent (implementer `wp08-impl` != approver `wp08-e2e`), as real `--agent` usage does.
+    implement = runner.invoke(root_app, ["implement", "WP01", "--mission", slug, "--actor", "wp08-impl", "--json"])
     assert implement.exit_code == 0, implement.output
     (repo / "src" / "wp01.py").write_text("VALUE = 100\n", encoding="utf-8")
     _git(repo, "add", "-A")

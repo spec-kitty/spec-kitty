@@ -944,11 +944,20 @@ def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
     except (MissingLanesError, CorruptLanesError):
         return
     from specify_cli.core.vcs.git import git_diff_names_checked
-    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
 
+    if not is_single_branch_mission(st.main_repo_root, manifest):
+        return  # not a single_branch mission — the owned/lane gates own this move
     window = single_branch_evidence_window(st.main_repo_root, manifest)
     if window is None:
-        return  # not a single_branch mission (or no recorded window) — the owned/lane gates own this move
+        # single_branch WITH no computable evidence window (legacy lanes.json, no
+        # planning_commit_sha): fail CLOSED -- we cannot verify an implementation exists (#5939).
+        raise ActionContextError(
+            "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE",
+            f"Cannot verify a committed implementation for {st.task_id}: this single_branch mission records no "
+            "planning commit, so the implementation-evidence window cannot be computed. Run "
+            "`spec-kitty agent mission finalize-tasks` to record the planning commit, then retry.",
+        )
     base, tip = window
     patterns = _mt_owned_file_patterns(st)
     changed = git_diff_names_checked(st.main_repo_root, base, tip, diff_filter="ACDMRTUXB")
