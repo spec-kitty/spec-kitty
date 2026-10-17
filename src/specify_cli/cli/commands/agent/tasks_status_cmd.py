@@ -395,7 +395,7 @@ def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: s
         execution_mode = extract_scalar(front, "execution_mode") or ""
         if not execution_mode:
             try:
-                normalized = get_normalized_wp(main_repo_root, mission_slug, wp_id)
+                normalized = get_normalized_wp(main_repo_root, mission_slug, wp_id, owned=owned)
                 execution_mode = normalized.metadata.execution_mode or "code_change"
             except Exception:
                 execution_mode = "code_change"

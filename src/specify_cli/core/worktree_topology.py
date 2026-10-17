@@ -13,6 +13,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mission_runtime import OwnedCheckout
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
@@ -119,7 +120,7 @@ def _planning_claim_commit(feature_dir: Path, wp_id: str) -> str | None:
         return None
 
 
-def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
+def materialize_worktree_topology(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
     from mission_runtime import (
         MissionArtifactKind,
@@ -186,8 +187,8 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
 
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-        normalized_wp = get_normalized_wp(main_repo_root, mission_slug, wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id, owned=owned)
+        normalized_wp = get_normalized_wp(main_repo_root, mission_slug, wp_id, owned=owned)
         lane_entry = lanes_manifest.lane_for_wp(wp_id) if lanes_manifest is not None else None
         if lane_entry is None and workspace.resolution_kind != "repo_root":
             raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")

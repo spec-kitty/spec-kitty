@@ -1787,6 +1787,7 @@ def implement(
             review_feedback_file=review_feedback_file,
             mission_type=mission_type,
             deliverables_path=deliverables_path,
+            owned=None,  # owned is None until owned-mode implement/review is unblocked (#6321 forward-readiness)
         )
 
         _executor.implement_finalize_and_print(
@@ -2413,6 +2414,7 @@ def review(
             review_ctx=review_ctx,
             main_repo_root=main_repo_root,
             review_feedback_path=review_feedback_path,
+            owned=None,  # owned is None until owned-mode implement/review is unblocked (#6321 forward-readiness)
         )
 
         _executor.review_finalize_and_print(

@@ -102,6 +102,7 @@ def test_agent_mission_accept_passes_explicit_feature_none(
         merge_commit=None,  # #4231: PR-merge evidence passthrough
         target_branch=None,  # #4231: PR base branch passthrough
         attest_first_landing=False,  # #4231: anchor attestation passthrough
+        owned_checkout=None,  # #6321: explicit --owned-checkout passthrough
     )
 
 
@@ -128,6 +129,7 @@ def test_agent_mission_accept_passes_diagnose_flag(
         merge_commit=None,  # #4231: PR-merge evidence passthrough
         target_branch=None,  # #4231: PR base branch passthrough
         attest_first_landing=False,  # #4231: anchor attestation passthrough
+        owned_checkout=None,  # #6321: explicit --owned-checkout passthrough
     )
 
 

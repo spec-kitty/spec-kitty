@@ -143,8 +143,21 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     # `--target-branch` added in the same issue's fix round for the PR-base-branch landing check (2026-09-14);
     # `--attest-first-landing-commit` added in fix round 4 — every landing shape needs the
     # operator attestation, so the agent lane must forward it too (2026-09-14).
+    # `--owned-checkout` added by #6321: the agent `accept` wrapper now forwards
+    # an explicit owned-checkout passthrough to the owned-capable top_level_accept.
     "accept": frozenset(
-        {"--mission", "--mode", "--json", "--lenient", "--no-commit", "--diagnose", "--merge-commit", "--target-branch", "--attest-first-landing-commit"}
+        {
+            "--mission",
+            "--mode",
+            "--json",
+            "--lenient",
+            "--no-commit",
+            "--diagnose",
+            "--merge-commit",
+            "--target-branch",
+            "--attest-first-landing-commit",
+            "--owned-checkout",
+        }
     ),
     "merge": frozenset(
         {

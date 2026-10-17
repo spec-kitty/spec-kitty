@@ -46,7 +46,7 @@ import typer
 
 from kernel.git import GitCommandError, status_entries
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.commands.implement_claim import claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
@@ -1525,6 +1525,7 @@ def build_implement_prompt_lines(
     review_feedback_file: Path | None,
     mission_type: str,
     deliverables_path: str | None,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Assemble the full ``IMPLEMENT: <wp>`` prompt body."""
     lines: list[str] = []
@@ -1552,7 +1553,8 @@ def build_implement_prompt_lines(
     try:
         from specify_cli.core.worktree_topology import materialize_worktree_topology, render_topology_json
 
-        topology = materialize_worktree_topology(repo_root, mission_slug)
+        # owned is None until owned-mode implement/review is unblocked (#6321 forward-readiness)
+        topology = materialize_worktree_topology(repo_root, mission_slug, owned=owned)
         if topology.has_stacking:
             lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
             lines.append("")
@@ -2208,6 +2210,7 @@ def build_review_prompt_lines(
     review_ctx: dict[str, object],
     main_repo_root: Path,
     review_feedback_path: Path,
+    owned: OwnedCheckout | None = None,
 ) -> list[str]:
     """Assemble the full ``REVIEW: <wp>`` prompt body."""
     lines: list[str] = []
@@ -2246,7 +2249,8 @@ def build_review_prompt_lines(
     try:
         from specify_cli.core.worktree_topology import materialize_worktree_topology, render_topology_json
 
-        topology = materialize_worktree_topology(repo_root, mission_slug)
+        # owned is None until owned-mode implement/review is unblocked (#6321 forward-readiness)
+        topology = materialize_worktree_topology(repo_root, mission_slug, owned=owned)
         if topology.has_stacking:
             lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
             lines.append("")

@@ -221,3 +221,17 @@ def test_delegate_propagates_typer_exit(monkeypatch: pytest.MonkeyPatch) -> None
             push=False, dry_run=False, keep_branch=False, keep_worktree=False,
         )
     assert exc.value.exit_code == 3
+
+
+# ---------------------------------------------------------------------------
+# accept_feature -> top-level accept delegation (#6321)
+# ---------------------------------------------------------------------------
+
+
+def test_accept_feature_forwards_owned_checkout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(_mission, "top_level_accept", lambda **kwargs: captured.update(kwargs))
+    seam.accept_feature(feature="001-demo", owned_checkout=tmp_path)
+    assert captured["owned_checkout"] == tmp_path

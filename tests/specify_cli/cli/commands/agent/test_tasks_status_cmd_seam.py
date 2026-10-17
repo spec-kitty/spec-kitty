@@ -185,6 +185,23 @@ def test_patched_workspace_resolver_forwards_owned_fact(tmp_path: Path) -> None:
     assert result == ("code_change", "owned_checkout")
 
 
+def test_missing_lanes_fallback_forwards_owned_fact_to_get_normalized_wp(tmp_path: Path) -> None:
+    """#6321: on the ``MissingLanesError`` arm the owned fact must still reach
+    ``get_normalized_wp`` so an owned mission is not normalized from the
+    repository-root copy."""
+    from specify_cli.lanes.persistence import MissingLanesError
+
+    fact = _mint_owned(tmp_path)
+    normalized = SimpleNamespace(metadata=SimpleNamespace(execution_mode="code_change"))
+    with (
+        patch(f"{_TASKS}.resolve_workspace_for_wp", side_effect=MissingLanesError("no lanes")),
+        patch.object(tasks_status_cmd, "get_normalized_wp", return_value=normalized) as normalize_mock,
+    ):
+        result = tasks_status_cmd._st_resolve_execution_mode("", tmp_path, "034-feature", "WP01", owned=fact)
+    normalize_mock.assert_called_once_with(tmp_path, "034-feature", "WP01", owned=fact)
+    assert result == ("code_change", "unknown")
+
+
 def test_st_status_read_dir_owned_arm_never_calls_committed_status_dir(tmp_path: Path) -> None:
     """``_st_status_read_dir``'s owned arm (review cycle 1 issue 2): returns
     ``owned.mission_dir`` and never calls ``committed_status_dir`` -- pinned
