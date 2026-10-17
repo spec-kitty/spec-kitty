@@ -3,8 +3,8 @@
 ``_commit_via_coordination_transaction`` funnels every staged path through this
 partition so a PRIMARY-partition artifact (``tasks/WP*.md``, spec/plan/tasks,
 ...) is committed to the mission's primary target branch and NEVER reaches the
-coordination worktree, while STATUS_STATE bookkeeping (and any path that does
-not classify as a mission artifact) stays coord-bound.
+coordination worktree, while coordination records (STATUS_STATE bookkeeping, ...) stay coord-bound;
+a path that does not classify as a mission artifact is primary-bound (#5697).
 
 These tests pin that decision directly, without the slow git-DAG CLI fixtures
 of ``test_issue_4905_coord_staging.py``. They need no repository on disk: the
@@ -69,20 +69,24 @@ def test_status_state_bookkeeping_is_coord_bound(name: str) -> None:
     ],
     ids=["repo-root-meta", "kittify-config", "readme"],
 )
-def test_non_mission_path_defaults_to_coord_bound(path: Path) -> None:
+def test_non_mission_path_is_primary_bound(path: Path) -> None:
+    # #5697: an unclassified kind (None) means "not a coordination record", so it is
+    # primary-bound. This INTENTIONALLY flips the earlier None -> coord_bound pin.
     primary_bound, coord_bound = _partition(path)
 
-    assert primary_bound == []
-    assert coord_bound == [path]
+    assert primary_bound == [path]
+    assert coord_bound == []
 
 
-def test_other_missions_primary_artifact_is_not_primary_bound() -> None:
+def test_other_missions_artifact_is_primary_bound_not_coord_bound() -> None:
+    # #5697: another mission's file is unclassified for THIS mission (None) and so is
+    # primary-bound, never coord-bound. Intentional flip of the earlier coord pin.
     other = Path("repo") / "kitty-specs" / "some-other-mission-99999999" / "tasks" / "WP01-x.md"
 
     primary_bound, coord_bound = _partition(other)
 
-    assert primary_bound == []
-    assert coord_bound == [other]
+    assert primary_bound == [other]
+    assert coord_bound == []
 
 
 def test_mixed_paths_are_split_and_keep_input_order() -> None:
@@ -94,5 +98,6 @@ def test_mixed_paths_are_split_and_keep_input_order() -> None:
 
     primary_bound, coord_bound = _partition(events, wp01, root_meta, spec, status)
 
-    assert primary_bound == [wp01, spec]
-    assert coord_bound == [events, root_meta, status]
+    # #5697: the unclassified root meta.json is primary-bound (None -> primary_bound).
+    assert primary_bound == [wp01, root_meta, spec]
+    assert coord_bound == [events, status]

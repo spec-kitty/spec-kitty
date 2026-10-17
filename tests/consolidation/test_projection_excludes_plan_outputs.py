@@ -176,3 +176,58 @@ def test_plan_outputs_commit_to_the_primary_target_not_coordination() -> None:
 
     assert primary_bound == plan_outputs
     assert coord_bound == [status_log]
+
+
+# A path the classifier deliberately does NOT recognize (stays ``None`` after the
+# whole mission): a top-level ``notes/`` working dir is not in the classifier maps.
+# ``research/**`` is NOT used here — this mission classifies it RESEARCH (a PRIMARY
+# kind), so it is no longer the ``None`` case (it is still not projected, but because
+# it is primary, not because it is unclassified — see the research classification tests).
+_UNCLASSIFIED = f"{_MISSION}/notes/findings.md"
+_UNCLASSIFIED_NESTED = f"{_MISSION}/notes/sources/scratch.md"
+
+
+def _unclassified_run_shape(tmp_path: Path) -> tuple[Path, str, str]:
+    """Same refused-run shape as :func:`_refused_run_shape`, with an unclassified ``notes/**`` file."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "T")
+    checkpoint = _commit(repo, {f"{_MISSION}/spec.md": "# spec\n"}, "checkpoint")
+    unclassified = {_UNCLASSIFIED: "# findings\n", _UNCLASSIFIED_NESTED: "notes\n"}
+    _git(repo, "checkout", "-q", "-b", "coord")
+    _commit(repo, {**unclassified, _TRACE: "approach notes\n"}, "lane merges onto coord")
+    _git(repo, "checkout", "-q", "main")
+    pre_squash = _commit(repo, unclassified, "unclassified outputs already on the target")
+    _commit(repo, {_TRACE: "approach notes\n"}, "squash lands coord content")
+    return repo, checkpoint, pre_squash
+
+
+@pytest.mark.regression
+def test_unclassified_artifacts_are_not_projected_as_coordination_records_5697(tmp_path: Path) -> None:
+    """#5697: an unclassified kind (``None``) means "not a coordination record".
+
+    An unrecognized Mission file (here ``notes/**``) classifies to ``None``. The
+    projection used to read ``None`` as "coordination bookkeeping" and carry it, so
+    byte-identical content that had diverged from the checkpoint on the target made the
+    squash proof REFUSE ("projected coordination bookkeeping content did not land on the
+    target"). After the fix a ``None`` path is never projected. (The original #5697
+    trigger, ``research/**``, is now classified RESEARCH — a PRIMARY kind — so it is also
+    not projected; this test pins the generic ``None`` predicate that WP02 owns.) Positive
+    control: ``traces/`` (a coordination kind) stays projected.
+    """
+    repo, checkpoint, pre_squash = _unclassified_run_shape(tmp_path)
+    assert kind_for_mission_file(_UNCLASSIFIED, mission_slug=_SLUG) is None
+
+    projected = tuple(_post_checkpoint_mission_paths(repo, _SLUG, checkpoint, "coord"))
+
+    assert projected == (_TRACE,)
+    assert projected_content_matches_target(
+        main_repo=repo,
+        coord_ref="coord",
+        target_ref="main",
+        projected_paths=projected,
+        checkpoint_sha=checkpoint,
+        pre_squash_target_ref=pre_squash,
+    )

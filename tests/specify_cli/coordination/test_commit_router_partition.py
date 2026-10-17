@@ -15,7 +15,7 @@ This module pins the fix at the SEAM (contracts/partition-aware-commit-seam.md):
   its OWN partition's ref (INV-C1). Proven RED against the pre-fix single-call
   code (both files land on the PRIMARY ref).
 * RED-2 — a batch containing a ``None``-classified file (unrecognised path, e.g.
-  ``gap-analysis.md``) under ``kind=SPEC`` must still commit — via the
+  ``scratch-note.md``) under ``kind=SPEC`` must still commit — via the
   caller-``kind`` fallback — never dropped, never coerced into the wrong
   partition. This is the regression guard for a naive per-file rewrite that
   filters ``kind_f is not None`` and silently drops the unclassified file.
@@ -195,7 +195,7 @@ def test_none_classified_file_falls_back_to_caller_kind_and_still_lands(
 ) -> None:
     """A ``None``-classified file (unrecognised path) is never dropped/misrouted.
 
-    ``gap-analysis.md`` is not in ``_MISSION_FILE_KIND_BY_BASENAME`` /
+    ``scratch-note.md`` is not in ``_MISSION_FILE_KIND_BY_BASENAME`` /
     ``_COORD_RESIDUE_DIRS`` -- ``kind_for_mission_file`` classifies it ``None``.
     The contract requires the None-fallback to use the CALLER-supplied ``kind``
     (never dropped, never coerced into the other partition). This is the
@@ -209,11 +209,12 @@ def test_none_classified_file_falls_back_to_caller_kind_and_still_lands(
 
     spec_file = feature_dir / "spec.md"
     spec_file.write_text("# Spec\n", encoding="utf-8")
-    gap_analysis_file = feature_dir / "gap-analysis.md"
-    gap_analysis_file.write_text("# Gap analysis\n", encoding="utf-8")
+    # #5697: gap-analysis.md is now classified (ANALYSIS_REPORT); scratch-note.md is a genuinely unrecognized (kind=None) basename.
+    scratch_note_file = feature_dir / "scratch-note.md"
+    scratch_note_file.write_text("# Scratch note\n", encoding="utf-8")
 
-    assert kind_for_mission_file(gap_analysis_file, mission_slug=mission_slug) is None, (
-        "test fixture assumption broken: gap-analysis.md must be an unclassified "
+    assert kind_for_mission_file(scratch_note_file, mission_slug=mission_slug) is None, (
+        "test fixture assumption broken: scratch-note.md must be an unclassified "
         "(kind=None) path for this test to exercise the fallback"
     )
 
@@ -226,7 +227,7 @@ def test_none_classified_file_falls_back_to_caller_kind_and_still_lands(
     result = commit_router.commit_for_mission(
         tmp_path,
         mission_slug,
-        (spec_file, gap_analysis_file),
+        (spec_file, scratch_note_file),
         "chore: spec + gap analysis",
         policy,
         kind=MissionArtifactKind.SPEC,
@@ -240,8 +241,8 @@ def test_none_classified_file_falls_back_to_caller_kind_and_still_lands(
         f"group, got {len(safe_commit_calls)} commits: {safe_commit_calls!r}"
     )
     committed_names = {p.name for p in _call_paths(safe_commit_calls[0])}
-    assert committed_names == {"spec.md", "gap-analysis.md"}, (
-        "gap-analysis.md (kind=None) was dropped or split into a separate commit "
+    assert committed_names == {"spec.md", "scratch-note.md"}, (
+        "scratch-note.md (kind=None) was dropped or split into a separate commit "
         "instead of falling back to the caller-supplied kind's partition"
     )
     assert _call_target(safe_commit_calls[0]).ref == _PRIMARY_REF

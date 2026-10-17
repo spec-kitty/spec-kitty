@@ -675,9 +675,13 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     the transaction-start checkpoint), so the coord ref carries only their STALE
     pre-merge copies. Projecting them forward would clobber the target's freshly
     committed values — the concrete regression this guard closes (the clean-merge
-    baseline-validation failure). Unrecognised paths (kind ``None``) stay projected:
-    they cannot be a known PRIMARY artifact, and the coord surface legitimately owns
-    the coord-partition bookkeeping this projection exists to carry.
+    baseline-validation failure).
+
+    #5697 -- an unclassified path (kind ``None``) means "not a coordination record":
+    a path is projected IFF :func:`~specify_cli.coordination.coherence.is_coordination_kind_file`
+    says it is one (the single authority), so unclassified working files such as
+    ``research/**`` or ``notes/**`` are never carried (they have no preservation path
+    and made the squash proof REFUSE on byte-identical content).
     """
     mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
     # Guard (FR-013): this list decides which coord commits' files are carried onto
@@ -685,13 +689,9 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     # not read as "nothing to project" — ``GitCommandError`` propagates. renames=True
     # keeps the old argv's default rename detection.
     post_checkpoint_changes = git_changed_paths(main_repo, checkpoint_sha, coord_ref, renames=True, pathspecs=(mission_prefix,))
-    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
 
-    # DENYLIST (WP10 integration fix). Project every coord-owned bookkeeping path a
-    # concurrent commit touched that has no dedicated preservation path — recognised
-    # coord-partition bookkeeping (tracer files) AND coord bookkeeping with no single
-    # declared kind (``decision-log/*-verdict.md``, ``notes/*``): those are what
-    # #4981/#4973 must carry forward. EXCLUDE anything the target authors or preserves
+    # Project IFF the path is a coordination record (#5697, the single authority
+    # ``is_coordination_kind_file``); EXCLUDE anything the target authors or preserves
     # for itself:
     #   * the two status byte-sets (owned by the union / rematerialize path, FR-005);
     #   * ``meta.json`` — a PRIMARY-partition artifact that
@@ -709,7 +709,7 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     #     squash-merge preservation path (``phase_advance._restore_regressed_gate_artifacts``,
     #     #2804). The general projection must NOT overwrite an already-accepted target
     #     fill with the coord branch's stale finalize-time placeholder.
-    # A ``None`` kind that is NOT ``meta.json`` stays projected (coord bookkeeping).
+    # An unclassified kind (``None``) is not a coordination record and is not projected (#5697).
     excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
     # ``meta.json`` stays excluded on purpose (load-bearing, #5460): the driver replay runs the
     # registry body base-aware, while the real squash runs the meta driver two-way
@@ -722,8 +722,12 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
             continue
         if Path(candidate).name in status_and_primary_basenames:
             continue
-        kind = kind_for_mission_file(candidate, mission_slug=mission_slug)
-        if kind is not None and (is_primary_artifact_kind(kind) or kind in excluded_kinds):
+        # ``is_coordination_kind_file`` takes the MISSION-RELATIVE tail; the full
+        # ``candidate`` stays the returned form.
+        relpath = candidate[len(mission_prefix) :]
+        if not is_coordination_kind_file(relpath):
+            continue
+        if kind_for_mission_file(candidate, mission_slug=mission_slug) in excluded_kinds:
             continue
         paths.append(candidate)
     return paths

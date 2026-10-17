@@ -219,6 +219,22 @@ _NON_DIVERGENT_CANONICAL_ARTIFACTS: frozenset[str] = frozenset(
         "spec.md",
         "data-model.md",
         "research.md",
+        # artifact-none-single-meaning (#5697): the previously-unclassified mission
+        # files now classify to PRIMARY kinds. All are human-authored planning
+        # SOURCE / mission deliverables — single-writer, the target never
+        # independently edits them, so ``-X theirs`` keeping the mission copy is the
+        # intended #1732 behavior and no both-sides-divergence reconcile driver is
+        # needed (same class as research.md / contracts above).
+        "findings.md",
+        "report.md",
+        "methodology.md",
+        "synthesis.md",
+        "literature-review.md",
+        "gap-analysis.md",
+        "audit-report.md",
+        "occurrence_map.yaml",
+        "goals.md",
+        "release.md",
         # friction-remediation-01M43DRV WP01 (#5552): plan-output validation
         # scenarios, single-writer human planning SOURCE like research.md.
         "quickstart.md",
@@ -343,6 +359,14 @@ _NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset(
         # planning SOURCE, single-writer like research.md -- no both-sides
         # divergence, so no union driver.
         "contracts",
+        # artifact-none-single-meaning (#5697): research/ (the research evidence
+        # subtree, ``RESEARCH`` kind -- directory-anchored) is human-authored
+        # PRIMARY planning SOURCE, single-writer like research.md/contracts/ --
+        # not coordination bookkeeping. Each evidence file (code-grounding.md,
+        # source-register.csv, *.py) is owned by one author on the primary
+        # surface, so there is no both-sides divergence to union and no
+        # ``research/*`` merge driver exists or is needed.
+        "research",
     }
 )
 

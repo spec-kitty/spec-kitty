@@ -137,7 +137,9 @@ def test_post_checkpoint_verdict_commit_is_projected_onto_target(tmp_path: Path)
     coord = _make_coord_branch(repo)
     checkpoint = _rev(repo, coord)
 
-    verdict_rel = f"kitty-specs/{SLUG}/decision-log/WP01-verdict.md"
+    # #5697: decision-log/*-verdict.md is unclassified (None) and intentionally no longer projected;
+    # traces/ is a projected coord kind (TRACER_FILE), so the carry-forward semantic is kept there.
+    verdict_rel = f"kitty-specs/{SLUG}/traces/WP01-verdict.md"
     verdict_body = "verdict: approved\nreviewer: renata\n"
     concurrent_sha = _append_coord_commit(repo, coord, verdict_rel, verdict_body, "verdict(WP01): approved")
 
@@ -252,7 +254,9 @@ def test_projected_content_matches_target_after_projection(tmp_path: Path) -> No
     coord = _make_coord_branch(repo)
     checkpoint = _rev(repo, coord)
     pre_squash_target_sha = _rev(repo, "main")
-    verdict_rel = f"kitty-specs/{SLUG}/decision-log/WP01-verdict.md"
+    # #5697: decision-log/*-verdict.md is unclassified (None) and intentionally no longer projected;
+    # traces/ is a projected coord kind (TRACER_FILE), so the carry-forward semantic is kept there.
+    verdict_rel = f"kitty-specs/{SLUG}/traces/WP01-verdict.md"
     _append_coord_commit(repo, coord, verdict_rel, "verdict: approved\n", "verdict(WP01)")
 
     result = project_post_checkpoint_commits_to_target(main_repo=repo, mission_slug=SLUG, coord_ref=coord, checkpoint_sha=checkpoint)

@@ -267,8 +267,11 @@ class TestBookkeepingProjectionPaths:
         checkpoint = _git(repo, "rev-parse", "HEAD")
         _git(repo, "branch", "coord")
         _git(repo, "checkout", "-q", "coord")
-        _write(repo, "kitty-specs/m1/notes/é note.md")
-        _write(repo, "kitty-specs/m1/notes/two words.md")
+        # #5697: ``notes/`` is unclassified (not a coordination record) and is no longer
+        # projected; ``traces/`` is a projected coord kind, so it exercises quoting.
+        _write(repo, "kitty-specs/m1/traces/é note.md")
+        _write(repo, "kitty-specs/m1/traces/two words.md")
+        _write(repo, "kitty-specs/m1/notes/unprojected.md")
         _write(repo, "kitty-specs/m1/meta.json", "{}\n")  # primary-partition: never projected
         _write(repo, "kitty-specs/other/notes/x.md")  # another mission: outside the prefix
         _commit_all(repo, "coord work")
@@ -279,7 +282,7 @@ class TestBookkeepingProjectionPaths:
 
         paths = _post_checkpoint_mission_paths(repo, "m1", checkpoint, "coord")
 
-        assert sorted(paths) == ["kitty-specs/m1/notes/two words.md", "kitty-specs/m1/notes/é note.md"]
+        assert sorted(paths) == ["kitty-specs/m1/traces/two words.md", "kitty-specs/m1/traces/é note.md"]
 
     def test_an_unreadable_diff_propagates_instead_of_projecting_nothing(self, tmp_path: Path) -> None:
         repo, _checkpoint = self._coord(tmp_path)

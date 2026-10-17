@@ -398,23 +398,29 @@ def _partition_paths_by_primary_kind(
     coord-staging-partition (#4905): a PRIMARY-partition path (``WORK_
     PACKAGE_TASK``, spec/plan/tasks) must never be written into the
     coordination worktree / committed to the coordination branch — only
-    ``STATUS_STATE`` bookkeeping (status.events.jsonl / status.json) stays on
-    coord. Classification reuses the ONE public write-surface authority
-    (:func:`mission_runtime.kind_for_mission_file` /
-    :func:`mission_runtime.is_primary_artifact_kind`) rather than re-deriving
-    the partition here. A path that does not classify to a recognised mission
-    artifact (``kind is None`` — e.g. a repo-root ``meta.json``/config file
-    some callers also stage) is treated as coord-bound, preserving this
-    sink's pre-fix behaviour for every non-mission-artifact path.
+    coordination records (``STATUS_STATE`` bookkeeping, tracer files, ...) stay on
+    coord. Classification reuses the ONE classifier authority
+    (:func:`mission_runtime.kind_for_mission_file`) + the ONE partition authority
+    (:func:`mission_runtime.is_primary_artifact_kind`) rather than re-deriving the
+    partition here — the same pair ``coherence.is_coordination_kind_file`` wraps.
+    A path is coord-bound IFF it classifies to a recognised, non-primary mission
+    artifact; a path that does not classify (``kind is None`` — e.g. a repo-root
+    ``meta.json``/config file some callers also stage) is primary-bound (#5697),
+    matching the #2533 write-side authority: an unclassified kind is "not a
+    coordination record". ``mission_slug`` is unused for classification (the
+    classifier keys on basename/dir, not the mission-dir segment, so a
+    ``<slug>-<mid8>`` directory is handled with no slug-precision coupling) and is
+    retained only for the call-site signature.
     """
+    del mission_slug  # classification is slug-independent (basename/dir-keyed); kept for signature stability
     primary_bound: list[Path] = []
     coord_bound: list[Path] = []
     for path in paths:
-        kind = kind_for_mission_file(path, mission_slug=mission_slug)
-        if kind is not None and is_primary_artifact_kind(kind):
-            primary_bound.append(path)
-        else:
+        kind = kind_for_mission_file(path)
+        if kind is not None and not is_primary_artifact_kind(kind):
             coord_bound.append(path)
+        else:
+            primary_bound.append(path)
     return primary_bound, coord_bound
 
 

@@ -48,12 +48,18 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-# Representative path set (T015): a coord-residue path, a PRIMARY path, a
-# self-bookkeeping ``kind=None`` path, and an unrecognized ``kind=None`` path.
+# Representative path set (T015): a coord-residue path, a PRIMARY path, the
+# PRIMARY metadata path, and two unrecognized ``kind=None`` paths.
+# #5697: ``meta.json`` (now PRIMARY_METADATA) and ``gap-analysis.md`` (now
+# ANALYSIS_REPORT) are no longer ``kind=None`` — the ``kind_none_path``
+# parametrizes below use genuinely-unrecognized paths so the characterization
+# stays non-vacuous; ``_META_PATH`` is kept for the PRIMARY-routing assertions
+# (a PRIMARY kind routes primary exactly like a ``None`` path does).
 _COORD_RESIDUE_PATH = "kitty-specs/m/status.events.jsonl"
 _PRIMARY_PATH = "kitty-specs/m/spec.md"
 _META_PATH = "kitty-specs/m/meta.json"
-_UNRECOGNIZED_PATH = "kitty-specs/m/gap-analysis.md"
+_UNRECOGNIZED_PATH = "kitty-specs/m/scratch-note.md"
+_UNRECOGNIZED_NESTED_PATH = "kitty-specs/m/notes/scratch.md"
 
 _COORD_BRANCH = "kitty/mission-m-AAAA1111"
 _PRIMARY_REF = "main"
@@ -153,14 +159,14 @@ class TestDisagreementSetRoutesPrimaryOnResidueButCoordUnderCommitRouter:
     suite green" gate for a result the fix is SUPPOSED to change.
     """
 
-    @pytest.mark.parametrize("kind_none_path", [_META_PATH, _UNRECOGNIZED_PATH])
+    @pytest.mark.parametrize("kind_none_path", [_UNRECOGNIZED_PATH, _UNRECOGNIZED_NESTED_PATH])
     def test_residue_authority_routes_kind_none_to_primary(self, kind_none_path: str) -> None:
         assert is_coord_residue_churn(kind_none_path) is False, (
             f"{kind_none_path!r} is kind=None (not in the coord-residue kind "
             f"set) -- the residue authority must route it PRIMARY"
         )
 
-    @pytest.mark.parametrize("kind_none_path", [_META_PATH, _UNRECOGNIZED_PATH])
+    @pytest.mark.parametrize("kind_none_path", [_UNRECOGNIZED_PATH, _UNRECOGNIZED_NESTED_PATH])
     def test_commit_router_kind_none_now_routes_primary_not_the_coord_caller(
         self, kind_none_path: str
     ) -> None:
@@ -198,7 +204,7 @@ class TestIntendedUnifiedContractCliSideOnly:
     for why no ``xfail``-pending-WP05 marker is planted here.
     """
 
-    @pytest.mark.parametrize("kind_none_path", [_META_PATH, _UNRECOGNIZED_PATH])
+    @pytest.mark.parametrize("kind_none_path", [_UNRECOGNIZED_PATH, _UNRECOGNIZED_NESTED_PATH])
     def test_read_and_write_agree_kind_none_routes_primary(self, kind_none_path: str) -> None:
         from specify_cli.coordination.planning_commit import partition_files_for_commit
         from specify_cli.cli.commands.implement_cores import resolve_precondition_ref

@@ -351,6 +351,12 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         # reads/writes already resolved PRIMARY (#4966 AC-D2); this
         # reclassification makes the taxonomy agree with the write side.
         MissionArtifactKind.DECISION_LEDGER,
+        # artifact-none-single-meaning (#5697): the previously-unclassified
+        # mission files now classify to these PRIMARY kinds (one per family).
+        MissionArtifactKind.RESEARCH_OUTPUT,
+        MissionArtifactKind.OCCURRENCE_MAP,
+        MissionArtifactKind.MISSION_GOALS,
+        MissionArtifactKind.RELEASE_RECORD,
     }
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,

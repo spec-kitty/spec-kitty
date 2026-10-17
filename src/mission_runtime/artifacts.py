@@ -132,6 +132,19 @@ class MissionArtifactKind(enum.Enum):
     # ``mission_file_basenames_for_kind`` and the partition reasoning lie (the
     # REVIEW_CYCLE / WORK_PACKAGE_TASK lesson above).
     CONTRACT = "contract"
+    # artifact-none-single-meaning-01M5365S WP01 (#5697): four PRIMARY-partition
+    # kinds for mission files that used to classify to ``None`` (and so were read
+    # as coordination residue). One kind per family keeps
+    # ``mission_file_basenames_for_kind`` honest (the CONTRACT lesson above).
+    # Research-mission deliverables (findings/report/methodology/synthesis/
+    # literature-review); distinct from the sw-dev ``research.md`` note (RESEARCH).
+    RESEARCH_OUTPUT = "research_output"
+    # The bulk-edit occurrence classification map (``occurrence_map.yaml``).
+    OCCURRENCE_MAP = "occurrence_map"
+    # The plan mission's ``goals.md``.
+    MISSION_GOALS = "mission_goals"
+    # The documentation mission's publish handoff (``release.md``).
+    RELEASE_RECORD = "release_record"
 
 
 @dataclass(frozen=True)
@@ -206,6 +219,12 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # docstring above. ``_COORD_RESIDUE_DIRS["decisions"]`` keeps mapping
         # the directory to this kind; only the PARTITION membership moved.
         MissionArtifactKind.DECISION_LEDGER,
+        # artifact-none-single-meaning-01M5365S WP01 (#5697, C-002): planning- and
+        # mission-authored files that used to classify to ``None``. All PRIMARY.
+        MissionArtifactKind.RESEARCH_OUTPUT,
+        MissionArtifactKind.OCCURRENCE_MAP,
+        MissionArtifactKind.MISSION_GOALS,
+        MissionArtifactKind.RELEASE_RECORD,
     }
 )
 
@@ -302,6 +321,21 @@ _MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     # is the decision-log event stream (``events/decision_log.py``) -- a
     # COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
     "decisions.events.jsonl": MissionArtifactKind.DECISION_LOG,
+    # artifact-none-single-meaning-01M5365S WP01 (#5697): formerly-unclassified
+    # PRIMARY mission files. Research-mission deliverables:
+    "findings.md": MissionArtifactKind.RESEARCH_OUTPUT,
+    "report.md": MissionArtifactKind.RESEARCH_OUTPUT,
+    "methodology.md": MissionArtifactKind.RESEARCH_OUTPUT,
+    "synthesis.md": MissionArtifactKind.RESEARCH_OUTPUT,
+    "literature-review.md": MissionArtifactKind.RESEARCH_OUTPUT,
+    # Documentation / audit analysis reports reuse the existing PRIMARY kind.
+    "gap-analysis.md": MissionArtifactKind.ANALYSIS_REPORT,
+    "audit-report.md": MissionArtifactKind.ANALYSIS_REPORT,
+    "occurrence_map.yaml": MissionArtifactKind.OCCURRENCE_MAP,
+    "goals.md": MissionArtifactKind.MISSION_GOALS,
+    "release.md": MissionArtifactKind.RELEASE_RECORD,
+    # Closes the path-only classifier gap: meta.json is PRIMARY identity metadata.
+    "meta.json": MissionArtifactKind.PRIMARY_METADATA,
 }
 
 _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
@@ -324,6 +358,11 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     # kind. Directory-anchored like decisions/: nothing under contracts/ is
     # coordination-owned.
     "contracts": MissionArtifactKind.CONTRACT,
+    # artifact-none-single-meaning-01M5365S WP01 (#5697): research/ (any depth) is
+    # PRIMARY, directory-anchored like contracts/. Accepted edge: a misplaced
+    # ``research/meta.json`` classifies RESEARCH; the dirty-state gates treat it as
+    # real dirt independently, so no filename-exclusion leg is drawn.
+    "research": MissionArtifactKind.RESEARCH,
 }
 
 # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR 2026-08-03-1):

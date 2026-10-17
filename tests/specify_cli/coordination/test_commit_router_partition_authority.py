@@ -41,7 +41,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _COORD_RESIDUE_PATH = "kitty-specs/m/status.events.jsonl"
 _PRIMARY_PATH = "kitty-specs/m/spec.md"
 _META_PATH = "kitty-specs/m/meta.json"
-_UNRECOGNIZED_PATH = "kitty-specs/m/gap-analysis.md"
+# #5697: gap-analysis.md is now classified (ANALYSIS_REPORT); use a genuinely unrecognized basename.
+_UNRECOGNIZED_PATH = "kitty-specs/m/scratch-note.md"
 
 _PRIMARY_REF = "main"
 _COORD_REF = "kitty/mission-m-AAAA1111"
@@ -130,7 +131,7 @@ class TestKindClassifierNoLongerDrivesTheSplit:
 
         path = Path(_UNRECOGNIZED_PATH)
         assert kind_for_mission_file(path, mission_slug="m") is None, (
-            "fixture assumption: gap-analysis.md must be kind=None for this "
+            "fixture assumption: scratch-note.md must be kind=None for this "
             "test to exercise the retired classifier's fallback branch"
         )
         # The retired classifier's answer: kind_for_mission_file(...) or kind == kind.

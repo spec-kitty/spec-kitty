@@ -64,7 +64,8 @@ real_destroy = teardown._destroy_coordination_worktree
 
 def destroy_after_late_commit(repo_root, mission_slug, mid8):
     worktree = Path(os.environ["COORD_WORKTREE"])
-    note = worktree / "kitty-specs" / mission_slug / os.environ.get("LATE_NOTE_NAME", "late-status-emit.md")
+    note = worktree / "kitty-specs" / mission_slug / os.environ.get("LATE_NOTE_NAME", "traces/late-status-emit.md")
+    note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("late status emit\\n", encoding="utf-8")
     late_event = os.environ.get("LATE_EVENT_JSON")
     if late_event:
@@ -126,7 +127,11 @@ def _consolidate_with_late_commit(
     *,
     late_event: str | None = None,
     resume: bool = False,
-    note_name: str = "late-status-emit.md",
+    # #5697: the projection now carries only coordination-KIND files (an unclassified
+    # path is "not a coordination record" and is never projected). A genuine late
+    # coordination commit is a coord kind, so this stand-in lives under traces/
+    # (TRACER_FILE, a projected coord kind) rather than an unclassified basename.
+    note_name: str = "traces/late-status-emit.md",
     sha_file: str = _LATE_SHA_FILE,
     foreign_on_retro: bool = False,
 ) -> subprocess.CompletedProcess[str]:
@@ -279,7 +284,7 @@ def test_5570_coordination_branch_moving_again_after_the_late_projection_refuses
     first = _consolidate_with_late_commit(mission)
     assert first.returncode != 0, "fixture invalid: the first consolidate must refuse"
 
-    second = _consolidate_with_late_commit(mission, resume=True, note_name="late-again.md", sha_file="late-again-sha.txt")
+    second = _consolidate_with_late_commit(mission, resume=True, note_name="traces/late-again.md", sha_file="late-again-sha.txt")
     output = f"stdout:\n{second.stdout}\nstderr:\n{second.stderr}"
     again_file = mission.repo / "late-again-sha.txt"
     assert again_file.exists(), f"fixture invalid: the resume never reached the teardown seam\n{output}"

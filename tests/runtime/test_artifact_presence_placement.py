@@ -137,11 +137,14 @@ def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
 
 def test_unclassified_artifact_retains_local_authority(tmp_path: Path) -> None:
     repo, primary, status = _mission(tmp_path)
-    # A built-in research filename with no canonical placement kind.
-    (status / "report.md").write_text("# Report\n", encoding="utf-8")
+    # A research expected-artifact with no canonical placement kind (classifies to
+    # None) retains local authority — found in the supplied dir, not a canonical
+    # home. #5697: ``report.md`` is now classified (RESEARCH_OUTPUT, primary-home),
+    # so this uses ``source-register.csv``, still a None-kind research deliverable.
+    (status / "source-register.csv").write_text("id,source\n1,x\n", encoding="utf-8")
     snapshot = gather_artifact_presence(status, mission_family="research", step_id="output", repo_root=repo)
-    assert "report.md" in snapshot.present_artifacts
-    assert not (primary / "report.md").exists()
+    assert "source-register.csv" in snapshot.present_artifacts
+    assert not (primary / "source-register.csv").exists()
 
 
 def test_occurrence_guard_reads_primary_metadata(tmp_path: Path) -> None:
