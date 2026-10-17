@@ -34,7 +34,7 @@ import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from tests.terminus.conftest import CoordMission, _approve_events, _event, _now_iso, blob_present_at, build_coord_mission, run_terminus
+from tests.terminus.conftest import CoordMission, _approve_events, _event, _now_iso, blob_present_at, build_coord_mission, git_rev, run_terminus
 from tests.terminus.conftest import _git as git
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.rollback_harness import flat, ref_shas, reflog_shas
@@ -195,6 +195,12 @@ def _build_commit_to_target_single_branch(tmp_path: Path, mid8: str) -> CoordMis
     target. The approved WP's code is committed on ``main`` itself.
     """
     mission = build_lanes_mission(tmp_path, wps=(), target_branch="main", mid8=mid8)
+    # The finalize-tasks planning commit the real flow records in lanes.json; here it is the repo
+    # tip BEFORE the WP01 code commit below, so the #5939 evidence window planning_commit..main
+    # contains src/pkg/wp01.py (axis (a) implementation-evidence passes). Without it the manifest
+    # has no planning_commit_sha and the fail-closed backstop correctly refuses an uncomputable
+    # window -- this fixture just predates finalize-tasks, so it completes the manifest here.
+    planning_commit = git_rev(mission.repo, "HEAD")
     meta_path = mission.feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta.update(topology="single_branch", commit_to_target=True)
@@ -219,9 +225,13 @@ def _build_commit_to_target_single_branch(tmp_path: Path, mid8: str) -> CoordMis
             ],
             computed_at=_now_iso(),
             computed_from="single-branch-commit-to-target-fixture",
+            planning_commit_sha=planning_commit,
         ),
     )
-    (mission.feature_dir / "tasks" / "WP01-work.md").write_text("---\nwork_package_id: WP01\ntitle: WP01 work\n---\n# WP01\n", encoding="utf-8")
+    # owned_files so the #5939 evidence axis can attribute the WP01 code commit to WP01.
+    (mission.feature_dir / "tasks" / "WP01-work.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: WP01 work\nowned_files:\n  - src/pkg/wp01.py\n---\n# WP01\n", encoding="utf-8"
+    )
     events = [json.dumps(e, sort_keys=True) + "\n" for e in _approve_events(mission, "WP01")]
     (mission.feature_dir / "status.events.jsonl").write_text("".join(events), encoding="utf-8")
     code = mission.repo / "src" / "pkg" / "wp01.py"
