@@ -466,7 +466,15 @@ def _run_negative_invariant_mode(
         # judged row is used below — every sibling result the check happens
         # to (re-)compute here is discarded in favour of the fresh re-read
         # (FR-001: a verdict write changes only the row it owns).
-        matrix.negative_invariants = enforce_negative_invariants(repo_root, matrix.negative_invariants)
+        #
+        # #6023 (owned authority): a grep_absence/custom_command invariant must
+        # be verified against the tree the mission's code lives in. For an owned
+        # mission that is the owned checkout (on the mission branch), NOT the
+        # repository root (which follows the worktree pointer and sits on the
+        # target branch without the mission's code). Run the engine against the
+        # owned working tree when owned; ``repo_root`` is unchanged otherwise.
+        enforce_root = owned.owned_root if owned is not None else repo_root
+        matrix.negative_invariants = enforce_negative_invariants(enforce_root, matrix.negative_invariants)
 
     judged = next(ni for ni in matrix.negative_invariants if ni.invariant_id == invariant_id)
 
