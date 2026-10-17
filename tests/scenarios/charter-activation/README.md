@@ -35,6 +35,8 @@ later step binding stays honest and the scenario survives whichever command deli
 | `turning-governance-on-and-off/` | Adopting or retiring a rule changes what is actually in force; adopting one more never drops the rest; naming something that does not exist changes nothing. |
 | `turning-off-keeps-the-rest-sound/` | Retiring a choice keeps anything still relied on (and names why), and refuses — with the way forward — on a kind never put under explicit control. |
 | `brings-what-it-depends-on/` | Adopting a choice can bring what it depends on in one step, can be scoped, warns about what a bare adoption left out, and never offers to turn on something that cannot stand alone. |
+| `provisioning-governance-packs/` | The backend is supplied with packs that resolve through public seams (a filesystem location or a published reference); an unresolvable pack is refused, never treated as empty; and a configured pack's parts are brought into force deliberately, changing what the runtime offers (a new mission type to run, a new profile that applies). |
+| `the-default-governance-profile/` | Before a project turns anything on, it is governed by all the governance available to it — except shareable commands, which apply only when the charter requires or selects them, so provisioning a pack never silently adds commands to every tool; maintainer-only governance is in force only on explicit opt-in. |
 
 ## For QA, when ratifying
 
