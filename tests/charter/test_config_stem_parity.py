@@ -97,6 +97,27 @@ def offering_root() -> Path:
 
 
 @pytest.fixture(scope="module")
+def org_roots(repo_root: Path) -> list[Path]:
+    """Org/internal pack roots, threaded into the resolver as the live pipeline does.
+
+    The live ``ActiveCharterService`` resolution derives its roots from
+    :class:`~charter.activation.pack_context.PackContext`
+    (``compiler.resolve_config_activated_roots`` →
+    ``PackContext.pack_roots[1:]``), so an INTERNAL-pack directive such as
+    ``no-full-heavy-suites-in-mission`` (``packs/internal/directives/``,
+    activated in this repo's ``charter.yaml``) resolves against the org layer.
+    This module docstring claims parity with that live resolution; a bare
+    ``offering_root`` scans only the ``built-in`` layer and would drop the
+    internal-pack stem (#6333). Reuse the product's own ``org_roots`` accessor
+    (``pack_roots[1:]``, dropping built-in at index 0) so the test cannot drift
+    from the live resolution again.
+    """
+    from charter.activation.pack_context import PackContext
+
+    return list(PackContext.from_config(repo_root).org_roots)
+
+
+@pytest.fixture(scope="module")
 def activated_directive_stems(repo_root: Path) -> list[str]:
     """Every slug-stem in this repo's own ``config.activated_directives``."""
     config = _load_config(repo_root)
@@ -113,14 +134,19 @@ def activated_directive_stems(repo_root: Path) -> list[str]:
 
 
 def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
-    offering_root: Path,
+    offering_root: Path, org_roots: list[Path]
 ) -> None:
-    """An unresolvable stem raises — it is never silently skipped (C-006)."""
+    """An unresolvable stem raises — it is never silently skipped (C-006).
+
+    The org layer is threaded in so the rejection is proven against the full
+    layer set the live resolution scans, not just ``built-in``.
+    """
     with pytest.raises(UnknownArtifactIdError):
         resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             "999-does-not-exist-anywhere",
             offering_root=offering_root,
+            org_roots=org_roots,
         )
 
 
@@ -148,7 +174,7 @@ def _directive_stems_for_parametrize() -> list[str]:
 
 @pytest.mark.parametrize("stem", _directive_stems_for_parametrize())
 def test_every_activated_directive_stem_round_trips_to_canonical_urn(
-    stem: str, offering_root: Path
+    stem: str, offering_root: Path, org_roots: list[Path]
 ) -> None:
     """Every real ``config.activated_directives`` stem resolves and round-trips.
 
@@ -166,11 +192,11 @@ def test_every_activated_directive_stem_round_trips_to_canonical_urn(
     only pins that a *canonical* directive URN came back, not a particular id
     spelling.
     """
-    urn = resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, offering_root=offering_root)
+    urn = resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, offering_root=offering_root, org_roots=org_roots)
     assert re.fullmatch(
         r"directive:[A-Z][A-Z0-9_]+", urn
     ), f"expected a canonical directive URN, got {urn!r}"
-    assert resolve_config_id(urn, offering_root=offering_root) == stem
+    assert resolve_config_id(urn, offering_root=offering_root, org_roots=org_roots) == stem
 
 
 @pytest.mark.parametrize(
@@ -184,7 +210,7 @@ def test_every_activated_directive_stem_round_trips_to_canonical_urn(
     ],
 )
 def test_spot_check_one_activated_entry_per_other_kind_round_trips(
-    kind: ArtifactKind, config_key: str, repo_root: Path, offering_root: Path
+    kind: ArtifactKind, config_key: str, repo_root: Path, offering_root: Path, org_roots: list[Path]
 ) -> None:
     """Spot-check: one real activated stem per remaining kind round-trips.
 
@@ -204,9 +230,9 @@ def test_spot_check_one_activated_entry_per_other_kind_round_trips(
     assert stems, f"expected config.{config_key} (or the built-in {kind.plural}) to be non-empty"
     stem = str(stems[0])
 
-    urn = resolve_artifact_urn(kind, stem, offering_root=offering_root)
+    urn = resolve_artifact_urn(kind, stem, offering_root=offering_root, org_roots=org_roots)
     assert urn.startswith(f"{kind.value}:")
-    assert resolve_config_id(urn, offering_root=offering_root) == stem
+    assert resolve_config_id(urn, offering_root=offering_root, org_roots=org_roots) == stem
 
 
 # --------------------------------------------------------------------------- #
@@ -217,7 +243,7 @@ def test_spot_check_one_activated_entry_per_other_kind_round_trips(
 
 @pytest.mark.parametrize("malformed_stem", _MALFORMED_DIRECTIVE_STEMS)
 def test_malformed_stem_is_rejected_not_silently_dropped(
-    malformed_stem: str, offering_root: Path, activated_directive_stems: list[str]
+    malformed_stem: str, offering_root: Path, org_roots: list[Path], activated_directive_stems: list[str]
 ) -> None:
     """A stem with no matching artefact raises — proving reject-not-drop bites.
 
@@ -229,4 +255,4 @@ def test_malformed_stem_is_rejected_not_silently_dropped(
     """
     assert malformed_stem not in activated_directive_stems
     with pytest.raises(UnknownArtifactIdError):
-        resolve_artifact_urn(ArtifactKind.DIRECTIVE, malformed_stem, offering_root=offering_root)
+        resolve_artifact_urn(ArtifactKind.DIRECTIVE, malformed_stem, offering_root=offering_root, org_roots=org_roots)
