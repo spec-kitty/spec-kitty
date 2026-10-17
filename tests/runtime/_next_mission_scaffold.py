@@ -20,6 +20,7 @@ from tests.integration.test_placement_partition_golden_path import (
     _init_git_repo as _golden_init_git_repo,
     _materialize_coord_worktree as _golden_materialize_coord_worktree,
 )
+from tests._support.org_pack_config import write_org_packs
 from tests.lane_test_utils import write_single_lane_manifest
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "provision_mission_type_activations",
     "reject_wp_on_status_surface",
     "scaffold_coord_software_dev",
+    "scaffold_custom_analyze_mission",
     "scaffold_software_dev",
     "seed_wp_lane",
     "write_spec_md",
@@ -171,6 +173,56 @@ def scaffold_software_dev(
         add_wp_files(feature_dir, mission_slug, wps, deps=wp_deps)
     commit_all(repo_root, "seed software-dev fixture")
     return repo_root
+
+
+CUSTOM_ANALYZE_FAMILY = "acme-flow"
+_CUSTOM_ANALYZE_STEPS = ("specify", "plan", "tasks", "analyze", "implement", "review")
+
+
+def scaffold_custom_analyze_mission(
+    repo_root: Path,
+    mission_slug: str = "043-custom-analyze",
+    *,
+    family: str = CUSTOM_ANALYZE_FAMILY,
+    steps: tuple[str, ...] = _CUSTOM_ANALYZE_STEPS,
+    wps: dict[str, str] | None = None,
+) -> str:
+    """A finalized-board mission of an activated NON-software-dev custom family.
+
+    The family is shipped by an org pack (``mission_types/<id>.yaml`` plus a flat-``steps:``
+    ``mission-runtime.yaml``) whose DAG is ``steps``; pass a ``steps`` without
+    ``analyze`` for the no-analyze control. Returns the mission slug.
+    """
+    init_git_repo(repo_root)
+    provision_mission_type_activations(repo_root, family)
+    org_root = repo_root / "org-packs" / "acme-doctrine"
+    (org_root / "mission_types").mkdir(parents=True)
+    (org_root / "mission_types" / f"{family}.yaml").write_text(f"schema_version: 1\nid: {family}\ndisplay_name: {family}\n", encoding="utf-8")
+    write_org_packs(repo_root, [{"name": "acme-doctrine", "local_path": "org-packs/acme-doctrine"}])
+    runtime_dir = org_root / "missions" / family
+    runtime_dir.mkdir(parents=True)
+    lines = [f"mission:\n  key: {family}\n  name: {family}\n  version: '1.0.0'\nsteps:\n"]
+    previous: str | None = None
+    for step in steps:
+        lines.append(f"  - id: {step}\n    title: {step}\n")
+        if previous is not None:
+            lines.append(f"    depends_on: [{previous}]\n")
+        previous = step
+    (runtime_dir / "mission-runtime.yaml").write_text("".join(lines), encoding="utf-8")
+    if "analyze" in steps:
+        # The reissued ``analyze`` step needs a resolvable command template (software-dev ships its own).
+        template_dir = repo_root / ".kittify" / "overrides" / "command-templates"
+        template_dir.mkdir(parents=True, exist_ok=True)
+        (template_dir / "analyze.md").write_text("# analyze\n\nRecord a current analysis report.\n", encoding="utf-8")
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": family}), encoding="utf-8")
+    write_spec_md(feature_dir, ["FR-001"])
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    add_wp_files(feature_dir, mission_slug, wps or {"WP01": "planned"})
+    commit_all(repo_root, f"seed {family} fixture")
+    return mission_slug
 
 
 def advance_to_step(repo_root: Path, mission_slug: str, mission_type: str, target_step_id: str, *, max_steps: int = 12) -> None:

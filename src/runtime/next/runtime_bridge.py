@@ -644,7 +644,7 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
     if board.action is not None and board.board_step is not None:
         # B3: the board hands out implement as if the DAG had walked through
         # analyze; check the analysis report first, like the analyze step does.
-        if board.action == _mapping._STEP_IMPLEMENT and ctx.mission_type == MISSION_TYPE_SOFTWARE_DEV:
+        if board.action == _mapping._STEP_IMPLEMENT and _io_seam.mission_declares_analyze_step(ctx.run_dir):
             analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(ctx.analysis_currency))
             if analysis_failures:
                 return _dn_reissue_step_decision(ctx, _cores.ANALYZE_STEP_ID, analysis_failures)

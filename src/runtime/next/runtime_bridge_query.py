@@ -45,7 +45,6 @@ from runtime.next._internal_runtime import provide_decision_answer as runtime_pr
 from runtime.next._internal_runtime.events import runtime_emitter_for_mission, seed_runtime_emitter
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 from runtime.next.decision import AnalysisCurrency, Decision, DecisionKind, _compute_wp_progress
-from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 
 
@@ -140,8 +139,10 @@ def _build_finalized_override_query_decision(
     finalized_override: str,
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
+    run_dir: Path | None = None,
 ) -> Decision:
-    if finalized_override == "implement" and mission_type == MISSION_TYPE_SOFTWARE_DEV:
+    # No run (direct callers) means no resolved DAG to read, so no analyze gate.
+    if finalized_override == "implement" and run_dir is not None and _io_seam.mission_declares_analyze_step(run_dir):
         analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(analysis_currency))
         if analysis_failures:
             return _build_analysis_refusal_query_decision(
@@ -433,6 +434,7 @@ def query_current_state(
             owned=owned,
             emitted_run_id=emitted_run_id,
             analysis_currency=analysis_currency,
+            run_dir=Path(run_ref.run_dir),
         )
     finally:
         if ephemeral_run_store is not None:
@@ -527,6 +529,7 @@ def _query_dispatch_decision(
     owned: OwnedCheckout | None,
     emitted_run_id: str | None,
     analysis_currency: AnalysisCurrency | None = None,
+    run_dir: Path | None = None,
 ) -> Decision:
     """Campsite extraction (T058) of ``query_current_state``'s
     finalized-override / initial / decision-required / runtime branch
@@ -548,6 +551,7 @@ def _query_dispatch_decision(
             finalized_override=finalized_override,
             owned=owned,
             analysis_currency=analysis_currency,
+            run_dir=run_dir,
         )
 
     if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:

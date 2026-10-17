@@ -1428,6 +1428,22 @@ def gather_analysis_currency(analysis_currency: AnalysisCurrency | None) -> dict
     return {"status": verdict.status, "stale_inputs": tuple(verdict.stale_inputs)}
 
 
+def mission_declares_analyze_step(run_dir: Path) -> bool:
+    """True when the run's frozen runtime DAG declares an ``analyze`` step.
+
+    Keys on the DAG step set, never on ``action_sequence`` (built-in software-dev
+    has an ``analyze`` DAG step yet no ``analyze`` in its action sequence). Lives
+    here, not in ``runtime_bridge_cores``, because it reads the frozen template
+    from disk (cores is a pure, import-bounded leaf). A missing or unreadable
+    template means "no analyze step", so no caller crashes on it.
+    """
+    try:
+        template = load_mission_template_file(run_dir / "mission_template_frozen.yaml")
+    except (OSError, MissionRuntimeError, ValueError):
+        return False
+    return ANALYZE_STEP_ID in {step.id for step in template.steps}
+
+
 def gather_artifact_presence(
     feature_dir: Path,
     *,
@@ -1540,8 +1556,9 @@ def gather_artifact_presence(
         "publication_approved": bool(_composition._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
     }
-    if mission_family == MISSION_TYPE_SOFTWARE_DEV and step_id == ANALYZE_STEP_ID:
-        # B5: the verdict is computed only for the analyze step, so every other
+    if step_id == ANALYZE_STEP_ID:
+        # B5: the verdict is computed only for the analyze step (issued only when
+        # the resolved runtime DAG declares it, so any family that does gets it), so every other
         # step's snapshot is byte-identical and the cores module stays pure.
         status_facts[ANALYSIS_CURRENCY_FACT] = gather_analysis_currency(analysis_currency)
 

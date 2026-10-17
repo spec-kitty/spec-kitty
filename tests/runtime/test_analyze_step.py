@@ -26,7 +26,13 @@ from runtime.next.decision import AnalysisVerdict, Decision, DecisionKind
 from specify_cli import app as cli_app
 from specify_cli.status.models import Lane
 from tests.next.test_finalized_task_routing import _scaffold
-from tests.runtime._next_mission_scaffold import advance_to_step, provision_mission_type_activations, scaffold_software_dev
+from tests.runtime._next_mission_scaffold import (
+    CUSTOM_ANALYZE_FAMILY,
+    advance_to_step,
+    provision_mission_type_activations,
+    scaffold_custom_analyze_mission,
+    scaffold_software_dev,
+)
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -201,6 +207,82 @@ class TestBoardOverrideDoesNotSkipAnalyze:
 
         assert (decision.mission_state, decision.preview_step) == ("implement", "implement")
         assert decision.wp_id == "WP01"
+        assert decision.error_code is None
+
+
+_NO_ANALYZE_STEPS = ("specify", "plan", "tasks", "implement", "review")
+
+
+def _custom_board(repo: Path, *, with_analyze: bool = True) -> str:
+    """A finalized-board custom-family mission, with or without an ``analyze`` DAG step."""
+    steps = None if with_analyze else _NO_ANALYZE_STEPS
+    return scaffold_custom_analyze_mission(repo, **({"steps": steps} if steps else {}))
+
+
+def _custom_advance(repo: Path, slug: str, check: Callable[[], AnalysisVerdict]) -> Decision:
+    from runtime.next.runtime_bridge import decide_next_via_runtime
+
+    return decide_next_via_runtime("codex", slug, "success", repo, analysis_currency=check)
+
+
+class TestAnalyzeCurrencyGeneralizedToCustomFamily:
+    """Problem B (FR-003/FR-004/FR-005): the currency gate keys on the resolved DAG declaring ``analyze``."""
+
+    def test_currency_fact_gathered_at_analyze_for_the_custom_family_only(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        repo = tmp_path / "repo"
+        slug = _custom_board(repo)
+        feature_dir = repo / "kitty-specs" / slug
+        check = _verdict("stale", "spec.md")
+
+        custom = gather_artifact_presence(feature_dir, mission_family=CUSTOM_ANALYZE_FAMILY, step_id="analyze", repo_root=repo, analysis_currency=check)
+        other_step = gather_artifact_presence(feature_dir, mission_family=CUSTOM_ANALYZE_FAMILY, step_id="implement", repo_root=repo, analysis_currency=check)
+
+        assert custom.status_facts["analysis_currency"] == {"status": "stale", "stale_inputs": ("spec.md",)}
+        assert "analysis_currency" not in other_step.status_facts
+
+    def test_decide_reissues_analyze_on_a_stale_report_and_proceeds_when_fresh(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        slug = _custom_board(repo)
+
+        stale = _custom_advance(repo, slug, _verdict("stale", "spec.md"))
+        fresh = _custom_advance(repo, slug, _verdict("current"))
+
+        assert stale.kind == _STEP, stale.reason
+        assert (stale.action, stale.step_id) == ("analyze", "analyze")
+        assert stale.error_code == "ANALYSIS_REPORT_STALE"
+        assert stale.guard_failures == [_STALE_SPEC]
+        assert (fresh.action, fresh.wp_id) == ("implement", "WP01")
+
+    def test_decide_without_an_analyze_step_never_consults_the_check(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        slug = _custom_board(repo, with_analyze=False)
+
+        decision = _custom_advance(repo, slug, _verdict("stale", "spec.md"))
+
+        assert (decision.action, decision.wp_id) == ("implement", "WP01")
+        assert decision.error_code is None
+
+    def test_preview_shows_analyze_on_a_stale_report_and_implement_when_fresh(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        slug = _custom_board(repo)
+
+        stale = _query(repo, slug, _verdict("stale", "spec.md"))
+        fresh = _query(repo, slug, _verdict("current"))
+
+        assert stale.kind == _QUERY
+        assert stale.preview_step == "analyze"
+        assert stale.error_code == "ANALYSIS_REPORT_STALE"
+        assert fresh.preview_step == "implement"
+
+    def test_preview_without_an_analyze_step_is_unaffected(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        slug = _custom_board(repo, with_analyze=False)
+
+        decision = _query(repo, slug, _verdict("stale", "spec.md"))
+
+        assert decision.preview_step == "implement"
         assert decision.error_code is None
 
 
