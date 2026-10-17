@@ -56,6 +56,23 @@ exemptions:
       the prerequisite policy, not the reader. In IN_SCOPE_READER_MODULES so the
       no-legacy invariant on line 359 is enforced; the default-kind is exempted
       for the policy comparison only.
+  - path: src/charter/activation/mission_type_profiles.py
+    kinds: [default]
+    issue: "#6315"
+    rationale: >-
+      The `"software-dev"` literal is one key of the declarative
+      `BUILTIN_REQUIRES_SUBSTANTIVE_SPEC` default table — every built-in type is
+      named explicitly (`research`, `documentation`, `plan` too), each mapped to
+      its own `requires_substantive_spec` default. It is NOT a software-dev
+      mission-type fallback: `_resolve_requires_substantive_spec` resolves the
+      type's own authored value first, then this table, and an UNLISTED custom
+      type resolves to a conservative `False` (`.get(mission_type, False)`), never
+      to software-dev's value. This table is the crash-safety default used when
+      charter resolution raises (`requires_substantive_spec_for`'s except-path);
+      the authored YAML value in `mission_types/<type>.yaml` is the primary
+      source. The capability contract this ships is what REMOVES the
+      software-dev-literal special-casing from the runtime gates — the table entry
+      is a named per-type default, not the silent fallback FR-003 forbids.
 
 # --- Domain-exempt readers (intentionally NOT in IN_SCOPE_READER_MODULES) ---
 # These read a `mission`/`mission_type` field but are NOT runtime mission-type
