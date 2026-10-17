@@ -864,6 +864,8 @@ def resolve_for_write(
     repo_root: Path,
     mission_slug: str,
     kind: MissionArtifactKind,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> CommitTarget:
     """Fail-closed WRITE-surface resolution — the thin write-side entry point (D1 / S-C).
 
@@ -887,7 +889,7 @@ def resolve_for_write(
             ``COORD_WRITE_SURFACE_UNMATERIALIZED``) a coord-routing write's
             coordination surface is unmaterialized/unresolved on this checkout.
     """
-    return resolve_write_target_or_degrade(repo_root, mission_slug, kind, degrade_ref=None, terminus_write=True)
+    return resolve_write_target_or_degrade(repo_root, mission_slug, kind, degrade_ref=None, terminus_write=True, owned=owned)
 
 
 def _raise_unmaterialized(
