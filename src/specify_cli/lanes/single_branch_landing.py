@@ -165,6 +165,21 @@ def authorship_window(repo: Path, mission_slug: str, mission_branch: str, target
     return (base, mission_branch) if result.returncode == 0 and base else None
 
 
+def is_single_branch_meta(meta: Mapping[str, Any]) -> bool:
+    """True when an already-loaded ``meta.json`` mapping declares a STORED single_branch topology.
+
+    Slug-free (takes the loaded mapping, not a slug): a caller that holds the mission directory
+    reads meta from it directly and avoids feeding a slug into path-segment validation on a path
+    the #5939 axis may not apply to (the orchestrator planning-only no-op, where the slug can be
+    a test mock).
+    """
+    from mission_runtime import is_single_branch
+
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    return is_single_branch(stored_topology(meta))
+
+
 def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
     """True when the mission's STORED topology is single_branch.
 
@@ -173,13 +188,12 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
     with no ``planning_commit_sha``). The #5939 backstop uses this to fail CLOSED on that
     uncomputable case rather than silently no-opping it.
     """
-    from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
+    from mission_runtime import MissionArtifactKind, placement_seam
 
-    from specify_cli.migration.backfill_topology import stored_topology
     from specify_cli.mission_metadata import load_meta_or_empty
 
     meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
-    return is_single_branch(stored_topology(meta))
+    return is_single_branch_meta(meta)
 
 
 def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[str, str] | None:

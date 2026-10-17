@@ -533,8 +533,15 @@ def _refuse_single_branch_hollow_content(main_repo_root: Path, mission_dir: Path
     """
     from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
     from specify_cli.consolidation.reconciliation import single_branch_evidence_refusal, single_branch_refusal_codes
+    from specify_cli.lanes.single_branch_landing import is_single_branch_meta
+    from specify_cli.mission_metadata import load_meta_or_empty
     from specify_cli.status import StoreError
 
+    # Topology gate FIRST, read slug-free from the real mission_dir: a non-single_branch mission
+    # (a planning-only merge included) no-ops WITHOUT computing the canceled-WP set or otherwise
+    # using the slug as a path segment, which the axis must not do on a path it does not apply to.
+    if not is_single_branch_meta(load_meta_or_empty(mission_dir)):
+        return
     try:
         refusal = single_branch_evidence_refusal(
             main_repo_root,
