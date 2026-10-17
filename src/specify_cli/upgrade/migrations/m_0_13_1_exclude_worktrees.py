@@ -27,6 +27,7 @@ class ExcludeWorktreesMigration(BaseMigration):
     migration_id = "0.13.1_exclude_worktrees"
     description = "Exclude .worktrees/ from git index"
     target_version = "0.13.1"
+    clone_local_effect = True  # effect is .git/info/exclude (clone-local), not the tracked ledger (#6233)
 
     def detect(self, project_path: Path) -> bool:
         """Check if .worktrees/ exclusion is needed."""

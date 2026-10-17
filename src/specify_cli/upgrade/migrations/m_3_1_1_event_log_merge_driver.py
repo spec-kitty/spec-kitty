@@ -47,6 +47,10 @@ class EventLogMergeDriverMigration(BaseMigration):
     migration_id = "3.1.1_event_log_merge_driver"
     description = "Install a semantic git merge driver for status.events.jsonl"
     target_version = "3.1.1"
+    # Split effect: tracked ``.gitattributes`` + clone-local ``git config --local``;
+    # detect() returns True while the local half is missing, so reselection
+    # settles per-clone (#6233).
+    clone_local_effect = True
 
     def detect(self, project_path: Path) -> bool:
         attributes_path = project_path / ".gitattributes"

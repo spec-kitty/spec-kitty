@@ -73,6 +73,12 @@ class MergeDriverSeedingMigration(BaseMigration):
 
     drivers: tuple[DriverSpec, ...] = ()
     dry_run_summary: str = "Would install merge drivers and .gitattributes entries"
+    # The effect is SPLIT: a tracked ``.gitattributes`` line plus a clone-local
+    # ``git config --local`` driver. A pulled clone carries the tracked half but
+    # not the local half, so the shared ledger is not authoritative -- detect()
+    # already returns True while the local config is missing and False once both
+    # halves are present, so reselection settles per-clone (#6233).
+    clone_local_effect = True
 
     def _attributes_missing(self, project_path: Path) -> bool:
         attributes_path = project_path / ".gitattributes"

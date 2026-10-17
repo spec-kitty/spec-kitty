@@ -42,6 +42,7 @@ class InstallLaneTipRecorderMigration(BaseMigration):
     description = "Install the lane work-tip recorder (post-commit + post-rewrite) for existing clones (#5115)."
     target_version = TARGET_VERSION
     runs_on_worktrees = False
+    clone_local_effect = True  # effect is .git/hooks (clone-local), not the tracked ledger (#6233)
 
     def detect(self, project_path: Path) -> bool:
         return bool(_pending(project_path))

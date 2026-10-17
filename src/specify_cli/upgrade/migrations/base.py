@@ -107,6 +107,20 @@ class BaseMigration(ABC):
     #: (charter-pack-cutover research/runtime-seams.md §1.2).
     runs_first: ClassVar[bool] = False
 
+    #: The migration's effect lives OUTSIDE version control -- clone-local state
+    #: such as ``.git/info/exclude``, ``git config --local`` or ``.git/hooks``.
+    #: The tracked, pushed ``metadata.yaml`` ledger records one clone's local
+    #: state yet propagates to every clone, so a recorded ledger is NOT
+    #: authoritative for these: a pulled clone that lacks the effect would
+    #: otherwise skip the migration forever (#6233). When True,
+    #: :meth:`reselect_when_recorded` routes the skip decision to this
+    #: checkout's own ``detect()`` instead of trusting the ledger. The default
+    #: is False, so a TRACKED-effect migration stays recorded-once-and-skipped.
+    #: Requires an idempotent ``apply()`` (reselection re-applies it): see
+    #: ADR ``2026-07-07-1`` and the ``test_clone_local_migration_idempotent``
+    #: gate.
+    clone_local_effect: ClassVar[bool] = False
+
     def structural_detect(self, project_path: Path) -> bool:  # noqa: ARG002 -- hook; the default ignores the project
         """Return True when the project still carries state this migration owns.
 
@@ -121,9 +135,14 @@ class BaseMigration(ABC):
     def reselect_when_recorded(self, project_path: Path) -> bool:
         """True when a recorded application must not settle this migration.
 
-        Only a ``runs_first`` migration whose :meth:`structural_detect` is True
-        qualifies; every other recorded migration is skipped as applied.
+        A :attr:`clone_local_effect` migration whose :meth:`detect` reports the
+        effect still absent on THIS checkout qualifies -- the shared ledger is
+        not authoritative for clone-local state (#6233). So does a
+        ``runs_first`` migration whose :meth:`structural_detect` is True. Every
+        other recorded migration is skipped as applied.
         """
+        if self.clone_local_effect and self.detect(project_path):
+            return True
         return self.runs_first and self.structural_detect(project_path)
 
     @abstractmethod

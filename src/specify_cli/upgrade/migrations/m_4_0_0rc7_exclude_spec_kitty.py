@@ -39,6 +39,7 @@ class ExcludeSpecKittyMigration(BaseMigration):
     migration_id = "4.0.0rc7_exclude_spec_kitty"
     description = "Exclude .spec-kitty/ from git index"
     target_version = "4.0.0rc7"
+    clone_local_effect = True  # effect is .git/info/exclude (clone-local), not the tracked ledger (#6233)
 
     def detect(self, project_path: Path) -> bool:
         """Check if .spec-kitty/ exclusion is needed (exact-line match; comments do not count)."""

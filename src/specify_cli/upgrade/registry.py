@@ -107,6 +107,10 @@ class MigrationRegistry:
         from_v = Version(from_version)
         to_v = Version(to_version)
 
+        detect_path: Path | None = None
+        if project_path is not None:
+            detect_path = Path(project_path) if isinstance(project_path, str) else project_path
+
         all_migrations = cls.get_all()
         applicable = []
         for migration in all_migrations:
@@ -114,11 +118,19 @@ class MigrationRegistry:
             # Include if target is > from_version AND <= to_version
             if from_v < target <= to_v:
                 applicable.append(migration)
-            # ALSO include migrations at current version if detect() returns True
-            elif target == from_v and project_path is not None:  # noqa: SIM102
-                detect_path = Path(project_path) if isinstance(project_path, str) else project_path
-                if _detect_fail_closed(migration, detect_path):
-                    applicable.append(migration)
+            elif detect_path is None:
+                continue
+            # ALSO include a migration AT the current version when detect() is True,
+            # OR a clone-local migration BELOW the window whose effect is absent on
+            # THIS checkout. The tracked, pushed ledger is not authoritative for
+            # clone-local state, so a pulled clone whose version stamp is past the
+            # migration still needs it (#6233); a tracked migration
+            # (clone_local_effect False) never qualifies, so the ledger stays
+            # authoritative for it.
+            elif (target == from_v and _detect_fail_closed(migration, detect_path)) or (
+                target < from_v and _clone_local_selected_below_window(migration, detect_path)
+            ):
+                applicable.append(migration)
 
         return _order_runs_first(applicable, all_migrations, project_path)
 
@@ -158,6 +170,29 @@ def _detect_fail_closed(migration: BaseMigration, project_path: Path) -> bool:
             exc,
         )
         return True
+
+
+def _clone_local_selected_below_window(migration: BaseMigration, project_path: Path) -> bool:
+    """Whether a clone-local migration the version window excluded is still needed.
+
+    A :attr:`BaseMigration.clone_local_effect` migration below the window is
+    re-selected only when the shared ledger RECORDS it applied yet its effect is
+    absent on THIS checkout -- the pulled-clone case #6233 targets. The ledger is
+    tracked and pushed, so it records one clone's clone-local state for every
+    clone; a pulled clone therefore carries the record without the effect, and
+    its own ``detect()`` is the only authority for whether the effect is present.
+    A migration the ledger never recorded keeps the version-window authority (the
+    version stamp is past it) and is not re-selected here; a tracked migration
+    (``clone_local_effect`` False) never qualifies, so the ledger stays
+    authoritative for it. Keying on the record also matches the runner skip gate,
+    which is itself reached only for a recorded migration (``has_migration``).
+    """
+    if not migration.clone_local_effect:
+        return False
+    metadata = ProjectMetadata.load(project_path / ".kittify")
+    if metadata is None or not metadata.has_migration(migration.migration_id):
+        return False
+    return migration.reselect_when_recorded(project_path)
 
 
 def _runs_first_selected_outside_window(migration: BaseMigration, project_path: Path) -> bool:
