@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4983": {
+      "evidence_ref": "Context/parent/deferred reference; no work owed in this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6315": {
+      "evidence_ref": "Delivered across WP01-WP05 of this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6317": {
+      "evidence_ref": "Context/parent/deferred reference; no work owed in this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6327": {
+      "evidence_ref": "Context/parent/deferred reference; no work owed in this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6328": {
+      "evidence_ref": "Context/parent/deferred reference; no work owed in this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
