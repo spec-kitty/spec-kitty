@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 from .mission_step_repository import (
     MissionStepRepository,
+    resolve_runtime_shape_steps,
     _lock_for,
     _PackContextLike,
 )
@@ -277,7 +278,9 @@ def _inject_projected_fields(
         .values()
     )
 
-    projected_sequence = project_action_sequence(steps)
+    projected_sequence = project_action_sequence(steps) or project_action_sequence(
+        resolve_runtime_shape_steps(mission_type_id, pack_context)
+    )
 
     payload = dict(raw)
     payload["action_sequence"] = projected_sequence or raw.get("action_sequence")

@@ -647,6 +647,102 @@ class TestLayeredProjectionThreadsPackContext:
 
         assert result["qa"].action_sequence == list(_STEPS_ONLY_FIXTURE_STEP_IDS)
 
+    def _write_runtime_shape_org_fixture(
+        self, org_root: Path, mission_type_id: str, runtime_yaml: str
+    ) -> _StubPackContext:
+        """Org pack shipping ONLY ``mission_types/<id>.yaml`` + ``missions/<id>/mission-runtime.yaml``."""
+        _write_layered_yaml(
+            org_root / "mission_types",
+            f"{mission_type_id}.yaml",
+            _mission_type_yaml_steps_only(mission_type_id),
+        )
+        _write_layered_yaml(
+            org_root / "missions" / mission_type_id, "mission-runtime.yaml", runtime_yaml
+        )
+        builtin = Path("/nonexistent-builtin-pack")
+        return _StubPackContext(pack_roots=(builtin, org_root), repo_root=org_root / "repo")
+
+    def test_runtime_shape_only_org_type_resolves_declared_order(self, tmp_path: Path) -> None:
+        """FR-001: an org type shipping only the flat ``steps:`` runtime shape
+        resolves its full ordered sequence (no dir-per-step ``step.yaml``)."""
+        order = ("discovery", "specify", "plan", "tasks", "analyze", "implement", "review", "accept")
+        runtime = "mission:\n  key: qa\nsteps:\n" + "".join(
+            f"  - id: {step}\n    title: {step}\n" for step in order
+        )
+        ctx = self._write_runtime_shape_org_fixture(tmp_path / "org", "qa", runtime)
+
+        result = resolve_layered_mission_types((tmp_path / "builtin" / "mission_types",), ctx)
+
+        assert result["qa"].action_sequence == list(order)
+
+    @pytest.mark.parametrize(
+        "runtime_yaml",
+        [
+            "steps: []\n",
+            "steps: [unclosed\n",
+            "just a string\n",
+            # Partially-bad list: one valid step + one missing `id`. Must NOT
+            # fabricate the short ['specify'] sequence — fail closed instead,
+            # or a malformed `analyze`/`implement` entry would be silently dropped.
+            "steps:\n  - id: specify\n    title: Specify\n  - noid: x\n",
+            # Every entry has `id` but no `title` — a shape the runtime loader
+            # (PromptStep requires title) rejects, so charter must reject it too
+            # rather than let the type resolve here and brick at `mission run`.
+            "steps:\n  - id: specify\n  - id: tasks\n",
+        ],
+    )
+    def test_runtime_shape_empty_or_malformed_stays_fail_closed(
+        self, tmp_path: Path, runtime_yaml: str
+    ) -> None:
+        """FR-002 control (same fixture as above): no usable steps still projects
+        nothing, so the governed seam raises rather than fabricating a sequence.
+        The last two cases are the witnesses that a partially-bad list fails closed
+        (not filtered) and that `id`-without-`title` is rejected to match runtime."""
+        from unittest.mock import patch
+
+        from charter.activation.mission_type_profiles import (
+            MissionTypeEmptyActionSequenceError,
+            resolve_mission_type_context,
+        )
+
+        ctx = self._write_runtime_shape_org_fixture(tmp_path / "org", "qa", runtime_yaml)
+
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["qa"],
+            ),
+            patch(
+                "charter.activation.pack_context.PackContext.from_config",
+                return_value=ctx,
+            ),
+            pytest.raises(MissionTypeEmptyActionSequenceError),
+        ):
+            resolve_mission_type_context(tmp_path / "repo", mission_type="qa")
+
+    def test_charter_reader_agrees_with_runtime_loader_on_step_ids(self, tmp_path: Path) -> None:
+        """Parity guard against silent drift: the charter-local runtime-shape reader
+        must extract the same ordered step ids as the runtime's own loader from one
+        valid fixture. Charter cannot import runtime at module scope, but this test
+        (a consumer) can — so it pins the two parsers to agree. If runtime's schema
+        gains step-level curation that charter's "every step -> sequence member"
+        reader does not mirror, this goes red instead of producing a wrong sequence."""
+        from runtime.next._internal_runtime.schema import load_mission_template_file
+
+        from charter.offering.missions.mission_step_repository import _runtime_shape_step_ids
+
+        order = ("discovery", "specify", "plan", "tasks", "analyze", "implement", "review", "accept")
+        runtime = 'mission:\n  key: qa\n  name: QA\n  version: "1.0.0"\nsteps:\n' + "".join(
+            f"  - id: {step}\n    title: {step}\n" for step in order
+        )
+        runtime_file = tmp_path / "mission-runtime.yaml"
+        runtime_file.write_text(runtime, encoding="utf-8")
+
+        charter_ids = _runtime_shape_step_ids(runtime_file)
+        runtime_ids = [step.id for step in load_mission_template_file(runtime_file).steps]
+
+        assert charter_ids == runtime_ids == list(order)
+
 
 class TestLayeredMissionTypesCacheKeyAndClear:
     """FR-001/NFR-001: cache-hit/miss identity, two-project isolation, cache_clear()."""

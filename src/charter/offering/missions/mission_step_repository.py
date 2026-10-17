@@ -265,6 +265,78 @@ def _project_mission_type_dir(
     )
 
 
+_RUNTIME_SHAPE_FILENAME = "mission-runtime.yaml"
+
+
+def _runtime_shape_candidates(
+    pack_context: _PackContextLike, mission_type_id: str
+) -> list[Path]:
+    """Runtime-shape files for a mission type, highest precedence first (project, then org)."""
+    relative = Path(mission_type_id) / _RUNTIME_SHAPE_FILENAME
+    candidates = [pack_context.repo_root / ".kittify" / "missions" / relative]
+    candidates.extend(root / "missions" / relative for root in pack_context.pack_roots)
+    return candidates
+
+
+def _runtime_shape_step_ids(runtime_file: Path) -> list[str]:
+    """Ordered step ids from a flat ``steps:`` list; ``[]`` if unreadable or malformed.
+
+    Fails closed on ANY malformed entry rather than filtering it out: if even one
+    ``steps`` entry is not a mapping, or lacks a non-empty ``id`` or ``title``, the
+    whole file yields ``[]`` (so the governed seam raises
+    ``MissionTypeEmptyActionSequenceError`` upstream rather than fabricating a
+    shorter, wrong sequence that silently drops a canonical step). ``id`` + ``title``
+    mirror the minimum the runtime loader (``PromptStep``) itself requires, so a
+    shape charter accepts here is one the frozen runtime template will also accept —
+    they never disagree on validity (see the charter<->runtime parity test).
+    """
+    try:
+        raw: Any = _get_yaml().load(runtime_file.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001  # malformed runtime file => no steps (fail-closed upstream)
+        return []
+    steps = raw.get("steps") if isinstance(raw, dict) else None
+    if not isinstance(steps, list):
+        return []
+    if not all(isinstance(step, dict) and step.get("id") and step.get("title") for step in steps):
+        return []
+    return [str(step["id"]) for step in steps]
+
+
+def resolve_runtime_shape_steps(
+    mission_type_id: str, pack_context: _PackContextLike | None
+) -> list[MissionStep]:
+    """Synthesize ordered sequence steps from the org-pack runtime shape.
+
+    Fallback for custom mission types that ship only
+    ``missions/<type>/mission-runtime.yaml`` (flat ``steps:`` list) rather than
+    the dir-per-step ``mission-steps/<type>/<step>/step.yaml`` layout. Parsed
+    directly (charter must not import ``runtime``). The first resolving file
+    wins (project, then ``pack_context.pack_roots`` order); every declared step
+    becomes a sequence member at its 0-based position. Returns ``[]`` when no
+    file resolves, it is malformed, or any id is invalid (fail-closed).
+    """
+    if pack_context is None:
+        return []
+    for runtime_file in _runtime_shape_candidates(pack_context, mission_type_id):
+        if not runtime_file.is_file():
+            continue
+        try:
+            return [
+                MissionStep(
+                    id=step_id,
+                    display_name=step_id,
+                    step_type="agent",
+                    prompt_template="",
+                    sequence_index=index,
+                    in_action_sequence=True,
+                )
+                for index, step_id in enumerate(_runtime_shape_step_ids(runtime_file))
+            ]
+        except ValueError:
+            return []
+    return []
+
+
 # ---------------------------------------------------------------------------
 # Repository
 # ---------------------------------------------------------------------------
