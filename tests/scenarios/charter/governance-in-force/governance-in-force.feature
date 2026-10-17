@@ -7,7 +7,10 @@
 # - Evidence (read, never transcribed): a skill is in force only when required/selected, not
 #   merely because a pack offers it (ArtifactKind.effective_when_absent == "required" for skill,
 #   ADR 2026-09-27-1); an org pack's required selections overlay the charter's chosen set
-#   (ArtifactKind.selection_overlayable; apply_org_charter_to_interview).
+#   (ArtifactKind.selection_overlayable; apply_org_charter_to_interview); governance an org pack
+#   provides and the charter puts in force is resolved from the org roots / org DRG fragments by
+#   ActiveCharterService (pack_context.org_roots), so the coherence check confirms it sound the
+#   same way it does a built-in artifact (epic #6286 charter-offering catfooding).
 # - Promises mapped to FR/ADR in tests/scenarios/charter/PROMISES.md.
 
 Feature: The governance in force is what I chose
@@ -33,3 +36,10 @@ Feature: The governance in force is what I chose
     And the charter has been synthesized
     When the author asks what governs the work
     Then the governance in force includes the team's required rule
+
+  @promise:PR-CHARTER-GOVERNANCE-003
+  Scenario: A rule the team pack provides is confirmed sound governance, the same as a built-in rule
+    Given the team pack requires a rule the project did not select
+    And the charter has been synthesized
+    When the author checks the shared governance is sound
+    Then the shared governance is reported sound
