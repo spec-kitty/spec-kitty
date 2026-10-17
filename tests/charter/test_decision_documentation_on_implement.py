@@ -110,7 +110,7 @@ def test_required_decision_documentation_directive_scoped_on_implement_fails(tmp
             DRGEdge(source=_IMPLEMENT_URN, target=_URN_003, relation=Relation.SCOPE),
         ],
     )
-    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda repo_root: graph)
+    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda *_a, **_k: graph)
 
     ctx = _ctx_with_config(
         tmp_path,
@@ -147,7 +147,7 @@ def test_required_non_decision_documentation_directive_is_not_flagged(tmp_path: 
             DRGEdge(source=_IMPLEMENT_URN, target=_URN_001, relation=Relation.SCOPE),
         ],
     )
-    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda repo_root: graph)
+    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda *_a, **_k: graph)
 
     ctx = _ctx_with_config(
         tmp_path,
@@ -215,7 +215,7 @@ def test_directive_unresolvable_in_directive_repository_raises(tmp_path: Path, m
             DRGEdge(source=_IMPLEMENT_URN, target=_URN_003, relation=Relation.SCOPE),
         ],
     )
-    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda repo_root: graph)
+    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda *_a, **_k: graph)
     monkeypatch.setattr(consistency_check, "_resolve_directives", lambda repo_root, pack_context: {})
 
     ctx = _ctx_with_config(

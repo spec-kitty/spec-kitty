@@ -244,7 +244,7 @@ def test_half_reconciled_pair_still_flagged(
         ],
     )
     monkeypatch.setattr(
-        drg_helpers, "load_validated_graph", lambda repo_root: half_reconciled_graph
+        drg_helpers, "load_validated_graph", lambda *_a, **_k: half_reconciled_graph
     )
 
     ctx = _ctx_with_config(
@@ -319,7 +319,7 @@ def test_two_distinct_reconcilers_bridge_pair_per_side(
         ],
     )
     monkeypatch.setattr(
-        drg_helpers, "load_validated_graph", lambda repo_root: two_distinct_reconcilers_graph
+        drg_helpers, "load_validated_graph", lambda *_a, **_k: two_distinct_reconcilers_graph
     )
 
     ctx = _ctx_with_config(
@@ -358,7 +358,7 @@ def test_dedup_symmetric_authoring(
         ],
     )
     monkeypatch.setattr(
-        drg_helpers, "load_validated_graph", lambda repo_root: both_directions_graph
+        drg_helpers, "load_validated_graph", lambda *_a, **_k: both_directions_graph
     )
 
     ctx = _ctx_with_config(
@@ -449,7 +449,7 @@ def test_always_on_under_implicit_all_active(
         ],
     )
     monkeypatch.setattr(
-        drg_helpers, "load_validated_graph", lambda repo_root: unreconciled_graph
+        drg_helpers, "load_validated_graph", lambda *_a, **_k: unreconciled_graph
     )
 
     # Implicit all-active: no activated_directives/activated_tactics/... keys
