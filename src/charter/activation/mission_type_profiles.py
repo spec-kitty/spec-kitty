@@ -76,7 +76,6 @@ if TYPE_CHECKING:
     from charter.offering.missions.models import MissionType
 
 __all__ = [
-    "BUILTIN_REQUIRES_SUBSTANTIVE_SPEC",
     "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeEmptyActionSequenceError",
@@ -86,6 +85,7 @@ __all__ = [
     "UnknownMissionTypeError",
     "existing_mission_types",
     "resolve_action_sequence_layer",
+    "requires_substantive_spec_for",
     "resolve_mission_type_context",
     "resolve_mission_type_key",
     "validate_activatable_mission_type",
@@ -1037,6 +1037,22 @@ def _resolve_requires_substantive_spec(
     if declared is not None:
         return declared
     return BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False)
+
+
+def requires_substantive_spec_for(repo_root: Path, mission_type: str) -> bool:
+    """Public: whether *mission_type* requires a substantive spec (resolve + fallback).
+
+    Encapsulates the resolve-then-built-in-fallback so an external consumer (the
+    resume-probe prerequisite) depends on this via ``charter.activation.api``
+    rather than reaching the activation internals (the boundary gate forbids a
+    new internal reach). A resolution error falls back to the built-in default
+    map, so the built-in types keep their effective behaviour and the probe never
+    crashes.
+    """
+    try:
+        return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).requires_substantive_spec)
+    except Exception:  # noqa: BLE001 - probe must not crash; fall back to built-in default
+        return bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
 
 
 def _resolve_with_extends_fallback(

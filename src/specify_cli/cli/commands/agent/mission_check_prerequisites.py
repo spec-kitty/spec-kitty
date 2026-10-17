@@ -438,15 +438,12 @@ def _requires_substantive_spec(repo_root: Path, mission_type: str) -> bool:
     crash the resume probe; they fall back to the built-in default so the
     built-in types keep their effective behavior and unknown types bypass.
     """
-    from charter.activation.mission_type_profiles import (
-        BUILTIN_REQUIRES_SUBSTANTIVE_SPEC,
-        resolve_mission_type_context,
-    )
+    # Route through the activation public seam (charter.activation.api), never the
+    # internal module: the boundary gate forbids a new external reach into
+    # charter.activation internals. The resolve + built-in fallback lives behind it.
+    from charter.activation.api import requires_substantive_spec_for
 
-    try:
-        return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).requires_substantive_spec)
-    except Exception:  # noqa: BLE001 - probe must not crash; fall back to built-in default
-        return bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
+    return requires_substantive_spec_for(repo_root, mission_type)
 
 
 def _emit_resume_probe_payload(payload: dict[str, object], *, json_output: bool) -> None:
