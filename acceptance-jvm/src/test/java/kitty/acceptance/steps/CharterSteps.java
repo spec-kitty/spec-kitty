@@ -151,6 +151,14 @@ public final class CharterSteps {
         assertThat(result.exitCode()).as("a pack with an unsound artifact must not be reported healthy (non-zero exit):%n%s", result).isNotZero();
     }
 
+    @Then("the shared governance is reported sound")
+    public void theSharedGovernanceIsReportedSound() {
+        CliResult result = context.lastResult();
+        assertThat(result.exitCode())
+                .as("a pack whose activated governance resolves must be reported healthy (zero exit):%n%s", result)
+                .isZero();
+    }
+
     @Then("the governance in force includes the team's required rule")
     public void theGovernanceInForceIncludesTheTeamsRequiredRule() {
         CliResult inForce = context.lastResult();

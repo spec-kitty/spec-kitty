@@ -37,7 +37,7 @@ Feature: The governance in force is what I chose
     When the author asks what governs the work
     Then the governance in force includes the team's required rule
 
-  @promise:PR-CHARTER-GOVERNANCE-003 @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
+  @promise:PR-CHARTER-GOVERNANCE-003
   Scenario: A rule the team pack provides is confirmed sound governance, the same as a built-in rule
     Given the team pack requires a rule the project did not select
     And the charter has been synthesized
