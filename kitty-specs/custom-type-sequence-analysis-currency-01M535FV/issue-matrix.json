@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2535": {
+      "evidence_ref": "Cited as the eventual declarative transition-gate home; the charter-local reader is the slice-1 interim, no work owed on #2535 here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#3831": {
+      "evidence_ref": "Reused as the canonical ResolvedMissionType/step authority (C-001); no work owed on #3831.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4983": {
+      "evidence_ref": "Slice 1: WP01 resolves the custom-type action_sequence facet; accept/merge/dossier deferred to later slices.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

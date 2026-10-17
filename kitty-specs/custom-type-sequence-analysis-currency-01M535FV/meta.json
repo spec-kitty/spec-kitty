@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-10-16T20:12:10.439568+00:00",
+  "flattened": false,
+  "friendly_name": "Custom-type action-sequence + analysis-currency generalization",
+  "mid8": "01M535FV",
+  "mission_branch": "kitty/mission-custom-type-sequence-analysis-currency-01M535FV",
+  "mission_id": "01M535FVM8DJR3N6CFXP9ASAME",
+  "mission_number": null,
+  "mission_slug": "custom-type-sequence-analysis-currency-01M535FV",
+  "mission_type": "software-dev",
+  "purpose_context": "An activated org-pack-shape custom mission type fails lifecycle resolution with 'empty action sequence', and analysis-currency enforcement is hard-keyed to software-dev. This slice links org-pack runtime steps into project_action_sequence and generalizes the analyze-currency gate to any analyze-declaring family.",
+  "purpose_tldr": "Make an activated custom mission type resolve its full action_sequence and get the analyze-currency gate, unblocking cave-dev (Refs #4983).",
+  "slug": "custom-type-sequence-analysis-currency-01M535FV",
+  "target_branch": "main",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-17T05:02:30.666998+00:00"
+}

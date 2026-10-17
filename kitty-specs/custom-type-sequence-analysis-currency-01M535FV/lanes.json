@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "custom-type-sequence-analysis-currency-01M535FV",
+  "mission_id": "01M535FVM8DJR3N6CFXP9ASAME",
+  "mission_branch": "kitty/mission-custom-type-sequence-analysis-currency-01M535FV",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/offering/missions/mission_step_repository.py",
+        "src/charter/offering/missions/mission_type_repository.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/runtime/next/runtime_bridge_query.py",
+        "tests/charter_offering/missions/test_mission_type_repository.py",
+        "tests/runtime/_next_mission_scaffold.py",
+        "tests/runtime/test_analyze_step.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-17T05:01:59.897011+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "dea1092aeb2e10c7f1d8e4d21162bab90633d9f6"
+}

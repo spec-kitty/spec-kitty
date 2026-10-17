@@ -1,0 +1,76 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M546483G0N61N2YF9X09RMRC",
+  "materialized_at": "2026-10-17T05:42:32.816935+00:00",
+  "mission_number": "",
+  "mission_slug": "custom-type-sequence-analysis-currency-01M535FV",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M5454HMP08QJTMGZMMWMEW7J",
+      "last_transition_at": "2026-10-17T05:25:14.006784+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 568121,
+      "shell_pid_created_at": "1792213347.3",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M546483G0N61N2YF9X09RMRC",
+      "last_transition_at": "2026-10-17T05:42:32.816935+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 645295,
+      "shell_pid_created_at": "1792214722.76",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}
