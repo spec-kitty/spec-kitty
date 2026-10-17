@@ -95,6 +95,7 @@ from runtime.next.runtime_bridge_cores import (
 )
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
+from kernel.mission_runtime_shape import step_ids_declare_wp_iteration
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
@@ -1220,6 +1221,8 @@ class ArtifactPresenceSnapshot:
     legacy_step_id: str | None = None
     wp_advance_ready: bool | None = None
     blocking_artifact_names: frozenset[str] | None = None
+    # Plain fact (never read from disk by the cores leaf): the run's DAG declares ``implement``.
+    wp_driven: bool = False
 
 
 #: The seam failures a presence read degrades on. ``ActionContextError`` is the
@@ -1444,6 +1447,37 @@ def mission_declares_analyze_step(run_dir: Path) -> bool:
     return ANALYZE_STEP_ID in {step.id for step in template.steps}
 
 
+def mission_declares_wp_iteration(run_dir: Path) -> bool:
+    """True when the run's frozen runtime DAG declares the ``implement`` step (WP-driven).
+
+    The rule itself is ``kernel.mission_runtime_shape.step_ids_declare_wp_iteration``.
+    Like :func:`mission_declares_analyze_step` it reads the frozen template from
+    disk, so it lives here and not in the pure cores leaf; a missing or
+    unreadable template means "not WP-driven" (fail-closed).
+    """
+    try:
+        template = load_mission_template_file(run_dir / "mission_template_frozen.yaml")
+    except (OSError, MissionRuntimeError, ValueError):
+        return False
+    return step_ids_declare_wp_iteration(step.id for step in template.steps)
+
+
+def _wp_driven_fact(step_id: str, run_dir: Path | None, repo_root: Path | None, mission_slug: str) -> bool:
+    """The plain ``wp_driven`` fact for an ``implement``/``review`` snapshot.
+
+    Uses ``run_dir`` when given, else the run recorded for ``mission_slug`` (read-only,
+    never starts a run). Any other step, or an unresolvable run, is not WP-driven.
+    """
+    if step_id not in ("implement", "review"):
+        return False
+    if run_dir is None and repo_root is not None:
+        try:
+            run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
+        except (OSError, ValueError, RunDirOutsideRepoError, MissionSelectorAmbiguous, StatusReadPathNotFound):
+            return False
+    return run_dir is not None and mission_declares_wp_iteration(run_dir)
+
+
 def gather_artifact_presence(
     feature_dir: Path,
     *,
@@ -1453,6 +1487,7 @@ def gather_artifact_presence(
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
+    run_dir: Path | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1575,4 +1610,5 @@ def gather_artifact_presence(
         step_id=step_id,
         legacy_step_id=legacy_step_id,
         blocking_artifact_names=blocking_artifact_names,
+        wp_driven=_wp_driven_fact(step_id, run_dir, repo_root, feature_dir.name),
     )

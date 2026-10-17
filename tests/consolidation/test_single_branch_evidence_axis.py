@@ -239,3 +239,59 @@ def test_refusal_codes_reads_each_distinct_leading_code() -> None:
         reconciliation._SB_IMPLEMENTATION_MISSING,
         reconciliation._SB_REVIEW_NOT_INDEPENDENT,
     ]
+
+
+# ---------------------------------------------------------------------------
+# #6324 review nit (#5): single_branch_evidence_window takes assume_single_branch
+# to skip the redundant meta.json read when the caller already resolved topology.
+# ---------------------------------------------------------------------------
+
+
+def _write_single_branch_meta(feature_dir: Path) -> None:
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": "fx", "topology": "single_branch"}),
+        encoding="utf-8",
+    )
+
+
+def test_evidence_window_resolves_for_single_branch_meta(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
+
+    repo = _repo(tmp_path)
+    _write_single_branch_meta(repo / "kitty-specs" / "fx")
+    base = _git(repo, "rev-parse", "HEAD")
+    manifest = replace(_manifest(), planning_commit_sha=base)
+
+    assert is_single_branch_mission(repo, manifest) is True
+    assert single_branch_evidence_window(repo, manifest) == (base, "main")
+
+
+def test_evidence_window_assume_single_branch_skips_topology_read(tmp_path: Path) -> None:
+    """assume_single_branch=True computes the window without reading meta.json.
+
+    No meta.json is written, so ``is_single_branch_mission`` is False and the DEFAULT
+    path returns None; passing ``assume_single_branch=True`` (as a caller that already
+    confirmed topology does) bypasses that read and returns the manifest window.
+    """
+    from dataclasses import replace
+
+    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
+
+    repo = _repo(tmp_path)
+    base = _git(repo, "rev-parse", "HEAD")
+    manifest = replace(_manifest(), planning_commit_sha=base)
+
+    assert is_single_branch_mission(repo, manifest) is False  # no meta.json
+    assert single_branch_evidence_window(repo, manifest) is None
+    assert single_branch_evidence_window(repo, manifest, assume_single_branch=True) == (base, "main")
+
+
+def test_evidence_window_none_without_planning_commit_even_when_assumed(tmp_path: Path) -> None:
+    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+
+    repo = _repo(tmp_path)
+    manifest = _manifest()  # planning_commit_sha defaults to None
+    assert single_branch_evidence_window(repo, manifest, assume_single_branch=True) is None

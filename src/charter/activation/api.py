@@ -46,6 +46,13 @@ from charter.activation.mission_type_key import (
     read_mission_type as read_mission_type,
 )
 
+# Mission-type capability access — the substantive-spec requirement a consumer
+# (the resume-probe prerequisite) reads instead of reaching the activation
+# internals. Public per charter.activation.mission_type_profiles.__all__.
+from charter.activation.mission_type_profiles import (
+    requires_substantive_spec_for as requires_substantive_spec_for,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
@@ -53,4 +60,5 @@ from charter.activation.mission_type_key import (
 __all__ = [
     "canonical_mission_type_key",
     "read_mission_type",
+    "requires_substantive_spec_for",
 ]

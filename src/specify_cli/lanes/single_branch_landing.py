@@ -187,6 +187,16 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
     mission IS single_branch but its evidence window is uncomputable (a legacy ``lanes.json``
     with no ``planning_commit_sha``). The #5939 backstop uses this to fail CLOSED on that
     uncomputable case rather than silently no-opping it.
+
+    Scope of the #5939 fail-closed guarantee (#6324 review nit): the backstop fails CLOSED on
+    an uncomputable *evidence window*, not on *topology detection*. A mission whose ``meta.json``
+    is missing or malformed reads here as "not single_branch" (``load_meta_or_empty`` yields an
+    empty mapping), so the axis no-ops rather than refusing -- but that case never reaches the
+    axis unexploited: ``consolidate``'s earlier selector/identity/retention preflights hard-fail
+    on a corrupt or missing ``meta.json``, and an unmigrated single_branch mission with code
+    lanes trips ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED`` first. Topology is read STORED (never
+    derived), so this is deliberate: the axis does not re-derive topology from in-flight
+    ``lanes.json`` signals.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -196,7 +206,7 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
     return is_single_branch_meta(meta)
 
 
-def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[str, str] | None:
+def single_branch_evidence_window(repo: Path, manifest: LanesManifest, *, assume_single_branch: bool = False) -> tuple[str, str] | None:
     """``(planning_commit, mission_branch)`` implementation-evidence window for ANY single_branch mission, else ``None``.
 
     Unlike :func:`authorship_window` (the PROTECTED minted-branch case only, whose base is
@@ -212,8 +222,14 @@ def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[
     manifest cannot be windowed). A caller that must distinguish "not single_branch" from
     "single_branch but uncomputable" (the #5939 fail-closed backstop) pairs this with
     :func:`is_single_branch_mission`.
+
+    ``assume_single_branch`` (#6324 review nit): a caller that has *already* established the
+    STORED topology via :func:`is_single_branch_mission` passes ``True`` to skip the redundant
+    ``meta.json`` read here (the two reads otherwise duplicate the same ``load_meta_or_empty``).
+    The topology gate is unchanged for the default path; ``True`` is only ever passed right
+    after a positive :func:`is_single_branch_mission` on the same ``(repo, manifest)``.
     """
-    if not is_single_branch_mission(repo, manifest):
+    if not assume_single_branch and not is_single_branch_mission(repo, manifest):
         return None
     base = manifest.planning_commit_sha
     tip = manifest.mission_branch

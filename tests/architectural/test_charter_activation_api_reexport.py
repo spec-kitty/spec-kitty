@@ -32,6 +32,7 @@ pytestmark = pytest.mark.architectural
 _SEAM_TABLE: list[tuple[str, str]] = [
     ("canonical_mission_type_key", "charter.activation.mission_type_key"),
     ("read_mission_type", "charter.activation.mission_type_key"),
+    ("requires_substantive_spec_for", "charter.activation.mission_type_profiles"),
 ]
 
 

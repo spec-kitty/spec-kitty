@@ -1,0 +1,151 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M54G42259AN3NKS7JK71KMXN",
+  "materialized_at": "2026-10-17T08:37:12.389932+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-type-capability-contract-01M54BVT",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M54D0EAJVAWF7638M87JCGM1",
+      "last_transition_at": "2026-10-17T07:42:48.146310+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1655424,
+      "shell_pid_created_at": "1792222301.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M54ED7X1GKRY832A10M644QW",
+      "last_transition_at": "2026-10-17T08:07:16.129751+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1722834,
+      "shell_pid_created_at": "1792222982.11",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M54F9VD2HD8NSW5NAKJG7RJH",
+      "last_transition_at": "2026-10-17T08:22:53.602061+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1829647,
+      "shell_pid_created_at": "1792224442.2",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M54FNKSNW47VK9SPVVWCVPHX",
+      "last_transition_at": "2026-10-17T08:29:19.029187+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1974037,
+      "shell_pid_created_at": "1792225379.84",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M54G42259AN3NKS7JK71KMXN",
+      "last_transition_at": "2026-10-17T08:37:12.389932+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261017",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2043585,
+      "shell_pid_created_at": "1792225767.67",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}

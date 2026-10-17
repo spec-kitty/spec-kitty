@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-capability-contract-01M54BVT",
+  "mission_id": "01M54BVTZ0NAZBTRQYGX1TWKRC",
+  "mission_branch": "kitty/mission-mission-type-capability-contract-01M54BVT",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/offering/api.py",
+        "src/charter/offering/missions/mission_step_repository.py",
+        "src/charter/offering/missions/models.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "tests/charter/test_resolved_mission_type_context.py",
+        "tests/charter_offering/missions/test_mission_type_repository.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_check_prerequisites.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-17T07:31:32.345384+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "345db6fe32fc7c2cc0b7e18ed41c65079023136e"
+}

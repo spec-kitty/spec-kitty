@@ -16,6 +16,7 @@ reappearance guard; the enduring determinism assertions live here.
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
@@ -513,3 +514,73 @@ class TestGovernanceThunkSeversCoupling:
             "implement",
             "review",
         ]
+
+
+# ---------------------------------------------------------------------------
+# Capability facets: wp_driven (kernel rule) + requires_substantive_spec
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _StubPack:
+    pack_roots: tuple[Path, ...]
+    repo_root: Path
+
+
+class TestCapabilityFacets:
+    @pytest.mark.parametrize(
+        ("mission_type", "expected"),
+        [
+            ("software-dev", (True, True)),
+            ("research", (False, True)),
+            ("documentation", (False, False)),
+            ("plan", (False, False)),
+        ],
+    )
+    def test_builtin_capabilities(
+        self, tmp_path: Path, mission_type: str, expected: tuple[bool, bool]
+    ) -> None:
+        _write_config(tmp_path, [mission_type])
+        bundle = resolve_mission_type_context(tmp_path, mission_type=mission_type)
+        assert (bundle.wp_driven, bundle.requires_substantive_spec) == expected
+
+    @pytest.mark.parametrize("declared", [None, True])
+    def test_custom_type_capabilities(self, tmp_path: Path, declared: bool | None) -> None:
+        from charter.offering.missions.mission_type_repository import (
+            resolve_layered_mission_types,
+        )
+
+        org = tmp_path / "org"
+        (org / "mission_types").mkdir(parents=True)
+        extra = "" if declared is None else f"requires_substantive_spec: {str(declared).lower()}\n"
+        (org / "mission_types" / "qa.yaml").write_text(
+            f"schema_version: 1\nid: qa\ndisplay_name: Qa\n{extra}", encoding="utf-8"
+        )
+        (org / "missions" / "qa").mkdir(parents=True)
+        (org / "missions" / "qa" / "mission-runtime.yaml").write_text(
+            "mission:\n  key: qa\nsteps:\n"
+            + "".join(f"  - id: {s}\n    title: {s}\n" for s in ("specify", "implement", "review")),
+            encoding="utf-8",
+        )
+        ctx = _StubPack(pack_roots=(Path("/nonexistent-builtin-pack"), org), repo_root=org / "repo")
+        resolve_layered_mission_types.cache_clear()
+        with (
+            patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["qa"],
+            ),
+            patch("charter.activation.pack_context.PackContext.from_config", return_value=ctx),
+        ):
+            bundle = resolve_mission_type_context(tmp_path / "repo", mission_type="qa")
+        resolve_layered_mission_types.cache_clear()
+        assert bundle.wp_driven is True
+        assert bundle.requires_substantive_spec is bool(declared)
+
+    def test_existing_fields_still_present(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, ["software-dev"])
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert bundle.mission_type == "software-dev"
+        assert bundle.action_sequence
+        assert bundle.provenance
+        assert bundle.governance_text
+

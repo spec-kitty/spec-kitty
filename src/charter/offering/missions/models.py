@@ -263,6 +263,12 @@ class MissionType(BaseModel):
         unknown key raises ``ValueError`` at load time (fail-closed, not a
         warning — see mission
         ``mission-type-canonical-source-01M302V9`` WP02).
+    requires_substantive_spec:
+        Optional authored capability: ``True`` when a mission of this type must
+        carry a substantive (non-template) ``spec.md`` before it can advance.
+        ``None`` (unset) defers to the built-in default map in
+        ``charter.activation.mission_type_profiles`` (conservative ``False``
+        for a custom type).
 
     The former ``template_set`` field (a persisted, YAML-authorable mapping
     duplicating the step authority) was retired in the S-C atomic cutover
@@ -281,6 +287,7 @@ class MissionType(BaseModel):
     extends: str | None = None
     action_sequence: list[str] | None = None
     path_conventions: dict[str, str] | None = None
+    requires_substantive_spec: bool | None = None
 
     @field_validator("id")
     @classmethod

@@ -1587,7 +1587,7 @@ def build_approved_wp_set(
         lanes_manifest,
         work_packages,
         excluded_ids,
-        single_branch_evidence_window(repo_root, lanes_manifest) if sb_is_single_branch else None,
+        single_branch_evidence_window(repo_root, lanes_manifest, assume_single_branch=True) if sb_is_single_branch else None,
         is_single_branch=sb_is_single_branch,
     )
     if sb_evidence_refusal is not None:
@@ -2212,6 +2212,14 @@ def _single_branch_evidence_refusal(
     owned_by_wp = _sb_owned_files_by_wp(feature_dir, approved)
     from specify_cli.consolidation.preflight import _independent_reviewer_confirmed
 
+    # Axis (a) matches a WP's owned_files against EVERY path changed in the window, not against
+    # per-commit authorship (plain single_branch has no lane structure to attribute commits by).
+    # This rests on the disjoint-owner model: owned_files are non-overlapping across WPs, so a
+    # path that matches this WP's patterns was authored for this WP. If two WPs declared
+    # overlapping owned_files (a model violation), a hollow WP could pass axis (a) on a sibling's
+    # commit -- but axis (b) below still refuses it unless that hollow WP ALSO carries a distinct
+    # implementer/reviewer identity pair, and the #5939 P0 (whole-mission same-actor autowalk) is
+    # fully caught either way. owned_files accuracy is load-bearing for both layers (#6324 review).
     lines: list[str] = []
     for wp in approved:
         patterns = owned_by_wp.get(wp, ())
@@ -2267,7 +2275,7 @@ def single_branch_evidence_refusal(
 
     if not is_single_branch_mission(repo_root, lanes_manifest):
         return None
-    window = single_branch_evidence_window(repo_root, lanes_manifest)
+    window = single_branch_evidence_window(repo_root, lanes_manifest, assume_single_branch=True)
     snapshot = materialize_snapshot(feature_dir)
     return _single_branch_evidence_refusal(
         repo_root,

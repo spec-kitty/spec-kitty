@@ -493,7 +493,8 @@ def _check_composed_action_guard(
         repo_root=repo_root,
         owned=owned,
     )
-    if mission == "software-dev" and action in ("implement", "review"):
+    # WP-driven = the built-in software-dev or any family whose runtime DAG declares ``implement``.
+    if action in ("implement", "review") and (mission == "software-dev" or snapshot.wp_driven):
         # _should_advance_wp_step is owned by runtime_bridge_guards (#2560); a
         # test patches it there.
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
