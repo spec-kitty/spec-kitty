@@ -3800,6 +3800,25 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md"
+    title: "ADR: the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run"
+    divio_type: "none"
+    abstract: "An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "0-module-directory-placement-stays-in-specify-cli-upgrade", text: "0. Module / directory placement — stays in `specify_cli/upgrade`", level: 3}
+    - {slug: "1-ledger-location-authority-two-partitions", text: "1. Ledger location & authority — two partitions", level: 3}
+    - {slug: "2-declared-ordering-a-checked-in-order-manifest", text: "2. Declared ordering — a checked-in order manifest", level: 3}
+    - {slug: "3-selection-ledger-diff-replaces-the-version-window", text: "3. Selection — ledger-diff replaces the version window", level: 3}
+    - {slug: "4-drift-detection-audit-report-only-never-auto-reapply", text: "4. Drift detection — audit/report only, never auto-reapply", level: 3}
+    - {slug: "5-visibility-one-pending-source-two-read-surfaces", text: "5. Visibility — one pending-source, two read surfaces", level: 3}
+    - {slug: "6-adoption-backfill-hard-cutover-detect-gated-for-clone-local", text: "6. Adoption / backfill — hard cutover, detect-gated for clone-local", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "touchpoints", text: "Touchpoints", level: 2}
+    - {slug: "follow-up-child-issues-spike-5230-output-epic-2933", text: "Follow-up child issues (spike #5230 output, epic #2933)", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
