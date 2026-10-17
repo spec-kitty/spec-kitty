@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-16T20:25:13.604470Z",
+      "decision_id": "01M5367RM475M2RQA5WNE451Q4",
+      "final_answer": "one-kind-per-family: new PRIMARY kinds MISSION_GOALS (goals.md), OCCURRENCE_MAP (occurrence_map.yaml), RELEASE_RECORD (release.md), RESEARCH_OUTPUT (findings/report/methodology/synthesis/literature-review); reuse RESEARCH for research/ subtree (dir-anchored), ANALYSIS_REPORT for gap-analysis.md + audit-report.md, PRIMARY_METADATA for meta.json. All PRIMARY partition.",
+      "input_key": "kind_granularity",
+      "mission_id": "01M5365S25STVBPMG14B0QGP50",
+      "mission_slug": "artifact-none-single-meaning-01M5365S",
+      "opened_by": "cli",
+      "options": [
+        "reuse-where-honest",
+        "one-kind-per-family",
+        "one-kind-per-file"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When classifying the ~12 unclassified PRIMARY mission files, how granular should new MissionArtifactKind members be? Reuse existing kinds where honest, mint new kinds only where no honest reuse exists?",
+      "rationale": null,
+      "resolved_at": "2026-10-17T04:54:20.161932Z",
+      "resolved_by": null,
+      "slot_key": "specify.classifier.kind-granularity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5365S25STVBPMG14B0QGP50",
+  "version": 1
+}

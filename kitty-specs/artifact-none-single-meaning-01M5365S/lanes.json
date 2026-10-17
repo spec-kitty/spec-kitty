@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "mission_slug": "artifact-none-single-meaning-01M5365S",
+  "mission_id": "01M5365S25STVBPMG14B0QGP50",
+  "mission_branch": "kitty/mission-artifact-none-single-meaning-01M5365S",
+  "target_branch": "fix/artifact-none-single-meaning",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "tests/mission_runtime/test_artifact_none_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/consolidation/bookkeeping_projection.py",
+        "tests/architectural/test_none_meaning_single_authority.py",
+        "tests/consolidation/test_git_probes_git_paths.py",
+        "tests/consolidation/test_projection_excludes_plan_outputs.py",
+        "tests/specify_cli/cli/commands/agent/test_partition_paths_by_primary_kind.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/artifact-placement-seam.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-17T05:15:39.534889+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "b20a4604b088f82b7b78970475f3a6fad1affd36"
+}

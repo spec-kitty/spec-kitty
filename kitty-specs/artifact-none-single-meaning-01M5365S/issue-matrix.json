@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2533": {
+      "evidence_ref": "Context-only: #2533 established the write-side 'None routes PRIMARY unconditionally' authority the fix aligns the two dissenters with; prior work, this mission owes it none",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5552": {
+      "evidence_ref": "PR #5678 fixed the scoped quickstart/contracts part; #5552 CLOSED; this mission extends the class",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5669": {
+      "evidence_ref": "Context-only citation: #5669 keep-local ruling is why mission-events.jsonl stays unclassified; this mission owes #5669 no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5697": {
+      "evidence_ref": "WP02 routes the two None->coord dissenters through is_coordination_kind_file; regression repro test_unclassified_artifacts_are_not_projected_as_coordination_records_5697 RED->GREEN",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5847": {
+      "evidence_ref": "Distinct projection-window bug; triage (#5697 comment, Ivan-Melck) states fixing one does not fully fix the other; explicitly out of scope (C-001)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

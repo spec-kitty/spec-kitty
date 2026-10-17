@@ -1,0 +1,23 @@
+{
+  "baseline_merge_commit": "895d1c98c56042a7a1b727f6d7350186a464b4d9",
+  "contracts": "none",
+  "contracts_rationale": "This mission changes an internal classification taxonomy (artifact kind partition). It defines no new API/interface contracts; the authoritative path->kind->partition table lives in data-model.md.",
+  "created_at": "2026-10-16T20:24:08.617531+00:00",
+  "flattened": true,
+  "friendly_name": "One meaning for an unclassified mission artifact",
+  "merged_at": "2026-10-17T06:05:00.010842+00:00",
+  "merged_commit": "a652296d5536e1beb37f68dc94b039c1523fbfa1",
+  "mid8": "01M5365S",
+  "mission_id": "01M5365S25STVBPMG14B0QGP50",
+  "mission_number": 233,
+  "mission_slug": "artifact-none-single-meaning-01M5365S",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a Mission writes a file the artifact-kind classifier does not recognise, parts of Spec Kitty disagree about where that file lives: the write side keeps it with the mission on the primary branch, but squash consolidation treats it as coordination bookkeeping and can refuse a correct merge on byte-identical content. This mission gives every unclassified artifact one agreed meaning across all consumers and classifies the mission files that were silently unclassified, so consolidation stops failing on content it should accept.",
+  "purpose_tldr": "Stop squash consolidation refusing byte-identical mission files the kind classifier left unclassified.",
+  "slug": "artifact-none-single-meaning-01M5365S",
+  "status_phase": "1",
+  "target_branch": "fix/artifact-none-single-meaning",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-17T05:17:33.072325+00:00"
+}
