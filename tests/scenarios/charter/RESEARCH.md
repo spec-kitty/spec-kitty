@@ -53,17 +53,25 @@ transcribed.
   (`src/charter/offering/artifact_kinds.py` FR-005); the default-in-force rule
   (an absent activation key is the unrestricted "all" state for every kind
   except `skill`).
-- **PR-CHARTER-GOVERNANCE-002** — Registering a shared pack does not silently add
+  _Authored as GOVERNANCE-001 in its skill-specific, witnessable form below. The
+  fully general "chosen subset vs every available artifact" case is DEFERRED: on a
+  default project in-force == available for every kind except `skill`, so a strict
+  subset cannot be witnessed without a non-default selection — the #6137 selection
+  fixture._
+- **PR-CHARTER-GOVERNANCE-001** (authored) — Sharing a pack does not silently add
   its commands to every tool; a skill is in force only when the charter requires
-  or selects it.
-  Evidence: `effective_when_absent == "required"` for `skill` (ADR
-  `2026-09-27-1`); "default in force" = org `required_skills` + built-in defaults,
-  not every available skill.
-- **PR-CHARTER-GOVERNANCE-003** — An org pack's required selections are honoured
-  on top of what the project chose (selection overlay).
+  or selects it, not merely because a pack offers it.
+  Evidence: `effective_when_absent == "required"` for `skill` (ADR `2026-09-27-1`);
+  the in-force skill set is the required set, not every available skill. Witnessed
+  honestly: a team pack OFFERS a skill without requiring it → the skill is in
+  `charter list --all` (available) but not in `charter list` (in force).
+- **PR-CHARTER-GOVERNANCE-002** (authored; research add) — A team's org-wide
+  requirement is honoured on top of the project's own choices (selection overlay).
   Evidence: `ArtifactKind.selection_overlayable` and the org `required_<plural>` →
   `selected_<plural>` union (`artifact_kinds.py`,
-  `src/charter/activation/org_charter.py`).
+  `src/charter/activation/org_charter.py`). The evidence fact is offering-owned; the
+  union is applied during generation/synthesis, so the scenario synthesizes WITH the
+  org pack present, then reads `charter list`.
 
 ### REFUSAL — the system refuses unsound governance with a clear reason
 
@@ -94,19 +102,26 @@ transcribed.
   reported healthy even if DRG counts are valid
   (`src/charter/offering/agent_profiles/repository.py`,
   `src/specify_cli/cli/commands/_charter_pack_health.py`).
-- **PR-CHARTER-SHARING-002** — When a project and an org pack both speak to the
-  same governance, the project's choice is the one in force.
+- **PR-CHARTER-SHARING-002** (`@wip`) — When a project and an org pack both speak to
+  the same governance, the project's choice is the one in force.
   Evidence: layered repository resolution (`has_layered_repository`, 11 kinds);
   project overrides org/built-in (`drg/merge.py` override machinery, ADR
-  `2026-05-16-1`).
-- **PR-CHARTER-SHARING-003** — A shared skill must declare a safe namespace; a
-  reserved or malformed one is refused with a reason.
+  `2026-05-16-1`). `@wip` because witnessing that the project's choice WINS (not just
+  that its rule is present) needs the black-box override + layer-provenance fixture
+  tracked by #6137.
+- **PR-CHARTER-SHARING-003** — A shared skill under a reserved namespace is not
+  accepted as sound.
   Evidence: reserved prefixes `spk-` / `spec-kitty-` / `spec-kitty.` and the
   namespace grammar (`src/charter/activation/org_charter.py`,
-  `skill_preparation.require_valid_skill_namespace`; ADR `2026-09-27-1`). NOTE:
-  this validation sits in `charter.activation`, which extracts later, so this
-  promise is captured but its step stays `@wip` until the activation-layer
-  fixture exists.
+  `skill_preparation.require_valid_skill_namespace`; ADR `2026-09-27-1`). Witnessed
+  via the offering surface `doctor charter-packs` (pack-health), not via an
+  activation command, so no excluded activation behaviour is authored; if the
+  namespace check does not surface in pack-health it is red for a real reason.
+- **PR-CHARTER-SHARING-004** (research add) — A shared asset that reaches outside its
+  own pack folder is not accepted as sound.
+  Evidence: `AssetPathEscapeError` fail-closed (NFR-006) —
+  `src/charter/offering/assets/repository.py`. A genuine, offering-owned trust
+  guarantee; witnessed via `doctor charter-packs`.
 
 ## Litmus — demoted to the Python/e2e mechanism tier (not authored)
 
@@ -119,25 +134,45 @@ transcribed.
   state; mechanism tier.
 - "composition resolves the way I expect" — too broad for a step to witness;
   dropped per the procedure.
+- Partial-override field-merge + a "your override shadows a shipped one" warning
+  (ADR `2026-05-16-1`) — the field-preservation half drifts toward "composition
+  resolves the way I expect"; the warning half is an affordance echo. Mechanism tier.
+- Model→task-type routing (`charter.offering.api` → `model_task_routing.evaluate`) —
+  reduces to a catalog lookup; a separate governed "routing" sense, not
+  governance-in-force. Mechanism tier.
+- The artifact-placement layout gate (ADR `2026-07-26-2`) and the DRG-edges-as-sole-
+  authority mechanism (ADR `2026-07-26-1`) — authoring-time / file-layout, explicitly
+  excluded. Skipped.
+- The public-surface "a consumer pinned to the seam survives the split" guarantee
+  (ADR `2026-10-12-2` / `2026-10-16-1`) — this is the **Python public-surface import-
+  conformance** tier that #6286's own DoD owns; wrong tier for a BDD scenario. Skipped.
 
 ## Step-library plan (and the real cost)
 
-The binding cost is the Java step library + its black-box governance fixture.
-Existing steps (`ArrangeSteps`/`AssumeSteps`/`ActSteps`/`AssertSteps`) are
-command-centric (`When I run "<cmd>"`, `Then the output mentions "<text>"`); the
-styleguide wants **outcome-verb** steps (`Then the governance in force
-includes <...>`, `Then the system refuses with a reason naming <...>`). Those need
-new step definitions plus a governance-fixture builder that arranges a charter in
-a known state **only by running the CLI** (constraint C-002, as `MissionFixture`
-already does for missions).
+The binding cost is the Java step library + its black-box governance fixture. The
+existing arrange steps (interview / generate / synthesize) are reused; the new
+`CharterSteps` adds a small, coarse, **outcome-verb** vocabulary (`the author checks
+the shared governance is sound`, `the governance in force is only what the charter
+puts in force`, `the system refuses with a clear reason`) plus a thin team-pack
+fixture that authors a user-authored pack and registers it — all **by running the
+CLI / authoring user content** (constraint C-002), never by writing CLI-managed
+state.
 
-This directly depends on the black-box fixture-builder work tracked in **#6137**
-(Mission/governance fixtures, still in triage, owned by the operator). Per the
-procedure, standing up broad new step infrastructure vs authoring `@wip` and
-deferring is an **operator decision** — surfaced before any step infra is built.
-Recommended first bound-and-green area: **REFUSAL** (most behavioural, already
-covered by the fast charter tests, lowest fixture cost — a refusal is observed
-from the command's failure + reason, needing no rich success-state fixture).
+**Honest wiring (the review-driven correction):** each Act drives the command that
+actually performs the governed check. `charter synthesize` on a fresh project takes
+the seed path and evaluates nothing, so it is NOT the witness for pack soundness;
+`doctor charter-packs` is — it exits non-zero (not healthy) on an invalid profile,
+an org-DRG error (a dangling edge), an unhealthy skill/asset surface. Broken-charter
+fail-closed is witnessed by `charter synthesize` on a corrupt `charter.yaml`;
+in-force membership by `charter list` vs `charter list --all`.
+
+The operator ruled **bind all** (green not required; red acceptable only for a real
+reason). Eight scenarios are bound to a real step; one — `SHARING-002` (project's
+choice WINS over an org pack) — is `@wip` because a correct witness needs the
+override + layer-provenance fixture tracked by **#6137** (owned by the operator),
+and binding it to a weaker check would pass even when the org pack won (dishonest).
+No scenario is stubbed; a bound scenario that is red in the nightly is red for a
+documented real reason, not a fake one.
 
 ## Traceability + honesty
 

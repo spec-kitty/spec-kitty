@@ -14,7 +14,7 @@ One folder per CLI area, one or more `.feature` files per folder:
 | Folder | Covers |
 |--------|--------|
 | `consolidate/` | `spec-kitty consolidate`: refusing under sparse-checkout, and `--abort` without touching the user's own git merge |
-| `charter/` | `spec-kitty charter`: synthesizing a fresh project and the freshness of each layer |
+| `charter/` | `spec-kitty charter`: synthesizing a fresh project and the freshness of each layer, plus the charter-offering consumer-outcome subtree (`governance-in-force/`, `refuses-unsound-governance/`, `share-governance-safely/`) — what governance a user chose, that unsound governance is refused, and that sharing is safe; mapped to offering FR/ADR in `charter/PROMISES.md` |
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
 | `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
@@ -62,6 +62,17 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Arrange | `Given the charter interview has been answered with its defaults` |
 | Arrange | `Given a charter has been generated from the interview` |
 | Arrange | `Given the charter has been synthesized` |
+| Arrange | `Given the project shares governance through a team pack` |
+| Arrange | `Given the project shares governance through a team pack speaking to a rule` |
+| Arrange | `Given the team pack offers a skill it does not require` |
+| Arrange | `Given the team pack requires a rule the project did not select` |
+| Arrange | `Given the team pack carries a profile that is not sound` |
+| Arrange | `Given the team pack shares a skill under a reserved name` |
+| Arrange | `Given the team pack ships an asset that points outside its own folder` |
+| Arrange | `Given the project's own governance speaks to the same rule differently` |
+| Arrange | `Given the shared governance would silently drop part of a profile` |
+| Arrange | `Given one piece of governance points at another by a name that does not exist` |
+| Arrange | `Given the charter has been left in a broken state` |
 | Assume | `Given the folder "<path>" is present` |
 | Assume | `Given the file "<path>" is present` |
 | Assume | `Given the repository has at least one commit` |
@@ -69,6 +80,9 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assume | `Given the file "<path>" of mission "<name>" on the coordination branch is recorded` |
 | Assume | `Given the tip of the mission branch of mission "<name>" is recorded` |
 | Act | `When I run "<command line>"` |
+| Act | `When the author sets up the governance` |
+| Act | `When the author asks what governs the work` |
+| Act | `When the author checks the shared governance is sound` |
 | Assert | `Then the command succeeds` |
 | Assert | `Then the command fails` |
 | Assert | `Then the command exits with code <n>` |
@@ -125,6 +139,11 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then no "<name>" folder exists in "<path>"` |
 | Assert | `Then the repository HEAD is unchanged` |
 | Assert | `Then the repository has no new commits` |
+| Assert | `Then the system refuses with a clear reason` |
+| Assert | `Then the governance in force is only what the charter puts in force` |
+| Assert | `Then the governance in force includes the team's required rule` |
+| Assert | `Then the shared governance is not reported healthy` |
+| Assert | `Then the project's own choice is the governance in force` |
 
 Paths are relative to the scenario's working directory. "Unchanged" compares against
 the state an Assume step recorded. "The output" is stdout and stderr together, compared with
