@@ -38,7 +38,14 @@ def registry() -> Iterator[type[MigrationRegistry]]:
         MigrationRegistry._migrations.update(saved)
 
 
-def _planted(name: str, target: str, *, first: bool = False, detected: bool = False) -> type[BaseMigration]:
+def _planted(
+    name: str,
+    target: str,
+    *,
+    first: bool = False,
+    detected: bool = False,
+    clone_local: bool = False,
+) -> type[BaseMigration]:
     """A planted migration class (not registered)."""
 
     class Planted(BaseMigration):
@@ -46,6 +53,7 @@ def _planted(name: str, target: str, *, first: bool = False, detected: bool = Fa
         description = f"planted {name}"
         target_version = target
         runs_first = first
+        clone_local_effect = clone_local
 
         def detect(self, project_path: Path) -> bool:
             return detected or (project_path / LEGACY_MARKER).exists()
@@ -214,6 +222,124 @@ def test_runner_skips_recorded_runs_first_without_structural_state(registry: typ
     assert applied == []
     assert skipped == [FIRST_ID]
     assert not (project / f"applied-{FIRST_ID}.txt").exists()
+
+
+# --------------------------------------------------------------------------------------
+# Selection: get_applicable pulls a sub-current clone-local migration back in (#6233)
+# --------------------------------------------------------------------------------------
+
+
+def test_subcurrent_clone_local_recorded_but_absent_is_selected(registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """A pulled clone (from==to==current) must still select a sub-current clone-local
+    migration whose effect is locally absent -- the version window excludes it, so the
+    skip-gate route is never reached without a selection-layer escape hatch."""
+    registry.register(_planted("planted_clone_local_sub", "0.13.1", clone_local=True, detected=True))
+    project = _project(tmp_path, "4.0.0rc7", recorded=("planted_clone_local_sub",))
+
+    assert _ids(registry.get_applicable("4.0.0rc7", "4.0.0rc7", project_path=project)) == ["planted_clone_local_sub"]
+
+
+def test_subcurrent_clone_local_with_effect_present_is_not_selected(registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """Once the clone-local effect is present (detect() False) the migration settles out."""
+    registry.register(_planted("planted_clone_local_settled", "0.13.1", clone_local=True, detected=False))
+    project = _project(tmp_path, "4.0.0rc7", recorded=("planted_clone_local_settled",))
+
+    assert registry.get_applicable("4.0.0rc7", "4.0.0rc7", project_path=project) == []
+
+
+def test_subcurrent_clone_local_unrecorded_stays_out(registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """Recorded-gating (prevents the no-op-contract regression): a sub-current clone-local
+    migration the ledger never recorded keeps the version-window authority and is NOT
+    re-selected, even with detect() True -- only a recorded-but-absent ledger entry (the
+    pulled-clone case) re-selects it."""
+    registry.register(_planted("planted_clone_local_unrec", "0.13.1", clone_local=True, detected=True))
+    project = _project(tmp_path, "4.0.0rc7")  # nothing recorded
+
+    assert registry.get_applicable("4.0.0rc7", "4.0.0rc7", project_path=project) == []
+
+
+def test_subcurrent_tracked_recorded_migration_stays_out(registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """Safety guard (critical): a sub-current TRACKED (non-clone-local) recorded migration
+    must NOT be re-selected even with detect() True -- the shared ledger stays authoritative."""
+    registry.register(_planted("planted_tracked_sub", "0.13.1", clone_local=False, detected=True))
+    project = _project(tmp_path, "4.0.0rc7", recorded=("planted_tracked_sub",))
+
+    assert registry.get_applicable("4.0.0rc7", "4.0.0rc7", project_path=project) == []
+
+
+def test_clone_local_selected_in_version_order_not_front(registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """Clone-local migrations are NOT runs_first: they land in normal version order among
+    the non-first bucket, behind the runs_first migration which still leads."""
+    registry.register(_planted("planted_clone_local_sub", "0.13.1", clone_local=True, detected=True))
+    registry.register(_planted("planted_window_mig", "4.1.0"))  # in-window, version 4.1.0
+    registry.register(_planted(FIRST_ID, "4.0.0", first=True, detected=True))
+    # The sub-current clone-local branch is recorded-gated (the pulled-clone case #6233 targets).
+    project = _project(tmp_path, "4.0.0rc7", recorded=("planted_clone_local_sub",))
+
+    # runs_first leads; then the sub-current clone-local (0.13.1) precedes the in-window (4.1.0).
+    assert _ids(registry.get_applicable("4.0.0rc7", "4.2.0", project_path=project)) == [
+        FIRST_ID,
+        "planted_clone_local_sub",
+        "planted_window_mig",
+    ]
+
+
+def test_detector_preview_reflects_subcurrent_clone_local_selection(registry: type[MigrationRegistry], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preview parity: the detector's applicable_migrations mirrors get_applicable, so a
+    --dry-run truthfully reports a sub-current clone-local migration that would re-apply."""
+    import specify_cli.upgrade.migrations as migrations_pkg
+    from specify_cli.upgrade.detector import VersionDetector
+
+    monkeypatch.setattr(migrations_pkg, "auto_discover_migrations", lambda: None)
+    registry.register(_planted("planted_clone_local_sub", "0.13.1", clone_local=True, detected=True))
+    project = _project(tmp_path, "4.0.0rc7", recorded=("planted_clone_local_sub",))
+
+    previewed = _ids(VersionDetector(project).applicable_migrations("4.0.0rc7"))
+    assert previewed == ["planted_clone_local_sub"]
+
+
+# --------------------------------------------------------------------------------------
+# Runner: clone-local effect routes the recorded-skip decision to per-clone detect() (#6233)
+# --------------------------------------------------------------------------------------
+
+
+def test_runner_reapplies_recorded_clone_local_when_effect_absent(tmp_path: Path) -> None:
+    """A recorded clone-local migration is re-applied when THIS checkout lacks the effect."""
+    migration = _planted("planted_clone_local", "3.1.0", detected=True, clone_local=True)()
+    project = _project(tmp_path, "3.1.0", recorded=("planted_clone_local",))
+
+    # detect() True (effect absent) -> the recorded ledger must NOT settle it.
+    assert migration.reselect_when_recorded(project) is True
+
+    _result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+    assert status == "applied"
+    assert (project / "applied-planted_clone_local.txt").exists()
+
+
+def test_runner_skips_recorded_clone_local_when_effect_present(tmp_path: Path) -> None:
+    """Over-correction guard: a clone-local migration whose effect is present stays skipped."""
+    # detect() False -> effect already present on this checkout.
+    migration = _planted("planted_clone_local_settled", "3.1.0", detected=False, clone_local=True)()
+    project = _project(tmp_path, "3.1.0", recorded=("planted_clone_local_settled",))
+
+    assert migration.reselect_when_recorded(project) is False
+
+    _result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+    assert status == "skipped"
+
+
+def test_runner_skips_recorded_tracked_effect_migration(tmp_path: Path) -> None:
+    """Regression pin: a TRACKED-effect migration (default flag) stays recorded-once-and-skipped."""
+    # detect() True but NOT clone-local: the recorded ledger remains authoritative.
+    migration = _planted("planted_tracked", "3.1.0", detected=True)()
+    project = _project(tmp_path, "3.1.0", recorded=("planted_tracked",))
+
+    assert migration.clone_local_effect is False
+    assert migration.reselect_when_recorded(project) is False
+
+    _result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+    assert status == "skipped"
+    assert not (project / "applied-planted_tracked.txt").exists()
 
 
 # --------------------------------------------------------------------------------------
