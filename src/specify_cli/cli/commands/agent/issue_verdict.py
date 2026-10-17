@@ -47,8 +47,14 @@ from typing import TYPE_CHECKING, Annotated, Any
 import typer
 
 from mission_runtime import MissionArtifactKind, coord_read_dir_for
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    resolve_owned_or_refuse,
+    success_false_envelope,
+)
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 from specify_cli.core.paths import locate_project_root
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import (
@@ -68,6 +74,7 @@ from specify_cli.tasks.issue_matrix_migration import (
 )
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
 #: FR-011 deferred-surface disclosure referenced by every write-routing result
@@ -118,7 +125,7 @@ def _validate_verdict(verdict: str) -> str:
     return verdict
 
 
-def _resolve_read_dir(repo_root: Path, mission_slug: str, feature_dir: Path) -> Path:
+def _resolve_read_dir(repo_root: Path, mission_slug: str, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the coord-aware read surface for ``issue-matrix.json``.
 
     Falls back to the primary ``feature_dir`` for coord-less topologies or a
@@ -129,10 +136,10 @@ def _resolve_read_dir(repo_root: Path, mission_slug: str, feature_dir: Path) -> 
     never as the locked critical section's re-read/write surface, which is
     :func:`_resolve_write_dir` (binding correction, lost-update fix).
     """
-    return coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
+    return coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX, owned=owned) or feature_dir
 
 
-def _resolve_write_dir(repo_root: Path, mission_slug: str) -> Path:
+def _resolve_write_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the ONE write-location authority's dir for ``issue-matrix.json``.
 
     Binding correction (lost-update fix, mirrors ``acceptance/matrix.py``'s
@@ -147,7 +154,7 @@ def _resolve_write_dir(repo_root: Path, mission_slug: str) -> Path:
     """
     from mission_runtime import placement_seam
 
-    location = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.ISSUE_MATRIX)
+    location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.ISSUE_MATRIX)
     return location.path
 
 
@@ -174,6 +181,7 @@ def _migrate_if_needed(
     mission_slug: str,
     feature_dir: Path,
     actor: str,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[Path, bool]:
     """Migrate a legacy ``.md``-only mission on this first structured write (FR-013).
 
@@ -191,7 +199,7 @@ def _migrate_if_needed(
         and ``migrated`` is ``True`` only when a genuine legacy-to-JSON
         conversion was committed by this call.
     """
-    read_dir = _resolve_read_dir(repo_root, mission_slug, feature_dir)
+    read_dir = _resolve_read_dir(repo_root, mission_slug, feature_dir, owned=owned)
     if (read_dir / ISSUE_MATRIX_JSON_FILENAME).exists():
         return read_dir, False
 
@@ -212,7 +220,7 @@ def _migrate_if_needed(
     migrated = migrate_result is not None and migrate_result.status == "committed"
     # Re-resolve: a first coord-routed write may have materialized the
     # coordination worktree that did not exist a moment ago.
-    return _resolve_read_dir(repo_root, mission_slug, feature_dir), migrated
+    return _resolve_read_dir(repo_root, mission_slug, feature_dir, owned=owned), migrated
 
 
 def _resolve_issue_row_update(
@@ -272,6 +280,7 @@ def _locked_reread_splice_and_write(
     updated_entry: IssueMatrixEntry,
     policy: ProtectionPolicyLike,
     actor: str,
+    owned: OwnedCheckout | None = None,
 ) -> WriteSeamResult:
     """#4884 -- the locked re-read + single-row splice + write+commit critical section.
 
@@ -317,6 +326,7 @@ def _locked_reread_splice_and_write(
             policy=policy,
             actor=actor,
             matrix_dir=matrix_dir,
+            owned=owned,
         )
 
 
@@ -330,6 +340,7 @@ def do_issue_verdict(
     evidence_ref: str | None = None,
     repo_root: Path | None = None,
     json_mode: bool = False,
+    owned_checkout: Path | None = None,
 ) -> dict[str, object]:
     """Pure orchestration core for ``issue-verdict`` -- no typer dependency.
 
@@ -360,9 +371,27 @@ def do_issue_verdict(
     issue_ref = _normalize_issue_ref(issue)
 
     root = repo_root if repo_root is not None else (locate_project_root() or Path.cwd())
-    resolved = resolve_mission_handle(mission, root, json_mode=json_mode)
-    mission_slug = resolved.mission_slug
-    feature_dir = resolved.feature_dir
+    # owned-checkout-lifecycle-authority (#6320, mirrors #6023): validate
+    # ownership exactly once (explicit ``--owned-checkout`` or flagless adoption
+    # of an owned caller checkout) and carry the fact through the write-target
+    # gate, read/write dirs and the writer. A non-owned run resolves ``None``
+    # and keeps the repository-root path byte-identical.
+    owned = resolve_owned_or_refuse(
+        root,
+        owned_checkout,
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=json_mode,
+        envelope=success_false_envelope,
+    )
+    if owned is not None:
+        mission_slug = owned.mission_slug
+        feature_dir = owned.mission_dir
+    else:
+        resolved = resolve_mission_handle(mission, root, json_mode=json_mode)
+        mission_slug = resolved.mission_slug
+        feature_dir = resolved.feature_dir
 
     # FR-007 / #4970: resolve the WRITE surface through the FAIL-CLOSED resolver
     # up-front, BEFORE the degrading read-dir resolution / migration below. On a
@@ -376,14 +405,14 @@ def do_issue_verdict(
     from specify_cli.coordination.surface_resolver import resolve_for_write
 
     try:
-        resolve_for_write(root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+        resolve_for_write(root, mission_slug, MissionArtifactKind.ISSUE_MATRIX, owned=owned)
     except ActionContextError as exc:
         raise IssueVerdictError(str(exc), code="coord_surface_unmaterialized") from exc
 
     # #4868's concern: migration is a slow, one-shot legacy-.md conversion --
     # it stays OUTSIDE the lock, exactly like #4858 keeps the pre-lock
     # existence check outside its own critical section.
-    _read_dir, migrated = _migrate_if_needed(repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor)
+    _read_dir, migrated = _migrate_if_needed(repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor, owned=owned)
 
     # Binding correction (lost-update fix): resolve the ONE write-location
     # authority ONCE here, AFTER migration and BEFORE the lock, and reuse it
@@ -393,7 +422,7 @@ def do_issue_verdict(
     # ``read_dir`` for these (that resolver's EMPTY/UNMATERIALIZED fallback to
     # the primary ``feature_dir`` can diverge from where the write actually
     # lands).
-    matrix_dir = _resolve_write_dir(root, mission_slug)
+    matrix_dir = _resolve_write_dir(root, mission_slug, owned=owned)
 
     # The candidate row's VALUE never depends on locking (see
     # ``_resolve_issue_row_update``'s docstring) -- computed once, here,
@@ -411,6 +440,7 @@ def do_issue_verdict(
             updated_entry=updated_entry,
             policy=policy,
             actor=actor,
+            owned=owned,
         )
     except FeatureStatusLockTimeoutError as exc:
         # #4884 (mirrors #4858's C-012/FR-015): fail CLOSED on a lock-
@@ -471,6 +501,7 @@ def issue_verdict_command(
             ),
         ),
     ] = None,
+    owned_checkout: OwnedCheckoutOption = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format.")] = False,
 ) -> None:
     """Set an issue-matrix row's verdict, routed via ``write_target(ISSUE_MATRIX)``."""
@@ -483,6 +514,7 @@ def issue_verdict_command(
             wp=wp,
             evidence_ref=evidence_ref,
             json_mode=json_output,
+            owned_checkout=owned_checkout,
         )
     except IssueVerdictError as exc:
         error_payload = {"error": str(exc), "code": exc.code}

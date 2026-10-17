@@ -2964,6 +2964,8 @@ def coord_read_dir_for(
     repo_root: Path,
     mission_slug: str,
     kind: MissionArtifactKind,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> Path | None:
     """Resolve the COORDINATION read dir for a coord-classified ``kind``, or ``None``.
 
@@ -3002,7 +3004,7 @@ def coord_read_dir_for(
     )
 
     try:
-        resolved = resolve_artifact_surface(repo_root, mission_slug, kind)
+        resolved = resolve_artifact_surface(repo_root, mission_slug, kind, owned=owned)
     except (StatusReadPathNotFound, MissionSelectorAmbiguous, ActionContextError):
         # ``CoordinationBranchDeleted`` subclasses ``StatusReadPathNotFound``, so it
         # is absorbed here too — preserving this guard's historical ``None``-for-
