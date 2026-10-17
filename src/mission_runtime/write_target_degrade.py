@@ -37,6 +37,8 @@ from mission_runtime.resolution import (
 )
 
 if TYPE_CHECKING:
+    from mission_runtime.owned_checkout import OwnedCheckout
+
     # Type-checking-only: satisfies the ``StatusReadPathNotFound`` annotation
     # below without a real module-level import (see the deferred-import note
     # further down for why a runtime module-level import here is unsafe).
@@ -84,6 +86,7 @@ def resolve_write_target_or_degrade(
     *,
     degrade_ref: str | None,
     terminus_write: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> CommitTarget:
     """Resolve write target via the placement port, or degrade to a caller-supplied ref.
 
@@ -114,6 +117,11 @@ def resolve_write_target_or_degrade(
             :func:`assert_coord_write_materialized`, refusing the wrong-surface write
             #4970 exploits. Default ``False`` preserves every existing (fail-open /
             fail-closed-via-``degrade_ref``) caller byte-identically.
+        owned: Optional validated owned-checkout fact (#6320). When given, the
+            ``meta.json`` existence gate reads the OWNED checkout's meta (an
+            owned-only mission has none at ``repo_root``) and the fact is
+            threaded to placement resolution and the coord-materialization
+            gate. ``None`` (default) keeps every existing caller unchanged.
 
     Returns:
         A ``CommitTarget`` resolved for ``kind`` through the placement port, or
@@ -143,14 +151,14 @@ def resolve_write_target_or_degrade(
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None = None
-    if _mission_meta_exists(repo_root, mission_slug):
+    if _mission_meta_exists(repo_root, mission_slug, owned=owned):
         try:
-            resolved = resolve_placement_only(repo_root, mission_slug, kind=kind)
+            resolved = resolve_placement_only(repo_root, mission_slug, kind=kind, owned=owned)
         except (ActionContextError, StatusReadPathNotFound, FileNotFoundError) as exc:
             resolution_exc = exc
         else:
             if terminus_write:
-                assert_coord_write_materialized(repo_root, mission_slug, kind, resolved)
+                assert_coord_write_materialized(repo_root, mission_slug, kind, resolved, owned=owned)
             return resolved
     if degrade_ref is None or terminus_write:
         raise _fail_closed_error(mission_slug, resolution_exc) from resolution_exc
@@ -162,6 +170,8 @@ def assert_coord_write_materialized(
     mission_slug: str,
     kind: MissionArtifactKind,
     resolved: CommitTarget,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Fail-closed WRITE gate: refuse a coord-routing write onto an unmaterialized surface.
 
@@ -220,10 +230,9 @@ def assert_coord_write_materialized(
     from specify_cli.missions._read_path_resolver import (
         CoordState,
         probe_coord_state,
-        read_primary_meta,
     )
 
-    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
+    primary_meta = _read_meta(repo_root, mission_slug, owned)
     raw_branch = primary_meta.get("coordination_branch")
     coord_branch = str(raw_branch) if raw_branch else None
     if coord_branch is None or resolved.ref != coord_branch:
@@ -236,7 +245,7 @@ def assert_coord_write_materialized(
     if state is CoordState.EMPTY:
         return
     if state is CoordState.MATERIALIZED:
-        _delegate_to_write_location_accessor(repo_root, mission_slug, kind)
+        _delegate_to_write_location_accessor(repo_root, mission_slug, kind, owned)
         return
     is_local_head = _coord_branch_is_local_head(repo_root, coord_branch)
     if state is CoordState.UNMATERIALIZED and is_local_head:
@@ -262,7 +271,7 @@ def assert_coord_write_materialized(
                 coord_branch,
                 kind.value,
             )
-        _delegate_to_write_location_accessor(repo_root, mission_slug, kind)
+        _delegate_to_write_location_accessor(repo_root, mission_slug, kind, owned)
         return
 
     # (a) remote-only: the branch is declared and exists in git, but only as a
@@ -284,7 +293,12 @@ def assert_coord_write_materialized(
     )
 
 
-def _delegate_to_write_location_accessor(repo_root: Path, mission_slug: str, kind: MissionArtifactKind) -> None:
+def _delegate_to_write_location_accessor(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    owned: OwnedCheckout | None = None,
+) -> None:
     """Delegate to the single write authority (research D22).
 
     Lazy import over the existing ``coordination`` outbound-ledger edge (the
@@ -298,7 +312,7 @@ def _delegate_to_write_location_accessor(repo_root: Path, mission_slug: str, kin
     """
     from specify_cli.coordination.coord_seed import establish_coord_write_location
 
-    establish_coord_write_location(repo_root, mission_slug, kind, owned=None)
+    establish_coord_write_location(repo_root, mission_slug, kind, owned=owned)
 
 
 def _fail_closed_error(
@@ -332,7 +346,19 @@ def _fail_closed_error(
     )
 
 
-def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
+def _read_meta(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> dict[str, object]:
+    """Read the mission meta: the owned checkout's when ``owned`` is given, else the primary's."""
+    if owned is not None:
+        from specify_cli.core.paths import load_meta_fail_closed
+
+        return dict(load_meta_fail_closed(owned.mission_dir) or {})
+    from specify_cli.missions._read_path_resolver import read_primary_meta
+
+    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
+    return dict(primary_meta)
+
+
+def _mission_meta_exists(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> bool:
     """Return True when ``mission_slug`` has a primary ``meta.json`` on disk.
 
     A cheap, read-only existence gate — NOT a ref derivation — that
@@ -356,10 +382,8 @@ def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
     anchor is coord-materialization-invariant, so a genuinely bootstrapped
     mission reads as resolvable in every topology state.
     """
-    from specify_cli.missions._read_path_resolver import read_primary_meta
-
     try:
-        primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
+        primary_meta = _read_meta(repo_root, mission_slug, owned)
     except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
         return False
     return bool(primary_meta)
