@@ -286,9 +286,21 @@ def _runtime_shape_step_ids(runtime_file: Path) -> list[str]:
     whole file yields ``[]`` (so the governed seam raises
     ``MissionTypeEmptyActionSequenceError`` upstream rather than fabricating a
     shorter, wrong sequence that silently drops a canonical step). ``id`` + ``title``
-    mirror the minimum the runtime loader (``PromptStep``) itself requires, so a
-    shape charter accepts here is one the frozen runtime template will also accept —
-    they never disagree on validity (see the charter<->runtime parity test).
+    mirror the minimum the runtime loader (``PromptStep``) itself requires.
+
+    **Duplicate ids also fail closed (#6323).** A ``steps:`` list with a repeated
+    ``id`` cannot be a valid action sequence (the invariant requires unique ids),
+    so the whole file yields ``[]`` here — routing to the governed
+    ``MissionTypeEmptyActionSequenceError`` upstream — rather than emitting a
+    duplicate-bearing list that :func:`~charter.offering.missions.step_projection.project_action_sequence`
+    would reject downstream with a *raw* ``ValueError`` escaping custom-type
+    resolution. This is one of two deliberate charter<->runtime divergences: the
+    runtime loader (``PromptStep`` list) tolerates duplicate ids, and its
+    ``min_length=1`` ids are laxer than charter's ``IDENTIFIER_PATTERN`` (enforced
+    one layer up, in :func:`resolve_runtime_shape_steps`). Charter fails closed in
+    both cases — refuse, never accept-what-runtime-would-reject. Both boundaries,
+    and the single-valid-fixture agreement, are pinned by the charter<->runtime
+    parity tests.
     """
     try:
         raw: Any = _get_yaml().load(runtime_file.read_text(encoding="utf-8"))
@@ -299,7 +311,10 @@ def _runtime_shape_step_ids(runtime_file: Path) -> list[str]:
         return []
     if not all(isinstance(step, dict) and step.get("id") and step.get("title") for step in steps):
         return []
-    return [str(step["id"]) for step in steps]
+    step_ids = [str(step["id"]) for step in steps]
+    if len(step_ids) != len(set(step_ids)):
+        return []
+    return step_ids
 
 
 def resolve_runtime_shape_steps(

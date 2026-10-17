@@ -689,6 +689,12 @@ class TestLayeredProjectionThreadsPackContext:
             # (PromptStep requires title) rejects, so charter must reject it too
             # rather than let the type resolve here and brick at `mission run`.
             "steps:\n  - id: specify\n  - id: tasks\n",
+            # Duplicate ids (#6323): a repeated `id` cannot be a unique action
+            # sequence. Charter must fail closed to the GOVERNED empty-sequence
+            # error here, not let a duplicate-bearing list reach
+            # project_action_sequence and escape as a raw ValueError. The runtime
+            # loader tolerates duplicate ids; this is a deliberate divergence.
+            "steps:\n  - id: specify\n    title: Specify\n  - id: specify\n    title: Specify again\n",
         ],
     )
     def test_runtime_shape_empty_or_malformed_stays_fail_closed(
@@ -742,6 +748,66 @@ class TestLayeredProjectionThreadsPackContext:
         runtime_ids = [step.id for step in load_mission_template_file(runtime_file).steps]
 
         assert charter_ids == runtime_ids == list(order)
+
+    def test_charter_reader_fails_closed_on_duplicate_ids_where_runtime_tolerates(
+        self, tmp_path: Path
+    ) -> None:
+        """Parity asymmetry #1 (#6323): the runtime loader tolerates duplicate step
+        ids (a plain ``list[PromptStep]``); charter's reader fails closed to ``[]``
+        because a duplicate-bearing list cannot be a unique action sequence. Pins the
+        divergence so neither side silently flips — charter must never emit the
+        duplicate list (which would escape project_action_sequence as a raw
+        ValueError), and runtime's tolerance is recorded as the known, intended gap."""
+        from runtime.next._internal_runtime.schema import load_mission_template_file
+
+        from charter.offering.missions.mission_step_repository import _runtime_shape_step_ids
+
+        runtime = (
+            'mission:\n  key: qa\n  name: QA\n  version: "1.0.0"\nsteps:\n'
+            "  - id: specify\n    title: Specify\n"
+            "  - id: specify\n    title: Specify again\n"
+            "  - id: implement\n    title: Implement\n"
+        )
+        runtime_file = tmp_path / "mission-runtime.yaml"
+        runtime_file.write_text(runtime, encoding="utf-8")
+
+        # Runtime tolerates the duplicate id (keeps all three, in order).
+        runtime_ids = [step.id for step in load_mission_template_file(runtime_file).steps]
+        assert runtime_ids == ["specify", "specify", "implement"]
+
+        # Charter fails closed rather than accept what runtime would.
+        assert _runtime_shape_step_ids(runtime_file) == []
+
+    def test_charter_resolve_refuses_non_identifier_id_where_runtime_loads(
+        self, tmp_path: Path
+    ) -> None:
+        """Parity asymmetry #2 (#6323): charter's ``MissionStep.id`` enforces
+        IDENTIFIER_PATTERN (``^[a-z][a-z0-9-]*$``) while runtime's ``PromptStep.id``
+        is only ``min_length=1``. An id runtime accepts (e.g. uppercase) makes
+        ``resolve_runtime_shape_steps`` fail closed to ``[]`` → governed
+        empty-sequence error upstream, never a sequence runtime would brick on.
+        The boundary lives one layer up from ``_runtime_shape_step_ids`` (which does
+        not apply the pattern), so it is pinned here against ``resolve_runtime_shape_steps``."""
+        from runtime.next._internal_runtime.schema import load_mission_template_file
+
+        from charter.offering.missions.mission_step_repository import (
+            resolve_runtime_shape_steps,
+        )
+
+        runtime = (
+            'mission:\n  key: qa\n  name: QA\n  version: "1.0.0"\nsteps:\n'
+            "  - id: Specify\n    title: Specify\n"  # uppercase: valid to runtime, not to charter
+            "  - id: implement\n    title: Implement\n"
+        )
+        ctx = self._write_runtime_shape_org_fixture(tmp_path / "org", "qa", runtime)
+
+        # Runtime loads the uppercase id unchanged.
+        runtime_file = tmp_path / "org" / "missions" / "qa" / "mission-runtime.yaml"
+        runtime_ids = [step.id for step in load_mission_template_file(runtime_file).steps]
+        assert runtime_ids == ["Specify", "implement"]
+
+        # Charter refuses the whole shape (IDENTIFIER_PATTERN) and fails closed.
+        assert resolve_runtime_shape_steps("qa", ctx) == []
 
 
 class TestLayeredMissionTypesCacheKeyAndClear:
