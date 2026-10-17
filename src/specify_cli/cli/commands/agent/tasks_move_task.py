@@ -948,7 +948,7 @@ def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
 
     if not is_single_branch_mission(st.main_repo_root, manifest):
         return  # not a single_branch mission — the owned/lane gates own this move
-    window = single_branch_evidence_window(st.main_repo_root, manifest)
+    window = single_branch_evidence_window(st.main_repo_root, manifest, assume_single_branch=True)
     if window is None:
         # single_branch WITH no computable evidence window (legacy lanes.json, no
         # planning_commit_sha): fail CLOSED -- we cannot verify an implementation exists (#5939).
@@ -960,6 +960,13 @@ def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
         )
     base, tip = window
     patterns = _mt_owned_file_patterns(st)
+    # Rename handling differs from the consolidate axis by design (#6324 review nit): this gate
+    # reuses the shared ``git_diff_names_checked`` (git's default rename detection), while the
+    # consolidate axis' ``changed_paths_in_range`` runs ``--no-renames``. Both report a touched
+    # owned file in the normal case; the only divergence is a bare rename of an owned file OUT to
+    # a non-owned path with no other edit, which is not real implementation and which the
+    # consolidate backstop catches regardless. The helper hardcodes rename detection and is
+    # shared with other callers, so it is not re-parameterized for this cosmetic difference.
     changed = git_diff_names_checked(st.main_repo_root, base, tip, diff_filter="ACDMRTUXB")
     if changed is None:
         raise ActionContextError(
