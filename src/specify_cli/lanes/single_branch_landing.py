@@ -163,3 +163,33 @@ def authorship_window(repo: Path, mission_slug: str, mission_branch: str, target
     result = _git(repo, "merge-base", target_branch, mission_branch)
     base = result.stdout.strip()
     return (base, mission_branch) if result.returncode == 0 and base else None
+
+
+def single_branch_evidence_window(repo: Path, manifest: LanesManifest) -> tuple[str, str] | None:
+    """``(planning_commit, mission_branch)`` implementation-evidence window for ANY single_branch mission, else ``None``.
+
+    Unlike :func:`authorship_window` (the PROTECTED minted-branch case only, whose base is
+    ``merge-base(target, mission_branch)``), this covers EVERY single_branch mission -- a
+    commit-to-target one whose ``mission_branch`` IS the target included -- by windowing the
+    recorded finalize-tasks planning-artifact commit (``lanes.json planning_commit_sha``) to
+    the mission-branch tip. Implementation commits land after planning, so a diff of
+    ``planning_commit..mission_branch`` is exactly the mission's authored change set (#5939).
+
+    Gated on the STORED topology (never a derived one), so a coord/lanes mission is never
+    treated as single_branch here. Returns ``None`` when the mission is not single_branch, or
+    when no planning commit / mission branch was recorded (a pre-``planning_commit_sha`` legacy
+    manifest cannot be windowed); the #5939 evidence axis then does not run for it.
+    """
+    from mission_runtime import MissionArtifactKind, is_single_branch, placement_seam
+
+    from specify_cli.migration.backfill_topology import stored_topology
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    if not is_single_branch(stored_topology(meta)):
+        return None
+    base = manifest.planning_commit_sha
+    tip = manifest.mission_branch
+    if not base or not tip:
+        return None
+    return (base, tip)

@@ -51,6 +51,7 @@ case) is out of scope for this mission and stays named-open in the docs.
 
 from __future__ import annotations
 
+import fnmatch
 import functools
 import logging
 import re
@@ -1569,6 +1570,22 @@ def build_approved_wp_set(
     if bound.refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, bound.refusal)
 
+    # single_branch implementation-evidence + independent-review axis (#5939): the stamp
+    # bound above is a no-op on single_branch (its one lane is a planning lane), so this
+    # separate, strategy-independent axis is the fail-closed backstop. REFUSE (before the
+    # collectors read tips, so nothing is rolled back) when an approved single_branch WP has
+    # no implementation commit in its owned_files, or no independent review. The evidence
+    # window (planning_commit..mission_branch) covers BOTH a minted-branch and a
+    # commit-to-target single_branch; it is NOT ``sb_window`` (authorship_window, the
+    # protected-minted-only range the collectors use).
+    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+
+    sb_evidence_refusal = _single_branch_evidence_refusal(
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded_ids, single_branch_evidence_window(repo_root, lanes_manifest)
+    )
+    if sb_evidence_refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, sb_evidence_refusal)
+
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref, sb_window)
     presence = _presence_scope(
         repo_root,
@@ -2049,6 +2066,192 @@ def approved_bound_refusal(
         event_log=event_log or _ClaimEventLog(feature_dir),
     )
     return verdict.refusal
+
+
+# --- single_branch implementation-evidence + independent-review axis (#5939) ---
+#
+# A protected single_branch mission's lanes.json is ONE repo-root planning lane, so the
+# stamp-based approved bound (:func:`_approved_bound_verdict`) excludes it via
+# ``is_planning_lane`` and never fires -- the documented #5668 residual (ADR
+# ``2026-10-04-5``). That left plain single_branch with no fail-closed backstop: an
+# unforced ``move-task --to approved`` on a planned WP auto-walks the whole review chain
+# with the SAME actor as implementer and reviewer and NO implementation commit, and
+# consolidate landed it ``done`` at exit 0 (#5939, P0; on lanes the same move warns
+# APPROVAL_STAMP_MISSING and consolidate refuses). This axis is a SEPARATE
+# evidence+independence check -- single_branch carries no ``lane_head`` stamp, so it does
+# not and cannot reuse the stamp bound. It is strategy-independent, REFUSEs fail-closed,
+# and (in :func:`build_approved_wp_set`) runs before any mutation.
+_SB_IMPLEMENTATION_MISSING = "SINGLE_BRANCH_IMPLEMENTATION_MISSING"
+_SB_REVIEW_NOT_INDEPENDENT = "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT"
+_SB_EVIDENCE_UNREADABLE = "SINGLE_BRANCH_EVIDENCE_UNREADABLE"
+_SB_CODES: tuple[str, ...] = (_SB_IMPLEMENTATION_MISSING, _SB_REVIEW_NOT_INDEPENDENT, _SB_EVIDENCE_UNREADABLE)
+
+
+def _sb_owned_patterns(owned_files: Sequence[str]) -> tuple[str, ...]:
+    """Normalized ownership globs for a WP.
+
+    Mirrors ``tasks_move_task._mt_owned_file_patterns``; mirrored (not imported) because
+    that helper lives in the CLI command layer, which the consolidation layer must not
+    import. The logic is trivial and the move-side source is cited so the two cannot drift.
+    """
+    return tuple(pattern.replace("\\", "/").removeprefix("./") for pattern in owned_files if pattern.strip())
+
+
+def _sb_matches_owned(path: str, patterns: Sequence[str]) -> bool:
+    """Commit-guard-compatible glob match (mirrors ``tasks_move_task._mt_matches_owned_file``)."""
+    normalized = path.replace("\\", "/").removeprefix("./")
+    for pattern in patterns:
+        if fnmatch.fnmatch(normalized, pattern):
+            return True
+        prefix = pattern.replace("/**", "").replace("/*", "").rstrip("/")
+        if prefix and normalized.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def _sb_approved_wp_ids(work_packages: Mapping[str, Any], excluded_canceled_wp_ids: frozenset[str]) -> list[str]:
+    """Approved (or already-done), non-canceled WP ids from the reduced snapshot, sorted."""
+    return sorted(
+        wp for wp, state in work_packages.items() if wp not in excluded_canceled_wp_ids and str((state or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES
+    )
+
+
+def _sb_owned_files_by_wp(feature_dir: Path, wp_ids: Iterable[str]) -> dict[str, tuple[str, ...]]:
+    """Map each wanted WP id to its authored ownership globs (static frontmatter, never runtime state).
+
+    A WP file that cannot be read is simply left unresolved; the caller treats an absent or
+    empty pattern set as "implementation cannot be proven" and refuses (fail-closed), exactly
+    as the move-side ``_mt_require_owned_implementation`` refuses an empty pattern set.
+    """
+    from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
+
+    wanted = set(wp_ids)
+    resolved: dict[str, tuple[str, ...]] = {}
+    for wp_file in wp_task_files(feature_dir / "tasks"):
+        try:
+            meta, _body = read_authored_wp_frontmatter(wp_file)
+        except Exception:  # noqa: BLE001 — an unreadable WP file leaves it unresolved; fail closed below
+            logger.debug("single_branch evidence: could not read WP frontmatter at %s", wp_file, exc_info=True)
+            continue
+        if meta.work_package_id in wanted:
+            resolved[meta.work_package_id] = _sb_owned_patterns(meta.owned_files)
+    return resolved
+
+
+def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
+    """One refusal text for the single_branch evidence axis: a header, a line per WP (code-led), a recovery."""
+    header = f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:"
+    recovery = (
+        "Recovery: implement the work package (commit a real change in its owned_files on the "
+        "mission branch) and have a reviewer who is not the implementer approve it, then re-run consolidate."
+    )
+    return "\n".join([header, *lines, recovery])
+
+
+def _single_branch_evidence_refusal(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+    evidence_window: tuple[str, str] | None,
+) -> str | None:
+    """#5939 backstop: refuse an approved single_branch WP with no implementation or no independent review.
+
+    Fires only for a single_branch mission (``evidence_window`` resolves, i.e.
+    :func:`~specify_cli.lanes.single_branch_landing.single_branch_evidence_window` is
+    non-``None`` on the STORED topology -- both a minted-branch and a commit-to-target
+    single_branch). For each approved WP it refuses when EITHER (a) no commit in the
+    evidence window ``(planning_commit, mission_branch)`` touches the WP's ``owned_files``
+    (mirroring the move-side owned-files match), OR (b) the review is PROVABLY hollow -- the
+    implementer-of-record and the approving actor are both known and the SAME identity (the
+    #5939 autowalk stamps one actor as both). A merely-unknown implementer (a generic
+    ``implement-command`` claim) does NOT trip (b): that is the normal shape of a WP
+    implemented through ``spec-kitty implement``, so refusing it would over-refuse legitimate
+    single_branch missions -- axis (a) already guarantees real authored content. One refusal
+    per WP, (a) taking precedence over (b). Strategy-independent, and fail-closed on any
+    git-probe error (REFUSE, never pass vacuously).
+    """
+    if evidence_window is None:
+        return None
+    approved = _sb_approved_wp_ids(work_packages, excluded_canceled_wp_ids)
+    if not approved:
+        return None
+    base, tip = evidence_window
+    try:
+        changed = changed_paths_in_range(repo_root, base, tip)
+    except GitProbeError:
+        line = f"{_SB_EVIDENCE_UNREADABLE}: the implementation-evidence window {base}..{tip} could not be diffed, so implementation evidence cannot be verified."
+        return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
+    changed_paths = [path for _status, path in changed]
+    owned_by_wp = _sb_owned_files_by_wp(feature_dir, approved)
+    from specify_cli.consolidation.preflight import _latest_actor_for_transition, _latest_implementer_identity
+
+    lines: list[str] = []
+    for wp in approved:
+        patterns = owned_by_wp.get(wp, ())
+        if not patterns or not any(_sb_matches_owned(path, patterns) for path in changed_paths):
+            lines.append(
+                f"{_SB_IMPLEMENTATION_MISSING}: {wp} was approved with no implementation commit touching its "
+                f"owned_files in the mission branch window {base}..{tip}."
+            )
+            continue
+        # Axis (b): refuse only when the review is PROVABLY hollow -- the implementer of record
+        # and the approving actor are both known and the SAME identity (the #5939 autowalk stamps
+        # one actor as both). We deliberately do NOT refuse on a merely-unknown implementer (a
+        # generic ``implement-command`` claim, _latest_implementer_identity -> None): that is the
+        # normal shape of a WP implemented through ``spec-kitty implement``, and refusing it would
+        # over-refuse legitimate single_branch missions. Absence of evidence of independence is not
+        # evidence of a hollow review; axis (a) already guarantees real authored content exists.
+        implementer = _latest_implementer_identity(feature_dir, wp)
+        reviewer = _latest_actor_for_transition(feature_dir, wp, "approved")
+        if implementer and reviewer and implementer == reviewer:
+            lines.append(f"{_SB_REVIEW_NOT_INDEPENDENT}: {wp} was implemented and approved by the same actor ({implementer}), so the review was not independent.")
+    if not lines:
+        return None
+    return _single_branch_refusal_text(lanes_manifest.mission_slug, lines)
+
+
+def single_branch_refusal_codes(text: str) -> list[str]:
+    """Every distinct single_branch evidence code that leads a line of *text*, first-seen first.
+
+    Mirrors :func:`~specify_cli.consolidation.approved_bound.refusal_codes` for this axis'
+    own codes so ``orchestrator-api consolidate-mission`` keys on the code, not the prose.
+    """
+    pattern = "|".join(re.escape(code) for code in _SB_CODES)
+    return list(dict.fromkeys(re.findall(rf"^({pattern}): ", text, flags=re.MULTILINE)))
+
+
+def single_branch_evidence_refusal(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    *,
+    excluded_canceled_wp_ids: Iterable[str] = (),
+) -> str | None:
+    """Public entry for the #5939 backstop: the refusal text, or ``None``.
+
+    ``consolidate`` runs the axis inside :func:`build_approved_wp_set`; this is the one other
+    caller, ``orchestrator-api consolidate-mission``, whose single_branch path short-circuits
+    to ``_execute_planning_only_merge`` and so never reaches the claim builder. The snapshot
+    gives WP membership exactly as :func:`build_approved_wp_set` reads it; a snapshot that
+    cannot be materialized raises, as it does for the claim builder's own caller.
+    """
+    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+    from specify_cli.status import materialize_snapshot
+
+    window = single_branch_evidence_window(repo_root, lanes_manifest)
+    if window is None:
+        return None
+    snapshot = materialize_snapshot(feature_dir)
+    return _single_branch_evidence_refusal(
+        repo_root,
+        feature_dir,
+        lanes_manifest,
+        snapshot.work_packages or {},
+        frozenset(excluded_canceled_wp_ids),
+        window,
+    )
 
 
 def lane_tips_moved_refusal(

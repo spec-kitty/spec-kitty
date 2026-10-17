@@ -219,7 +219,8 @@ def test_real_single_branch_work_moves_and_consolidates_clean(tmp_path: Path) ->
 
     move_out: list[str] = []
     for wp, module in (("WP01", "m1"), ("WP02", "m2")):
-        # Implementer alice claims and implements (autowalk planned->in_progress is below the review threshold).
+        # Implementer alice claims (autowalk planned->in_progress is below the review threshold),
+        # then commits a REAL implementation touching the WP's owned_files on the mission branch.
         _sk(repo, env, "agent", "tasks", "move-task", wp, "--to", "in_progress", "--agent", "alice", "--note", "claim", "--mission", slug, check=True)
         src_dir = repo / "src" / module
         src_dir.mkdir(parents=True, exist_ok=True)
@@ -228,9 +229,10 @@ def test_real_single_branch_work_moves_and_consolidates_clean(tmp_path: Path) ->
         _git(repo, "commit", "-qm", f"feat({wp}): implement {module}")
         _sk(repo, env, "agent", "tasks", "mark-status", "T1" if wp == "WP01" else "T2", "--status", "done", "--mission", slug)
         _commit_specs(repo)
-        # Independent reviewer bob approves. The WP is assigned to its implementer alice, so an
-        # independent reviewer taking it over uses --force (the documented cross-agent override);
-        # implementer (alice) != approving actor (bob) keeps the review independent.
+        # Independent reviewer bob approves (autowalk in_progress->approved). The WP is assigned
+        # to its implementer alice, so an independent reviewer taking it over uses --force (the
+        # documented cross-agent override); implementer (alice) != approving actor (bob) keeps the
+        # review independent, and the real commit in owned_files satisfies the evidence axis.
         mv = _sk(repo, env, "agent", "tasks", "move-task", wp, "--to", "approved", "--agent", "bob", "--note", "lgtm", "--force", "--mission", slug)
         move_out.append(f"{wp} approve rc={mv.returncode}: {(mv.stdout + mv.stderr).strip()[:300]}")
     _commit_specs(repo)

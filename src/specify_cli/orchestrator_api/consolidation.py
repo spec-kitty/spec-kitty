@@ -521,6 +521,34 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
         )
 
 
+def _refuse_single_branch_hollow_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#5939: refuse a single_branch mission whose approved WPs have no implementation or no independent review.
+
+    The ``consolidate`` CLI runs this axis inside ``build_approved_wp_set``; this command's
+    single_branch path short-circuits to ``_execute_planning_only_merge`` and so never reaches
+    the claim builder, so the shared public entry
+    (:func:`~specify_cli.consolidation.reconciliation.single_branch_evidence_refusal`) runs
+    here, before any lane is merged. Non-single_branch and genuine planning-only missions
+    resolve a ``None`` authorship window and pass through untouched.
+    """
+    from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
+    from specify_cli.consolidation.reconciliation import single_branch_evidence_refusal, single_branch_refusal_codes
+    from specify_cli.status import StoreError
+
+    try:
+        refusal = single_branch_evidence_refusal(
+            main_repo_root,
+            mission_dir,
+            lanes_manifest,
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(main_repo_root, mission_slug),
+        )
+    except (StoreError, OSError) as exc:
+        raise RuntimeError(f"The single_branch mission could not be checked for implementation evidence ({exc}); no work was merged.") from exc
+    if refusal is not None:
+        codes = single_branch_refusal_codes(refusal)
+        raise ApprovedBoundRefused(refusal, error_code=codes[0] if codes else None, error_codes=codes)
+
+
 def _execute_lane_merge(
     main_repo_root: Path,
     mission_dir: Path,
@@ -551,6 +579,9 @@ def _execute_lane_merge(
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
     _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
+    # #5939: fail-closed single_branch backstop, before the planning-only short-circuit below
+    # (a protected single_branch manifest reads planning-artifact-only but lands real code).
+    _refuse_single_branch_hollow_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
 
     if is_planning_artifact_only(lanes_manifest):
         _execute_planning_only_merge(

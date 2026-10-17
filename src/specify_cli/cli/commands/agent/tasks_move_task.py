@@ -918,6 +918,56 @@ def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
         )
 
 
+def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
+    """#5939 Layer 2: refuse a review-ward move of a plain single_branch WP with no committed implementation.
+
+    The owned sibling :func:`_mt_require_owned_implementation` covers owned checkouts; plain
+    ``single_branch`` has no lane worktree, so its moves into ``for_review``/``approved`` ran no
+    implementation-evidence gate at all, which let an unforced ``move-task --to approved`` auto-
+    walk a ``planned`` work package to ``approved`` with no commit (#5939, P0). This fires only
+    for a single_branch mission (``single_branch_evidence_window`` resolves on the STORED
+    topology -- a minted-branch and a commit-to-target single_branch both), only when the move
+    crosses into review territory from below, and never under ``--force`` or for an owned
+    checkout. It enforces ONLY implementation evidence; review independence is left to the
+    consolidate backstop so a legitimate implement-then-independently-review flow (a different
+    reviewer, who must use ``--force`` to take over an assigned WP) is not refused at the move.
+    The window matches the consolidate axis: ``git diff`` of
+    ``planning_commit..mission_branch``; an unreadable window refuses (fail-closed).
+    """
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+
+    review_ward = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE)
+    if st.force or st.owned is not None or st.target_lane not in review_ward or st.old_lane in review_ward:
+        return
+    try:
+        manifest = require_lanes_json(st.feature_dir)
+    except (MissingLanesError, CorruptLanesError):
+        return
+    from specify_cli.core.vcs.git import git_diff_names_checked
+    from specify_cli.lanes.single_branch_landing import single_branch_evidence_window
+
+    window = single_branch_evidence_window(st.main_repo_root, manifest)
+    if window is None:
+        return  # not a single_branch mission (or no recorded window) — the owned/lane gates own this move
+    base, tip = window
+    patterns = _mt_owned_file_patterns(st)
+    changed = git_diff_names_checked(st.main_repo_root, base, tip, diff_filter="ACDMRTUXB")
+    if changed is None:
+        raise ActionContextError(
+            "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
+            f"Could not read the single_branch implementation window {base}..{tip} in "
+            f"{st.main_repo_root}; cannot verify {st.task_id} has a committed implementation. Make sure the "
+            "mission branch is checked out and its planning commit is reachable, then retry.",
+        )
+    if not patterns or not any(_mt_matches_owned_file(path, patterns) for path in changed):
+        raise ActionContextError(
+            "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
+            f"Refusing to move {st.task_id} into review without a committed implementation: no commit on the "
+            "single_branch mission branch touches its owned_files. Commit the work package's implementation to "
+            "its owned_files, then retry (ticked subtask checkboxes are not shipped code).",
+        )
+
+
 def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     """Commit finished lane deliverables before a review transition (#2335).
 
@@ -1619,6 +1669,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         _mt_gather_review_facts(st)
         _mt_run_decision(st)
         _mt_run_pre_review_gate(st)
+        _mt_require_single_branch_implementation(st)
         _mt_complete_deferred_for_review_readiness(st)
         _mt_finalize_plan(st, ports)
         try:
