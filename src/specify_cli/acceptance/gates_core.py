@@ -243,7 +243,7 @@ def _resolve_lanes_manifest_or_stop(
         return None
 
 
-def _wp_kinds_for_manifest(repo_root: Path, mission_slug: str) -> Mapping[str, Any]:
+def _wp_kinds_for_manifest(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Mapping[str, Any]:
     """Build the WP id -> :class:`WorkProductKind` index :func:`has_code_wps` needs.
 
     #5100 T020 / plan fold B3: the ONE place this module derives WP kinds,
@@ -261,10 +261,16 @@ def _wp_kinds_for_manifest(repo_root: Path, mission_slug: str) -> Mapping[str, A
     would flip a genuinely lane-planning-only legacy mission's branch gate
     into "has code" from a WP that never claimed to be one.
     """
+    # ``owned`` (owned-checkout-lifecycle-authority, #6023): the validated owned
+    # checkout fact, forwarded so the WP frontmatter is read from the owned
+    # checkout. Without it, an owned-only mission's work packages are read from
+    # the repository root (which does not hold them), ``mission_has_code`` reads
+    # false, and the branch gate below wrongly rejects the minted mission branch.
+    # ``None`` for every ordinary run, so their classification is byte-identical.
     from specify_cli.ownership.models import WorkProductKind
     from specify_cli.workspace.context import build_normalized_wp_index
 
-    index = build_normalized_wp_index(repo_root, mission_slug)
+    index = build_normalized_wp_index(repo_root, mission_slug, owned=owned)
     return {wp_id: WorkProductKind(entry.metadata.execution_mode) for wp_id, entry in index.items() if entry.mode_source == "frontmatter"}
 
 
@@ -276,6 +282,8 @@ def _evaluate_branch_gate(
     activity_issues: list[str],
     skipped_checks: list[AcceptanceCheckDiagnostic],
     blocked_checks: list[AcceptanceCheckDiagnostic],
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> bool:
     """Target-branch mismatch + allowed-branch + no-code gate.
 
@@ -308,7 +316,7 @@ def _evaluate_branch_gate(
     # ``lanes.compute.mission_has_code`` (has_code_lanes floor OR has_code_wps),
     # so a legacy lanes/coord mission's per-WP frontmatter ambiguity can never
     # flip this to "no code" the way the bare kind check alone did.
-    mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name))
+    mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name, owned=owned))
     allowed_branches = {lanes_manifest.target_branch}
     if mission_has_code:
         allowed_branches.add(lanes_manifest.mission_branch)
@@ -833,7 +841,7 @@ def _check_lane_gates(
         return LaneGateOutcome()
 
     blocked_before = len(blocked_checks)
-    should_continue = _evaluate_branch_gate(repo_root, lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks)
+    should_continue = _evaluate_branch_gate(repo_root, lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks, owned=owned)
     if not should_continue:
         # The bypass is granted only when the branch gate stopped at its
         # no-code branch; a mission the branch gate BLOCKED for another
@@ -847,7 +855,7 @@ def _check_lane_gates(
 
         from specify_cli.lanes.compute import mission_has_code as _mission_has_code_fn
 
-        mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name))
+        mission_has_code = _mission_has_code_fn(lanes_manifest, _wp_kinds_for_manifest(repo_root, feature_dir.name, owned=owned))
         if not mission_has_code:
             return LaneGateOutcome(skip_reason=PLANNING_ARTIFACT_ONLY_SKIP_REASON)
         return LaneGateOutcome()

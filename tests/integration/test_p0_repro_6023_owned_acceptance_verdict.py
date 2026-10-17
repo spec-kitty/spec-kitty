@@ -1,4 +1,8 @@
-"""OPEN P0 #6023 -- red-first reproduction (nightly ``p0_repro`` lane only).
+"""#6023 regression guard -- owned acceptance-verdict must resolve the owned mission.
+
+Originally the red-first ``p0_repro`` reproduction for OPEN P0 #6023 (nightly lane
+only); the ``p0_repro`` marker was removed when the fix landed (ADR 2026-07-17-1), so
+this now runs per-PR as a standing regression guard.
 
 A supported owned, PR-bound mission lives only in its owned checkout (P); primary
 (the repository-root checkout, R) does not contain it. The
@@ -19,9 +23,8 @@ Ideal, asserted here and RED until #6023 is fixed: run from the owned checkout, 
 acceptance-verdict command must resolve the owned mission with validated ownership and
 NOT fail with ``MISSION_NOT_FOUND`` (it may still fail for an unrelated reason such as a
 criterion/matrix gap once resolution is fixed -- that is a different, non-blocking
-outcome for this oracle). Today it fails ``MISSION_NOT_FOUND``. The fix PR removes the
-``p0_repro`` marker. See ADR 2026-07-17-1 and
-docs/development/reference/red-main-and-release-readiness.md.
+outcome for this oracle). Before the fix it failed ``MISSION_NOT_FOUND``. See ADR
+2026-07-17-1 and docs/development/reference/red-main-and-release-readiness.md.
 """
 
 from __future__ import annotations
@@ -40,7 +43,6 @@ from tests.integration.conftest import OwnedCheckouts
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
-@pytest.mark.p0_repro(issue=6023)
 def test_acceptance_verdict_from_owned_checkout_must_resolve_the_owned_mission(make_owned_checkouts: Callable[..., OwnedCheckouts], tmp_path: Path) -> None:
     co = make_owned_checkouts(topology="single_branch", wp_ids=("WP01",))
 

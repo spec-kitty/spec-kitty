@@ -569,6 +569,7 @@ def locked_reread_splice_and_write(
     entry_id: str | None = None,
     message: str | None = None,
     timeout: float | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> tuple[AcceptanceMatrix, WriteSeamResult | Path]:
     """The ONE locked read-modify-write critical section for the acceptance matrix.
 
@@ -609,6 +610,14 @@ def locked_reread_splice_and_write(
     (FR-001/FR-005): a lock-acquisition timeout raises
     :class:`~specify_cli.status.FeatureStatusLockTimeoutError` before the
     re-read or any write, so a timeout NEVER degrades to an unlocked write.
+
+    ``owned`` (owned-checkout-lifecycle-authority, #6023): the validated owned
+    checkout fact, forwarded on the ``commit=True`` leg to
+    :func:`write_and_commit_acceptance_matrix` so an owned-only mission's
+    verdict commit routes to the owned checkout's branch rather than the
+    repository root. It is ``None`` for every ordinary (repository-root) run and
+    for the accept gate's ``commit=False`` caller, so their behaviour is
+    byte-identical.
     """
     if timeout is None:
         timeout = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
@@ -632,6 +641,7 @@ def locked_reread_splice_and_write(
                 fresh_matrix,
                 entry_id=entry_id,
                 message=message,
+                owned=owned,
             )
         else:
             write_result = write_acceptance_matrix(matrix_dir, fresh_matrix)

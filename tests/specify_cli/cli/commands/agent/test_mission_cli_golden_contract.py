@@ -197,6 +197,10 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--scope",
             "--execute",
             "--no-execute",
+            # `--owned-checkout` added by owned acceptance authority (#6023): the
+            # owned-only mission's criterion verdict is recorded on its own
+            # checkout instead of searching the repository root.
+            "--owned-checkout",
         }
     ),
 }
