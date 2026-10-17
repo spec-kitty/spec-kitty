@@ -443,7 +443,15 @@ def _requires_substantive_spec(repo_root: Path, mission_type: str) -> bool:
     # charter.activation internals. The resolve + built-in fallback lives behind it.
     from charter.activation.api import requires_substantive_spec_for
 
-    return requires_substantive_spec_for(repo_root, mission_type)
+    # Bind to a bool-annotated local before returning: under the ``specify_cli.*``
+    # ``follow_imports = "skip"`` narrow mypy check, a name imported from the
+    # (``charter.*``-skipped) activation seam resolves as ``Any``, so a bare
+    # ``return`` would read "Returning Any from function declared to return bool".
+    # api.py is a light seam but following it drags the heavy mission_type_profiles
+    # graph into the narrow check (the #3719 hazard the follow-normal allowlist
+    # guards against), so the local bind is the proportionate fix.
+    requires_spec: bool = requires_substantive_spec_for(repo_root, mission_type)
+    return requires_spec
 
 
 def _emit_resume_probe_payload(payload: dict[str, object], *, json_output: bool) -> None:
