@@ -36,6 +36,8 @@ from typing import Any, Protocol
 
 from ruamel.yaml import YAML
 
+from kernel.mission_runtime_shape import read_runtime_shape_step_ids
+
 from .models import MissionStep
 
 
@@ -278,45 +280,6 @@ def _runtime_shape_candidates(
     return candidates
 
 
-def _runtime_shape_step_ids(runtime_file: Path) -> list[str]:
-    """Ordered step ids from a flat ``steps:`` list; ``[]`` if unreadable or malformed.
-
-    Fails closed on ANY malformed entry rather than filtering it out: if even one
-    ``steps`` entry is not a mapping, or lacks a non-empty ``id`` or ``title``, the
-    whole file yields ``[]`` (so the governed seam raises
-    ``MissionTypeEmptyActionSequenceError`` upstream rather than fabricating a
-    shorter, wrong sequence that silently drops a canonical step). ``id`` + ``title``
-    mirror the minimum the runtime loader (``PromptStep``) itself requires.
-
-    **Duplicate ids also fail closed (#6323).** A ``steps:`` list with a repeated
-    ``id`` cannot be a valid action sequence (the invariant requires unique ids),
-    so the whole file yields ``[]`` here — routing to the governed
-    ``MissionTypeEmptyActionSequenceError`` upstream — rather than emitting a
-    duplicate-bearing list that :func:`~charter.offering.missions.step_projection.project_action_sequence`
-    would reject downstream with a *raw* ``ValueError`` escaping custom-type
-    resolution. This is one of two deliberate charter<->runtime divergences: the
-    runtime loader (``PromptStep`` list) tolerates duplicate ids, and its
-    ``min_length=1`` ids are laxer than charter's ``IDENTIFIER_PATTERN`` (enforced
-    one layer up, in :func:`resolve_runtime_shape_steps`). Charter fails closed in
-    both cases — refuse, never accept-what-runtime-would-reject. Both boundaries,
-    and the single-valid-fixture agreement, are pinned by the charter<->runtime
-    parity tests.
-    """
-    try:
-        raw: Any = _get_yaml().load(runtime_file.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001  # malformed runtime file => no steps (fail-closed upstream)
-        return []
-    steps = raw.get("steps") if isinstance(raw, dict) else None
-    if not isinstance(steps, list):
-        return []
-    if not all(isinstance(step, dict) and step.get("id") and step.get("title") for step in steps):
-        return []
-    step_ids = [str(step["id"]) for step in steps]
-    if len(step_ids) != len(set(step_ids)):
-        return []
-    return step_ids
-
-
 def resolve_runtime_shape_steps(
     mission_type_id: str, pack_context: _PackContextLike | None
 ) -> list[MissionStep]:
@@ -345,7 +308,7 @@ def resolve_runtime_shape_steps(
                     sequence_index=index,
                     in_action_sequence=True,
                 )
-                for index, step_id in enumerate(_runtime_shape_step_ids(runtime_file))
+                for index, step_id in enumerate(read_runtime_shape_step_ids(runtime_file))
             ]
         except ValueError:
             return []

@@ -727,15 +727,15 @@ class TestLayeredProjectionThreadsPackContext:
             resolve_mission_type_context(tmp_path / "repo", mission_type="qa")
 
     def test_charter_reader_agrees_with_runtime_loader_on_step_ids(self, tmp_path: Path) -> None:
-        """Parity guard against silent drift: the charter-local runtime-shape reader
-        must extract the same ordered step ids as the runtime's own loader from one
-        valid fixture. Charter cannot import runtime at module scope, but this test
+        """Parity guard against silent drift: the kernel runtime-shape reader
+        (shared by charter) must extract the same ordered step ids as the runtime's own loader from one
+        valid fixture. Kernel cannot import runtime at module scope, but this test
         (a consumer) can — so it pins the two parsers to agree. If runtime's schema
         gains step-level curation that charter's "every step -> sequence member"
         reader does not mirror, this goes red instead of producing a wrong sequence."""
         from runtime.next._internal_runtime.schema import load_mission_template_file
 
-        from charter.offering.missions.mission_step_repository import _runtime_shape_step_ids
+        from kernel.mission_runtime_shape import read_runtime_shape_step_ids
 
         order = ("discovery", "specify", "plan", "tasks", "analyze", "implement", "review", "accept")
         runtime = 'mission:\n  key: qa\n  name: QA\n  version: "1.0.0"\nsteps:\n' + "".join(
@@ -744,10 +744,10 @@ class TestLayeredProjectionThreadsPackContext:
         runtime_file = tmp_path / "mission-runtime.yaml"
         runtime_file.write_text(runtime, encoding="utf-8")
 
-        charter_ids = _runtime_shape_step_ids(runtime_file)
+        kernel_ids = read_runtime_shape_step_ids(runtime_file)
         runtime_ids = [step.id for step in load_mission_template_file(runtime_file).steps]
 
-        assert charter_ids == runtime_ids == list(order)
+        assert kernel_ids == runtime_ids == list(order)
 
     def test_charter_reader_fails_closed_on_duplicate_ids_where_runtime_tolerates(
         self, tmp_path: Path
@@ -760,7 +760,7 @@ class TestLayeredProjectionThreadsPackContext:
         ValueError), and runtime's tolerance is recorded as the known, intended gap."""
         from runtime.next._internal_runtime.schema import load_mission_template_file
 
-        from charter.offering.missions.mission_step_repository import _runtime_shape_step_ids
+        from kernel.mission_runtime_shape import read_runtime_shape_step_ids
 
         runtime = (
             'mission:\n  key: qa\n  name: QA\n  version: "1.0.0"\nsteps:\n'
@@ -776,7 +776,7 @@ class TestLayeredProjectionThreadsPackContext:
         assert runtime_ids == ["specify", "specify", "implement"]
 
         # Charter fails closed rather than accept what runtime would.
-        assert _runtime_shape_step_ids(runtime_file) == []
+        assert read_runtime_shape_step_ids(runtime_file) == []
 
     def test_charter_resolve_refuses_non_identifier_id_where_runtime_loads(
         self, tmp_path: Path
@@ -786,7 +786,7 @@ class TestLayeredProjectionThreadsPackContext:
         is only ``min_length=1``. An id runtime accepts (e.g. uppercase) makes
         ``resolve_runtime_shape_steps`` fail closed to ``[]`` → governed
         empty-sequence error upstream, never a sequence runtime would brick on.
-        The boundary lives one layer up from ``_runtime_shape_step_ids`` (which does
+        The boundary lives one layer up from ``read_runtime_shape_step_ids`` (which does
         not apply the pattern), so it is pinned here against ``resolve_runtime_shape_steps``."""
         from runtime.next._internal_runtime.schema import load_mission_template_file
 
