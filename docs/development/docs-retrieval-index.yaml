@@ -2252,6 +2252,7 @@ pages:
     - {slug: "author-checklist", text: "Author Checklist", level: 2}
     - {slug: "references", text: "References", level: 2}
     - {slug: "amendment-2026-10-04-5457", text: "Amendment 2026-10-04 (#5457)", level: 2}
+    - {slug: "amendment-2026-10-17-6233-the-recorded-once-frozen-choice-assumes-a-tracked-effect", text: "Amendment 2026-10-17 (#6233) — the \"recorded-once, frozen\" choice assumes a TRACKED effect", level: 2}
   - path: "docs/adr/3.x/2026-07-08-1-mission-resolver-port.md"
     title: "ADR: MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container"
     divio_type: "none"
