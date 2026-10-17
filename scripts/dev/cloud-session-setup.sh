@@ -45,3 +45,29 @@ grep -qxF '.codegraph/' "$exclude" 2>/dev/null || echo '.codegraph/' >> "$exclud
 if command -v codegraph >/dev/null 2>&1 && [ ! -d .codegraph ]; then
   nohup codegraph init >/tmp/codegraph-init.log 2>&1 &
 fi
+
+# Wire Gradle to a Java 25 toolchain for the acceptance-jvm (Cucumber) suite, which
+# `build.gradle` pins to `languageVersion = of(25)`. The JDK itself is installed at
+# environment-provisioning time (session egress blocks JDK downloads) -- see
+# acceptance-jvm/README.md > "Cloud sessions". Here we only POINT Gradle at a Java 25
+# that is already present, so a session with one installed needs no per-run config; a
+# session without one still runs every Python check and the per-PR scenario contract,
+# which need no JDK. We never download here (it would fail under the session egress policy).
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  jdk25=""
+  for home in "${JAVA_HOME:-}" /usr/lib/jvm/*25* /opt/*jdk*25* /opt/java/*25*; do
+    [ -n "$home" ] && [ -x "$home/bin/java" ] || continue
+    if "$home/bin/java" -version 2>&1 | grep -q 'version "25'; then
+      jdk25="$home"
+      break
+    fi
+  done
+  if [ -n "$jdk25" ]; then
+    line="export JAVA_HOME=$jdk25"
+    grep -qxF "$line" "$CLAUDE_ENV_FILE" 2>/dev/null || echo "$line" >> "$CLAUDE_ENV_FILE"
+  else
+    echo "note: no Java 25 found; the acceptance-jvm (Cucumber) suite needs temurin 25." \
+         "Add it to the environment setup script (acceptance-jvm/README.md > Cloud sessions)." \
+         "Python checks and the per-PR scenario contract do not need it."
+  fi
+fi

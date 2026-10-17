@@ -33,6 +33,37 @@ A JDK 25 must be on `PATH` (CI uses `actions/setup-java` with `temurin` and
 `java-version: '25'`); the `java { toolchain { languageVersion = of(25) } }` block in
 `build.gradle` selects it.
 
+### Cloud sessions
+
+A Claude Code cloud session ships an older JDK, and its egress policy blocks JDK
+downloads, so the Java 25 toolchain must be installed at **environment-provisioning**
+time (the same layer that installs other session tools), where egress can reach
+Adoptium — not inside the running session. Add this to the environment's setup script
+(the cloud-environment menu in the session title bar → Edit); it is idempotent and
+installs the current Temurin 25 GA, verified against Adoptium's published checksum:
+
+```bash
+# Temurin JDK 25 for the acceptance-jvm (Cucumber) suite. Provisioning-time only.
+if [ ! -x /usr/lib/jvm/temurin-25/bin/java ]; then
+  meta=$(curl -fsSL "https://api.adoptium.net/v3/assets/latest/25/hotspot?architecture=x64&image_type=jdk&os=linux&vendor=eclipse")
+  url=$(printf '%s' "$meta" | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['binary']['package']['link'])")
+  sha=$(printf '%s' "$meta" | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['binary']['package']['checksum'])")
+  curl -fsSL "$url" -o /tmp/temurin25.tgz
+  echo "$sha  /tmp/temurin25.tgz" | sha256sum -c -
+  mkdir -p /usr/lib/jvm/temurin-25
+  tar -xzf /tmp/temurin25.tgz -C /usr/lib/jvm/temurin-25 --strip-components=1
+fi
+export JAVA_HOME=/usr/lib/jvm/temurin-25
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Once a Java 25 is present, `scripts/dev/cloud-session-setup.sh` auto-detects it and
+exports `JAVA_HOME` for the session, so Gradle's toolchain resolves with no per-run
+config. A session without a Java 25 still runs every Python check and the per-PR scenario
+contract (`tests/architectural/test_scenario_contract.py`) — neither needs a JDK — and
+only the local Cucumber-JVM run is unavailable; the nightly `acceptance-bdd` lane runs it
+cross-OS regardless.
+
 ### Dependency verification metadata
 
 `gradle/verification-metadata.xml` pins every resolved JVM dependency by sha256. It is
