@@ -109,9 +109,13 @@ _DRG_SOURCE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguid
 # singular, so the token↔singular relationship never drifts from the enum
 # (#5823). The kind SELECTION stays explicit via the exclusion set below:
 # "template"/"asset"/"anti_pattern" have no DRG singular, and "skill" is
-# omitted on purpose -- the parity loop loads the graph without org fragments,
-# so org skills would read as false gaps. ("mission-type" is not an
-# ArtifactKind member at all, so it is never iterated here.)
+# omitted on purpose. (Since #6337 the parity loop loads an org-AWARE graph
+# via ``_load_org_aware_graph``, so the original "org skills read as false
+# gaps because the graph has no org fragments" rationale no longer holds;
+# skill parity stays deferred to a dedicated change because its activation
+# keys carry distinct ``effective_when_absent="required"`` semantics, not
+# because the graph is org-inert.) ("mission-type" is not an ArtifactKind
+# member at all, so it is never iterated here.)
 _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
     kind.operator_token: kind.value
     for kind in ArtifactKind
@@ -366,18 +370,67 @@ def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | Non
     return result
 
 
+def _offering_org_root_chain(ctx: ProjectContext) -> list[Path] | None:
+    """Org-pack roots to scan for availability, mirroring the runtime (#6337).
+
+    The availability catalog must see every configured org pack, exactly as
+    ``ActiveCharterService`` / ``resolve_artifact_urn`` do -- otherwise an
+    org-tier artifact that the live runtime resolves reads as an
+    ``unknown_references`` gap here. The chain is ``pack_context.org_roots``
+    (every :attr:`PackContext.pack_roots` entry after the built-in root at
+    index 0), the same slice ``_check_graph_kind_parity`` already feeds
+    ``resolve_artifact_urn``. Returns ``None`` (not ``[]``) for a project with
+    no org packs, so the built-in-only scan stays byte-identical.
+    """
+    pack_context = ctx.pack_context
+    if pack_context is None:
+        return None
+    return list(pack_context.org_roots) or None
+
+
+def _load_org_aware_graph(repo_root: Path) -> DRGGraph:
+    """Load the built-in + org-chain + project DRG, org-aware (#6337).
+
+    The consistency guard must see the org-tier nodes the runtime resolves.
+    It therefore folds the configured org-pack chain exactly as
+    :func:`charter.activation._drg_helpers.org_chain_graph` does -- best-effort
+    (``strict=False``) :func:`resolve_pack_chain` roots plus their
+    ``drg/fragment.yaml`` layers via :func:`load_org_drg` -- while keeping the
+    project overlay (``include_project=True``, unlike that helper) so the
+    guard's universe matches what activation validated against. An org pack
+    ships a sharded ``drg/fragment.yaml`` rather than a root ``*.graph.yaml``,
+    so its nodes reach the graph only through ``org_fragments``.
+
+    Imports stay function-local: ``drg_activation`` imports other activation
+    modules, so importing it at module load would widen this module's
+    import-time graph (same rationale as ``org_chain_graph``).
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
+
+    return load_validated_graph(
+        repo_root,
+        org_roots=resolve_pack_chain(repo_root, strict=False),
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
+
+
 def _collect_all_offering_ids(
     ctx: ProjectContext,
     manager: ActiveCharterManager,
 ) -> dict[str, frozenset[str]]:
     """Return a mapping of CLI kind → frozenset of doctrine IDs (loaded once).
 
-    Invalid/missing doctrine dirs return an empty frozenset per kind.
+    Invalid/missing doctrine dirs return an empty frozenset per kind. The scan
+    spans the built-in layer plus every configured org pack (#6337) so an
+    org-tier artifact the runtime resolves is not misreported as unknown.
     """
+    org_root_chain = _offering_org_root_chain(ctx)
     all_ids: dict[str, frozenset[str]] = {}
     for kind in YAML_KEY_MAP:
         try:
-            all_ids[kind] = manager.list_available(ctx, kind)
+            all_ids[kind] = manager.list_available(ctx, kind, org_root_chain=org_root_chain)
         except ValueError:
             all_ids[kind] = frozenset()
     return all_ids
@@ -436,12 +489,11 @@ def _check_drg_cross_kind_refs(
     A non-empty activation set satisfies the check regardless of specific IDs.
     """
     try:
-        from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-        from charter.activation.drg_activation import filter_graph_by_activation
+        from charter.activation.drg_activation import filter_graph_by_activation  # noqa: PLC0415
 
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
-        full_drg = load_validated_graph(repo_root)
+        full_drg = _load_org_aware_graph(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
 
         reported_kind_pairs: set[tuple[str, str]] = set()
@@ -907,12 +959,11 @@ def _check_graph_kind_parity(
     genuine per-stem programming bug masquerade as a DRG-load failure.
     """
     try:
-        from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-        from charter.activation.drg_activation import filter_graph_by_activation
+        from charter.activation.drg_activation import filter_graph_by_activation  # noqa: PLC0415
 
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
-        full_drg = load_validated_graph(repo_root)
+        full_drg = _load_org_aware_graph(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
     except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
         verification_errors.append(f"drg: Could not verify config<->graph kind parity ({type(exc).__name__}: {exc}).")

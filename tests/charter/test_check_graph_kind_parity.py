@@ -128,8 +128,13 @@ def test_per_id_gap_named_when_node_absent_from_graph(
     ctx = _ctx_with_config(
         tmp_path, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
     )
+    # Stub signature accepts the org-aware kwargs (#6337:
+    # ``_load_org_aware_graph`` now calls ``load_validated_graph`` with
+    # ``org_roots``/``org_fragments``); the stub's intent -- "return this
+    # graph" -- is unchanged, so the node is still absent and the per-ID gap
+    # must still be named.
     monkeypatch.setattr(
-        drg_helpers, "load_validated_graph", lambda repo_root: _empty_graph()
+        drg_helpers, "load_validated_graph", lambda *_a, **_k: _empty_graph()
     )
 
     report = run_consistency_check(ctx)

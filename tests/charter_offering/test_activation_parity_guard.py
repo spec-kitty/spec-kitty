@@ -135,6 +135,23 @@ def _reference_entry(ref_id: str, kind: str) -> dict[str, str]:
     }
 
 
+def _write_org_fragment(org_pack_root: Path, *, nodes: str) -> None:
+    """Write an org pack's ``drg/fragment.yaml`` carrying *nodes* (#6337).
+
+    An org pack ships a SHARDED ``drg/fragment.yaml`` (not a root
+    ``*.graph.yaml``), so its DRG nodes reach the merged graph only via the
+    ``org_fragments`` layer that ``consistency_check._load_org_aware_graph``
+    now supplies. Shape mirrors the ``_write_fragment`` fixture in
+    ``tests/charter_offering/test_org_pack_augmentation.py``.
+    """
+    drg_dir = org_pack_root / "drg"
+    drg_dir.mkdir(parents=True, exist_ok=True)
+    (drg_dir / "fragment.yaml").write_text(
+        f"pack_name: test-org\nsource_kind: local_path\nsource_ref: {org_pack_root.as_posix()}\nlayer_index: 1\nnodes:\n{nodes}edges: []\n",
+        encoding="utf-8",
+    )
+
+
 def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -> None:
     """Write a minimal org-pack-only directive artefact for #2529 org resolution.
 
@@ -395,6 +412,57 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     # assertion demonstrates about `_check_reference_id_parity`.)
     assert "directive/org-only-directive" in report.reference_id_divergences
     assert report.coherent is False
+
+
+# ---------------------------------------------------------------------------
+# #6337: the consistency guard was org-BLIND. An org-tier artefact that the
+# live runtime resolves (artefact file + org DRG fragment node) was reported
+# as an ``unknown_references`` gap (``_collect_all_offering_ids`` scanned
+# built-in only) AND a ``graph_kind_gaps`` gap (``_check_graph_kind_parity``
+# loaded the DRG org-inert), even though config.yaml activates it and the
+# files exist. These two assertions are RED on the pre-fix built-in-only call
+# sites and GREEN once both load the org layer the way the runtime does.
+# Hermetic (synthetic org pack), so coverage does not depend on this repo's
+# own charter.yaml the way ``test_this_project_charter_pack_is_coherent`` does.
+# ---------------------------------------------------------------------------
+
+
+def test_org_overlay_activated_artefact_is_coherent_not_unknown(tmp_path: Path) -> None:
+    """#6337: a fully-present org-tier directive is coherent, not a false gap.
+
+    The org pack carries BOTH the directive artefact file (so
+    ``_collect_all_offering_ids`` -> ``list_available`` must see it across the
+    org chain) and a ``drg/fragment.yaml`` node with the matching canonical id
+    (so ``_check_graph_kind_parity`` must see it survive in the merged,
+    org-aware, activation-filtered graph). With the guard org-blind, the stem
+    shows in BOTH ``unknown_references`` and ``graph_kind_gaps``; org-aware, it
+    shows in neither.
+    """
+    org_pack_root = tmp_path / "org-pack"
+    _write_org_directive(org_pack_root, stem="org-only-directive", canonical_id="DIRECTIVE_ORG_ONLY")
+    _write_org_fragment(
+        org_pack_root,
+        nodes="  - id: DIRECTIVE_ORG_ONLY\n    kind: directives\n    title: Org only directive\n",
+    )
+
+    _write_config(
+        tmp_path,
+        (
+            "activated_directives:\n  - org-only-directive\n"
+            f"charter_packs:\n  org:\n    packs:\n      - name: test-org\n        local_path: {org_pack_root.as_posix()}\n"
+        ),
+    )
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    assert ctx.pack_context is not None
+    assert len(ctx.pack_context.pack_roots) == 2, "fixture sanity check: exactly one org pack root must be configured so this test exercises org resolution"
+
+    report = run_consistency_check(ctx)
+
+    # Fix #1 (``_collect_all_offering_ids``/``list_available`` org chain):
+    assert "directive/org-only-directive" not in report.unknown_references, f"org-tier directive misreported as unknown: {report.unknown_references}"
+    # Fix #2 (``_check_graph_kind_parity``/``_load_org_aware_graph`` org fragments):
+    assert "directive/org-only-directive" not in report.graph_kind_gaps, f"org-tier directive misreported as a graph gap: {report.graph_kind_gaps}"
 
 
 # ---------------------------------------------------------------------------
