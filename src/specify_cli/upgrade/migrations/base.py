@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
+
+logger = logging.getLogger(__name__)
 
 
 class ClaudeignorePathError(Exception):
@@ -141,9 +144,36 @@ class BaseMigration(ABC):
         ``runs_first`` migration whose :meth:`structural_detect` is True. Every
         other recorded migration is skipped as applied.
         """
-        if self.clone_local_effect and self.detect(project_path):
+        if self.clone_local_effect and self._detect_effect_present_fail_closed(project_path):
             return True
         return self.runs_first and self.structural_detect(project_path)
+
+    def _detect_effect_present_fail_closed(self, project_path: Path) -> bool:
+        """Run :meth:`detect` for the reselection gate, failing closed on a probe error.
+
+        :meth:`reselect_when_recorded` is reached by both the runner skip gate and the
+        selection arm (``registry._clone_local_selected_below_window``), and neither wraps
+        this call in ``registry._detect_fail_closed``. A clone-local migration's
+        ``detect()`` probes real on-disk state (e.g. a merge-driver migration reads
+        ``.gitattributes`` via ``read_text()``); a pathological checkout -- an unreadable
+        or directory ``.gitattributes`` -- raises ``OSError``, which would otherwise
+        propagate out of the gate and crash the whole upgrade before any migration runs
+        (#6350 review follow-up). Fail closed, matching ``_detect_fail_closed``'s
+        philosophy: treat a probe error as "effect needs attention" (``True``) so the
+        runner reselects the migration and records a fail-closed failure rather than
+        skipping it silently or aborting the run.
+        """
+        from specify_cli.gitignore_manager import GitignorePathError  # noqa: PLC0415
+
+        try:
+            return self.detect(project_path)
+        except (GitignorePathError, MigrationStateUnreadableError, OSError) as exc:
+            logger.warning(
+                "Reselecting clone-local migration %s after its detect() failed closed: %s",
+                self.migration_id,
+                exc,
+            )
+            return True
 
     @abstractmethod
     def detect(self, project_path: Path) -> bool:
