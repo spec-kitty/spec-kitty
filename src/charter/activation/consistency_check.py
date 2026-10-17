@@ -122,6 +122,45 @@ _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
 _DRG_SINGULAR_TO_CLI_KIND: dict[str, str] = {v: k for k, v in _CLI_KIND_TO_DRG_SINGULAR.items()}
 
 
+def _load_full_drg_org_aware(repo_root: Path) -> DRGGraph:
+    """Load built-in + org + project DRG, threading the project's configured org layer (#6338).
+
+    ``consistency_check`` historically loaded the DRG org-inert
+    (``load_validated_graph(repo_root)`` with no org arguments), matching the
+    charter-build-time convention. That is wrong for the project-coherence
+    checks: when the project activates **org-pack** (e.g. ``packs/internal``)
+    artifacts, an org-inert graph omits their nodes, so
+    ``filter_graph_by_activation`` reports every activated org-pack artifact as
+    "does not survive the activation-filtered DRG graph" — a false incoherence
+    (#6333-adjacent). The directive repository was already loaded org-aware
+    (``_GateResources.directives`` threads ``pack_context.org_roots``); this
+    aligns the DRG load with it.
+
+    Mirrors the canonical runtime pattern (``preset_application``): the org pack
+    chain via :func:`~charter.activation.layer_roots.resolve_pack_chain` (for
+    org packs that ship a root-level DRG graph) plus the org
+    ``drg/fragment.yaml`` layer via
+    :func:`~charter.activation.drg_activation.load_org_drg` (which carries a
+    source-only org pack's nodes through ``merge_three_layers``). Both are
+    ``strict=False`` — a misconfigured/absent org pack degrades to "no org
+    layer", never crashing the coherence scan.
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
+
+    org_roots = resolve_pack_chain(repo_root, strict=False)
+    org_fragments = load_org_drg(repo_root, strict=False)
+    # No configured org layer (e.g. a project with no org packs, or a synthetic
+    # test root): call through org-inert, byte-identical to the historical
+    # ``load_validated_graph(repo_root)`` contract. Only thread the org arguments
+    # when an org layer actually exists, so a caller/test that substitutes a
+    # single-arg ``load_validated_graph`` stub is unaffected.
+    if not org_roots and not org_fragments:
+        return load_validated_graph(repo_root)
+    return load_validated_graph(repo_root, org_roots=org_roots, org_fragments=org_fragments)
+
+
 # ---------------------------------------------------------------------------
 # TensionFinding (T024, FR-009/FR-010, contracts/tension-finding.md)
 # ---------------------------------------------------------------------------
@@ -373,11 +412,22 @@ def _collect_all_offering_ids(
     """Return a mapping of CLI kind → frozenset of doctrine IDs (loaded once).
 
     Invalid/missing doctrine dirs return an empty frozenset per kind.
+
+    Scans the project's configured org-pack chain as well as the built-in layer
+    (#6338): ``list_available`` defaults to built-in-only, so an org-pack (e.g.
+    ``packs/internal``) artifact activated in this project would otherwise be
+    absent from the known-id set and falsely reported as an
+    ``unknown_reference`` ("Not found in doctrine"). The org chain is resolved
+    ``strict=False`` so a misconfigured/absent org pack degrades to built-in
+    only rather than crashing the scan.
     """
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
+
+    org_chain = resolve_pack_chain(ctx.require_repo_root(), strict=False)
     all_ids: dict[str, frozenset[str]] = {}
     for kind in YAML_KEY_MAP:
         try:
-            all_ids[kind] = manager.list_available(ctx, kind)
+            all_ids[kind] = manager.list_available(ctx, kind, org_root_chain=org_chain)
         except ValueError:
             all_ids[kind] = frozenset()
     return all_ids
@@ -436,12 +486,11 @@ def _check_drg_cross_kind_refs(
     A non-empty activation set satisfies the check regardless of specific IDs.
     """
     try:
-        from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-        from charter.activation.drg_activation import filter_graph_by_activation
+        from charter.activation.drg_activation import filter_graph_by_activation  # noqa: PLC0415
 
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
-        full_drg = load_validated_graph(repo_root)
+        full_drg = _load_full_drg_org_aware(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
 
         reported_kind_pairs: set[tuple[str, str]] = set()
@@ -907,12 +956,11 @@ def _check_graph_kind_parity(
     genuine per-stem programming bug masquerade as a DRG-load failure.
     """
     try:
-        from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-        from charter.activation.drg_activation import filter_graph_by_activation
+        from charter.activation.drg_activation import filter_graph_by_activation  # noqa: PLC0415
 
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
-        full_drg = load_validated_graph(repo_root)
+        full_drg = _load_full_drg_org_aware(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
     except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
         verification_errors.append(f"drg: Could not verify config<->graph kind parity ({type(exc).__name__}: {exc}).")
@@ -987,10 +1035,8 @@ class _GateResources:
         """Return the validated DRG graph, loading it at most once."""
         if not self._full_drg_loaded:
             self._full_drg_loaded = True
-            from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-
             try:
-                self._full_drg = load_validated_graph(self.repo_root)
+                self._full_drg = _load_full_drg_org_aware(self.repo_root)
             except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
                 self._full_drg_error = exc
         if self._full_drg_error is not None:
@@ -1059,9 +1105,7 @@ def _resolve_full_drg(repo_root: Path) -> DRGGraph:
     resources = _GATE_RESOURCES.get()
     if resources is not None:
         return resources.full_drg()
-    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-
-    return load_validated_graph(repo_root)
+    return _load_full_drg_org_aware(repo_root)
 
 
 def _resolve_directives(repo_root: Path, pack_context: PackContext) -> DirectiveRepository:
