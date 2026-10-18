@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#2529": {
+      "evidence_ref": "cited for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#4253": {
       "evidence_ref": "<link or commit>",
       "fr": null,
