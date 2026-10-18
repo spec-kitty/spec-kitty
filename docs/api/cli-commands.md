@@ -3126,6 +3126,39 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            hashes (FR-009, WP05).                            │
 │ repin-hooks                Re-pin this repository's pre-commit hook to the   │
 │                            current interpreter (#254).                       │
+│ ledger                     Report the migration ledger: which setup steps    │
+│                            have run, and their state.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate ledger
+
+_Report the migration ledger: which setup steps have run, and their state._
+
+```
+ Usage: spec-kitty migrate ledger [OPTIONS]
+
+ Report the migration ledger: which setup steps have run, and their state.
+
+ A read-only view of the two-partition migration ledger. It lists every
+ declared setup step in declared (manifest) order and, for each, shows whether
+ it is already in place (recorded, effect present here), recorded elsewhere but
+ not here (a per-clone step the ledger records but whose effect is absent on
+ this checkout — e.g. a freshly pulled clone), not yet applied, and whether its
+ source content changed since it ran (drift). Drift is audit-only: reported,
+ never re-applied. This command never commits and never writes a file.
+ ``--json`` emits the one structured shape the human summary renders from.
+
+ Examples:
+
+     spec-kitty migrate ledger
+
+     spec-kitty migrate ledger --json
+
+╭─ Options ──────────────────────────────────────────────────────────────────╮
+│ --json            Emit the recorded setup steps and summary as structured    │
+│                   JSON (the same shape the human summary renders).           │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

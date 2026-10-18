@@ -23,9 +23,10 @@ from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from . import autocommit
 from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
+from .ledger import MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError
-from .registry import MigrationRegistry
+from .registry import MigrationRegistry, migration_settled
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +245,7 @@ class MigrationRunner:
         if metadata is None:
             metadata = self._create_initial_metadata(from_version)
 
-        # Normalize legacy migration IDs before checking has_migration()
+        # Normalize legacy migration IDs before the ledger-diff selection reads them
         if not dry_run:
             norm_changes = metadata.normalize_and_save_legacy_ids(self.kittify_dir)
             result.warnings.extend(norm_changes)
@@ -351,10 +352,16 @@ class MigrationRunner:
             Tuple of (MigrationResult, status) where status is one of
             ``applied``, ``skipped``, or ``failed``.
         """
-        # Skip if already applied -- unless a runs_first migration's structural
-        # predicate says the project carries its old state again (a pulled
-        # metadata.yaml or a merge brought it back), which re-selects it.
-        if metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(self.project_path):
+        # Skip if the applicable ledger partition already records this migration
+        # (ADR 2026-10-17-1 §3: the ledger, not metadata.yaml, is the applied
+        # authority) -- unless a runs_first migration's structural predicate says
+        # the project carries its old state again (a pulled metadata.yaml or a
+        # merge brought it back), which re-selects it. ``detect()`` below stays
+        # the pre-apply() idempotency guard only (C-003), never the skip
+        # authority. A drifted source never changes this: a recorded migration
+        # stays recorded whatever its content now hashes to (C-004).
+        ledger = MigrationLedger(self.project_path)
+        if migration_settled(ledger, migration) and not migration.reselect_when_recorded(self.project_path):
             return (
                 MigrationResult(
                     success=True,
@@ -380,8 +387,8 @@ class MigrationRunner:
             if not dry_run:
                 self._record_migration_result(
                     metadata,
-                    self.kittify_dir,
-                    migration.migration_id,
+                    self.project_path,
+                    migration,
                     "failed",
                     f"Cannot safely detect: {exc}",
                 )
@@ -398,8 +405,8 @@ class MigrationRunner:
             if not dry_run:
                 self._record_migration_result(
                     metadata,
-                    self.kittify_dir,
-                    migration.migration_id,
+                    self.project_path,
+                    migration,
                     "skipped",
                     "Not applicable",
                 )
@@ -411,15 +418,22 @@ class MigrationRunner:
                 "skipped",
             )
 
-        # Check if safe to apply
+        # Check if safe to apply. Under ledger-diff selection the candidate set is
+        # "declared minus applied" -- broader than the retired version window --
+        # so a migration that does not fit THIS project (``can_apply`` refuses) is
+        # a SKIP, not a failure: it is left for a run where it does fit. This
+        # matches the worktree loop, which has always treated a ``can_apply``
+        # refusal as a warn-and-continue. Not recorded, so it is re-evaluated when
+        # the project state changes. (A genuine inability to complete work is an
+        # ``apply()`` failure, which still fails the run.)
         can_apply, reason = migration.can_apply(self.project_path)
         if not can_apply:
             return (
                 MigrationResult(
-                    success=False,
-                    errors=[f"Cannot apply {migration.migration_id}: {reason}"],
+                    success=True,
+                    warnings=[f"Migration {migration.migration_id} not applicable here ({reason}); skipping"],
                 ),
-                "failed",
+                "skipped",
             )
 
         # Apply the migration. Same TOCTOU-safe handling as detect() above --
@@ -443,8 +457,8 @@ class MigrationRunner:
         if not dry_run and (result.success or not migration.runs_first):
             self._record_migration_result(
                 metadata,
-                self.kittify_dir,
-                migration.migration_id,
+                self.project_path,
+                migration,
                 "success" if result.success else "failed",
                 "; ".join(result.changes_made) if result.changes_made else None,
             )
@@ -554,8 +568,9 @@ class MigrationRunner:
             worktree_failed = False
 
             # Apply migrations to worktree
+            wt_ledger = MigrationLedger(worktree)
             for migration in worktree_migrations:
-                if wt_metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(worktree):
+                if migration_settled(wt_ledger, migration) and not migration.reselect_when_recorded(worktree):
                     continue
 
                 # Same fail-closed handling as the main checkout in
@@ -571,8 +586,8 @@ class MigrationRunner:
                     result["errors"].append(f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}")
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
-                        wt_kittify,
-                        migration.migration_id,
+                        worktree,
+                        migration,
                         "failed",
                         f"Cannot safely detect: {exc}",
                     ):
@@ -585,8 +600,8 @@ class MigrationRunner:
                     # not bump last_upgraded_at on every re-run (issue #1872).
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
-                        wt_kittify,
-                        migration.migration_id,
+                        worktree,
+                        migration,
                         "skipped",
                         "Not applicable",
                     ):
@@ -610,8 +625,8 @@ class MigrationRunner:
                 if migration_result.success:
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
-                        wt_kittify,
-                        migration.migration_id,
+                        worktree,
+                        migration,
                         "success",
                         "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
                     ):
@@ -621,8 +636,8 @@ class MigrationRunner:
                     if not dry_run:
                         self._record_migration_result(
                             wt_metadata,
-                            wt_kittify,
-                            migration.migration_id,
+                            worktree,
+                            migration,
                             "failed",
                             "; ".join(migration_result.errors) if migration_result.errors else None,
                         )
@@ -754,22 +769,48 @@ class MigrationRunner:
     def _record_migration_result(
         self,
         metadata: ProjectMetadata,
-        metadata_dir: Path,
-        migration_id: str,
+        root: Path,
+        migration: BaseMigration,
         result: str,
         notes: str | None = None,
     ) -> bool:
         """Persist each migration record immediately for crash/failure recovery.
 
-        Returns ``True`` when a new record was written. An idempotent no-op
-        (the record already existed) returns ``False`` and skips the save, so
-        callers can avoid bumping ``last_upgraded_at`` on a re-run that recorded
-        nothing new (issue #1872 / #1838).
+        Writes the two-partition ledger (ADR 2026-10-17-1) -- the applied
+        authority the selection flip reads -- AND makes the legacy
+        ``metadata.yaml`` ``record_migration`` call. That metadata write is now
+        in-memory only: the WP04 cutover dropped ``migrations.applied`` from
+        ``save()``, so this record never reaches disk and is NOT a second
+        on-disk authority (C-001). It survives solely so the adoption backfill
+        and any in-process legacy reader still see the applied list during a run.
+
+        Returns ``True`` when a NEW ledger record was appended. An idempotent
+        no-op (the record already existed) returns ``False`` and skips the
+        metadata save, so callers can avoid bumping ``last_upgraded_at`` on a
+        re-run that recorded nothing new (issue #1872 / #1838 / #4972). The
+        ledger -- not the in-memory metadata list, which a reload leaves empty --
+        is the "new record" signal.
         """
-        recorded = metadata.record_migration(migration_id, result, notes)
+        recorded = self._record_ledger_result(root, migration, result)
+        metadata.record_migration(migration.migration_id, result, notes)
         if recorded:
-            metadata.save(metadata_dir)
+            metadata.save(root / KITTIFY_DIR)
         return recorded
+
+    @staticmethod
+    def _record_ledger_result(root: Path, migration: BaseMigration, result: str) -> bool:
+        """Append a ledger record for *migration* (partition-routed), idempotently.
+
+        Routing, identity and the ``sha256:`` content_hash are filled in by
+        :func:`ledger.build_record` (D3). A record with an identical
+        ``(id, result)`` already present in the authoritative partition is a
+        no-op. Returns ``True`` when a new record was appended.
+        """
+        ledger = MigrationLedger(root)
+        if any(record.id == migration.migration_id and record.result == result for record in ledger.applicable_records_for(migration)):
+            return False
+        ledger.append(build_record(migration, result))
+        return True
 
     def _finalize_main_metadata(
         self,

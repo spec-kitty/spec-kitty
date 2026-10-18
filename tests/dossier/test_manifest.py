@@ -1129,31 +1129,31 @@ class TestPlanManifest:
         """Clear cache after each test."""
         ManifestRegistry.clear_cache()
 
-    def test_plan_manifest_loads_and_matches_state_machine(self):
-        """FR-010/AS1-AS4 of US2: `plan` manifest loads, matches
-        `mission.yaml`'s state machine exactly (order-sensitive), and
-        requires only `plan`'s own real artifacts -- `goals.md`,
-        `research.md`, `plan.md` -- at the steps that gate on them via
-        `artifact_exists(...)` in `mission.yaml`'s transitions."""
+    def test_plan_manifest_loads_and_matches_action_vocabulary(self):
+        """FR-010/AS1-AS4 of US2, reconciled by #6388: `plan` manifest loads
+        and is keyed on the plan step contracts' runtime ACTION IDS
+        (specify/research/plan/review) -- the vocabulary the plan guard table
+        and the presence gatherer dispatch on -- not `mission.yaml`'s phase
+        names. It requires `plan`'s own real artifacts -- `spec.md`,
+        `research.md`, `plan.md` -- at the actions that produce them.
+
+        Intentional contract update: the former `goals`/`structure`/`draft`/
+        `done` keys (and the phantom `goals.md`) are retired."""
         manifest = ManifestRegistry.load_manifest("plan")
         assert manifest is not None
         assert manifest.mission_type == "plan"
         assert manifest.manifest_version == "1"
 
-        # Order-sensitive: matches packs/built-in/missions/plan/mission.yaml's
-        # `states` list (lines 9-26) exactly.
         assert manifest.get_step_ids() == [
-            "goals",
+            "specify",
             "research",
-            "structure",
-            "draft",
+            "plan",
             "review",
-            "done",
         ]
 
-        goals_specs = ManifestRegistry.get_required_artifacts(manifest, "goals")
-        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in goals_specs] == [
-            ("output.goals.main", ArtifactClassEnum.OUTPUT, "goals.md", True),
+        specify_specs = ManifestRegistry.get_required_artifacts(manifest, "specify")
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specify_specs] == [
+            ("output.spec.main", ArtifactClassEnum.OUTPUT, "spec.md", True),
         ]
 
         research_specs = ManifestRegistry.get_required_artifacts(manifest, "research")
@@ -1161,42 +1161,34 @@ class TestPlanManifest:
             ("evidence.research", ArtifactClassEnum.EVIDENCE, "research.md", True),
         ]
 
-        draft_specs = ManifestRegistry.get_required_artifacts(manifest, "draft")
-        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in draft_specs] == [
+        plan_specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
+        assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in plan_specs] == [
             ("output.plan.main", ArtifactClassEnum.OUTPUT, "plan.md", True),
         ]
 
-        # `structure`, `review`, and `done` have no filesystem-artifact
-        # requirement expressible by this schema: `structure->draft` is an
-        # unconditional transition in mission.yaml, and `review->done` gates
-        # on `gate_passed("plan_approved")`, not artifact_exists(...).
-        assert ManifestRegistry.get_required_artifacts(manifest, "structure") == []
+        # `review` gates on an approval gate, not a filesystem artifact.
         assert ManifestRegistry.get_required_artifacts(manifest, "review") == []
-        assert ManifestRegistry.get_required_artifacts(manifest, "done") == []
+        # The retired phase-name keys resolve to nothing.
+        for retired in ("goals", "structure", "draft", "done"):
+            assert ManifestRegistry.get_required_artifacts(manifest, retired) == []
 
-    def test_plan_manifest_header_names_guard_gap_mechanism(self):
-        """AS4 of US2 (tasks-phase adversarial review fix, round 4,
-        TASKS-FRESH4-001): the header comment must name the SPECIFIC
-        mechanism from `tracer-design-decisions.md` Decision 1 -- the
-        hardcoded `mission_family="software-dev"` in `_check_cli_guards`
-        plus the `review`-step lexical collision -- not a vaguer "no guard
-        exists yet" framing. Mirrors WP04's T018 pattern
-        (the since-retired `test_override_mirror_files_carry_deprecation_header`, #5128): reads the
-        raw file text, not the parsed model, since the header comment is
-        not part of the parsed schema."""
+    def test_plan_manifest_header_names_action_vocabulary(self):
+        """The header comment must describe the CURRENT mechanism (#6388): keys
+        are runtime action ids. Reads the raw file text, since the header
+        comment is not part of the parsed schema. The comment ships to every
+        consumer, so it names no repository-internal symbol, test or tracker
+        number (``test_builtin_pack_provenance_ratchet``)."""
         raw_text = self._PLAN_MANIFEST_PATH.read_text(encoding="utf-8")
 
-        assert "mission_family" in raw_text
-        assert "software-dev" in raw_text
-        assert "_check_cli_guards" in raw_text
-        # Names the specific `review`-step lexical collision, not merely
-        # "no branch recognizes plan step ids".
-        assert "review" in raw_text.lower()
-        assert "collide" in raw_text.lower()
+        assert "action ids" in raw_text
 
-        # The vaguer, explicitly-rejected framing must be absent so a future
-        # genericization of the header is caught, not silently passed.
-        assert "no guard exists yet" not in raw_text.lower()
+        # The stale claims (no plan guard branch; keys mirror mission.yaml
+        # state ids; hardcoded software-dev family) are false post-#3386.
+        lowered = raw_text.lower()
+        assert "no dedicated `plan`-family guard branch" not in lowered
+        assert "hardcodes" not in lowered
+        assert "mirror" not in lowered
+        assert "goals.md" not in lowered
 
 
 class TestRepoMissionOverrideTierRetired:

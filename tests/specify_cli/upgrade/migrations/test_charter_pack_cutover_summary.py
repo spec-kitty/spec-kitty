@@ -96,6 +96,24 @@ def test_dry_run_preview_text_has_one_period() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _settle_all_except(project: Path, *keep_unsettled: str) -> None:
+    """Seed the ledger so every declared migration except ``keep_unsettled`` is ``success``.
+
+    Post-cutover ``get_applicable`` is a ledger-diff over the full declared set
+    (version window retired, ADR 2026-10-17-1); seeding a fully-adopted ledger
+    isolates the cutover so an unrelated migration cannot alter the legacy config
+    before the cutover's reset runs. Fixture setup only -- explicit success records.
+    """
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    for migration in MigrationRegistry.get_all():
+        if migration.migration_id not in keep_unsettled:
+            MigrationLedger(project).append(build_record(migration, "success"))
+
+
 def _git(project: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=project, check=True, capture_output=True)
 
@@ -147,6 +165,7 @@ def test_human_dry_run_shows_every_category_and_writes_nothing(tmp_path: Path) -
 
 def test_real_run_human_and_json_summaries(tmp_path: Path) -> None:
     human = _legacy_project(tmp_path / "human")
+    _settle_all_except(human, CUTOVER)  # isolate the cutover so its config reset is the one reported
     code, output = _upgrade(human)
     assert code == 0, output
     flat = " ".join(output.split())
@@ -157,6 +176,7 @@ def test_real_run_human_and_json_summaries(tmp_path: Path) -> None:
     assert "activated_kinds" not in config and "activated_glossary_packs" not in config and "my-custom-tactic" in config
 
     machine = _legacy_project(tmp_path / "machine")
+    _settle_all_except(machine, CUTOVER)
     code, output = _upgrade(machine, "--json")
     assert code == 0, output
     payload = json.loads(output[output.index("{") :])

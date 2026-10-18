@@ -321,6 +321,34 @@ def test_main_happy_path_routes_through_run_escalation(monkeypatch: pytest.Monke
     assert "#5" in capsys.readouterr().out
 
 
+def test_main_reads_every_repeated_xunit_into_one_deduped_report(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """#6369: the acceptance-bdd escalation passes one gating junit folder per OS leg."""
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    legs = []
+    for leg, scenarios in (("ubuntu", ("lands a lane",)), ("macos", ("lands a lane", "macos only"))):
+        junit = tmp_path / f"acceptance-bdd-results-{leg}" / "gating" / "junit"
+        junit.mkdir(parents=True)
+        cases = "".join(f'<testcase name="{name}" classname="Consolidate"><failure message="boom"/></testcase>' for name in scenarios)
+        (junit / "TEST-Consolidate.xml").write_text(f"<testsuite>{cases}</testsuite>", encoding="utf-8")
+        legs.append(str(junit))
+    created: dict[str, str] = {}
+
+    def _fake_create(self: Any, *, title: str, body: str, labels: list[str]) -> dict[str, Any]:
+        created["body"] = body
+        return _triaged_issue(5)
+
+    monkeypatch.setattr(mod.GitHubIssueClient, "find_open_issue_by_marker", lambda self, marker: None)
+    monkeypatch.setattr(mod.GitHubIssueClient, "create_issue", _fake_create)
+    args = [*_MAIN_ARGS, "--suite-key", "acceptance-bdd", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty"]
+    rc = mod.main([*args, "--xunit", legs[0], "--xunit", legs[1]])
+
+    assert rc == 0
+    from scripts.ci.nightly_xunit import recorded_ids
+
+    assert recorded_ids(created["body"]) == ("Consolidate::lands a lane", "Consolidate::macos only")
+    assert "::warning" not in capsys.readouterr().err
+
+
 # ---------------------------------------------------------------------------
 # real client: input validation + marker filtering + oldest-wins dedup
 # ---------------------------------------------------------------------------

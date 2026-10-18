@@ -1346,6 +1346,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -4664,12 +4670,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/operations/ci-machine-auth.md
-  tag: current
-  divio_type: reference
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/operations/coord-branch-base-strand.md
   tag: current
   divio_type: none
@@ -4720,7 +4720,7 @@
   notes: null
 - path: docs/operations/logged-out-teamspace.md
   tag: current
-  divio_type: none
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -4761,12 +4761,6 @@
   current_target: true
   notes: null
 - path: docs/operations/sync-daemon-orphan-cleanup.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/operations/sync-drain.md
   tag: current
   divio_type: none
   owning_workstream: none

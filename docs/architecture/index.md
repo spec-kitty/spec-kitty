@@ -114,7 +114,7 @@ Kept as records; not maintained as current.
 - [Functional Ownership Map (demoted)](05_ownership_map.md) — superseded narrative; module boundaries are owned by the enforced pyproject package list and layer rules.
 - [Architecture: centralized feature detection](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/feature-detection.md) — the v0.14.0 centralized mission-selection design, superseded by `mission_id` identity.
 - [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — superseded pre-Zeitgeist launch plan built on the retired sync gate.
-- [Team Kitty (SaaS): the hosted-sync flow](team-kitty-saas.md) — the deleted sync transport, kept as a record.
+- [Team Kitty (SaaS) hosted-sync flow (removed)](team-kitty-saas.md) — stub kept so old links resolve; the flow was removed in #6164.
 - [Gap analysis: connector installation model](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/gap-analysis-connector-installation-model.md) — point-in-time 2026-03 gap analysis against the pre-convergence code.
 - [Architecture Documentation Guide](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.
 - [Architecture Navigation Guide](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/NAVIGATION_GUIDE.md) — retired 2.x-era guide; redirects to the documentation home and `llms.txt`.

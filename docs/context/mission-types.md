@@ -130,7 +130,7 @@ runtime step DAG):
 3. Draft Plan
 4. Review & Approval
 
-Required artifacts: `goals.md`, `plan.md`; optional `research.md` and a `data/`
+Required artifacts: `spec.md`, `plan.md`; optional `research.md` and a `data/`
 directory. Unlike the other three types, this mission type's approval gate is
 plan approval rather than a code-review or publication gate.
 

@@ -167,6 +167,6 @@ legibility.
   `spec.md` / `plan.md` / `research.md`.
 - Companion: [ADR: Default-off rc release channel](2026-08-16-4-rc-release-channel.md)
   (T3 / #3496), scoped against the rc-cadence producer half in #3047.
-- Architecture: [Team Kitty (SaaS) architecture](../../architecture/team-kitty-saas.md) for
-  the end-to-end hosted-sync flow this seam underpins.
+- Architecture: [Team Kitty](../../context/team-kitty.md); the end-to-end hosted-sync flow
+  this seam underpinned was removed in #6164 (code preserved in `spec-kitty/event-router`).
 - Cross-refs: #3251 (PACKS_ROOT fail-closed), #3381 (auto-run migration lesson), #2519.

@@ -25,11 +25,27 @@ from specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore import (
 from specify_cli.upgrade.migrations.m_3_2_3_encoding_provenance_gitignore_backfill import (
     EncodingProvenanceGitignoreBackfillMigration,
 )
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _settle_all_except(project: Path, *keep_unsettled: str) -> None:
+    """Seed the ledger so every declared migration except ``keep_unsettled`` is ``success``.
+
+    Post-cutover ``get_applicable`` is a ledger-diff over the full declared set
+    (the version window is retired, ADR 2026-10-17-1), so a bare fixture with an
+    empty ledger runs ~every migration and an unrelated gitignore backfill can
+    pre-satisfy the one under test. Seeding the ledger to a fully-adopted project
+    isolates the subject migration. Fixture setup only -- explicit success records.
+    """
+    for migration in MigrationRegistry.get_all():
+        if migration.migration_id not in keep_unsettled:
+            MigrationLedger(project).append(build_record(migration, "success"))
 
 _PROVENANCE_GITIGNORE_ENTRY = ".kittify/encoding-provenance/"
 _PROVENANCE_LOG_PATH = ".kittify/encoding-provenance/global.jsonl"
@@ -208,6 +224,7 @@ def test_backfill_migration_repairs_already_current_3_2_x_project(
     index.write_text("{}\n", encoding="utf-8")
 
     auto_discover_migrations()
+    _settle_all_except(tmp_path, EncodingProvenanceGitignoreBackfillMigration.migration_id)
     result = MigrationRunner(tmp_path).upgrade("3.2.3", include_worktrees=False)
 
     assert result.success

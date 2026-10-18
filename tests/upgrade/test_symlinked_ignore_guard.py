@@ -26,6 +26,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.gitignore_manager import GitignorePathError
+from specify_cli.upgrade.ledger import MigrationLedger
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -168,10 +169,11 @@ class TestWorktreeMigrationGuard:
         result = runner._upgrade_worktrees("0.0.1", [_DetectRaisesMigration()], dry_run=False)
 
         assert any("0.0.1_detect_raises" in e for e in result["errors"])
-        wt_metadata = ProjectMetadata.load(worktree / ".kittify")
-        assert wt_metadata is not None
-        assert not wt_metadata.has_migration("0.0.1_detect_raises")
-        record = next(m for m in wt_metadata.applied_migrations if m.id == "0.0.1_detect_raises")
+        # The ledger is the applied authority post-cutover: the migration is
+        # recorded "failed" there, and is NOT settled (never a success record).
+        wt_records = MigrationLedger(worktree).read_all()
+        assert not any(r.id == "0.0.1_detect_raises" and r.result == "success" for r in wt_records)
+        record = next(r for r in wt_records if r.id == "0.0.1_detect_raises")
         assert record.result == "failed"
 
     def test_worktree_apply_raising_is_recorded_as_error_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
@@ -208,7 +210,8 @@ class TestRegistryGetApplicableGuard:
         reloaded = ProjectMetadata.load(migration_project / ".kittify")
         assert reloaded is not None
         assert reloaded.version == "0.0.1"
-        record = next(migration for migration in reloaded.applied_migrations if migration.id == "0.0.1_detect_raises")
+        # The failed migration is recorded in the ledger (the applied authority).
+        record = next(r for r in MigrationLedger(migration_project).read_all() if r.id == "0.0.1_detect_raises")
         assert record.result == "failed"
 
 
@@ -310,6 +313,12 @@ class TestCliVerboseDisplayGuard:
 
             project = tmp_path / "project"
             project.mkdir()
+            # The --verbose --dry-run upgrade flow resolves the charter, which
+            # requires a git-tracked root (NotInsideRepositoryError otherwise);
+            # a realistic project is a git repo, so init one.
+            import subprocess
+
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
             kittify_dir = project / ".kittify"
             kittify_dir.mkdir(parents=True)
             metadata = ProjectMetadata(

@@ -17,10 +17,18 @@ from pathlib import Path
 
 import pytest
 
+from collections.abc import Iterator
+
+from kernel.clock import now_utc
 from specify_cli.core.git_ops import git_exclude_file, run_command
+from specify_cli.upgrade.ledger import MigrationLedger
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations._merge_driver_seeding import MergeDriverSeedingMigration
 from specify_cli.upgrade.migrations.base import BaseMigration
 from specify_cli.upgrade.migrations.m_0_13_1_exclude_worktrees import ExcludeWorktreesMigration
+from specify_cli.upgrade.migrations.m_2_1_2_fix_glossary_context_skill import FixGlossaryContextSkillMigration
+from specify_cli.upgrade.registry import MigrationRegistry
+from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.migrations.m_2_0_0_retire_git_hooks import RetireGitHooksMigration
 from specify_cli.upgrade.migrations.m_3_0_3_globalize_skill_pack import GlobalizeSkillPackMigration
 from specify_cli.upgrade.migrations.m_3_1_1_event_log_merge_driver import EventLogMergeDriverMigration
@@ -143,3 +151,76 @@ def test_merge_driver_apply_twice_is_idempotent(git_project: Path) -> None:
     )
     assert driver.stdout.strip().splitlines() == ["spec-kitty merge-driver-event-log %O %A %B"]
     assert migration.detect(git_project) is False
+
+
+# --------------------------------------------------------------------------------------
+# WP02 FR-008: SupersededMigration / detect()-guard interplay with ledger-diff
+# --------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def only_registry() -> Iterator[type[MigrationRegistry]]:
+    """An empty registry for the test; the real one is restored afterwards."""
+    saved = dict(MigrationRegistry._migrations)
+    MigrationRegistry.clear()
+    try:
+        yield MigrationRegistry
+    finally:
+        MigrationRegistry._migrations.clear()
+        MigrationRegistry._migrations.update(saved)
+
+
+def _bare_project(tmp_path: Path, version: str) -> Path:
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    ProjectMetadata(version=version, initialized_at=now_utc()).save(kittify)
+    return tmp_path
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_superseded_migration_records_skipped_once_and_never_refires(only_registry: type[MigrationRegistry], tmp_path: Path) -> None:
+    """FR-008: a SupersededMigration (``detect()``==False) is selected by ledger-diff, the
+    runner's ``detect()`` idempotency guard records it ``skipped``, and that skipped record
+    keeps it from re-firing. It never applies and never fails the run."""
+    only_registry.register(FixGlossaryContextSkillMigration)
+    project = _bare_project(tmp_path, FixGlossaryContextSkillMigration.target_version)
+    migration_id = FixGlossaryContextSkillMigration.migration_id
+
+    first = MigrationRunner(project).upgrade("4.0.0rc7", include_worktrees=False)
+    assert first.success, first.errors
+    assert migration_id in first.migrations_skipped
+    assert migration_id not in first.migrations_applied
+
+    ledger = MigrationLedger(project)
+    assert [r.result for r in ledger.read_tracked() if r.id == migration_id] == ["skipped"]
+
+    # Second run: a skipped (not success) record does not settle it, so it is re-evaluated
+    # and re-skipped -- but never applied, and the skipped row is idempotent (no duplicate).
+    second = MigrationRunner(project).upgrade("4.0.0rc7", include_worktrees=False)
+    assert second.success, second.errors
+    assert migration_id not in second.migrations_applied  # never fires
+    assert migration_id in second.migrations_skipped  # re-evaluated, re-skipped
+    assert [r.result for r in ledger.read_tracked() if r.id == migration_id] == ["skipped"]
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_present_clone_local_effect_noops_via_detect_guard(only_registry: type[MigrationRegistry], git_project: Path) -> None:
+    """FR-008: when the clone-local effect is already present, the runner's ``detect()``
+    idempotency guard records ``skipped`` and never re-applies -- even with an empty ledger."""
+    only_registry.register(ExcludeWorktreesMigration)
+    ProjectMetadata(version="4.0.0rc7", initialized_at=now_utc()).save(git_project / ".kittify")
+    migration = ExcludeWorktreesMigration()
+    migration.apply(git_project, dry_run=False)  # effect already present
+    assert migration.detect(git_project) is False
+    before = _exclude_text(git_project)
+
+    result = MigrationRunner(git_project).upgrade("4.0.0rc7", include_worktrees=False)
+
+    assert result.success, result.errors
+    assert ExcludeWorktreesMigration.migration_id in result.migrations_skipped
+    assert ExcludeWorktreesMigration.migration_id not in result.migrations_applied
+    assert _exclude_text(git_project) == before  # no duplicate entry written
+    records = [r for r in MigrationLedger(git_project).read_clone_local() if r.id == ExcludeWorktreesMigration.migration_id]
+    assert [r.result for r in records] == ["skipped"]

@@ -297,6 +297,19 @@ def _init_no_migrations_project(root: Path, *, version: str = "1.0.0a1") -> None
         ),
         encoding="utf-8",
     )
+    # Post-cutover (ADR 2026-10-17-1) the migration ledger -- not metadata.yaml --
+    # is the applied authority, and selection is ledger-diff (version window
+    # retired). An empty ledger would re-select every declared migration, so this
+    # "already at version, no migrations pending" project must settle them ALL in
+    # the ledger to stay a genuine no-migrations run.
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(root)
+    for migration in MigrationRegistry.get_all():
+        ledger.append(build_record(migration, "success"))
     _git(root, "init", "-q", "-b", "main")
     _git(root, "config", "user.email", "t@example.com")
     _git(root, "config", "user.name", "t")

@@ -119,6 +119,27 @@ def _load_config(config_file: Path) -> dict[str, Any]:
     return _SAFE_YAML.load(config_file) or {}
 
 
+def _seed_full_ledger(project: Path) -> None:
+    """Record every declared migration as applied so an upgrade run is a genuine no-op.
+
+    Under ledger-diff selection (ADR 2026-10-17-1) the ledger -- not the retired
+    ``from_v < target <= to_v`` window -- is the applied authority, so a
+    ``from == target`` run on an empty-ledger fixture now selects EVERY declared
+    migration instead of none. This suite exercises the CLI's *no-migrations*
+    (already-up-to-date) provisioning branch, which is only reached when nothing
+    is applicable; seeding the full ledger restores that shape for a project
+    that has applied all migrations yet is still missing ``mission_type_activations``.
+    """
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(project)
+    for migration in MigrationRegistry.get_all():
+        ledger.append(build_record(migration, "success"))
+
+
 def _write_stranded_project(project: Path, *, config_body: str = "vcs:\n  type: git\n") -> None:
     """Build a project pinned at ``_STRANDED_FROM_VERSION`` lacking the key.
 
@@ -144,6 +165,9 @@ def _write_stranded_project(project: Path, *, config_body: str = "vcs:\n  type: 
     from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
 
     MigrationRunner._stamp_schema_version(kittify, MAX_SUPPORTED_SCHEMA)
+    # A fully-migrated project: seed the ledger so an upgrade run is a no-op and
+    # the CLI's up-to-date provisioning branch (what this suite exercises) is reached.
+    _seed_full_ledger(project)
 
 
 _POINTER_CONFIG_BODY = "vcs:\n  type: git\ncharter: .kittify/charter/charter.yaml\n"

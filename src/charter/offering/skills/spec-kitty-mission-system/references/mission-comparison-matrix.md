@@ -70,7 +70,7 @@ documented before synthesis; publication approved at acceptance.
 
 ### plan
 
-`goals.md`, `plan.md` required (optional `research.md`); plan approval gates
+`spec.md`, `plan.md` required (optional `research.md`); plan approval gates
 acceptance.
 
 ### documentation

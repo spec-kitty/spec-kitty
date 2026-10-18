@@ -94,8 +94,16 @@ def test_refusal_is_recorded_failed_then_retried_after_backup_removal(tmp_path: 
     failed_metadata = ProjectMetadata.load(tmp_path / ".kittify")
     assert failed_metadata is not None
     assert failed_metadata.version == _FROM_VERSION
-    assert failed_metadata.has_migration(_MIGRATION_ID) is False
-    assert [record.result for record in failed_metadata.applied_migrations if record.id == _MIGRATION_ID] == ["failed"]
+    # The ledger -- not metadata.yaml (retired as authority, C-001/WP04) -- carries
+    # the failed row; a failed record does not settle the migration, so the retry
+    # below re-selects it.
+    from specify_cli.upgrade.ledger import MigrationLedger
+    from specify_cli.upgrade.registry import migration_settled
+
+    _migration = next(m for m in [MigrateLifecycleEnvelopeMigration()] if m.migration_id == _MIGRATION_ID)
+    _ledger = MigrationLedger(tmp_path)
+    assert [r.result for r in _ledger.read_all() if r.id == _MIGRATION_ID] == ["failed"]
+    assert migration_settled(_ledger, _migration) is False
 
     # Follow the refusal's prescribed repair, then run the ordinary upgrade
     # path again. A failed ledger row must not make the migration look applied.
@@ -109,5 +117,8 @@ def test_refusal_is_recorded_failed_then_retried_after_backup_removal(tmp_path: 
     converged_metadata = ProjectMetadata.load(tmp_path / ".kittify")
     assert converged_metadata is not None
     assert converged_metadata.version == _TARGET_VERSION
-    assert converged_metadata.has_migration(_MIGRATION_ID) is True
-    assert [record.result for record in converged_metadata.applied_migrations if record.id == _MIGRATION_ID] == ["failed", "success"]
+    # Applied-state is read from the ledger (C-001/WP04): the retry's success now
+    # settles the migration. ``read_all`` collapses to the live record per id
+    # (``_normalize_records``), so the resolved result is ``success``.
+    assert migration_settled(_ledger, _migration) is True
+    assert [r.result for r in _ledger.read_all() if r.id == _MIGRATION_ID] == ["success"]

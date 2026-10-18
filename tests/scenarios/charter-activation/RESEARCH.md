@@ -3,8 +3,9 @@
 <!-- Not part of the behaviour description. Grounding record for the charter-ACTIVATION BDD suite,
 the activation-layer companion to the offering suite's grounding note at ../charter/RESEARCH.md.
 Promise-first (the fast charter tests and the live seams are read as EVIDENCE, never transcribed).
-The frozen promise->contract map is QA's to author and ratify (spec-kitty-qa#801); until then every
-scenario carries @wip. Updated: 2026-10-17. -->
+PROMISES.md is now a human-unratified proposal for QA #801, not a frozen contract. BINDINGS.md
+records each scenario's actual binding shape and planned witness; every scenario remains @wip.
+Updated: 2026-10-18. -->
 
 This note records the grounding for the charter-**activation** outcome features under
 `tests/scenarios/charter-activation/`. The suite exists to give the **activation** entry-point seam
@@ -74,29 +75,136 @@ What a project is governed by **before it turns anything on** is two related fac
    - The **maintainer/internal** org pack is never auto-seeded; in force only on explicit opt-in
      (#3505, ADR-2).
 
-This suite's `the-default-governance-profile/` feature is the consumer reading of these facts; the
-offering suite already asserts the *skill exception* half (`PR-CHARTER-GOVERNANCE-001`), so this
-suite owns the lifecycle reading — "what is in force before I choose anything, and how provisioning
-a pack changes it" — not a re-assertion of the offering promise.
+The ordinary-default and minimal-preset scenarios must respect these separate per-kind and
+mission-ledger facts. The original blanket "everything" and "only the minimal baseline" wording
+was too broad. The offering suite already asserts the *skill exception*
+(`PR-CHARTER-GOVERNANCE-001`); this proposal replaces the duplicate skill-absence scenario with
+an actual adoption transition (one skill becomes effective/projected while its sibling does not).
+The ordinary-pack extension scenario no longer repeats the offering-owned absence assertion.
 
 ## Features and the consumer outcome each states
 
 | Folder | Consumer outcome |
 |--------|------------------|
 | `turning-governance-on-and-off/` | Adopting or retiring a rule changes what is in force; adopting one more never drops the rest; naming something that does not exist changes nothing. |
-| `turning-off-keeps-the-rest-sound/` | Retiring a choice keeps anything still relied on (and names why), and refuses — with the way forward — on a kind never put under explicit control. |
+| `turning-off-keeps-the-rest-sound/` | Cascade retirement keeps a rule shared by another active choice, proves the retired choice actually left, and refuses to fabricate a list for an unrestricted kind. This is not a universal prohibition on direct retirement. |
 | `brings-what-it-depends-on/` | Adopting a choice can bring what it depends on in one step, can be scoped, warns about what a bare adoption left out, and never offers to turn on something that cannot stand alone. |
-| `provisioning-governance-packs/` | The backend is supplied with packs that resolve through public seams (a filesystem location or a published reference); an unresolvable pack is refused, never treated as empty; several packs layer in supply order; and a configured pack's parts are brought into force deliberately, changing what the runtime offers (a mission type the project can run, a profile that applies). |
-| `the-default-governance-profile/` | Before a project turns anything on it is governed by all the governance available to it, except shareable commands, which apply only when the charter requires or selects them; maintainer-only governance is in force only on explicit opt-in; and a project may instead start from the small curated `minimal` baseline. |
+| `provisioning-governance-packs/` | Pack mission-type/profile adoption changes real work, and non-requiring pack registration respects explicit restrictions. Four acquisition/composition drafts remain held for separate ownership review, not promoted into activation promises. Supply-order wording is scoped to same-layout collisions. |
+| `the-default-governance-profile/` | Ordinary unrestricted defaults, adoption/project-tool projection of one selected skill, ordinary pack extension of the default, and a minimal preset limited to its governed keys. Maintainer-only policy remains held without a new activation ID. |
 
 ## For QA, when ratifying
 
 - The grounding evidence above (FR/ADR, `src/charter/offering/*`, `src/charter/activation/*`, the
   preset files, the open-packs issues) is the raw material for the promise→contract ledger — read it,
   do not transcribe it into the scenario text.
-- The provisioning and default-profile features are **forward-looking**: some of their steps describe
-  behaviour the extraction tracks are still landing (#3504/#3022/#6099). Bind a step only once the
-  seam it witnesses is real; until then `@wip` keeps the promise captured without gating.
+- The provisioning and default-profile notes above include **forward-looking** tracks; those issue
+  descriptions and current implementation are not ratification. BINDINGS.md separates grounded
+  READY-TO-BIND engineering work from authority/ownership/policy holds. Missing vocabulary is not
+  a product defect. Implement real witnesses for agreed cases, including documented product reds;
+  never manufacture a fixture or stub assertion to remove WIP.
 - **Overlap caveat (unchanged):** the skill exception and selection overlay are already asserted
   *through* the offering suite. This suite covers the lifecycle **verbs** and the **pack ecosystem**
   the offering suite excluded, not a re-assertion of those.
+
+## Review corrections — 2026-10-18
+
+The reviewed base is `0746bec30cbb473329d9a02333bafada716ecfd7`. The proposed sources still have
+five files and 22 scenarios. Common setup is bound; every scenario-specific outcome step remains
+unbound. The static per-case counts in BINDINGS.md are not executions. No acceptance pass/red,
+ratifier, approved contract, new Product Promise or WIP promotion is claimed by this review.
+
+### Starting states and non-noop witnesses
+
+- A rule merely "not adopted" may already be effective under an absent-key default. Adoption
+  now begins available-but-explicitly-inactive; retirement begins effective in an explicit set,
+  with no independent team requirement keeping it effective.
+- An unrestricted project has no additional available rule waiting outside its effective set.
+  The preservation case explicitly adopts **one already-effective rule**, with at least one
+  other effective rule that must survive. The effective-before set, not a shipped ID list, is
+  the comparison baseline.
+- Shared cascade retirement names two active sources and their shared target, and proves the
+  retired source is gone. That defeats an always-no-op retirement while preserving the target.
+- Cascade cases distinguish activatable references, out-of-scope references, and non-activatable
+  template/assets. Scope applies to referenced **artifacts**, not their whole kinds. Independent
+  review added an unrelated inactive artifact within a selected kind: whole-kind activation must
+  fail that control. No-cascade warnings do not promise incomplete dependency sets are rejected.
+- Skill adoption checks both effective membership and project-local tool projection. Independent
+  review added before/after absence of the unselected sibling's tool entry: projecting both skills
+  must fail even if the effective-set resolver lists only the selected one.
+- Unknown-ID refusal is on a valid charter and a valid kind, distinct from offering-owned
+  broken-charter refusal. The scenario also preserves the saved choices; exact English prose
+  and CLI output bytes are not its contract.
+
+### Provisioning/default contradiction, resolved by explicit state
+
+The two original drafts used the same default Background but asserted incompatible universal
+rules: provisioning changes nothing, yet ordinary newly available governance becomes effective.
+Accepted ADR 2026-10-06-2 Decisions 1/2 and the cutover specification FR-002/003/019 resolve this:
+
+- **A17:** explicitly restricted kinds, plus a new pack requiring no additional governance.
+  Availability expands; effective selections stay restricted. New org requirements are excluded
+  because their union is an existing offering-owned contract.
+- **A20:** an unrestricted ordinary kind. A newly available ordinary rule becomes effective and
+  existing effective rules remain. Skills and the separate mission-type ledger are not generalized
+  into this default.
+- **A22:** minimal governs its curated directives/tactics and mission-type entries; it does not
+  restrict every other kind. Start with known extra directives/tactics effective, prove those
+  non-required extras leave, and separately verify a known open-kind artifact remains effective.
+
+These are source-supported corrections, not an agent decision to change product policy.
+
+### Scope and authority holds
+
+The four acquisition/composition cases and the maintainer-only case remain in source, WIP,
+without proposed activation IDs. The source note's release-time re-vendor track (#3504) does
+not establish a runtime fetch/install guarantee. #5243 describes the missing canonical external
+pack lifecycle. #4984 reports a real fail-open problem, but doctor already failing is not the
+required governed-consumer witness. This review did not reproduce #4984 at the reviewed base.
+
+The chain specification
+`kitty-specs/org-pack-chain-authority-01M4JXF5/spec.md` User Story 1 / NFR-005 preserves a
+mixed-layout flat-wins exception; the layering case is therefore limited to same-layout
+collisions instead of promising universal last-pack-wins behavior.
+
+Two historical citation problems are deliberately not hidden:
+
+1. `FR-014` in the original activation-layer specification is action-sequence activation, not
+   the exact `requires`/`suggests` relation set. `cascade.py` currently traverses those relations,
+   while activation-layer FR-007 / activate Behavior 7 ground generic reference propagation.
+2. The kind-filtered cascade specification cites
+   `2026-08-20-1-cascade-kind-complete-relation-set.md`, absent from this checkout. Its recorded
+   operator ruling still grounds loud template/asset exclusion, but it does not recover that
+   missing ADR. Recover the decision or get explicit human approval for the stronger relation-set
+   wording before freezing A07.
+
+ADR 2026-05-16-1 is overlay/merge authority, not the unknown-ID atomicity requirement. The
+proposal instead names the historical activate contract's Behavior 2, the current documented
+validation-before-commit rule, and the implementation as corroborating evidence. Historical
+activate/deactivate contracts are cited only for relevant behaviors: their old default-list
+seeding, old kind counts and literal upgrade remedy are superseded, not reinstated.
+
+### Identity and ownership changes
+
+Seven WIP scenario names change to correct their scope; no QA Markdown page is retired and no
+`moved_to` is created:
+
+| Case | Previous scenario name | Proposed source identity |
+| --- | --- | --- |
+| A03 | Adopting one more rule never drops the rules already in force | Explicitly adopting a rule preserves the unrestricted rules already in force |
+| A07 | Adopting a choice can bring everything it depends on in one step | Adopting a choice can bring its required and suggested governance in one step |
+| A10 | Adoption never offers to turn on something that cannot stand on its own | Adoption reports templates and assets as not independently activatable |
+| A17 | Provisioning a pack does not by itself change what is in force | Provisioning a pack respects the project's existing restrictions |
+| A18 | Before choosing anything, a project is governed by all the governance available to it | Before choosing anything, ordinary governance follows the unrestricted default |
+| A19 | Shareable commands are the exception — they apply only when the charter asks for them | Adopting a shareable command brings it into force without adopting its sibling |
+| A20 | Provisioning a pack extends the default without forcing its commands on every tool | Provisioning ordinary governance extends an unrestricted default |
+
+Historical evidence retains its original path/name/digest; do not relabel it as results for these
+revised assertions. A19 intentionally changes from an offering-owned absence assertion to a
+positive activation/projection transition. This is a proposed contract change for review, not a
+claim that the old and new tests are equivalent.
+
+The proposed PR-* contract-ledger namespace follows the offering pattern. It is not PP-* Product
+Promise ratification or a rename of either namespace. The 17 candidates, five holds, ratifier
+questions and promotion boundary are all explicit in PROMISES.md and BINDINGS.md. Action-context
+and broader atomicity remain deferred without inventing additional scenarios or duplicating
+existing offering contracts.

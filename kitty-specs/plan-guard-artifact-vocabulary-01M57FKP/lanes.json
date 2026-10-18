@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "mission_slug": "plan-guard-artifact-vocabulary-01M57FKP",
+  "mission_id": "01M57FKP4Z0HV4E5AQVPQEKX31",
+  "mission_branch": "kitty/mission-plan-guard-artifact-vocabulary-01M57FKP",
+  "target_branch": "fix/plan-guard-artifact-vocabulary",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/plan/expected-artifacts.yaml",
+        "tests/architectural/test_mission_type_vocabulary_coherence.py",
+        "tests/dossier/test_manifest.py",
+        "tests/next/test_guard_failure_paths_3883.py",
+        "tests/runtime/next/test_cli_guard_family.py",
+        "tests/specify_cli/runtime/test_configured_artifact_name.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/plan/mission.yaml",
+        "src/charter/offering/skills/spec-kitty-mission-system/references/mission-comparison-matrix.md",
+        "src/specify_cli/missions/plan/mission.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-18T12:34:16.668383+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c74838f22b4b917c25860d14106cf42891fd8670"
+}

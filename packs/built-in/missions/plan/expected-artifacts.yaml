@@ -1,80 +1,51 @@
 # Expected artifact manifest for plan mission
 #
 # Defines which artifacts are required/optional at each plan-mission step.
-# Step names correspond to mission.yaml state IDs (goals/research/structure/
-# draft/review/done).
 #
-# IMPORTANT -- this manifest describes `plan` mission type's OWN state-machine
-# contract; it is honest scaffolding, not a claim that any guard branch
-# enforces it today. Investigation for this mission
-# (kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
-# Decision 1) found that `_check_cli_guards`
-# (src/runtime/next/runtime_bridge.py::_check_cli_guards) hardcodes
-# mission_family="software-dev" for EVERY mission type, including `plan`, so
-# there is no dedicated `plan`-family guard branch at all:
-#   - `goals`/`research`/`structure`/`draft`/`done` fall through to
-#     `_evaluate_software_dev_guards`'s bare `return []` (no-op).
-#   - `review` is the one exception: it lexically collides with
-#     software-dev's own `review` step id, so it is instead evaluated by
-#     `_evaluate_wp_iteration_guard("review", snapshot)` -- a real, reachable,
-#     mission-blind branch that today only returns `[]` because
-#     `wp_advance_ready` defaults `True` when a plan mission's directory has
-#     no `tasks/` subdirectory. This is a latent spurious-block risk, not a
-#     second no-op fallback. The follow-up issue for this defect is tracked
-#     separately (see the addendum to Decision 1 in tracer-design-decisions.md
-#     once filed) -- it is NOT fixed by this manifest or by this mission.
+# Step keys are the RUNTIME ACTION IDS of the plan step contracts
+# (missions/built_in_step_contracts/plan-*.step-contract.yaml):
+# specify / research / plan / review. The runtime guard dispatches on these
+# action ids and gathers artifact presence from this manifest, so keying it on
+# another vocabulary (the old goals/structure/draft/done phase names) makes a
+# committed artifact read as absent and the step block without naming a path.
+#
+# `review` gates on an approval gate, not a filesystem artifact, so it carries
+# no required-artifact entry.
 
 schema_version: "1.0"
 mission_type: "plan"
 # manifest_version is a sync-namespace identity key (feeds NamespaceRef), not
 # a content-freshness counter; kept at "1" per
 # kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
-# Decision 2 -- this is a distinct rationale from the AS4 guard-gap comment
-# above, not a restatement of it.
+# Decision 2.
 manifest_version: "1"
 
 # Artifacts required regardless of mission step
 required_always: []
 
-# Artifacts required at specific mission steps
+# Artifacts required at specific mission steps (keys = runtime action ids)
 required_by_step:
-  goals:
-    # goals->research transition requires artifact_exists("goals.md") per
-    # mission.yaml.
-    - artifact_key: "output.goals.main"
+  specify:
+    # The plan `specify` action produces the decision-shaped spec.
+    - artifact_key: "output.spec.main"
       artifact_class: "output"
-      path_pattern: "goals.md"
+      path_pattern: "spec.md"
       blocking: true
 
   research:
-    # research->structure transition requires artifact_exists("research.md")
-    # per mission.yaml.
     - artifact_key: "evidence.research"
       artifact_class: "evidence"
       path_pattern: "research.md"
       blocking: true
 
-  structure:
-    # structure->draft is an UNCONDITIONAL transition in mission.yaml -- no
-    # filesystem-artifact gate to express here.
-    []
-
-  draft:
-    # draft->review transition requires artifact_exists("plan.md") per
-    # mission.yaml.
+  plan:
     - artifact_key: "output.plan.main"
       artifact_class: "output"
       path_pattern: "plan.md"
       blocking: true
 
   review:
-    # review->done transition gates on gate_passed("plan_approved"), not a
-    # filesystem artifact -- this schema has no field to express a gate
-    # check, so this step carries no required-artifact entry.
-    []
-
-  done:
-    # Terminal state; no further artifact requirement.
+    # Approval gate, not a filesystem artifact: no required-artifact entry.
     []
 
 # Artifacts optional throughout the mission

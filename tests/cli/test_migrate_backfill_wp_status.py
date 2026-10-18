@@ -122,7 +122,7 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
     dry-run, before planning. It is an empty runtime file, not Mission state (in a
     real checkout it lives under the git common dir, outside the working tree and
     version control; in this non-git fixture it degrades to
-    ``<root>/.kittify/spec-kitty-locks/``).
+    ``<root>/.spec-kitty/spec-kitty-locks/``).
     """
     return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file() and not p.name.endswith(".status.lock")}
 

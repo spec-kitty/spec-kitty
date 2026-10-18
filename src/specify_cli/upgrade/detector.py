@@ -50,12 +50,14 @@ class VersionDetector:
 
         This is the single source of truth for "what is pending": it mirrors the
         real run's selection in ``upgrade`` exactly — the same
-        ``"unknown" -> "0.0.0"`` normalization, the same
-        :meth:`MigrationRegistry.get_applicable` call, and the same
-        ``project_path`` so current-version ``detect()`` migrations are included.
-        The compat-planner preview and the ``--dry-run`` preview both consult
-        this method so the reported pending set can never diverge from the
-        applied set (FR-009 / SC-004).
+        :meth:`MigrationRegistry.get_applicable` call with the same
+        ``project_path``, so the ledger-diff selection it performs (ADR
+        ``2026-10-17-1`` §3) is identical here and there. The compat-planner
+        preview and the ``--dry-run`` preview both consult this method so the
+        reported pending set can never diverge from the applied set (FR-009 /
+        SC-004). ``target_version`` / the ``"unknown" -> "0.0.0"`` normalization
+        are kept for call-compatibility; selection no longer reads the version
+        window (it is the ledger that decides).
 
         Args:
             target_version: Version string to upgrade to (e.g. ``"2.1.3"``).

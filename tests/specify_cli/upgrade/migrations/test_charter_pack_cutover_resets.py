@@ -14,10 +14,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from kernel.clock import datetime
 from ruamel.yaml import YAML
 
-from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations._charter_pack_cutover_resets import ResetOutcome, apply_resets, plan_resets
 from specify_cli.upgrade.migrations._charter_pack_cutover_snapshots import DEFAULT_SNAPSHOTS, MINIMAL_SNAPSHOTS
 from specify_cli.upgrade.migrations.base import MigrationResult, MigrationStateUnreadableError
@@ -77,11 +75,12 @@ def _apply_twice(project: Path) -> MigrationResult:
 
 
 def _record(project: Path) -> None:
-    metadata = ProjectMetadata.load(project / ".kittify")
-    if metadata is None:
-        metadata = ProjectMetadata(version="4.0.0rc6", initialized_at=datetime(2026, 1, 1), python_version="3.11", platform="t", platform_version="t")
-    metadata.record_migration("charter_pack_cutover", "success")
-    metadata.save(project / ".kittify")
+    """Settle the cutover in the ledger -- the applied authority ``is_first_application``
+    reads after the WP04 hard cutover (C-001); ``metadata.yaml`` no longer persists it."""
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+
+    (project / ".kittify").mkdir(parents=True, exist_ok=True)
+    MigrationLedger(project).append(build_record(CharterPackCutoverMigration(), "success"))
 
 
 # --------------------------------------------------------------------------- #

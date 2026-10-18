@@ -69,12 +69,55 @@ _test_app.command()(upgrade_module.upgrade)
 _runner = CliRunner()
 
 
+def _seed_ledger_all_settled(root: Path) -> None:
+    """Settle every declared migration in the ledger so the REAL runner is a genuine no-op.
+
+    Post-cutover, selection is ledger-diff (declared minus settled, ADR
+    2026-10-17-1); a fresh fixture with an empty ledger would otherwise have the
+    real runner select the adoption backfill and every other migration, so the
+    "no migrations needed" scenario these golden/matrix rows pin no longer holds.
+    Seeding each migration as ``success`` in its routed partition restores it.
+    (The clone-local merge-driver settings line comes from the no-migrations
+    surface path, not a migration, so it still prints after this seed.)
+    """
+    import json
+
+    from specify_cli.upgrade.ledger import MigrationLedger
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(root)
+    tracked: list[str] = []
+    clone: list[str] = []
+    for migration in MigrationRegistry.get_all():
+        record = {
+            "id": migration.migration_id,
+            "applied_at": "2026-01-01T00:00:00+00:00",
+            "result": "success",
+            "identity": getattr(migration, "identity", "") or migration.migration_id,
+            "content_hash": "",
+            "cli_version": "test-seed",
+        }
+        if getattr(migration, "clone_local_effect", False):
+            record["clone_local"] = True
+            clone.append(json.dumps(record))
+        else:
+            tracked.append(json.dumps(record))
+    ledger.tracked_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger.tracked_path.write_text("\n".join(tracked) + "\n", encoding="utf-8")
+    if clone:
+        ledger.clone_local_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger.clone_local_path.write_text("\n".join(clone) + "\n", encoding="utf-8")
+
+
 def _init_project(root: Path, *, version: str = _PROJECT_VERSION) -> None:
     """A minimal, real git-backed Spec Kitty project at *version*."""
     root.mkdir(parents=True, exist_ok=True)
     kittify = root / ".kittify"
     kittify.mkdir()
     (kittify / "metadata.yaml").write_text(_METADATA_YAML.format(version=version), encoding="utf-8")
+    _seed_ledger_all_settled(root)
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
@@ -181,6 +224,10 @@ _GOLDEN_APPLIED_DRY_RUN = (
 
 def test_golden_no_op_with_one_warning(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A no-op run prints its closing line first, then each warning, then the commit line."""
+    # A fully-adopted project has nothing applicable: under ledger-diff selection
+    # (ADR 2026-10-17-1) the retired version window no longer makes from==to empty,
+    # so the no-op scenario is expressed by an empty applicable set directly.
+    monkeypatch.setattr("specify_cli.upgrade.registry.MigrationRegistry.get_applicable", lambda *_a, **_kw: [])
     monkeypatch.setattr(upgrade_module, "_run_no_migrations_worktree_stamp", lambda *_a, **_kw: (["one warning"], []))
 
     result = _invoke(project, ["--target", _PROJECT_VERSION, "--yes", "--no-worktrees"])
@@ -394,6 +441,11 @@ def _prepare_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, row: _Row, p
             (root / ".kittify" / "config.yaml").write_text(row.config_yaml, encoding="utf-8")
             subprocess.run(["git", "add", "-A"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-q", "-m", "configure"], cwd=root, check=True)
+    if path == _NO_MIGRATIONS:
+        # Ledger-diff selection (ADR 2026-10-17-1) retired the version window, so a
+        # fresh project no longer yields an empty applicable set from from==to. The
+        # no-migrations scenario is a fully-adopted project: nothing applicable.
+        monkeypatch.setattr("specify_cli.upgrade.registry.MigrationRegistry.get_applicable", lambda *_a, **_kw: [])
     if path == _MIGRATIONS and not any(stub in {"worktree_failure", "migration_failure"} for stub in row.stubs):
         _stub_applied_migration(monkeypatch)
     for stub in row.stubs:

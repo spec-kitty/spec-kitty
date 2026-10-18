@@ -15,7 +15,8 @@ coord-write-placement-closure-01KYCF83 WP06) does NOT live here — it ships as
 its own migration id in ``m_3_2_6_decisions_event_log_merge_driver.py``. Folding
 it into this migration's ``drivers`` tuple would have stranded it on every repo
 that already recorded ``3.2.6_meta_traces_merge_drivers`` as ``success``, since
-``runner._apply_migration`` short-circuits at ``has_migration()`` before ever
+``runner._apply_migration`` short-circuits at ``migration_settled()`` (the
+two-partition ledger's success-only applied check, ADR 2026-10-17-1) before ever
 calling ``detect()`` (a per-driver ``.gitattributes`` check never gets a chance
 to run). A distinct id is the only way already-upgraded repos gain it.
 """

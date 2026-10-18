@@ -1572,6 +1572,21 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
+      # The legs' JUnit XML names the failing scenarios in the P0 (#6369). One folder per
+      # artifact (merge-multiple: false): Gradle writes one TEST-<class>.xml per class, so the
+      # three legs' files share names and a merged download would keep only one leg's.
+      # continue-on-error: a matrix that uploaded nothing must still escalate, without the list.
+      - name: Download the acceptance-bdd results of every leg
+        if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: acceptance-bdd-results-*
+          path: out/acceptance-bdd-results
+          merge-multiple: false
+      # --xunit gets each leg's GATING junit folder only (never wip/, whose reds never fail a leg);
+      # the script dedupes a scenario that went red on several legs. A leg with no gating folder is
+      # warned about; with none at all there is no --xunit and the issue keeps the exit-code message.
       - name: Escalate acceptance-bdd red -> deduped P0 (fail-closed)
         if: always() && github.ref == 'refs/heads/main'
         shell: bash
@@ -1580,7 +1595,13 @@ jobs:
           ACCEPTANCE_RESULT: ${{ needs.acceptance-bdd.result }}
         run: |
           if [ "${ACCEPTANCE_RESULT:-failure}" = "success" ]; then conclusion=success; else conclusion=failure; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          xunit_args=()
+          for leg in out/acceptance-bdd-results/acceptance-bdd-results-*; do
+            [ -d "$leg" ] || continue
+            junit="$leg/gating/junit"
+            if [ -d "$junit" ]; then xunit_args+=(--xunit "$junit"); else echo "::warning::${leg##*/} has no gating JUnit XML; its failures are not listed in the P0"; fi
+          done
+          python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" "${xunit_args[@]}"
       # The job mirrors the matrix verdict so nightly-summary shows a red acceptance run in one row.
       - name: Fail the job if the acceptance-bdd run was not green
         if: always()

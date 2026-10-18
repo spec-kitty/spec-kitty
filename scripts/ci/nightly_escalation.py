@@ -67,7 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
 from scripts.ci.nightly_xunit import (  # noqa: E402
     XunitRead,
     issue_evidence,
-    read_xunit,
+    read_xunit_paths,
     recurrence_evidence,
     with_recorded_ids,
 )
@@ -445,11 +445,11 @@ def resolve_token() -> str | None:
     return None
 
 
-def _report_for(suite_key: str, conclusion: str, xunit: str | None) -> XunitRead | None:
-    """Load the suite report for a red run. A green run does not need it."""
+def _report_for(suite_key: str, conclusion: str, xunit: Sequence[str] | None) -> XunitRead | None:
+    """Load the suite report(s) for a red run. A green run does not need them."""
     if conclusion != CONCLUSION_FAILURE or not xunit:
         return None
-    report = read_xunit(Path(xunit))
+    report = read_xunit_paths([Path(path) for path in xunit])
     if report.problem:
         _emit_warning(f"{suite_key}: {report.problem}")
     return report
@@ -462,7 +462,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--conclusion", required=True, choices=(CONCLUSION_SUCCESS, CONCLUSION_FAILURE), help="the suite's conclusion")
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY"), help="owner/repo (default: $GITHUB_REPOSITORY)")
     parser.add_argument("--run-url", default=None, help="link to the failing/passing workflow run")
-    parser.add_argument("--xunit", default=None, help="junit xml the suite wrote; missing or unreadable degrades to the exit-code message")
+    parser.add_argument(
+        "--xunit",
+        action="append",
+        default=None,
+        help=(
+            "junit xml the suite wrote, or a directory of them; repeat for several (failures are deduped by test id); "
+            "missing or unreadable degrades to the exit-code message"
+        ),
+    )
     parser.add_argument(
         "--ref",
         default=os.environ.get("GITHUB_REF"),

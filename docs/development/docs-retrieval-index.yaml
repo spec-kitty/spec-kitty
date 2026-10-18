@@ -3820,6 +3820,10 @@ pages:
     - {slug: "touchpoints", text: "Touchpoints", level: 2}
     - {slug: "follow-up-child-issues-spike-5230-output-epic-2933", text: "Follow-up child issues (spike #5230 output, epic #2933)", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-18-closeout-findings", text: "Amendment 2026-10-18 (closeout findings)", level: 2}
+    - {slug: "1-init-seed-baseline-finding-1-remediation", text: "1. Init-seed baseline (finding-1 remediation)", level: 3}
+    - {slug: "2-recorded-elsewhere-vs-pending-for-a-fresh-clone-finding-2", text: "2. \"Recorded elsewhere\" vs \"pending\" for a fresh clone (finding-2)", level: 3}
+    - {slug: "3-incidental-notes", text: "3. Incidental notes", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4296,6 +4300,7 @@ pages:
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
+    - {slug: "spec-kitty-migrate-ledger", text: "spec-kitty migrate ledger", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
     - {slug: "spec-kitty-migrate-backfill-merge-commit", text: "spec-kitty migrate backfill-merge-commit", level: 2}
     - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
@@ -5860,16 +5865,10 @@ pages:
     - {slug: "coordination-status-write-guard", text: "Coordination status-write guard", level: 3}
     - {slug: "pre-3-0-layout-rejection", text: "Pre-3.0 layout rejection", level: 3}
   - path: "docs/architecture/team-kitty-saas.md"
-    title: "Team Kitty (SaaS): the end-to-end hosted-sync flow"
+    title: "Team Kitty (SaaS) Hosted-Sync Flow (Removed)"
     divio_type: "none"
-    abstract: "The opt-in-to-delivery flow for hosted Team Kitty sync — consent, store migration, admission, auth, history disclosure, and the 3-gate drain — with a Mermaid diagram."
-    anchors:
-    - {slug: "scope-and-ownership", text: "Scope and ownership", level: 2}
-    - {slug: "the-six-stages-in-delivery-order", text: "The six stages, in delivery order", level: 2}
-    - {slug: "interaction-diagram-opt-in-sync", text: "Interaction diagram: opt-in → sync", level: 2}
-    - {slug: "where-to-go-for-the-operator-facing-detail-on-each-stage", text: "Where to go for the operator-facing detail on each stage", level: 2}
-    - {slug: "operator-configuration-for-this-flow", text: "Operator configuration for this flow", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
+    abstract: "The hosted Team Kitty sync flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
   - path: "docs/architecture/trail-model.md"
     title: "Trail Model"
     divio_type: "explanation"
@@ -13511,17 +13510,6 @@ pages:
     - {slug: "idempotency", text: "Idempotency", level: 2}
     - {slug: "verifying", text: "Verifying", level: 2}
     - {slug: "rationale-references", text: "Rationale / References", level: 2}
-  - path: "docs/operations/ci-machine-auth.md"
-    title: "CI Machine Authentication"
-    divio_type: "reference"
-    abstract: "Non-interactive machine authentication for hosted operations: the OAuth client_credentials mode, and the provisioning, rotation, and revocation runbook."
-    anchors:
-    - {slug: "the-three-authentication-modes", text: "The three authentication modes", level: 2}
-    - {slug: "configuring-a-ci-runner", text: "Configuring a CI runner", level: 2}
-    - {slug: "what-a-runner-can-verify-without-a-tty", text: "What a runner can verify without a TTY", level: 2}
-    - {slug: "fail-closed-behavior", text: "Fail-closed behavior", level: 2}
-    - {slug: "provisioning-rotation-and-revocation-server-side", text: "Provisioning, rotation, and revocation (server side)", level: 2}
-    - {slug: "security-constraints", text: "Security constraints", level: 2}
   - path: "docs/operations/coord-branch-base-strand.md"
     title: "Recovery: Coordination Branch Stranded After a Base Rebase"
     divio_type: "none"
@@ -13597,16 +13585,10 @@ pages:
     abstract: "Internal hosted-readiness mode was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
     anchors: []
   - path: "docs/operations/logged-out-teamspace.md"
-    title: "Recovery: Logged out on a connected teamspace"
-    divio_type: "none"
-    abstract: "Recovery for a repository connected to a Spec Kitty teamspace when the local CLI session is logged out: the teamspace-aware recovery path sync commands surface."
-    anchors:
-    - {slug: "interactive-operators", text: "Interactive operators", level: 2}
-    - {slug: "ci-and-scripts-non-interactive", text: "CI and scripts (non-interactive)", level: 2}
-    - {slug: "environment-variables", text: "Environment variables", level: 2}
-    - {slug: "backward-compatibility", text: "Backward compatibility", level: 2}
-    - {slug: "commands-that-participate", text: "Commands that participate", level: 2}
-    - {slug: "related", text: "Related", level: 2}
+    title: "Logged Out on a Connected Teamspace (Removed)"
+    divio_type: "how-to"
+    abstract: "The logged-out teamspace recovery flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
   - path: "docs/operations/manual-test-plan.md"
     title: "Comprehensive Manual Test Plan"
     divio_type: "reference"
@@ -13695,7 +13677,7 @@ pages:
   - path: "docs/operations/recovery-index.md"
     title: "Recovery guides"
     divio_type: "none"
-    abstract: "Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session or a coord/lane split-brain."
+    abstract: "Recovery procedures for Spec Kitty operational states, such as a coord/lane split-brain or a refusal after an upgrade mid-Mission."
     anchors:
     - {slug: "in-this-section", text: "In this section", level: 2}
     - {slug: "coord-lane-split-brain-recovery", text: "Coord/lane split-brain recovery", level: 3}
@@ -13750,18 +13732,6 @@ pages:
     - {slug: "hosted-auth-sync-test-environment-gate", text: "Hosted auth / sync test environment gate", level: 2}
     - {slug: "developer-test-quickstart", text: "Developer / test quickstart", level: 2}
     - {slug: "1071-regression-coverage", text: "#1071 regression coverage", level: 2}
-  - path: "docs/operations/sync-drain.md"
-    title: "Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap"
-    divio_type: "none"
-    abstract: "Work the 3-gate sync-drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap."
-    anchors:
-    - {slug: "gate-1-is-hosted-sync-on-and-does-this-project-consent", text: "Gate 1 — is hosted sync on, and does this project consent?", level: 2}
-    - {slug: "gate-2-is-this-machine-authenticated", text: "Gate 2 — is this machine authenticated?", level: 2}
-    - {slug: "gate-3-does-the-session-resolve-a-private-teamspace", text: "Gate 3 — does the session resolve a Private Teamspace?", level: 2}
-    - {slug: "the-sync-doctor-false-green-trap", text: "The `sync doctor` false-green trap", level: 2}
-    - {slug: "a-name-you-may-see-and-can-ignore-sync-migrate", text: "A name you may see and can ignore: `sync migrate`", level: 2}
-    - {slug: "spec-kitty-home-and-the-drain", text: "`SPEC_KITTY_HOME` and the drain", level: 2}
-    - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/upgrade-with-live-lanes-recovery.md"
     title: "Recovery: consolidate, review or implement refuses after an upgrade mid-Mission"
     divio_type: "how-to"

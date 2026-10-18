@@ -108,7 +108,12 @@ def test_failed_upgrade_commits_nothing_and_cleans_up(tmp_path: Path, ignore_set
         assert (project / ".gitignore").read_bytes() == gitignore_before
     after = _kittify_names(project)
     assert not (_DEBRIS & after)
-    assert after <= before | {"skills-manifest.json"}
+    # ``migrations`` is the gitignored per-clone ledger dir
+    # (``.kittify/migrations/clone-local.jsonl``, ADR 2026-10-17-1): a clone-local
+    # migration that applied its effect before the failing step legitimately
+    # records it there, and that record is local-only (never committed), so it is
+    # an expected runtime artifact of a failed run, not debris.
+    assert after <= before | {"skills-manifest.json", "migrations"}
 
 
 @pytest.mark.regression

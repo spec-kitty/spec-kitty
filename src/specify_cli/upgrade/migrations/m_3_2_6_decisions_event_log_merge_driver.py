@@ -10,12 +10,13 @@ pre-existing ``spec-kitty-event-log`` driver (same config/command as
 
 This driver ships as its OWN migration id rather than folded into
 ``m_3_2_6_meta_traces_merge_drivers``. The runner short-circuits at
-``metadata.has_migration(migration_id)`` BEFORE it ever calls ``detect()``
+``migration_settled(migration)`` -- the two-partition ledger's success-only
+applied check (ADR 2026-10-17-1) -- BEFORE it ever calls ``detect()``
 (``runner._apply_migration``), so a consumer who already recorded the
 meta+traces migration as ``success`` on a prior 3.2.6 upgrade would have it
 skipped forever and never gain this line -- re-inheriting #2709 on
-``decisions.events.jsonl``. A distinct id makes ``has_migration()`` return
-False for those repos, so the runner reaches ``detect()`` and seeds the driver
+``decisions.events.jsonl``. A distinct id leaves the ledger with no ``success``
+record for it, so the runner reaches ``detect()`` and seeds the driver
 on their next upgrade. This mirrors how ``status.events.jsonl`` and the gate
 artifacts each carry their own migration id.
 """

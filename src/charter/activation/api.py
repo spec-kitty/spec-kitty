@@ -67,6 +67,15 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
+# Activation write-target resolution — the ``(path, data, save)`` triple a
+# consumer (the rc35 mission-type activation migration's post-fold short-circuit)
+# reads to decide whether ``mission_type_activations`` already lives in the
+# resolved charter write target, instead of reaching the activation internals.
+# Public per charter.activation.pack_manager.__all__.
+from charter.activation.pack_manager import (
+    resolve_activation_write_target as resolve_activation_write_target,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
@@ -79,5 +88,6 @@ __all__ = [
     "load_yaml",
     "read_mission_type",
     "requires_substantive_spec_for",
+    "resolve_activation_write_target",
     "verify",
 ]

@@ -4,9 +4,11 @@
 #   explicitly turned anything on or off. The default is "unrestricted" for every kind of
 #   governance except skills, which default to "only what is required" so that provisioning a
 #   pack never silently adds commands to every tool.
-# - DRAFT. No @promise: tie-in and no PROMISES.md ledger here — the QA team owns creating and
-#   ratifying them (spec-kitty-qa#801). Authored promise-first to
-#   packs/internal/styleguides/feature-and-scenario-authoring.styleguide.yaml.
+# - DRAFT. PROMISES.md proposes IDs and BINDINGS.md records witnesses. No ratification or
+#   @promise tag is applied, and all scenarios remain @wip (QA #801).
+# - Here ordinary governance means unrestricted per-kind artifacts, not the required-only
+#   skill set or the separate mission-type ledger. The minimal preset governs directives and
+#   tactics, not all governance. Its other kinds remain open; see ADR 2026-10-06-2 and the preset.
 # - Grounding evidence (read, never transcribed; for QA to map to FR/ADR/issue, not asserted here):
 #   * The default-in-force rule is one enum fact: ArtifactKind.effective_when_absent returns "all"
 #     for every kind except SKILL, and "required" for SKILL (src/charter/offering/artifact_kinds.py,
@@ -25,10 +27,10 @@
 #   * The maintainer/internal org pack is never auto-seeded; it is in force only on explicit opt-in
 #     (#3505, ADR-2). A configured org pack's non-skill artifacts join the "all" default once the
 #     pack resolves; see provisioning-governance-packs.feature for where packs come from.
-#   * This is the activation-layer reading of the same fact the offering suite already asserts for
-#     the skill exception (tests/scenarios/charter/, PR-CHARTER-GOVERNANCE-001). The overlap is
-#     deliberate: the offering suite owns "what I chose is in force"; this suite owns the lifecycle
-#     reading — "what is in force before I choose anything", and how provisioning changes it.
+#   * The offering suite owns the offered-but-unrequired skill absence assertion
+#     (PR-CHARTER-GOVERNANCE-001). This suite instead witnesses adopting one available skill:
+#     that skill becomes effective, not its unselected sibling. It does not remint the absence
+#     promise. The internal-pack scenario is held for policy/ownership review, not given an ID.
 
 Feature: The default governance a project is held to before it turns anything on
   As a developer who has just set up governance and chosen nothing in particular
@@ -44,37 +46,43 @@ Feature: The default governance a project is held to before it turns anything on
     And the charter has been synthesized
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: Before choosing anything, a project is governed by all the governance available to it
-    Given a project that has turned nothing on or off beyond the interview defaults
+  Scenario: Before choosing anything, ordinary governance follows the unrestricted default
+    Given a project whose ordinary governance still follows its unrestricted default
+    And an available ordinary rule that has never been individually adopted
     When the project's governance in force is assembled
-    Then every kind of governance available to the project is in force
-    And the author did not have to activate each piece for it to apply
+    Then that ordinary rule is in force
+    And the author did not have to activate each ordinary rule for it to apply
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: Shareable commands are the exception — they apply only when the charter asks for them
-    Given governance available to the project that includes a shareable command
-    And the project has not been set to require or select that command
-    When the project's governance in force is assembled
-    Then the shareable command is available to the project but is not in force
-    And it does not appear as a command in the project's tools
+  Scenario: Adopting a shareable command brings it into force without adopting its sibling
+    Given a pack offers two shareable commands that the project neither requires nor selects
+    And both commands are available but neither is in force
+    And neither command has a project-local entry in the configured tool
+    When the author adopts one of those commands
+    Then the adopted command is in force and appears in the project's configured tool
+    And its unselected sibling remains out of force
+    And the unselected sibling still has no project-local entry in that tool
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: Provisioning a pack extends the default without forcing its commands on every tool
-    Given a provisioned pack that offers both ordinary governance and a shareable command
-    When the project's governance in force is assembled with the pack in place
-    Then the pack's ordinary governance is in force under the default
-    And the pack's shareable command stays out of force until the project requires or selects it
+  Scenario: Provisioning ordinary governance extends an unrestricted default
+    Given a project whose ordinary governance still follows its unrestricted default
+    And a pack offers a new ordinary rule that was not previously available
+    When the project is configured to draw governance from that pack
+    Then the pack's ordinary rule is available and in force under the default
+    And the ordinary rules already in force stay in force
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Maintainer-only governance is never in force unless the project opts in
-    Given maintainer-only governance that the project has not opted into
+    Given a consumer project that has not configured the maintainer-only pack
     When the project's governance in force is assembled
     Then that maintainer-only governance is not in force
     And it begins to apply only once the project opts into it deliberately
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: A project can start from a small curated baseline instead of everything
-    Given a project that wants a small curated starting baseline rather than all available governance
+    Given a project whose ordinary governance still follows its unrestricted default
+    And directives and tactics outside the curated baseline are available and in force
     When the project adopts the minimal ready-made baseline the built-in governance ships
-    Then only that curated baseline of governance is in force
+    Then the baseline's chosen directives and tactics are in force
+    And other non-required directives and tactics stay outside that chosen baseline
     And the kinds the baseline leaves open stay unrestricted until the project narrows them itself

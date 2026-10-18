@@ -6,9 +6,9 @@
 #   the runtime offers (a new mission type to choose, a new agent profile that applies). This is
 #   the pack-ecosystem direction ahead of the open-packs / offering extraction; it is authored
 #   forward-looking, so every scenario is @wip until QA binds its steps and gating.
-# - DRAFT. No @promise: tie-in and no PROMISES.md ledger here — the QA team owns creating and
-#   ratifying them (spec-kitty-qa#801). Authored promise-first to
-#   packs/internal/styleguides/feature-and-scenario-authoring.styleguide.yaml.
+# - DRAFT. PROMISES.md proposes activation IDs only. The four offering/provisioning rows are
+#   held for ownership/authority review, not given speculative activation promises. BINDINGS.md
+#   records all seven scenarios; no ratification, @promise tag or WIP removal is made (QA #801).
 # - Grounding evidence (read, never transcribed; for QA to map to FR/ADR/issue, not asserted here):
 #   * Supply + resolve: the offering resolves a pack tier's root through one fail-closed seam
 #     (resolve_pack_root(tier, org_root, project_root) -> PackRootNotFound; src/charter/offering/
@@ -36,8 +36,8 @@ Feature: Provisioning governance packs and bringing their parts into force
   As a team sharing governance as packs
   I want to point the system at packs by a filesystem location or a published reference, then
     bring the parts I choose into force in a repository
-  So that shared governance reaches a project through a stable, named seam — and never silently,
-    and never from a pack the system could not actually resolve
+  So that I can distinguish what is available from what my existing activation policy puts in force,
+    and never mistake an unresolvable pack for an empty one
 
   Background:
     Given a project set up with Spec Kitty whose files are committed
@@ -72,6 +72,7 @@ Feature: Provisioning governance packs and bringing their parts into force
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Several packs are layered in the order they were supplied
     Given the project is configured to draw governance from more than one pack
+    And their overlapping governance uses the same supported layout
     When the project's governance is assembled
     Then every supplied pack's governance is available to choose from
     And where two packs speak to the same thing, the later-supplied pack's governance is the one that stands
@@ -81,6 +82,7 @@ Feature: Provisioning governance packs and bringing their parts into force
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Activating a mission type from a pack makes it a choice the project can run
     Given a provisioned pack that offers a mission type the project did not have
+    And that mission type is not yet a choice the project can run
     When the author brings that mission type into force
     Then the project can start a mission of that type
     And the mission runs the steps the pack defined for it
@@ -88,13 +90,16 @@ Feature: Provisioning governance packs and bringing their parts into force
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Activating an agent profile from a pack makes it apply to the work
     Given a provisioned pack that offers an agent profile the project did not have
+    And that available profile is explicitly outside the governance in force
     When the author brings that profile into force
     Then the governance in force includes that profile
     And work routed to that profile is governed by it
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: Provisioning a pack does not by itself change what is in force
-    Given a provisioned pack whose parts the author has not chosen to bring into force
-    When the project's governance in force is assembled
-    Then the pack's parts are available to choose from but are not yet governing the work
-    And bringing a part into force is a separate, deliberate step the author takes
+  Scenario: Provisioning a pack respects the project's existing restrictions
+    Given the project has explicitly limited the governance it uses
+    And another pack offers governance outside that selection in the same restricted kinds
+    And that pack does not require any additional governance
+    When the project is configured to draw governance from that pack
+    Then the pack's governance is available to choose from but is not in force
+    And all the governance already in force stays in force

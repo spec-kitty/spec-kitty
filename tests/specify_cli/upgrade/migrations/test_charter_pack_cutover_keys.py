@@ -8,7 +8,6 @@ migration, asserts the rewrite and its report line, then asserts a second
 from __future__ import annotations
 
 import json
-from kernel.clock import datetime
 from pathlib import Path
 from typing import Any
 
@@ -334,18 +333,18 @@ def test_detect_is_total_even_when_a_step_crashes(tmp_path: Path, monkeypatch: p
 
 
 def test_is_first_application_reads_the_recorded_result(tmp_path: Path) -> None:
-    from specify_cli.upgrade.metadata import ProjectMetadata
+    # ``is_first_application`` reads the two-partition ledger -- the applied
+    # authority after the WP04 hard cutover (C-001), not ``metadata.yaml``.
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
 
     migration = CharterPackCutoverMigration()
+    (tmp_path / ".kittify").mkdir()
+    ledger = MigrationLedger(tmp_path)
     assert migration.is_first_application(tmp_path) is True
-    kittify = tmp_path / ".kittify"
-    kittify.mkdir()
-    metadata = ProjectMetadata(version="4.0.0rc6", initialized_at=datetime(2026, 1, 1), python_version="3.11", platform="t", platform_version="t")
-    metadata.record_migration(migration.migration_id, "failed")
-    metadata.save(kittify)
+    ledger.append(build_record(migration, "failed"))
     assert migration.is_first_application(tmp_path) is True, "a failed record does not settle the cutover"
-    metadata.record_migration(migration.migration_id, "success")
-    metadata.save(kittify)
+    ledger.append(build_record(migration, "success"))
     assert migration.is_first_application(tmp_path) is False
-    (kittify / "metadata.yaml").write_text(": [", encoding="utf-8")
+    # A corrupt/unreadable ledger reads as 'not recorded' -> first application again.
+    ledger.tracked_path.write_text(": [\n", encoding="utf-8")
     assert migration.is_first_application(tmp_path) is True

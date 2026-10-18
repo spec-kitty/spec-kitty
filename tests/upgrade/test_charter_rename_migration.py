@@ -291,23 +291,45 @@ migrations:
     def test_metadata_normalization_rewrites_old_ids(
         self, tmp_path: Path, migration: CharterRenameMigration
     ) -> None:
-        """Old constitution-era migration IDs are rewritten to charter-era IDs."""
+        """Constitution-era migration IDs are normalized to charter-era IDs.
+
+        Applied-state moved from ``metadata.yaml.applied_migrations`` to the
+        two-partition ledger (WP04 hard cutover, C-001/FR-013): the ledger
+        normalizes constitution-era ids via ``_LEGACY_MIGRATION_ID_MAP`` on every
+        read, and the migration reports that id-normalization is ledger-owned.
+        """
+        from kernel.clock import now_utc
+
+        from specify_cli.upgrade.ledger import LedgerRecord, MigrationLedger
+
         kittify = tmp_path / ".kittify"
         # Create constitution dir so migration detects + applies
         const_dir = kittify / "constitution"
         const_dir.mkdir(parents=True)
         (const_dir / "constitution.md").write_text("# Charter")
 
-        self._write_metadata(kittify, [
-            "0.10.12_constitution_cleanup",
-            "2.0.0_constitution_directory",
-        ])
+        # Seed the ledger (the applied authority) with a constitution-era id.
+        ledger = MigrationLedger(tmp_path)
+        ledger.append(
+            LedgerRecord(
+                id="0.10.12_constitution_cleanup",
+                applied_at=now_utc(),
+                result="success",
+                identity="0.10.12_constitution_cleanup",
+                content_hash="",
+                cli_version="test",
+            )
+        )
 
         result = migration.apply(tmp_path)
         assert result.success
 
-        # Verify normalized in changes
-        assert any("metadata" in c.lower() for c in result.changes_made)
+        # The ledger normalizes the constitution-era id to its charter-era id on read.
+        read_ids = {record.id for record in MigrationLedger(tmp_path).read_all()}
+        assert "0.10.12_charter_cleanup" in read_ids
+        assert "0.10.12_constitution_cleanup" not in read_ids
+        # The migration reports that id-normalization is owned by the ledger.
+        assert any("ledger" in change.lower() for change in result.changes_made)
 
     def test_metadata_normalization_noop_when_already_charter(
         self, tmp_path: Path, migration: CharterRenameMigration

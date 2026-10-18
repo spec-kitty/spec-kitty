@@ -183,8 +183,8 @@ editorial rule. It is what keeps the launch honest.
 
 ## Related
 
-- [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
-  — the recovery contract that ships at launch unchanged.
+- [Team Kitty](../context/team-kitty.md) — the logged-out teamspace recovery contract was
+  removed with the hosted surfaces in #6164.
 - [Environment variables reference](../api/environment-variables.md)
   — the canonical entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.

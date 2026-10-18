@@ -1,0 +1,200 @@
+work_packages:
+  - id: WP01
+    title: "Ledger store, order manifest & build-time gate (IC-01, IC-02)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/upgrade/ledger.py"
+      - "src/specify_cli/upgrade/manifest.py"
+      - "src/specify_cli/upgrade/migrations/order_manifest.txt"
+      - "src/specify_cli/upgrade/migrations/m_4_0_0rc8_backfill_migration_ledger.py"
+      - "src/specify_cli/state/contract.py"
+      - ".gitignore"
+      - "tests/architectural/test_migration_order_manifest.py"
+      - "tests/upgrade/test_ledger.py"
+      - "tests/upgrade/test_order_manifest.py"
+      - "tests/upgrade/test_backfill_migration.py"
+    requirement_refs:
+      - "FR-001"
+      - "FR-002"
+      - "FR-003"
+      - "FR-006"
+      - "FR-007"
+      - "FR-009"
+      - "FR-012"
+      - "FR-013"
+      - "FR-014"
+      - "NFR-001"
+      - "C-002"
+      - "SC-004"
+      - "SC-008"
+    plan_concern_refs:
+      - "IC-01"
+      - "IC-02"
+    subtasks:
+      - "T001"
+      - "T002"
+      - "T003"
+      - "T004"
+      - "T005"
+      - "T006"
+      - "T007"
+      - "T008"
+      - "T009"
+    prompt_file: "tasks/WP01-ledger-store-order-manifest-build-gate.md"
+
+  - id: WP02
+    title: "Selection authority flip + drift instrumentation (IC-03, IC-04)"
+    dependencies:
+      - "WP01"
+    owned_files:
+      - "src/specify_cli/upgrade/registry.py"
+      - "src/specify_cli/upgrade/runner.py"
+      - "src/specify_cli/upgrade/migrations/base.py"
+      - "src/specify_cli/upgrade/detector.py"
+      - "tests/upgrade/test_clone_local_selection.py"
+      - "tests/upgrade/test_clone_local_migration_idempotent.py"
+      - "tests/upgrade/test_ledger_drift.py"
+      - "tests/specify_cli/upgrade/test_registry_runs_first.py"
+    requirement_refs:
+      - "FR-004"
+      - "FR-005"
+      - "FR-008"
+      - "FR-010"
+      - "NFR-004"
+      - "C-003"
+      - "C-004"
+      - "SC-001"
+      - "SC-002"
+      - "SC-006"
+    plan_concern_refs:
+      - "IC-03"
+      - "IC-04"
+    subtasks:
+      - "T010"
+      - "T011"
+      - "T012"
+      - "T013"
+      - "T014"
+      - "T015"
+      - "T016"
+      - "T017"
+    prompt_file: "tasks/WP02-selection-authority-flip-drift.md"
+
+  - id: WP03
+    title: "Visibility: the spec-kitty migrate ledger read surface (IC-05)"
+    dependencies:
+      - "WP01"
+      - "WP02"
+    owned_files:
+      - "src/specify_cli/cli/commands/migrate_cmd.py"
+      - "tests/specify_cli/upgrade/test_migrate_ledger_cmd.py"
+    requirement_refs:
+      - "FR-011"
+      - "SC-005"
+    plan_concern_refs:
+      - "IC-05"
+    subtasks:
+      - "T018"
+      - "T019"
+      - "T020"
+      - "T021"
+    prompt_file: "tasks/WP03-visibility-migrate-ledger-surface.md"
+
+  - id: WP04
+    title: "Hard-cutover backfill + applied-state metadata retirement (IC-06)"
+    dependencies:
+      - "WP01"
+      - "WP02"
+    owned_files:
+      - "src/specify_cli/upgrade/metadata.py"
+      - "src/specify_cli/upgrade/migrations/m_3_2_6_meta_traces_merge_drivers.py"
+      - "src/specify_cli/upgrade/migrations/m_3_2_6_decisions_event_log_merge_driver.py"
+      - "src/specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py"
+      - "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+      - "tests/upgrade/test_backfill_ledger.py"
+      - "tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_paths.py"
+      - "tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_summary.py"
+      - "tests/specify_cli/upgrade/migrations/test_m_3_2_0rc35_provenance_gitignore.py"
+      - "tests/specify_cli/upgrade/migrations/test_m_3_2_4_derived_views_gitignore.py"
+      - "tests/specify_cli/upgrade/migrations/test_m_3_2_5_agents_skills_gitignore.py"
+      - "tests/specify_cli/upgrade/migrations/test_session_presence_upgrade_smoke.py"
+      - "tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py"
+      - "tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py"
+      - "tests/upgrade/migrations/test_m_2_1_1_repair_skill_pack.py"
+      - "tests/upgrade/test_auto_discovery.py"
+      - "tests/upgrade/test_metadata_final_file_5229.py"
+      - "tests/upgrade/test_migration_robustness.py"
+      - "tests/upgrade/test_runner_status_classification.py"
+      - "tests/upgrade/test_symlinked_ignore_guard.py"
+      - "tests/upgrade/test_upgrade_auto_commit_unit.py"
+      - "tests/upgrade/test_upgrade_commit_outcomes_5443.py"
+      - "tests/upgrade/test_upgrade_idempotency.py"
+      - "tests/upgrade/test_upgrade_integration.py"
+      - "tests/upgrade/test_upgrade_outcome_rendering.py"
+      - "tests/upgrade/test_upgrade_surface_repair_step.py"
+      - "tests/upgrade/test_version_stamp_boundary.py"
+      - "tests/upgrade/test_worktree_stamp_guard.py"
+      - "tests/upgrade/test_upgrade_preview_acceptance.py"
+      - "tests/upgrade/test_upgrade_cli_contract.py"
+      - "tests/upgrade/test_preview_oracle.py"
+      - "tests/upgrade/preview_support/test_public_witnesses.py"
+    requirement_refs:
+      - "FR-012"
+      - "FR-013"
+      - "NFR-003"
+      - "C-001"
+      - "SC-003"
+    plan_concern_refs:
+      - "IC-06"
+    subtasks:
+      - "T022"
+      - "T023"
+      - "T024"
+      - "T025"
+      - "T026"
+    prompt_file: "tasks/WP04-hard-cutover-backfill-metadata-retirement.md"
+
+  - id: WP05
+    title: "Acceptance binding: rebind read surface, lift @wip, bind the ten steps (FR-015)"
+    dependencies:
+      - "WP01"
+      - "WP02"
+      - "WP03"
+      - "WP04"
+    cross_cutting: true
+    owned_files:
+      - "tests/scenarios/upgrade/migration-ledger.feature"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/steps/ArrangeSteps.java"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/steps/AssertSteps.java"
+    requirement_refs:
+      - "FR-015"
+      - "SC-007"
+    plan_concern_refs: []
+    subtasks:
+      - "T027"
+      - "T028"
+      - "T029"
+      - "T030"
+    prompt_file: "tasks/WP05-acceptance-binding.md"
+
+  - id: WP06
+    title: "Docs & migration-author guidance to the ledger model (IC-07)"
+    dependencies:
+      - "WP01"
+      - "WP02"
+      - "WP03"
+      - "WP04"
+      - "WP05"
+    owned_files:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - "docs/adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md"
+    requirement_refs:
+      - "FR-016"
+    plan_concern_refs:
+      - "IC-07"
+    subtasks:
+      - "T031"
+      - "T032"
+      - "T033"
+    prompt_file: "tasks/WP06-docs-migration-author-guidance.md"

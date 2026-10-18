@@ -4,17 +4,16 @@
 #   deliberately excluded ("the activation layer extracts later" — see that suite's RESEARCH.md).
 #   Authored promise-first to packs/internal/styleguides/feature-and-scenario-authoring.styleguide.yaml:
 #   outcomes, not output surfaces; one promise per scenario; the consumer's language only.
-# - DRAFT. The @promise: tie-in and a PROMISES.md promise->contract ledger are intentionally
-#   NOT provided here: the QA team owns creating and ratifying them (spec-kitty-qa#801). Each
-#   scenario carries @wip until QA binds its step vocabulary and decides its gating status; the
-#   Act drives the governed outcome, not a command's output, so a later binding stays honest.
+# - DRAFT. PROMISES.md proposes identifiers and authority; BINDINGS.md records each witness.
+#   Nothing is ratified and no @promise tag is applied before human approval (QA #801).
+#   All scenarios remain @wip; no passing acceptance execution is claimed.
 # - Grounding evidence (read, never transcribed; for QA to map to FR/ADR, not asserted here):
 #   activate/deactivate change what the activation-aware resolver puts in force
 #   (src/charter/activation/activation_engine.py, pack_manager.py); adopting from the
 #   unrestricted state materializes what is already effective before appending, so nothing in
-#   force is silently dropped (plan_activation, #4253); an unknown id is refused BEFORE any
-#   post-state is computed and nothing is written (plan_activation / commit_plan, NFR-003 —
-#   ADR 2026-05-16-1).
+#   force is silently dropped (#4253; unify-charter-activation-surfaces spec's first-run edge
+#   case). Unknown-id refusal is charter-activate-cli.md Behavior 2, not the overlay ADR.
+#   RESEARCH.md distinguishes historical requirements from current implementation evidence.
 
 Feature: Turning a piece of governance on or off takes effect
   As a developer governing a project with a charter
@@ -29,25 +28,31 @@ Feature: Turning a piece of governance on or off takes effect
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Adopting a rule puts it in force
-    Given a rule the project has not yet adopted
+    Given a rule the project has explicitly left outside its chosen governance
+    And the rule is available but is not in force
+    And no team requirement independently puts that rule in force
     When the author adopts that rule
     Then the governance in force includes that rule
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Retiring a rule takes it out of force
-    Given a rule the project has adopted
+    Given a rule in the project's explicitly chosen governance
+    And the rule is in force before retirement
+    And no team requirement independently keeps that rule in force
     When the author retires that rule
     Then the governance in force no longer includes that rule
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: Adopting one more rule never drops the rules already in force
-    Given a project governed by every rule its packs provide
-    When the author adopts one more rule
+  Scenario: Explicitly adopting a rule preserves the unrestricted rules already in force
+    Given a project governed by every available rule without an explicit rule selection
+    And at least two different rules are in force
+    When the author explicitly adopts one of those rules
     Then the governance in force still includes every rule that was in force before
 
   @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Naming governance that does not exist changes nothing
-    Given the project's governance is settled
-    When the author tries to adopt a rule that does not exist
+    Given the project's governance and saved choices have been recorded
+    When the author tries to adopt an unknown rule in a valid kind
     Then the request is refused with a clear reason
     And the governance in force is left exactly as it was
+    And the project's saved governance choices are unchanged

@@ -196,12 +196,21 @@ class ProjectMetadata:
         The write is **merge-preserving** (#5229): the file on disk is the base and
         only the keys this model owns are overwritten -- ``spec_kitty.version``,
         ``initialized_at``, ``last_upgraded_at`` and (when not ``None``)
-        ``schema_version``; the ``environment`` triple; and ``migrations.applied``
-        (the model is the authority for the applied record). Every other key --
+        ``schema_version``; and the ``environment`` triple. Every other key --
         ``project_uuid``, ``schema_capabilities``, operator keys at any level --
         is kept in place, so a save can no longer erase what another writer
         stamped. An unreadable or non-mapping file falls back to the model alone; a file that is not valid
         YAML is refused with ``ValueError`` (nothing is written).
+
+        The one exception to merge-preservation is the hard cutover (IC-06 /
+        FR-012/013, WP04): once the migration ledger has been adopted
+        (:func:`_ledger_adopted`), a stale on-disk ``migrations:`` block is
+        RETIRED here -- the ledger is the single applied authority (C-001) and a
+        lingering mirror would be a dead second authority (R4). The strip is
+        gated on ledger adoption so a save() that runs BEFORE the WP01 backfill
+        reads the legacy list never removes it prematurely; afterwards the block
+        is gone and ``_model_owned_mapping`` -- which no longer owns it -- never
+        re-adds it.
 
         ``schema_version`` round-trips through this method like any other
         field (#3334): when ``self.schema_version`` is not ``None`` it is
@@ -229,6 +238,9 @@ class ProjectMetadata:
                 existing_text = None
 
         merged = _merge_onto_disk(_parse_mapping_text(existing_text, metadata_path), self._model_owned_mapping())
+        if _ledger_adopted(kittify_dir):
+            # Hard cutover (R4): retire a stale applied mirror once the ledger owns the fact.
+            merged.pop("migrations", None)
         buf = io.StringIO()
         buf.write(_METADATA_HEADER)
         yaml.dump(merged, buf, default_flow_style=False, sort_keys=False)
@@ -245,6 +257,15 @@ class ProjectMetadata:
 
         ``schema_version`` is present only when the model has one: ``None`` means
         "no opinion", so a merge neither forges nor erases the key.
+
+        The hard cutover (IC-06 / FR-012, WP04): ``migrations.applied`` is NO
+        LONGER owned here, so ``save()`` never persists applied state. The
+        two-partition migration ledger (ADR 2026-10-17-1) is the single
+        "already applied" authority (C-001); keeping a mirror in ``metadata.yaml``
+        would be a dead second authority. ``record_migration`` /
+        ``has_migration`` / ``applied_migrations`` survive only so the WP01
+        adoption backfill can READ the legacy list once (NFR-003 accepted
+        back-compat cost); their results no longer reach disk.
         """
         spec_kitty_block: dict[str, Any] = {
             "version": self.version,
@@ -260,21 +281,18 @@ class ProjectMetadata:
                 "platform": self.platform,
                 "platform_version": self.platform_version,
             },
-            "migrations": {
-                "applied": [
-                    {
-                        "id": m.id,
-                        "applied_at": m.applied_at.isoformat(),
-                        "result": m.result,
-                        "notes": m.notes,
-                    }
-                    for m in self.applied_migrations
-                ]
-            },
         }
 
     def has_migration(self, migration_id: str) -> bool:
-        """Check if a migration has been successfully applied.
+        """Check if a migration has been successfully applied (legacy read helper).
+
+        RETIRED AS AUTHORITY by the IC-06 hard cutover (WP04): the two-partition
+        ledger (:func:`specify_cli.upgrade.registry.migration_settled`) is the
+        single "already applied" authority (C-001). This reads only the
+        in-memory ``applied_migrations`` list, which ``save()`` no longer
+        persists, so it is meaningful only for the WP01 adoption backfill's one
+        read of a still-legacy ``metadata.yaml``. Cross-migration callers must
+        consult the ledger instead.
 
         Args:
             migration_id: The ID of the migration to check
@@ -285,7 +303,13 @@ class ProjectMetadata:
         return any(m.id == migration_id and m.result == "success" for m in self.applied_migrations)
 
     def record_migration(self, migration_id: str, result: str, notes: str | None = None) -> bool:
-        """Record a migration application.
+        """Record a migration application in the in-memory list (legacy helper).
+
+        RETIRED AS AUTHORITY by the IC-06 hard cutover (WP04): the runner still
+        calls this (a transitional dual-write WP02 left in place), but ``save()``
+        no longer persists ``migrations.applied``, so the record never reaches
+        disk -- the ledger is the applied authority (C-001). Kept so the legacy
+        in-memory list stays coherent for the WP01 backfill's one read.
 
         Recording is idempotent: if an identical ``(migration_id, result)``
         record already exists, this is a no-op. Without this, a migration whose
@@ -343,6 +367,22 @@ def _parse_mapping_text(text: str | None, metadata_path: Path) -> dict[str, Any]
     except yaml.YAMLError as exc:
         raise ValueError(f"metadata.yaml is not valid YAML, refusing to rewrite it: {metadata_path}") from exc
     return data if isinstance(data, dict) else {}
+
+
+def _ledger_adopted(kittify_dir: Path) -> bool:
+    """True once the two-partition migration ledger exists for this project (ADR 2026-10-17-1).
+
+    The hard-cutover block strip in :meth:`ProjectMetadata.save` is gated on
+    this so a ``save()`` running BEFORE the WP01 adoption backfill (which reads
+    ``metadata.yaml.migrations.applied`` once) never removes the legacy list
+    prematurely. The ledger relpaths are imported lazily: ``ledger.py`` imports
+    ``_LEGACY_MIGRATION_ID_MAP`` from this module at load time, so a top-level
+    import here would be circular.
+    """
+    from .ledger import CLONE_LOCAL_LEDGER_RELPATH, TRACKED_LEDGER_RELPATH
+
+    project_root = kittify_dir.parent
+    return (project_root / TRACKED_LEDGER_RELPATH).exists() or (project_root / CLONE_LOCAL_LEDGER_RELPATH).exists()
 
 
 def _merge_onto_disk(existing: dict[str, Any], owned: dict[str, Any]) -> dict[str, Any]:

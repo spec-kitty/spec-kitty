@@ -328,3 +328,74 @@ populated ledger. The new tracked ledger file is added to the state contract as 
   project-global state once, skips integrating worktrees).
 - Epic #2933 (explicit migration ledger); spike #5230; #6233 / PR #6350 (`clone_local_effect`);
   #5229 (metadata.yaml second-writer); #2322 (retired pre-3.0 modules).
+
+---
+
+## Amendment 2026-10-18 (closeout findings)
+
+Two design facts were discovered and ruled during the mission's closeout. They are recorded
+here so this ADR matches shipped behaviour; the Decision body above is unchanged.
+
+### 1. Init-seed baseline (finding-1 remediation)
+
+**Problem found.** §3 retires the version window and makes selection a plain ledger-diff
+(`pending = declared − applied`). A *fresh* `spec-kitty init` wrote no ledger, so the first
+`spec-kitty upgrade` on that brand-new project diffed an **empty** ledger against the full
+declared set and selected **all ~114 historical migrations**. Replaying them against an
+already-current project is not idempotent: `m_3_2_0rc35_activate_builtin_mission_types` and the
+charter-bundle fold disagree over `mission_type_activations` (the rc35 migration adds it to
+`config.yaml`; the fold relocates it into `charter.yaml`), so the first upgrade mutated config
+and auto-committed — breaking NFR-002 (upgrade idempotency) on a second run.
+
+**Decision / shipped behaviour.** A fresh `spec-kitty init` now **seeds** the ledger via
+`src/specify_cli/upgrade/init_seed.py` (`seed_migration_ledger_for_init`), consuming the
+`ledger.py` API — it does not re-implement ledger I/O. It records every migration a
+brand-new, current project has effectively already satisfied, so the first `upgrade` selects
+nothing. This is the Liquibase "changelog-sync for a new project" baseline: a **one-time init
+stamp**, explicitly **not** a revived version-window selection authority (§3 stands).
+
+The seed is **partition-correct** (§1): a tracked-effect migration (`clone_local_effect ==
+False`) is seeded unconditionally into the tracked ledger; a clone-local migration
+(`clone_local_effect == True`) is seeded into the per-clone (gitignored) ledger **only when its
+effect is already present on this checkout** (`detect()` reports the old state absent). Because
+the per-clone ledger never travels, a pulled clone still has an empty per-clone partition and
+re-applies the clone-local effect — the #6233 guarantee is preserved, not undone, by the seed.
+The seed is idempotent (`migration_settled` skips a migration already recorded `success`).
+
+The disagreement itself was also closed at its root: `m_3_2_0rc35_activate_builtin_mission_types`
+now **short-circuits** when `mission_type_activations` already lives in the resolved activation
+write target — it reads the single authority
+`charter.activation.pack_manager.resolve_activation_write_target` (which the fold points at
+`charter.yaml` post-fold), so the rc35 migration and the provisioning predicate agree on
+"already present" and the migration is a no-op there.
+
+### 2. "Recorded elsewhere" vs "pending" for a fresh clone (finding-2)
+
+**Clarification.** §1 deliberately keeps **no shared clone-local declaration marker** in the
+tracked ledger (a per-record scope flag / dual-write was rejected because it would re-create the
+#6233 propagation bug). A consequence, confirmed at closeout: for a **genuine freshly-pulled
+clone**, the `spec-kitty migrate ledger` report state for a clone-local step is **pending**
+("not yet applied" / not yet in place on this checkout), **not** "recorded elsewhere". The
+per-clone ledger is gitignored and never travels, so a fresh clone has an **empty** per-clone
+partition; `assemble_report` finds no matching record (`applied == False`) and the surface
+classifies the step as `pending` (`src/specify_cli/cli/commands/migrate_cmd.py`
+`_ledger_step_state`).
+
+The `recorded-elsewhere` state (`_STATE_RECORDED_ELSEWHERE`) remains valid only for the
+**distinct** real case of a clone that *applied* the clone-local effect and then *lost* it —
+i.e. a per-clone record exists (`applied == True`) but `detect()` reports the effect absent now
+(`in_place_here is False`). Acceptance scenario C was re-authored to assert the **pending**
+state for the fresh-clone case accordingly.
+
+### 3. Incidental notes
+
+- **Visibility surface command name.** The shipped read surface is `spec-kitty migrate ledger`
+  (read-only; `--json` emits the same report), rather than the `spec-kitty doctor migrations`
+  spelling named in §5. Both consume the single pending-source
+  (`VersionDetector.applicable_migrations`), so the §5 no-divergence property holds; only the
+  command path differs.
+- **R4 mirror strip location.** The retirement of the stale on-disk `migrations:` block from
+  `metadata.yaml` (§6, no dual-write mirror) ships in `metadata.py::save()`, **gated on ledger
+  adoption** (`_ledger_adopted`), rather than inside the backfill migration — so a `save()` that
+  runs before the backfill never strips the block prematurely, and once the ledger owns the fact
+  the dead second authority is removed on the next write.

@@ -503,4 +503,87 @@ public final class AssertSteps {
                 .as("%s '%s' is unchanged since it was recorded", kind, relative)
                 .isTrue();
     }
+
+    // ----------------------------------------------------------------------------------------- //
+    // Migration-ledger assert steps (#5230). The "in place" checks observe the clone-local git
+    // effect the way a user would — whether git excludes ".spec-kitty/" — never product internals.
+    // The report checks read the operator-facing `spec-kitty migrate ledger` output.
+    // ----------------------------------------------------------------------------------------- //
+
+    private static final String SPEC_KITTY_EXCLUDE = ".spec-kitty/";
+
+    /** A recorded setup step the backfill scenario checks is recognised rather than redone. */
+    private static final String BACKFILL_MARKER_STEP = "0.4.8_gitignore_agents";
+
+    @Then("the previously pending setup step has taken effect")
+    public void thePreviouslyPendingSetupStepHasTakenEffect() {
+        assertThat(cloneLocalSetupInPlace())
+                .as("The previously pending local git setup step is now in effect").isTrue();
+    }
+
+    @Then("this clone's own local git setup is in place")
+    public void thisClonesOwnLocalGitSetupIsInPlace() {
+        assertThat(cloneLocalSetupInPlace())
+                .as("This clone's own local git setup is in place").isTrue();
+    }
+
+    @Then("the setup steps that ran are listed in the order they ran")
+    public void theSetupStepsThatRanAreListedInTheOrderTheyRan() {
+        String report = flowed(output());
+        assertThat(report).as("The report of setup steps:%n%s", context.lastResult())
+                .contains("migration ledger")
+                .contains("Setup steps recorded");
+        // The steps are listed in their declared (run) order; an earlier step precedes a later one.
+        int earlier = report.indexOf("0.2.0_specify_to_kittify");
+        int later = report.indexOf("0.4.8_gitignore_agents");
+        assertThat(earlier).as("An earlier setup step is listed:%n%s", context.lastResult()).isNotNegative();
+        assertThat(later).as("A later setup step is listed:%n%s", context.lastResult()).isNotNegative();
+        assertThat(earlier).as("The steps are listed in the order they ran:%n%s", context.lastResult())
+                .isLessThan(later);
+    }
+
+    @Then("the report shows a local-only setup step as not yet in place on this checkout")
+    public void theReportShowsALocalOnlySetupStepNotYetInPlace() {
+        // A genuine freshly pulled clone has no per-clone record of the local-only step and not its
+        // effect, so the report lists that clone-local step as not yet in place on this checkout.
+        assertThat(flowed(output()))
+                .as("The report lists a local-only setup step as not yet in place here:%n%s", context.lastResult())
+                .contains("(clone-local): not yet applied");
+    }
+
+    @Then("the setup work already done is not done again")
+    public void theSetupWorkAlreadyDoneIsNotDoneAgain() {
+        // After the upgrade, the report must recognise the previously-recorded work as already done
+        // (recorded, not pending) rather than scheduling it to run again.
+        CliResult report = context.run(List.of("spec-kitty", "migrate", "ledger", "--json"));
+        assertThat(report.exitCode()).as("Reading the applied-work report:%n%s", report).isZero();
+        Pattern recognised = Pattern.compile(
+                "\"id\"\\s*:\\s*\"" + Pattern.quote(BACKFILL_MARKER_STEP)
+                        + "\"[\\s\\S]*?\"applied\"\\s*:\\s*true[\\s\\S]*?\"pending\"\\s*:\\s*false");
+        assertThat(report.stdout())
+                .as("A previously-applied setup step is recognised as done and not run again:%n%s", report)
+                .containsPattern(recognised);
+    }
+
+    @Then("the report flags a setup step whose content changed since it ran")
+    public void theReportFlagsASetupStepWhoseContentChanged() {
+        assertThat(flowed(output()))
+                .as("The report flags a setup step whose content changed since it ran:%n%s", context.lastResult())
+                .contains("content changed since it ran");
+    }
+
+    /** Whether this checkout's own local git setup is in place: git excludes ".spec-kitty/". */
+    private boolean cloneLocalSetupInPlace() {
+        String path = context.world().git("rev-parse", "--git-path", "info/exclude").trim();
+        Path candidate = Path.of(path);
+        Path exclude = candidate.isAbsolute() ? candidate : context.world().workDir().resolve(candidate);
+        if (!Files.isRegularFile(exclude)) {
+            return false;
+        }
+        try {
+            return Files.readAllLines(exclude).stream().map(String::strip).anyMatch(SPEC_KITTY_EXCLUDE::equals);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + exclude, e);
+        }
+    }
 }

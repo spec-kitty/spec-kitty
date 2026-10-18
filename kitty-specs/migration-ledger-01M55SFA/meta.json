@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "b695ae447e04bebb85f27427c622f1f575747387",
+  "created_at": "2026-10-17T20:39:52.912713+00:00",
+  "flattened": false,
+  "friendly_name": "Explicit migration ledger",
+  "merged_at": "2026-10-18T08:26:05.814349+00:00",
+  "merged_commit": "240d7ca7b0643f18dbb9d991d481e34cafaa67a4",
+  "mid8": "01M55SFA",
+  "mission_id": "01M55SFAABMG6V5YY89FEYZPY5",
+  "mission_number": 234,
+  "mission_slug": "migration-ledger-01M55SFA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Explicit migration ledger on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Make the applied-migration record an explicit, two-partition ledger that is the authority for what has run",
+  "slug": "migration-ledger-01M55SFA",
+  "status_phase": "1",
+  "target_branch": "issue-5230-migration-ledger-impl",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-17T21:15:42.557107+00:00"
+}

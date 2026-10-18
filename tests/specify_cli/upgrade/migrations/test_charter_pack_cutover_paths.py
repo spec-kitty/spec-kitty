@@ -13,6 +13,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.migration.legacy_charter_layout import detect_legacy_charter_layout
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_4_0_0rc6_charter_pack_cutover as cutover
@@ -399,6 +400,22 @@ def _stamp(project: Path, version: str, *, recorded: str | None = None) -> None:
     metadata.save(kittify)
 
 
+def _settle_all_except(project: Path, *keep_unsettled: str) -> None:
+    """Seed the ledger so every declared migration except ``keep_unsettled`` is ``success``.
+
+    Post-cutover, ``get_applicable`` is a ledger-diff over the FULL declared set
+    (the version window is retired, ADR 2026-10-17-1): a bare ``version=`` fixture
+    with an empty ledger therefore selects ~every migration. Seeding the ledger to
+    represent a project that has already adopted the ledger and applied everything
+    else isolates the migration(s) under test, so selection matches a realistic
+    state. Fixture setup only -- explicit ``success`` records, not a version floor.
+    """
+    ledger = MigrationLedger(project)
+    for migration in MigrationRegistry.get_all():
+        if migration.migration_id not in keep_unsettled:
+            ledger.append(build_record(migration, "success"))
+
+
 @pytest.fixture
 def registry() -> None:
     auto_discover_migrations()
@@ -408,6 +425,7 @@ def registry() -> None:
 def test_cutover_is_selected_first_on_a_legacy_project(tmp_path: Path) -> None:
     _legacy_tree(tmp_path)
     _stamp(tmp_path, "3.1.0")
+    _settle_all_except(tmp_path, CUTOVER_ID)  # a project that adopted the ledger; only the cutover is left
     applicable = MigrationRegistry.get_applicable("3.1.0", "4.0.0rc6", tmp_path)
     assert applicable[0].migration_id == CUTOVER_ID
     assert sum(m.migration_id == CUTOVER_ID for m in applicable) == 1
@@ -417,6 +435,7 @@ def test_cutover_is_selected_first_on_a_legacy_project(tmp_path: Path) -> None:
 def test_cutover_is_selected_for_a_project_stamped_above_its_target(tmp_path: Path) -> None:
     _legacy_tree(tmp_path)
     _stamp(tmp_path, "4.0.1")
+    _settle_all_except(tmp_path, CUTOVER_ID)
     assert [m.migration_id for m in MigrationRegistry.get_applicable("4.0.1", "4.0.1", tmp_path)][:1] == [CUTOVER_ID]
 
 
@@ -424,6 +443,7 @@ def test_cutover_is_selected_for_a_project_stamped_above_its_target(tmp_path: Pa
 def test_cutover_not_selected_on_a_canonical_project(tmp_path: Path) -> None:
     _write(tmp_path, f"{NEW}/graph.yaml", "nodes: []\n")
     _stamp(tmp_path, "4.0.0rc6")
+    _settle_all_except(tmp_path)  # a canonical project has already applied every migration, cutover included
     assert CUTOVER_ID not in [m.migration_id for m in MigrationRegistry.get_applicable("4.0.0rc6", "4.0.0rc6", tmp_path)]
 
 
@@ -431,6 +451,7 @@ def test_cutover_not_selected_on_a_canonical_project(tmp_path: Path) -> None:
 def test_recorded_cutover_with_a_replanted_legacy_root_runs_again(tmp_path: Path) -> None:
     """A pulled checkout brings ``.kittify/doctrine/x.md`` back after the cutover was recorded."""
     _stamp(tmp_path, "4.0.0rc6", recorded="success")
+    _settle_all_except(tmp_path)  # fully adopted; the replanted legacy root re-selects the cutover via structural_detect
     _write(tmp_path, f"{LEGACY}/x.md", "# planted\n")
     result = MigrationRunner(tmp_path).upgrade("4.0.0rc6", include_worktrees=False)
     assert result.success, result.errors
@@ -444,6 +465,7 @@ def test_runner_does_not_record_a_refused_cutover(tmp_path: Path) -> None:
     _legacy_tree(tmp_path)
     _write(tmp_path, f"{NEW}/graph.yaml", "nodes: [diverged]\n")
     _stamp(tmp_path, "4.0.0rc6")
+    _settle_all_except(tmp_path, CUTOVER_ID)  # isolate the cutover (unsettled) so only it runs and refuses
     metadata_before = (tmp_path / ".kittify" / "metadata.yaml").read_bytes()
     result = MigrationRunner(tmp_path).upgrade("4.0.0rc6", include_worktrees=False)
     assert not result.success
@@ -489,6 +511,7 @@ def _canonical_project(project: Path) -> None:
 @pytest.mark.usefixtures("registry")
 def test_unreadable_gitignore_does_not_select_a_canonical_project(tmp_path: Path, kind: str) -> None:
     _canonical_project(tmp_path)
+    _settle_all_except(tmp_path)  # canonical = fully applied; the cutover is not re-selected
     _plant_unreadable_gitignore(tmp_path, kind)
     migration = CharterPackCutoverMigration()
     assert migration.detect(tmp_path) is False
@@ -505,6 +528,7 @@ def test_unreadable_gitignore_does_not_select_a_canonical_project(tmp_path: Path
 def test_unreadable_gitignore_on_a_legacy_project_is_kept_for_review(tmp_path: Path, kind: str) -> None:
     files = _legacy_tree(tmp_path)
     _stamp(tmp_path, "4.0.0rc6")
+    _settle_all_except(tmp_path, CUTOVER_ID)  # isolate the cutover so only it runs on this legacy project
     _plant_unreadable_gitignore(tmp_path, kind)
     before = _digest(tmp_path)
     result = MigrationRunner(tmp_path).upgrade("4.0.0rc6", include_worktrees=False)
@@ -594,6 +618,7 @@ def test_apply_names_an_uninspectable_legacy_root(tmp_path: Path, monkeypatch: p
 def test_kept_legacy_org_does_not_reselect_a_recorded_cutover(tmp_path: Path) -> None:
     config = _write(tmp_path, ".kittify/config.yaml", "charter_packs: oops\ndoctrine:\n  org:\n    packs: []\n")
     _stamp(tmp_path, "4.0.0rc6")
+    _settle_all_except(tmp_path, CUTOVER_ID)  # isolate the cutover so only it runs each pass
     migration = CharterPackCutoverMigration()
     assert migration.detect(tmp_path) is True  # first application: selected
     first = MigrationRunner(tmp_path).upgrade("4.0.0rc6", include_worktrees=False)
@@ -621,6 +646,7 @@ def test_kept_legacy_org_does_not_reselect_a_recorded_cutover(tmp_path: Path) ->
 @pytest.mark.usefixtures("registry")
 def test_recorded_cutover_with_a_replanted_config_key_runs_again(tmp_path: Path) -> None:
     _stamp(tmp_path, "4.0.0rc6", recorded="success")
+    _settle_all_except(tmp_path, CUTOVER_ID)
     _write(tmp_path, ".kittify/config.yaml", "tracker:\n  doctrine:\n    mode: external_authoritative\n")
     assert CharterPackCutoverMigration().structural_detect(tmp_path) is True
     assert [m.migration_id for m in MigrationRegistry.get_applicable("4.0.0rc6", "4.0.0rc6", tmp_path)][:1] == [CUTOVER_ID]

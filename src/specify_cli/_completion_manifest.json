@@ -954,6 +954,11 @@
      "help": "Re-pin this repository's pre-commit hook to the current interpreter (#254).\n\n``policy/hook_installer.py`` pins the absolute Python interpreter path\ninto the pre-commit hook at install time. An install-method migration\n(e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing\nat a path that no longer exists. This command re-runs the same install\nthe ``implement`` lane calls internally, but without requiring a mission\nor workspace — the repair does not depend on the very thing it is\nrepairing (the ability to commit).\n\nIdempotent: safe to re-run; a hook already pinned to the current\ninterpreter is re-written to the same effective hook (only the\n``# Installed:`` timestamp comment differs).\n\nExit codes:\n\n- ``0`` — the hook was (re-)installed\n- ``1`` — project root could not be located, or the current\n  ``sys.executable`` does not refer to an existing file\n\nExamples:\n\n    spec-kitty migrate repin-hooks\n\n    spec-kitty migrate repin-hooks --json",
      "hidden": false,
      "deprecated": false
+    },
+    "ledger": {
+     "help": "Report the migration ledger: which setup steps have run, and their state.\n\nA **read-only** view of the two-partition migration ledger. It lists every\ndeclared setup step in declared (manifest) order and, for each, shows:\n\n\\b\n* whether it is **already in place** (recorded, effect present here),\n* **recorded elsewhere but not here** (a per-clone step the ledger records\n  but whose effect is absent on this checkout — e.g. a freshly pulled clone),\n* **not yet applied**, and\n* whether its source **content changed since it ran** (drift).\n\nDrift is **audit-only**: it is reported, never re-applied. This command never\ncommits and never writes a file.\n\n``--json`` emits the one structured shape the human summary renders from.\n\nExamples:\n\n    spec-kitty migrate ledger\n\n    spec-kitty migrate ledger --json",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },

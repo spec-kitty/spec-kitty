@@ -217,19 +217,21 @@ class TestFeatureStatusLock:
         assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
 
     def test_lock_on_non_git_tree_never_mints_a_dot_git_directory(self, tmp_path: Path) -> None:
-        """A genuinely non-git tree locks under ``.kittify`` (fsm-write-path-integrity WP01).
+        """A bare non-git tree locks under ``.spec-kitty`` (fsm-write-path-integrity WP01, #6367).
 
         Minting ``repo/.git/`` in a non-git tree turned it into a bogus repo
-        root for every later ``resolve_canonical_root`` walk; the lock now
-        degrades to ``repo/.kittify/spec-kitty-locks`` there.
+        root for every later ``resolve_canonical_root`` walk, and minting
+        ``repo/.kittify/`` turned it into a bogus project root; the lock now
+        degrades to ``repo/.spec-kitty/spec-kitty-locks``, which is neither.
         """
         repo = tmp_path / "test-repo"
         repo.mkdir()
         lock_path = feature_status_lock_path(repo, "017-test-feature")
-        assert lock_path == repo / ".kittify" / "spec-kitty-locks" / "017-test-feature.status.lock"
+        assert lock_path == repo / ".spec-kitty" / "spec-kitty-locks" / "017-test-feature.status.lock"
         with feature_status_lock(repo, "017-test-feature", timeout=2):
             pass
         assert not (repo / ".git").exists()
+        assert not (repo / ".kittify").exists()
 
     def test_lock_is_reentrant_within_one_thread(self, tmp_path: Path) -> None:
         """Nested acquisitions in one thread should reuse the same lock file."""

@@ -53,6 +53,46 @@ CHECKOUT = Path(__file__).resolve().parents[2]
 #: A generated command file: the version marker in its first lines proves it is ours.
 MARKED_COMMAND_FILE = "<!-- spec-kitty-command-version: 2.1.0 -->\n# spec-kitty.implement\n"
 
+#: The legacy project version this fixture represents.
+_FIXTURE_VERSION = "2.1.0"
+
+
+def _seeded_tracked_ledger_jsonl() -> str:
+    """The tracked migration ledger a realistic ``_FIXTURE_VERSION`` project already carries.
+
+    Under ledger-diff selection (ADR 2026-10-17-1 §3) a legacy project whose
+    ledger is EMPTY re-selects every historical migration -- including pre-2.1.0
+    ones a real 2.1.0 project applied long ago (e.g. ``0.4.8_gitignore_agents``,
+    which re-adds a blanket ``.cursor/`` line that ``3.2.6rc3_narrow_cursor``
+    then flags for manual review). A real 2.1.0 project has already applied every
+    migration whose ``target_version`` is ``<= 2.1.0``; seed those into the
+    TRACKED ledger so the upgrade selects only the post-2.1.0 migrations, exactly
+    as the retired version window did. Clone-local effects never travel in a
+    commit, so clone-local migrations stay unseeded (pending) and re-apply on
+    this checkout (#6233) -- harmless, their effect is ``.git/*``, never committed.
+    """
+    import json
+    from packaging.version import InvalidVersion, Version
+
+    from specify_cli.upgrade.ledger import build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    fixture_version = Version(_FIXTURE_VERSION)
+    lines: list[str] = []
+    for migration in MigrationRegistry.get_all():
+        if getattr(migration, "clone_local_effect", False):
+            continue
+        try:
+            at_or_below = Version(migration.target_version) <= fixture_version
+        except InvalidVersion:
+            continue
+        if at_or_below:
+            lines.append(json.dumps(build_record(migration, "success").to_dict(), ensure_ascii=False))
+    return ("\n".join(lines) + "\n") if lines else ""
+
+
 _EXPECTED_GIT_KEYS = frozenset({"GIT_OPTIONAL_LOCKS", "GIT_CONFIG_NOSYSTEM", "GIT_CONFIG_GLOBAL", "GIT_TERMINAL_PROMPT"})
 _EXPECTED_SPEC_KITTY_KEYS = frozenset({"SPEC_KITTY_HOME", "SPEC_KITTY_NO_UPGRADE_CHECK", "SPEC_KITTY_ENABLE_SAAS_SYNC"})
 
@@ -121,7 +161,10 @@ def make_legacy_project(
     """
     root.mkdir(parents=True)
     files: dict[str, str] = {
-        ".kittify/metadata.yaml": yaml.dump({"spec_kitty": {"version": "2.1.0", "initialized_at": "2026-01-01T00:00:00"}}),
+        ".kittify/metadata.yaml": yaml.dump({"spec_kitty": {"version": _FIXTURE_VERSION, "initialized_at": "2026-01-01T00:00:00"}}),
+        # A realistic 2.1.0 project has already applied every <=2.1.0 migration;
+        # without this seed, ledger-diff would replay them all on upgrade (finding).
+        ".kittify/migration-ledger.jsonl": _seeded_tracked_ledger_jsonl(),
         ".kittify/config.yaml": yaml.dump({"agents": {"available": agents}}),
         "kitty-specs/001-demo/meta.json": '{"mission_slug": "001-demo", "title": "Demo"}\n',
         "kitty-specs/001-demo/tasks/WP01-title.md": (

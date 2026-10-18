@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.gitignore_manager import GitignorePathError
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
@@ -35,6 +36,19 @@ from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _settle_all_except(project: Path, *keep_unsettled: str) -> None:
+    """Seed the ledger so every declared migration except ``keep_unsettled`` is ``success``.
+
+    Post-cutover ``get_applicable`` is a ledger-diff over the full declared set
+    (version window retired, ADR 2026-10-17-1); seeding a fully-adopted ledger
+    isolates the subject so an unrelated over-selected migration cannot write
+    through this fixture's machine-local skill symlink. Fixture setup only.
+    """
+    for migration in MigrationRegistry.get_all():
+        if migration.migration_id not in keep_unsettled:
+            MigrationLedger(project).append(build_record(migration, "success"))
 
 _SKILLS_ROOT_ENTRY = ".agents/skills/"
 _MANIFEST_ENTRY = ".kittify/skills-manifest.json"
@@ -216,6 +230,7 @@ def test_backfill_fires_on_already_current_project(tmp_path: Path) -> None:
 
     MigrationRegistry.clear()
     auto_discover_migrations()
+    _settle_all_except(tmp_path, AgentsSkillsGitignoreBackfillMigration.migration_id)
     result = MigrationRunner(tmp_path).upgrade("3.2.5", include_worktrees=False)
 
     assert result.success

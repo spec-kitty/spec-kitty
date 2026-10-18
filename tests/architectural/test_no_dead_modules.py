@@ -371,6 +371,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_4_0_0rc7_exclude_spec_kitty",
         "specify_cli.upgrade.migrations.m_4_0_0rc7_pack_level_backfill",  # #6048: auto-discovered backfill (pack_level: project), never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc7_track_charter_pack_yaml",  # #6076: auto-discovered gitignore allow-rule backfill, never statically imported
+        # ADR 2026-10-17-1 §6 (migration-ledger): the one-way ledger adoption
+        # backfill. Same auto-discovered shape -- pkgutil.iter_modules +
+        # @MigrationRegistry.register, ordered first in the manifest, never
+        # statically imported; verified by registry lookup in
+        # tests/upgrade/test_backfill_ledger.py and test_backfill_migration.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger",
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via

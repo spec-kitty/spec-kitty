@@ -264,20 +264,15 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Already-recorded original migration must not suppress same-version repair."""
-    from kernel.clock import now_utc
-
     from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
-    from specify_cli.upgrade.metadata import ProjectMetadata
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
     from specify_cli.upgrade.runner import MigrationRunner
 
     _create_legacy_v2_bundle_without_built_in_only(tmp_path)
-    metadata = ProjectMetadata(version="3.2.0rc35", initialized_at=now_utc())
-    metadata.record_migration(
-        CharterBundleV2Migration.migration_id,
-        "success",
-        "already applied by previous release",
-    )
-    metadata.save(tmp_path / ".kittify")
+    # The original migration was already applied -- recorded in the LEDGER (the
+    # applied authority post-cutover), NOT metadata.yaml. The same-version repair
+    # migration must still run even though the original is settled.
+    MigrationLedger(tmp_path).append(build_record(CharterBundleV2Migration(), "success"))
 
     runner = MigrationRunner(tmp_path)
     monkeypatch.setattr(runner.detector, "detect_version", lambda: "3.2.0rc35")

@@ -118,7 +118,7 @@ def repo(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def bare_feature_dir(tmp_path: Path) -> Path:
-    """A non-git mission tree: the lock degrades to ``.kittify/spec-kitty-locks``."""
+    """A non-git mission tree: the lock degrades to ``.spec-kitty/spec-kitty-locks``."""
     fd = tmp_path / "kitty-specs" / MISSION_SLUG
     fd.mkdir(parents=True)
     return fd

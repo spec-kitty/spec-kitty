@@ -6,16 +6,12 @@
   href: coord-branch-base-strand.md
 - name: Coordination Branch Declared but Worktree Missing
   href: coord-worktree-missing.md
-- name: CI Machine Authentication
-  href: ci-machine-auth.md
 - name: Cutover Flip Fails From a Linked Worktree
   href: cutover-flip-linked-worktree.md
 - name: How to Maintain the Issue Tracker
   href: how-to-maintain.md
 - name: Identity-Boundary CI Gate
   href: identity-boundary-ci-gate.md
-- name: Logged-Out Teamspace Recovery
-  href: logged-out-teamspace.md
 - name: Manual Test Plan
   href: manual-test-plan.md
 - name: P0 Baseline Refresh
@@ -32,5 +28,3 @@
   href: start-branch-coord-divergence.md
 - name: Sync Daemon Orphan Cleanup
   href: sync-daemon-orphan-cleanup.md
-- name: Sync-Drain Runbook
-  href: sync-drain.md

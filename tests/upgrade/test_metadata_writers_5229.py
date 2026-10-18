@@ -75,7 +75,11 @@ def test_save_keeps_keys_the_model_does_not_own(tmp_path: Path) -> None:
     assert block["schema_capabilities"] == caps
     assert data["environment"]["editor"] == "vim"  # type: ignore[index]
     assert data["migrations"]["operator_extra"] == 1  # type: ignore[index]
-    assert [m["id"] for m in data["migrations"]["applied"]] == ["some_migration"]  # type: ignore[index]
+    # ``migrations`` is not a model-owned block after the WP04 hard cutover
+    # (C-001): ``record_migration`` mutates the model in memory, but ``save()``
+    # neither persists it nor touches the unowned block, so the on-disk list is
+    # preserved exactly as it was (the ledger is the applied authority).
+    assert [m["id"] for m in data["migrations"]["applied"]] == []  # type: ignore[index]
 
 
 def test_save_with_stale_none_model_keeps_the_schema_version_on_disk(tmp_path: Path) -> None:
@@ -125,7 +129,10 @@ def test_save_lets_the_model_win_for_the_fields_it_owns(tmp_path: Path) -> None:
     data = _read(kdir)
     assert data["spec_kitty"]["version"] == "new"  # type: ignore[index]
     assert data["environment"]["platform"] == "plan9"  # type: ignore[index]
-    assert [m["id"] for m in data["migrations"]["applied"]] == ["old_one"]  # type: ignore[index]
+    # The model wins for the fields it OWNS (version, environment). ``migrations``
+    # is no longer model-owned after the WP04 cutover (C-001), so the on-disk
+    # block is preserved untouched -- the in-memory filter is not written through.
+    assert [m["id"] for m in data["migrations"]["applied"]] == ["old_one", "gone_from_model"]  # type: ignore[index]
 
 
 @pytest.mark.parametrize("garbage", ["just a string\n", "- a\n- list\n", ""])
@@ -168,7 +175,9 @@ def test_save_replaces_a_non_mapping_spec_kitty_block(tmp_path: Path, bad_block:
     data = _read(kdir)
     assert data["spec_kitty"]["version"] == "9.9.9"  # type: ignore[index]
     assert data["operator_note"] == "keep-me"
-    assert data["migrations"] == {"applied": []}
+    # ``migrations`` is not model-owned (WP04 cutover, C-001); the non-mapping
+    # on-disk value is preserved as-is rather than replaced by the model.
+    assert data["migrations"] == "nope"
 
 
 def test_save_skips_a_timestamp_only_change(tmp_path: Path) -> None:
@@ -340,7 +349,10 @@ def test_failed_run_after_recorded_migrations_still_drops_the_added_map(tmp_path
     assert "schema_capabilities" not in data["spec_kitty"]  # type: ignore[operator]
     assert "schema_version" not in data["spec_kitty"]  # type: ignore[operator]
     assert data["operator_note"] == "keep-me"
-    assert [m["id"] for m in data["migrations"]["applied"]] == ["ran_before_the_failure"]  # type: ignore[index]
+    # Applied-state is no longer persisted to metadata.yaml after the WP04
+    # cutover (C-001): ``record_migration`` + ``save()`` writes no migrations
+    # block, so the restored file carries none -- the ledger owns applied state.
+    assert "migrations" not in data
 
 
 # --------------------------------------------------------------------------- backfill_project_uuid
