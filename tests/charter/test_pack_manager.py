@@ -249,6 +249,7 @@ class TestActivateNoneState:
         )
         assert any("had no explicit activation set" in w for w in result.warnings)
         assert any("nothing in force was deactivated" in w for w in result.warnings)
+        assert any("This list is now explicit" in w and "--only" in w for w in result.warnings), "#6408: the warning must say the list is frozen"
 
     def test_default_ids_are_present_after_materialize(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
         manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")

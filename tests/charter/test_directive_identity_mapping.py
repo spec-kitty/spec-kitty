@@ -38,11 +38,16 @@ def test_unknown_activated_directive_still_fails_closed(tmp_path: Path) -> None:
         resolve_artifact_urn(ArtifactKind.DIRECTIVE, "no-such-policy", offering_root=tmp_path)
 
 
-def test_other_kind_does_not_accept_declared_id_as_config_stem(tmp_path: Path) -> None:
+def test_other_kind_accepts_declared_id_after_stem_miss(tmp_path: Path) -> None:
+    """FR-006 (#6406): every kind accepts an exact declared id once no stem matches."""
     (tmp_path / "paradigms").mkdir()
     (tmp_path / "paradigms/policy.paradigm.yaml").write_text("id: DECLARED-PARADIGM\n")
-    with pytest.raises(UnknownArtifactIdError, match="DECLARED-PARADIGM"):
-        resolve_artifact_urn(ArtifactKind.PARADIGM, "DECLARED-PARADIGM", offering_root=tmp_path, org_roots=[tmp_path])
+    kwargs = {"offering_root": tmp_path, "org_roots": [tmp_path]}
+    # positive control: the stem resolves, and so does the declared id
+    assert resolve_artifact_urn(ArtifactKind.PARADIGM, "policy", **kwargs) == "paradigm:DECLARED-PARADIGM"
+    assert resolve_artifact_urn(ArtifactKind.PARADIGM, "DECLARED-PARADIGM", **kwargs) == "paradigm:DECLARED-PARADIGM"
+    with pytest.raises(UnknownArtifactIdError, match="NO-SUCH-PARADIGM"):
+        resolve_artifact_urn(ArtifactKind.PARADIGM, "NO-SUCH-PARADIGM", **kwargs)
 
 
 def test_selection_distinguishes_declared_identity_from_coincident_stem(tmp_path: Path) -> None:
