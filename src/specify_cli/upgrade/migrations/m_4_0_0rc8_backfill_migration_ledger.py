@@ -24,13 +24,14 @@ from pathlib import Path
 from kernel.clock import datetime
 
 from ..ledger import LedgerRecord, MigrationLedger, build_record, current_cli_version
-from ..metadata import _LEGACY_MIGRATION_ID_MAP, ProjectMetadata
+from ..metadata import _LEGACY_MIGRATION_ID_MAP, MigrationRecord, ProjectMetadata
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 MIGRATION_ID = "4.0.0rc8_backfill_migration_ledger"
 TARGET_VERSION = "4.0.0rc8"
 _KITTIFY_DIRNAME = ".kittify"
+_SUCCESS = "success"
 
 
 @dataclass(frozen=True)
@@ -93,16 +94,27 @@ class BackfillMigrationLedgerMigration(BaseMigration):
         clone_recorded = {r.id for r in ledger.read_clone_local()}
 
         plan: list[_PlanItem] = []
-        seen: set[str] = set()
-        for record in metadata.applied_migrations:
-            canonical, migration, clone_local = self._target_for(record.id)
-            if canonical in seen:
-                continue
+        for canonical, record in self._settling_records(metadata.applied_migrations).items():
+            _, migration, clone_local = self._target_for(canonical)
             if self._should_skip(canonical, migration, clone_local, project_path, tracked_recorded, clone_recorded):
                 continue
-            seen.add(canonical)
             plan.append(_PlanItem(canonical, migration, record.result, record.applied_at, clone_local))
         return plan
+
+    @staticmethod
+    def _settling_records(records: list[MigrationRecord]) -> dict[str, MigrationRecord]:
+        """One record per canonical id, in first-seen order, preferring a ``success``.
+
+        ``record_migration`` appends a new entry whenever a result changes, so a
+        retried migration carries ``[skipped|failed, success]``. Keeping the
+        first entry would leave it unsettled and re-selected on every upgrade.
+        """
+        chosen: dict[str, MigrationRecord] = {}
+        for record in records:
+            canonical = _LEGACY_MIGRATION_ID_MAP.get(record.id, record.id)
+            if canonical not in chosen or record.result == _SUCCESS:
+                chosen[canonical] = record
+        return chosen
 
     @staticmethod
     def _should_skip(

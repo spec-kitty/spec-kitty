@@ -169,3 +169,27 @@ def test_metadata_only_backfill_adds_no_version_floor_records(tmp_path: Path) ->
     assert tracked_ids == {_PRIOR_ID}
     seed = MigrationRecord(id=_PRIOR_ID, applied_at=now_utc(), result="success")
     assert seed.id == _PRIOR_ID  # the only seed source is the recorded metadata row
+
+
+def test_backfill_prefers_success_over_an_earlier_non_success_record(tmp_path: Path) -> None:
+    """A ``skipped`` then ``success`` history settles the migration, not leaves it pending.
+
+    ``record_migration`` appends a new entry whenever the result changes, so a
+    retried migration carries ``[skipped|failed, success]``. Keeping the first
+    entry would leave it unsettled and re-selected on every upgrade.
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "metadata.yaml").write_text(
+        _PRE_LEDGER_METADATA.replace(
+            "    result: success\n",
+            "    result: skipped\n    notes: null\n  - id: 3.1.1_charter_rename\n    applied_at: '2026-02-01T00:00:00+00:00'\n    result: success\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    BackfillMigrationLedgerMigration().apply(tmp_path)
+
+    records = [r for r in MigrationLedger(tmp_path).read_tracked() if r.id == _PRIOR_ID]
+    assert [r.result for r in records] == ["success"]
