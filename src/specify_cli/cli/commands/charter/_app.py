@@ -29,6 +29,7 @@ from specify_cli.cli.commands.charter.consistency_check import consistency_check
 from specify_cli.cli.commands.charter.org import org_app
 from specify_cli.cli.commands.charter.pack_asset import asset_app
 from specify_cli.cli.commands.charter.pack_tooling import pack_assemble, pack_validate, regenerate_graph
+from specify_cli.cli.commands.charter.pack_vendor import pack_vendor
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
@@ -79,6 +80,7 @@ charter_app.add_typer(charter_list_app, name="list")
 charter_pack_app.command("validate")(pack_validate)
 charter_pack_app.command("assemble")(pack_assemble)
 charter_pack_app.command("regenerate-graph")(regenerate_graph)
+charter_pack_app.command("vendor")(pack_vendor)
 charter_pack_app.add_typer(asset_app, name="asset")
 charter_app.add_typer(charter_pack_app, name="pack")
 

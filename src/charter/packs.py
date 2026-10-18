@@ -25,16 +25,26 @@ from charter.activation.org_charter import (
     assemble_pack_with_org_charter,
     validate_pack_with_org_charter,
 )
+from charter.offering.packs.built_in_pin import (
+    BuiltInPin,
+    BuiltInPinError,
+    TreeDigest,
+    load_built_in_pin,
+    verify_built_in_pin,
+    write_built_in_pin,
+)
 from charter.offering.packs.builtin_manifest import (
     builtin_manifest_is_fresh,
     generate_builtin_manifest,
 )
+from charter.offering.packs.core_compat import check_requires_core
 from charter.offering.packs.pack_assembler import (
     AssemblyResult,
     assemble_pack,
     pack_document_dict,
     render_assembly_result,
 )
+from charter.offering.packs.pack_clean_digest import clean_tree_digest
 from charter.offering.packs.pack_descriptor import load_pack_descriptor
 from charter.offering.packs.pack_manifest import (
     RECOGNISED_ARTIFACT_DIRS,
@@ -74,19 +84,25 @@ __all__ = [
     "RETIRED_PACK_FIELD",
     "ActivationPreset",
     "AssemblyResult",
+    "BuiltInPin",
+    "BuiltInPinError",
     "OfferingPack",
     "PresetFormatError",
     "PresetNotFoundError",
     "RetiredPackFieldError",
+    "TreeDigest",
     "ValidationIssue",
     "artifact_schema_registry",
     "assemble_pack",
     "assemble_pack_with_org_charter",
     "builtin_manifest_is_fresh",
+    "check_requires_core",
+    "clean_tree_digest",
     "count_snapshot_artifacts",
     "discover_presets",
     "generate_builtin_manifest",
     "list_offering_packs",
+    "load_built_in_pin",
     "load_pack_descriptor",
     "load_preset",
     "load_preset_file",
@@ -101,6 +117,8 @@ __all__ = [
     "source_fingerprint",
     "strip_source_credentials",
     "validate_pack",
+    "verify_built_in_pin",
     "validate_pack_with_org_charter",
+    "write_built_in_pin",
     "write_pack_manifest",
 ]

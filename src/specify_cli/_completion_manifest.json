@@ -518,6 +518,11 @@
        "hidden": false,
        "deprecated": false
       },
+      "vendor": {
+       "help": "Re-vendor ``packs/built-in/`` from the pinned spec-kitty-open-packs commit, or verify it.",
+       "hidden": false,
+       "deprecated": false
+      },
       "asset": {
        "help": "Resolve shipped and overlay charter pack assets (no install — C-002).",
        "hidden": false,

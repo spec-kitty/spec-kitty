@@ -962,6 +962,8 @@ _Charter pack management commands._
 │                   distributable.                                             │
 │ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
 │                   (FR-009).                                                  │
+│ vendor            Re-vendor ``packs/built-in/`` from the pinned              │
+│                   spec-kitty-open-packs commit, or verify it.                │
 │ asset             Resolve shipped and overlay charter pack assets (no        │
 │                   install — C-002).                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1149,6 +1151,23 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack vendor
+
+```
+ Usage: spec-kitty charter pack vendor [OPTIONS]
+
+ Re-vendor ``packs/built-in/`` from the pinned spec-kitty-open-packs commit, or
+ verify it.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check                 Verify only (offline): compare packs/built-in/ with  │
+│                         the pin lockfile; exit 1 on drift. Mutates nothing.  │
+│ --ref            <str>  Bump the pin to this open-packs tag or SHA (resolved │
+│                         to a SHA; a tag is never persisted).                 │
+│ --help   -h             Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

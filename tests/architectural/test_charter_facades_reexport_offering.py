@@ -277,6 +277,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``__module__``-only origin resolution silently skipped. Identity-verified
         # live at add time. FACADE-ONLY.
         ("RETIRED_PACK_FIELD", "charter.offering.packs.pack_validator"),
+        # #3504: the ``charter pack vendor`` command reaches the built-in pin, core-compat
+        # and clean-digest helpers (lazily) through this door, not charter.offering.packs.*.
+        ("BuiltInPin", "charter.offering.packs.built_in_pin"),
+        ("BuiltInPinError", "charter.offering.packs.built_in_pin"),
+        ("TreeDigest", "charter.offering.packs.built_in_pin"),
+        ("load_built_in_pin", "charter.offering.packs.built_in_pin"),
+        ("verify_built_in_pin", "charter.offering.packs.built_in_pin"),
+        ("write_built_in_pin", "charter.offering.packs.built_in_pin"),
+        ("check_requires_core", "charter.offering.packs.core_compat"),
+        ("clean_tree_digest", "charter.offering.packs.pack_clean_digest"),
     ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),
