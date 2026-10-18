@@ -128,12 +128,16 @@ def test_json_payload_carries_unknown_selection_diagnostics(tmp_path: Path) -> N
 
 
 def test_json_payload_diagnostics_empty_on_clean_fixture(tmp_path: Path) -> None:
-    """Positive control: ``diagnostics`` is always present and empty when nothing is unknown."""
+    """Positive control: ``diagnostics`` is always present and names no unknown selection when none exists."""
     from tests.charter.test_resolver import _identity_project
 
     repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=[])
 
     payload = build_charter_context_json(repo, action="plan")
 
-    assert payload["diagnostics"] == []
+    diagnostics = cast("list[str]", payload["diagnostics"])
+    # Other informational resolver notes (for example "using built-in catalog default")
+    # are legitimate; the control is that no selected id was reported unknown.
+    assert isinstance(diagnostics, list)
+    assert not any(d.startswith("Unknown selected") for d in diagnostics)
     assert "diagnostics" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS

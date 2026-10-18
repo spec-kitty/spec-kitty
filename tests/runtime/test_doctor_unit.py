@@ -375,7 +375,7 @@ def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path, monke
 
     from specify_cli.runtime import doctor
 
-    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"})
+    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"}, diagnostics=[])
     monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
 
     check = doctor.check_governance_resolution(tmp_path)

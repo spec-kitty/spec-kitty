@@ -108,7 +108,6 @@ def test_colliding_override_stem_preserves_selected_identity(tmp_path: Path, mon
 def _context_json(repo: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     import json
 
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
     monkeypatch.chdir(repo)
     result = CliRunner().invoke(
@@ -125,6 +124,7 @@ def test_context_json_passes_diagnostics_through(tmp_path: Path, monkeypatch: py
     from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
     from tests.charter.test_resolver import _identity_project
 
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     repo = _identity_project(
         tmp_path,
         selected="[QA_003, NOPE_999]",
@@ -142,8 +142,10 @@ def test_context_json_passes_diagnostics_through(tmp_path: Path, monkeypatch: py
 def test_context_json_diagnostics_empty_on_clean_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from tests.charter.test_resolver import _identity_project
 
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=[])
 
     data = _context_json(repo, monkeypatch)
 
-    assert data["diagnostics"] == []
+    assert isinstance(data["diagnostics"], list)
+    assert not any(d.startswith("Unknown selected") for d in data["diagnostics"])

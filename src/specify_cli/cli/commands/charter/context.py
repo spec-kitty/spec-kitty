@@ -169,6 +169,11 @@ def context(
                         "text": result.text,
                         "directives": structured.get("directives", []),
                         "all_directives": structured.get("all_directives", []),
+                        # Additive pass-through (schema 1.4.0, #6407): the CLI rebuilds
+                        # this payload from a fixed key list, so a builder key never
+                        # reaches the operator unless it is listed here.
+                        "diagnostics": structured.get("diagnostics", []),
+                        "directives_source": structured.get("directives_source"),
                         "tactics": structured.get("tactics", []),
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
