@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md.",
   "coordination_branch": "kitty/mission-charter-governance-resolution-01M57Z77",
   "created_at": "2026-10-18T16:58:49.327153+00:00",
   "flattened": false,
@@ -14,6 +16,6 @@
   "slug": "charter-governance-resolution-01M57Z77",
   "target_branch": "issue-6404-charter-governance-resolution-work",
   "topology": "coord",
-  "contracts": "none",
-  "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md."
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-18T17:42:29.756399+00:00"
 }
