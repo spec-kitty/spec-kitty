@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc8 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Added
+
+- **The vendored built-in pack is now pinned and drift-gated** (#3504). **Before:** `packs/built-in/` could silently diverge from its `spec-kitty-open-packs` source, and nothing caught it. **After:** `packs/built-in.source.yaml` pins the tree to an open-packs commit SHA and content digest; `spec-kitty charter pack vendor [--check]` re-vendors or verifies it. A per-PR CI gate and a release-time re-verify fail on drift. **What to do:** when the gate reds, bump the pin with `vendor` instead of hand-editing `packs/built-in/` (ADR `2026-08-16-2`, Option B).
+
 ### Changed
 
 - **Battery timing-table drift is now a nightly-strict gate, not a per-PR blocker** (CI). **Before:** the corpus-drift assertions in `tests/ci/test_battery_roster_budgets.py` (untimed base files, stale timing keys) hard-failed in the per-PR `ci` module shard, so any PR that added or removed a test file — or merely touched `.github/workflows/**` — could red on a stale `.github/ci-shard-timings.json` battery table that no per-PR automation refreshes. **After:** those two drift gates warn per PR (`BatteryTimingsDriftWarning`) and assert only under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, which `ci-shard-recapture.yml`'s scheduled `strict-shard-timings-check` job now also runs over this file — mirroring the module-length-agreement strict switch (spec-kitty#5189). Budget, total-cap and leg-balance checks still block per PR.
