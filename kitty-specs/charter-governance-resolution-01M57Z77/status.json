@@ -1,7 +1,7 @@
 {
-  "event_count": 10,
-  "last_event_id": "01M581HWDH6WD9PTRBFYATKQAY",
-  "materialized_at": "2026-10-18T17:39:34.449385+00:00",
+  "event_count": 12,
+  "last_event_id": "01M581QQN6ZB3GP8S5X84K8A6S",
+  "materialized_at": "2026-10-18T17:42:46.027914+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -13,17 +13,21 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 10
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M581H2TBNKMH8G3T4DDCHHEW",
-      "last_transition_at": "2026-10-18T17:39:08.235591+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M581QQN6ZB3GP8S5X84K8A6S",
+      "last_transition_at": "2026-10-18T17:42:46.027914+00:00",
+      "shell_pid": 32469,
+      "shell_pid_created_at": "1792345340.34"
     },
     "WP02": {
       "actor": "finalize-tasks",
