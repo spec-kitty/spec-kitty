@@ -185,6 +185,63 @@ class TestFamilyKeyIdentity:
 
 
 # ---------------------------------------------------------------------------
+# #6388 -- cross-family parity through the REAL presence gatherer
+# ---------------------------------------------------------------------------
+#
+# Every family's guard dispatches on a runtime action id and checks the
+# artifact that action's step contract produces. The presence snapshot is
+# built from the family's expected-artifacts manifest, so a manifest keyed on
+# a different vocabulary reads a committed artifact as absent. These cases
+# never pass ``present_artifacts=`` synthetically: they write the file to disk
+# and let ``gather_artifact_presence`` decide, which is the only path that can
+# observe a manifest/guard vocabulary split.
+
+_FAMILY_PARITY_CASES = [
+    ("software-dev", "specify", "spec.md"),
+    ("software-dev", "plan", "plan.md"),
+    ("research", "scoping", "spec.md"),
+    ("research", "methodology", "plan.md"),
+    ("documentation", "discover", "spec.md"),
+    ("documentation", "design", "plan.md"),
+    ("plan", "specify", "spec.md"),
+    ("plan", "research", "research.md"),
+    ("plan", "plan", "plan.md"),
+]
+
+
+class TestCrossFamilyGuardParityThroughRealGatherer:
+    @pytest.mark.parametrize(("family", "step_id", "filename"), _FAMILY_PARITY_CASES)
+    def test_committed_artifact_reads_present_and_guard_passes(self, tmp_path: Path, family: str, step_id: str, filename: str) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "042-parity-feature"
+        _write_meta(feature_dir, family)
+        (feature_dir / filename).write_text("# committed\n", encoding="utf-8")
+
+        snapshot = gather_artifact_presence(feature_dir, mission_family=family, step_id=step_id)
+
+        assert filename in snapshot.present_artifacts
+        assert evaluate_guards_strict(snapshot) == []
+
+    @pytest.mark.parametrize(("family", "step_id", "filename"), _FAMILY_PARITY_CASES)
+    def test_absent_artifact_still_blocks(self, tmp_path: Path, family: str, step_id: str, filename: str) -> None:
+        """Non-vacuity: the same gatherer + guard DO block when the file is missing."""
+        feature_dir = tmp_path / "kitty-specs" / "042-parity-feature"
+        _write_meta(feature_dir, family)
+
+        snapshot = gather_artifact_presence(feature_dir, mission_family=family, step_id=step_id)
+
+        assert filename not in snapshot.present_artifacts
+        assert evaluate_guards_strict(snapshot) != []
+
+    def test_plan_presence_vocabulary_is_the_action_vocabulary(self) -> None:
+        from runtime.next.runtime_bridge_io import _presence_filenames_for  # noqa: PLC0415
+
+        names = _presence_filenames_for("plan")
+
+        assert {"spec.md", "research.md", "plan.md"} <= names
+        assert "goals.md" not in names
+
+
+# ---------------------------------------------------------------------------
 # None / typeless family handling
 # ---------------------------------------------------------------------------
 
