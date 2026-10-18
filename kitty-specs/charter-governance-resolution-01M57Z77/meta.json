@@ -13,5 +13,7 @@
   "purpose_tldr": "Make charter governance deliver what the operator activated and selected: synthesized tactics, declared ids, org-pack selections, narrow activation and a correct stack signal.",
   "slug": "charter-governance-resolution-01M57Z77",
   "target_branch": "issue-6404-charter-governance-resolution-work",
-  "topology": "coord"
+  "topology": "coord",
+  "contracts": "none",
+  "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md."
 }
