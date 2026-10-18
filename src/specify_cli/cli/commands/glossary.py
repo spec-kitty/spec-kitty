@@ -12,14 +12,16 @@ Commands:
 import json as json_lib
 import logging
 from pathlib import Path
+from typing import Any
 
 import typer
 from specify_cli.cli.console import CliConsole
 from specify_cli.cli.json_contract import json_error, json_output_guard
 from rich.table import Table
+from spec_kitty_events.persistence import LedgerAppendError, build_record
 
 from glossary.events import (
-    _local_append_event,
+    append_event,
     build_clarification_resolved,
     build_sense_updated,
     get_event_log_path,
@@ -665,7 +667,11 @@ def resolve(  # noqa: C901
         console.print(f"[red]Error: Invalid choice '{choice}'[/red]")
         raise typer.Exit(1)
 
-    # Build and persist GlossaryClarificationResolved event
+    # Build and persist GlossaryClarificationResolved event. The provenance
+    # timestamp is required and non-empty in the events contract (#6399).
+    from kernel.clock import now_utc_iso
+
+    resolved_at = now_utc_iso()
     event = build_clarification_resolved(
         conflict_id=conflict_id,
         term_surface=term_text,
@@ -678,14 +684,12 @@ def resolve(  # noqa: C901
         resolution_mode="async",
         provenance={
             "source": "cli_resolve",
-            "timestamp": "",
+            "timestamp": resolved_at,
             "actor_id": "user:cli",
         },
     )
 
-    # Persist to event log
-    event_log_path = get_event_log_path(repo_root, effective_mission)
-    _local_append_event(event, event_log_path)
+    events = [event]
 
     # For custom definitions (choice "C"), also emit GlossarySenseUpdated
     # to persist the new sense in the event log, matching ClarificationMiddleware behavior
@@ -708,13 +712,30 @@ def resolve(  # noqa: C901
             update_type="create",
             provenance={
                 "source": "cli_resolve",
-                "timestamp": "",
+                "timestamp": resolved_at,
                 "actor_id": "user:cli",
             },
         )
-        _local_append_event(sense_event, event_log_path)
+        events.append(sense_event)
 
+    _append_resolution_events(events, get_event_log_path(repo_root, effective_mission))
     console.print("[green]Conflict resolved successfully[/green]")
+
+
+def _append_resolution_events(events: list[dict[str, Any]], event_log_path: Path) -> None:
+    """Append a resolution's events, or exit 1 without writing any when one is refused.
+
+    Every event is checked against the ``spec-kitty-events`` contract before the
+    first is written, so a refusal never leaves half a resolution in the log.
+    """
+    try:
+        for event in events:
+            build_record(event)
+        for event in events:
+            append_event(event, event_log_path)
+    except LedgerAppendError as exc:
+        console.print(f"[red]Error: the glossary event log refused the resolution: {exc}[/red]")
+        raise typer.Exit(1) from exc
 
 
 @app.command()

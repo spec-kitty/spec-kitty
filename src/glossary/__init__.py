@@ -33,7 +33,7 @@ Extraction:
     ExtractedTerm, extract_all_terms
 
 Events:
-    EVENTS_AVAILABLE, get_event_log_path, append_event, read_events,
+    get_event_log_path, append_event, read_events,
     emit_term_candidate_observed, emit_semantic_check_evaluated,
     emit_generation_blocked_event, emit_step_checkpointed,
     emit_clarification_requested, emit_clarification_resolved,
@@ -101,7 +101,6 @@ from .checkpoint import (
     compute_input_diff,
 )
 from .events import (
-    EVENTS_AVAILABLE,
     get_event_log_path,
     append_event,
     read_events,
@@ -187,7 +186,6 @@ __all__ = [
     "checkpoint_to_dict",
     "compute_input_diff",
     # Events
-    "EVENTS_AVAILABLE",
     "get_event_log_path",
     "append_event",
     "read_events",

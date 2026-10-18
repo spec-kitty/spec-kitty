@@ -1,13 +1,9 @@
 """Event emission adapters for Feature 007 glossary events.
 
-This module can persist events through two paths:
-
-1) Preferred (when available): canonical `spec-kitty-events` append adapter.
-2) Fallback (always available): local JSONL append under `.kittify/events/glossary/`.
-
-Unlike earlier implementations, fallback mode still persists events to JSONL
-so checkpoint/resume and local observability remain deterministic even when
-canonical contracts are unavailable in the installed package version.
+Every event is written through the `spec-kitty-events` ledger write contract
+(`spec_kitty_events.persistence.append_event`, #6399): a record that fails the
+contract is refused and nothing is written, and a torn ledger tail is repaired
+before the append (see :func:`append_event`).
 
 Event classes:
 - GlossaryScopeActivated
@@ -26,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import uuid
 from pathlib import Path
@@ -39,43 +36,11 @@ from glossary.semantic_events import (
     EVT_SEMANTIC_CHECK_EVALUATED,
 )
 from kernel.clock import now_utc_iso
+from kernel.locks import machine_file_lock
+from spec_kitty_events.persistence import LedgerTornTailError
+from spec_kitty_events.persistence import append_event as _ledger_append
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Import adapters: try spec-kitty-events package, fall back to local JSONL only
-# ---------------------------------------------------------------------------
-
-_CanonicGlossaryScopeActivated: Any = None
-_CanonicTermCandidateObserved: Any = None
-_CanonicSemanticCheckEvaluated: Any = None
-_CanonicGlossaryClarificationRequested: Any = None
-_CanonicGlossaryClarificationResolved: Any = None
-# Note: _CanonicGlossarySenseUpdated is intentionally not imported — GlossarySenseUpdated
-# is local-only and must not reach the canonical SaaS queue (spec-kitty #1549).
-_CanonicGenerationBlockedBySemanticConflict: Any = None
-_CanonicStepCheckpointed: Any = None
-_pkg_append_event: Any = None
-
-try:
-    from spec_kitty_events.glossary.events import (  # type: ignore[import-not-found]
-        GlossaryScopeActivated as _CanonicGlossaryScopeActivated,
-        TermCandidateObserved as _CanonicTermCandidateObserved,
-        SemanticCheckEvaluated as _CanonicSemanticCheckEvaluated,
-        GlossaryClarificationRequested as _CanonicGlossaryClarificationRequested,
-        GlossaryClarificationResolved as _CanonicGlossaryClarificationResolved,
-        GenerationBlockedBySemanticConflict as _CanonicGenerationBlockedBySemanticConflict,
-        StepCheckpointed as _CanonicStepCheckpointed,
-    )
-    from spec_kitty_events.persistence import append_event as _pkg_append_event  # type: ignore[import-not-found]
-
-    EVENTS_AVAILABLE = True
-    logger.info("spec-kitty-events canonical glossary adapter available")
-
-except ImportError:
-    EVENTS_AVAILABLE = False
-    logger.debug("spec-kitty-events canonical glossary adapter unavailable")
 
 
 # ---------------------------------------------------------------------------
@@ -120,57 +85,92 @@ def get_event_log_path(
 
 
 # ---------------------------------------------------------------------------
-# JSONL persistence
-#
-# When EVENTS_AVAILABLE: try canonical append path first.
-# In all cases: guarantee local JSONL persistence.
+# JSONL persistence through the spec-kitty-events ledger write contract
 # ---------------------------------------------------------------------------
+
+#: Suffix of the sidecar that keeps a torn tail's bytes. It does not match the
+#: ``*.events.jsonl`` globs the readers use.
+TORN_TAIL_SUFFIX = ".torn"
+_REPAIR_LOCK_SUFFIX = ".lock"
+_REPAIR_LOCK_TIMEOUT_S = 10.0
+_TAIL_SCAN_BLOCK = 64 * 1024
 
 
 def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
-    """Append a single event dict to a JSONL event log.
+    """Append one event to a glossary ledger through the write contract.
 
-    This function guarantees local JSONL persistence. When canonical
-    `spec-kitty-events` append support is available, it is attempted first.
-    Any canonical append failure falls back to local JSONL append.
+    The record must satisfy the ``spec-kitty-events`` contract: a record that
+    does not is refused (``LedgerValidationError``) and nothing is written;
+    there is no local fallback. A torn tail, left by a write that a crash cut
+    short, is repaired (:func:`_repair_torn_tail`) and the append is retried
+    once.
 
     Args:
         event_dict: JSON-serializable event payload
         event_log_path: Path to the .events.jsonl file
-    """
-    if EVENTS_AVAILABLE and _pkg_append_event is not None:
-        try:
-            _pkg_append_event(event_dict, event_log_path)
-            return
-        except Exception as exc:
-            logger.warning(
-                "Canonical append failed for %s, using local JSONL fallback: %s",
-                event_dict.get("event_type", "UnknownEvent"),
-                exc,
-            )
 
+    Raises:
+        spec_kitty_events.persistence.LedgerAppendError: the record was refused.
+    """
     try:
-        _local_append_event(event_dict, event_log_path)
-    except Exception as exc:
-        logger.error(
-            "Local append failed for %s: %s",
-            event_dict.get("event_type", "UnknownEvent"),
-            exc,
-        )
+        _ledger_append(event_dict, event_log_path)
+    except LedgerTornTailError:
+        _repair_torn_tail(event_log_path)
+        _ledger_append(event_dict, event_log_path)
 
 
-def _local_append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
-    """Low-level JSONL append.
+def _complete_length(handle: Any, size: int) -> int:
+    """Return the length of the ledger up to and including its last newline."""
+    end = size
+    while end > 0:
+        start = max(0, end - _TAIL_SCAN_BLOCK)
+        handle.seek(start)
+        newline = handle.read(end - start).rfind(b"\n")
+        if newline != -1:
+            return start + newline + 1
+        end = start
+    return 0
 
-    This is used by production fallback paths and tests.
 
-    Args:
-        event_dict: JSON-serializable event payload
-        event_log_path: Path to the .events.jsonl file
+def _repair_torn_tail(event_log_path: Path) -> Path | None:
+    """Move a torn tail's bytes to a sidecar and cut the ledger back to its last full line.
+
+    The fragment is appended, as one line, to ``<ledger>.torn`` before the
+    ledger is truncated, so no byte is lost. The repair runs under a lock on a
+    dedicated sidecar path and re-reads the tail inside it, so a second
+    repairer finds the tail already whole and changes nothing. A writer that
+    does not take the lock cannot append in between, because the write
+    contract refuses a torn tail.
+
+    Returns:
+        The sidecar path, or ``None`` when the tail was already whole.
     """
-    event_log_path.parent.mkdir(parents=True, exist_ok=True)
-    with event_log_path.open("a") as f:
-        f.write(json.dumps(event_dict, sort_keys=True, default=str) + "\n")
+    lock_path = event_log_path.with_name(event_log_path.name + _REPAIR_LOCK_SUFFIX)
+    quarantine_path = event_log_path.with_name(event_log_path.name + TORN_TAIL_SUFFIX)
+    with (
+        machine_file_lock(lock_path, blocking=True, timeout_s=_REPAIR_LOCK_TIMEOUT_S),
+        event_log_path.open("r+b") as handle,
+    ):
+        size = handle.seek(0, 2)
+        keep = _complete_length(handle, size)
+        if keep == size:
+            return None
+        handle.seek(keep)
+        fragment = handle.read()
+        with quarantine_path.open("ab") as quarantine:
+            quarantine.write(fragment + b"\n")
+            quarantine.flush()
+            os.fsync(quarantine.fileno())
+        handle.truncate(keep)
+        handle.flush()
+        os.fsync(handle.fileno())
+    logger.warning(
+        "Repaired torn tail of %s: moved %d byte(s) to %s",
+        event_log_path,
+        len(fragment),
+        quarantine_path,
+    )
+    return quarantine_path
 
 
 def read_events(
@@ -231,7 +231,7 @@ def build_glossary_scope_activated(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": "GlossaryScopeActivated",
         "scope_id": scope_id,
@@ -269,7 +269,7 @@ def build_term_candidate_observed(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": "TermCandidateObserved",
         "term": term,
@@ -313,7 +313,7 @@ def build_semantic_check_evaluated(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": EVT_SEMANTIC_CHECK_EVALUATED,
         "step_id": step_id,
@@ -352,7 +352,7 @@ def build_generation_blocked(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": "GenerationBlockedBySemanticConflict",
         "step_id": step_id,
@@ -392,7 +392,7 @@ def build_clarification_requested(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": EVT_GLOSSARY_CLARIFICATION_REQUESTED,
         "question": question,
@@ -430,7 +430,7 @@ def build_clarification_resolved(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": EVT_GLOSSARY_CLARIFICATION_RESOLVED,
         "conflict_id": conflict_id,
@@ -466,7 +466,7 @@ def build_sense_updated(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": EVT_GLOSSARY_SENSE_UPDATED,
         "term_surface": term_surface,
@@ -506,7 +506,7 @@ def build_step_checkpointed(
     Returns:
         JSON-serializable event dict
     """
-    # canonical-producer-exempt: #1200 -- local-only glossary JSONL fallback.
+    # canonical-producer-exempt: #1200 -- glossary payload dict; append_event validates it against the contract at write time.
     return {
         "event_type": "StepCheckpointed",
         "mission_id": mission_id,
@@ -521,69 +521,25 @@ def build_step_checkpointed(
     }
 
 
-# ---------------------------------------------------------------------------
-# Canonical event persistence
-#
-# When EVENTS_AVAILABLE is True:
-#   - Instantiate the canonical event class from spec-kitty-events
-#   - Pass that INSTANCE (not a dict) to _pkg_append_event
-#
-# When canonical persistence fails or is unavailable:
-#   - Fall back to deterministic local JSONL append.
-# ---------------------------------------------------------------------------
-
-
 def _persist_event(
     event_dict: dict[str, Any],
     repo_root: Path,
     mission_id: str,
-    canonical_cls: Any = None,
 ) -> None:
-    """Persist an event to the event log.
+    """Persist an event to the mission's glossary event log.
 
-    Behavior:
-    - Try canonical adapter if available and a canonical class is provided.
-    - Fall back to local JSONL append on any failure.
+    Adds an ``event_id`` when the event has none, then appends it with
+    :func:`append_event`. A refusal propagates; the ``emit_*`` callers log it
+    and return ``None``.
 
     Args:
-        event_dict: JSON-serializable event payload (used both for
-                    constructing canonical instances and as the return value)
+        event_dict: JSON-serializable event payload (also the caller's return value)
         repo_root: Repository root for event log path
         mission_id: Mission identifier for JSONL file
-        canonical_cls: Canonical event class constructor (optional)
     """
-    try:
-        event_log_path = get_event_log_path(repo_root, mission_id)
-    except Exception as exc:
-        logger.error(
-            "Failed to resolve event log path for %s (mission=%s): %s",
-            event_dict.get("event_type", "UnknownEvent"),
-            mission_id,
-            exc,
-        )
-        return
+    event_log_path = get_event_log_path(repo_root, mission_id)
     event_dict.setdefault("event_id", str(uuid.uuid4()))
-
-    if EVENTS_AVAILABLE and _pkg_append_event is not None and canonical_cls is not None:
-        try:
-            canonical_instance = canonical_cls(**event_dict)
-            _pkg_append_event(canonical_instance, event_log_path)
-            return
-        except Exception as exc:
-            logger.warning(
-                "Canonical persistence failed for %s, using local JSONL fallback: %s",
-                event_dict.get("event_type", "UnknownEvent"),
-                exc,
-            )
-
-    try:
-        _local_append_event(event_dict, event_log_path)
-    except Exception as exc:
-        logger.error(
-            "Local persistence failed for %s: %s",
-            event_dict.get("event_type", "UnknownEvent"),
-            exc,
-        )
+    append_event(event_dict, event_log_path)
 
 
 # ---------------------------------------------------------------------------
@@ -617,10 +573,9 @@ def emit_term_candidate_observed(
 ) -> dict[str, Any] | None:
     """Emit TermCandidateObserved event for an extracted term.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicTermCandidateObserved instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         term: ExtractedTerm instance
@@ -648,7 +603,7 @@ def emit_term_candidate_observed(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicTermCandidateObserved)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.TermCandidateObserved: term=%s", term.surface)
     except Exception as exc:
@@ -666,10 +621,9 @@ def emit_semantic_check_evaluated(
 ) -> dict[str, Any] | None:
     """Emit SemanticCheckEvaluated event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicSemanticCheckEvaluated instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         context: PrimitiveExecutionContext
@@ -731,7 +685,7 @@ def emit_semantic_check_evaluated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicSemanticCheckEvaluated)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.SemanticCheckEvaluated: findings=%d", len(conflicts))
     except Exception as exc:
@@ -756,10 +710,9 @@ def emit_generation_blocked_event(
 ) -> dict[str, Any] | None:
     """Emit GenerationBlockedBySemanticConflict event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicGenerationBlockedBySemanticConflict instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         step_id: Step identifier
@@ -785,7 +738,7 @@ def emit_generation_blocked_event(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGenerationBlockedBySemanticConflict)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info(
                 "glossary.GenerationBlockedBySemanticConflict: conflicts=%d, strictness=%s, step=%s, mission=%s",
@@ -807,10 +760,9 @@ def emit_step_checkpointed(
 ) -> dict[str, Any] | None:
     """Emit StepCheckpointed event to event log.
 
-    When EVENTS_AVAILABLE is True and project_root is provided:
-        Creates a _CanonicStepCheckpointed instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When project_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         checkpoint: StepCheckpoint instance
@@ -845,7 +797,7 @@ def emit_step_checkpointed(
 
     try:
         if project_root is not None:
-            _persist_event(event, project_root, checkpoint.mission_id, canonical_cls=_CanonicStepCheckpointed)
+            _persist_event(event, project_root, checkpoint.mission_id)
         else:
             logger.info(
                 "glossary.StepCheckpointed: step=%s, cursor=%s (no repo_root)",
@@ -867,10 +819,9 @@ def emit_clarification_requested(
 ) -> dict[str, Any] | None:
     """Emit GlossaryClarificationRequested event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicGlossaryClarificationRequested instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         conflict: SemanticConflict instance
@@ -907,7 +858,7 @@ def emit_clarification_requested(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryClarificationRequested)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.GlossaryClarificationRequested: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -927,10 +878,9 @@ def emit_clarification_resolved(
 ) -> dict[str, Any] | None:
     """Emit GlossaryClarificationResolved event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicGlossaryClarificationResolved instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         conflict_id: UUID from the requesting event
@@ -972,7 +922,7 @@ def emit_clarification_resolved(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryClarificationResolved)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.GlossaryClarificationResolved: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -992,10 +942,9 @@ def emit_sense_updated(
 ) -> dict[str, Any] | None:
     """Emit GlossarySenseUpdated event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicGlossarySenseUpdated instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         conflict: SemanticConflict instance
@@ -1038,12 +987,7 @@ def emit_sense_updated(
 
     try:
         if repo_root is not None:
-            # GlossarySenseUpdated is local-only — not queued for SaaS delivery (spec-kitty #1549).
-            # The seed file is the authoritative current glossary state.
-            # Per-extraction noise (hundreds of events per session) must not pollute the SaaS queue.
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            event.setdefault("event_id", str(uuid.uuid4()))
-            _local_append_event(event, event_log_path)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.GlossarySenseUpdated: term=%s", conflict.term.surface_text)
     except Exception as exc:
@@ -1062,10 +1006,9 @@ def emit_scope_activated(
 ) -> dict[str, Any] | None:
     """Emit GlossaryScopeActivated event.
 
-    When EVENTS_AVAILABLE is True and repo_root is provided:
-        Creates a _CanonicGlossaryScopeActivated instance and persists it.
-    When EVENTS_AVAILABLE is False:
-        Logs the event payload via logger.info. No file I/O.
+    When repo_root is provided, persists the event through :func:`append_event`;
+    a refused record is logged and ``None`` is returned. Otherwise logs the
+    event payload via logger.info, with no file I/O.
 
     Args:
         scope_id: Glossary scope (e.g., "team_domain")
@@ -1086,7 +1029,7 @@ def emit_scope_activated(
 
     try:
         if repo_root is not None:
-            _persist_event(event, repo_root, mission_id, canonical_cls=_CanonicGlossaryScopeActivated)
+            _persist_event(event, repo_root, mission_id)
         else:
             logger.info("glossary.GlossaryScopeActivated: scope=%s", scope_id)
     except Exception as exc:

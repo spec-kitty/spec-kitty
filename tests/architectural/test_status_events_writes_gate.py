@@ -124,9 +124,6 @@ EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES: frozenset[tuple[str, str, str]] = f
         # extends it. The only truncating site in ``src/specify_cli`` (the Mission
         # write discipline gate pins that). The path is a ``RollbackPoint`` field.
         ("specify_cli.status.mission_write", "Path.open", "point.events_path"),
-        # The glossary's OWN event log (``_local_append_event``), not the
-        # mission status log: parameter path, callers span modules.
-        ("glossary.events", "Path.open", "event_log_path"),
     }
 )
 

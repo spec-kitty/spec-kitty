@@ -52,8 +52,8 @@ def high_severity_conflict():
         severity=Severity.HIGH,
         confidence=0.9,
         candidate_senses=[
-            SenseRef(surface="workspace", scope="mission", definition="test def 1", confidence=0.9),
-            SenseRef(surface="workspace", scope="global", definition="test def 2", confidence=0.8),
+            SenseRef(surface="workspace", scope="mission_local", definition="test def 1", confidence=0.9),
+            SenseRef(surface="workspace", scope="team_domain", definition="test def 2", confidence=0.8),
         ],
         context="term 'workspace' has multiple active senses",
     )
@@ -70,8 +70,8 @@ def medium_severity_conflict():
         severity=Severity.MEDIUM,
         confidence=0.6,
         candidate_senses=[
-            SenseRef(surface="utility", scope="mission", definition="test def 1", confidence=0.7),
-            SenseRef(surface="utility", scope="global", definition="test def 2", confidence=0.6),
+            SenseRef(surface="utility", scope="mission_local", definition="test def 1", confidence=0.7),
+            SenseRef(surface="utility", scope="team_domain", definition="test def 2", confidence=0.6),
         ],
         context="term 'utility' has multiple active senses",
     )
@@ -303,7 +303,7 @@ class TestPrecedenceResolution:
                 severity=Severity.HIGH,
                 confidence=0.9,
                 candidate_senses=[
-                    SenseRef(surface="test", scope="mission", definition="def1", confidence=0.9),
+                    SenseRef(surface="test", scope="mission_local", definition="def1", confidence=0.9),
                 ],
                 context="test",
             )
@@ -468,7 +468,7 @@ class TestErrorMessages:
             severity=Severity.HIGH,
             confidence=0.9,
             candidate_senses=[
-                SenseRef(surface="test1", scope="mission", definition="def1", confidence=0.9),
+                SenseRef(surface="test1", scope="mission_local", definition="def1", confidence=0.9),
             ],
             context="test",
         )
@@ -478,7 +478,7 @@ class TestErrorMessages:
             severity=Severity.HIGH,
             confidence=0.9,
             candidate_senses=[
-                SenseRef(surface="test2", scope="mission", definition="def2", confidence=0.9),
+                SenseRef(surface="test2", scope="mission_local", definition="def2", confidence=0.9),
             ],
             context="test",
         )

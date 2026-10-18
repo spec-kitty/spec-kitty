@@ -11,11 +11,10 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-import glossary.events as _events_mod
 
 from glossary.checkpoint import (
     ScopeRef,
@@ -46,44 +45,6 @@ def _checkpoint_event_dict(checkpoint: StepCheckpoint) -> dict[str, Any]:
     payload = checkpoint_to_dict(checkpoint)
     payload["event_type"] = "StepCheckpointed"
     return payload
-
-
-@contextlib.contextmanager
-def _mock_events_available():
-    """Context manager to simulate EVENTS_AVAILABLE=True with mock canonical classes.
-
-    When the spec-kitty-events package is not installed, EVENTS_AVAILABLE is False
-    and no JSONL files are written. This helper patches the module to simulate the
-    canonical event path, writing JSONL files via a mock _pkg_append_event that
-    serializes dicts to disk (matching what the real package does).
-    """
-
-    def _mock_pkg_append(instance, path):
-        """Write the event dict as a JSONL line, mimicking the real package."""
-        path.parent.mkdir(parents=True, exist_ok=True)
-        payload = instance if isinstance(instance, dict) else getattr(instance, "__dict__", {})
-        with open(path, "a") as f:
-            f.write(json.dumps(payload, sort_keys=True, default=str) + "\n")
-
-    def _identity_cls(**kwargs):
-        """Return the dict as-is (stand-in for canonical class constructor)."""
-        return kwargs
-
-    mock_cls = MagicMock(side_effect=_identity_cls)
-
-    with (
-        patch.object(_events_mod, "EVENTS_AVAILABLE", True),
-        patch.object(_events_mod, "_pkg_append_event", _mock_pkg_append, create=True),
-        patch.object(_events_mod, "_CanonicStepCheckpointed", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicGenerationBlockedBySemanticConflict", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicGlossaryScopeActivated", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicTermCandidateObserved", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicSemanticCheckEvaluated", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicGlossaryClarificationRequested", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicGlossaryClarificationResolved", mock_cls, create=True),
-        patch.object(_events_mod, "_CanonicGlossarySenseUpdated", mock_cls, create=True),
-    ):
-        yield
 
 
 # ---------------------------------------------------------------------------
@@ -161,8 +122,8 @@ def high_severity_conflict():
         severity=Severity.HIGH,
         confidence=0.9,
         candidate_senses=[
-            SenseRef(surface="workspace", scope="mission", definition="def1", confidence=0.9),
-            SenseRef(surface="workspace", scope="global", definition="def2", confidence=0.8),
+            SenseRef(surface="workspace", scope="mission_local", definition="def1", confidence=0.9),
+            SenseRef(surface="workspace", scope="team_domain", definition="def2", confidence=0.8),
         ],
         context="test context",
     )
@@ -371,27 +332,17 @@ class TestGenerationGateCheckpointEmission:
         assert mock_context.checkpoint.cursor == "pre_generation_gate"
 
     def test_checkpoint_persisted_to_event_log(self, mock_context, high_severity_conflict, tmp_path):
-        """Checkpoint event is persisted when EVENTS_AVAILABLE is True.
-
-        When the canonical spec-kitty-events package IS available, emit_step_checkpointed
-        creates a canonical class instance and passes it to _pkg_append_event for JSONL
-        persistence. We mock the canonical path to verify this behavior.
-
-        When EVENTS_AVAILABLE is False (fallback), NO file I/O occurs --
-        only logger.info calls are made. This is tested separately in
-        test_event_emission.py::TestFallbackLogOnly.
-        """
+        """Checkpoint event is persisted through the spec-kitty-events write contract."""
         mock_context.conflicts = [high_severity_conflict]
         mock_context.inputs = {"desc": "test"}
 
-        with _mock_events_available():
-            gate = GenerationGateMiddleware(
-                repo_root=tmp_path,
-                runtime_override=Strictness.MEDIUM,
-            )
+        gate = GenerationGateMiddleware(
+            repo_root=tmp_path,
+            runtime_override=Strictness.MEDIUM,
+        )
 
-            with pytest.raises(BlockedByConflict):
-                gate.process(mock_context)
+        with pytest.raises(BlockedByConflict):
+            gate.process(mock_context)
 
         events_file = tmp_path / ".kittify" / "events" / "glossary" / "041-mission.events.jsonl"
         assert events_file.exists()
@@ -550,8 +501,8 @@ class TestCrossSessionResumeFlow:
     def test_full_checkpoint_resume_cycle(self, tmp_path):
         """Simulate: block -> checkpoint -> (session break) -> resume.
 
-        Requires EVENTS_AVAILABLE=True so that the checkpoint is persisted to
-        JSONL and can be loaded by ResumeMiddleware in the second session.
+        The checkpoint is persisted to JSONL and loaded by ResumeMiddleware in
+        the second session.
         """
         inputs = {"description": "Build API", "spec": "v2"}
 
@@ -576,14 +527,13 @@ class TestCrossSessionResumeFlow:
             ],
         )
 
-        with _mock_events_available():
-            gate = GenerationGateMiddleware(
-                repo_root=tmp_path,
-                runtime_override=Strictness.MEDIUM,
-            )
+        gate = GenerationGateMiddleware(
+            repo_root=tmp_path,
+            runtime_override=Strictness.MEDIUM,
+        )
 
-            with pytest.raises(BlockedByConflict):
-                gate.process(context1)
+        with pytest.raises(BlockedByConflict):
+            gate.process(context1)
 
         # Verify checkpoint was persisted
         checkpoint_file = tmp_path / ".kittify" / "events" / "glossary" / "feature-042.events.jsonl"
@@ -610,8 +560,6 @@ class TestCrossSessionResumeFlow:
 
     def test_cross_session_with_context_change_confirmed(self, tmp_path):
         """Resume after context change, user confirms.
-
-        Requires EVENTS_AVAILABLE=True for checkpoint persistence.
         """
         original_inputs = {"description": "Build API v1"}
 
@@ -636,14 +584,13 @@ class TestCrossSessionResumeFlow:
             ],
         )
 
-        with _mock_events_available():
-            gate = GenerationGateMiddleware(
-                repo_root=tmp_path,
-                runtime_override=Strictness.MEDIUM,
-            )
+        gate = GenerationGateMiddleware(
+            repo_root=tmp_path,
+            runtime_override=Strictness.MEDIUM,
+        )
 
-            with pytest.raises(BlockedByConflict):
-                gate.process(context1)
+        with pytest.raises(BlockedByConflict):
+            gate.process(context1)
 
         # Session 2: context changed
         changed_inputs = {"description": "Build API v2"}
@@ -666,8 +613,6 @@ class TestCrossSessionResumeFlow:
 
     def test_cross_session_with_context_change_declined(self, tmp_path):
         """Resume after context change, user declines.
-
-        Requires EVENTS_AVAILABLE=True for checkpoint persistence.
         """
         original_inputs = {"description": "Build API v1"}
 
@@ -691,14 +636,13 @@ class TestCrossSessionResumeFlow:
             ],
         )
 
-        with _mock_events_available():
-            gate = GenerationGateMiddleware(
-                repo_root=tmp_path,
-                runtime_override=Strictness.MEDIUM,
-            )
+        gate = GenerationGateMiddleware(
+            repo_root=tmp_path,
+            runtime_override=Strictness.MEDIUM,
+        )
 
-            with pytest.raises(BlockedByConflict):
-                gate.process(context1)
+        with pytest.raises(BlockedByConflict):
+            gate.process(context1)
 
         changed_inputs = {"description": "Build API v2"}
         context2 = MockPrimitiveContext(
@@ -772,8 +716,6 @@ class TestCrossSessionResumeFlow:
 
     def test_checkpoint_idempotency(self, tmp_path):
         """Multiple blocks for same step produce separate checkpoints.
-
-        Requires EVENTS_AVAILABLE=True for checkpoint persistence to JSONL.
         """
         inputs = {"description": "test"}
         context = MockPrimitiveContext(
@@ -796,19 +738,18 @@ class TestCrossSessionResumeFlow:
             ],
         )
 
-        with _mock_events_available():
-            gate = GenerationGateMiddleware(
-                repo_root=tmp_path,
-                runtime_override=Strictness.MEDIUM,
-            )
+        gate = GenerationGateMiddleware(
+            repo_root=tmp_path,
+            runtime_override=Strictness.MEDIUM,
+        )
 
-            # Block twice
-            tokens = []
-            for _ in range(2):
-                try:
-                    gate.process(context)
-                except BlockedByConflict:
-                    tokens.append(context.checkpoint.retry_token)
+        # Block twice
+        tokens = []
+        for _ in range(2):
+            try:
+                gate.process(context)
+            except BlockedByConflict:
+                tokens.append(context.checkpoint.retry_token)
 
         # Each checkpoint has a unique retry_token
         assert len(tokens) == 2

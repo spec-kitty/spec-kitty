@@ -1,9 +1,13 @@
-"""Tests confirming queue exclusion for GlossarySenseUpdated (WP04 / T018).
+"""Tests for how the clarification events reach the glossary event log (WP04 / T018, #6399).
 
 Contract being verified:
-- emit_sense_updated() writes to local JSONL but does NOT call _pkg_append_event.
-- emit_clarification_resolved() calls _pkg_append_event (canonical SaaS queue).
-- emit_clarification_requested() calls _pkg_append_event (canonical SaaS queue).
+- emit_sense_updated(), emit_clarification_resolved() and
+  emit_clarification_requested() all write through the spec-kitty-events
+  ledger write contract (``spec_kitty_events.persistence.append_event``).
+  The "GlossarySenseUpdated stays off the SaaS queue" rule of #1549 is retired:
+  the SaaS queue was removed in #6164 and the contract writer is a local-ledger
+  writer, so every glossary event takes the same path.
+- A record the contract refuses is not written; there is no local fallback.
 
 These tests derive from the external observable behaviour described in the spec
 (FR-018, FR-019, FR-020, FR-021, FR-022) — not from internal code structure.
@@ -14,10 +18,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
+import glossary.events as events_module
 from glossary.events import (
     emit_clarification_requested,
     emit_clarification_resolved,
@@ -76,243 +81,95 @@ def _make_selected_sense(term: str = "workspace") -> SenseRef:
 
 
 # ---------------------------------------------------------------------------
-# T018-A: GlossarySenseUpdated must NOT reach _pkg_append_event
+# T018-A..D: every clarification event goes through the write contract
 # ---------------------------------------------------------------------------
 
 
-class TestGlossarySenseUpdatedNotQueued:
-    """GlossarySenseUpdated is local-only — must never call _pkg_append_event."""
+def _read_log(repo_root: Path, mission_id: str) -> list[dict]:
+    event_log = get_event_log_path(repo_root, mission_id)
+    return [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
 
-    def test_pkg_append_event_not_called(self, tmp_path: Path) -> None:
-        """_pkg_append_event must not be called when emitting GlossarySenseUpdated."""
-        conflict = _make_conflict()
-        context = _make_context()
 
-        with patch("glossary.events._pkg_append_event") as mock_queue:
-            result = emit_sense_updated(
-                conflict=conflict,
-                custom_definition="A bounded area of work for a team",
-                scope_value="team_domain",
-                context=context,
-                update_type="create",
-                repo_root=tmp_path,
-            )
+def _emit_sense_updated(repo_root: Path | None, mission_id: str = "test-mission-001", term: str = "workspace") -> dict | None:
+    return emit_sense_updated(
+        conflict=_make_conflict(term),
+        custom_definition="A bounded area of work for a team",
+        scope_value="team_domain",
+        context=_make_context(mission_id=mission_id),
+        update_type="create",
+        repo_root=repo_root,
+    )
 
-        mock_queue.assert_not_called()
-        assert result is not None, "emit_sense_updated should return a dict on success"
 
-    def test_local_jsonl_written(self, tmp_path: Path) -> None:
-        """The event must be written to the local JSONL file."""
-        conflict = _make_conflict("pipeline")
-        context = _make_context(mission_id="test-pipeline-mission")
+def _emit_resolved(repo_root: Path, mission_id: str = "test-mission-001", conflict_id: str = "conflict-uuid-001") -> dict | None:
+    return emit_clarification_resolved(
+        conflict_id=conflict_id,
+        conflict=_make_conflict(),
+        selected_sense=_make_selected_sense(),
+        context=_make_context(mission_id=mission_id),
+        resolution_mode="interactive",
+        repo_root=repo_root,
+    )
 
-        with patch("glossary.events._pkg_append_event"):
-            emit_sense_updated(
-                conflict=conflict,
-                custom_definition="A data processing pipeline",
-                scope_value="team_domain",
-                context=context,
-                update_type="create",
-                repo_root=tmp_path,
-            )
 
-        event_log = get_event_log_path(tmp_path, "test-pipeline-mission")
-        assert event_log.exists(), "Local JSONL file must be created"
+def _emit_requested(repo_root: Path, mission_id: str = "test-mission-001") -> dict | None:
+    return emit_clarification_requested(
+        conflict=_make_conflict(),
+        context=_make_context(mission_id=mission_id),
+        conflict_id="conflict-uuid-003",
+        repo_root=repo_root,
+    )
 
-        events = [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
-        assert len(events) == 1, "Exactly one event must be in the log"
-        assert events[0]["event_type"] == "GlossarySenseUpdated"
 
-    def test_local_jsonl_contains_correct_term(self, tmp_path: Path) -> None:
-        """The JSONL event must contain the expected term surface."""
-        conflict = _make_conflict("feature")
-        context = _make_context(mission_id="test-term-mission")
+class TestClarificationEventsUseTheWriteContract:
+    """Each clarification event is appended once through the contract writer."""
 
-        with patch("glossary.events._pkg_append_event"):
-            emit_sense_updated(
-                conflict=conflict,
-                custom_definition="A user-facing capability (legacy term, use Mission instead)",
-                scope_value="team_domain",
-                context=context,
-                update_type="create",
-                repo_root=tmp_path,
-            )
+    @pytest.mark.parametrize(
+        ("emit", "event_type"),
+        [
+            (_emit_sense_updated, "GlossarySenseUpdated"),
+            (_emit_resolved, "GlossaryClarificationResolved"),
+            (_emit_requested, "GlossaryClarificationRequested"),
+        ],
+    )
+    def test_written_through_the_contract_writer(self, tmp_path: Path, emit, event_type: str) -> None:
+        with patch("glossary.events._ledger_append", wraps=events_module._ledger_append) as ledger_append:
+            result = emit(tmp_path)
 
-        event_log = get_event_log_path(tmp_path, "test-term-mission")
-        events = [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
-        assert events[0]["term_surface"] == "feature"
+        assert result is not None
+        ledger_append.assert_called_once()
+        assert [event["event_type"] for event in _read_log(tmp_path, "test-mission-001")] == [event_type]
 
-    def test_no_repo_root_does_not_raise(self) -> None:
-        """Without repo_root, emit_sense_updated must log and return the event dict."""
-        conflict = _make_conflict()
-        context = _make_context()
+    def test_sense_updated_log_contains_correct_term(self, tmp_path: Path) -> None:
+        """The GlossarySenseUpdated line carries the expected term surface."""
+        _emit_sense_updated(tmp_path, mission_id="test-term-mission", term="feature")
+        assert _read_log(tmp_path, "test-term-mission")[0]["term_surface"] == "feature"
 
-        with patch("glossary.events._pkg_append_event") as mock_queue:
-            result = emit_sense_updated(
-                conflict=conflict,
-                custom_definition="Some definition",
-                scope_value="team_domain",
-                context=context,
-                update_type="create",
-                repo_root=None,
-            )
+    def test_no_repo_root_writes_nothing(self) -> None:
+        """Without repo_root, emit_sense_updated logs and returns the event dict."""
+        with patch("glossary.events._ledger_append") as ledger_append:
+            result = _emit_sense_updated(None)
 
-        mock_queue.assert_not_called()
+        ledger_append.assert_not_called()
         assert result is not None
 
+    def test_sense_updated_and_clarification_share_one_log(self, tmp_path: Path) -> None:
+        """In one session both events land, in order, in the same mission log."""
+        _emit_sense_updated(tmp_path, mission_id="test-isolation", term="lane")
+        _emit_resolved(tmp_path, mission_id="test-isolation", conflict_id="conflict-uuid-005")
 
-# ---------------------------------------------------------------------------
-# T018-B: GlossaryClarificationResolved must reach _pkg_append_event
-# ---------------------------------------------------------------------------
+        assert [event["event_type"] for event in _read_log(tmp_path, "test-isolation")] == [
+            "GlossarySenseUpdated",
+            "GlossaryClarificationResolved",
+        ]
 
+    def test_a_refused_record_is_not_written(self, tmp_path: Path) -> None:
+        """A record the contract refuses leaves no line behind; there is no fallback."""
+        with patch("glossary.events.build_sense_updated", return_value={"event_type": "GlossarySenseUpdated"}):
+            result = _emit_sense_updated(tmp_path, mission_id="test-refused")
 
-class TestGlossaryClarificationResolvedQueued:
-    """GlossaryClarificationResolved must call _pkg_append_event (canonical SaaS queue)."""
-
-    def test_pkg_append_event_called(self, tmp_path: Path) -> None:
-        """_pkg_append_event must be called when emitting GlossaryClarificationResolved."""
-        conflict = _make_conflict()
-        context = _make_context()
-        selected = _make_selected_sense()
-
-        # Provide a real-looking canonical class to satisfy the guard
-        fake_canonical_instance = object()
-        fake_cls = MagicMock(return_value=fake_canonical_instance)
-
-        with (
-            patch("glossary.events.EVENTS_AVAILABLE", True),
-            patch("glossary.events._pkg_append_event") as mock_queue,
-            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
-        ):
-            result = emit_clarification_resolved(
-                conflict_id="conflict-uuid-001",
-                conflict=conflict,
-                selected_sense=selected,
-                context=context,
-                resolution_mode="interactive",
-                repo_root=tmp_path,
-            )
-
-        mock_queue.assert_called_once()
-        assert result is not None
-
-    def test_local_jsonl_also_written_when_canonical_unavailable(self, tmp_path: Path) -> None:
-        """When spec-kitty-events is absent, resolved event must still be locally persisted."""
-        conflict = _make_conflict()
-        context = _make_context(mission_id="test-resolved-local")
-        selected = _make_selected_sense()
-
-        with patch("glossary.events.EVENTS_AVAILABLE", False):
-            emit_clarification_resolved(
-                conflict_id="conflict-uuid-002",
-                conflict=conflict,
-                selected_sense=selected,
-                context=context,
-                resolution_mode="interactive",
-                repo_root=tmp_path,
-            )
-
-        event_log = get_event_log_path(tmp_path, "test-resolved-local")
-        assert event_log.exists(), "Local fallback must write to JSONL when canonical unavailable"
-        events = [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
-        assert any(e.get("event_type") == "GlossaryClarificationResolved" for e in events)
-
-
-# ---------------------------------------------------------------------------
-# T018-C: GlossaryClarificationRequested must reach _pkg_append_event
-# ---------------------------------------------------------------------------
-
-
-class TestGlossaryClarificationRequestedQueued:
-    """GlossaryClarificationRequested must call _pkg_append_event (canonical SaaS queue)."""
-
-    def test_pkg_append_event_called(self, tmp_path: Path) -> None:
-        """_pkg_append_event must be called when emitting GlossaryClarificationRequested."""
-        conflict = _make_conflict()
-        context = _make_context()
-
-        fake_canonical_instance = object()
-        fake_cls = MagicMock(return_value=fake_canonical_instance)
-
-        with (
-            patch("glossary.events.EVENTS_AVAILABLE", True),
-            patch("glossary.events._pkg_append_event") as mock_queue,
-            patch("glossary.events._CanonicGlossaryClarificationRequested", fake_cls),
-        ):
-            result = emit_clarification_requested(
-                conflict=conflict,
-                context=context,
-                conflict_id="conflict-uuid-003",
-                repo_root=tmp_path,
-            )
-
-        mock_queue.assert_called_once()
-        assert result is not None
-
-    def test_local_jsonl_written_when_canonical_unavailable(self, tmp_path: Path) -> None:
-        """When spec-kitty-events absent, requested event must still be locally persisted."""
-        conflict = _make_conflict()
-        context = _make_context(mission_id="test-requested-local")
-
-        with patch("glossary.events.EVENTS_AVAILABLE", False):
-            emit_clarification_requested(
-                conflict=conflict,
-                context=context,
-                conflict_id="conflict-uuid-004",
-                repo_root=tmp_path,
-            )
-
-        event_log = get_event_log_path(tmp_path, "test-requested-local")
-        assert event_log.exists(), "Local fallback must write to JSONL when canonical unavailable"
-        events = [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
-        assert any(e.get("event_type") == "GlossaryClarificationRequested" for e in events)
-
-
-# ---------------------------------------------------------------------------
-# T018-D: Cross-type isolation — sense_updated never queued even when others are
-# ---------------------------------------------------------------------------
-
-
-class TestQueueIsolation:
-    """Confirm GlossarySenseUpdated exclusion does not bleed into other event types."""
-
-    def test_sense_updated_not_queued_while_clarification_is(self, tmp_path: Path) -> None:
-        """In the same session, sense_updated must stay local while clarification reaches queue."""
-        conflict = _make_conflict("lane")
-        context = _make_context(mission_id="test-isolation")
-        selected = _make_selected_sense("lane")
-
-        fake_cls = MagicMock(return_value=object())
-
-        with (
-            patch("glossary.events.EVENTS_AVAILABLE", True),
-            patch("glossary.events._pkg_append_event") as mock_queue,
-            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
-        ):
-            # Sense update — must NOT queue
-            emit_sense_updated(
-                conflict=conflict,
-                custom_definition="An execution lane in a mission",
-                scope_value="team_domain",
-                context=context,
-                update_type="create",
-                repo_root=tmp_path,
-            )
-            call_count_after_sense = mock_queue.call_count
-
-            # Clarification resolved — must queue
-            emit_clarification_resolved(
-                conflict_id="conflict-uuid-005",
-                conflict=conflict,
-                selected_sense=selected,
-                context=context,
-                resolution_mode="interactive",
-                repo_root=tmp_path,
-            )
-            call_count_after_resolved = mock_queue.call_count
-
-        assert call_count_after_sense == 0, "GlossarySenseUpdated must not call _pkg_append_event"
-        assert call_count_after_resolved == 1, "GlossaryClarificationResolved must call _pkg_append_event exactly once"
+        assert result is None
+        assert not get_event_log_path(tmp_path, "test-refused").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -327,11 +184,11 @@ class TestFR021SeedWriteDeferred:
     GlossaryClarificationResolved event is emitted, the glossary seed file
     (.kittify/glossaries/<scope>.yaml) is updated."
 
-    Current behavior: emit_clarification_resolved() queues the event to the SaaS
-    pipeline via _pkg_append_event. It does NOT synchronously write the seed file.
+    Current behavior: emit_clarification_resolved() appends the event to the
+    glossary event log. It does NOT synchronously write the seed file.
     Seed file updates happen separately in the glossary pipeline (clarification.py
     and downstream writers). This test pins that contract so a future FR-021
-    implementation does not silently change the queue-write behavior.
+    implementation does not silently change the event-log write behavior.
 
     See: spec-kitty #1549, kitty-specs/event-architecture-cli-git-truth-01KT119Y/spec.md FR-021
     """
@@ -345,15 +202,14 @@ class TestFR021SeedWriteDeferred:
         seed_dir = tmp_path / ".kittify" / "glossaries"
         seed_dir.mkdir(parents=True)
 
-        with patch("glossary.events.EVENTS_AVAILABLE", False):
-            emit_clarification_resolved(
-                conflict_id="conflict-fr021-001",
-                conflict=conflict,
-                selected_sense=selected,
-                context=context,
-                resolution_mode="interactive",
-                repo_root=tmp_path,
-            )
+        emit_clarification_resolved(
+            conflict_id="conflict-fr021-001",
+            conflict=conflict,
+            selected_sense=selected,
+            context=context,
+            resolution_mode="interactive",
+            repo_root=tmp_path,
+        )
 
         seed_files = list(seed_dir.glob("*.yaml"))
         assert seed_files == [], (
@@ -361,26 +217,9 @@ class TestFR021SeedWriteDeferred:
             "emit_clarification_resolved must not write seed files synchronously."
         )
 
-    def test_queue_write_still_happens(self, tmp_path: Path) -> None:
-        """The SaaS queue write must occur even though the seed file is not written."""
-        conflict = _make_conflict("workspace")
-        context = _make_context()
-        selected = _make_selected_sense()
-
-        fake_cls = MagicMock(return_value=object())
-
-        with (
-            patch("glossary.events.EVENTS_AVAILABLE", True),
-            patch("glossary.events._pkg_append_event") as mock_queue,
-            patch("glossary.events._CanonicGlossaryClarificationResolved", fake_cls),
-        ):
-            emit_clarification_resolved(
-                conflict_id="conflict-fr021-002",
-                conflict=conflict,
-                selected_sense=selected,
-                context=context,
-                resolution_mode="interactive",
-                repo_root=tmp_path,
-            )
-
-        mock_queue.assert_called_once()
+    def test_event_log_write_still_happens(self, tmp_path: Path) -> None:
+        """The event-log write occurs even though the seed file is not written."""
+        _emit_resolved(tmp_path, conflict_id="conflict-fr021-002")
+        assert [event["event_type"] for event in _read_log(tmp_path, "test-mission-001")] == [
+            "GlossaryClarificationResolved"
+        ]

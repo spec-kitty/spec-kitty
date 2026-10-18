@@ -2,14 +2,14 @@
 
 Tests cover:
 - Event log path creation and sanitization
-- Event persistence to JSONL files (via _local_append_event for direct tests)
+- Event persistence through the spec-kitty-events ledger write contract
 - Event ordering across middleware pipeline
 - Event filtering (read_events with event_type filter)
 - All 8 canonical event types
-- Fallback behavior: log-only, NO JSONL writes when EVENTS_AVAILABLE is False
+- Contract refusals: a refused record is not written, with no local fallback
+- Torn-tail repair: the fragment is moved to a sidecar before the append
 - ClarificationMiddleware emits 3 event types
 - Scope activation emits GlossaryScopeActivated
-- Canonical event class instantiation when EVENTS_AVAILABLE is True
 - Event emission at middleware boundaries
 - Round-trip: emit -> persist -> read
 - Edge cases: corrupt JSONL, empty files, concurrent writes
@@ -19,15 +19,18 @@ import json
 import uuid
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from dataclasses import dataclass, field
 
 import pytest
 
+import glossary.events as events_module
+from spec_kitty_events.persistence import LedgerValidationError, build_record, serialize_record
+
 from glossary.events import (
-    EVENTS_AVAILABLE,
-    _local_append_event,
+    TORN_TAIL_SUFFIX,
     _persist_event,
+    _repair_torn_tail,
     append_event,
     build_clarification_requested,
     build_clarification_resolved,
@@ -385,46 +388,69 @@ class TestEventPayloadBuilders:
 
 # ---------------------------------------------------------------------------
 # T038: Event Persistence (JSONL append and read)
-# Uses _local_append_event for direct persistence tests (test utility).
-# ---------------------------------------------------------------------------
+def _term_event(term: str = "workspace") -> dict[str, Any]:
+    """A real TermCandidateObserved record that satisfies the events contract."""
+    return build_term_candidate_observed(
+        term=term,
+        source_step="step-001",
+        actor_id="user:alice",
+        confidence=0.8,
+        extraction_method="casing_pattern",
+        context="description field",
+        mission_id="041-mission",
+        run_id="run-001",
+        timestamp="2026-02-16T12:00:00+00:00",
+    )
 
 
 class TestEventPersistence:
-    """Tests for _local_append_event() and read_events()."""
+    """Tests for append_event() and read_events()."""
 
-    def test_local_append_creates_file(self, tmp_path):
-        """_local_append_event creates the JSONL file if it does not exist."""
+    def test_append_creates_file(self, tmp_path):
+        """append_event creates the JSONL file if it does not exist."""
         log_path = tmp_path / "test.events.jsonl"
-        event = {"event_type": "TestEvent", "data": "hello"}
-        _local_append_event(event, log_path)
+        append_event(_term_event(), log_path)
         assert log_path.exists()
 
-    def test_local_append_writes_json_line(self, tmp_path):
+    def test_append_writes_one_json_line_per_event(self, tmp_path):
         """Each event is written as one JSON line."""
         log_path = tmp_path / "test.events.jsonl"
-        _local_append_event({"event_type": "A"}, log_path)
-        _local_append_event({"event_type": "B"}, log_path)
+        append_event(_term_event("alpha"), log_path)
+        append_event(_term_event("beta"), log_path)
 
         lines = [line for line in log_path.read_text().splitlines() if line.strip()]
-        assert len(lines) == 2
-        assert json.loads(lines[0])["event_type"] == "A"
-        assert json.loads(lines[1])["event_type"] == "B"
+        assert [json.loads(line)["term"] for line in lines] == ["alpha", "beta"]
 
-    def test_local_append_creates_parent_directory(self, tmp_path):
-        """_local_append_event creates parent directories if they do not exist."""
+    def test_append_creates_parent_directory(self, tmp_path):
+        """append_event creates parent directories if they do not exist."""
         log_path = tmp_path / "new" / "dir" / "test.events.jsonl"
-        _local_append_event({"event_type": "TestEvent"}, log_path)
+        append_event(_term_event(), log_path)
         assert log_path.exists()
 
-    def test_local_append_sorted_keys(self, tmp_path):
-        """Events are written with sorted keys for deterministic output."""
+    def test_append_writes_the_contract_line(self, tmp_path):
+        """The written line is exactly the contract's serialization of the record."""
         log_path = tmp_path / "test.events.jsonl"
-        _local_append_event({"z_field": 1, "a_field": 2, "event_type": "Test"}, log_path)
+        event = _term_event()
+        append_event(event, log_path)
+        assert log_path.read_bytes() == serialize_record(build_record(event))
 
-        line = log_path.read_text().strip()
-        parsed = json.loads(line)
-        keys = list(parsed.keys())
-        assert keys == sorted(keys)
+    def test_append_refuses_an_unknown_event_type_and_writes_nothing(self, tmp_path):
+        """A type the contract does not register is refused; there is no local fallback."""
+        log_path = tmp_path / "test.events.jsonl"
+        with pytest.raises(LedgerValidationError):
+            append_event({"event_type": "NotAGlossaryEvent"}, log_path)
+        assert not log_path.exists()
+
+    def test_append_refuses_an_invalid_record_and_leaves_the_log_unchanged(self, tmp_path):
+        """A record that fails its payload contract is refused and the log is untouched."""
+        log_path = tmp_path / "test.events.jsonl"
+        append_event(_term_event(), log_path)
+        before = log_path.read_bytes()
+        invalid = _term_event()
+        invalid["confidence"] = "high"
+        with pytest.raises(LedgerValidationError):
+            append_event(invalid, log_path)
+        assert log_path.read_bytes() == before
 
     def test_read_events_empty_file(self, tmp_path):
         """read_events on empty file yields nothing."""
@@ -476,8 +502,8 @@ class TestEventPersistence:
         events = list(read_events(log_path))
         assert len(events) == 2
 
-    def test_round_trip_local_append_read(self, tmp_path):
-        """Events survive round-trip: _local_append_event -> read_events."""
+    def test_round_trip_append_read(self, tmp_path):
+        """Events survive round-trip: append_event -> read_events."""
         log_path = tmp_path / "test.events.jsonl"
 
         original = build_term_candidate_observed(
@@ -491,7 +517,7 @@ class TestEventPersistence:
             run_id="run-001",
             timestamp="2026-02-16T12:00:00+00:00",
         )
-        _local_append_event(original, log_path)
+        append_event(original, log_path)
 
         events = list(read_events(log_path))
         assert len(events) == 1
@@ -499,38 +525,26 @@ class TestEventPersistence:
         assert events[0]["confidence"] == 0.8
         assert events[0]["event_type"] == "TermCandidateObserved"
 
-    def test_multiple_local_append_preserves_order(self, tmp_path):
+    def test_multiple_appends_preserve_order(self, tmp_path):
         """Multiple appends maintain insertion order."""
         log_path = tmp_path / "test.events.jsonl"
 
         for i in range(10):
-            _local_append_event({"event_type": "Test", "seq": i}, log_path)
+            append_event(_term_event(f"term{i}"), log_path)
 
         events = list(read_events(log_path))
-        assert len(events) == 10
-        for i, event in enumerate(events):
-            assert event["seq"] == i
+        assert [event["term"] for event in events] == [f"term{i}" for i in range(10)]
 
 
 # ---------------------------------------------------------------------------
-# Fallback: local JSONL persistence when canonical adapter is unavailable
+# Contract refusal: no local fallback (#6399)
 # ---------------------------------------------------------------------------
 
 
-class TestFallbackLocalPersistence:
-    """Tests for local persistence behavior when EVENTS_AVAILABLE is False."""
-
-    def test_append_event_writes_file_in_fallback(self, tmp_path):
-        assert EVENTS_AVAILABLE is False, "Test requires canonical adapter unavailable"
-        log_path = tmp_path / "fallback.events.jsonl"
-        append_event({"event_type": "TestEvent"}, log_path)
-        assert log_path.exists()
-        events = list(read_events(log_path))
-        assert len(events) == 1
-        assert events[0]["event_type"] == "TestEvent"
+class TestContractRefusal:
+    """A record the contract refuses is not written by any path."""
 
     def test_emit_with_repo_root_writes_jsonl(self, tmp_path, sample_extracted_term, mock_context):
-        assert EVENTS_AVAILABLE is False
         emit_term_candidate_observed(
             term=sample_extracted_term,
             context=mock_context,
@@ -541,7 +555,6 @@ class TestFallbackLocalPersistence:
         assert len(jsonl_files) == 1
 
     def test_emit_without_repo_root_does_not_write(self, sample_extracted_term, mock_context, tmp_path):
-        assert EVENTS_AVAILABLE is False
         emit_term_candidate_observed(
             term=sample_extracted_term,
             context=mock_context,
@@ -549,6 +562,87 @@ class TestFallbackLocalPersistence:
         )
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         assert not events_dir.exists()
+
+    def test_emit_of_a_refused_record_returns_none_and_writes_nothing(
+        self, tmp_path, sample_extracted_term, mock_context, caplog
+    ):
+        """The refusal is logged, the caller gets None, and the log stays empty."""
+        invalid = _term_event()
+        invalid["confidence"] = "high"
+        with patch("glossary.events.build_term_candidate_observed", return_value=invalid):
+            event = emit_term_candidate_observed(
+                term=sample_extracted_term,
+                context=mock_context,
+                repo_root=tmp_path,
+            )
+        assert event is None
+        assert "Failed to emit TermCandidateObserved" in caplog.text
+        log_path = get_event_log_path(tmp_path, mock_context.mission_id)
+        assert not log_path.exists() or log_path.read_text() == ""
+
+
+# ---------------------------------------------------------------------------
+# Torn-tail repair (#6399)
+# ---------------------------------------------------------------------------
+
+
+class TestTornTailRepair:
+    """A tail a crash left without a newline is moved aside before the append."""
+
+    def test_fragment_moves_to_sidecar_and_the_append_lands_on_a_whole_line(self, tmp_path, caplog):
+        log_path = tmp_path / "torn.events.jsonl"
+        append_event(_term_event("before"), log_path)
+        whole = log_path.read_bytes()
+        with log_path.open("ab") as handle:
+            handle.write(b'{"event_type": "TermCandi')
+
+        append_event(_term_event("after"), log_path)
+
+        assert [event["term"] for event in read_events(log_path)] == ["before", "after"]
+        assert log_path.read_bytes().startswith(whole)
+        sidecar = log_path.with_name(log_path.name + TORN_TAIL_SUFFIX)
+        assert sidecar.read_bytes() == b'{"event_type": "TermCandi\n'
+        assert "Repaired torn tail" in caplog.text
+
+    def test_a_log_with_no_whole_line_is_moved_aside_entirely(self, tmp_path):
+        log_path = tmp_path / "torn.events.jsonl"
+        log_path.write_bytes(b"\xef\xbb\xbf")
+
+        append_event(_term_event(), log_path)
+
+        assert log_path.read_bytes() == serialize_record(build_record(_term_event()))
+        sidecar = log_path.with_name(log_path.name + TORN_TAIL_SUFFIX)
+        assert sidecar.read_bytes() == b"\xef\xbb\xbf\n"
+
+    def test_fragments_accumulate_in_the_sidecar(self, tmp_path):
+        log_path = tmp_path / "torn.events.jsonl"
+        for fragment in (b"first", b"second"):
+            with log_path.open("ab") as handle:
+                handle.write(fragment)
+            append_event(_term_event(), log_path)
+        sidecar = log_path.with_name(log_path.name + TORN_TAIL_SUFFIX)
+        assert sidecar.read_bytes() == b"first\nsecond\n"
+        assert len(list(read_events(log_path))) == 2
+
+    def test_a_second_repairer_finds_a_whole_tail_and_changes_nothing(self, tmp_path):
+        log_path = tmp_path / "whole.events.jsonl"
+        append_event(_term_event(), log_path)
+        before = log_path.read_bytes()
+
+        assert _repair_torn_tail(log_path) is None
+        assert log_path.read_bytes() == before
+        assert not log_path.with_name(log_path.name + TORN_TAIL_SUFFIX).exists()
+
+    def test_the_last_newline_is_found_across_scan_blocks(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("glossary.events._TAIL_SCAN_BLOCK", 4)
+        log_path = tmp_path / "torn.events.jsonl"
+        append_event(_term_event(), log_path)
+        whole = log_path.read_bytes()
+        with log_path.open("ab") as handle:
+            handle.write(b"a torn tail longer than one block")
+
+        assert _repair_torn_tail(log_path) is not None
+        assert log_path.read_bytes() == whole
 
 
 # ---------------------------------------------------------------------------
@@ -1166,177 +1260,48 @@ class TestScopeActivationEmitsEvent:
 
 
 # ---------------------------------------------------------------------------
-# Canonical event class instantiation when EVENTS_AVAILABLE is True
+# Every write goes through the spec-kitty-events write contract (#6399)
 # ---------------------------------------------------------------------------
 
 
-class TestCanonicalEventContracts:
-    """Tests verifying canonical event class instantiation.
+class TestWritesThroughTheContract:
+    """Every glossary write goes through the spec-kitty-events write contract (#6399)."""
 
-    When EVENTS_AVAILABLE is True:
-    - _persist_event creates canonical class INSTANCES (not dicts)
-    - Those instances are passed to _pkg_append_event
-    - append_event delegates to _pkg_append_event
+    def test_persist_event_writes_the_contract_line(self, tmp_path):
+        event = _term_event()
+        _persist_event(event, tmp_path, "test-mission")
+        log_path = get_event_log_path(tmp_path, "test-mission")
+        assert log_path.read_bytes() == serialize_record(build_record(event))
 
-    Since spec-kitty-events is not installed in the test environment,
-    we simulate EVENTS_AVAILABLE=True by patching.
-    """
+    def test_persist_event_adds_an_event_id(self, tmp_path):
+        event = _term_event()
+        event.pop("event_id", None)
+        _persist_event(event, tmp_path, "test-mission")
+        assert isinstance(event["event_id"], str)
 
-    def test_events_available_flag_reflects_package(self):
-        """EVENTS_AVAILABLE reflects whether spec-kitty-events glossary is importable."""
-        try:
-            import spec_kitty_events.glossary.events  # noqa: F401
+    def test_persist_event_propagates_a_refusal(self, tmp_path):
+        with pytest.raises(LedgerValidationError):
+            _persist_event({"event_type": "NotAGlossaryEvent"}, tmp_path, "test-mission")
 
-            pkg_available = True
-        except (ImportError, ModuleNotFoundError):
-            pkg_available = False
-        assert EVENTS_AVAILABLE is pkg_available
-
-    def test_append_event_delegates_when_available(self):
-        """When EVENTS_AVAILABLE is True, append_event delegates to _pkg_append_event."""
-        import glossary.events as events_mod
-
-        # Simulate EVENTS_AVAILABLE = True by temporarily adding _pkg_append_event
-        mock_pkg_append = MagicMock()
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-        ):
-            event_dict = {"event_type": "Test"}
-            log_path = Path("/fake/path.jsonl")
-            append_event(event_dict, log_path)
-            mock_pkg_append.assert_called_once_with(event_dict, log_path)
-
-    def test_append_event_writes_disk_when_unavailable(self, tmp_path):
-        """When EVENTS_AVAILABLE is False, append_event falls back to local JSONL."""
-        import glossary.events as events_mod
-
-        with patch.object(events_mod, "EVENTS_AVAILABLE", False):
-            log_path = tmp_path / "test.jsonl"
-            append_event({"event_type": "Test"}, log_path)
-            assert log_path.exists()
-
-    def test_persist_event_instantiates_canonical_class_when_available(self, tmp_path):
-        """_persist_event creates a canonical class INSTANCE and passes it to _pkg_append_event."""
-        import glossary.events as events_mod
-
-        mock_pkg_append = MagicMock()
-        mock_canonical_cls = MagicMock()
-        mock_instance = MagicMock()
-        mock_canonical_cls.return_value = mock_instance
-
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-        ):
-            event_dict = {"event_type": "TermCandidateObserved", "term": "workspace"}
-            _persist_event(event_dict, tmp_path, "test-mission", canonical_cls=mock_canonical_cls)
-
-            # Verify canonical class was instantiated with the event dict
-            mock_canonical_cls.assert_called_once_with(**event_dict)
-            # Verify the INSTANCE (not the dict) was passed to _pkg_append_event
-            mock_pkg_append.assert_called_once()
-            actual_instance = mock_pkg_append.call_args[0][0]
-            assert actual_instance is mock_instance
-
-    def test_persist_event_local_jsonl_when_unavailable(self, tmp_path):
-        """_persist_event writes JSONL fallback when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        event_dict = {"event_type": "TestEvent", "data": "hello"}
-        _persist_event(event_dict, tmp_path, "test-mission")
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        jsonl_files = list(events_dir.glob("*.events.jsonl"))
-        assert len(jsonl_files) == 1
-
-    def test_emit_term_creates_canonical_instance_when_available(self, tmp_path, sample_extracted_term, mock_context):
-        """emit_term_candidate_observed uses _CanonicTermCandidateObserved when available."""
-        import glossary.events as events_mod
-
-        mock_pkg_append = MagicMock()
-        mock_canonical_cls = MagicMock()
-        mock_instance = MagicMock()
-        mock_canonical_cls.return_value = mock_instance
-
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-            patch.object(events_mod, "_CanonicTermCandidateObserved", mock_canonical_cls, create=True),
-        ):
-            event = emit_term_candidate_observed(
-                term=sample_extracted_term,
+    def test_sense_updated_is_written_through_the_contract(self, tmp_path, mock_context, sample_conflict):
+        """GlossarySenseUpdated takes the same path as every other glossary event."""
+        with patch("glossary.events._ledger_append", wraps=events_module._ledger_append) as ledger_append:
+            event = emit_sense_updated(
+                conflict=sample_conflict,
+                custom_definition="A git worktree",
+                scope_value="team_domain",
                 context=mock_context,
                 repo_root=tmp_path,
             )
+        assert event is not None
+        ledger_append.assert_called_once()
+        log_path = get_event_log_path(tmp_path, mock_context.mission_id)
+        assert log_path.read_bytes() == serialize_record(build_record(event))
 
-            assert event is not None
-            assert event["event_type"] == "TermCandidateObserved"
-            # Verify canonical class was instantiated
-            mock_canonical_cls.assert_called_once()
-            # Verify instance passed to _pkg_append_event
-            mock_pkg_append.assert_called_once()
-            assert mock_pkg_append.call_args[0][0] is mock_instance
-
-    def test_emit_blocked_creates_canonical_instance_when_available(self, tmp_path, sample_conflict):
-        """emit_generation_blocked_event uses _CanonicGenerationBlockedBySemanticConflict."""
-        import glossary.events as events_mod
-
-        mock_pkg_append = MagicMock()
-        mock_canonical_cls = MagicMock()
-        mock_instance = MagicMock()
-        mock_canonical_cls.return_value = mock_instance
-
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-            patch.object(events_mod, "_CanonicGenerationBlockedBySemanticConflict", mock_canonical_cls, create=True),
-        ):
-            event = emit_generation_blocked_event(
-                step_id="s",
-                mission_id="m",
-                conflicts=[sample_conflict],
-                strictness_mode=Strictness.MEDIUM,
-                run_id="r",
-                repo_root=tmp_path,
-            )
-
-            assert event is not None
-            mock_canonical_cls.assert_called_once()
-            mock_pkg_append.assert_called_once()
-            assert mock_pkg_append.call_args[0][0] is mock_instance
-
-    def test_emit_scope_creates_canonical_instance_when_available(self, tmp_path):
-        """emit_scope_activated uses _CanonicGlossaryScopeActivated."""
-        import glossary.events as events_mod
-
-        mock_pkg_append = MagicMock()
-        mock_canonical_cls = MagicMock()
-        mock_instance = MagicMock()
-        mock_canonical_cls.return_value = mock_instance
-
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-            patch.object(events_mod, "_CanonicGlossaryScopeActivated", mock_canonical_cls, create=True),
-        ):
-            event = emit_scope_activated(
-                scope_id="team_domain",
-                glossary_version_id="v3",
-                mission_id="m",
-                run_id="r",
-                repo_root=tmp_path,
-            )
-
-            assert event is not None
-            mock_canonical_cls.assert_called_once()
-            mock_pkg_append.assert_called_once()
-            assert mock_pkg_append.call_args[0][0] is mock_instance
-
-    def test_canonical_import_path_correct(self):
-        """The import path for canonical classes is spec_kitty_events.glossary.events."""
-        import glossary.events as mod
-
-        assert hasattr(mod, "EVENTS_AVAILABLE")
-        assert mod.EVENTS_AVAILABLE is False
+    def test_no_local_fallback_writer_remains(self):
+        """The retired fallback writer and its availability flag are gone."""
+        assert not hasattr(events_module, "_local_append_event")
+        assert not hasattr(events_module, "EVENTS_AVAILABLE")
 
 
 # ---------------------------------------------------------------------------
@@ -1513,48 +1478,25 @@ class TestEventEmissionErrorHandling:
     """Tests for error handling in event emission."""
 
     def test_emission_does_not_crash_on_error(self, mock_context, sample_extracted_term):
-        """Event emission failure returns None, does not raise.
-
-        In fallback mode, emit_* attempts local JSONL writes. Bad paths
-        should be handled gracefully (no exception escapes to caller).
-        """
-        # With EVENTS_AVAILABLE=False, local persistence failures are swallowed.
-        assert EVENTS_AVAILABLE is False
+        """A failed write returns None and does not raise to the caller."""
         bad_root = Path("/dev/null/not/a/path")
         event = emit_term_candidate_observed(
             term=sample_extracted_term,
             context=mock_context,
             repo_root=bad_root,
         )
-        # Caller still gets an event dict despite persistence failure.
-        assert event is not None
-        assert event["event_type"] == "TermCandidateObserved"
+        assert event is None
 
-    def test_emission_error_when_available_falls_back_local(self, mock_context, sample_extracted_term, tmp_path):
-        """When canonical persistence fails, local JSONL fallback still returns an event."""
-        import glossary.events as events_mod
-
-
-        mock_pkg_append = MagicMock(side_effect=OSError("disk full"))
-        mock_canonical_cls = MagicMock()
-
-        with (
-            patch.object(events_mod, "EVENTS_AVAILABLE", True),
-            patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True),
-            patch.object(events_mod, "_CanonicTermCandidateObserved", mock_canonical_cls, create=True),
-        ):
+    def test_emission_returns_none_when_the_write_fails(self, mock_context, sample_extracted_term, tmp_path):
+        """An I/O failure in the contract writer is logged and nothing falls back."""
+        with patch("glossary.events._ledger_append", side_effect=OSError("disk full")):
             event = emit_term_candidate_observed(
                 term=sample_extracted_term,
                 context=mock_context,
                 repo_root=tmp_path,
             )
-            assert event is not None
-            assert event["event_type"] == "TermCandidateObserved"
-
-    def test_events_available_flag(self):
-        """EVENTS_AVAILABLE is False when spec-kitty-events not installed."""
-        # In the test environment, spec-kitty-events is not installed
-        assert EVENTS_AVAILABLE is False
+        assert event is None
+        assert not get_event_log_path(tmp_path, mock_context.mission_id).exists()
 
 
 class TestEventLogEdgeCases:
@@ -1574,7 +1516,7 @@ class TestEventLogEdgeCases:
         """Event log handles many events without issues."""
         log_path = tmp_path / "large.events.jsonl"
         for i in range(500):
-            _local_append_event({"event_type": "Test", "seq": i}, log_path)
+            append_event(_term_event(f"term{i}"), log_path)
 
         events = list(read_events(log_path))
         assert len(events) == 500
@@ -1582,8 +1524,8 @@ class TestEventLogEdgeCases:
     def test_unicode_in_events(self, tmp_path):
         """Unicode characters are handled correctly."""
         log_path = tmp_path / "unicode.events.jsonl"
-        event = {"event_type": "Test", "term": "Arbeitsbereich", "notes": "Glossar-Eintrag"}
-        _local_append_event(event, log_path)
+        event = _term_event("Arbeitsbereich")
+        append_event(event, log_path)
 
         events = list(read_events(log_path))
         assert len(events) == 1
@@ -1595,7 +1537,7 @@ class TestEventLogEdgeCases:
 
         # Simulate concurrent-ish writes
         for i in range(20):
-            _local_append_event({"event_type": f"Event{i}", "seq": i}, log_path)
+            append_event(_term_event(f"term{i}"), log_path)
 
         # All lines should parse
         events = list(read_events(log_path))
@@ -1604,7 +1546,7 @@ class TestEventLogEdgeCases:
     def test_filter_by_nonexistent_type(self, tmp_path):
         """Filtering by nonexistent event_type returns nothing."""
         log_path = tmp_path / "test.events.jsonl"
-        _local_append_event({"event_type": "A"}, log_path)
+        append_event(_term_event(), log_path)
         events = list(read_events(log_path, event_type="Nonexistent"))
         assert events == []
 
