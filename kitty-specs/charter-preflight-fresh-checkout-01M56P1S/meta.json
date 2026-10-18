@@ -13,5 +13,7 @@
   "purpose_tldr": "Stop a freshly-cloned/built-in checkout from being hard-blocked by a stale charter synthesized-DRG preflight when running spec-kitty next.",
   "slug": "charter-preflight-fresh-checkout-01M56P1S",
   "target_branch": "fix/charter-preflight-fresh-checkout",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-18T05:19:49.459839+00:00"
 }
