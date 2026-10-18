@@ -1,0 +1,63 @@
+# plan mission / plan action (mirrored from the software-dev contracts).
+# Required top-level fields: schema_version, id, action, mission, steps[]
+# Each step: id, description; optional command, delegates_to{kind, candidates[]},
+# guidance. Contracts are discovered by directory glob over
+# built_in_step_contracts/ and keyed by the internal (mission, action) pair --
+# not by filename and not via a manifest. This file supplies the plan mission's
+# `plan` action: decompose the decision into owned, sequenced sub-problems with
+# each trade-off decided.
+schema_version: "1.0"
+id: plan-plan
+action: plan
+mission: plan
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action plan --json"
+
+  - id: read_inputs
+    description: Read spec.md and research.md before decomposing the plan
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_010
+  - id: decompose_and_decide
+    description: Break the decision into sub-problems with owners and sequencing; decide each trade-off
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+        - adr-drafting-workflow
+    guidance: >
+      Name each sub-problem, its owner, and where it sits in the sequence.
+      Decide every trade-off explicitly and record the rejected alternatives,
+      not only the chosen path.
+
+  - id: document_decisions
+    description: Record the planning decisions as ADR-style entries
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_003
+  - id: supply_chain_check
+    description: >
+      Surface install-time and dependency supply-chain risk, per DIRECTIVE_051
+      and the supply-chain-install-safety tactic, for any dependency the plan
+      introduces or upgrades. Advisory: visibility and evidence are required,
+      but this step does not gate the transition.
+    delegates_to:
+      kind: tactic
+      candidates:
+        - supply-chain-install-safety
+
+  - id: write_plan
+    description: Write plan.md to kitty-specs/{mission_slug}/
+    command: "Write plan.md in kitty-specs/{mission_slug}/"
+
+  - id: commit_plan
+    description: Commit plan.md with co-author attribution
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_029
+        - DIRECTIVE_033

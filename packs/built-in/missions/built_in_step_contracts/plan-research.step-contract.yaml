@@ -1,0 +1,51 @@
+# plan mission / research action (mirrored from the software-dev contracts).
+# Required top-level fields: schema_version, id, action, mission, steps[]
+# Each step: id, description; optional command, delegates_to{kind, candidates[]},
+# guidance. Contracts are discovered by directory glob over
+# built_in_step_contracts/ and keyed by the internal (mission, action) pair --
+# not by filename and not via a manifest. This file supplies the plan mission's
+# `research` action: resolve the spec's open questions against concrete evidence.
+schema_version: "1.0"
+id: plan-research
+action: research
+mission: plan
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action research --json"
+
+  - id: read_open_questions
+    description: Read spec.md and enumerate the open questions research must resolve
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_010
+  - id: gather_and_validate
+    description: Gather evidence for each open question and validate it against the plan intent
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+        - adr-drafting-workflow
+    guidance: >
+      Every answer written to research.md must trace to concrete evidence.
+      Where evidence is weak or absent, keep the question open rather than
+      recording a speculative answer.
+
+  - id: document_decisions
+    description: Record research decisions, alternatives considered, and excluded evidence
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_003
+  - id: write_research
+    description: Write research.md to kitty-specs/{mission_slug}/
+    command: "Write research.md in kitty-specs/{mission_slug}/"
+
+  - id: commit_research
+    description: Commit research.md with co-author attribution
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_029
+        - DIRECTIVE_033
