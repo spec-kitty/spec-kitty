@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-plan-guard-artifact-vocabulary-01M57FKP",
+  "created_at": "2026-10-18T12:25:59.306008+00:00",
+  "flattened": false,
+  "friendly_name": "Fix plan-mission guard/manifest artifact-vocabulary mismatch",
+  "mid8": "01M57FKP",
+  "mission_id": "01M57FKP4Z0HV4E5AQVPQEKX31",
+  "mission_number": null,
+  "mission_slug": "plan-guard-artifact-vocabulary-01M57FKP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On main (4.0.0rc8) a built-in plan mission is hard-blocked at specify: next reports 'Required artifact missing: spec.md' even with spec.md committed, and guard_failure_paths is empty (#6388, P0). The plan guard chain checks spec.md/research.md/plan.md (what the step contracts actually produce) but the plan expected-artifacts.yaml manifest declares goals.md under phase step-keys goals/draft, so the presence gatherer never looks for spec.md and required_artifacts_for returns nothing. This mission reconciles the manifest (and the descriptive mission.yaml copies) to the runtime action vocabulary, restores guard_failure_paths, and adds the parity + completeness guards that would have caught the drift.",
+  "purpose_tldr": "Let a built-in plan mission advance past specify by reconciling the plan family's expected-artifacts manifest with the artifacts its step contracts and guards actually use.",
+  "slug": "plan-guard-artifact-vocabulary-01M57FKP",
+  "target_branch": "fix/plan-guard-artifact-vocabulary",
+  "topology": "coord"
+}
