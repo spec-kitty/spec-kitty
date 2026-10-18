@@ -36,12 +36,15 @@
 #     (see the job's comments). A push the token cannot make (HTTP 403) fails
 #     the publish step with a message naming the secret to fix.
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
-#     gates under `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
+#     gates AND the battery timing-table drift gates
+#     (`tests/ci/test_battery_roster_budgets.py`) under
+#     `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`, restoring the hard
 #     failure for every registry module (`charter`, `agent` and `consolidation`
 #     among them; no module is exempt any more) on a real, scheduled cadence -- `ci-nightly.yml`'s
 #     `architectural-backstop` runs the battery but without
-#     `SPEC_KITTY_STRICT_SHARD_TIMINGS`, so without this job WP01's per-PR
-#     demotion would be a silent removal of the exact-count gate, not a relocation.
+#     `SPEC_KITTY_STRICT_SHARD_TIMINGS`, so without this job the per-PR
+#     demotion (length-agreement since WP01; battery timing-table drift since the
+#     2026-10-18 operator ruling) would be a silent removal of the gate, not a relocation.
 #
 # These two jobs are DELIBERATELY INDEPENDENT -- no `needs:` edge between
 # them, mirroring `ci-nightly.yml`'s own independent `performance`/`e2e`/
@@ -199,7 +202,8 @@ jobs:
     runs-on: ubuntu-24.04
     # A local strict run of this exact command (`SPEC_KITTY_STRICT_SHARD_
     # TIMINGS=1 pytest tests/architectural/test_module_length_agreement.py
-    # -q`, 4 cores, 2026-09-28) took ~230 s wall -- far above the ~36 s the
+    # tests/ci/test_battery_roster_budgets.py -q`, 4 cores, 2026-09-28) took
+    # ~230 s wall for the length-agreement file -- far above the ~36 s the
     # test file's docstring records for an earlier collection-only
     # measurement. 10 minutes would leave under 2x headroom once checkout
     # and `uv sync --all-extras` are added, so 15 minutes: >=2x over
@@ -212,7 +216,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Set up environment
         run: uv sync --frozen --all-extras
-      - name: Run architectural length-agreement gates under strict mode
+      - name: Run architectural length-agreement + battery-timings gates under strict mode
         env:
           SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"
-        run: uv run --frozen pytest tests/architectural/test_module_length_agreement.py -q
+        run: uv run --frozen pytest tests/architectural/test_module_length_agreement.py tests/ci/test_battery_roster_budgets.py -q

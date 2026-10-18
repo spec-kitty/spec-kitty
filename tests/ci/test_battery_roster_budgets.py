@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import warnings
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final
@@ -39,6 +41,32 @@ _MAX_STALE_KEY_FRACTION: Final = 0.10
 _MAX_UNTIMED_BASE_FRACTION: Final = 0.10
 _BUDGET_FLOOR_SECONDS: Final = 10
 _BUDGET_MULTIPLIER: Final = 1.5
+
+# Battery timing-table drift vs the live test corpus is a maintenance-cadence
+# concern, not a per-PR blocker (operator ruling 2026-10-18): adding or removing a
+# test file leaves the committed ``.github/ci-shard-timings.json`` battery table
+# stale until the nightly recapture refreshes it, which must never red an unrelated
+# PR. Mirrors ``tests/architectural/test_module_length_agreement.py``'s strict switch
+# (spec-kitty#5189): the two corpus-drift gates below warn per PR and assert only
+# under ``SPEC_KITTY_STRICT_SHARD_TIMINGS=1``, which ``ci-shard-recapture.yml``'s
+# ``strict-shard-timings-check`` job sets on its schedule.
+_STRICT_ENV_VAR: Final = "SPEC_KITTY_STRICT_SHARD_TIMINGS"
+
+
+class BatteryTimingsDriftWarning(UserWarning):
+    """Committed battery timing table drifted from the live corpus (non-blocking per PR)."""
+
+
+def _strict_mode() -> bool:
+    """True only when ``SPEC_KITTY_STRICT_SHARD_TIMINGS`` is exactly ``"1"`` (else warn-only)."""
+    return os.environ.get(_STRICT_ENV_VAR) == "1"
+
+
+def _report_drift(message: str, *, strict: bool) -> None:
+    """Fail under strict mode; otherwise warn so the drift stays visible without blocking."""
+    if strict:
+        pytest.fail(message)
+    warnings.warn(BatteryTimingsDriftWarning(message), stacklevel=2)
 
 
 # ---------------------------------------------------------------------------
@@ -186,14 +214,18 @@ def test_predicted_legs_balanced(capsys: pytest.CaptureFixture[str]) -> None:
     with capsys.disabled():
         print(f"\npredicted loads (worker-s): fast={fast_load:.1f} " + " ".join(f"{leg}={load:.1f}" for leg, load in partition.loads.items()))
     assert leg_balance_problems(partition.loads) == []
-    assert untimed_base_problems(sorted(partition.resolution.missing), _base_files(spec)) == []
+    untimed = untimed_base_problems(sorted(partition.resolution.missing), _base_files(spec))
+    if untimed:
+        _report_drift(" ".join(untimed), strict=_strict_mode())
 
 
 def test_timing_keys_are_base_files_or_reported() -> None:
     spec = _spec()
     timings = _timings(spec)
     assert timings, "no battery timings to check"
-    assert stale_key_problems(timings, _base_files(spec)) == []
+    stale = stale_key_problems(timings, _base_files(spec))
+    if stale:
+        _report_drift(" ".join(stale), strict=_strict_mode())
 
 
 # ---------------------------------------------------------------------------
@@ -284,3 +316,25 @@ def test_control_incomplete_provenance_is_reported() -> None:
     assert provenance_problems({**complete, "files_measured": 2}, spec, timings) != []
     assert provenance_problems({**complete, "selection": "other"}, spec, timings) != []
     assert provenance_problems({k: v for k, v in complete.items() if k != "workers"}, spec, timings) != []
+
+
+# ---------------------------------------------------------------------------
+# Strict-switch self-tests: the corpus-drift gates warn per PR, assert nightly
+# ---------------------------------------------------------------------------
+def test_strict_mode_reads_only_the_exact_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_STRICT_ENV_VAR, raising=False)
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "0")
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "1")
+    assert _strict_mode() is True
+
+
+def test_report_drift_warns_by_default() -> None:
+    with pytest.warns(BatteryTimingsDriftWarning, match="battery drift"):
+        _report_drift("battery drift: 1 untimed base file", strict=False)
+
+
+def test_report_drift_fails_in_strict_mode() -> None:
+    with pytest.raises(pytest.fail.Exception, match="battery drift"):
+        _report_drift("battery drift: 1 untimed base file", strict=True)
