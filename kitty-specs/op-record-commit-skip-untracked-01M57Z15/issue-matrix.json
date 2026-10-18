@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6410": {
+      "evidence_ref": "tests/specify_cli/invocation/cli/test_complete.py::test_cli_complete_adds_no_commit_to_the_issue_branch_when_primary_tracks_no_op_records",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

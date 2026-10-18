@@ -1,0 +1,69 @@
+{
+  "mission_slug": "op-record-commit-skip-untracked-01M57Z15",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_complete.py::test_cli_complete_adds_no_commit_to_the_issue_branch_when_primary_tracks_no_op_records; tests/specify_cli/invocation/test_executor.py::TestOpCommitSkip::test_skips_when_primary_tracks_no_op_records",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:09:46.937435+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_executor.py::TestOpCommitSkip::test_skips_when_record_path_is_gitignored_even_if_primary_tracks; tests/specify_cli/invocation/test_op_commit_policy.py::test_tracked_but_ignored_spine_is_reported_ignored",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:09:54.132061+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_executor.py (commit-exactly-one-record positive control); tests/specify_cli/invocation/test_doctor_ops.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:10:01.632405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_complete.py; tests/specify_cli/invocation/cli/test_doctor_ops_cli.py::test_close_stale_skip_is_reported_on_its_own_line_and_json_value",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:10:08.893973+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_executor.py::TestOpCommitSkip; tests/specify_cli/invocation/test_executor.py (protected-branch refusal sanitized); tests/specify_cli/invocation/cli/test_complete.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:10:16.751308+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_policy.py::test_origin_less_trunk_only_repo_resolves_no_primary_and_skips",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T19:10:24.170919+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

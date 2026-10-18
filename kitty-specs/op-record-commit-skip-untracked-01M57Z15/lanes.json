@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "op-record-commit-skip-untracked-01M57Z15",
+  "mission_id": "01M57Z155HXBSWHSDJQGWP9HR0",
+  "mission_branch": "issue-6410-op-record-commit-target",
+  "target_branch": "issue-6410-op-record-commit-target",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/trail-model.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/profile_invocation.py",
+        "src/specify_cli/doctor/ops.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/op_commit_policy.py",
+        "src/specify_cli/state/contract.py",
+        "tests/specify_cli/invocation/**"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-18T17:03:30.475450+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "f4c34159afd03f7420927c03327ad92972dc5a75"
+}

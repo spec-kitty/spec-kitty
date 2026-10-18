@@ -1,0 +1,6 @@
+# Approach
+
+- **[2026-10-18][specify] Grounding squad first.** A repro/root-cause lens and a similar-surfaces lens ran before the spec. The repro showed that `safe_commit`'s `git add --force` commits a gitignored record, and that nothing reads Op records from git. Disposition: fed the operator decision.
+- **[2026-10-18][specify] Narrow fix inside `_commit_op_record`.** Decide commit or skip in the executor, before `safe_commit`. Keep the current-branch commit where the primary branch tracks Op records. Report a skip as a distinct outcome. Disposition: planned.
+- **[2026-10-18][implement] Shared fixture module for tracked-record repos.** Commit-asserting fixtures (executor, doctor sweep, e2e, CLI) all needed "main tracks one ULID record, work from an issue branch". Disposition: one helper module `tests/specify_cli/invocation/_op_git.py`; the seeded record is a closed Op so doctor sweeps never pick it up.
+- **[2026-10-18][implement] Fixtures that asserted the hatch were reworked, not kept.** T-003/T-004 and the staging-preservation test used `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`; they now commit on an issue branch with no hatch. The protected-main refusal test keeps its intent (record tracked, on main, no hatch, refused).
