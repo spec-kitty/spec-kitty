@@ -2,10 +2,9 @@
   "event_count": 14,
   "last_event_id": "01M57HB84DXT1MQ1K4DSGHZPWB",
   "materialized_at": "2026-10-18T12:56:19.853047+00:00",
-  "mission_number": "235",
+  "mission_number": "",
   "mission_slug": "plan-guard-artifact-vocabulary-01M57FKP",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,66 +20,34 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M57HB6F58035Q8H8PB8VENDX",
       "last_transition_at": "2026-10-18T12:56:18.149931+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready: plan manifest re-keyed goals->specify(spec.md), draft->plan, dropped structure/done, header rewritten; parity+coherence+guard_failure_paths tests added (RED on plan pre-fix, GREEN after); mirrors updated. pytest (6 files, board-authority holds coverage floor) 208 passed exit 0; ruff check/format clean; mypy: only pre-existing errors",
-        "Review passed (reviewer-renata/opus): non-vacuity verified (parity test routes through REAL gather_artifact_presence + paired absent-blocks; 4 plan tests independently reproduced RED on base manifest, green post-fix); coherence shrink-only ledger scrutinized (plan entry empty, divergence not masked); _evaluate_plan_guards + MISSION_GOALS untouched; 0 net-new mypy; mirrors correct; 208 passed."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261018",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1468305,
-      "shell_pid_created_at": "1792327613.06",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
-      }
+      "shell_pid": 1427512,
+      "shell_pid_created_at": "1792326961.02"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M57HB84DXT1MQ1K4DSGHZPWB",
       "last_transition_at": "2026-10-18T12:56:19.853047+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready: plan mission.yaml (both copies, identical) + matrix doc reconciled goals.md->spec.md, phases aligned to specify/research/plan/review; ran tests/charter + tests/mission_runtime -k 'mission_yaml or plan or template' 125 passed 1 skipped; descriptive-only, no runtime change",
-        "Review passed (reviewer-renata/opus): descriptive-only confirmed (nothing on gather/guard path reads mission.yaml; the one writer-inventory consumer gets a correcting goals.md→spec.md alignment); two mission.yaml copies identical; doc updated; 1067 passed; scope disjoint from WP01. Residual checks/commands prose 'goals' wording flagged for a future sweep (off guard path, within WP02 scope)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261018",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1468305,
-      "shell_pid_created_at": "1792327613.06",
-      "subtasks": {
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
-      }
+      "shell_pid": 1427512,
+      "shell_pid_created_at": "1792326961.02"
     }
   }
 }
