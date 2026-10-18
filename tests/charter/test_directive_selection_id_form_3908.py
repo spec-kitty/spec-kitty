@@ -29,7 +29,7 @@ import pytest
 import yaml
 
 from charter.activation.compact import _resolve_governance_summary
-from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.activation.resolver import resolve_project_governance
 from charter.resolution import resolve_canonical_repo_root
 
 pytestmark = [pytest.mark.unit]
@@ -93,18 +93,19 @@ def test_canonical_authored_selection_still_resolves(tmp_path: Path) -> None:
     assert "DIRECTIVE_001" in resolve_project_governance(repo).directives
 
 
-def test_a_genuinely_absent_directive_still_fails_loud(tmp_path: Path) -> None:
-    """#3908 acceptance: missing artifacts stay explicit, never filtered away.
+def test_a_genuinely_absent_directive_is_dropped_with_a_diagnostic(tmp_path: Path) -> None:
+    """#6407 supersedes #3908 "fails loud": an unknown id is dropped, never erases governance.
 
-    The error also has to name the spelling the operator actually wrote, or the
-    message sends them looking for a file name they never typed.
+    The diagnostic names the spelling the operator actually wrote, and a known
+    selection beside it still resolves (positive control).
     """
-    repo = _project(tmp_path, ["999-not-a-real-directive"])
+    repo = _project(tmp_path, ["001-architectural-integrity-standard", "999-not-a-real-directive"])
 
-    with pytest.raises(GovernanceResolutionError) as caught:
-        resolve_project_governance(repo)
+    resolution = resolve_project_governance(repo)
 
-    assert "999-not-a-real-directive" in str(caught.value)
+    assert "DIRECTIVE_001" in resolution.directives
+    assert not any("999" in d for d in resolution.directives)
+    assert any("999-not-a-real-directive" in d and "Unknown selected directive" in d for d in resolution.diagnostics)
 
 
 def test_this_repository_compact_context_keeps_its_activated_governance() -> None:
