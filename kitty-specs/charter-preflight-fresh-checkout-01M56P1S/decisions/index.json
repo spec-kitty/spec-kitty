@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-18T04:59:55.506403Z",
+      "decision_id": "01M56P2XQJVJB43TQBGQGCTY9D",
+      "final_answer": "Both: auto-heal read path is the primary resilience mechanism (references_refresh re-stamps synthesized_drg on next when charter.yaml recomputes cleanly and the derived graph is consistent, instead of returning terminal CHARTER_PREFLIGHT_FAILED), AND close the write-side re-stamp gap so every charter.yaml-mutating writer (activate/synthesize/scaffold) re-stamps bundle_content_hash at the single compute_bundle_content_hash authority.",
+      "input_key": "fix_strategy",
+      "mission_id": "01M56P1SC40TNTJ070H1SB430S",
+      "mission_slug": "charter-preflight-fresh-checkout-01M56P1S",
+      "opened_by": "cli",
+      "options": [
+        "auto-heal read path (b)",
+        "write-side re-stamp parity (a)",
+        "both \u2014 auto-heal primary + close write-side gap",
+        "other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should a fresh checkout's stale synthesized_drg be prevented from terminally blocking next: write-side re-stamp parity, read-side auto-heal, or both?",
+      "rationale": null,
+      "resolved_at": "2026-10-18T05:01:33.634155Z",
+      "resolved_by": null,
+      "slot_key": "specify.fix-strategy.parity-vs-autoheal",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-18T04:59:57.423041Z",
+      "decision_id": "01M56P2ZKF2JAZV1GY7K4ZNM27",
+      "final_answer": "Yes: also correct the committed drift in this repo's .kittify/charter/synthesis-manifest.yaml (re-stamp bundle_content_hash to match current charter.yaml) as a legitimate data-hygiene fix, distinct from faking the test fixture.",
+      "input_key": "committed_drift_scope",
+      "mission_id": "01M56P1SC40TNTJ070H1SB430S",
+      "mission_slug": "charter-preflight-fresh-checkout-01M56P1S",
+      "opened_by": "cli",
+      "options": [
+        "yes \u2014 re-stamp committed manifest too",
+        "no \u2014 code fix only; leave data",
+        "other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should this mission also correct the already-committed drifted manifest on main (re-stamp as a data fix) in addition to the code fix?",
+      "rationale": null,
+      "resolved_at": "2026-10-18T05:01:35.505644Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.committed-drift-data",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M56P1SC40TNTJ070H1SB430S",
+  "version": 1
+}
