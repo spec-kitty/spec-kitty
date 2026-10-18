@@ -26,8 +26,22 @@ _STEM_NE_ID = {
     ArtifactKind.TOOLGUIDE: ("qa-tool-file", "qa-tool-id", "proj-tool", "proj-tool-id"),
     ArtifactKind.PROCEDURE: ("qa-proc-file", "qa-proc-id", "proj-proc", "proj-proc-id"),
     ArtifactKind.AGENT_PROFILE: ("qa-profile-file", "qa-profile-id", "proj-profile", "proj-profile-id"),
+    ArtifactKind.MISSION_STEP_CONTRACT: ("qa-step-file", "qa-step-id", "proj-step", "proj-step-id"),
+    ArtifactKind.GLOSSARY_PACK: ("qa-glossary-file", "qa-glossary-id", "proj-glossary", "proj-glossary-id"),
+    ArtifactKind.SKILL: ("qa-skill-file", "qa-skill-id", "proj-skill", "proj-skill-id"),
 }
-_KINDS = list(_STEM_NE_ID)
+#: Activatable kinds deliberately not parametrised, with the reason.
+_EXPLICIT_SKIPS = {
+    ArtifactKind.ANTI_PATTERN: "re-kinded node inside another kind's graph fragment, never a standalone file; covered by test_anti_pattern_tokens_pass_through",
+}
+_ACTIVATABLE = [kind for kind in ArtifactKind if kind.activatable]
+_KINDS = [kind for kind in _ACTIVATABLE if kind not in _EXPLICIT_SKIPS]
+
+
+def test_parametrised_kinds_equal_activatable_minus_explicit_skips() -> None:
+    assert set(_STEM_NE_ID) == set(_KINDS)
+    assert set(_KINDS) | set(_EXPLICIT_SKIPS) == set(_ACTIVATABLE)
+    assert all(reason for reason in _EXPLICIT_SKIPS.values())
 
 
 def _write(directory: Path, kind: ArtifactKind, stem: str, declared: str) -> None:
@@ -48,7 +62,7 @@ def project(tmp_path: Path) -> Path:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / ".kittify").mkdir()
     org = tmp_path / "acme"
-    for kind, (org_stem, org_id, proj_stem, proj_id) in _STEM_NE_ID.items():
+    for kind, (org_stem, org_id, proj_stem, proj_id) in ((k, _STEM_NE_ID[k]) for k in _KINDS):
         _write(org / kind.plural, kind, org_stem, org_id)
         _write(tmp_path / ".kittify" / "charter-packs" / PROJECT_KIND_DIRS[kind], kind, proj_stem, proj_id)
     _register_org(tmp_path, org)

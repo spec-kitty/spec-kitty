@@ -1,8 +1,8 @@
 """#6406 blast radius: ``charter activate`` of a stem != declared id artifact writes the stem (#2529).
 
-Activation by declared id on the CLI is gated by the stem-based availability set of
-the activation engine and is outside WP01; this pins the producer contract (stems
-stay the written form) now that ``resolve_artifact_urn`` accepts declared ids.
+Activation by stem writes the stem (the producer contract, now that
+``resolve_artifact_urn`` accepts declared ids). Activation by *declared id* is
+refused today and pinned as a strict xfail against #6423.
 """
 
 from __future__ import annotations
@@ -51,6 +51,13 @@ def test_activate_tactic_by_stem_writes_stem(tactic_pack_project: Path) -> None:
     assert "qa-tactic-seven" in activated
     # Pre-existing: the materialised effective set may also list the org tactic
     # by declared id (narrowed by WP06); the contract here is the stem is written.
+
+
+@pytest.mark.xfail(strict=True, reason="#6423: charter activate refuses a declared id")
+def test_activate_tactic_by_declared_id_writes_stem(tactic_pack_project: Path) -> None:
+    result = runner.invoke(charter_app, ["activate", "--repo-root", str(tactic_pack_project), "--no-compile", "tactic", "qa-seven"])
+    assert result.exit_code == 0, result.output
+    assert "qa-tactic-seven" in _activated(tactic_pack_project)
 
 
 def test_activate_unknown_tactic_still_fails(tactic_pack_project: Path) -> None:
