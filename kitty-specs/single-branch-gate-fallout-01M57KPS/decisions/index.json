@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-18T13:38:33.912890Z",
+      "decision_id": "01M57KRJSR4ZKDSJXY1KQAWKYX",
+      "final_answer": "#6370 fixture + #6369 scenario 6 only; gate unchanged",
+      "input_key": "mission_scope",
+      "mission_id": "01M57KPSBP11Q7WVXCHH0FXN1F",
+      "mission_slug": "single-branch-gate-fallout-01M57KPS",
+      "opened_by": "cli",
+      "options": [
+        "#6370 fixture + #6369 scenario 6 only; gate unchanged",
+        "Also #6369 scenarios 1-5",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What is in scope: which reds, and may the #5939 gate change?",
+      "rationale": null,
+      "resolved_at": "2026-10-18T13:38:37.263467Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-18T13:38:41.038517Z",
+      "decision_id": "01M57KRSRE76R1AW5YEAFKMP8C",
+      "final_answer": "Align the refusal wording",
+      "input_key": "scenario6_alignment",
+      "mission_id": "01M57KPSBP11Q7WVXCHH0FXN1F",
+      "mission_slug": "single-branch-gate-fallout-01M57KPS",
+      "opened_by": "cli",
+      "options": [
+        "Assert the stable error code",
+        "Align the refusal wording",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Scenario 6: assert the stable code SINGLE_BRANCH_IMPLEMENTATION_MISSING in the scenario, or align the move-side refusal wording with lanes/for_review_gate.py?",
+      "rationale": null,
+      "resolved_at": "2026-10-18T13:38:44.761178Z",
+      "resolved_by": null,
+      "slot_key": "specify.scenario6.assertion",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M57KPSBP11Q7WVXCHH0FXN1F",
+  "version": 1
+}
