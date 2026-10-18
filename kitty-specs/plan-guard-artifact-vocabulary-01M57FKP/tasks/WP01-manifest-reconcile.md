@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: fix/plan-guard-artifact-vocabulary
 merge_target_branch: fix/plan-guard-artifact-vocabulary
 branch_strategy: Planning artifacts for this mission were generated on fix/plan-guard-artifact-vocabulary. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/plan-guard-artifact-vocabulary unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-plan-guard-artifact-vocabulary-01M57FKP
+base_commit: ab7c0158c341687d46540112cfadab8e5fb502e9
+created_at: '2026-10-18T12:36:12.287484+00:00'
 subtasks:
 - T001
 - T002
