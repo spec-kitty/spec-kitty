@@ -33,6 +33,7 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import ProtectedBranchRefused
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
@@ -43,6 +44,12 @@ from specify_cli.invocation.errors import (
     UnsupportedEvidenceError,
 )
 from specify_cli.invocation.modes import ModeOfWork
+from specify_cli.invocation.op_commit_policy import (
+    OpCommitProbeError,
+    PrimaryTracking,
+    op_commit_skip_reason,
+    probe_primary_tracking,
+)
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
@@ -57,6 +64,8 @@ from specify_cli.invocation.writer import (
 )
 
 logger = logging.getLogger(__name__)
+#: Bound for the work-tree probe of the Op-record auto-commit (#6410).
+_GIT_PROBE_TIMEOUT_SECONDS = 30
 
 
 @dataclasses.dataclass(frozen=True)
@@ -71,6 +80,11 @@ class OpCommitOutcome:
 
     committed: bool
     refusal: str | None = None
+    #: Why the commit was deliberately not attempted (#6410): the record path
+    #: is gitignored, the primary branch tracks no Op records, or a git probe
+    #: failed. Distinct from ``refusal``: nothing was refused, the record is
+    #: simply kept on disk.
+    skipped: str | None = None
 
 
 def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecommendation | None:
@@ -418,6 +432,10 @@ class ProfileInvocationExecutor:
         #: executor (``None`` before the first close). Read by the doctor sweep
         #: and the CLI complete path to surface a refused commit (#4397).
         self.last_op_commit: OpCommitOutcome | None = None
+        # Primary-branch Op-record tracking, decided once per executor (#6410,
+        # NFR-001): one sweep closes many Ops and the answer cannot change
+        # between them.
+        self._primary_tracking: PrimaryTracking | None = None
         # Lazily populated only for doctor-sweep closes. One executor serves an
         # entire stale sweep, so keep the append-only spine's membership set in
         # memory and extend it after each successful append instead of reparsing
@@ -979,13 +997,7 @@ class ProfileInvocationExecutor:
         return data
 
     def _current_branch(self) -> str | None:
-        inside = _subprocess.run(
-            ["git", "-C", str(self._repo_root), "rev-parse", "--is-inside-work-tree"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if inside.returncode != 0 or inside.stdout.strip() != "true":
+        if not self._inside_work_tree():
             return None
 
         symbolic = _subprocess.run(
@@ -1038,8 +1050,17 @@ class ProfileInvocationExecutor:
                 message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
 
             current_branch = self._current_branch()
-            if current_branch is None:
+            if current_branch is None and not self._inside_work_tree():
                 return self._record_op_commit(OpCommitOutcome(committed=False, refusal="not a git worktree"))
+
+            # #6410: decide skip-or-commit before the branch check, so a
+            # detached HEAD in a repository that keeps no Op records skips
+            # quietly instead of reporting a refusal.
+            skip_reason = self._op_commit_skip_reason(relative_path)
+            if skip_reason is not None:
+                return self._record_op_commit(OpCommitOutcome(committed=False, skipped=skip_reason))
+            if current_branch is None:
+                return self._record_op_commit(OpCommitOutcome(committed=False, refusal="detached HEAD"))
 
             safe_commit(
                 repo_root=self._repo_root,
@@ -1051,15 +1072,43 @@ class ProfileInvocationExecutor:
                 # which can be protected main; STANDARD asserts no
                 # protected-branch flow, so the guard refuses there and the
                 # outcome below carries the refusal (the Op record stays on
-                # disk). The documented operator hatch
-                # (SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS) lands it for
-                # solo-fork operators who own main (FR-008).
+                # disk, uncommitted).
                 capability=GuardCapability.STANDARD,
             )
             return self._record_op_commit(OpCommitOutcome(committed=True))
+        except ProtectedBranchRefused as exc:
+            # The guard's own message names the protected-branch override,
+            # which agents must not use; report the refusal without it (#6410).
+            refusal = f"protected branch {exc.destination_ref!r}"
+            logger.info("Op record auto-commit for %s refused: %s", invocation_id, refusal)
+            return self._record_op_commit(OpCommitOutcome(committed=False, refusal=refusal))
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
+
+    def _inside_work_tree(self) -> bool:
+        """True when the repository root is inside a git work tree."""
+        inside = _subprocess.run(
+            ["git", "-C", str(self._repo_root), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_GIT_PROBE_TIMEOUT_SECONDS,
+        )
+        return inside.returncode == 0 and inside.stdout.strip() == "true"
+
+    def _op_commit_skip_reason(self, relative_path: Path) -> str | None:
+        """Decide whether the auto-commit is skipped (#6410); never raises.
+
+        A git probe failure is a skip too: the commit is best-effort, so an
+        undecidable question must not turn into an unwanted commit.
+        """
+        try:
+            if self._primary_tracking is None:
+                self._primary_tracking = probe_primary_tracking(self._repo_root)
+            return op_commit_skip_reason(self._repo_root, relative_path, tracking=self._primary_tracking)
+        except OpCommitProbeError as exc:
+            return f"git probe failed while deciding whether to commit the Op record: {exc}"
 
     def _record_op_commit(self, outcome: OpCommitOutcome) -> OpCommitOutcome:
         """Store the latest auto-commit outcome for caller visibility (#4397)."""

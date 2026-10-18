@@ -437,7 +437,9 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="invocation/writer",
         creation_trigger="profile-invocation start/complete",
         notes=(
-            "Durable per-Op audit record; committed for traceability. "
+            "Durable per-Op audit record; auto-committed for traceability only "
+            "where the primary branch tracks Op records and the path is not "
+            "gitignored (#6410); otherwise it stays on disk, uncommitted. "
             "kitty-ops/ never collapses to a fully-ignored top dir in "
             "get_runtime_gitignore_entries() because both kitty-ops surfaces "
             "are 2-segment paths (the collapse guard requires >=3 segments) -- "

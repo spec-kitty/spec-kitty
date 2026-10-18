@@ -14,6 +14,7 @@ from charter.offering.model_task_routing.evaluator import RoutingCandidate, Rout
 from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.writer import EVENTS_DIR
+from tests.specify_cli.invocation._op_git import checkout_issue_branch, run_git, track_op_record_on_current_branch
 
 
 # ---------------------------------------------------------------------------
@@ -230,9 +231,15 @@ class TestInvokeWriteFailureRaises:
 # ---------------------------------------------------------------------------
 
 
-def _init_git_repo(path: Path) -> None:
-    """Initialise a minimal git repo at ``path`` with an initial commit."""
-    subprocess.run(["git", "init", str(path)], check=True, capture_output=True)
+def _init_git_repo(path: Path, *, track_ops: bool = False) -> None:
+    """Initialise a minimal git repo at ``path`` with an initial commit.
+
+    ``track_ops=True`` also commits one ULID-shaped Op record on ``main``: the
+    Op-record auto-commit only happens where the primary branch tracks Op
+    records (#6410), so commit-asserting tests opt in and then work from an
+    issue branch.
+    """
+    subprocess.run(["git", "init", "-b", "main", str(path)], check=True, capture_output=True)
     subprocess.run(
         ["git", "-C", str(path), "config", "user.email", "test@example.com"],
         check=True, capture_output=True,
@@ -252,6 +259,8 @@ def _init_git_repo(path: Path) -> None:
         ["git", "-C", str(path), "commit", "--no-verify", "-m", "init"],
         check=True, capture_output=True,
     )
+    if track_ops:
+        track_op_record_on_current_branch(path)
 
 
 # ---------------------------------------------------------------------------
@@ -266,11 +275,8 @@ class TestAutoCommitOnCompleteInvocation:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        # The fixture repo's branch is protected main/master; landing the
-        # op-record commit there requires the ONE documented operator hatch
-        # (op-record bookkeeping asserts STANDARD — PR #1850 fix).
-        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
         with patch(
@@ -296,10 +302,8 @@ class TestAutoCommitOnCompleteInvocation:
     ) -> None:
         """T-004: op file is in git and can be restored after deletion."""
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        # Operator hatch: the commit must land on the fixture's protected
-        # main/master for the restore-from-git assertion to be exercised.
-        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
         with patch(
@@ -325,7 +329,8 @@ class TestAutoCommitOnCompleteInvocation:
         assert op_file.exists()
 
     def test_complete_invocation_commits_with_safe_commit(self, tmp_path: Path) -> None:
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
         with patch(
@@ -343,7 +348,7 @@ class TestAutoCommitOnCompleteInvocation:
         assert call_kwargs["worktree_root"] == tmp_path
         # WP02: executor now passes a CommitTarget (mission_runtime.context) rather
         # than a bare destination_ref string; ref echoes the resolved branch.
-        assert call_kwargs["target"].ref in {"main", "master"}
+        assert call_kwargs["target"].ref == "issue-topic"
         assert call_kwargs["message"].startswith("op(implementer-fixture):")
         assert call_kwargs["paths"] == (Path(f"{EVENTS_DIR}/{payload.invocation_id}.jsonl"),)
         # Op-record bookkeeping asserts STANDARD: it is not the merge flow, so
@@ -360,13 +365,13 @@ class TestAutoCommitOnCompleteInvocation:
 
         ``STANDARD`` authorizes no protected-branch flow, so the auto-commit is
         refused by the guard and swallowed into a warning; the Op record stays
-        on disk and the close itself succeeds. The documented operator hatch
-        (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS``) is the ONE ambient
-        channel that lands it (PR #1850 guard-bypass regression fix).
+        on disk and the close itself succeeds (PR #1850 guard-bypass regression
+        fix). The reported refusal names the branch but never the guard's
+        override advice, which agents must not follow (#6410).
         """
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
         _setup_fixture_profiles(tmp_path)
 
         with patch(
@@ -379,23 +384,25 @@ class TestAutoCommitOnCompleteInvocation:
 
         # The close succeeded and the Op record is on disk...
         assert (tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl").exists()
-        # ...but nothing landed on the protected branch (init commit only).
+        # ...but nothing landed on the protected branch (init + seeded record only).
         log_lines = subprocess.run(
             ["git", "-C", str(tmp_path), "log", "--oneline"],
             capture_output=True, text=True, check=True,
         ).stdout.strip().splitlines()
-        assert len(log_lines) == 1, (
+        assert len(log_lines) == 2, (
             f"op-record commit landed on a protected branch: {log_lines}"
         )
+        outcome = executor.last_op_commit
+        assert outcome is not None
+        assert outcome.refusal == "protected branch 'main'"
+        assert "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS" not in (outcome.refusal or "")
 
-    def test_complete_invocation_on_protected_branch_preserves_unrelated_staging(
+    def test_complete_invocation_on_issue_branch_preserves_unrelated_staging(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-        # Operator hatch: this test verifies staging preservation when the
-        # commit DOES land on the operator-owned protected branch.
-        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
         unrelated = tmp_path / "unrelated.txt"
@@ -434,7 +441,7 @@ class TestAutoCommitOnCompleteInvocation:
     def test_completed_commit_excludes_ops_index_and_orphan_metadata(
         self, tmp_path: Path
     ) -> None:
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "checkout", "-b", "ops-work"],
             check=True,
@@ -529,7 +536,8 @@ class TestAutoCommitOnCompleteInvocation:
         """Best-effort: git failure must not block the invocation response."""
         import logging
 
-        _init_git_repo(tmp_path)
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
 
         with patch(
@@ -546,3 +554,171 @@ class TestAutoCommitOnCompleteInvocation:
         assert result is not None
         warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
         assert any("commit" in m.lower() or "auto" in m.lower() for m in warning_messages)
+
+
+# ---------------------------------------------------------------------------
+# #6410: skip the Op-record auto-commit where kitty-ops is untracked or ignored
+# ---------------------------------------------------------------------------
+
+
+def _git_out(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def _open_op(executor: ProfileInvocationExecutor) -> str:
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        return executor.invoke("implement feature", profile_hint="implementer-fixture").invocation_id
+
+
+class TestOpCommitSkip:
+    """The commit is kept where Op records are tracked and skipped otherwise."""
+
+    def test_skips_when_primary_tracks_no_op_records(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        checkout_issue_branch(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+
+        with patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit:
+            executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        mock_safe_commit.assert_not_called()
+        outcome = executor.last_op_commit
+        assert outcome is not None
+        assert outcome.committed is False
+        assert outcome.refusal is None
+        assert outcome.skipped is not None
+        assert "primary branch (main)" in outcome.skipped
+        assert (tmp_path / EVENTS_DIR / f"{invocation_id}.jsonl").exists()
+
+    def test_detached_head_skips_quietly_when_primary_tracks_no_op_records(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path)
+        run_git(tmp_path, "checkout", "--detach")
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+
+        executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        outcome = executor.last_op_commit
+        assert outcome is not None
+        assert outcome.refusal is None
+        assert outcome.skipped is not None
+
+    def test_detached_head_is_refused_when_primary_tracks_op_records(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path, track_ops=True)
+        run_git(tmp_path, "checkout", "--detach")
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+
+        executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        outcome = executor.last_op_commit
+        assert outcome is not None
+        assert outcome.refusal == "detached HEAD"
+        assert outcome.skipped is None
+
+    def test_skips_when_record_path_is_gitignored_even_if_primary_tracks(self, tmp_path: Path) -> None:
+        _init_git_repo(tmp_path, track_ops=True)
+        (tmp_path / ".gitignore").write_text("kitty-ops/\n", encoding="utf-8")
+        checkout_issue_branch(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+
+        with patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit:
+            executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        mock_safe_commit.assert_not_called()
+        assert executor.last_op_commit is not None
+        assert executor.last_op_commit.skipped is not None
+        assert "matches an ignore rule" in executor.last_op_commit.skipped
+
+    def test_commits_exactly_one_record_when_primary_tracks_op_records(self, tmp_path: Path) -> None:
+        """Positive control: same fixture as the skip test, one change (a tracked record)."""
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+        before = _git_out(tmp_path, "rev-list", "--count", "HEAD")
+
+        executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        assert executor.last_op_commit is not None
+        assert executor.last_op_commit.committed is True
+        assert executor.last_op_commit.skipped is None
+        assert int(_git_out(tmp_path, "rev-list", "--count", "HEAD")) == int(before) + 1
+        assert _git_out(tmp_path, "log", "-1", "--format=%s").startswith("op(")
+        assert _git_out(tmp_path, "show", "--name-only", "--format=", "HEAD").splitlines() == [
+            f"{EVENTS_DIR}/{invocation_id}.jsonl"
+        ]
+
+    def test_probe_error_skips_without_raising(self, tmp_path: Path) -> None:
+        from specify_cli.invocation.op_commit_policy import OpCommitProbeError
+
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        invocation_id = _open_op(executor)
+
+        with (
+            patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit,
+            patch(
+                "specify_cli.invocation.executor.probe_primary_tracking",
+                side_effect=OpCommitProbeError("git ls-tree failed"),
+            ),
+        ):
+            executor.complete_invocation(invocation_id, outcome="done", closed_by="agent")
+
+        mock_safe_commit.assert_not_called()
+        assert executor.last_op_commit is not None
+        assert executor.last_op_commit.skipped is not None
+        assert "git probe failed" in executor.last_op_commit.skipped
+        assert "git ls-tree failed" in executor.last_op_commit.skipped
+
+    def test_second_close_costs_one_extra_git_call_for_the_decision(self, tmp_path: Path) -> None:
+        """NFR-001: the primary-tracks decision is cached per executor."""
+        import types
+
+        from specify_cli.invocation import op_commit_policy
+
+        _init_git_repo(tmp_path, track_ops=True)
+        checkout_issue_branch(tmp_path)
+        _setup_fixture_profiles(tmp_path)
+        executor = ProfileInvocationExecutor(tmp_path)
+        first_id = _open_op(executor)
+        second_id = _open_op(executor)
+        calls: list[object] = []
+
+        def spy(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append(args[0])
+            return subprocess.run(*args, **kwargs)  # type: ignore[call-overload, no-any-return]  # spy forwards the policy's own subprocess.run call verbatim
+
+        # Count the policy's own probes AND the tree listing it delegates to
+        # kernel.git.runner; the executor's branch probes are not counted.
+        from kernel.git import runner as kernel_runner
+
+        spy_module = types.SimpleNamespace(
+            run=spy, SubprocessError=subprocess.SubprocessError, TimeoutExpired=subprocess.TimeoutExpired
+        )
+        with (
+            patch.object(op_commit_policy, "subprocess", spy_module),
+            patch.object(kernel_runner, "subprocess", spy_module),
+            patch("specify_cli.invocation.executor.safe_commit"),
+        ):
+            executor.complete_invocation(first_id, outcome="done", closed_by="agent")
+            first_close = len(calls)
+            executor.complete_invocation(second_id, outcome="done", closed_by="agent")
+            second_close = len(calls) - first_close
+
+        assert 2 < first_close <= 12  # symbolic-ref + ref probes + ls-tree + check-ignore
+        assert second_close == 1

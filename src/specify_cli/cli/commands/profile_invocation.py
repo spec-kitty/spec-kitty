@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Literal
 
 import typer
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from specify_cli.cli.commands.dispatch import _build_executor
@@ -19,7 +20,8 @@ from specify_cli.invocation.errors import (
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
     InvalidModeForEvidenceError,
 )
-from specify_cli.invocation.writer import normalise_ref
+from specify_cli.invocation.executor import OpCommitOutcome
+from specify_cli.invocation.writer import EVENTS_DIR, normalise_ref
 from specify_cli.task_utils import find_repo_root
 
 # ---------------------------------------------------------------------------
@@ -63,6 +65,25 @@ def _handle_complete_already_closed(
     else:
         console.print(f"[red]Error:[/red] Invocation {invocation_id} is already closed.")
     raise typer.Exit(1) from None
+
+
+def _print_uncommitted_note(outcome: OpCommitOutcome, invocation_id: str) -> None:
+    """Say where the Op record went when its auto-commit did not happen (#6410).
+
+    A skip is deliberate and quiet; a refusal is a warning. Neither advises
+    overriding the protected-branch guard. The record stays on disk as an
+    uncommitted file.
+    """
+    record = f"{EVENTS_DIR}/{invocation_id}.jsonl"
+    if outcome.skipped:
+        console.print(f"[dim]Op record kept on disk at {record}, not committed: {escape(outcome.skipped)}.[/dim]")
+        return
+    console.print(
+        f"[yellow]Warning:[/yellow] Op record auto-commit was refused "
+        f"({escape(outcome.refusal or 'unknown refusal')}). The completed event is on disk "
+        f"at {record} but uncommitted. Commit the Op record yourself on the branch "
+        "where it belongs."
+    )
 
 
 def _render_complete_response(
@@ -157,19 +178,13 @@ def complete_invocation(
         typer.echo(json.dumps({"error": "complete_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
 
-    # #4397: a refused best-effort auto-commit (e.g. a protected-branch guard
-    # refusal) is visible and actionable here, not just a logger.warning —
-    # the completed event is already on disk; this says how to land it.
+    # #4397 / #6410: a best-effort auto-commit that was skipped (untracked or
+    # ignored kitty-ops/) or refused (e.g. a protected-branch guard) is visible
+    # here, not just a logger.warning; the completed event is already on disk.
     # Human output only: the --json payload's shape is contract-frozen.
     commit_outcome = executor.last_op_commit
     if not json_output and commit_outcome is not None and not commit_outcome.committed:
-        console.print(
-            f"[yellow]Warning:[/yellow] Op record auto-commit was refused "
-            f"({commit_outcome.refusal or 'unknown refusal'}). The completed "
-            "event is on disk but not committed — it will not survive a "
-            "checkout or reset. Commit the Op record yourself, or set "
-            "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS if you own this branch."
-        )
+        _print_uncommitted_note(commit_outcome, invocation_id)
 
     _render_complete_response(
         invocation_id=invocation_id,

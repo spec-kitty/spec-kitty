@@ -10,6 +10,10 @@ from pathlib import Path
 from specify_cli.invocation.errors import AlreadyClosedError
 from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_FILENAME, OP_CLOSURES_RELATIVE_PATH, closed_invocation_ids
 
+#: ``SweepOpEntry.commit`` prefix for a sweep close whose spine commit was
+#: deliberately skipped (#6410): the closure stays on disk, uncommitted.
+SWEEP_COMMIT_SKIPPED_PREFIX = "skipped:"
+
 _NON_OP_JSONL = {
     "ops-index.jsonl",
     "lifecycle.jsonl",
@@ -64,7 +68,7 @@ class SweepOpEntry:
     action_taken: str  # "none" | "closed_abandoned" | "already_closed"
     parse_warning: str | None = None
     error: str | None = None
-    commit: str | None = None  # "committed" | "not_committed:<refusal>" (sweep closes only)
+    commit: str | None = None  # "committed" | "not_committed:<refusal>" | "skipped:<reason>" (sweep closes only)
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
@@ -196,6 +200,8 @@ def close_stale_ops(
             outcome_note = executor.last_op_commit
             if outcome_note is not None and outcome_note.committed:
                 entry.commit = "committed"
+            elif outcome_note is not None and outcome_note.skipped:
+                entry.commit = f"{SWEEP_COMMIT_SKIPPED_PREFIX}{outcome_note.skipped}"
             elif outcome_note is not None:
                 entry.commit = f"not_committed:{outcome_note.refusal or 'unknown refusal'}"
         except AlreadyClosedError:

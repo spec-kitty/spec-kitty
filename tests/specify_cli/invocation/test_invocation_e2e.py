@@ -37,6 +37,7 @@ from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.record import OpStartedEvent
 from specify_cli.invocation.writer import EVENTS_DIR, read_op_closures
+from tests.specify_cli.invocation._op_git import track_op_record_on_current_branch
 
 
 # ---------------------------------------------------------------------------
@@ -1032,6 +1033,11 @@ def test_open_op_untracked_then_committed_with_message_format(tmp_path: Path, mo
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
     project = _setup_minimal_project(tmp_path)
     _init_git(project)
+    # #6410: the auto-commit only happens where the primary branch tracks Op
+    # records, so seed one on ``main`` and work from the topic branch.
+    _git(project, "checkout", "-b", "main")
+    track_op_record_on_current_branch(project)
+    _git(project, "checkout", "wp03-test-branch")
 
     with patch(
         "specify_cli.invocation.executor.build_charter_context",

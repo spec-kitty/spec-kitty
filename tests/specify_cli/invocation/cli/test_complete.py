@@ -533,3 +533,109 @@ def test_close_metadata_unchanged_by_epilog(tmp_path: Path) -> None:
         "outcome",
     ]
     assert "dispatch" not in json.dumps(events)
+
+
+# ---------------------------------------------------------------------------
+# #6410: where the Op record went is stated, without forbidden advice
+# ---------------------------------------------------------------------------
+
+
+def _git_project_on_issue_branch(tmp_path: Path, *, track_ops: bool) -> Path:
+    from tests.specify_cli.invocation._op_git import (
+        checkout_issue_branch,
+        run_git,
+        track_op_record_on_current_branch,
+    )
+
+    project = _setup_project(tmp_path)
+    run_git(project, "init", "-b", "main")
+    run_git(project, "config", "user.email", "t@example.com")
+    run_git(project, "config", "user.name", "T")
+    (project / "README.md").write_text("repo\n", encoding="utf-8")
+    run_git(project, "add", "README.md")
+    run_git(project, "commit", "-m", "init")
+    if track_ops:
+        track_op_record_on_current_branch(project)
+    checkout_issue_branch(project)
+    return project
+
+
+def test_cli_skipped_commit_prints_kept_on_disk_line(tmp_path: Path) -> None:
+    project = _git_project_on_issue_branch(tmp_path, track_ops=False)
+    inv_id = _open_invocation(project)
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done")
+
+    assert result.exit_code == 0, result.output
+    text = strip_ansi(result.output)
+    assert f"Op record kept on disk at {EVENTS_DIR}/{inv_id}.jsonl, not committed:" in text
+    assert "primary branch (main) tracks no Op records" in text
+    assert "Warning" not in text
+
+
+def test_cli_complete_adds_no_commit_to_the_issue_branch_when_primary_tracks_no_op_records(tmp_path: Path) -> None:
+    """The #6410 scenario, red-first on the base: the branch's commit list is unchanged.
+
+    The record stays on disk and discoverable through ``invocations list``.
+    """
+    from tests.specify_cli.invocation._op_git import run_git
+
+    project = _git_project_on_issue_branch(tmp_path, track_ops=False)
+    (project / "work.txt").write_text("work\n", encoding="utf-8")
+    run_git(project, "add", "work.txt")
+    run_git(project, "commit", "-m", "topic work")
+    inv_id = _open_invocation(project)
+    before = run_git(project, "rev-list", "HEAD")
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done")
+
+    assert result.exit_code == 0, result.output
+    assert run_git(project, "rev-list", "HEAD") == before
+    assert (project / EVENTS_DIR / f"{inv_id}.jsonl").exists()
+    with pytest.MonkeyPatch().context() as mp:
+        mp.setattr("specify_cli.cli.commands.invocations_cmd.find_repo_root", lambda: project)
+        listed = runner.invoke(cli_app, ["invocations", "list", "--json"])
+    assert listed.exit_code == 0, listed.output
+    assert inv_id in {row["invocation_id"] for row in json.loads(listed.output)}
+
+
+def test_cli_tracked_primary_commits_and_prints_no_note(tmp_path: Path) -> None:
+    from tests.specify_cli.invocation._op_git import run_git
+
+    project = _git_project_on_issue_branch(tmp_path, track_ops=True)
+    inv_id = _open_invocation(project)
+    before = len(run_git(project, "rev-list", "HEAD").splitlines())
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done")
+
+    assert result.exit_code == 0, result.output
+    assert len(run_git(project, "rev-list", "HEAD").splitlines()) == before + 1
+    assert run_git(project, "log", "-1", "--format=%s").startswith("op(")
+    text = strip_ansi(result.output)
+    assert "kept on disk" not in text
+    assert "Warning" not in text
+
+
+def test_cli_refusal_warning_has_no_hatch_advice_and_no_false_durability_claim(tmp_path: Path) -> None:
+    project = _setup_project(tmp_path)  # no git repo: "not a git worktree" refusal
+    inv_id = _open_invocation(project)
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done")
+
+    assert result.exit_code == 0, result.output
+    text = " ".join(strip_ansi(result.output).split())
+    assert "Op record auto-commit was refused" in text
+    assert "uncommitted" in text
+    assert "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS" not in text
+    assert "will not survive" not in text
+
+
+def test_cli_json_payload_is_unchanged_when_commit_is_skipped(tmp_path: Path) -> None:
+    project = _git_project_on_issue_branch(tmp_path, track_ops=False)
+    inv_id = _open_invocation(project)
+
+    result = _run_complete(project, "--invocation-id", inv_id, "--outcome", "done", "--json")
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert set(payload) == {"result", "invocation_id", "outcome", "evidence_ref", "artifact_links", "commit_link"}

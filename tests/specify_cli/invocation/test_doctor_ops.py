@@ -13,6 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from tests._perf_helpers import assert_timing_budget
+from tests.specify_cli.invocation._op_git import checkout_issue_branch, track_op_record_on_current_branch
 
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
@@ -232,7 +233,12 @@ def test_sweep_without_a_transport_closes_locally_without_propagation(tmp_path: 
 def test_sweep_fires_auto_commit_per_close(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # #6410: the spine commit only fires where the primary branch tracks Op
+    # records, so the fixture is a real repo with one tracked record on main.
+    _git(tmp_path, "init", "-b", "main")
     ops_dir = _ops_dir(tmp_path)
+    track_op_record_on_current_branch(tmp_path)
+    checkout_issue_branch(tmp_path)
     for suffix in ("004", "005"):
         _write_op(
             ops_dir / f"01KTBE0RQY9XKTV0PE49PJD{suffix}.jsonl",
@@ -444,7 +450,7 @@ def test_sweep_on_committed_records_leaves_archive_history_intact(
     never evidence: the stale record and an earlier spine closure are both in
     the git baseline before the sweep runs, exactly like real stale Ops.
     """
-    _git(tmp_path, "init", "-b", "issue-fixture-topic")
+    _git(tmp_path, "init", "-b", "main")
     _git(tmp_path, "config", "user.email", "fixture@example.com")
     _git(tmp_path, "config", "user.name", "Fixture")
     ops_dir = _ops_dir(tmp_path)
@@ -463,6 +469,8 @@ def test_sweep_on_committed_records_leaves_archive_history_intact(
     )
     _git(tmp_path, "add", "kitty-ops")
     _git(tmp_path, "commit", "-m", "fixture base: committed op records and spine")
+    # #6410: main now tracks Op records; sweep from an issue branch.
+    checkout_issue_branch(tmp_path, "issue-fixture-topic")
     base = _git(tmp_path, "rev-parse", "HEAD").strip()
     record_before = stale.read_bytes()
     spine_before = op_closures_path(tmp_path).read_bytes()

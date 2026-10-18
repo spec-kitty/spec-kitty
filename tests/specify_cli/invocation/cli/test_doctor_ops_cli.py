@@ -150,3 +150,62 @@ def test_report_mode_unchanged_without_flag(
     assert json.loads(result.output) == [{"path": f"{EVENTS_DIR}/{path.name}"}]
     # Report-only mode never closes anything.
     assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+# ---------------------------------------------------------------------------
+# #6410: a skipped spine commit is reported on its own line, not as a refusal
+# ---------------------------------------------------------------------------
+
+
+def _real_repo_without_tracked_ops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    from tests.specify_cli.invocation._op_git import checkout_issue_branch, run_git
+
+    run_git(tmp_path, "init", "-b", "main")
+    (tmp_path / "README.md").write_text("repo\n", encoding="utf-8")
+    run_git(tmp_path, "add", "README.md")
+    run_git(tmp_path, "commit", "-m", "init")
+    checkout_issue_branch(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    ops_dir = tmp_path / EVENTS_DIR
+    ops_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    return ops_dir
+
+
+def test_close_stale_skip_is_reported_on_its_own_line_and_json_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ops_dir = _real_repo_without_tracked_ops(tmp_path, monkeypatch)
+    _write_open_op(ops_dir, "01KTBE0RQY9XKTV0PE49PJDC06", _stale_ts())
+
+    human = runner.invoke(cli_app, ["doctor", "ops", "--close-stale"])
+
+    assert human.exit_code == 0, human.output
+    text = strip_ansi(human.output)
+    assert "kept on disk" in text
+    assert "not committed" in text
+    assert "the primary branch (main) tracks no Op records" in text
+    assert "NOT committed" not in text
+    assert "will not survive" not in text
+    assert (tmp_path / OP_CLOSURES_RELATIVE_PATH).exists()
+
+    _write_open_op(ops_dir, "01KTBE0RQY9XKTV0PE49PJDC07", _stale_ts())
+    machine = runner.invoke(cli_app, ["doctor", "ops", "--close-stale", "--json"])
+    payload = json.loads(machine.output)
+    commits = [entry["commit"] for entry in payload["open_ops"] if entry.get("commit")]
+    assert len(commits) == 1
+    assert commits[0].startswith("skipped:")
+
+
+def test_close_stale_refusal_text_drops_false_durability_claim(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ops_dir = _project(tmp_path, monkeypatch)  # fake .git dir: "not a git worktree" refusal
+    _write_open_op(ops_dir, "01KTBE0RQY9XKTV0PE49PJDC08", _stale_ts())
+
+    result = runner.invoke(cli_app, ["doctor", "ops", "--close-stale"])
+
+    text = strip_ansi(result.output)
+    assert "NOT committed" in text
+    assert "will not survive" not in text
+    assert "commit the spine yourself" in text

@@ -49,6 +49,7 @@ from ._doctor_shared import (
 
 if TYPE_CHECKING:
     from specify_cli.compat.doctor import ShimRegistryReport
+    from specify_cli.doctor.ops import SweepReport
 
     from ._charter_pack_health import CharterPackHealthReport
 
@@ -878,6 +879,37 @@ def invocation_pairing(
     raise typer.Exit(1)
 
 
+def _print_sweep_commit_summary(report: SweepReport) -> None:
+    """Say where the sweep's closures went, separating skips from refusals (#4397, #6410).
+
+    Closures land on the append-only spine. A skipped commit is deliberate
+    (the repository does not track, or ignores, Op records); a refused one
+    needs the operator. Neither claims the on-disk spine is at risk.
+    """
+    from specify_cli.doctor.ops import SWEEP_COMMIT_SKIPPED_PREFIX
+    from specify_cli.invocation.writer import OP_CLOSURES_RELATIVE_PATH
+
+    spine = OP_CLOSURES_RELATIVE_PATH.as_posix()
+
+    skipped = [e for e in report.open_ops if e.commit and e.commit.startswith(SWEEP_COMMIT_SKIPPED_PREFIX)]
+    refused = [e for e in report.open_ops if e.commit and e.commit != "committed" and e not in skipped]
+    if skipped:
+        reasons = sorted({e.commit.removeprefix(SWEEP_COMMIT_SKIPPED_PREFIX) for e in skipped if e.commit})
+        console.print(f"\nClosures kept on disk in the append-only spine [cyan]{spine}[/cyan], not committed: {escape('; '.join(reasons))}.")
+    if refused:
+        console.print(
+            f"\n[yellow]Closures recorded on the append-only spine [cyan]{spine}[/cyan] "
+            "but NOT committed[/yellow] (guard refusal, detached HEAD, or no git worktree). "
+            "They are uncommitted; commit the spine yourself if you want it in history."
+        )
+    if not skipped and not refused:
+        console.print(
+            f"\nClosures recorded on the append-only spine [cyan]{spine}[/cyan] "
+            "and committed to the current branch. They are visible only on "
+            "branches that carry that commit."
+        )
+
+
 def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
     """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
     from kernel.clock import now_utc
@@ -908,7 +940,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         for entry in report.open_ops:
             age_text = f"{entry.age_hours:.1f}" if entry.age_hours is not None else "?"
             action_text = entry.action_taken if entry.error is None else f"error: {entry.error}"
-            commit_text = entry.commit or "-"
+            commit_text = escape(entry.commit or "-")
             table.add_row(
                 entry.invocation_id,
                 entry.profile_id,
@@ -919,24 +951,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
             )
         console.print(table)
     if report.swept:
-        # #4397: closures land on the append-only spine; per-record files are
-        # byte-frozen archive history and are never touched. Say plainly where
-        # the closure lives and what a refused commit means for durability.
-        uncommitted = [entry for entry in report.open_ops if entry.commit and entry.commit != "committed"]
-        spine = "kitty-ops/op-closures.jsonl"
-        if uncommitted:
-            console.print(
-                f"\n[yellow]Closures recorded on the append-only spine [cyan]{spine}[/cyan] "
-                "but NOT committed[/yellow] (guard refusal or no git worktree). "
-                "An uncommitted closure will not survive a checkout or reset — "
-                "commit the spine yourself to make it durable."
-            )
-        else:
-            console.print(
-                f"\nClosures recorded on the append-only spine [cyan]{spine}[/cyan] "
-                "and committed to the current branch. They are visible only on "
-                "branches that carry that commit."
-            )
+        _print_sweep_commit_summary(report)
     if report.skipped_fresh:
         console.print("\nFresh open Ops remain — close them with spec-kitty profile-invocation complete, or re-run with --threshold 0.")
     console.print()
