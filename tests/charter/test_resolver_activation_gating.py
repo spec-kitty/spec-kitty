@@ -110,3 +110,31 @@ def test_explicit_activation_still_filters(tmp_path: Path, prop: str, activated_
 
     assert "alpha" in result
     assert "beta" not in result
+
+
+# ---------------------------------------------------------------------------
+# #6406 sibling defect: stem != declared id must still be delivered by every getter
+# ---------------------------------------------------------------------------
+
+from tests.charter.org_pack_identity_support import IDENTITY_ARTIFACTS, write_identity_org_pack  # noqa: E402
+
+_STEM_PROPS = [
+    pytest.param(plural, stem, declared, id=plural)
+    for plural, stem, declared in IDENTITY_ARTIFACTS
+]
+
+
+@pytest.mark.parametrize("spelling", ["stem", "declared"])
+@pytest.mark.parametrize("plural, stem, declared", _STEM_PROPS)
+def test_getter_delivers_stem_not_equal_id_artifact(tmp_path: Path, plural: str, stem: str, declared: str, spelling: str) -> None:
+    inner = MagicMock()
+    wanted, other = _mock_item(declared), _mock_item("unrelated-item")
+    getattr(inner, plural).list_all.return_value = [wanted, other]
+    token = stem if spelling == "stem" else declared
+    write_identity_org_pack(tmp_path)
+    pack_ctx = replace(PackContext.from_config(tmp_path), **{f"activated_{plural}": frozenset({token})})
+
+    result = getattr(ActiveCharterService(inner, pack_context=pack_ctx), plural)
+
+    assert declared in result
+    assert "unrelated-item" not in result  # non-vacuity: the filter still filters
