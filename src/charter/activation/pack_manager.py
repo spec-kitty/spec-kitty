@@ -72,6 +72,7 @@ from typing import TYPE_CHECKING, Any, cast
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.activation_engine import (
     NoActivationRestrictionsError,
     UnknownActivationIdError,
@@ -767,6 +768,7 @@ class ActiveCharterManager:
         result = ActivationResult(activated=list(plan.activated), warnings=preservation_warnings + list(plan.warnings))
 
         commit_plan(target_path, data, plan, save=save)
+        restamp_bundle_hash(repo_root)
         return result
 
     def deactivate(
@@ -836,6 +838,7 @@ class ActiveCharterManager:
         # result is identical on both paths (S3516 -> single return).
         if plan.deactivated:
             commit_plan(target_path, data, plan, save=save)
+            restamp_bundle_hash(repo_root)
         return result
 
     def list_activated(
