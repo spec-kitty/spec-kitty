@@ -14,7 +14,7 @@ net, which stays in place. See `RESEARCH.md` for the extraction trail.
 | Promise | Consumer guarantee | Offering authority | Binding |
 |---------|--------------------|--------------------|---------|
 | `PR-CHARTER-GOVERNANCE-001` | Sharing a pack does not silently add its commands to every tool; a skill is in force only when the charter requires/selects it, not merely because a pack offers it. | `ArtifactKind.effective_when_absent == "required"` for `skill` — `src/charter/offering/artifact_kinds.py`; ADR `2026-09-27-1`. | bound |
-| `PR-CHARTER-GOVERNANCE-002` | A team's org-wide requirement is honoured on top of the project's own choices (selection overlay). | `ArtifactKind.selection_overlayable` + org `required_<plural>` → `selected_<plural>` union — `src/charter/offering/artifact_kinds.py` / `src/charter/activation/org_charter.py`. | bound |
+| `PR-CHARTER-GOVERNANCE-002` | A team's org-wide requirement is honoured on top of the project's own choices (selection overlay). | `ArtifactKind.selection_overlayable` + org `required_<plural>` → `selected_<plural>` union — `src/charter/offering/artifact_kinds.py` / `src/charter/activation/org_charter.py`. | `@wip` (`@defect:6417`; red on its first nightly run, #6369) |
 | `PR-CHARTER-GOVERNANCE-003` | Governance an org pack provides and the charter puts in force is confirmed sound by the coherence check, the same as a built-in artifact — the org-pack overlay promise extended to the coherence check. | `ActiveCharterService` resolves org-tier artifacts via `pack_context.org_roots` / org DRG fragments; `ArtifactKind.selection_overlayable` + org `required_<plural>` overlay — `src/charter/offering/artifact_kinds.py` / `src/charter/activation/org_charter.py`; epic #6286. | bound |
 
 ## The system refuses unsound governance with a clear reason — `refuses-unsound-governance/`
@@ -32,7 +32,7 @@ net, which stays in place. See `RESEARCH.md` for the extraction trail.
 | `PR-CHARTER-SHARING-001` | A team pack carrying an unsound profile is not reported healthy, even when its graph counts look right. | `AgentProfileRepository.skipped_profiles` → `doctor charter-packs` (FR-010) — `src/charter/offering/agent_profiles/repository.py`. | bound |
 | `PR-CHARTER-SHARING-002` | A project's own governance choice wins over the team pack it adopts. | Layered repository + override machinery — ADR `2026-05-16-1`. | `@wip` (needs #6137 override + layer-provenance fixture) |
 | `PR-CHARTER-SHARING-003` | A shared skill under a reserved namespace is not accepted as sound. | Reserved prefixes `spk-` / `spec-kitty-` / `spec-kitty.` + namespace grammar — `src/charter/activation/org_charter.py`, `skill_preparation`; ADR `2026-09-27-1`. | bound |
-| `PR-CHARTER-SHARING-004` | A shared asset that reaches outside its own pack folder is not accepted as sound. | `AssetPathEscapeError` fail-closed (NFR-006) — `src/charter/offering/assets/repository.py`. | bound |
+| `PR-CHARTER-SHARING-004` | A shared asset that reaches outside its own pack folder is not accepted as sound. | `AssetPathEscapeError` fail-closed (NFR-006) — `src/charter/offering/assets/repository.py`. | `@wip` (`@defect:6418`; red on its first nightly run, #6369) |
 
 ## Binding status
 
@@ -40,8 +40,11 @@ Every scenario drives, in its Act, the command that actually performs the govern
 is honest: `doctor charter-packs` exits non-zero (not healthy) on an unsound shared pack, and
 `charter synthesize` fails closed on a broken charter — never `charter synthesize` on a fresh
 project, which takes the seed path and evaluates nothing. Nine scenarios are bound to a real
-outcome-verb step; one is `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
-over an org pack needs the black-box override + layer-provenance fixture tracked by #6137.
+outcome-verb step; three are `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
+over an org pack needs the black-box override + layer-provenance fixture tracked by #6137; and
+`GOVERNANCE-002` (#6417) and `SHARING-004` (#6418), which landed gating without ever running and
+were red on their first nightly (#6369). `REFUSAL-003` was red on that nightly too and stays gating
+by operator ruling: it is a confirmed product gap (#6415).
 `GOVERNANCE-003` is now bound to its positive outcome step (`the shared governance is reported
 sound`) — bound-and-red until the coherence check resolves org-pack-provided governance, then
 green (epic #6286).
