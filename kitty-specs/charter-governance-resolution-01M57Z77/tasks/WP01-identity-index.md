@@ -8,6 +8,9 @@ requirement_refs:
 - NFR-004
 - C-002
 - C-007
+planning_base_branch: issue-6404-charter-governance-resolution-work
+merge_target_branch: issue-6404-charter-governance-resolution-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -15,7 +18,6 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Foundation
-agent: claude
 history:
 - at: '2026-10-18T17:40:00Z'
   actor: claude-code/opus
@@ -39,7 +41,9 @@ owned_files:
 - tests/charter/test_default_in_force_snapshot.py
 - tests/charter/fixtures/default_in_force_snapshot.json
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – Identity index and default in-force snapshot

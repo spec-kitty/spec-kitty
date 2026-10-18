@@ -7,13 +7,15 @@ requirement_refs:
 - FR-013
 - FR-014
 - C-003
+planning_base_branch: issue-6404-charter-governance-resolution-work
+merge_target_branch: issue-6404-charter-governance-resolution-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
 subtasks:
 - T031
 - T032
 - T033
 - T034
 phase: Phase 3 - Delivery and activation
-agent: claude
 history:
 - at: '2026-10-18T17:40:00Z'
   actor: claude-code/opus
@@ -31,7 +33,9 @@ owned_files:
 - tests/specify_cli/cli/commands/test_charter_interview_promotion.py
 - tests/specify_cli/cli/commands/test_charter_interview_org_prefill.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP07 – Interview --narrow-activation, charter command contract text and CLI reference docs

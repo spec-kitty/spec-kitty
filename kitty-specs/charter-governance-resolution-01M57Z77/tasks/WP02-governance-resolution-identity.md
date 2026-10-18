@@ -10,6 +10,9 @@ requirement_refs:
 - FR-010
 - FR-011
 - NFR-004
+planning_base_branch: issue-6404-charter-governance-resolution-work
+merge_target_branch: issue-6404-charter-governance-resolution-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
 subtasks:
 - T006
 - T007
@@ -17,7 +20,6 @@ subtasks:
 - T009
 - T011
 phase: Phase 2 - Identity surfaces
-agent: claude
 history:
 - at: '2026-10-18T17:40:00Z'
   actor: claude-code/opus
@@ -36,7 +38,9 @@ owned_files:
 - tests/charter/test_directive_selection_id_form_3908.py
 - tests/charter/test_resolve_project_governance_single_authority.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Governance resolution: declared ids, layer-aware selections, every-kind service getters

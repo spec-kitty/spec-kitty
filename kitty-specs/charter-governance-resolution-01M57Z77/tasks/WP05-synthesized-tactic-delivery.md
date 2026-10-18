@@ -8,13 +8,15 @@ requirement_refs:
 - FR-002
 - FR-003
 - C-001
+planning_base_branch: issue-6404-charter-governance-resolution-work
+merge_target_branch: issue-6404-charter-governance-resolution-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
 subtasks:
 - T022
 - T023
 - T024
 - T025
 phase: Phase 3 - Delivery and activation
-agent: claude
 history:
 - at: '2026-10-18T17:40:00Z'
   actor: claude-code/opus
@@ -36,7 +38,9 @@ owned_files:
 - tests/charter/synthesizer/test_synthesize_activation_append.py
 - tests/charter/test_action_bundle_delivery.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – Synthesized tactic delivery through its directive and activation append

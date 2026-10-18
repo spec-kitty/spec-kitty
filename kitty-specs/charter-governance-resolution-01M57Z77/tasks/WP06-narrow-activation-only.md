@@ -7,6 +7,9 @@ requirement_refs:
 - FR-012
 - FR-014
 - C-001
+planning_base_branch: issue-6404-charter-governance-resolution-work
+merge_target_branch: issue-6404-charter-governance-resolution-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
 subtasks:
 - T026
 - T027
@@ -14,7 +17,6 @@ subtasks:
 - T029
 - T030
 phase: Phase 3 - Delivery and activation
-agent: claude
 history:
 - at: '2026-10-18T17:40:00Z'
   actor: claude-code/opus
@@ -39,7 +41,9 @@ owned_files:
 - tests/specify_cli/cli/commands/charter/test_activate_preset.py
 - tests/specify_cli/test_charter_activate_vendored_click.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP06 – Opt-in narrow activation: charter activate --only and frozen-list warnings
