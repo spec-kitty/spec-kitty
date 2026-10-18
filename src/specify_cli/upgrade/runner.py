@@ -784,14 +784,15 @@ class MigrationRunner:
         on-disk authority (C-001). It survives solely so the adoption backfill
         and any in-process legacy reader still see the applied list during a run.
 
-        Returns ``True`` when a NEW metadata record was written. An idempotent
+        Returns ``True`` when a NEW ledger record was appended. An idempotent
         no-op (the record already existed) returns ``False`` and skips the
         metadata save, so callers can avoid bumping ``last_upgraded_at`` on a
-        re-run that recorded nothing new (issue #1872 / #1838). The ledger write
-        is independently idempotent.
+        re-run that recorded nothing new (issue #1872 / #1838 / #4972). The
+        ledger -- not the in-memory metadata list, which a reload leaves empty --
+        is the "new record" signal.
         """
-        self._record_ledger_result(root, migration, result)
-        recorded = metadata.record_migration(migration.migration_id, result, notes)
+        recorded = self._record_ledger_result(root, migration, result)
+        metadata.record_migration(migration.migration_id, result, notes)
         if recorded:
             metadata.save(root / KITTIFY_DIR)
         return recorded
