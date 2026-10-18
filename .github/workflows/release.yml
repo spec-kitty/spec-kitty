@@ -182,6 +182,9 @@ jobs:
           fi
         shell: bash
 
+      - name: Verify built-in pack pin (fail-closed on drift)
+        run: uv run --frozen spec-kitty charter pack vendor --check
+
       - name: Build distributions
         run: python -m build
 

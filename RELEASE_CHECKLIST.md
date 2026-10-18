@@ -56,6 +56,10 @@ Use this checklist for releases from `main`.
   ruff check .
   ruff format --check .
   ```
+- [ ] Verify the vendored `packs/built-in/` tree still matches its pin (run BEFORE building; fails on drift):
+  ```bash
+  spec-kitty charter pack vendor --check
+  ```
 - [ ] Build the package and verify metadata:
   ```bash
   python -m build
