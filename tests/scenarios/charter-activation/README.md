@@ -1,53 +1,63 @@
-# Charter-activation scenarios — DRAFT (promise tie-in pending QA ratification)
+# Charter-activation scenarios — proposed contracts, not ratified
 
-These feature files describe the consumer-facing behaviour of the charter **activation**
-offering: the lifecycle verbs — adopting (activate), retiring (deactivate), and bringing along
-what a choice depends on (cascade) — that the charter **offering** suite under
-[`../charter/`](../charter/) deliberately left out ("the activation layer extracts later", see
-that suite's `RESEARCH.md`).
+Audience: QA/core reviewers of [spec-kitty-qa#801](https://github.com/spec-kitty/spec-kitty-qa/issues/801).
+Updated: 2026-10-18.
 
-They exist to close an asymmetry: the charter is slated to extract as an external package with
-**two** sibling entry-point seams — `charter.offering.api` and `charter.activation.api` (ADR
-`2026-10-12-2`, epic #6099). The offering seam already has a consumer-outcome contract net
-(`../charter/`, `Refs #6286`); the activation seam did not. This subtree is that net for
-activation.
+These 5 feature files / 22 scenarios describe activation lifecycle outcomes ahead of the charter
+extraction. Their source remains here in core, alongside the existing offering suite under
+[`../charter/`](../charter/); QA owns the proposed promise tie-in and review. The extraction has
+two sibling seams, `charter.offering.api` and `charter.activation.api` (ADR 2026-10-12-2, #6099).
 
-## What is deliberately NOT here
+## Review surfaces
 
-This is a **description of features and scenarios only**. It intentionally omits:
+- [PROMISES.md](PROMISES.md): **17 candidate activation IDs**, authority references, five held
+  cases without new activation IDs, and the human decisions still required. **Not ratified.**
+- [BINDINGS.md](BINDINGS.md): one row per scenario, current exact-one-step-match counts, concrete
+  positive/negative controls, proposed binding priority and real blockers. **No execution claimed.**
+- [RESEARCH.md](RESEARCH.md): grounding, corrected ambiguities, historical authority limits,
+  ownership exclusions and identity changes.
 
-- the `@promise:PR-...` identity tags, and
-- a `PROMISES.md` promise→contract ledger mapping each scenario to its offering FR/ADR.
+There are still **no `@promise:` tags**: proposing an ID does not authorize its ratification.
+All scenarios retain `@wip`, owner and since metadata. All four common Background steps match,
+but no scenario-specific outcome vocabulary is bound yet. A green per-PR syntax/tag/binding-shape
+check therefore does not prove these activation scenarios execute or pass. The proposal's focused
+consistency test checks its row coverage/count claims; it is not a substitute for acceptance runs.
 
-Creating and ratifying those is the **QA team's** to own, tracked in **spec-kitty-qa#801**.
-Until QA binds the step vocabulary and decides each scenario's gating status, every scenario
-carries `@wip` (with `@wip-owner` / `@wip-since`), so the per-PR scenario-contract gate treats
-its not-yet-bound steps as information, not failure
-(`tests/architectural/test_scenario_contract.py`).
+## Consumer outcome families
 
-Each scenario's **Act** already drives the governed outcome rather than a command's output, so a
-later step binding stays honest and the scenario survives whichever command delivers it.
+| Folder | Scope and review posture |
+| --- | --- |
+| `turning-governance-on-and-off/` | Effective adoption/retirement; preserving an unrestricted set when one existing rule is explicitly adopted; unknown-ID refusal without changing saved/effective governance. |
+| `turning-off-keeps-the-rest-sound/` | Cascade-specific shared-reference safety and refusal to retire from an unrestricted kind. Not a universal ban on directly retiring referenced governance. |
+| `brings-what-it-depends-on/` | All-reference/scoped/no-cascade adoption and visible template/asset exclusion. Warning is not dependency enforcement. Exact reference-relation authority needs ratifier review. |
+| `provisioning-governance-packs/` | Three proposed activation outcomes for pack mission types/profiles and explicit restrictions; four acquisition/composition drafts held for ownership/authority review. No installer specification is silently created. |
+| `the-default-governance-profile/` | Ordinary unrestricted defaults, actual selected-skill adoption, ordinary pack extension and the scoped minimal preset; maintainer-only opt-in held for policy review. |
 
-## Features
+## Before binding or promoting
 
-| Folder | Consumer outcome |
-|--------|------------------|
-| `turning-governance-on-and-off/` | Adopting or retiring a rule changes what is actually in force; adopting one more never drops the rest; naming something that does not exist changes nothing. |
-| `turning-off-keeps-the-rest-sound/` | Retiring a choice keeps anything still relied on (and names why), and refuses — with the way forward — on a kind never put under explicit control. |
-| `brings-what-it-depends-on/` | Adopting a choice can bring what it depends on in one step, can be scoped, warns about what a bare adoption left out, and never offers to turn on something that cannot stand alone. |
-| `provisioning-governance-packs/` | The backend is supplied with packs that resolve through public seams (a filesystem location or a published reference); an unresolvable pack is refused, never treated as empty; and a configured pack's parts are brought into force deliberately, changing what the runtime offers (a new mission type to run, a new profile that applies). |
-| `the-default-governance-profile/` | Before a project turns anything on, it is governed by all the governance available to it — except shareable commands, which apply only when the charter requires or selects them, so provisioning a pack never silently adds commands to every tool; maintainer-only governance is in force only on explicit opt-in. |
+The default Background does not establish that an offered artifact is inactive. Per-scenario
+starting sets must be witnessed: absent ordinary-kind keys are unrestricted, an explicit empty
+selection is not absence, skills have a required-only default, and mission types use a separate
+ledger. Restrictions and unrestricted provisioning are two different cases, not contradictory
+universal promises. The minimal preset restricts only the keys it governs.
 
-## For QA, when ratifying
+Adoption/retirement must drive the real public lifecycle and observe the governed effect. A list
+of config IDs, a fresh-project synthesize seed, a fabricated result or a stub assertion cannot
+stand in for that effect. The per-scenario table spells out the stronger profile/mission/tool
+witnesses and no-op controls.
 
-- The grounding evidence each feature's maintainer notes cite (FR/ADR, `src/charter/activation/*`)
-  is the raw material for the promise→contract ledger — read it, do not transcribe it into the
-  scenario text.
-- Candidate activation promises **deliberately deferred** from this first draft (for QA to weigh):
-  a workflow step loads exactly the governance in force for it (`charter context --action`, the
-  effective-set resolver). It risks reading as a command-affordance echo, so it is held back
-  rather than authored speculatively.
-- **Overlap caveat:** some activation authorities are already asserted *through* the offering
-  suite — selection overlay (`org_charter.py`), fail-closed activation (`plan_activation`),
-  skill-namespace grammar (`org_charter.py`). The activation ledger should cover the lifecycle
-  **verbs** the offering suite excluded, not re-assert those.
+QA/core still need to implement the agreed bindings and capture real results after human contract
+review. Bind all agreed cases; a genuine product-red must be tied to a real defect and execution
+evidence, not an undefined step. No WIP is removed by this proposal.
+
+## Boundaries
+
+No manual QA page or legacy executor is moved/retired. No existing offering guarantee is reminted:
+selection overlay, broken-charter refusal and namespace grammar stay offering-owned; offered-but-
+unrequired skill absence stays `PR-CHARTER-GOVERNANCE-001`. The skill scenario here now witnesses
+an adoption transition instead of repeating that absence assertion.
+
+Action-scoped context remains deliberately deferred. Broader plan/commit atomicity is not added
+as a duplicate of the offering broken-charter contract. The candidate `PR-*` identifiers are core
+contract-ledger proposals, not QA `PP-*` Product Promise pages or a silent namespace migration.
+The operator-authorized human ratifier is still to be named; the operator merges.

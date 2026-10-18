@@ -1,4 +1,5 @@
 """Keep QA #801's unratified proposal complete and its binding claims mechanically honest."""
+
 from __future__ import annotations
 
 import re
@@ -26,8 +27,7 @@ def _scenarios():
 
 
 def _rows(text: str):
-    return [[cell.strip().strip("`") for cell in line.strip("|").split("|")]
-            for line in text.splitlines() if re.match(r"^\| A\d{2} \|", line)]
+    return [[cell.strip().strip("`") for cell in line.strip("|").split("|")] for line in text.splitlines() if re.match(r"^\| A\d{2} \|", line)]
 
 
 def _binding_problems(text: str) -> list[str]:
@@ -37,8 +37,9 @@ def _binding_problems(text: str) -> list[str]:
     rows = _rows(text)
     found = [row[1] for row in rows]
     errors = []
-    if len(rows) != 22 or len(set(found)) != len(found) or set(found) != set(scenarios):
-        errors.append("rows must identify each of the 22 scenarios exactly once")
+    case_ids = {row[0] for row in rows}
+    if len(rows) != 22 or case_ids != {f"A{i:02}" for i in range(1, 23)} or len(set(found)) != len(found) or set(found) != set(scenarios):
+        errors.append("rows must identify each of the 22 cases and scenarios exactly once")
     for row in rows:
         if row[1] not in scenarios:
             continue
@@ -80,6 +81,8 @@ def test_critical_starting_states_and_non_noop_controls_are_explicit() -> None:
     assert "explicitly adopts one of those rules" in texts["turning-governance-on-and-off"]
     assert "the retired choice is no longer in force" in texts["turning-off-keeps-the-rest-sound"]
     assert "the referenced governance left outside that scope stays out of force" in texts["brings-what-it-depends-on"]
+    assert "the unrelated governance of the selected kind stays out of force" in texts["brings-what-it-depends-on"]
+    assert "the unselected sibling still has no project-local entry in that tool" in texts["the-default-governance-profile"]
     assert "the project has explicitly limited the governance it uses" in texts["provisioning-governance-packs"]
     assert "the baseline's chosen directives and tactics are in force" in texts["the-default-governance-profile"]
     assert "Then only that curated baseline of governance is in force" not in texts["the-default-governance-profile"]
@@ -93,7 +96,7 @@ def test_proposal_local_links_resolve() -> None:
                 assert (path.parent / link.split("#", 1)[0]).exists(), (name, link)
 
 
-@pytest.mark.parametrize("mutation", ["missing", "duplicate", "stale-count"])
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "case-id", "stale-count"])
 def test_disposition_guard_rejects_missing_duplicate_and_stale_claims(mutation: str) -> None:
     text = (SUITE / "BINDINGS.md").read_text()
     row = next(line for line in text.splitlines() if line.startswith("| A01 |"))
@@ -101,6 +104,8 @@ def test_disposition_guard_rejects_missing_duplicate_and_stale_claims(mutation: 
         text = text.replace(row, "")
     elif mutation == "duplicate":
         text += "\n" + row + "\n"
+    elif mutation == "case-id":
+        text = text.replace("| A01 |", "| A02 |", 1)
     else:
         cells = row.split("|")
         cells[4] = " 999/999 "
