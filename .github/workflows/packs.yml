@@ -130,6 +130,8 @@ jobs:
           filters: |
             built_in:
               - 'packs/built-in/**'
+              # The pin lockfile: a lockfile-only edit must re-run the vendor drift gate (#3504).
+              - 'packs/built-in.source.yaml'
               - 'tests/charter_offering/**'
               - 'tests/architectural/test_pack_manifest_no_author_edit.py'
               - 'tests/specify_cli/regression/_twelve_agent_baseline/**'
@@ -227,6 +229,26 @@ jobs:
         if: failure()
         run: |
           echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty charter pack regenerate-graph (then commit the diff)."
+
+  built-in-vendor-check:
+    name: built-in / vendor --check (pin drift gate)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.built_in == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      # Offline (NFR-004): compares the committed tree to packs/built-in.source.yaml; no network, no token.
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen spec-kitty charter pack vendor --check
+      - name: Surface remediation command on drift
+        if: failure()
+        run: |
+          echo "::error::packs/built-in drifted from the pin. Do not hand-edit it. Bump the pin upstream in spec-kitty-open-packs, then run: spec-kitty charter pack vendor (then commit)."
 
   built-in-pack-manifest:
     name: built-in / pack-manifest freshness + authored-only guard
@@ -360,6 +382,7 @@ jobs:
       - changes
       - built-in-regen-check
       - built-in-drg-check
+      - built-in-vendor-check
       - built-in-pack-manifest
       - built-in-plugin-validate
       - internal-org-validate
