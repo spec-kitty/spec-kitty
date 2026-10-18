@@ -1,6 +1,6 @@
 # Mission status API
 
-A read-only, loopback-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews and a stream of changes. It serves `GET /api/v1/project`, `GET /api/v1/missions`, `GET /api/v1/events` (a server-sent change stream) and `GET /api/v1/openapi.yaml`, behind a Host and Origin guard that answers only to `127.0.0.1` and `localhost` on its own port. Every other path of the contract answers 404 by design (`OutOfScopeRoutesTest`). It reads a Mission's event log and the few files needed to find it, never writes to the project, takes no lock, starts no process and reads no git state beyond the one `HEAD` file. It is a detached service: no spec-kitty command starts it, and it is not part of the PyPI package. CI replays a golden request set against the native binary of four targets and compares the response digests, holds the performance budgets of NFR-001, NFR-002 and NFR-004, and can compare the service with the Python reference over the whole repository corpus in a nightly scheduled run (04:37 UTC) or a manually dispatched one (see Tests and Recorded divergences).
+A read-only, loopback-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews, a stream of changes and the planning artifacts of one Mission. It serves `GET /api/v1/project`, `GET /api/v1/missions`, `GET /api/v1/events` (a server-sent change stream), the two artifact reads of one Mission (`GET /api/v1/missions/{missionId}/artifacts` and `.../artifacts/content`) and `GET /api/v1/openapi.yaml`, behind a Host and Origin guard that answers only to `127.0.0.1` and `localhost` on its own port. Every other path of the contract answers 404 by design (`OutOfScopeRoutesTest`). For status it reads a Mission's event log and the few files needed to find it; for the artifact reads, the files of that Mission's own primary directory. It never writes to the project, takes no lock, starts no process and reads no git state beyond the one `HEAD` file. It is a detached service: no spec-kitty command starts it, and it is not part of the PyPI package. CI replays a golden request set against the native binary of four targets and compares the response digests, holds the performance budgets of NFR-001, NFR-002 and NFR-004, and can compare the service with the Python reference over the whole repository corpus in a nightly scheduled run (04:37 UTC) or a manually dispatched one (see Tests and Recorded divergences).
 
 ## How to run
 
@@ -32,9 +32,20 @@ The service answers exactly these routes and no others:
 - `GET /api/v1/project`: the project header.
 - `GET /api/v1/missions`: a page of Mission overviews.
 - `GET /api/v1/events`: the change stream (`text/event-stream`).
+- `GET /api/v1/missions/{missionId}/artifacts` (`listArtifacts`): the eligible files of one Mission's primary directory, in code-point order of the path, at most 1000, with `truncated`.
+- `GET /api/v1/missions/{missionId}/artifacts/content?path=` (`getArtifactContent`): the decoded and redacted text of one artifact, or one of the contract's seven refusals (400, 404, 413, 415, 422, 500).
 - `GET /api/v1/openapi.yaml`: the contract document, bundled at build time from `contracts/mission-status` and served as it stands.
 
-Any other path is `404` once the Host and Origin check has passed. There is no generated or interactive API documentation. Detail routes (a single Mission or Work Package, artifacts, drift, Ops) are issue #957 and out of scope here.
+Any other path is `404` once the Host and Origin check has passed. There is no generated or interactive API documentation. The other detail routes (a single Mission, a Work Package, its detail) are the rest of issue #957, and drift and Ops are out of scope here; `OutOfScopeRoutesTest` keeps all five at 404.
+
+The artifact routes follow the order of decision of the Python reference reader (`tests/contract/_mission_status_artifacts.py`). The `path` parameter is judged as the list of its values, so a missing or repeated one is `400 invalid_artifact_path`, as is a malformed percent-encoding. An unknown or ill-formed `missionId` is `404 not_found`. A Mission directory that is gone, a link or outside the root is `404`, and one that cannot be stat-ed is `500`. Per file, the steps run in this order:
+
+1. Eligibility (an lstat of every component; no link, a regular file, not a root status record): not eligible is `404`, and a fault is `500`.
+2. A NOFOLLOW open, with the size taken from the open handle: a failure to open is `500`, and more than 262,144 bytes is `413` with nothing read.
+3. The bytes: a NUL byte or invalid UTF-8 is `415`, and a credential is `422`.
+4. Otherwise `200`, with host paths and e-mail addresses replaced by `[path]` and `[email]`.
+
+A refusal body is the shared Problem with `type: about:blank`, the code, its status and a fixed title and detail; it never names the path, a directory or content.
 
 ## Paging
 
@@ -84,7 +95,7 @@ Cases decided beyond the table:
 
 ## Read allowlist
 
-The service opens exactly these paths, read-only, and lists exactly these directories. Nothing else is opened: never `tasks/*.md`, `spec.md`, `plan.md`, artifacts, WP frontmatter, `status.json`, the content of the coordination copy of `meta.json`, or the personal `config.toml`. `<read-dir>` is the Mission's own primary directory or, when its stored topology routes through coordination and the coordination Mission directory exists, that directory if it holds a `meta.json` or the Mission's own `meta.json` names a non-blank string coordination branch. `<primary-dir>` is always the Mission's own directory under `kitty-specs/`. One path pattern per line; a test compares this list with the `Allowlist` constant in the code, entry for entry and in order.
+The Mission status reads (the project header, the overview page and the stream) open exactly these paths, read-only, and list exactly these directories. The artifact routes have their own, separate list (see Artifact read allowlist); the event source never opens an artifact. Nothing else is opened by the status reads: never `tasks/*.md`, `spec.md`, `plan.md`, artifacts, WP frontmatter, `status.json`, the content of the coordination copy of `meta.json`, or the personal `config.toml`. `<read-dir>` is the Mission's own primary directory or, when its stored topology routes through coordination and the coordination Mission directory exists, that directory if it holds a `meta.json` or the Mission's own `meta.json` names a non-blank string coordination branch. `<primary-dir>` is always the Mission's own directory under `kitty-specs/`. One path pattern per line; a test compares this list with the `Allowlist` constant in the code, entry for entry and in order.
 
 ```
 <read-dir>/status.events.jsonl
@@ -125,11 +136,27 @@ Each of these is accepted for a local, read-only service and is recorded here so
 - **`pageSize` is clamped, not refused (operator ruling).** A value outside 1 to 200 is served as the nearest bound, a value that is not an integer is treated as absent (the default of 50 applies), and `pageInfo.pageSize` reports the size actually used.
 - **Run under a UTF-8 locale.** The JVM decodes file names with `sun.jnu.encoding`, taken from the locale. Under a non-UTF-8 locale (for example `LANG=C` or `POSIX`), a Mission directory whose name holds non-ASCII characters cannot be opened by name and is read as vanished.
 
+## Artifact read allowlist
+
+The two artifact routes (`listArtifacts`, `getArtifactContent`) read through their own source, `FilesystemMissionArtifactSource`, and touch exactly these paths. They find a Mission by reading each `kitty-specs/<mission>/meta.json` for its `mission_id`. They then read only below that Mission's own primary directory, never a coordination copy. Every component of a path is checked with an lstat before anything is opened, the walk never enters or lists a symbolic link, and a file is opened without following a final link, its size taken from the open handle and at most 262,145 bytes read. The two root status records are stat-ed by the walk and never read or served. One path pattern per line; a test compares this list with the `ArtifactAllowlist` constant in the code, entry for entry and in order.
+
+```
+kitty-specs/ (names only)
+kitty-specs/<mission>/meta.json
+kitty-specs/<mission>/ (stat, real path, names)
+kitty-specs/<mission>/status.events.jsonl and status.json (stat only)
+kitty-specs/<mission>/<path> (stat, names, read)
+```
+
+The residuals of the threat note apply here too. The check and the open are two steps, so an intermediate directory swapped for a link, or a file swapped for a FIFO, after the check is not caught. A hard link to a file outside the Mission is a regular file and is served when it holds no credential. The rules are lexical, as the reference's are: on Windows a trailing dot or an 8.3 short name (`status.json.`, `STATUS~1.JSO`) can reach a root status record, and on a case-insensitive file system `SPEC.md` reaches `spec.md` and is classed `other`. A listing walks, stats and checks the whole Mission tree before it keeps the first 1000 entries, and reads each kept file up to the cap to decide `readable`; a Mission directory that holds a very large tree (a `node_modules`, say) makes every listing of it slow.
+
 ## Recorded divergences from the Python reference
 
 The service is checked against the Python reducer on a curated golden set and, in the `nightly-corpus` job (a nightly scheduled run, 04:37 UTC, or a manual dispatch), on the whole repository corpus. These differences are known, kept on purpose and recorded in the Mission's decision record, `kitty-specs/mission-status-read-api-overview-01M4EMSA/traces/design-decisions.md` (the DD ids are its entries):
 
 - DD-79: an offset-less timestamp is read as UTC (Python uses the machine's zone); timestamps are stricter than `fromisoformat` (date-only, basic format and more than nine fractional digits are refused); the implementer-of-record projection is not gated on schema version 2.
+- Artifact reads (mission `mission-status-artifact-reads-01M57KY3`): a Mission's `meta.json` is read for its `mission_id` through the same 1 MiB cap as the overview reads, without following a final link, where the reference reads it whole and follows a link; a `meta.json` over the cap or behind a link is skipped. The Mission directory must also resolve inside the real project root, which the reference does not check. Real Missions trigger neither. A `kitty-specs/` that is itself a symbolic link out of the root is answered 404 here, where the reference serves it. A `meta.json` that starts with a byte order mark, or is UTF-16 or UTF-32, is skipped here (strict UTF-8, as every other read of the service), where the reference's `json.loads` of the bytes accepts it.
+- Artifact reads: a credential scan or redaction that cannot finish is refused `500 artifact_unreadable` (and the listing marks the file `readable: false`), where the reference answers 200. `java.util.regex` recurses once per repetition of a variable-width group, so a few kilobytes of a repeated PEM-header word or address label overflow the stack; the text is then neither known to be free of a credential nor redacted, so it is not served. No real artifact comes near this.
 - DD-81: annotation-only Work Packages enter the snapshot in file order, where the oracle sorts them by `(at, event_id)`; no overview field depends on the order.
 - DD-85: optional members of the wrong type read as absent. Physical lines end at `\n` bytes only, so a lone `\r`, U+2028 or U+0085 does not split a line; a non-text `event_id`, `at` or `wp_id` is refused.
 - DD-89, DD-90: a truthy non-text or over-long slug, and a lone CR, U+0085 or U+2028 inside a row, differ from Python's failures. Each occurs zero times in the 959 ledgers checked.
@@ -180,6 +207,7 @@ From this directory, with placeholders for what is yours:
 - `./gradlew nativeSmoke -PnativeBinary=<path of the built binary>` starts the binary and replays `src/test/resources/nativesmoke/requests.json` byte for byte against its goldens, in two stages: `base` (the golden set, every refusal code and an append-while-open stream round trip) and `hostOrigin` (the Host and Origin refusals and their accepted controls). It writes a digest of the response bodies; the four CI legs must write the same digest.
   The replay also counts the service's child processes before and after the requests and requires the count not to move; a child the binary already had when it became ready (on Windows, the console host) is not a process the replay started.
 - Performance budgets live in `src/test/java/org/speckitty/missionstatus/perf/PerfBudgets.java` (ADR 2026-10-05-2): the primary assertion is a ratio to a same-run floor; the absolute ceiling only stops a test from waiting unbounded and is amended by measurement, never by a retry. The NFR-001 warm p95 ceiling is 400 ms, amended from the initial 200 ms after two hosted 4-cpu runner measurements of 212 ms and 235 ms (load about 3.9, same-run ratio 27.75 against its limit of 40, so no regression).
+- `ArtifactConformanceTest` serves every case of `src/test/resources/artifact-conformance/cases.json` (project trees described as data) and requires the status and body of `golden.json`, which the Python reference writes: `.venv/bin/python -m tests.contract._mission_status_artifact_goldens --write` (or `--check`; `tests/contract/test_mission_status_artifact_goldens.py` runs the check). Run the Gradle tests under a UTF-8 locale (`LC_ALL=C.UTF-8`); under a POSIX locale the JVM cannot represent non-ASCII file names.
 - `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py tests/ci/test_mission_status_gate_checks.py tests/ci/test_mission_status_routing.py tests/ci/test_mission_status_corpus_compare.py -q` from the repository root runs the Python pins on the build and the workflow.
 
 ## Terms

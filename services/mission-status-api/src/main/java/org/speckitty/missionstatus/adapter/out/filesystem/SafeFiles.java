@@ -10,6 +10,7 @@ import java.nio.file.NotDirectoryException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Optional;
+import org.speckitty.missionstatus.application.query.port.out.dto.ArtifactBytes;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault.Kind;
 
@@ -117,6 +118,35 @@ public final class SafeFiles {
       return Optional.of(out.toByteArray());
     } catch (IOException failure) {
       throw new SourceFault(unreadable);
+    }
+  }
+
+  /**
+   * The bounded read of an artifact (the reference reader's {@code read_file} after its eligibility check): opens {@code file} without
+   * following a final link, takes the size from the OPEN handle, and reads at most {@code cap} + 1 bytes only when that size is at most
+   * {@code cap}. A failure to open or read, a file that is gone, and a directory swapped in are all {@code Unreadable}; nothing is
+   * thrown. The caller has already seen, by an lstat of every component, that {@code file} is a regular file, so a FIFO or a device is
+   * never opened unless it was swapped in after that check (the residual of the README's threat note).
+   */
+  public ArtifactBytes readCapped(Path file, int cap) {
+    try (SeekableByteChannel open = access.openRead(file)) {
+      long size = open.size();
+      if (size > cap) {
+        return new ArtifactBytes.TooLarge(size);
+      }
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      ByteBuffer buffer = ByteBuffer.allocate(Math.min(CHUNK, cap + 1));
+      while (out.size() <= cap) {
+        buffer.clear();
+        buffer.limit(Math.min(buffer.capacity(), cap + 1 - out.size()));
+        if (open.read(buffer) < 0) {
+          break;
+        }
+        out.write(buffer.array(), 0, buffer.position());
+      }
+      return new ArtifactBytes.Content(size, out.toByteArray());
+    } catch (IOException | SecurityException failure) {
+      return new ArtifactBytes.Unreadable();
     }
   }
 
