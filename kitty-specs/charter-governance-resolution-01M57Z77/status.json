@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01M58D1FPXYH0S4YZX0AGYFC40",
-  "materialized_at": "2026-10-18T21:00:20.061523+00:00",
+  "event_count": 41,
+  "last_event_id": "01M58D3CDKEV4GQ81AGMFD8P2H",
+  "materialized_at": "2026-10-18T21:01:22.043331+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 1,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -65,7 +65,8 @@
       "last_transition_at": "2026-10-18T21:00:20.061523+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "IdentityIndex wired into resolve_project_governance + ActiveCharterService (all kinds); unknown selections dropped with UNKNOWN_SELECTION_DIAGNOSTIC. Gates: ruff check/format --force-exclude exit 0, mypy --strict resolver.py clean, C901 clean. Sweep tests/charter charter_offering runtime next: 10003 passed; only reds #6424/#6428-class + packaging_parity timeout. Out-of-map: test_resolver_directive_activation_keying.py (scan counter)."
+        "IdentityIndex wired into resolve_project_governance + ActiveCharterService (all kinds); unknown selections dropped with UNKNOWN_SELECTION_DIAGNOSTIC. Gates: ruff check/format --force-exclude exit 0, mypy --strict resolver.py clean, C901 clean. Sweep tests/charter charter_offering runtime next: 10003 passed; only reds #6424/#6428-class + packaging_parity timeout. Out-of-map: test_resolver_directive_activation_keying.py (scan counter).",
+        "Review passed (reviewer-renata): red-first verified (18 tests red on pre-fix src); declared-id directive base, stem/declared selections, [QA_003, NOPE_999] drops with exact UNKNOWN_SELECTION_DIAGNOSTIC, org/unknown paradigms, all getters via _gated; #4240 warning test green; NFR-004 snapshot unchanged; one PackContext+IdentityIndex per resolve; ruff/format/mypy --strict/C901 clean; tests/charter+charter_offering 8025 passed. Non-blocking: getter ratchet omits agent_profiles/skills (probed manually: work); duck-typed repo_root fallback in _identity_index exists only for test stand-ins."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -195,11 +196,15 @@
       }
     },
     "WP09": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M581HSSN4F0FNSGB99JGE4J5",
-      "last_transition_at": "2026-10-18T17:39:31.765389+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M58D3CDKEV4GQ81AGMFD8P2H",
+      "last_transition_at": "2026-10-18T21:01:22.043331+00:00",
+      "shell_pid": 6920,
+      "shell_pid_created_at": "1792357241.68"
     },
     "WP10": {
       "actor": "finalize-tasks",
