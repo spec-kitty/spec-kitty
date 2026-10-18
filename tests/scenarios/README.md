@@ -13,15 +13,19 @@ One folder per CLI area, one or more `.feature` files per folder:
 
 | Folder | Covers |
 |--------|--------|
+| `cli/` | Root CLI admission: the S7 draft for rejecting an unknown command cleanly (`@qa:SC-A-004`) |
 | `consolidate/` | `spec-kitty consolidate`: refusing under sparse-checkout, and `--abort` without touching the user's own git merge |
 | `charter/` | `spec-kitty charter`: synthesizing a fresh project and the freshness of each layer, plus the charter-offering consumer-outcome subtree (`governance-in-force/`, `refuses-unsound-governance/`, `share-governance-safely/`) — what governance a user chose, that unsound governance is refused, and that sharing is safe; mapped to offering FR/ADR in `charter/PROMISES.md` |
 | `charter-activation/` | The charter-**activation** offering's lifecycle verbs the offering suite excluded — adopting/retiring a rule takes effect (`turning-governance-on-and-off/`), turning one thing off keeps the rest sound (`turning-off-keeps-the-rest-sound/`), and adopting a choice brings what it depends on (`brings-what-it-depends-on/`). DRAFT: `@wip`, with the `@promise:` tie-in and ledger pending QA ratification (spec-kitty-qa#801) — see `charter-activation/README.md` |
 | `doctor/` | `spec-kitty doctor sparse-checkout`: finding and reporting legacy sparse-checkout state |
 | `implement/` | `spec-kitty agent action implement`: refusing to start work under sparse-checkout |
-| `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository |
+| `init/` | `spec-kitty init`: setting up Spec Kitty in a new or existing repository; S7 WIP drafts add preserving an operator-edited config mapping (`@qa:SC-A-006`) and refusing an invalid assistant without partial scaffolding (`@qa:SC-A-013`) |
 | `upgrade/` | `spec-kitty upgrade`: refreshing an already-set-up project and repairing its generated files |
 | `mission/` | Missions: creating one and its refusals, looking one up, planning to review (`lifecycle`), rejecting in review (`review`), the plan gate (`plan`), re-planning around started work (`refinalize`), the single-branch write checkout (`single-branch`) and discarding one (`mission-close`) |
 | `status/` | Status: tracing a work package's lane to the events behind it |
+
+The [S7 migration handoff](S7-MIGRATION.md) records the QA source identities, distinct assertions,
+and the binding/review/retirement boundary for these drafts. They carry no invented promise tags.
 
 ## Available steps
 
