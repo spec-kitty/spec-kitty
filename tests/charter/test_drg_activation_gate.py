@@ -366,15 +366,13 @@ def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -
 @pytest.mark.parametrize("token", ["qa-tactic-seven", "qa-seven"], ids=["stem", "declared-id"])
 def test_declared_id_token_keeps_non_directive_node(tmp_path: Path, token: str) -> None:
     from charter.drg import load_built_in_graph
-    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+    from charter.offering.drg.models import DRGNode, NodeKind
     from tests.charter.org_pack_identity_support import write_identity_org_pack
 
     write_identity_org_pack(tmp_path, activated_tactics=[token])
     ctx = PackContext.from_config(tmp_path)
     base = load_built_in_graph()
-    graph = base.model_copy(
-        update={"nodes": [*base.nodes, DRGNode(urn="tactic:qa-seven", kind=NodeKind.TACTIC, label="qa-seven")]}
-    )
+    graph = base.model_copy(update={"nodes": [*base.nodes, DRGNode(urn="tactic:qa-seven", kind=NodeKind.TACTIC, label="qa-seven")]})
 
     survivors = {n.urn for n in filter_graph_by_activation(graph, ctx).nodes}
 

@@ -768,9 +768,7 @@ def _identity_bundle(
         encoding="utf-8",
     )
     if org_charter is not None:
-        (pack / "org-charter.yaml").write_text(
-            yaml.safe_dump({"schema_version": "1", "org_name": "identity-org", **org_charter}), encoding="utf-8"
-        )
+        (pack / "org-charter.yaml").write_text(yaml.safe_dump({"schema_version": "1", "org_name": "identity-org", **org_charter}), encoding="utf-8")
     return _load_action_governance_bundle(
         repo_root=repo_root,
         action="implement",
