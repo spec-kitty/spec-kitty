@@ -9,7 +9,8 @@ import org.speckitty.missionstatus.testsupport.http.HttpHarness;
 
 /**
  * WP02 T005 criterion 8, the real proof (WP10 T053 step 8): the operations of the contract that this service does not implement
- * answer 404 exactly like any unknown path, not 501 and not a stub's Problem.
+ * answer 404 exactly like any unknown path, not 501 and not a stub's Problem. The two artifact operations left this list when they
+ * were implemented (#957); the five below remain.
  */
 class OutOfScopeRoutesTest {
 
@@ -18,8 +19,6 @@ class OutOfScopeRoutesTest {
           "/api/v1/missions/01J01000000000000000000001",
           "/api/v1/missions/01J01000000000000000000001/work-packages/WP01",
           "/api/v1/missions/01J01000000000000000000001/work-packages/WP01/detail",
-          "/api/v1/missions/01J01000000000000000000001/artifacts",
-          "/api/v1/missions/01J01000000000000000000001/artifacts/content?path=spec.md",
           "/api/v1/drift",
           "/api/v1/ops/invocations");
 

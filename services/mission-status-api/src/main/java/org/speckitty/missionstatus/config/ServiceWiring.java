@@ -10,10 +10,14 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import org.speckitty.missionstatus.adapter.out.filesystem.FilesystemMissionArtifactSource;
 import org.speckitty.missionstatus.adapter.out.filesystem.FilesystemMissionEventSource;
+import org.speckitty.missionstatus.application.query.ArtifactQueryService;
 import org.speckitty.missionstatus.application.query.MissionStatusQueryService;
 import org.speckitty.missionstatus.application.query.stream.StreamSettings;
+import org.speckitty.missionstatus.application.query.port.in.MissionArtifactQuery;
 import org.speckitty.missionstatus.application.query.port.in.MissionStatusQuery;
+import org.speckitty.missionstatus.application.query.port.out.MissionArtifactSource;
 import org.speckitty.missionstatus.application.query.port.out.MissionEventSource;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.redaction.LeakClasses;
@@ -24,7 +28,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The composition root: the ONE place that constructs the filesystem event source, the leak-class value and the Mission status service.
+ * The composition root: the ONE place that constructs the filesystem event source, the artifact source, the leak-class value, the
+ * Mission status service and the artifact query service.
  * {@code leak-patterns.json} (committed, generated from the Python source of truth) is read from the classpath and every pattern in it
  * is compiled through {@link LeakClasses#compile}, never with {@code Pattern.compile} directly.
  */
@@ -37,6 +42,16 @@ class ServiceWiring {
   @Bean
   MissionEventSource missionEventSource(MissionStatusProperties properties) {
     return FilesystemMissionEventSource.forRoot(properties.projectRoot());
+  }
+
+  @Bean
+  MissionArtifactSource missionArtifactSource(MissionStatusProperties properties) {
+    return FilesystemMissionArtifactSource.forRoot(properties.projectRoot());
+  }
+
+  @Bean
+  MissionArtifactQuery missionArtifactQuery(MissionArtifactSource source, LeakClasses leaks) {
+    return new ArtifactQueryService(source, leaks);
   }
 
   @Bean

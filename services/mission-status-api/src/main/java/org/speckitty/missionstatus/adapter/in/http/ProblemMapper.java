@@ -1,7 +1,9 @@
 package org.speckitty.missionstatus.adapter.in.http;
 
+import org.speckitty.missionstatus.application.query.port.in.exceptions.ArtifactRefused;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
+import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactRefusalCode;
 import org.speckitty.missionstatus.domain.readmodel.cursor.InvalidPageCursor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -42,6 +44,12 @@ public final class ProblemMapper {
   /** The event-stream admission bound is used up: 503 with a fixed code and detail (the contract's {@code default} Problem response). */
   public static ResponseEntity<ProblemBody> streamCapacity() {
     return respond(new ProblemBody(STREAM_CAPACITY, "The service holds the most event streams it admits; close one and retry.", 503, "The stream capacity is used up."));
+  }
+
+  /** An artifact refusal: the code's fixed status, title and detail, with {@code type} written out as the reference reader writes it. */
+  public static ResponseEntity<ProblemBody> artifact(ArtifactRefused refusal) {
+    ArtifactRefusalCode code = refusal.code();
+    return respond(new ProblemBody(code.wire(), code.detail(), code.status(), code.title(), ProblemBody.ABOUT_BLANK));
   }
 
   /** Any other failure with a status: the status text and no code. */
