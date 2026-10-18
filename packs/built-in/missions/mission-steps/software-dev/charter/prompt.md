@@ -81,8 +81,8 @@ If no built-in paradigm or directive cleanly fits the user's needs:
 
 - Do **not** force a near-match just to populate selections.
 - Keep `selected_paradigms` and `selected_directives` narrow and truthful.
-- Selections are additive: the interview adds them to what is already in force
-  and never removes anything. The first explicit activation list is frozen, so
+- Selections are additive: without `--narrow-activation`, the interview adds
+  them to what is already in force and never removes anything. The first explicit activation list is frozen, so
   built-ins added later are not activated automatically. To stay narrow, use
   `spec-kitty charter activate <kind> <id> --only`,
   `spec-kitty charter interview --narrow-activation`, or
@@ -316,7 +316,6 @@ Selections are additive, and the first explicit activation list is frozen: later
 built-ins are not activated automatically. Add `--narrow-activation` to
 `spec-kitty charter interview` to replace the activated directives, tactics and
 paradigms with your selection plus org-required ids (kinds with no selection are
-untouched). `--defaults` fills paradigms from the profile defaults, so combined
-with `--narrow-activation` it narrows paradigms to those defaults. Other narrow
-paths: `spec-kitty charter activate <kind> <id> --only` and
+untouched). The shipped `--defaults` select no paradigms, so paradigms are
+narrowed only when you pass `--selected-paradigms`. Other narrow paths: `spec-kitty charter activate <kind> <id> --only` and
 `spec-kitty charter activate --preset minimal`.

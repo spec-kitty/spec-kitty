@@ -231,25 +231,32 @@ def test_interview_narrow_activation_narrows_paradigms_to_the_interview_selectio
     assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - {_PARADIGM_DDD}
 
 
-def test_interview_narrow_activation_with_defaults_only_follows_default_paradigm_selection(
+def test_interview_narrow_activation_with_defaults_leaves_paradigms_untouched(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Pin: ``--defaults`` + ``--narrow-activation`` narrows paradigms to the default selection.
-
-    Today the packaged default selection is empty, and an empty selection is never narrowed,
-    so the key stays untouched; were defaults ever non-empty, the key would equal them exactly.
-    """
+    """Pin: shipped ``--defaults`` select no paradigms, so ``--narrow-activation`` leaves them alone."""
     _git_init(tmp_path)
     payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation")
 
-    selected = payload["selected_paradigms"]
-    assert isinstance(selected, list)
     config = _read_config(tmp_path)
-    if selected:
-        assert set(config["activated_paradigms"]) == set(selected)
-    else:
-        assert "activated_paradigms" not in config
-        assert "activated_paradigms" not in payload["narrowed"]
+    assert payload["selected_paradigms"] == []
+    assert "activated_paradigms" not in config
+    assert "activated_paradigms" not in payload["narrowed"]
+    # Positive control: directives were narrowed in the same run.
+    assert "activated_directives" in payload["narrowed"]
+
+
+def test_interview_narrow_activation_with_explicit_paradigms_narrows_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    paradigm = sorted(resolve_effective_sets(tmp_path, ["activated_paradigms"])["activated_paradigms"].ids)[0]
+    payload = _run_interview_json(
+        tmp_path, monkeypatch, "--selected-paradigms", paradigm, "--narrow-activation"
+    )
+
+    assert "activated_paradigms" in payload["narrowed"]
+    assert "activated_paradigms" in _read_config(tmp_path)
 
 
 def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(
