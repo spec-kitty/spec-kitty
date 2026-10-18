@@ -1,12 +1,12 @@
 ---
 title: 'ADR: replace charter reads and writes through a staged Java service strangler'
 description: 'Define the staged transition from the Python charter implementation to a per-worktree Java read service and, later, Java write adapters.'
-status: Proposed
+status: Accepted
 date: '2026-10-03'
 ---
 # Replace charter reads and writes through a staged Java service strangler
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-18, operator), with Amendment 2026-10-18 below
 
 **Date:** 2026-10-03
 
@@ -358,6 +358,23 @@ end-to-end reads rather than parser microbenchmarks, and prompt/token studies mu
 equivalent agent tasks and response scopes. JDK path APIs are likewise an unselected
 implementation option, not evidence that existing Python, Git, shell, or repository path
 behavior improves.
+
+## Amendment 2026-10-18
+
+Accepted by the operator on 2026-10-18, together with two rulings that change where things live,
+not the stages or the dependency direction of this record:
+
+1. **The contract is authored in `spec-kitty/spec-kitty-charter`**, at `contracts/charter/`,
+   following this repository's `contracts/README.md` conventions (that repository's ADR-0002,
+   Accepted 2026-10-18). Where this record says `contracts/charter/` in the core repository,
+   read the charter repository; core ingests pinned, checksummed releases of the contract and
+   generates its seam DTOs from them.
+2. **Rewrite and replace.** The Java service is written fresh in `spec-kitty-charter` against
+   BDD contracts and the OpenAPI document, and replaces the Python charter behind
+   `charter.offering.api` stage by stage. The Python charter is not moved into the charter
+   repository first; it stays in core as the conformance oracle until its reads and writes
+   retire (that repository's ADR-0005). The existing `spec-kitty-open-packs` content must
+   round-trip through the service's file-based infrastructure layer.
 
 ## More Information
 
