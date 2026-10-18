@@ -43,8 +43,14 @@ public final class StatusReducer {
    * spec-kitty-events#102) — is NOT yet ported here. No conformance golden exercises that case, so the goldens and this coupling stay
    * green at the bumped pin; the reduction below still implements the 10.4.6-level behaviour described above. The behaviour port (plus a
    * fixture that exercises the clock-ahead case) is tracked by spec-kitty#6268.
+   *
+   * <p>Advanced to 11.0.0 after a port review (spec-kitty#6399): between 10.5.1 and 11.0.0 the ordering, precedence and fold of
+   * {@code diary.reduce_parsed} are unchanged. The {@code diary} changes are the subtask vocabulary of {@code parse_diary} (the
+   * line codec follows the CLI partition, not {@code parse_diary}), a docstring and a comment; the {@code status} module changes are on the
+   * Lamport path ({@code status_event_sort_key}, unclocked envelopes), which this class does not port. All 88 conformance goldens are
+   * byte-identical under 11.0.0. The 10.5.1 gap above is unchanged.
    */
-  public static final String PORTED_EVENTS_VERSION = "10.5.1";
+  public static final String PORTED_EVENTS_VERSION = "11.0.0";
 
   private static final String[] SYNTHETIC_PREFIXES = {"Force move to ", "move-task: "};
   private static final Set<Lane> ROLLBACK_TARGETS = Set.of(Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS);
