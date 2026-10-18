@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M581HBT91FND9K8DEZ7HG3R0",
-  "materialized_at": "2026-10-18T17:39:17.449381+00:00",
+  "event_count": 5,
+  "last_event_id": "01M581HEPVYQ2BE983PNJDVCYN",
+  "materialized_at": "2026-10-18T17:39:20.411308+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -45,6 +45,13 @@
       "lane": "planned",
       "last_event_id": "01M581HBT91FND9K8DEZ7HG3R0",
       "last_transition_at": "2026-10-18T17:39:17.449381+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M581HEPVYQ2BE983PNJDVCYN",
+      "last_transition_at": "2026-10-18T17:39:20.411308+00:00"
     }
   }
 }
