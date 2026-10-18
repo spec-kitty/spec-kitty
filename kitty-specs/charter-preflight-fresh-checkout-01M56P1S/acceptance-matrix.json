@@ -1,0 +1,79 @@
+{
+  "mission_slug": "charter-preflight-fresh-checkout-01M56P1S",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 test_fresh_checkout_preflight_heal: heal passes on stale-but-consistent fresh checkout + advancing_consumer_unblocks (7/7 green); reviewer-renata verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:38.326775+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 test_heal_is_off_by_default + test_query_mode_does_not_mutate: default-on in advancing mode, read-only in query; independent of auto_refresh",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:41.286098+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 positive control (tampered artifact) reaches verify() and blocks, no re-stamp, manifest bytes unchanged; non-vacuity confirmed by reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:44.185371+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 test_activate_restamps_bundle_hash: activate/deactivate/write_compiled_charter re-stamp on charter.yaml recompile (12 green); reviewer traced all live callers pass repo_root",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:47.046493+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Both WPs route re-stamp through charter.bundle.compute_bundle_content_hash + finalize_manifest only; no second recipe (reviewer-verified)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:49.942406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Committed manifest re-stamped (f87cda9037); WP02 parity test asserts recompute==stamp and compute_freshness.synthesized_drg=='fresh'",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:52.842400+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 per-PR twin in tests/specify_cli/charter_runtime/ red-first (5 failed pre-fix -> 7 passed), same-fixture positive control; deterministic, no wheel/concurrency",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-18T05:43:55.752602+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -131,6 +131,7 @@ def run_preflight_or_abort(
         auto_refresh=cfg.auto_refresh,
         allow_missing_charter=True,
         strict=False,
+        allow_heal=True,
     )
 
     if result.passed:
@@ -176,6 +177,7 @@ def run_preflight_warn_only(
         auto_refresh=cfg.auto_refresh,
         allow_missing_charter=True,
         strict=False,
+        allow_heal=False,
     )
     if result.passed:
         _logger.info("charter preflight passed (consumer=%s)", consumer)

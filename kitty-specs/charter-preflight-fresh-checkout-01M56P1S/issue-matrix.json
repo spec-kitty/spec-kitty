@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#3343": {
+      "evidence_ref": "Open P1 for a governed CI home for the nightly e2e \u2014 explicitly out of scope (spec Out of Scope). This mission adds a per-PR deterministic twin (FR-007) and leaves the e2e unchanged; #3343's CI-home work is separate and owes this mission no change.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3504": {
+      "evidence_ref": "Orthogonal per spec C-003: feat/builtin-revendor-pin-gate touches pack vendor/pin surfaces only; this mission's diff shows zero #3504 surface (no packs/built-in.source.yaml, built_in_pin.py, charter/packs.py, pack_vendor.py). Confirmed by WP02 review git diff --stat.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4017": {
+      "evidence_ref": "Cited as the open 'preflight auto-heal family' this mission's WP01 heal aligns with (spec Related refs). This mission is scoped to the #6366 bundle_content_hash parity case and does not claim to close the broader family; context reference, no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4885": {
+      "evidence_ref": "Cited as the open 'preflight auto-heal family' this mission's WP01 heal aligns with (spec Related refs). This mission is scoped to the #6366 bundle_content_hash parity case and does not claim to close the broader family; context reference, no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5419": {
+      "evidence_ref": "Prior 'performance' escalation of the same e2e with a DIFFERENT cause (owned-checkout budget drift, ADR 2026-10-05-2); not conflated per spec C-005. #6366 is the distinct charter-runtime bundle_content_hash parity regression.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6074": {
+      "evidence_ref": "Immediately-prior instance of the same e2e, green-closed 2026-10-12 with a different cause; this mission's regression (712aee06a9 activate-cascade parity break) post-dates it. Not conflated per spec C-005.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6366": {
+      "evidence_ref": "Mission-owning issue: fixed by WP01 (read-path safe-heal) + WP02 (write-side re-stamp) + the committed-manifest data fix (f87cda9037). Resolve to terminal 'fixed' at merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

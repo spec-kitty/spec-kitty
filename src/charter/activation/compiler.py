@@ -19,6 +19,7 @@ from charter.activation._io import load_charter_file
 from kernel.charter_pack_paths import project_pack_root
 from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
+from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
     apply_yaml_write,
@@ -603,6 +604,9 @@ def write_compiled_charter(
     # no project root to resolve the activation authority against.
     if repo_root is not None:
         provision_mission_type_activations(repo_root)
+        # #6366: charter.yaml just changed -- keep the synthesis manifest's
+        # bundle_content_hash in parity (single hash authority, no-op if absent).
+        restamp_bundle_hash(repo_root)
 
     return WriteBundleResult(files_written=["charter.yaml"])
 
