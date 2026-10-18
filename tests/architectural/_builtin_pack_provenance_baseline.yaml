@@ -47,6 +47,12 @@ missions/built_in_step_contracts/documentation-publish.step-contract.yaml:
 missions/built_in_step_contracts/documentation-validate.step-contract.yaml:
   repo_paths: 2
   provenance: 1
+missions/built_in_step_contracts/plan-plan.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/plan-research.step-contract.yaml:
+  repo_paths: 2
+missions/built_in_step_contracts/plan-specify.step-contract.yaml:
+  repo_paths: 2
 missions/built_in_step_contracts/plan.step-contract.yaml:
   repo_paths: 2
 missions/built_in_step_contracts/research-methodology.step-contract.yaml:
