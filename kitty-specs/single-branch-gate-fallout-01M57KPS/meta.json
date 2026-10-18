@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-18T13:37:43.639632+00:00",
+  "flattened": false,
+  "friendly_name": "single_branch gate fallout (#6370, #6369)",
+  "mid8": "01M57KPS",
+  "mission_id": "01M57KPSBP11Q7WVXCHH0FXN1F",
+  "mission_number": null,
+  "mission_slug": "single-branch-gate-fallout-01M57KPS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances single_branch gate fallout (#6370, #6369) on issue-6370-single-branch-gate-fallout so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Bring the #6370 e2e fixture and #6369 scenario 6 back in line with the fail-closed single_branch evidence/independence gate (#5939) without weakening it.",
+  "slug": "single-branch-gate-fallout-01M57KPS",
+  "target_branch": "issue-6370-single-branch-gate-fallout",
+  "topology": "single_branch"
+}
