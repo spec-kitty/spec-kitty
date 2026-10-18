@@ -305,7 +305,7 @@ class TestListJson:
         directive_available = kinds["directive"]["available"]
         assert directive_available, "expected built-in directives to be available"
         entry = directive_available[0]
-        assert set(entry) == {"artifact_id", "layer"}
+        assert set(entry) == {"artifact_id", "layer", "declared_id"}
 
     def test_json_templates_null_without_all(self, empty_project_root: Path) -> None:
         """Without ``--all``, the payload still carries a top-level
@@ -459,3 +459,46 @@ class TestListNoneConfigResolvesToEmptyMapping:
         assert result.exit_code == 0, result.stdout
         payload = json.loads(result.stdout)
         assert payload["result"] == "success", payload
+
+
+# ---------------------------------------------------------------------------
+# #6406 / FR-007: an activated artifact whose file stem differs from its id
+# ---------------------------------------------------------------------------
+
+
+class TestListIdentity:
+    """``activated_tactics: [qa-seven]`` activates the artifact in ``qa-tactic-seven.tactic.yaml``."""
+
+    @staticmethod
+    def _tactic_row(payload: dict[str, object]) -> dict[str, object]:
+        rows = {row["kind"]: row for row in payload["kinds"]}  # type: ignore[index, union-attr]
+        return rows["tactic"]  # type: ignore[return-value]
+
+    def test_available_entry_carries_declared_id_and_text_shows_both(self, tmp_path: Path) -> None:
+        from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+        write_identity_org_pack(tmp_path)
+
+        payload = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
+        entries = [e for e in self._tactic_row(payload)["available"] if e["artifact_id"] == "qa-tactic-seven"]  # type: ignore[union-attr]
+        text = _invoke_list(tmp_path, "--all").output
+
+        assert entries == [{"artifact_id": "qa-tactic-seven", "layer": "org", "declared_id": "qa-seven"}]
+        assert "qa-tactic-seven (qa-seven)" in text
+
+    @pytest.mark.parametrize("token", ["qa-seven", "qa-tactic-seven"])
+    def test_activated_by_either_spelling_is_not_available(self, tmp_path: Path, token: str) -> None:
+        from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+        write_identity_org_pack(tmp_path, activated_tactics=[token])
+
+        payload = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
+        row = self._tactic_row(payload)
+        text = _invoke_list(tmp_path, "--all").output
+
+        assert row["activated"] == [token]
+        assert "qa-tactic-seven" not in {e["artifact_id"] for e in row["available"]}  # type: ignore[union-attr]
+        # Shown once, in the Activated column, and not again as available.
+        assert text.count("qa-tactic-seven (qa-seven)") == 1
+        # Positive control: an unactivated artifact of the same kind stays available.
+        assert row["available"], "built-in tactics remain available"

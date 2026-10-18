@@ -431,3 +431,88 @@ class TestDirectiveIncludeSlugParity:
         # pass — otherwise the parity test above could never be red.
         with pytest.raises(ValueError, match="No directive found"):
             build_charter_context_include(tmp_path, "directive:999-not-a-real-directive")
+
+
+# ---------------------------------------------------------------------------
+# #6406 / FR-017: --include accepts a declared id AND a file stem for every kind
+# ---------------------------------------------------------------------------
+
+from tests.charter.org_pack_identity_support import write_identity_org_pack  # noqa: E402 -- grouped with the #6406 tests below
+
+#: (include token, plural repo attribute, stub-repo declared id, expected header line)
+_IDENTITY_INCLUDE_CASES = [
+    ("directive", "directives", "QA_003", "Directive QA_003: "),
+    ("tactic", "tactics", "qa-seven", "Tactic qa-seven: "),
+    ("paradigm", "paradigms", "qa-nine", "Paradigm qa-nine: "),
+    ("styleguide", "styleguides", "qa-style", "Styleguide qa-style: "),
+    ("toolguide", "toolguides", "qa-tool", "Toolguide qa-tool: "),
+    ("procedure", "procedures", "qa-proc", "Procedure qa-proc: "),
+    ("mission-step-contract", "mission_step_contracts", "qa-contract", "Mission step contract qa-contract: "),
+]
+_STEMS = {
+    "QA_003": "qa-003-no-fake-green",
+    "qa-seven": "qa-tactic-seven",
+    "qa-nine": "qa-paradigm-nine",
+    "qa-style": "qa-style-guide",
+    "qa-tool": "qa-tool-guide",
+    "qa-proc": "qa-procedure-file",
+    "qa-contract": "qa-contract-file",
+}
+
+
+def _identity_service(attr: str, declared_id: str) -> _StubService:
+    """A stub service whose repository for *attr* is keyed by the DECLARED id only."""
+    artifact = SimpleNamespace(
+        title="T",
+        name="N",
+        intent="I",
+        purpose="P",
+        action="implement",
+        mission="software-dev",
+        steps=[],
+        summary="S",
+        scope="code",
+        principles=[],
+        tool="t",
+    )
+    return _StubService(**{attr: _StubRepo({declared_id: artifact})})
+
+
+class TestIdentityInclude:
+    @pytest.mark.parametrize(("kind", "attr", "declared_id", "header"), _IDENTITY_INCLUDE_CASES)
+    @pytest.mark.parametrize("spelling", ["declared", "stem"])
+    def test_declared_id_and_stem_both_render(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        kind: str,
+        attr: str,
+        declared_id: str,
+        header: str,
+        spelling: str,
+    ) -> None:
+        write_identity_org_pack(tmp_path)
+        _patch_service(monkeypatch, _identity_service(attr, declared_id))
+        token = declared_id if spelling == "declared" else _STEMS[declared_id]
+
+        text = build_charter_context_include(tmp_path, f"{kind}:{token}")
+
+        assert header in text
+
+    @pytest.mark.parametrize(("kind", "attr", "declared_id", "header"), _IDENTITY_INCLUDE_CASES)
+    def test_unknown_token_still_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        kind: str,
+        attr: str,
+        declared_id: str,
+        header: str,
+    ) -> None:
+        write_identity_org_pack(tmp_path)
+        _patch_service(monkeypatch, _identity_service(attr, declared_id))
+        # Positive control on the same fixture: the declared id renders.
+        assert header in build_charter_context_include(tmp_path, f"{kind}:{declared_id}")
+
+        with pytest.raises(ValueError, match="No .* found for selector"):
+            build_charter_context_include(tmp_path, f"{kind}:not-a-real-artifact")
