@@ -32,4 +32,3 @@ kitty-specs/**/canary-evidence/** linguist-generated=true
 .kittify/migrations/** linguist-generated=true
 .kittify/migrations/** -diff
 services/mission-status-api/src/test/resources/conformance/** -text
-kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix
