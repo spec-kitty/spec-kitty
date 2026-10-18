@@ -86,8 +86,7 @@ def materialize(root: Path, tree: list[Mapping[str, Any]]) -> None:
 
 def content_marker(content: str) -> str:
     """The stand-in of a long served content: the SHA-256 of its UTF-8 bytes."""
-    # A body checksum compared byte for byte with the Java service: charter.hasher normalizes BOM and newlines, which this must not.
-    return "<sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest() + ">"  # noqa: TID251
+    return "<sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest() + ">"  # noqa: TID251 — byte-exact body checksum matched by the Java service; charter.hasher normalizes BOM/newlines
 
 
 def masked(body: dict[str, Any]) -> dict[str, Any]:
