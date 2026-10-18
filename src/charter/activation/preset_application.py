@@ -66,6 +66,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.charter_yaml_io import apply_yaml_write
 from charter.activation.catalog import resolve_offering_root
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
@@ -283,7 +284,19 @@ def load_pack_preset(pack: OfferingPack, preset_name: str) -> ActivationPreset:
 # ---------------------------------------------------------------------------
 
 
-def _id_key(yaml_key: str, artifact_id: str) -> str:
+_KIND_BY_KEY: dict[str, ArtifactKind] = {preset_activation_key(kind): kind for kind in ArtifactKind}
+
+
+def _id_key(yaml_key: str, artifact_id: str, identity: IdentityIndex | None = None) -> str:
+    """Comparison key of a listed id: its declared id (stem and id spell one artifact, FR-017, #6406).
+
+    An id the index does not know keeps the previous spelling-insensitive key
+    (the directive id normaliser, else the id itself).
+    """
+    kind = _KIND_BY_KEY.get(yaml_key)
+    declared: str | None = identity.declared_id(kind, artifact_id) if identity is not None and kind is not None else None
+    if declared is not None:
+        return declared
     return normalize_directive_id(artifact_id) if yaml_key == _DIRECTIVES_KEY else artifact_id
 
 
@@ -415,7 +428,7 @@ def _org_roots_or_refuse(repo_root: Path, preset: ActivationPreset) -> list[Path
     if not _lists_ids(preset):
         return list(resolve_pack_chain(repo_root, strict=False))
     try:
-        return resolve_pack_chain(repo_root, strict=True)
+        return list(resolve_pack_chain(repo_root, strict=True))
     except ValueError as exc:
         raise PresetIdUnresolvedError(preset.source, {}, {_ORG_PACKS_KEY: str(exc)}) from exc
 
@@ -453,23 +466,23 @@ def _org_required(repo_root: Path, preset: ActivationPreset) -> dict[str, list[s
     return required
 
 
-def _union(yaml_key: str, listed: Iterable[str], extra: Iterable[str]) -> list[str]:
+def _union(yaml_key: str, listed: Iterable[str], extra: Iterable[str], identity: IdentityIndex | None = None) -> list[str]:
     result = list(listed)
-    seen = {_id_key(yaml_key, item) for item in result}
+    seen = {_id_key(yaml_key, item, identity) for item in result}
     for item in extra:
-        key = _id_key(yaml_key, item)
+        key = _id_key(yaml_key, item, identity)
         if key not in seen:
             seen.add(key)
             result.append(item)
     return result
 
 
-def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]]) -> dict[str, _Value]:
+def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]], identity: IdentityIndex | None = None) -> dict[str, _Value]:
     """The value every key this preset governs takes (``None`` = absent)."""
     target: dict[str, _Value] = {}
     for key in preset_activation_keys():
         listed = preset.activations.get(key)
-        target[key] = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()))
+        target[key] = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()), identity)
     gate = preset.activated_kinds
     target[ACTIVATED_KINDS_KEY] = None if gate is None else _union(ACTIVATED_KINDS_KEY, gate, required)
     if preset.mission_type_activations is not None:
@@ -545,7 +558,8 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
     pack = find_offering_pack(repo_root, pack_name)
     preset = load_pack_preset(pack, preset_name)
     _resolve_preset_ids(repo_root, preset)
-    target = _target_state(preset, _org_required(repo_root, preset))
+    identity = IdentityIndex.build(repo_root) if _lists_ids(preset) else None
+    target = _target_state(preset, _org_required(repo_root, preset), identity)
     target_file, document = _read_target(repo_root)
     defaults = _default_values()
     written: dict[str, list[str]] = {}

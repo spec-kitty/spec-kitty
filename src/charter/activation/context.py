@@ -443,7 +443,11 @@ def build_charter_context_include(
         )
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
             return _render_agent_profile_include_selector(
-                gated_service, canonical_kind, identifier, selector
+                gated_service,
+                canonical_kind,
+                identifier,
+                selector,
+                IdentityIndex.build(repo_root, org_roots=org_roots),
             )
 
     # Shared catalog render/return. ``service`` is the gated service for the
@@ -458,8 +462,13 @@ def build_charter_context_include(
         if gated_service is not None
         else _build_offering_service(repo_root, org_roots=org_roots)
     )
+    # out-of-map edit (WP10): hand the per-entry-point identity index to the include renderer.
     result = _render_catalog_kind_include_selector(
-        service, canonical_kind, identifier, selector
+        service,
+        canonical_kind,
+        identifier,
+        selector,
+        IdentityIndex.build(repo_root, org_roots=org_roots),
     )
     if result is not None:
         return result
