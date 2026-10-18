@@ -10,11 +10,14 @@ import charter.activation.catalog as catalog_module
 from charter.activation.interview import default_interview
 from charter.activation.resolver import (
     ActiveCharterService,
+    UNKNOWN_SELECTION_DIAGNOSTIC,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
     resolve_project_governance,
 )
+
+from tests.charter.org_pack_identity_support import write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
@@ -927,10 +930,6 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
 # ---------------------------------------------------------------------------
 # #6406 / #6407: declared ids, layer-aware selections, drop-with-diagnostic
 # ---------------------------------------------------------------------------
-
-from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC  # noqa: E402
-from tests.charter.org_pack_identity_support import write_identity_org_pack  # noqa: E402
-
 
 def _identity_project(tmp_path: Path, *, selected: str = "[]", paradigms: str = "[]", **config_keys: object) -> Path:
     repo = tmp_path / "repo"

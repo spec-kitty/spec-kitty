@@ -22,6 +22,7 @@ import pytest
 
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import ActiveCharterService
+from tests.charter.org_pack_identity_support import IDENTITY_ARTIFACTS, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
@@ -115,8 +116,6 @@ def test_explicit_activation_still_filters(tmp_path: Path, prop: str, activated_
 # ---------------------------------------------------------------------------
 # #6406 sibling defect: stem != declared id must still be delivered by every getter
 # ---------------------------------------------------------------------------
-
-from tests.charter.org_pack_identity_support import IDENTITY_ARTIFACTS, write_identity_org_pack  # noqa: E402
 
 _STEM_PROPS = [
     pytest.param(plural, stem, declared, id=plural)
