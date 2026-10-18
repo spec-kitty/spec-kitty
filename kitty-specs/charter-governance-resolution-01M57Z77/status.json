@@ -1,20 +1,20 @@
 {
-  "event_count": 54,
-  "last_event_id": "01M58NZRK2KAMGAABA5SVFSFC3",
-  "materialized_at": "2026-10-18T23:36:40.802778+00:00",
+  "event_count": 55,
+  "last_event_id": "01M58P11SNCFHWT3F7YDC6EBVP",
+  "materialized_at": "2026-10-18T23:37:22.997669+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
   "schema_version": 2,
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -166,13 +166,13 @@
     "WP07": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M58NVEJKAFQ83ZXRY2176XPA",
-      "last_transition_at": "2026-10-18T23:34:19.475935+00:00",
+      "lane": "approved",
+      "last_event_id": "01M58P11SNCFHWT3F7YDC6EBVP",
+      "last_transition_at": "2026-10-18T23:37:22.997669+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP07: interview --narrow-activation (helpers _narrow_bases; interview() complexity unchanged), JSON narrowed always present, text 'No longer in force' lines, prompt.md contract text, cli-commands.md regenerated, charter-commands.md row. Gates: ruff check/format OK, C901 OK, regenerate-graph --check fresh, pack vendor --check matches pin, cli-reference freshness clean, 612 arch/offering tests pass; wider sweep 17 red all identical on base (incl #6424). mypy --strict: only 9 env import-not-found/untyped-decorator errors, identical on base.",
@@ -181,10 +181,9 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/.worktrees/charter-governance-resolution-01M57Z77-coord/kitty-specs/charter-governance-resolution-01M57Z77/tasks/WP07-interview-narrow-and-contract/review-cycle-1.md",
-        "reference": "review-cycle://charter-governance-resolution-01M57Z77/WP07-interview-narrow-and-contract/review-cycle-1.md",
-        "reviewer": "claude",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP07:20261018",
+        "reviewer": "Claude",
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 23445,
@@ -240,7 +239,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-18T22:46:50Z – claude – shell_pid=6920 – Out-of-map edits: tests/next/test_prompt_builder_unit.py, CHANGELOG.md. CLI also passes directives_source (trivially additive).",
-        "T039-T042 done. diagnostics top-level key (schema 1.4.0, ledger+2 pins), CLI pass-through of diagnostics+directives_source, doctor warning naming dropped ids, prompt-builder already rendered diagnostics (test added), org entries carry org provenance via IdentityIndex layer. IdentityIndex built once in build_charter_context_json. Gates: ruff check 0, ruff format --check 0, C901 0, mypy --strict identical to baseline (108 env import errors, 0 new), boundary/json-contract/terminology gates pass. Sweep: 13433 passed, 18 failed = #6424 (2) + 16 pre-existing (upgrade_command, doctrine_asset, reassess, skill_drift, regenerate_graph; 15 reproduce on base)."
+        "T039-T042 done. diagnostics top-level key (schema 1.4.0, ledger+2 pins), CLI pass-through of diagnostics+directives_source, doctor warning naming dropped ids, prompt-builder already rendered diagnostics (test added), org entries carry org provenance via IdentityIndex layer. IdentityIndex built once in build_charter_context_json. Gates: ruff check 0, ruff format --check 0, C901 0, mypy --strict identical to baseline (108 env import errors, 0 new), boundary/json-contract/terminology gates pass. Sweep: 13433 passed, 18 failed = #6424 (2) + 16 pre-existing (upgrade_command, doctrine_asset, reassess, skill_drift, regenerate_graph; 15 reproduce on base).",
+        "Review passed (reviewer-renata): diagnostics in builder+CLI JSON (schema 1.4.0, ledger, pins), QA_003 org source via identity index (scoped to JSON builder path; org_roots=None callers unchanged), doctor warns naming NOPE_999, compact/prompt builder characterized. Red-first verified (5 red on base). mypy identical to base (2 pre-existing). Suspect-file failures identical base vs head (15); charter/runtime/next sweep 5906 passed. Closeout: fold the CHANGELOG line into the closeout entry."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
