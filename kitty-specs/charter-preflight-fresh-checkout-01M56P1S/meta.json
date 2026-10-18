@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-18T05:44:03.717692+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b24b1cc3335b17e10aa9615eeb9229d7e3981ba3"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-18T05:44:03.717692+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "b24b1cc3335b17e10aa9615eeb9229d7e3981ba3",
   "coordination_branch": "kitty/mission-charter-preflight-fresh-checkout-01M56P1S",
   "created_at": "2026-10-18T04:59:18.381561+00:00",
   "flattened": false,
