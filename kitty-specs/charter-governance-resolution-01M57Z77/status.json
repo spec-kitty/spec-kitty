@@ -1,20 +1,20 @@
 {
-  "event_count": 38,
-  "last_event_id": "01M58CDBAMJ5A1X8RKJS0G95D4",
-  "materialized_at": "2026-10-18T20:49:20.212624+00:00",
+  "event_count": 39,
+  "last_event_id": "01M58D1FPXYH0S4YZX0AGYFC40",
+  "materialized_at": "2026-10-18T21:00:20.061523+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
   "schema_version": 2,
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 2,
+    "in_review": 1,
     "planned": 5
   },
   "work_packages": {
@@ -56,18 +56,23 @@
     "WP02": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M58BWAWV6WBQ6YE4F60EQT5T",
-      "last_transition_at": "2026-10-18T20:40:02.715746+00:00",
+      "lane": "approved",
+      "last_event_id": "01M58D1FPXYH0S4YZX0AGYFC40",
+      "last_transition_at": "2026-10-18T21:00:20.061523+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "IdentityIndex wired into resolve_project_governance + ActiveCharterService (all kinds); unknown selections dropped with UNKNOWN_SELECTION_DIAGNOSTIC. Gates: ruff check/format --force-exclude exit 0, mypy --strict resolver.py clean, C901 clean. Sweep tests/charter charter_offering runtime next: 10003 passed; only reds #6424/#6428-class + packaging_parity timeout. Out-of-map: test_resolver_directive_activation_keying.py (scan counter)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261018",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 15317,
       "shell_pid_created_at": "1792355991.81",
