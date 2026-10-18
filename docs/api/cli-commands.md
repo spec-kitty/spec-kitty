@@ -482,6 +482,11 @@ _Charter management commands_
 │                                                 --preset.                    │
 │ --json                                          Output the applied preset as │
 │                                                 JSON. Only with --preset.    │
+│ --only                                          Replace this kind's          │
+│                                                 activation list with this id │
+│                                                 plus org-required ids        │
+│                                                 (prints what stops being in  │
+│                                                 force).                      │
 │ --help          -h                              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -729,6 +734,9 @@ _Charter bundle validation commands._
 │ --selected-paradigms           <str>  Comma-separated paradigm IDs override  │
 │ --selected-directives          <str>  Comma-separated directive IDs override │
 │ --available-tools              <str>  Comma-separated tool IDs override      │
+│ --narrow-activation                   Replace (not append to) activated      │
+│                                       directives, tactics and paradigms with │
+│                                       the selection plus org-required ids    │
 │ --json                                Output JSON                            │
 │ --mission-slug                 <str>  Mission slug for Decision Moment paper │
 │                                       trail (optional)                       │
@@ -3131,37 +3139,6 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty migrate ledger
-
-_Report the migration ledger: which setup steps have run, and their state._
-
-```
- Usage: spec-kitty migrate ledger [OPTIONS]
-
- Report the migration ledger: which setup steps have run, and their state.
-
- A read-only view of the two-partition migration ledger. It lists every
- declared setup step in declared (manifest) order and, for each, shows whether
- it is already in place (recorded, effect present here), recorded elsewhere but
- not here (a per-clone step the ledger records but whose effect is absent on
- this checkout — e.g. a freshly pulled clone), not yet applied, and whether its
- source content changed since it ran (drift). Drift is audit-only: reported,
- never re-applied. This command never commits and never writes a file.
- ``--json`` emits the one structured shape the human summary renders from.
-
- Examples:
-
-     spec-kitty migrate ledger
-
-     spec-kitty migrate ledger --json
-
-╭─ Options ──────────────────────────────────────────────────────────────────╮
-│ --json            Emit the recorded setup steps and summary as structured    │
-│                   JSON (the same shape the human summary renders).           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty migrate backfill-identity
 
 ```
@@ -3662,6 +3639,41 @@ _Report the migration ledger: which setup steps have run, and their state._
 │                              current working directory).                     │
 │                              [default: .]                                    │
 │ --help          -h           Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate ledger
+
+```
+ Usage: spec-kitty migrate ledger [OPTIONS]
+
+ Report the migration ledger: which setup steps have run, and their state.
+
+ A **read-only** view of the two-partition migration ledger. It lists every
+ declared setup step in declared (manifest) order and, for each, shows:
+
+ \b
+ * whether it is **already in place** (recorded, effect present here),
+ * **recorded elsewhere but not here** (a per-clone step the ledger records
+   but whose effect is absent on this checkout — e.g. a freshly pulled clone),
+ * **not yet applied**, and
+ * whether its source **content changed since it ran** (drift).
+
+ Drift is **audit-only**: it is reported, never re-applied. This command never
+ commits and never writes a file.
+
+ ``--json`` emits the one structured shape the human summary renders from.
+
+ Examples:
+
+     spec-kitty migrate ledger
+
+     spec-kitty migrate ledger --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit the recorded setup steps and summary as structured    │
+│                   JSON (the same shape the human summary renders).           │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

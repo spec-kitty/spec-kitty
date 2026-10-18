@@ -869,34 +869,41 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission accept --mission 077-my-mission --lenient --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                              <str>  Mission slug (required in      │
-│                                               multi-mission repos)           │
-│ --mode                                 <str>  Acceptance mode: auto, pr,     │
-│                                               local, checklist               │
-│                                               [default: auto]                │
-│ --json                                        Output results as JSON for     │
-│                                               agent parsing                  │
-│ --lenient                                     Skip strict metadata           │
-│                                               validation                     │
-│ --no-commit                                   Skip auto-commit (report only) │
-│ --diagnose                                    Diagnose acceptance blockers   │
-│                                               without mutation               │
-│ --merge-commit                         SHA    With --mode pr: record this PR │
-│                                               merge commit as the mission's  │
-│                                               post-merge review baseline     │
-│                                               (#4231).                       │
-│ --target-branch                        <str>  With --merge-commit: the       │
-│                                               branch the PR merged into.     │
-│                                               Defaults to the mission's      │
-│                                               declared target_branch, else   │
-│                                               the repository's primary       │
-│                                               branch.                        │
-│ --attest-first-landing-commit                 With --merge-commit: attest    │
-│                                               the supplied commit's first    │
-│                                               parent is the pre-landing      │
-│                                               target tip (#4231). Required   │
-│                                               for every landing shape.       │
-│ --help                         -h             Show this message and exit.    │
+│ --mission                              <str>   Mission slug (required in     │
+│                                                multi-mission repos)          │
+│ --mode                                 <str>   Acceptance mode: auto, pr,    │
+│                                                local, checklist              │
+│                                                [default: auto]               │
+│ --json                                         Output results as JSON for    │
+│                                                agent parsing                 │
+│ --lenient                                      Skip strict metadata          │
+│                                                validation                    │
+│ --no-commit                                    Skip auto-commit (report      │
+│                                                only)                         │
+│ --diagnose                                     Diagnose acceptance blockers  │
+│                                                without mutation              │
+│ --merge-commit                         SHA     With --mode pr: record this   │
+│                                                PR merge commit as the        │
+│                                                mission's post-merge review   │
+│                                                baseline (#4231).             │
+│ --target-branch                        <str>   With --merge-commit: the      │
+│                                                branch the PR merged into.    │
+│                                                Defaults to the mission's     │
+│                                                declared target_branch, else  │
+│                                                the repository's primary      │
+│                                                branch.                       │
+│ --attest-first-landing-commit                  With --merge-commit: attest   │
+│                                                the supplied commit's first   │
+│                                                parent is the pre-landing     │
+│                                                target tip (#4231). Required  │
+│                                                for every landing shape.      │
+│ --owned-checkout                       <path>  Run against an owned          │
+│                                                checkout: a linked checkout   │
+│                                                that owns this mission.       │
+│                                                Refuses the repository root   │
+│                                                checkout, lane worktrees and  │
+│                                                coordination worktrees.       │
+│ --help                         -h              Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

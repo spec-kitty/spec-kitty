@@ -217,20 +217,39 @@ def test_interview_narrow_activation_replaces_directive_list(
     assert set(narrowed["activated_directives"]) == set(effective) - {_DIRECTIVE_001_STEM}
 
 
-def test_interview_narrow_activation_narrows_paradigms_to_profile_defaults(
+def test_interview_narrow_activation_narrows_paradigms_to_the_interview_selection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--defaults fills selected_paradigms from the profile, so narrowing keeps exactly those."""
+    """Paradigms narrow to whatever the interview selected (``--defaults`` fills it from the profile defaults)."""
     _git_init(tmp_path)
     effective = resolve_effective_sets(tmp_path, ["activated_paradigms"])["activated_paradigms"].ids
+    assert len(effective) > 1, "control: narrowing is observable"
 
-    payload = _run_interview_json(tmp_path, monkeypatch, "--narrow-activation")
+    payload = _run_interview_json(tmp_path, monkeypatch, "--selected-paradigms", _PARADIGM_DDD, "--narrow-activation")
+
+    assert _read_config(tmp_path)["activated_paradigms"] == [_PARADIGM_DDD]
+    assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - {_PARADIGM_DDD}
+
+
+def test_interview_narrow_activation_with_defaults_only_follows_default_paradigm_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pin: ``--defaults`` + ``--narrow-activation`` narrows paradigms to the default selection.
+
+    Today the packaged default selection is empty, and an empty selection is never narrowed,
+    so the key stays untouched; were defaults ever non-empty, the key would equal them exactly.
+    """
+    _git_init(tmp_path)
+    payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation")
 
     selected = payload["selected_paradigms"]
-    assert isinstance(selected, list) and selected
-    committed = _read_config(tmp_path)["activated_paradigms"]
-    assert set(committed) == set(selected)
-    assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - set(selected)
+    assert isinstance(selected, list)
+    config = _read_config(tmp_path)
+    if selected:
+        assert set(config["activated_paradigms"]) == set(selected)
+    else:
+        assert "activated_paradigms" not in config
+        assert "activated_paradigms" not in payload["narrowed"]
 
 
 def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(

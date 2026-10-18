@@ -530,7 +530,7 @@ def test_lynn_cole_free_text_intent_activates_end_to_end_via_config_promotion(tm
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
 
-    warnings = _promote_interview_selections(tmp_path, interview)
+    warnings, _narrowed = _promote_interview_selections(tmp_path, interview)
     # No promotion FAILURE (e.g. an unresolvable id) -- the "absent-key
     # parity" notices below are expected, informational bookkeeping for a
     # project with no pre-existing config.yaml, not an error:
