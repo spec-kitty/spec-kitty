@@ -247,20 +247,15 @@ Goal-oriented planning with iterative refinement.
 specify --> research --> plan --> review
 ```
 
-**State machine (v1):**
-```
-goals --> research --> structure --> draft --> review --> done
-```
-
 Produces planning artifacts (architecture documents, roadmaps, design proposals) without implementation.
 
-**Required artifacts:** `goals.md`, `plan.md`
+**Required artifacts:** `spec.md`, `plan.md` (`research.md` from the research step)
 
-**Guards:**
-- `goals → research`: `artifact_exists("goals.md")`
-- `research → structure`: `artifact_exists("research.md")`
-- `structure → draft`: `artifact_exists("plan.md")`
-- `review → done`: `gate_passed("plan_approved")`
+**Guards** (keyed on the runtime step ids, `packs/built-in/missions/plan/expected-artifacts.yaml`):
+- `specify`: `spec.md` exists
+- `research`: `research.md` exists
+- `plan`: `plan.md` exists
+- `review`: the plan is approved
 
 **Use when:** Planning architecture, creating roadmaps, designing systems before implementation begins, writing design proposals.
 
