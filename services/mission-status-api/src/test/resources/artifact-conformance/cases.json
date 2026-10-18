@@ -176,7 +176,7 @@
      "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
     },
     {
-     "path": "kitty-specs/alpha-01J01000/big.bin",
+     "path": "kitty-specs/alpha-01J01000/big.txt",
      "repeat": {
       "byte": 120,
       "count": 262145
@@ -251,7 +251,7 @@
     {
      "op": "content",
      "paths": [
-      "big.bin"
+      "big.txt"
      ]
     },
     {
@@ -517,6 +517,367 @@
     },
     {
      "op": "list"
+    }
+   ]
+  },
+  {
+   "name": "name-allowlist",
+   "description": "Deny by default: only a name with an artifact extension (md, json, jsonl, yaml, yml, csv, txt, with their case), no segment that starts with a dot and, for a data file, no credential file name is listed or served. Every refused name holds an API key the content scan does not know, so only the name rule keeps it out.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.env",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.ENV",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.env.local",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/.env",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.git/config.yaml",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.npmrc",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/id_rsa",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/server.pem",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/server.key",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/Makefile",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/README.MD",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/run.sh",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/credentials.json",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/Secrets.yaml",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/client_secret_1234.apps.json",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/service-account.json",
+     "parts": [
+      "OPENAI_API_KEY=",
+      "sk-",
+      "proj-",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/spec.md",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes.txt",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/data.json",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/events.jsonl",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/contracts/api.yml",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/research/data.csv",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/secret.md",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks/WP04-secret-hygiene.md",
+     "text": "clean\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/credentials-rotation.json",
+     "text": "clean\n"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".env"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".ENV"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".env.local"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/.env"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".git/config.yaml"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".npmrc"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "id_rsa"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "server.pem"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "server.key"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "Makefile"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "README.MD"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "run.sh"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "credentials.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "Secrets.yaml"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "client_secret_1234.apps.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "service-account.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "data.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "events.jsonl"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "contracts/api.yml"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "research/data.csv"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "secret.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "tasks/WP04-secret-hygiene.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "credentials-rotation.json"
+     ]
     }
    ]
   },

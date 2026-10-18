@@ -45,6 +45,12 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   replacement text.
 - The two root status records of a Mission directory, `status.events.jsonl` and `status.json`, are
   not artifacts: they are not listed and are answered 404.
+- Artifact eligibility denies by default: only a file whose name ends in `.md`, `.json`, `.jsonl`,
+  `.yaml`, `.yml`, `.csv` or `.txt`, with no path segment that starts with a dot, and, for a data
+  file, whose name is not a credential file name (`credentials.json`, `secrets.yaml`,
+  `client_secret_*.json`, `service-account.json`), is an artifact. A `.env`, a key, a certificate
+  or any other file is not listed and is answered 404, so the content scan is no longer the only
+  guard.
 - The schemas `ArtifactPath`, `ArtifactKind` (twelve values, in snake_case: `review_cycle`,
   `work_package_prompt`, `spec`, `plan`, `tasks`, `data_model`, `quickstart`, `analysis_report`,
   `research`, `contract`, `checklist` and `other`), `ArtifactEntry`, `ArtifactListing`,

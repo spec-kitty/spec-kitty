@@ -765,6 +765,9 @@ def test_the_run_report(tools: helper.ContractTools, contract: helper.Contract, 
 # ---------------------------------------------------------------------------
 
 _ROOT_STATUS_RECORDS = frozenset({"status.events.jsonl", "status.json"})
+# The name rule of an artifact, restated for the independent walk rather than imported from the reader (#6422).
+_ARTIFACT_FILE = re.compile(r"^[^/]*[.](md|json|jsonl|yaml|yml|csv|txt)$")
+_CREDENTIAL_DATA_FILE = re.compile(r"^(credentials?|secrets?|service[-_]account|client_secret.*)[.][a-z]+$")
 _WORK_PACKAGE_ID = re.compile(r"^WP[0-9]{2,}$")
 _PROMPT_FILE = re.compile(r"^WP[0-9]{2,}-.*[.]md$")
 _CYCLE_FILE = re.compile(r"^review-cycle-([1-9][0-9]*)[.]md$")
@@ -1035,15 +1038,23 @@ def oracle_coupling(function: Callable[..., Any]) -> list[str]:
     return sorted(names & _COUPLED_NAMES)
 
 
+def _is_artifact_name(relative: str) -> bool:
+    """No dot-led segment, an artifact extension, and, for a data file, no credential file name (compared by case fold)."""
+    name = relative.rsplit("/", 1)[-1]
+    if any(part.startswith(".") for part in relative.split("/")) or not _ARTIFACT_FILE.fullmatch(name):
+        return False
+    return name.endswith(".md") or not _CREDENTIAL_DATA_FILE.fullmatch(name.casefold())
+
+
 def scan_eligible_files(mission: ScannedMission) -> list[str]:
-    """The relative paths of the regular, non-symlink files below a Mission directory other than the two root status records, in byte order."""
+    """The relative paths of the regular, non-symlink artifact files below a Mission directory other than the two root status records, in byte order."""
     found: list[str] = []
     for directory, subdirectories, files in os.walk(mission.directory, followlinks=False):
         subdirectories.sort()
         for file_name in files:
             full = Path(directory) / file_name
             relative = full.relative_to(mission.directory).as_posix()
-            if not full.is_symlink() and relative not in _ROOT_STATUS_RECORDS:
+            if not full.is_symlink() and relative not in _ROOT_STATUS_RECORDS and _is_artifact_name(relative):
                 found.append(relative)
     return sorted(found, key=lambda path: path.encode("utf-8"))
 
@@ -1685,9 +1696,9 @@ def _exam_files() -> dict[str, str | bytes]:
         "ok/plain.txt": "plain text\n",
         "ok/boundary.txt": filler,
         "big/over.txt": filler + b"a",
-        "big/over-with-nul.bin": filler + _NUL_BYTE,
+        "big/over-with-nul.txt": filler + _NUL_BYTE,
         "big/over-with-secret.txt": credential + filler,
-        "bin/nul.bin": b"abc" + _NUL_BYTE + b"def",
+        "bin/nul.txt": b"abc" + _NUL_BYTE + b"def",
         "bin/latin1.txt": latin1,
         "bin/nul-and-secret.txt": credential + _NUL_BYTE,
         "bin/latin1-and-secret.txt": latin1 + credential,
@@ -1779,14 +1790,14 @@ def test_the_planted_422_boundary_and_order_cases_are_decided_as_the_oracle_says
     wanted = {
         "ok/boundary.txt": 200,
         "big/over.txt": 413,
-        "big/over-with-nul.bin": 413,
+        "big/over-with-nul.txt": 413,
         "big/over-with-secret.txt": 413,
         "bin/nul-and-secret.txt": 415,
         "bin/latin1-and-secret.txt": 415,
         "secret/token.txt": 422,
         "secret/path-glued.txt": 422,
         "secret/email-glued.txt": 422,
-        "bin/nul.bin": 415,
+        "bin/nul.txt": 415,
     }
     assert {path: oracle_outcome(tools, (root / path).read_bytes()) for path in wanted} == wanted
 

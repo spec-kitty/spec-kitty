@@ -185,11 +185,25 @@ class ArtifactQueryServiceTest {
 
   @Test
   void aFileOverTheCapIsDecidedFromItsSizeAndNeverRead() {
-    source.files.put("big.bin", new byte[262_145]);
+    source.files.put("big.txt", new byte[262_145]);
     ArtifactListing listing = service.listArtifacts(ID);
     assertThat(listing.entries().get(0).readable()).isFalse();
     assertThat(source.reads).isZero();
-    assertThat(codeOf(() -> service.readArtifact(ID, List.of("big.bin")))).isEqualTo(ArtifactRefusalCode.ARTIFACT_TOO_LARGE);
+    assertThat(codeOf(() -> service.readArtifact(ID, List.of("big.txt")))).isEqualTo(ArtifactRefusalCode.ARTIFACT_TOO_LARGE);
+  }
+
+  @Test
+  void aNameOutsideTheArtifactAllowlistIsNeitherListedNorOpened() {
+    source.files.put("spec.md", text("spec"));
+    for (String name : new String[] {".env", "notes/.env", "credentials.json", "id_rsa", "server.pem"}) {
+      source.files.put(name, text("OPENAI_API_KEY=" + "sk-" + "proj-" + "x".repeat(40)));
+    }
+    assertThat(service.listArtifacts(ID).entries()).extracting(entry -> entry.path()).containsExactly("spec.md");
+    assertThat(source.reads).as("only spec.md is read, for its readable flag").isEqualTo(1);
+    for (String name : new String[] {".env", "notes/.env", "credentials.json", "id_rsa", "server.pem"}) {
+      assertThat(codeOf(() -> service.readArtifact(ID, List.of(name)))).as(name).isEqualTo(ArtifactRefusalCode.NOT_FOUND);
+    }
+    assertThat(source.reads).as("a refused name is never opened").isEqualTo(1);
   }
 
   @Test

@@ -6,7 +6,12 @@ get:
     order, at most 1000 entries, with truncated set when more existed. Each entry names the
     path, the class (kind), the size, the modification time and whether a read of its content
     would be answered 200. The two root status records of the Mission, status.events.jsonl and
-    status.json, are not artifacts and are not listed; a symlink is never followed. The Mission
+    status.json, are not artifacts and are not listed; a symlink is never followed. Eligibility
+    denies by default: a file is an artifact only when its name ends in .md, .json, .jsonl, .yaml,
+    .yml, .csv or .txt (with that case), no segment of its path starts with a dot (.env, .git/),
+    and, for a data file (not .md), its name less the extension is not credential, credentials,
+    secret, secrets, service-account or service_account (compared by case fold) and does not start
+    with client_secret. Any other file is not listed and is answered 404. The Mission
     is selected by its missionId only. The modification time depends on the serving host.
   tags:
     - Missions

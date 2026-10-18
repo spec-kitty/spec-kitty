@@ -18,6 +18,7 @@ import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactEntry;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactKind;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactListing;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactMediaType;
+import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactNameRule;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactPathRule;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactRefusalCode;
 import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactText;
@@ -103,9 +104,15 @@ public final class ArtifactQueryService implements MissionArtifactQuery {
     return mission;
   }
 
-  /** The one eligibility rule: a valid path, not a root status record, and a regular file with no link on the way. Faults propagate. */
+  /**
+   * The one eligibility rule: a valid path, not a root status record, the name of an artifact, and a regular file with no link on the
+   * way. Faults propagate.
+   */
   private boolean isEligible(MissionRef mission, String path) {
-    return ArtifactPathRule.isValid(path) && !StatusRecordNames.isStatusRecord(path) && source.isRegularFileWithoutLinks(mission, path);
+    return ArtifactPathRule.isValid(path)
+        && !StatusRecordNames.isStatusRecord(path)
+        && ArtifactNameRule.isArtifactName(path)
+        && source.isRegularFileWithoutLinks(mission, path);
   }
 
   /** The content decision of one file, which the listing's {@code readable} flag reuses. */

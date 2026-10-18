@@ -53,7 +53,9 @@ class ArtifactRoutesTest {
     write(mission.resolve("notes/with space.md"), "space\n");
     write(mission.resolve("notes/hostile.md"), "-----" + "BEGIN " + "A ".repeat(20_000));
     write(mission.resolve("notes/secret.md"), "token " + "gh" + "p_" + "A".repeat(36) + "\n");
-    writeBytes(mission.resolve("notes/nul.bin"), new byte[] {'a', 0, 'b'});
+    writeBytes(mission.resolve("notes/nul.txt"), new byte[] {'a', 0, 'b'});
+    write(mission.resolve(".env"), "OPENAI_API_KEY=" + "sk-" + "proj-" + "x".repeat(40) + "\n");
+    write(mission.resolve("notes/credentials.json"), "{\"client_secret\": \"" + "x".repeat(24) + "\"}\n");
     writeBytes(mission.resolve("notes/latin1.txt"), new byte[] {'c', 'a', 'f', (byte) 0xe9});
     writeBytes(mission.resolve("notes/big.json"), new byte[262_145]);
     writeBytes(mission.resolve("notes/exact.txt"), "x".repeat(262_144).getBytes(StandardCharsets.UTF_8));
@@ -117,13 +119,13 @@ class ArtifactRoutesTest {
     }
     assertThat(paths)
         .containsExactly(
-            "meta.json", "notes/big.json", "notes/empty.txt", "notes/exact.txt", "notes/handoff.md", "notes/hostile.md", "notes/latin1.txt", "notes/nul.bin", "notes/secret.md",
+            "meta.json", "notes/big.json", "notes/empty.txt", "notes/exact.txt", "notes/handoff.md", "notes/hostile.md", "notes/latin1.txt", "notes/nul.txt", "notes/secret.md",
             "notes/with space.md", "plan.md", "research/notes.md", "spec.md", "tasks/WP01-example.md", "tasks/WP01-example/review-cycle-1.md");
     assertThat(readable(body, "spec.md")).isTrue();
     assertThat(readable(body, "notes/exact.txt")).isTrue();
     assertThat(readable(body, "notes/big.json")).isFalse();
     assertThat(readable(body, "notes/secret.md")).isFalse();
-    assertThat(readable(body, "notes/nul.bin")).isFalse();
+    assertThat(readable(body, "notes/nul.txt")).isFalse();
     assertThat(readable(body, "notes/latin1.txt")).isFalse();
     assertThat(readable(body, "notes/hostile.md")).as("a scan that cannot finish is not readable, and the listing survives").isFalse();
     assertThat(entry(body, "tasks/WP01-example/review-cycle-1.md").get("kind").asString()).isEqualTo("review_cycle");
@@ -192,7 +194,7 @@ class ArtifactRoutesTest {
 
   @Test
   void aPathThatNamesNoEligibleArtifactIsNotFound() {
-    for (String path : List.of("status.json", "STATUS.JSON", "status.events.jsonl", "notes", "missing.md", "spec.md/inner")) {
+    for (String path : List.of("status.json", "STATUS.JSON", "status.events.jsonl", "notes", "missing.md", "spec.md/inner", ".env", "notes/credentials.json")) {
       assertRefusal(server.get(query(path)), CONTENT_PATH, 404, "not_found");
     }
     if (linksMade) {
@@ -212,7 +214,7 @@ class ArtifactRoutesTest {
   @Test
   void theRefusalsOfTheContentFollowTheCodeOfEachCase() {
     assertRefusal(server.get(query("notes/big.json")), CONTENT_PATH, 413, "artifact_too_large");
-    assertRefusal(server.get(query("notes/nul.bin")), CONTENT_PATH, 415, "artifact_not_text");
+    assertRefusal(server.get(query("notes/nul.txt")), CONTENT_PATH, 415, "artifact_not_text");
     assertRefusal(server.get(query("notes/latin1.txt")), CONTENT_PATH, 415, "artifact_not_text");
     HttpHarness.Response secret = server.get(query("notes/secret.md"));
     assertRefusal(secret, CONTENT_PATH, 422, "artifact_secret");

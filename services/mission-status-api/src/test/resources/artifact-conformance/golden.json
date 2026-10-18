@@ -7,7 +7,7 @@
       {
        "kind": "other",
        "modifiedAt": "<modifiedAt>",
-       "path": "big.bin",
+       "path": "big.txt",
        "readable": false,
        "sizeBytes": 262145
       },
@@ -115,7 +115,7 @@
     "request": {
      "op": "content",
      "paths": [
-      "big.bin"
+      "big.txt"
      ]
     },
     "status": 413
@@ -546,6 +546,508 @@
     "status": 404
    }
   ],
+  "name-allowlist": [
+   {
+    "body": {
+     "entries": [
+      {
+       "kind": "contract",
+       "modifiedAt": "<modifiedAt>",
+       "path": "contracts/api.yml",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "credentials-rotation.json",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "data.json",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "events.jsonl",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "meta.json",
+       "readable": true,
+       "sizeBytes": 146
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "notes.txt",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "research",
+       "modifiedAt": "<modifiedAt>",
+       "path": "research/data.csv",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "other",
+       "modifiedAt": "<modifiedAt>",
+       "path": "secret.md",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "spec",
+       "modifiedAt": "<modifiedAt>",
+       "path": "spec.md",
+       "readable": true,
+       "sizeBytes": 6
+      },
+      {
+       "kind": "work_package_prompt",
+       "modifiedAt": "<modifiedAt>",
+       "path": "tasks/WP04-secret-hygiene.md",
+       "readable": true,
+       "sizeBytes": 6
+      }
+     ],
+     "missionId": "01J01000000000000000000001",
+     "truncated": false
+    },
+    "request": {
+     "op": "list"
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      ".env"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      ".ENV"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      ".env.local"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "notes/.env"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      ".git/config.yaml"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      ".npmrc"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "id_rsa"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "server.pem"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "server.key"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "Makefile"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "README.MD"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "run.sh"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "credentials.json"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "Secrets.yaml"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "client_secret_1234.apps.json"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "service-account.json"
+     ]
+    },
+    "status": 404
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "spec",
+     "mediaType": "text/markdown",
+     "path": "spec.md",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "spec.md"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "other",
+     "mediaType": "text/plain",
+     "path": "notes.txt",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "notes.txt"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "other",
+     "mediaType": "application/json",
+     "path": "data.json",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "data.json"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "other",
+     "mediaType": "application/x-ndjson",
+     "path": "events.jsonl",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "events.jsonl"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "contract",
+     "mediaType": "application/yaml",
+     "path": "contracts/api.yml",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "contracts/api.yml"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "research",
+     "mediaType": "text/csv",
+     "path": "research/data.csv",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "research/data.csv"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "other",
+     "mediaType": "text/markdown",
+     "path": "secret.md",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "secret.md"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "work_package_prompt",
+     "mediaType": "text/markdown",
+     "path": "tasks/WP04-secret-hygiene.md",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "tasks/WP04-secret-hygiene.md"
+     ]
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "content": "clean\n",
+     "encoding": "utf-8",
+     "kind": "other",
+     "mediaType": "application/json",
+     "path": "credentials-rotation.json",
+     "redacted": false,
+     "sizeBytes": 6
+    },
+    "request": {
+     "op": "content",
+     "paths": [
+      "credentials-rotation.json"
+     ]
+    },
+    "status": 200
+   }
+  ],
   "path-refusals": [
    {
     "body": {
@@ -889,13 +1391,6 @@
     "body": {
      "entries": [
       {
-       "kind": "other",
-       "modifiedAt": "<modifiedAt>",
-       "path": ".hidden",
-       "readable": true,
-       "sizeBytes": 4
-      },
-      {
        "kind": "analysis_report",
        "modifiedAt": "<modifiedAt>",
        "path": "analysis-report.md",
@@ -1197,13 +1692,11 @@
    },
    {
     "body": {
-     "content": "dot\n",
-     "encoding": "utf-8",
-     "kind": "other",
-     "mediaType": "text/plain",
-     "path": ".hidden",
-     "redacted": false,
-     "sizeBytes": 4
+     "code": "not_found",
+     "detail": "No eligible artifact has this path in the Mission.",
+     "status": 404,
+     "title": "The artifact was not found",
+     "type": "about:blank"
     },
     "request": {
      "op": "content",
@@ -1211,7 +1704,7 @@
       ".hidden"
      ]
     },
-    "status": 200
+    "status": 404
    }
   ],
   "redaction": [

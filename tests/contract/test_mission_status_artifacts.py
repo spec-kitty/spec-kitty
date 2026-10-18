@@ -520,10 +520,10 @@ def test_the_cap_is_inclusive_at_262144_bytes_and_262145_is_refused(tmp_path: Pa
 
 
 def test_an_oversize_file_that_is_not_utf8_is_413_not_415(tmp_path: Path, tools: helper.ContractTools) -> None:
-    _build(tmp_path, {"big.bin": _sized(CAP + 1, fill=bytes([0xFF])), "small.bin": _sized(10, fill=bytes([0xFF]))})
+    _build(tmp_path, {"big.txt": _sized(CAP + 1, fill=bytes([0xFF])), "small.txt": _sized(10, fill=bytes([0xFF]))})
     ctx = _ctx(tmp_path, tools)
-    _only_refusal(_read(ctx, "big.bin"), 413, "artifact_too_large")
-    _only_refusal(_read(ctx, "small.bin"), 415, "artifact_not_text")
+    _only_refusal(_read(ctx, "big.txt"), 413, "artifact_too_large")
+    _only_refusal(_read(ctx, "small.txt"), 415, "artifact_not_text")
 
 
 def test_a_file_that_grows_during_the_read_is_413_and_a_stable_twin_is_200(tmp_path: Path, tools: helper.ContractTools) -> None:
@@ -596,7 +596,7 @@ def test_a_listing_of_1001_files_is_truncated_to_1000_and_1000_files_are_not(tmp
 
 
 def test_odd_but_legal_names_are_listed_and_read_and_a_backslash_or_overlong_name_is_neither(tmp_path: Path, tools: helper.ContractTools) -> None:
-    legal = ["scale" + chr(64) + "2x.png.md", "notes/home/someone/file.md", "with space.md", ".hidden.md"]
+    legal = ["scale" + chr(64) + "2x.png.md", "notes/home/someone/file.md", "with space.md", "a..b.md"]
     backslash = "a" + BACKSLASH + "b.md"
     segment = "d" * 100
     nested_512 = SLASH.join([segment] * 4 + ["f" * 105 + ".md"])
@@ -611,6 +611,81 @@ def test_odd_but_legal_names_are_listed_and_read_and_a_backslash_or_overlong_nam
     for name in (backslash, nested_513):
         assert name not in listed, "a malformed path is never listed"
         _only_refusal(_read(ctx, name), 400, "invalid_artifact_path")
+
+
+# Deny by default: only an artifact name is ever listed or served (issue #6422). Each name below holds clean text
+# or an API key the content scan does not know, so only the name rule can keep it out.
+_API_KEY_LINE = "OPENAI_API_KEY=" + "sk-" + "proj-" + "x" * 40 + "\n"
+REFUSED_NAMES = {
+    "a dotfile": ".env",
+    "a dotfile in another case": ".ENV",
+    "a dotfile with a suffix": ".env.local",
+    "a dotfile with an allowed extension": ".env.json",
+    "a nested dotfile": "notes/.env",
+    "a file below a dot directory": ".git/config.yaml",
+    "a dot directory below the root": "tasks/.secrets/keys.md",
+    "a package-manager token file": ".npmrc",
+    "a netrc": ".netrc",
+    "an ssh private key": "id_rsa",
+    "a certificate": "server.pem",
+    "a key file": "server.key",
+    "a pkcs12 bundle": "bundle.p12",
+    "no extension": "Makefile",
+    "an extension in another case": "README.MD",
+    "an unlisted extension": "run.sh",
+    "a text file with a binary extension": "README.exe",
+    "a credentials data file": "credentials.json",
+    "a secrets data file in another case": "Secrets.yaml",
+    "a secrets text file": "secrets.txt",
+    "a client secret download": "client_secret_1234.apps.json",
+    "a service account key": "service-account.json",
+    "a credential name by case fold": "CREDENTIALS.json",
+}
+
+
+@pytest.mark.parametrize("label", sorted(REFUSED_NAMES))
+def test_a_name_outside_the_artifact_allowlist_is_neither_listed_nor_served(label: str, tmp_path: Path, tools: helper.ContractTools) -> None:
+    name = REFUSED_NAMES[label]
+    assert not art.is_artifact_name(name), name
+    _build(tmp_path, {name: _API_KEY_LINE, "spec.md": CLEAN_TEXT})
+    ctx = _ctx(tmp_path, tools)
+    assert name not in _listed_paths(ctx), f"{name!r} must not be listed"
+    outcome = _read(ctx, name)
+    _only_refusal(outcome, 404, "not_found")
+    assert "sk-proj-" not in _json(outcome)
+
+
+ALLOWED_NAMES = [
+    "spec.md",
+    "research/notes.csv",
+    "contracts/api.yaml",
+    "contracts/api.yml",
+    "data.json",
+    "status-log.jsonl",
+    "tasks/notes.txt",
+    "tasks/WP04-documentation-and-secret-hygiene.md",
+    "contracts/credential-injection.md",
+    "secret.md",
+    "credentials-rotation.json",
+    "a..b.md",
+]
+
+
+def test_every_allowlisted_name_is_listed_and_served(tmp_path: Path, tools: helper.ContractTools) -> None:
+    _build(tmp_path, dict.fromkeys(ALLOWED_NAMES, CLEAN_TEXT))
+    ctx = _ctx(tmp_path, tools)
+    listed = _listed_paths(ctx)
+    for name in ALLOWED_NAMES:
+        assert art.is_artifact_name(name), name
+        assert name in listed, name
+        assert _read(ctx, name).status == 200, name
+
+
+def test_the_name_rule_folds_case_as_python_does() -> None:
+    assert not art.is_artifact_name("\u017fecrets.json"), "long s folds to s"
+    assert not art.is_artifact_name("client_secre\u1e97.json"), "t with diaeresis folds to t and a combining mark"
+    assert art.is_artifact_name("cl\u0130ent_secret.json"), "dotted capital I folds to i and a combining mark"
+    assert art.is_artifact_name("tokens.json") and art.is_artifact_name("api.yaml")
 
 
 @pytest.mark.parametrize(

@@ -40,7 +40,7 @@ Any other path is `404` once the Host and Origin check has passed. There is no g
 
 The artifact routes follow the order of decision of the Python reference reader (`tests/contract/_mission_status_artifacts.py`). The `path` parameter is judged as the list of its values, so a missing or repeated one is `400 invalid_artifact_path`, as is a malformed percent-encoding. An unknown or ill-formed `missionId` is `404 not_found`. A Mission directory that is gone, a link or outside the root is `404`, and one that cannot be stat-ed is `500`. Per file, the steps run in this order:
 
-1. Eligibility (an lstat of every component; no link, a regular file, not a root status record): not eligible is `404`, and a fault is `500`.
+1. Eligibility (the name rule, then an lstat of every component; no link, a regular file, not a root status record): not eligible is `404`, and a fault is `500`. The name rule denies by default (`ArtifactNameRule`, the reference's `is_artifact_name`): the final name ends in `.md`, `.json`, `.jsonl`, `.yaml`, `.yml`, `.csv` or `.txt` (with that case), no segment starts with a dot, and a data file (not `.md`) is not named `credential(s)`, `secret(s)`, `service-account`, `service_account` or `client_secret*` (by case fold). A `.env`, a key, a certificate or any other file is never listed and never opened.
 2. A NOFOLLOW open, with the size taken from the open handle: a failure to open is `500`, and more than 262,144 bytes is `413` with nothing read.
 3. The bytes: a NUL byte or invalid UTF-8 is `415`, and a credential is `422`.
 4. Otherwise `200`, with host paths and e-mail addresses replaced by `[path]` and `[email]`.
@@ -148,7 +148,7 @@ kitty-specs/<mission>/status.events.jsonl and status.json (stat only)
 kitty-specs/<mission>/<path> (stat, names, read)
 ```
 
-The residuals of the threat note apply here too. The check and the open are two steps, so an intermediate directory swapped for a link, or a file swapped for a FIFO, after the check is not caught. A hard link to a file outside the Mission is a regular file and is served when it holds no credential. The rules are lexical, as the reference's are: on Windows a trailing dot or an 8.3 short name (`status.json.`, `STATUS~1.JSO`) can reach a root status record, and on a case-insensitive file system `SPEC.md` reaches `spec.md` and is classed `other`. A listing walks, stats and checks the whole Mission tree before it keeps the first 1000 entries, and reads each kept file up to the cap to decide `readable`; a Mission directory that holds a very large tree (a `node_modules`, say) makes every listing of it slow.
+The residuals of the threat note apply here too. The check and the open are two steps, so an intermediate directory swapped for a link, or a file swapped for a FIFO, after the check is not caught. A hard link to a file outside the Mission is a regular file and is served when its name is an artifact name and it holds no credential. The rules are lexical, as the reference's are: on Windows a trailing dot or an 8.3 short name (`status.json.`, `STATUS~1.JSO`) can reach a root status record, and on a case-insensitive file system `SPEC.md` reaches `spec.md` and is classed `other`. A listing walks, stats and checks the whole Mission tree before it keeps the first 1000 entries, and reads each kept file up to the cap to decide `readable`; a Mission directory that holds a very large tree (a `node_modules`, say) makes every listing of it slow.
 
 ## Recorded divergences from the Python reference
 

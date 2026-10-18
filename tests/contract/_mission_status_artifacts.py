@@ -71,6 +71,12 @@ MEDIA_TYPES = {
     "csv": "text/csv",
 }
 DEFAULT_MEDIA_TYPE = "text/plain"
+# Deny by default: only these final-name extensions (matched with their case) are artifacts. The media-type table plus txt.
+ARTIFACT_EXTENSIONS = frozenset({"md", "json", "jsonl", "yaml", "yml", "csv", "txt"})
+# A data file (any of these extensions but md) whose casefolded name, less its extension, is one of these, or starts with
+# client_secret, is never an artifact. Markdown is prose: tasks/WP04-secret-hygiene.md and the like are kept.
+CREDENTIAL_NAME_STEMS = frozenset({"credential", "credentials", "secret", "secrets", "service-account", "service_account"})
+CREDENTIAL_NAME_PREFIX = "client_secret"
 ENCODING = "utf-8"
 PATH_TOKEN = "[path]"
 EMAIL_TOKEN = "[email]"
@@ -193,6 +199,25 @@ def malformed(tools: ContractTools, path: str) -> str | None:
     return None
 
 
+def is_artifact_name(path: str) -> bool:
+    """The name rule of an artifact, read from ``path`` alone and before any file system call.
+
+    Deny by default: no segment starts with a dot (``.env``, ``.npmrc``, ``.git/``, ``.kittify/``), the final name has an
+    extension of ``ARTIFACT_EXTENSIONS`` (so ``id_rsa``, ``*.pem``, ``*.key`` and ``*.p12`` are not artifacts), and a data
+    file's casefolded name less its extension is not a credential file name (``credentials.json``, ``Secrets.YAML``).
+    """
+    segments = path.split("/")
+    if any(segment.startswith(".") for segment in segments):
+        return False
+    stem, dot, extension = segments[-1].rpartition(".")
+    if not dot or extension not in ARTIFACT_EXTENSIONS:
+        return False
+    if extension == "md":
+        return True
+    folded = stem.casefold()
+    return folded not in CREDENTIAL_NAME_STEMS and not folded.startswith(CREDENTIAL_NAME_PREFIX)
+
+
 def classify(path: str) -> str:
     """The ordered classifier of the contract: the first match wins, the file is never read."""
     segments = path.split("/")
@@ -285,12 +310,12 @@ def resolve_mission(ctx: ReaderContext, mission_id: str) -> Path | None:
 def is_eligible(ctx: ReaderContext, mission_dir: Path, path: str) -> bool:
     """The one eligibility rule over one path (listing, content read, ``artifactPath`` and the references all call it).
 
-    A file is eligible when its path is not malformed, it is not the root ``status.events.jsonl`` or ``status.json`` (matched without regard to case), it
-    is a regular file, and no component of the path below the Mission directory is a symlink: every component is
+    A file is eligible when its path is not malformed, it is not the root ``status.events.jsonl`` or ``status.json`` (matched without regard to case), its
+    name passes ``is_artifact_name``, it is a regular file, and no component of the path below the Mission directory is a symlink: every component is
     lstat-ed and nothing is resolved. A missing component and a file used as a directory make it not eligible; any
     other failure of the file system is raised, so the caller answers 500 and never a wrong 404.
     """
-    if malformed(ctx.tools, path) is not None or path.casefold() in ROOT_STATUS_FILES:
+    if malformed(ctx.tools, path) is not None or path.casefold() in ROOT_STATUS_FILES or not is_artifact_name(path):
         return False
     segments = path.split("/")
     current = mission_dir

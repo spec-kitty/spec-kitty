@@ -110,6 +110,25 @@ class ArtifactRulesTest {
   }
 
   @Test
+  void theNameRuleDeniesByDefault() {
+    for (String path :
+        new String[] {
+          "spec.md", "notes.txt", "data.json", "events.jsonl", "contracts/api.yaml", "contracts/api.yml", "research/data.csv", "secret.md",
+          "tasks/WP04-documentation-and-secret-hygiene.md", "credentials-rotation.json", "tokens.json", "a..b.md", "clİent_secret.json"
+        }) {
+      assertThat(ArtifactNameRule.isArtifactName(path)).as(path).isTrue();
+    }
+    for (String path :
+        new String[] {
+          ".env", ".ENV", ".env.local", ".env.json", "notes/.env", ".git/config.yaml", "tasks/.secrets/keys.md", ".npmrc", ".netrc", "id_rsa",
+          "server.pem", "server.key", "bundle.p12", "Makefile", "README.MD", "run.sh", "README.exe", "a.", "credentials.json", "Secrets.yaml",
+          "secrets.txt", "CREDENTIALS.json", "client_secret_1234.apps.json", "service-account.json", "ſecrets.json", "client_secreẗ.json"
+        }) {
+      assertThat(ArtifactNameRule.isArtifactName(path)).as(path).isFalse();
+    }
+  }
+
+  @Test
   void theModifiedTimeIsWholeSecondsInUtcWithZ() {
     assertThat(ArtifactTimestamp.format(0)).isEqualTo("1970-01-01T00:00:00Z");
     assertThat(ArtifactTimestamp.format(1_758_537_000L)).isEqualTo("2025-09-22T10:30:00Z");
