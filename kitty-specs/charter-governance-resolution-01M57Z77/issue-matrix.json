@@ -144,6 +144,18 @@
       "verdict": "in-mission",
       "wp": "WP06"
     },
+    "#6423": {
+      "evidence_ref": "Follow-up: declared-id activation, out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#677": {
       "evidence_ref": "cited for context only (culprit commit provenance)",
       "fr": null,
