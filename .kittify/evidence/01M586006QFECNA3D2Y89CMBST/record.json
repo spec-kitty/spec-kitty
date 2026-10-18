@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M586006QFECNA3D2Y89CMBST",
+  "completed_at": "2026-10-18T18:58:23.911153+00:00",
+  "outcome": "abandoned",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/claude-0/-home-user/b548183b-fbff-59c5-b148-4b30366e72e7/scratchpad/op2-evidence.md"
+}
