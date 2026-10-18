@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-17T19:20:06.076533+00:00",
+  "flattened": false,
+  "friendly_name": "Built-in re-vendor: pin lockfile + vendor command + drift gate",
+  "mid8": "01M55MX7",
+  "mission_id": "01M55MX7JHMDN5W9QV66DESK4S",
+  "mission_number": null,
+  "mission_slug": "builtin-revendor-pin-gate-01M55MX7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The committed packs/built-in tree can silently drift from its open-packs provenance source (as it just did: core moved 8 files past the recorded pin). ADR 2026-08-16-2 (amended 2026-10-11) keeps the tree committed and read-only, changed only via a pin bump, guarded by a drift gate. open-packs is now seeded+tagged (v0.1.0). Mission adds the core-side pin lockfile, the vendor command, the per-PR+release drift gate, and release re-verification, reusing landed primitives (core_compat, pack_clean_digest, regenerate-graph --pack-root). Out of scope: tree removal/materialization, packs/internal, the authoring flip.",
+  "purpose_tldr": "Implement ADR 2026-08-16-2 Option B: pin the open-packs built-in source by commit SHA + digest, add a 'charter pack vendor' command, and a CI drift gate that keeps the committed packs/built-in tree provably equal to the pin (#3504).",
+  "slug": "builtin-revendor-pin-gate-01M55MX7",
+  "target_branch": "feat/builtin-revendor-pin-gate",
+  "topology": "single_branch"
+}

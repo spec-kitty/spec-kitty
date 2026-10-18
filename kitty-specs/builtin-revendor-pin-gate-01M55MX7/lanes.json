@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "mission_slug": "builtin-revendor-pin-gate-01M55MX7",
+  "mission_id": "01M55MX7JHMDN5W9QV66DESK4S",
+  "mission_branch": "feat/builtin-revendor-pin-gate",
+  "target_branch": "feat/builtin-revendor-pin-gate",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/workflows/packs.yml",
+        ".github/workflows/release.yml",
+        "RELEASE_CHECKLIST.md",
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/builtin-revendor-pin-gate-01M55MX7/trace/narrative.md",
+        "packs/built-in.source.yaml",
+        "src/charter/offering/packs/built_in_pin.py",
+        "src/specify_cli/cli/commands/charter/_app.py",
+        "src/specify_cli/cli/commands/charter/pack_vendor.py",
+        "tests/architectural/test_built_in_drift_gate.py",
+        "tests/charter_offering/test_built_in_pin.py",
+        "tests/charter_offering/test_pack_vendor.py",
+        "tests/cross_cutting/packaging/test_built_in_release_parity.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-17T19:47:10.307644+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "f762d86ba4b9b8055cd7a01d8e5332a3a39afaf1"
+}
