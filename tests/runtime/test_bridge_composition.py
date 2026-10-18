@@ -1024,16 +1024,20 @@ def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_erro
     tmp_path: Path,
 ) -> None:
     """Blast Radius (plan.md, User Story 1 AC4, SC-001a): `plan` is NOT a
-    beneficiary of the FR-001/FR-003 fix -- dispatching an action in
-    `plan`'s own action_sequence must still raise the pre-existing, distinct
-    ``StepContractExecutionError("No step contract found for mission/action
-    plan/<action>")``, never ``profile_hint is required`` and no other
-    newly-introduced behavior. Driven through the REAL charter/executor
-    stack (repo_root=_REPO_ROOT, no mocking) against this repo's actual
-    doctrine data: `plan` is a built-in mission type with no registered step
-    contract for any of its actions (registering one is out of scope, per
-    plan.md), so the executor's own ``get_by_action`` miss fires before
-    ``_resolve_profile_hint`` is ever reached."""
+    beneficiary of the FR-001/FR-003 fix -- dispatching an action in `plan`'s
+    own action_sequence must still fail distinctly, never silently succeed and
+    never be handed a newly-introduced profile default. Driven through the REAL
+    charter/executor stack (repo_root=_REPO_ROOT, no mocking) against this repo's
+    actual doctrine data.
+
+    Since open-packs#45 / #6379 the built-in pin vendors `plan`'s four step
+    contracts, so the executor's ``get_by_action`` no longer misses and the
+    pre-existing ``"No step contract found for mission/action plan/specify"``
+    error no longer fires. The distinct non-beneficiary failure now surfaces one
+    step later, at profile-hint resolution: `plan/specify` has no action default,
+    so composition fails with ``"profile_hint is required when no action default
+    exists for plan/specify"`` -- which is exactly the point, `plan` still gets no
+    FR-001/FR-003 default and no silent pass."""
     failures = composition._dispatch_via_composition(
         repo_root=_REPO_ROOT,
         mission="plan",
@@ -1047,8 +1051,8 @@ def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_erro
 
     assert failures is not None
     assert len(failures) == 1
-    assert "No step contract found for mission/action plan/specify" in failures[0]
-    assert "profile_hint is required" not in failures[0]
+    assert "profile_hint is required when no action default exists for plan/specify" in failures[0]
+    assert "No step contract found" not in failures[0]
 
 
 def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
