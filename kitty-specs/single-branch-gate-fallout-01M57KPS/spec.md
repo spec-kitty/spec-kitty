@@ -25,7 +25,7 @@ A maintainer relies on the nightly `specify-cli-out-of-matrix` lane. The single_
 
 **Why this priority**: P0 red nightly. Red CI means no release.
 
-**Independent Test**: run the one test. It passes, and consolidate still refuses when the fixture is reverted to either stale shape.
+**Independent Test**: run the one test; it passes. Each stale shape was observed refusing live during diagnosis. They stay pinned as negative controls by `tests/consolidation/test_single_branch_evidence_axis.py::test_single_branch_with_uncomputable_window_fails_closed` and `::test_implementation_present_but_same_actor_review_refuses`.
 
 **Acceptance Scenarios**:
 
