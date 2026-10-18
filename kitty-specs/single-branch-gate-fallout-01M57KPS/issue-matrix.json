@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6369": {
-      "evidence_ref": "c945367a (scenario 6 only, C-003); under review",
+      "evidence_ref": "c945367a; scenario 6 only (C-003); test_single_branch_refusal_wording.py green",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#6370": {
