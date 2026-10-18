@@ -156,7 +156,7 @@ No charter violations. `activate_cmd` sits at complexity 15 today; the extractio
 
 - **Purpose**: synthesized how-we-apply tactics are reachable through their directive and only through it.
 - **Relevant requirements**: FR-001..FR-005, C-001, C-004.
-- **Affected surfaces**: `synthesizer/project_drg.py`, `synthesizer/reconcile.py`, `synthesizer/orchestrator.py`, `action_governance_bundle.py`, `compiler.py`, `offering/drg/models.py`, `offering/drg/merge.py`, `docs/architecture/doctrine-relationships.md`.
+- **Affected surfaces**: `synthesizer/project_drg.py`, `synthesizer/reconcile.py`, `synthesizer/reach_only.py`, `cli/commands/charter/{synthesize,resynthesize}.py`, `action_governance_bundle.py`, `compiler.py`, `offering/drg/models.py`, `offering/drg/merge.py`, `docs/architecture/doctrine-relationships.md`.
 - **Sequencing/depends-on**: IC-01 touches `action_governance_bundle.py` too; sequence after IC-01 to avoid conflicts.
 - **Risks**: many reconcile tests encode the legacy `applies` shape; spurious orphan refusals if `_edge_ref` backing is wrong.
 

@@ -106,7 +106,7 @@ Requirement refs: FR-002, FR-003, C-001.
 - Root seeding (`src/charter/activation/action_governance_bundle.py`): absent key → `selected_tactics = _catalog_default_or_activated(None, _graph_and_catalog_default_ids(merged, TACTIC, ...))` :347-351 (helper :91-106) seeds every graph tactic; explicit key seeds the listed ids; org-required union :377; `roots` tuple :412-417. Seeds are closure roots in `delivery_table.py:280-288`.
 - Provenance is **not** tagged on the default merge path (`_drg_helpers.py:277` `merge_layers`), and the set must be computed **before** `filter_graph_by_activation` (else a deactivated directive's edge disappears and the tactic looks like a root).
 - Reference seeds: `src/charter/activation/compiler.py` ~:1768 `start_urns |= direct_root_urns` — apply the same subtraction.
-- Activation append hook: `src/charter/activation/synthesizer/orchestrator.py` `synthesize`, after `_apply_post_condition` (~:327-332), preserve and prune modes only (dry-run returns at ~:303). APIs: `pack_manager.resolve_activation_write_target(repo_root)` (:577), `activation_engine.promote_activations(...)` (:600, append-only, dedupes), `bundle_restamp.restamp_bundle_hash(repo_root)` (pair as in `pack_manager.py:770-771`). Ids: this run's results `[prov.artifact_slug for _, prov in results if prov.artifact_kind == "tactic"]` (tactic stem == declared id == slug).
+- Activation append: a helper in `synthesizer/reach_only.py` called from the `synthesize` / `resynthesize` CLI commands after the orphan-refusal check (see T025; not inside `orchestrator.synthesize`, whose post-condition is at :334-337 and whose dry-run returns at ~:303). APIs: `pack_manager.resolve_activation_write_target(repo_root)` (:577), `activation_engine.promote_activations(...)` (:600, append-only, dedupes), `bundle_restamp.restamp_bundle_hash(repo_root)` (pair as in `pack_manager.py:770-771`). Ids: this run's results `[prov.artifact_slug for _, prov in results if prov.artifact_kind == "tactic"]` (tactic stem == declared id == slug).
 - `action_governance_bundle.py` (owned by WP03) gets the subtraction call; WP05 depends on WP03.
 - Test the topic path and the refused path (orphan refusal → `activated_tactics` unchanged).
 
@@ -138,7 +138,7 @@ Commit red: `test: red repro for #6404 synthesized tactic delivery`.
 ```bash
 uv run --frozen pytest tests/charter/synthesizer/test_reach_only_delivery.py tests/charter/synthesizer/test_synthesize_activation_append.py tests/charter/test_action_bundle_delivery.py tests/charter/test_action_governance_bundle_activation.py tests/charter/test_default_in_force_snapshot.py -q
 uv run --frozen pytest tests/charter/ tests/charter_offering/ tests/specify_cli/cli/commands/charter/ -q -n auto --dist loadfile
-uv run --frozen mypy --strict src/charter/activation/synthesizer/reach_only.py src/charter/activation/synthesizer/orchestrator.py src/charter/activation/compiler.py
+uv run --frozen mypy --strict src/charter/activation/synthesizer/reach_only.py src/charter/activation/compiler.py src/specify_cli/cli/commands/charter/synthesize.py src/specify_cli/cli/commands/charter/resynthesize.py
 ```
 
 ## Risks & Mitigations
