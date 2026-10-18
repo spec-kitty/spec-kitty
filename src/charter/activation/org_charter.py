@@ -336,6 +336,45 @@ def _normalize_required_ids(
     return normalized
 
 
+def org_required_stems(repo_root: Path, kind_plural: str, warnings: list[str]) -> list[str]:
+    """The org-required ids of *kind_plural* as activation stems (#6408, ``--only``).
+
+    ``required_<kind>`` lists hold declared ids; activation lists hold stems, so
+    each id is mapped through the same resolver the promotion path uses. An id
+    that resolves nowhere is kept raw (existing downstream validation owns it)
+    and named in *warnings*; a directive identity with no safe stem is skipped
+    with a warning. Kinds outside :data:`REQUIRED_KIND_FIELDS` yield ``[]``.
+    """
+    if kind_plural not in REQUIRED_KIND_FIELDS:
+        return []
+    raw_ids: list[str] = list(getattr(load_org_charter_policies(repo_root), f"required_{kind_plural}", ()))
+    if not raw_ids:
+        return []
+    from charter.activation.catalog import resolve_offering_root
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
+
+    try:
+        offering_root: Path | None = resolve_offering_root()
+    except Exception:  # noqa: BLE001 — normalization is best-effort, mirroring the promotion path
+        offering_root = None
+    if offering_root is None:
+        return raw_ids
+    kind = ArtifactKind.from_plural(kind_plural)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
+    layer_roots = resolve_layer_roots(repo_root)
+    stems: list[str] = []
+    for raw_id in raw_ids:
+        try:
+            stem = resolve_selected_id_to_stem(kind, raw_id, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
+        except UnrepresentableDirectiveIdError as exc:
+            warnings.append(f"Could not keep org-required directive {raw_id!r}; skipped. {exc}")
+            continue
+        if stem is None:
+            warnings.append(f"Org-required {kind.operator_token} {raw_id!r} was not found in any readable layer; kept as written.")
+        stems.append(stem if stem is not None else raw_id)
+    return list(dict.fromkeys(stems))
+
+
 def _effective_sets_for_absent_keys(repo_root: Path, promotions: Mapping[str, list[str]], config_data: Mapping[str, Any]) -> dict[str, EffectiveSet]:
     """The effective set of every absent promoted key (FR-015, #4400).
 

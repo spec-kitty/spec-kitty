@@ -69,7 +69,7 @@ def _available(root: Path) -> set[str]:
 
 
 def _dropped(output: str) -> tuple[int, set[str]]:
-    match = re.search(r"No longer in force \((\d+)\): (.*)", output)
+    match = re.search(r"No longer in force \((\d+)\): (.*)", " ".join(output.split()).split(" Catalog not recompiled")[0])
     assert match, output
     return int(match.group(1)), {item.strip() for item in match.group(2).split(",")}
 
@@ -134,12 +134,15 @@ def test_without_only_the_list_is_unchanged_and_the_warning_says_it_is_frozen(tm
 
 def test_only_with_cascade_narrows_only_the_named_kind(tmp_path: Path) -> None:
     root = _project(tmp_path, required=False)
+    available = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), "directive"))
     result = _activate(root, "directive", "001-architectural-integrity-standard", "--only", "--cascade", "all")
     assert result.exit_code == 0, result.output
     data = YAML(typ="safe").load((root / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
-    assert data["activated_directives"] == ["001-architectural-integrity-standard"]
-    # a cascaded kind appends (it was materialised first), it is never narrowed to the cascaded ids alone
-    cascaded = [key for key in data if key.startswith("activated_") and key != "activated_directives" and key != "activated_mission_types"]
-    assert cascaded, "fixture invalid: cascade=all must reach at least one other kind"
-    for key in cascaded:
-        assert len(data[key]) >= 1
+    listed = data["activated_directives"]
+    # the named kind was narrowed (strictly fewer than everything effective before), with the id first ...
+    assert listed[0] == "001-architectural-integrity-standard"
+    assert set(listed) < available, "fixture invalid or --only did not narrow: the list must be a strict subset of what was effective"
+    # ... and cascaded entries of the same kind appended after it, never replaced it
+    cascaded = listed[1:]
+    assert cascaded, "cascade=all must have appended at least one referenced directive"
+    assert "Cascade-activated" in result.output
