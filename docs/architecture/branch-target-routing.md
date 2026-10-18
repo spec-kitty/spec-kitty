@@ -2,7 +2,7 @@
 title: Branch-Target Routing
 description: Explanation of which git branch a mission's code, coordination surface, and base-level artifacts land on.
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-18'
 audience: docs/context/audience/internal/system-architect.md
 type: explanation
 related:
@@ -73,6 +73,8 @@ or coordination branch; a lane keeps its pre-upgrade copy until it is consolidat
 divergent copies, the integration sites resolve the generated `.kittify/metadata.yaml` to a
 fixed side. See [ADR 2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)
 and the [recovery runbook](../operations/upgrade-with-live-lanes-recovery.md).
+
+Op records are non-mission state too. Closing an Op commits its `kitty-ops/<id>.jsonl` record, or the doctor sweep's closure spine, onto the branch checked out in the repository root checkout. That branch-target routing applies only where the repository keeps Op records: the commit is skipped when the record matches an ignore rule, or when the primary branch tracks no Op record or cannot be shown to (an unresolved primary branch, a failed git probe) (#6410). See [the trail model](trail-model.md).
 
 ## The simple case: flat topology (no lanes, no coordination)
 

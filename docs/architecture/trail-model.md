@@ -2,7 +2,7 @@
 title: Trail Model
 description: 'Operator reference for the Phase 4 trail model: how every standalone spec-kitty dispatch writes an auditable JSONL trail for accountability, SaaS coherence, and provenance.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-18'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -166,12 +166,29 @@ The resolved design (#4397, option "record closure on the append-only spine"):
   for its invocation id (`list_orphan_ops`).
 - **The sweep auto-commits only the spine** (`op(<profile>): <action>
   [<id8>] (doctor sweep)`). A refused commit (e.g. the protected-branch guard
-  on `main`) is reported per-entry in the sweep output and plainly stated in
-  the command's output — an uncommitted closure will not survive a checkout
-  or reset; a committed one is visible only on branches that carry the commit.
-  The same visibility applies to the agent close path: a refused per-record
-  auto-commit is printed as an actionable warning (`executor.last_op_commit`)
-  instead of dying in a `logger.warning`.
+  on `main`) is reported per entry in the sweep output and stated in the
+  command's output: the closure stays on disk, uncommitted. A committed one is
+  visible only on branches that carry the commit. The agent close path is just
+  as visible: a refused per-record auto-commit is printed as a warning
+  (`executor.last_op_commit`) instead of dying in a `logger.warning`.
+- **The auto-commit runs only where the repository tracks Op records (#6410).**
+  Both close paths commit onto the checked-out branch, so they are skipped
+  when:
+  - the exact path being committed (the record, or the spine) matches an
+    ignore rule (`git check-ignore --no-index`), or
+  - the primary branch tracks no `kitty-ops/<ULID>.jsonl` record, locally or
+    on `origin`. Special files such as `ops-index.jsonl`, `lifecycle.jsonl`,
+    `propagation-errors.jsonl` and `op-closures.jsonl` do not count.
+
+  The primary branch is `origin/HEAD`, else `main`, `master` or `develop`. It
+  is never the checked-out branch, so an earlier `op(...)` commit on an issue
+  branch cannot turn the commit back on. A skipped close keeps the record on
+  disk, where `spec-kitty invocations list` and `doctor ops` find it. The
+  close output says so (`OpCommitOutcome.skipped`, and `skipped:<reason>` in
+  the sweep entry). An uncommitted spine can still block a checkout of a
+  branch that commits `kitty-ops/op-closures.jsonl`; move or commit it first. The decision lives in
+  `src/specify_cli/invocation/op_commit_policy.py`. A repository that tracks
+  Op records, this one included, keeps the current-branch commit.
 
 Rejected alternatives: letting the sweep mutate per-record files without
 committing (still reds the gate, which compares the working tree against the
