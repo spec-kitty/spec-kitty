@@ -73,6 +73,7 @@ from collections.abc import Callable
 import pytest
 from packaging.version import Version
 
+from specify_cli.upgrade.manifest import load_manifest_entries
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 
@@ -237,6 +238,18 @@ def test_migration_chain_is_consistent_and_uninterrupted(
         "MigrationRegistry is empty after auto_discover_migrations(); "
         "expected at least one migration to register."
     )
+
+    # The order manifest may annotate one migration `# runs-first:` -- it leads
+    # the execution order regardless of its target_version (ADR 2026-10-17-1 §2:
+    # the ledger backfill must populate the ledger before any later selection
+    # reads it). ``get_all()`` therefore returns it FIRST, ahead of the lowest-
+    # version migration, which would read as a spurious backward step at index 1.
+    # Its position is the manifest's, not version's, so it is NOT part of the
+    # version-monotonic chain: exclude it from the walk here. Its own version slot
+    # is still bounded by ``test_migration_chain_does_not_exceed_current_project_version``.
+    runs_first_ids = {entry.id for entry in load_manifest_entries() if entry.runs_first_reason is not None}
+    migrations = [migration for migration in migrations if migration.migration_id not in runs_first_ids]
+    assert migrations, "Migration chain is empty after excluding the runs-first lead(s)."
 
     # Build the chain as (migration_id, from_version, target_version)
     # rows. The first migration's FROM is OLDEST_SUPPORTED_VERSION;

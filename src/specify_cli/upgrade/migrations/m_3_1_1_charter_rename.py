@@ -23,7 +23,7 @@ from specify_cli.asset_preservation import (
 )
 from specify_cli.runtime.generated_writer import write_generated_file
 
-from ..metadata import ProjectMetadata, _LEGACY_MIGRATION_ID_MAP
+from ..ledger import MigrationLedger
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -104,7 +104,7 @@ class CharterRenameMigration(BaseMigration):
         self._rename_agent_artifacts(project_path, dry_run, changes, errors, warnings)
 
         # Phase 4: Metadata normalization
-        self._normalize_metadata(kittify, dry_run, changes, errors, warnings)
+        self._normalize_metadata(kittify, changes)
 
         if errors:
             return MigrationResult(
@@ -408,32 +408,17 @@ class CharterRenameMigration(BaseMigration):
     # Phase 4: Metadata normalization
     # ------------------------------------------------------------------
 
-    def _normalize_metadata(
-        self,
-        kittify: Path,
-        dry_run: bool,
-        changes: list[str],
-        errors: list[str],
-        warnings: list[str],  # noqa: ARG002
-    ) -> None:
-        """Normalize constitution-era migration IDs in metadata."""
-        metadata = ProjectMetadata.load(kittify)
-        if metadata is None:
-            return
+    def _normalize_metadata(self, kittify: Path, changes: list[str]) -> None:
+        """Migration-id normalization is owned by the ledger (FR-013; IC-06 cutover, WP04).
 
-        rewritten = False
-        for record in metadata.applied_migrations:
-            new_id = _LEGACY_MIGRATION_ID_MAP.get(record.id)
-            if new_id:
-                if dry_run:
-                    changes.append(f"Would rewrite metadata ID {record.id} -> {new_id}")
-                else:
-                    record.id = new_id
-                    rewritten = True
-
-        if rewritten:
-            try:
-                metadata.save(kittify)
-                changes.append("Normalized metadata migration IDs")
-            except OSError as e:
-                errors.append(f"Failed to save normalized metadata: {e}")
+        Repointed off ``metadata.yaml.applied_migrations`` (the retired applied
+        authority, C-001): the two-partition ledger normalizes constitution-era
+        ids on EVERY read -- :class:`MigrationLedger` applies
+        ``_LEGACY_MIGRATION_ID_MAP`` in ``_normalize_records`` (FR-009) -- and
+        ``save()`` no longer persists the applied list, so there is no metadata
+        block left to rewrite. Reading the ledger keeps this reader pointed at
+        the live authority and reports that normalization is ledger-owned when
+        the project has adopted it.
+        """
+        if {record.id for record in MigrationLedger(kittify.parent).read_all()}:
+            changes.append("Migration-id normalization is owned by the migration ledger")

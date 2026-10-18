@@ -118,20 +118,23 @@ class TestAutoDiscovery:
                 f"(contract maxLength is 256): {migration.description!r}"
             )
 
-    def test_discovered_migrations_are_sorted_by_version(self):
-        """Migrations are returned in version order."""
+    def test_discovered_migrations_follow_manifest_order(self):
+        """Migrations are returned in ``order_manifest.txt`` order, not version order.
+
+        The order authority moved from a target_version sort to the explicit
+        manifest (ADR 2026-10-17-1, WP02): ``get_all()`` mirrors
+        ``load_order_manifest()`` exactly, with the one ``runs_first`` adoption
+        backfill leading at index 0.
+        """
+        from specify_cli.upgrade.manifest import load_order_manifest
+
         MigrationRegistry.clear()
         auto_discover_migrations()
 
         migrations = MigrationRegistry.get_all()
 
-        # Extract versions
-        versions = [m.target_version for m in migrations]
-
-        # Verify they're in ascending order
-        sorted_versions = sorted(versions, key=Version)
-
-        assert versions == sorted_versions, "Migrations should be sorted by target_version"
+        assert [m.migration_id for m in migrations] == load_order_manifest()
+        assert migrations[0].migration_id == "4.0.0rc8_backfill_migration_ledger"
 
     def test_discovered_migration_targets_do_not_exceed_package_version(self):
         """Migrations newer than the installed package are skipped by upgrade."""

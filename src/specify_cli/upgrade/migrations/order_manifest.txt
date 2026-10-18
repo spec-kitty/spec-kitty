@@ -1,0 +1,140 @@
+# Spec Kitty migration execution-order manifest (ADR 2026-10-17-1).
+#
+# One migration_id per line, in canonical execution order. Blank lines and
+# lines beginning with '#' are ignored. A trailing '# tie: <reason>' marks an
+# intentional equal-target_version run (the order among equal versions is the
+# auto-discovery / filename import order, preserved here explicitly). A trailing
+# '# runs-first: <reason>' marks the one entry that must lead regardless of its
+# target_version. The build-time gate tests/architectural/test_migration_order_manifest.py
+# enforces: every registered migration_id appears exactly once; every entry
+# resolves to a registered migration; the order is version-monotonic save for
+# annotated ties; and at most one runs_first lead.
+#
+# DO NOT EDIT BY HAND to reorder history: this reproduces registry.get_all()
+# order for the existing migrations (NFR-004 parity).
+
+4.0.0rc8_backfill_migration_ledger  # runs-first: backfill must lead so the same upgrade run sees a populated ledger (ADR 2026-10-17-1 §6)
+0.2.0_specify_to_kittify
+0.4.8_gitignore_agents
+0.6.5_commands_rename
+0.6.7_ensure_missions
+0.7.2_worktree_commands_dedup
+0.7.3_update_scripts
+0.8.0_remove_active_mission
+0.8.0_worktree_agents_symlink  # tie: shares target_version 0.8.0; auto-discovery import order preserved
+0.9.0_frontmatter_only_lanes
+0.9.1_complete_migration
+0.9.2_research_mission_templates
+0.10.0_python_only
+0.10.1_populate_slash_commands
+0.10.2_update_slash_commands
+0.10.6_workflow_simplification
+0.10.8_fix_memory_structure
+0.10.9_repair_templates
+0.10.12_charter_cleanup
+0.10.14_update_implement_slash_command
+0.11.1_improved_workflow_templates
+0.11.1_update_implement_slash_command  # tie: shares target_version 0.11.1; auto-discovery import order preserved
+0.11.2_improved_workflow_templates
+0.11.3_workflow_agent_flag
+0.12.0_documentation_mission
+0.12.1_remove_kitty_specs_from_gitignore
+0.13.0_research_csv_schema_check
+0.13.0_update_charter_templates  # tie: shares target_version 0.13.0; auto-discovery import order preserved
+0.13.0_update_research_implement_templates  # tie: shares target_version 0.13.0; auto-discovery import order preserved
+0.13.1_exclude_worktrees
+0.13.5_add_commit_workflow_to_templates
+0.13.8_target_branch
+0.14.0_centralized_feature_detection
+2.0.0a5_remove_wp_status_gitignore_rule
+2.0.0_charter_directory
+2.0.0_historical_status_migration  # tie: shares target_version 2.0.0; auto-discovery import order preserved
+2.0.0_retire_git_hooks  # tie: shares target_version 2.0.0; auto-discovery import order preserved
+2.0.1_fix_generated_command_templates
+2.0.1_tool_config_key_rename  # tie: shares target_version 2.0.1; auto-discovery import order preserved
+2.0.2_charter_context_bootstrap
+2.0.6_consistency_sweep
+2.0.7_fix_stale_overrides
+2.0.9_state_gitignore
+2.0.11_install_skills
+2.0.11_remove_clarify_command  # tie: shares target_version 2.0.11; auto-discovery import order preserved
+2.1.1_repair_skill_pack
+2.1.2_fix_charter_doctrine_skill
+2.1.2_fix_glossary_context_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.2_fix_orchestrator_api_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.2_fix_runtime_next_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.2_install_git_workflow_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.2_install_mission_system_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.2_remove_release_skill  # tie: shares target_version 2.1.2; auto-discovery import order preserved
+2.1.3_fix_planning_repository_terminology
+2.1.3_restore_prompt_commands  # tie: shares target_version 2.1.3; auto-discovery import order preserved
+2.1.4_enforce_command_file_state
+2.2.0_profile_context_deployment
+3.0.0_canonical_context
+3.0.2_restore_prompt_commands
+3.0.3_globalize_skill_pack
+3.1.1_charter_rename
+3.1.1_direct_canonical_commands  # tie: shares target_version 3.1.1; auto-discovery import order preserved
+3.1.1_event_log_merge_driver  # tie: shares target_version 3.1.1; auto-discovery import order preserved
+3.1.1_normalize_status_json  # tie: shares target_version 3.1.1; auto-discovery import order preserved
+3.1.2_globalize_commands
+3.2.0a4_normalize_mission_lifecycle
+3.2.0a4_safe_globalize_commands  # tie: shares target_version 3.2.0a4; auto-discovery import order preserved
+3.2.0rc28_github_diff_attributes
+3.2.0rc30_fix_runtime_next_result_default
+3.2.0rc35_activate_builtin_mission_types
+3.2.0rc35_charter_bundle_v2  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_charter_manifest_defaults_repair  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_codex_to_skills  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_default_charter_pack  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_fix_prompt_file_workaround  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_kittify_profile_handoff  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_pi_letta_agent_backfill  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_repository_root_checkout_terminology  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_spk_skill_pack  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_strip_selection_config  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_kittify_runtime_git_hygiene  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_unified_bundle  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3.2.0rc35_update_planning_templates  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
+3_2_0rc39_refresh_orientation_block
+3_3_0_session_presence_all_harnesses  # tie: shares target_version 3.2.0rc39; auto-discovery import order preserved
+3_3_0_session_presence_claude_code  # tie: shares target_version 3.2.0rc39; auto-discovery import order preserved
+3_3_0_op_record_schema_v2
+3.2.0rc43_retire_profile_context_command
+0_9_3_surface_repair_wiring
+0_9_4_roo_deprecation  # tie: shares target_version 3.2.0rc44; auto-discovery import order preserved
+3.2.0rc45_retire_standalone_skill_surface
+3.2.3_encoding_provenance_gitignore_backfill
+3.2.4_derived_mission_views_gitignore_backfill
+3.2.4_runtime_dirs_gitignore_backfill  # tie: shares target_version 3.2.4; auto-discovery import order preserved
+3.2.5_agents_skills_gitignore_backfill
+3.2.6_decisions_event_log_merge_driver
+3.2.6_gate_artifact_merge_drivers  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+3.2.6_issue_matrix_driver_repoint  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+3.2.6_meta_traces_merge_drivers  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+3.2.6_retire_rtk_search_tooling  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+3.2.7_review_cycle_merge_driver  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+normalize_activation_absence  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+unify_charter_activation_promote_answers  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+consolidate_charter_bundle_fold  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+runtime_state_backfill  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+verdict_provenance_backfill  # tie: shares target_version 3.2.6rc1; auto-discovery import order preserved
+3.2.7_heal_provenance_paths
+3.2.8_provision_kitty_env  # tie: shares target_version 3.2.6rc2; auto-discovery import order preserved
+migrate_lifecycle_envelope  # tie: shares target_version 3.2.6rc2; auto-discovery import order preserved
+3_3_1_context_sources_consolidation  # tie: shares target_version 3.2.6rc2; auto-discovery import order preserved
+3.2.6rc3_lint_report_gitignore_backfill
+3.2.6rc3_narrow_cursor_gitignore  # tie: shares target_version 3.2.6rc3; auto-discovery import order preserved
+3.2.6rc3_worktrees_gitignore_backfill  # tie: shares target_version 3.2.6rc3; auto-discovery import order preserved
+4_0_0_retired_hosted_target
+4.0.0rc5_decision_index_merge_driver
+4_0_0rc5_heal_run_index_paths  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+4_0_0rc5_heal_template_set_provenance  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+4_0_0rc5_install_lane_tip_recorder  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+4.0.0rc5_retire_bundled_dashboard  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+4.0.0rc5_retire_single_owner_doctrine_ids  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+4_0_0rc5_single_branch_code_lanes_restamp  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
+charter_pack_cutover
+4.0.0rc7_exclude_spec_kitty
+4.0.0rc7_pack_level_backfill  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved
+4.0.0rc7_track_charter_pack_yaml  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved

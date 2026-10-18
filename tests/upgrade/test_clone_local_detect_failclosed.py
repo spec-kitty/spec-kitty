@@ -1,14 +1,25 @@
-"""The reselection gate probes clone-local detect() fail-closed (#6350 review follow-up).
+"""The reselection gate never probes a clone-local migration's detect() (ADR 2026-10-17-1).
 
-``BaseMigration.reselect_when_recorded`` is reached by both the runner skip gate and
-the selection arm (``registry._clone_local_selected_below_window``); neither wraps its
-``detect()`` call in ``registry._detect_fail_closed``. A clone-local migration's
-``detect()`` probes real on-disk state (a merge-driver migration reads ``.gitattributes``
-via ``read_text()``); a pathological checkout -- an unreadable or directory
-``.gitattributes`` -- raises ``OSError``. Before this fix that propagated out of the gate
-and crashed the whole upgrade before any migration ran. The gate now fails closed: a probe
-error reselects the migration (so the runner records a fail-closed failure) instead of
-aborting the run.
+History: #6350 (the #6233 clone-local reselection) routed the skip decision for a
+``clone_local_effect`` migration through ``BaseMigration.reselect_when_recorded`` ->
+``detect()``, and its follow-up (6a9aba609a) made that probe fail closed so a
+pathological checkout (an unreadable or directory ``.gitattributes`` whose
+``detect()`` raises ``OSError``) could not crash the whole upgrade.
+
+The explicit two-partition migration ledger SUPERSEDES that mechanism: a clone-local
+migration's applied authority IS its per-clone (gitignored) ledger, so a pulled clone
+with an EMPTY per-clone ledger re-selects it by ledger-diff and the runner's ``detect()``
+idempotency guard no-ops when the effect is already present. ``reselect_when_recorded``
+is now ``runs_first and structural_detect`` only -- a clone-local migration is NOT
+``runs_first``, so the hook short-circuits to ``False`` WITHOUT ever calling
+``structural_detect`` or ``detect()``.
+
+That makes #6350's fail-closed OUTCOME hold by construction: the reselection gate cannot
+crash on a clone-local ``detect()`` that raises, because it never invokes it. These tests
+pin that property (a regression that re-wired clone-local reselection back through
+``detect()`` would reintroduce the #6350 crash). The clone-local re-apply OUTCOME itself
+-- empty per-clone ledger => re-selected => effect re-applied -- is proven by
+``tests/upgrade/test_clone_local_selection.py``.
 """
 
 from __future__ import annotations
@@ -60,20 +71,30 @@ def _clone_local_migration(*, detect_returns: bool | None = None, detect_raises:
     ],
     ids=["oserror", "permission", "isadir", "state-unreadable", "gitignore-symlink"],
 )
-def test_detect_probe_error_fails_closed_to_reselect(tmp_path: Path, exc: Exception) -> None:
-    """A clone-local detect() that raises makes reselect fail closed (True), never propagate."""
+def test_reselection_gate_never_invokes_clone_local_detect(tmp_path: Path, exc: Exception) -> None:
+    """A clone-local detect() that raises is NEVER called by the reselection gate.
+
+    Under the ledger model clone-local reselection is owned by the per-clone ledger
+    partition, not this hook, so ``reselect_when_recorded`` returns ``False`` without
+    touching ``detect()`` -- a raising ``detect()`` can never propagate out of the gate
+    (the crash-proof-by-construction guarantee that supersedes #6350's fail-closed probe).
+    """
     migration = _clone_local_migration(detect_raises=exc)
-    # Must not raise, and must reselect so the runner records a fail-closed failure.
-    assert migration.reselect_when_recorded(tmp_path) is True
+    assert migration.reselect_when_recorded(tmp_path) is False
 
 
-def test_detect_absent_reselects(tmp_path: Path) -> None:
-    """Effect absent (detect() True) still reselects -- the ordinary pulled-clone case."""
+def test_detect_absent_does_not_reselect_via_the_hook(tmp_path: Path) -> None:
+    """Effect absent (detect() True) does NOT reselect via the hook.
+
+    The pulled-clone re-apply still happens -- but it is driven by the EMPTY per-clone
+    ledger partition (ledger-diff selection), proven in test_clone_local_selection.py, not
+    by ``reselect_when_recorded``, which is ``runs_first``-only now.
+    """
     migration = _clone_local_migration(detect_returns=True)
-    assert migration.reselect_when_recorded(tmp_path) is True
+    assert migration.reselect_when_recorded(tmp_path) is False
 
 
-def test_detect_present_settles(tmp_path: Path) -> None:
-    """Effect present (detect() False) settles -- no reselection, no over-run."""
+def test_detect_present_does_not_reselect(tmp_path: Path) -> None:
+    """Effect present (detect() False) also does not reselect via the hook."""
     migration = _clone_local_migration(detect_returns=False)
     assert migration.reselect_when_recorded(tmp_path) is False

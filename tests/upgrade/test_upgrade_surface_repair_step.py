@@ -154,6 +154,11 @@ def test_upgrade_recreates_a_deleted_tool_folder_without_an_owner_effect_conflic
     """#4275: managed skills and agent profiles both plan ``create .claude``; it must be planned once."""
     project = tmp_path / "project"
     project.mkdir()
+    # A real project is git-tracked; post-cutover ledger-diff selection (version
+    # window retired) surfaces a migration whose charter resolution needs a git root.
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=project, check=True, capture_output=True)
     with contextlib.chdir(project):
         init_result = _runner.invoke(root_app, ["init", "--ai", "claude,codex", "--non-interactive"], catch_exceptions=False)
     assert init_result.exit_code == 0, init_result.output

@@ -1,0 +1,215 @@
+{
+  "event_count": 42,
+  "last_event_id": "01M571WQMCT83BV61YVCPCM1TQ",
+  "materialized_at": "2026-10-18T08:26:15.564425+00:00",
+  "mission_number": "234",
+  "mission_slug": "migration-ledger-01M55SFA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M571WEXS4D4A0SCAV477DDMR",
+      "last_transition_at": "2026-10-18T08:26:06.649247+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "renata APPROVE (adversarial, clean)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261017",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3956584,
+      "shell_pid_created_at": "1792275183.74",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M571WGMY47ZESMYZKKKQT82M",
+      "last_transition_at": "2026-10-18T08:26:08.414301+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Adversarial review APPROVE: selection flip verified honest; #6233 clone-local net proven; can_apply->skip sound; migration_settled success-only+id-matched; dual-write harmless to selection; empty-ledger over-select is a cross-WP finding routed WP04/WP05; 57/57 owned tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261018",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19380,
+      "shell_pid_created_at": "1792281985.55",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M571WJC45ZVM6HDYH3S3HZDC",
+      "last_transition_at": "2026-10-18T08:26:10.180054+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "migrate ledger read surface; 9 red-first tests green",
+        "Adversarial review APPROVE: read-only proven (byte-identical-tree test), recomputes nothing (selection via applicable_migrations, drift/applied via assemble_report), one canonical migrate-ledger surface, consumer language, single assembler, drift audit-only; CorpusWideCommand accept-and-ignore blessed (harmless on read-only, house default); 9/9 owned tests pass, quality clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261018",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 104846,
+      "shell_pid_created_at": "1792294687.17",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M571WM2KW8P93BF5H0B38J5P",
+      "last_transition_at": "2026-10-18T08:26:11.923128+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Cutover source + 26 owned fixture repairs; cross-cutting collateral deferred to consolidated-branch closeout fold per operator ruling",
+        "APPROVE (owned surface): cutover + ledger-gated R4 strip + reader repoints verified; seam held; no version-floor seed; test_backfill_ledger 7 red-first; 22 fixtures isolation-green; cross-cutting collateral deferred to closeout fold per operator ruling."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261018",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 655983,
+      "shell_pid_created_at": "1792302932.17",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "java-jenny",
+      "lane": "done",
+      "last_event_id": "01M571WNSMWBR89ENJ6685F1YR",
+      "last_transition_at": "2026-10-18T08:26:13.684883+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Acceptance binding complete: 3 When rebound to migrate ledger, 7 @wip lifted, 10 steps bound; finding-2 scenario C re-authored ADR-faithfully (A+C pass); scenario-contract gate green. Remaining 5 feature reds isolated to finding-1 (upgrade non-idempotency), deferred to closeout remediation per operator ruling.",
+        "Adversarial review APPROVE (owned surface): 3 When rebound to migrate ledger, 7 @wip lifted, 10 steps bound convention-correct; finding-2 re-author ADR-faithful (genuine fresh-clone Given, real pending/not-in-place assertion, no fabricated record); no product code touched; scenario-contract 41 passed + Java compiles. 5 remaining feature reds correctly isolated to finding-1 (upgrade non-idempotency), deferred to closeout remediation per operator ruling."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261018",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 997830,
+      "shell_pid_created_at": "1792310137.79",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "curator-carla",
+      "lane": "done",
+      "last_event_id": "01M571WQMCT83BV61YVCPCM1TQ",
+      "last_transition_at": "2026-10-18T08:26:15.564425+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs: migration-authoring guidance + ADR author checklist to the ledger model; documents shipped shape only. owned_files corrected to include AGENTS.md (CLAUDE.md symlink target).",
+        "Adversarial review APPROVE (docs-only): all doc claims match shipped WP01-05 code (clone_local_effect routing, migration_settled success-only, identity/content_hash_sources, migrate ledger states, order_manifest annotations); NO init-seed documented (unshipped closeout change); ADR 2026-07-07-1 superseded note accurate + resolves doc/code contradiction; symlink seam resolved (AGENTS.md owned); terminology canonical."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261018",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1028943,
+      "shell_pid_created_at": "1792311292.13",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    }
+  }
+}

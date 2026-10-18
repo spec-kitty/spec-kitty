@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.upgrade.metadata import MigrationRecord, ProjectMetadata
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack import (
     RepairSkillPackMigration,
 )
@@ -21,8 +21,16 @@ pytestmark = pytest.mark.fast
 
 def _setup_project(tmp_path: Path, agents: list[str] | None = None) -> Path:
     """Create a minimal initialized project with .kittify/ and config."""
+    import subprocess
+
     project = tmp_path / "project"
     project.mkdir()
+    # A real project is git-tracked. Post-cutover, ledger-diff selection (the
+    # version window is retired) surfaces migrations whose charter resolution
+    # requires a git root -- so this fixture must be a git repo, as a real one is.
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=project, check=True, capture_output=True)
     kittify = project / ".kittify"
     kittify.mkdir()
 
@@ -127,16 +135,23 @@ class TestRunnerIntegration:
             version="2.1.0",
             initialized_at=now_utc(),
             last_upgraded_at=now_utc(),
-            applied_migrations=[
-                MigrationRecord(
-                    id="2.0.11_install_skills",
-                    applied_at=now_utc(),
-                    result="success",
-                    notes="No skills found to install",
-                )
-            ],
         )
         metadata.save(project / ".kittify")
+
+        # Ledger-diff selection (ADR 2026-10-17-1): selection is declared-minus-
+        # settled, with no version window. Represent a project already migrated
+        # up to this point by seeding the LEDGER with every declared migration
+        # as settled EXCEPT the repair migration under test, so the runner
+        # selects exactly it (and does not re-run the whole manifest).
+        from specify_cli.upgrade.ledger import MigrationLedger, build_record
+        from specify_cli.upgrade.migrations import auto_discover_migrations
+        from specify_cli.upgrade.registry import MigrationRegistry
+
+        auto_discover_migrations()
+        _ledger = MigrationLedger(project)
+        for _mig in MigrationRegistry.get_all():
+            if _mig.migration_id != "2.1.1_repair_skill_pack":
+                _ledger.append(build_record(_mig, "success"))
 
         with patch(
             "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack._discover_registry",

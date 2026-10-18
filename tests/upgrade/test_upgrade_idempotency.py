@@ -47,11 +47,31 @@ _METADATA_YAML = (
 )
 
 
+def _seed_full_ledger(root: Path) -> None:
+    """Record every declared migration as applied so the project is genuinely up to date.
+
+    Under ledger-diff selection (ADR 2026-10-17-1) the two-partition ledger --
+    not a retired version window -- is the applied authority, so a
+    fully-migrated fixture must carry a ``success`` record for every declared
+    migration; otherwise every migration is re-selected and the run is no longer
+    a no-op.
+    """
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(root)
+    for migration in MigrationRegistry.get_all():
+        ledger.append(build_record(migration, "success"))
+
+
 def _init_project(root: Path, *, version: str = "1.0.0a1") -> None:
     root.mkdir(parents=True, exist_ok=True)
     kittify = root / ".kittify"
     kittify.mkdir()
     (kittify / "metadata.yaml").write_text(_METADATA_YAML.format(version=version), encoding="utf-8")
+    _seed_full_ledger(root)
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)

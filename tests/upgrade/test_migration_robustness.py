@@ -37,6 +37,7 @@ import pytest
 from tests.architectural._gate_coverage import load_spliced_workflow
 from tests.architectural._interpreter_shard_roster import INTERPRETER_SHARD_JOB_KEYS, shard_roster_non_vacuity_violation
 
+from specify_cli.upgrade.ledger import MigrationLedger
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore import (
@@ -160,7 +161,7 @@ def _run_upgrade_concurrent(
     go_event.wait()
     runner = MigrationRunner(Path(project_path))
     result = runner.upgrade("0.0.1", include_worktrees=False, force=True)
-    result_queue.put((result.success, result.errors))
+    result_queue.put((result.success, result.errors, result.migrations_applied, result.warnings))
 
 
 class TestAtomicWrites:
@@ -237,11 +238,21 @@ class TestConcurrentMigration:
 
         for process in processes:
             process.join(timeout=20)
-        # Assert
-        successes = [success for success, _errors in results]
-        assert successes.count(True) == 1
-        assert successes.count(False) == 1
-        assert any(any("Cannot apply" in err or "Upgrade lock" in err for err in errors) for success, errors in results if not success)
+        # Assert: under ledger-diff selection (ADR 2026-10-17-1) a ``can_apply``
+        # refusal is a SKIP, not a failure, so the lock-blocked process now
+        # reports success too. Safe concurrency is proven by the invariant that
+        # survives the model change: exactly ONE process actually APPLIES the
+        # locking migration (holds the O_EXCL lock); the other is blocked and
+        # skips it (its warnings name the lock).
+        successes = [success for success, _errors, _applied, _warnings in results]
+        assert successes.count(True) == 2
+        applied_the_lock = [LockingMigration.migration_id in applied for _s, _e, applied, _w in results]
+        assert applied_the_lock.count(True) == 1, "exactly one process may hold the lock and apply"
+        assert any(
+            any("Upgrade lock already held" in warning for warning in warnings)
+            for _s, _e, applied, warnings in results
+            if LockingMigration.migration_id not in applied
+        ), "the blocked process skipped on the held lock"
 
 
 def _extract_uv_run_argv_prefix(source_path: Path, function_name: str) -> list[str]:
@@ -625,9 +636,10 @@ class TestPartialMigrationRecovery:
         # Assert
         assert not first.success
         assert second.success
-        metadata = ProjectMetadata.load(migration_project / ".kittify")
-        assert metadata is not None
-        assert metadata.has_migration(FlakyMigration.migration_id)
+        # The ledger (not metadata.yaml) is the applied authority post-cutover:
+        # the retry's success is recorded there.
+        ledger_records = MigrationLedger(migration_project).read_all()
+        assert any(r.id == FlakyMigration.migration_id and r.result == "success" for r in ledger_records)
 
 
 class TestPermissionErrors:

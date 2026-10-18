@@ -12,9 +12,13 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -274,6 +278,201 @@ public final class ArrangeSteps {
             Files.deleteIfExists(path);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not delete " + path, e);
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------- //
+    // Migration-ledger arrange steps (#5230). Each builds its starting state only through the CLI
+    // and plain git, and observes the clone-local git effect the way a user would — whether git
+    // excludes ".spec-kitty/" — never by reaching into product internals. Each fails fast so a
+    // broken fixture never reads as a product failure.
+    // ----------------------------------------------------------------------------------------- //
+
+    /** The clone-local git effect the per-clone setup step installs: a ".spec-kitty/" exclude line. */
+    private static final String SPEC_KITTY_EXCLUDE = ".spec-kitty/";
+
+    /** A recorded setup step the backfill scenario checks is recognised rather than redone. */
+    private static final String BACKFILL_MARKER_STEP = "0.4.8_gitignore_agents";
+
+    private static final Pattern LEDGER_ID = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"");
+
+    @Given("a setup step the project declares but has not recorded as run")
+    public void aSetupStepDeclaredButNotRecordedAsRun() {
+        // The project is set up but its local git setup has not run yet: there is no git repository
+        // to carry the clone-local effect, so create one, settle the tree, and confirm the step is
+        // declared (the project asks for it) but not yet in effect.
+        if (!Files.isDirectory(context.world().resolve(".git"))) {
+            context.world().initGitRepoWithCommit();
+        }
+        commitWorkingTree("commit the project before its pending setup step runs");
+        context.world().recordRepoState();
+        assertThat(cloneLocalSetupInPlace())
+                .as("A declared local git setup step has not yet taken effect")
+                .isFalse();
+    }
+
+    @Given("a freshly pulled clone whose shared records show its local git setup ran but whose own local git state is missing")
+    public void aFreshlyPulledCloneMissingItsLocalGitSetup() {
+        // Set the project up and run its setup so the SHARED, committed records show the project's
+        // setup ran, commit those records, then reduce the checkout to what a freshly pulled clone
+        // actually carries: it has neither the per-clone record (that lives only in the git-ignored
+        // per-clone ledger, which never travels with a pull) nor the clone-local git effect.
+        context.missions().ensureProject();
+        succeed(List.of("spec-kitty", "upgrade", "--yes"),
+                "Running the project's setup steps so they run and are recorded");
+        commitWorkingTree("commit the shared records of the setup that ran");
+        deleteRelative(".kittify/migrations/clone-local.jsonl");
+        removeCloneLocalSetup();
+        context.world().recordRepoState();
+        assertThat(cloneLocalSetupInPlace())
+                .as("This clone's own local git setup is missing before the upgrade")
+                .isFalse();
+    }
+
+    @Given("a project set up before Spec Kitty recorded its applied setup steps")
+    public void aProjectSetUpBeforeSpecKittyRecordedItsAppliedSetupSteps() {
+        // Build a fully set-up project, then put it back into the shape a project set up before the
+        // applied-work records existed carries: its prior setup noted in the legacy project metadata,
+        // with no applied-work records yet.
+        context.missions().ensureProject();
+        succeed(List.of("spec-kitty", "upgrade", "--yes"),
+                "Setting the project up fully before recasting it as a pre-record project");
+        commitWorkingTree("commit the fully set-up project");
+        recastAsProjectWithoutAppliedRecords();
+        commitWorkingTree("commit the pre-record project state");
+        context.world().recordRepoState();
+    }
+
+    @Given("a project whose recorded setup step no longer matches its current definition")
+    public void aProjectWhoseRecordedSetupStepNoLongerMatchesItsCurrentDefinition() {
+        // Set the project up so its setup steps are recorded, then change the recorded fingerprint of
+        // one step so it no longer matches the step's current definition (as a pulled change to a
+        // step's source would leave it).
+        context.missions().ensureProject();
+        succeed(List.of("spec-kitty", "upgrade", "--yes"),
+                "Setting the project up so its setup steps are recorded");
+        commitWorkingTree("commit the recorded setup steps");
+        driftOneRecordedSetupStep();
+        context.world().recordRepoState();
+    }
+
+    private void commitWorkingTree(String message) {
+        context.world().git("add", "-A");
+        context.world().git("commit", "--allow-empty", "-m", message);
+    }
+
+    /** The git exclude file this clone uses, resolved so it is correct for a linked worktree too. */
+    private Path excludeFile() {
+        String path = context.world().git("rev-parse", "--git-path", "info/exclude").trim();
+        Path candidate = Path.of(path);
+        return candidate.isAbsolute() ? candidate : context.world().workDir().resolve(candidate);
+    }
+
+    /** Whether this checkout's own local git setup is in place: git excludes ".spec-kitty/". */
+    private boolean cloneLocalSetupInPlace() {
+        Path exclude = excludeFile();
+        if (!Files.isRegularFile(exclude)) {
+            return false;
+        }
+        try {
+            return Files.readAllLines(exclude).stream().map(String::strip).anyMatch(SPEC_KITTY_EXCLUDE::equals);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + exclude, e);
+        }
+    }
+
+    private void removeCloneLocalSetup() {
+        Path exclude = excludeFile();
+        assertThat(exclude).as("The repository's git exclude file").isRegularFile();
+        try {
+            List<String> kept = Files.readAllLines(exclude).stream()
+                    .filter(line -> !line.strip().equals(SPEC_KITTY_EXCLUDE)).toList();
+            Files.writeString(exclude, String.join("\n", kept) + "\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not rewrite " + exclude, e);
+        }
+    }
+
+    private void recastAsProjectWithoutAppliedRecords() {
+        // Note each step the records show as applied in the legacy project metadata, so the project
+        // recognises the work as already done, then remove the applied-work records themselves.
+        List<String> steps = new ArrayList<>(new LinkedHashSet<>(recordedSuccessfulStepIds()));
+        if (!steps.contains(BACKFILL_MARKER_STEP)) {
+            steps.add(BACKFILL_MARKER_STEP);
+        }
+        StringBuilder block = new StringBuilder("migrations:\n  applied:\n");
+        for (String step : steps) {
+            block.append("  - id: ").append(step).append("\n")
+                    .append("    applied_at: '2026-01-01T00:00:00+00:00'\n")
+                    .append("    result: success\n")
+                    .append("    notes: null\n");
+        }
+        Path metadata = context.world().resolve(".kittify/metadata.yaml");
+        assertThat(metadata).as("The project metadata file").isRegularFile();
+        try {
+            String text = Files.readString(metadata);
+            // Drop any applied-steps block already present, then append the legacy one.
+            text = text.replaceAll("(?s)\\nmigrations:.*\\z", "\n");
+            Files.writeString(metadata, text.stripTrailing() + "\n" + block);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not rewrite " + metadata, e);
+        }
+        deleteRelative(".kittify/migration-ledger.jsonl");
+        deleteRelative(".kittify/migrations/clone-local.jsonl");
+    }
+
+    private void driftOneRecordedSetupStep() {
+        Path records = context.world().resolve(".kittify/migration-ledger.jsonl");
+        assertThat(records).as("The recorded setup steps").isRegularFile();
+        try {
+            List<String> lines = new ArrayList<>(Files.readAllLines(records));
+            int target = -1;
+            for (int i = 0; i < lines.size(); i++) {
+                if (!lines.get(i).isBlank()) {
+                    target = i;
+                    break;
+                }
+            }
+            assertThat(target).as("A recorded setup step whose fingerprint can be changed").isNotNegative();
+            String changed = lines.get(target).replaceAll(
+                    "\"content_hash\"\\s*:\\s*\"[^\"]*\"",
+                    "\"content_hash\": \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"");
+            assertThat(changed).as("The step's recorded fingerprint was changed").isNotEqualTo(lines.get(target));
+            lines.set(target, changed);
+            Files.writeString(records, String.join("\n", lines) + "\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not rewrite " + records, e);
+        }
+    }
+
+    private List<String> recordedSuccessfulStepIds() {
+        Path records = context.world().resolve(".kittify/migration-ledger.jsonl");
+        List<String> ids = new ArrayList<>();
+        if (!Files.isRegularFile(records)) {
+            return ids;
+        }
+        try {
+            for (String line : Files.readAllLines(records)) {
+                if (line.isBlank() || !line.contains("\"result\": \"success\"")) {
+                    continue;
+                }
+                Matcher matcher = LEDGER_ID.matcher(line);
+                if (matcher.find()) {
+                    ids.add(matcher.group(1));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + records, e);
+        }
+        return ids;
+    }
+
+    private void deleteRelative(String relative) {
+        Path target = context.world().resolve(relative);
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete " + target, e);
         }
     }
 }

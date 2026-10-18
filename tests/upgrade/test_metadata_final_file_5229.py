@@ -44,10 +44,15 @@ def _upgrade_ok(project: Path, env: dict[str, str]) -> None:
     assert result.returncode == 0, flat(result.stdout + result.stderr)
 
 
-def _applied(data: dict[str, object]) -> dict[str, str]:
-    migrations = data["migrations"]
-    assert isinstance(migrations, dict)
-    return {m["id"]: m["result"] for m in migrations["applied"]}
+def _applied(project: Path) -> dict[str, str]:
+    """Applied-state from the migration ledger -- the authority after the WP04 cutover.
+
+    ``metadata.yaml`` no longer carries a ``migrations.applied`` block (C-001),
+    so "did this migration run" is read from the two-partition ledger.
+    """
+    from specify_cli.upgrade.ledger import MigrationLedger
+
+    return {record.id: record.result for record in MigrationLedger(project).read_all()}
 
 
 def _committed_legacy(tmp_path: Path, text: str) -> tuple[Path, dict[str, str]]:
@@ -67,7 +72,7 @@ def test_final_metadata_after_legacy_upgrade_is_canonical_and_keeps_operator_key
     spec_kitty = data["spec_kitty"]
     assert isinstance(spec_kitty, dict)
     # The legacy migration really ran (a red below is about the final file, not the fixture).
-    assert _applied(data).get(_LEGACY_ID) == "success"
+    assert _applied(project).get(_LEGACY_ID) == "success"
     assert spec_kitty["schema_version"] == CURRENT_SCHEMA_VERSION
     assert isinstance(spec_kitty["schema_capabilities"], dict), spec_kitty.get("schema_capabilities")
     assert dict(spec_kitty["schema_capabilities"]) == CURRENT_SCHEMA_CAPABILITIES

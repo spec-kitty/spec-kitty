@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
-from specify_cli.gitignore_manager import GitignorePathError
-
-from .metadata import ProjectMetadata
-from .migrations.base import MigrationStateUnreadableError
+from .ledger import MigrationLedger
+from .manifest import load_order_manifest
 
 if TYPE_CHECKING:
     from .migrations.base import BaseMigration
-
-logger = logging.getLogger(__name__)
 
 
 class MigrationRegistry:
@@ -52,87 +47,89 @@ class MigrationRegistry:
         # Check for duplicate registration
         if migration_id in cls._migrations:
             existing = cls._migrations[migration_id]
-            raise ValueError(
-                f"Duplicate migration ID '{migration_id}'. "
-                f"Already registered by {existing.__name__}, "
-                f"cannot register {migration_class.__name__}"
-            )
+            raise ValueError(f"Duplicate migration ID '{migration_id}'. Already registered by {existing.__name__}, cannot register {migration_class.__name__}")
 
         if getattr(migration_class, "runs_first", False):
             first = next((m for m in cls._migrations.values() if m.runs_first), None)
             if first is not None:
-                raise ValueError(
-                    f"Migration {migration_class.__name__} sets runs_first, but "
-                    f"{first.__name__} already does; at most one migration may run first"
-                )
+                raise ValueError(f"Migration {migration_class.__name__} sets runs_first, but {first.__name__} already does; at most one migration may run first")
 
         cls._migrations[migration_id] = migration_class
         return migration_class
 
     @classmethod
     def get_all(cls) -> list[BaseMigration]:
-        """Get all migrations as instances, ordered by target version.
+        """Get all migrations as instances, in declared (order-manifest) order.
+
+        The checked-in ``migrations/order_manifest.txt`` is the single ordering
+        authority (ADR ``2026-10-17-1`` §2): a migration's position is its
+        manifest index. ``Version(target_version)`` is demoted to a fallback
+        cross-check — it orders only migrations that are *not* in the manifest
+        (the planted classes test registries register), which sort after every
+        manifest entry. Every registered migration IS in the manifest, so the
+        real registry is returned in pure manifest order (the annotated
+        runs-first backfill leads, ahead of its later version slot).
 
         Returns:
-            List of migration instances sorted by target version
+            List of migration instances in manifest order (version fallback for
+            any migration absent from the manifest).
         """
         instances = [m() for m in cls._migrations.values()]
-        return sorted(instances, key=lambda m: Version(m.target_version))
+        order = load_order_manifest()
+        index = {migration_id: position for position, migration_id in enumerate(order)}
+        fallback = len(order)
+        return sorted(
+            instances,
+            key=lambda m: (index.get(m.migration_id, fallback), Version(m.target_version)),
+        )
 
     @classmethod
-    def get_applicable(
-        cls, from_version: str, to_version: str, project_path: Path | None = None
-    ) -> list[BaseMigration]:
-        """Get migrations needed to go from one version to another.
+    def get_applicable(cls, from_version: str, to_version: str, project_path: Path | None = None) -> list[BaseMigration]:
+        """Get the migrations a run should apply, by ledger-diff (ADR 2026-10-17-1 §3).
 
-        Returns applicable migrations in version order, except that a
-        ``runs_first`` migration is placed first and is selected on
-        ``detect()`` alone, independent of the version window (see
-        :func:`_order_runs_first`). Residual: a same-version migration
-        (``target == from``) has ``detect()`` evaluated once here, before the
-        ``runs_first`` migration has run, so a project stamped exactly at that
-        version can have it deselected in this run; the next upgrade picks it
-        up.
+        Selection is **declared minus applied**: a declared migration (in
+        :meth:`get_all` manifest order) is selected when the partition that is
+        authoritative for it — the per-clone ledger when ``clone_local_effect``
+        else the tracked ledger — does not record it as **successfully applied**
+        (:func:`migration_settled`), OR when
+        :meth:`BaseMigration.reselect_when_recorded` forces it (a ``runs_first``
+        migration whose ``structural_detect`` reports the legacy state present).
+        A ``skipped`` record (not-needed / Superseded) or a ``failed`` record
+        does NOT settle a migration: a not-needed one is re-evaluated each run
+        (and re-skipped idempotently), a failed one is retried.
+        The version window (``from_v < target <= to_v``) is RETIRED as the
+        applied authority; ``detect()``/``can_apply`` stay the runner's
+        idempotency guard, not the selection authority (C-003). A drifted source
+        never changes selection — a recorded migration stays recorded whatever
+        its content now hashes to (C-004).
+
+        ``from_version`` / ``to_version`` are kept for call-compatibility and the
+        downgrade cross-check the caller runs; selection no longer reads them.
 
         Args:
-            from_version: Current version
-            to_version: Target version
-            project_path: Optional project path for detect() check
+            from_version: Current version (unused by selection; see above).
+            to_version: Target version (unused by selection; see above).
+            project_path: Project root whose two-partition ledger is diffed. When
+                ``None`` there is no ledger to diff, so every declared migration
+                is returned in manifest order (production callers always pass a
+                path).
 
         Returns:
-            List of applicable migrations in order
+            List of applicable migrations in manifest order.
         """
-        from pathlib import Path
-
-        from_v = Version(from_version)
-        to_v = Version(to_version)
-
-        detect_path: Path | None = None
-        if project_path is not None:
-            detect_path = Path(project_path) if isinstance(project_path, str) else project_path
+        del from_version, to_version  # retired as the applied authority (§3)
 
         all_migrations = cls.get_all()
-        applicable = []
-        for migration in all_migrations:
-            target = Version(migration.target_version)
-            # Include if target is > from_version AND <= to_version
-            if from_v < target <= to_v:
-                applicable.append(migration)
-            elif detect_path is None:
-                continue
-            # ALSO include a migration AT the current version when detect() is True,
-            # OR a clone-local migration BELOW the window whose effect is absent on
-            # THIS checkout. The tracked, pushed ledger is not authoritative for
-            # clone-local state, so a pulled clone whose version stamp is past the
-            # migration still needs it (#6233); a tracked migration
-            # (clone_local_effect False) never qualifies, so the ledger stays
-            # authoritative for it.
-            elif (target == from_v and _detect_fail_closed(migration, detect_path)) or (
-                target < from_v and _clone_local_selected_below_window(migration, detect_path)
-            ):
-                applicable.append(migration)
+        if project_path is None:
+            return all_migrations
 
-        return _order_runs_first(applicable, all_migrations, project_path)
+        path = Path(project_path)
+        ledger = MigrationLedger(path)
+        selected: list[BaseMigration] = []
+        for migration in all_migrations:
+            if not migration_settled(ledger, migration) or migration.reselect_when_recorded(path):
+                selected.append(migration)
+        return selected
 
     @classmethod
     def get_by_id(cls, migration_id: str) -> BaseMigration | None:
@@ -153,84 +150,23 @@ class MigrationRegistry:
         cls._migrations.clear()
 
 
-def _detect_fail_closed(migration: BaseMigration, project_path: Path) -> bool:
-    """Run ``detect()``, treating a fail-closed detection error as "needed".
+#: The ledger result that settles a migration (mirrors the retired success-only
+#: ``ProjectMetadata.has_migration``). A ``skipped`` or ``failed`` record does not.
+_SETTLED_RESULT = "success"
 
-    A symlinked ``.gitignore``/``.claudeignore`` makes detect() fail closed
-    rather than follow it (gitignore_manager.py) -- select the migration so
-    the runner can record a fail-closed failure instead of silently skipping
-    it and advancing metadata past a migration it could not safely evaluate.
+
+def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool:
+    """True when *migration*'s authoritative ledger partition records it applied (``success``).
+
+    The single "already applied" predicate shared by ledger-diff selection and
+    the runner's skip gate. Success-only, matching the retired
+    ``ProjectMetadata.has_migration``: a ``skipped`` record (a not-needed or
+    Superseded migration) leaves it re-evaluable each run — idempotent, it just
+    re-skips — and a ``failed`` record leaves it retriable. ``detect()`` is never
+    consulted here; the ledger is the applied authority (C-001/C-003).
     """
-    try:
-        return migration.detect(project_path)
-    except (GitignorePathError, MigrationStateUnreadableError) as exc:
-        logger.warning(
-            "Selecting migration %s after detect() failed closed: %s",
-            migration.migration_id,
-            exc,
-        )
-        return True
-
-
-def _clone_local_selected_below_window(migration: BaseMigration, project_path: Path) -> bool:
-    """Whether a clone-local migration the version window excluded is still needed.
-
-    A :attr:`BaseMigration.clone_local_effect` migration below the window is
-    re-selected only when the shared ledger RECORDS it applied yet its effect is
-    absent on THIS checkout -- the pulled-clone case #6233 targets. The ledger is
-    tracked and pushed, so it records one clone's clone-local state for every
-    clone; a pulled clone therefore carries the record without the effect, and
-    its own ``detect()`` is the only authority for whether the effect is present.
-    A migration the ledger never recorded keeps the version-window authority (the
-    version stamp is past it) and is not re-selected here; a tracked migration
-    (``clone_local_effect`` False) never qualifies, so the ledger stays
-    authoritative for it. Keying on the record also matches the runner skip gate,
-    which is itself reached only for a recorded migration (``has_migration``).
-    """
-    if not migration.clone_local_effect:
-        return False
-    metadata = ProjectMetadata.load(project_path / ".kittify")
-    if metadata is None or not metadata.has_migration(migration.migration_id):
-        return False
-    return migration.reselect_when_recorded(project_path)
-
-
-def _runs_first_selected_outside_window(migration: BaseMigration, project_path: Path) -> bool:
-    """Whether a ``runs_first`` migration the version window excluded is still needed.
-
-    It is selected when it is not recorded as applied and its ``detect()`` is
-    true, or -- recorded or not -- when its ``structural_detect()`` is true.
-    """
-    if migration.reselect_when_recorded(project_path):
-        return True
-    metadata = ProjectMetadata.load(project_path / ".kittify")
-    if metadata is not None and metadata.has_migration(migration.migration_id):
-        return False
-    return _detect_fail_closed(migration, project_path)
-
-
-def _order_runs_first(
-    applicable: list[BaseMigration],
-    all_migrations: list[BaseMigration],
-    project_path: Path | str | None,
-) -> list[BaseMigration]:
-    """Stable-partition *applicable* so the ``runs_first`` migration leads.
-
-    A ``runs_first`` migration the version window excluded is added when
-    :func:`_runs_first_selected_outside_window` says the project needs it
-    (a project stamped at or above its version can still carry the state it
-    migrates). Without a ``runs_first`` migration the order is unchanged.
-    """
-    selected_ids = {m.migration_id for m in applicable}
-    first = [m for m in applicable if m.runs_first]
-    if project_path is not None:
-        path = Path(project_path)
-        first.extend(
-            m
-            for m in all_migrations
-            if m.runs_first and m.migration_id not in selected_ids and _runs_first_selected_outside_window(m, path)
-        )
-    return first + [m for m in applicable if not m.runs_first]
+    migration_id = migration.migration_id
+    return any(record.id == migration_id and record.result == _SETTLED_RESULT for record in ledger.applicable_records_for(migration))
 
 
 # Export standalone decorator for convenience

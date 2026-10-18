@@ -116,6 +116,7 @@ def test_null_project_config_enabled_still_runs_preflight(
             "auto_refresh": False,
             "allow_missing_charter": True,
             "strict": False,
+            "allow_heal": True,
         }
     ]
 

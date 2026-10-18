@@ -192,6 +192,29 @@ for agent_root, subdir in agent_dirs:
 
 **See also:** ADR #6, `tests/agent/test_agent_config_migration.py`, `tests/specify_cli/cli/commands/test_agent_config.py`
 
+### Migration Ledger Model (ADR `2026-10-17-1`)
+
+**The applied-migration ledger — NOT `metadata.yaml`, NOT the version window — is the execution authority for "what has run".** It is two append-only JSONL files, routed by each migration's `clone_local_effect` ClassVar (`src/specify_cli/upgrade/migrations/base.py`):
+
+| `clone_local_effect` | Partition file | In git? | For effects that… |
+|----------------------|----------------|---------|-------------------|
+| `False` (default) | `.kittify/migration-ledger.jsonl` | committed (tracked) | travel with the commit — e.g. a `.gitignore` backfill |
+| `True` | `.kittify/migrations/clone-local.jsonl` | gitignored (inside the already-IGNORED `.kittify/migrations/`) | live OUTSIDE version control — `.git/info/exclude`, `git config --local`, `.git/hooks` |
+
+`clone_local_effect` is the **routing key**: it decides which partition a record is written to and read from (it is no longer a reselection trigger — that #6233 machinery was retired). A clone-local record never propagates, so a freshly pulled clone is `pending` by plain ledger-diff and re-applies — which is why a clone-local migration's `apply()` MUST be idempotent.
+
+**Authoring a NEW migration:**
+
+- **Order-manifest entry (required).** Add the `migration_id` to `src/specify_cli/upgrade/migrations/order_manifest.txt` in execution order — the single ordering authority (`target_version` is only a monotonicity cross-check). Annotate an intentional equal-`target_version` run with a trailing `# tie: <reason>`, and the one must-lead backfill with `# runs-first: <reason>`. The build-time gate `tests/architectural/test_migration_order_manifest.py` requires every registered migration to appear exactly once, each entry to resolve to a registered migration, and the order to be version-monotonic save for annotated ties.
+- **Selection is ledger-diff**, not the version window. A declared migration is selected whenever its id is not a `success` record in its authoritative partition (`migration_settled`, `registry.py`); `detect()` / `can_apply` stay the runner's idempotency guard, never the selection authority. A `skipped` (not-needed / Superseded) or `failed` record does not settle it — the former re-skips idempotently, the latter retries.
+- **`identity` ClassVar** — the stable drift key. Empty by default (falls back to `migration_id`). Declare an explicit `identity` only when drift should be tracked under a name that outlives a `migration_id` rename.
+- **`content_hash_sources` ClassVar** — the source files whose bytes define the migration's `content_hash`. Empty by default (the migration's own defining module file); a non-empty tuple names module-relative or absolute files whose sorted-concatenated bytes are hashed (deterministic regardless of declaration order).
+- **Drift is audit-only.** A recorded migration whose current `content_hash` differs from the stored one is flagged as drift and surfaced read-only — NEVER re-selected or re-applied. (Do not edit a shipped migration; the hash exists to make that violation visible, per `DIRECTIVE_044`.)
+
+**Read surface.** `spec-kitty migrate ledger` (add `--json`) is the ONE read surface for what ran: it lists every declared step in manifest order with its partition and state — *already in place*, *recorded elsewhere but not here* (a clone-local record whose effect is absent on this checkout), or *not yet applied* — plus any drift. It never commits and never writes a file.
+
+**See also:** ADR [`docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md`](docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md); `src/specify_cli/upgrade/ledger.py`, `registry.py`, `migrations/base.py`, `migrations/order_manifest.txt`, `cli/commands/migrate_cmd.py`.
+
 ### Adding New Agent Support
 
 1. **Add to `AI_CHOICES`** in `src/specify_cli/__init__.py` and `agent_folder_map`.

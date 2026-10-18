@@ -24,14 +24,29 @@ from pathlib import Path
 import pytest
 
 from specify_cli.gitignore_manager import GitignorePathError
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_3_2_4_derived_views_gitignore_backfill import (
     DerivedViewsGitignoreBackfillMigration,
 )
 from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _settle_all_except(project: Path, *keep_unsettled: str) -> None:
+    """Seed the ledger so every declared migration except ``keep_unsettled`` is ``success``.
+
+    Post-cutover ``get_applicable`` is a ledger-diff over the full declared set
+    (version window retired, ADR 2026-10-17-1); seeding a fully-adopted ledger
+    stops an unrelated gitignore backfill from pre-satisfying the subject. Fixture
+    setup only -- explicit success records.
+    """
+    for migration in MigrationRegistry.get_all():
+        if migration.migration_id not in keep_unsettled:
+            MigrationLedger(project).append(build_record(migration, "success"))
 
 _DERIVED_VIEWS_ENTRY = ".kittify/derived/"
 _DERIVED_VIEW_PATH = ".kittify/derived/some-mission/lifecycle.json"
@@ -167,6 +182,7 @@ def test_backfill_fires_on_already_current_3_2_4_project(tmp_path: Path) -> None
     view.write_text("{}\n", encoding="utf-8")
 
     auto_discover_migrations()
+    _settle_all_except(tmp_path, DerivedViewsGitignoreBackfillMigration.migration_id)
     result = MigrationRunner(tmp_path).upgrade("3.2.4", include_worktrees=False)
 
     assert result.success

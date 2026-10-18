@@ -680,12 +680,52 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
         "migrations:\n"
         "  applied: []\n"
     )
+    _seed_ledger_all_settled(tmp_path)
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
     return tmp_path
+
+
+def _seed_ledger_all_settled(root: Path) -> None:
+    """Settle every declared migration in the ledger so the REAL runner is a genuine no-op.
+
+    Post-cutover, selection is ledger-diff (declared minus settled, ADR
+    2026-10-17-1); a fresh fixture with an empty ledger would otherwise have the
+    real runner select the adoption backfill and every other migration, so these
+    no-migrations-path tests would no longer exercise the no-migrations path.
+    """
+    import json
+
+    from specify_cli.upgrade.ledger import MigrationLedger
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(root)
+    tracked: list[str] = []
+    clone: list[str] = []
+    for migration in MigrationRegistry.get_all():
+        record = {
+            "id": migration.migration_id,
+            "applied_at": "2026-01-01T00:00:00+00:00",
+            "result": "success",
+            "identity": getattr(migration, "identity", "") or migration.migration_id,
+            "content_hash": "",
+            "cli_version": "test-seed",
+        }
+        if getattr(migration, "clone_local_effect", False):
+            record["clone_local"] = True
+            clone.append(json.dumps(record))
+        else:
+            tracked.append(json.dumps(record))
+    ledger.tracked_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger.tracked_path.write_text("\n".join(tracked) + "\n", encoding="utf-8")
+    if clone:
+        ledger.clone_local_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger.clone_local_path.write_text("\n".join(clone) + "\n", encoding="utf-8")
 
 
 def _run_upgrade(**kwargs):

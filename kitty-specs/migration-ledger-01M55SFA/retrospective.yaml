@@ -1,0 +1,136 @@
+schema_version: 1
+mission_id: 01M55SFAABMG6V5YY89FEYZPY5
+mission_slug: migration-ledger-01M55SFA
+mission_number: 234
+friendly_name: Explicit migration ledger
+mission_type: software-dev
+target_branch: issue-5230-migration-ledger-impl
+created_at: '2026-10-18T08:26:46.184433+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-18T08:26:46.184433+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present; findings not machine-readable
+  evidence_refs:
+  - e-012
+  details: An analysis-report.md artifact is present for this mission and its frontmatter carries a machine-readable
+    findings count, but no resolved verdict (the verdict key is absent or records the legacy 'unknown' marker), so the
+    count is not asserted; review it manually.
+gaps:
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP01-ledger-store-order-manifest-build-gate.md
+- id: e-006
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP02-selection-authority-flip-drift.md
+- id: e-007
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP03-visibility-migrate-ledger-surface.md
+- id: e-008
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP04-hard-cutover-backfill-metadata-retirement.md
+- id: e-009
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP05-acceptance-binding.md
+- id: e-010
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/tasks/WP06-docs-migration-author-guidance.md
+- id: e-011
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/status.events.jsonl
+- id: e-012
+  kind: file
+  path: kitty-specs/migration-ledger-01M55SFA/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

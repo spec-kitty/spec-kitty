@@ -23,8 +23,10 @@ import pytest
 
 from kernel.clock import now_utc
 from specify_cli.core.git_ops import git_exclude_file, run_command
+from specify_cli.upgrade import registry as registry_module
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.metadata import ProjectMetadata
-from specify_cli.upgrade.migrations.base import BaseMigration
+from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.migrations.m_0_13_1_exclude_worktrees import ExcludeWorktreesMigration
 from specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver import (
     DecisionsEventLogMergeDriverMigration,
@@ -122,3 +124,67 @@ def test_merge_driver_subcurrent_selected_and_lands(only_registry: type[Migratio
     assert result.success, result.errors
     assert DecisionsEventLogMergeDriverMigration.migration_id in result.migrations_applied
     assert _local_config(git_project, "merge.spec-kitty-event-log.driver") == _DECISIONS_DRIVER
+
+
+# --------------------------------------------------------------------------------------
+# WP02: the ledger-diff selection flip + the #6233-machinery deletion (SC-001/002/006)
+# --------------------------------------------------------------------------------------
+
+
+def test_the_6233_selection_machinery_is_deleted() -> None:
+    """Regression net for SC-006: the version-window #6233 compensation is gone.
+
+    The per-clone LEDGER PARTITION now carries what these helpers carried, so they
+    must not survive -- their presence would mean the old authority is still wired."""
+    assert not hasattr(registry_module, "_clone_local_selected_below_window")
+    assert not hasattr(registry_module, "_order_runs_first")
+    assert not hasattr(registry_module, "_runs_first_selected_outside_window")
+
+
+class _StrandedTrackedMigration(BaseMigration):
+    """A tracked migration far below the current version whose old state is present here."""
+
+    migration_id = "0.13.1_stranded_tracked"
+    description = "stranded sub-window tracked migration"
+    target_version = "0.13.1"
+
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002 - old state present ⇒ needed
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
+        return MigrationResult(success=True, changes_made=["applied stranded"])
+
+
+def test_subwindow_stranded_tracked_migration_is_selected_by_ledger_diff(only_registry: type[MigrationRegistry], git_project: Path) -> None:
+    """FR-004 strand fix: a TRACKED migration far BELOW the current version, unrecorded in
+    the ledger and still needed here (``detect()`` True), is selected by ledger-diff. The
+    retired version window (from==to==current) excluded every ``target < current`` migration,
+    stranding it on a pulled clone forever."""
+    only_registry.register(_StrandedTrackedMigration)
+    # Pulled clone stamps metadata (the retired authority) but the ledger is empty.
+    _pulled_clone_ledger(git_project, _StrandedTrackedMigration.migration_id)
+    assert MigrationLedger(git_project).read_all() == []
+
+    selected = _registered_ids(_StrandedTrackedMigration, git_project)
+    assert selected == [_StrandedTrackedMigration.migration_id]
+
+
+def test_pulled_clone_selects_clone_local_via_empty_per_clone_ledger(only_registry: type[MigrationRegistry], git_project: Path) -> None:
+    """SC-002/SC-006: the EMPTY per-clone ledger -- not metadata, not the deleted
+    ``_clone_local_selected_below_window`` -- is what re-selects a pulled clone's
+    clone-local migration. Recording it in the per-clone ledger then settles it."""
+    only_registry.register(ExcludeWorktreesMigration)
+    _pulled_clone_ledger(git_project, ExcludeWorktreesMigration.migration_id)
+    ledger = MigrationLedger(git_project)
+    assert ledger.read_clone_local() == []  # the per-clone partition is empty on a pull
+
+    # Empty per-clone ledger ⇒ selected.
+    assert _registered_ids(ExcludeWorktreesMigration, git_project) == [ExcludeWorktreesMigration.migration_id]
+
+    # Once the per-clone ledger records it, ledger-diff settles it out.
+    ledger.append(build_record(ExcludeWorktreesMigration(), "success"))
+    assert ledger.read_clone_local() != []
+    assert _registered_ids(ExcludeWorktreesMigration, git_project) == []

@@ -199,6 +199,7 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "migrate backfill-provenance": (("--dry-run",), 1, "badmatrix"),
     "migrate backfill-wp-status": ((), 1, "outside"),
     "migrate charter-encoding": (("--dry-run",), 1, "badencoding"),
+    "migrate ledger": ((), 1, "outside"),
     "plan": ((), 1, "outside"),
     "reconcile": (("--mission", "missing"), 2, "outside"),
     "safe-commit": (("missing", "--message", "missing"), 1, "outside"),

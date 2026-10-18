@@ -1686,6 +1686,146 @@ def repin_hooks(
 # ---------------------------------------------------------------------------
 
 
+#: WP03 (IC-05): the read-only ``migrate ledger`` visibility surface. Consumer
+#: language is deliberate — the operator reads "setup steps", not "migrations" —
+#: and these labels/help strings are shared by the ``--json`` payload assembler
+#: and the rich summary printer, so each is hoisted (S1192).
+_LEDGER_JSON_HELP = "Emit the recorded setup steps and summary as structured JSON (the same shape the human summary renders)."
+_LEDGER_SUMMARY_TITLE = "migration ledger"
+
+#: Canonical per-step state tokens (the stable ``--json`` values) ...
+_STATE_IN_PLACE = "in-place"
+_STATE_RECORDED_ELSEWHERE = "recorded-elsewhere"
+_STATE_PENDING = "pending"
+
+#: ... and their consumer-language rendering for the human summary.
+_STATE_HUMAN = {
+    _STATE_IN_PLACE: "already in place",
+    _STATE_RECORDED_ELSEWHERE: "recorded elsewhere but not here",
+    _STATE_PENDING: "not yet applied",
+}
+_DRIFT_HUMAN = "content changed since it ran"
+
+
+def _ledger_step_state(row: Any) -> str:
+    """Classify one assembled report row into a stable state token.
+
+    A clone-local step the ledger records but whose effect is absent on this
+    checkout (``in_place_here is False``) is *recorded elsewhere but not here*;
+    any other recorded step is *already in place*; an unrecorded step is
+    *not yet applied*.
+    """
+    if not row.applied:
+        return _STATE_PENDING
+    if row.in_place_here is False:
+        return _STATE_RECORDED_ELSEWHERE
+    return _STATE_IN_PLACE
+
+
+def _ledger_payload(rows: list[Any], pending_ids: set[str]) -> dict[str, Any]:
+    """The single structured shape the ``migrate ledger`` surface emits (FR-011).
+
+    Built from WP01's ``assemble_report`` rows (declared/applied/partition/
+    in-place-here/drift) plus ``pending`` sourced from
+    ``detector.applicable_migrations`` — neither selection nor drift is
+    recomputed here.
+    """
+    steps = [
+        {
+            "id": row.id,
+            "identity": row.identity,
+            "partition": row.partition,
+            "applied": row.applied,
+            "pending": row.id in pending_ids,
+            "in_place_here": row.in_place_here,
+            "drift": bool(row.drift),
+            "result": row.result,
+            "state": _ledger_step_state(row),
+        }
+        for row in rows
+    ]
+    return {
+        "summary": {
+            "total": len(steps),
+            "applied": sum(1 for step in steps if step["applied"]),
+            "pending": sum(1 for step in steps if step["pending"]),
+            "recorded_elsewhere": sum(1 for step in steps if step["state"] == _STATE_RECORDED_ELSEWHERE),
+            "drift": sum(1 for step in steps if step["drift"]),
+        },
+        "steps": steps,
+    }
+
+
+def _print_ledger_summary(payload: dict[str, Any]) -> None:
+    """Render the ``migrate ledger`` payload as a rich human summary (house pattern)."""
+    summary = payload["summary"]
+    console.print(f"\n[bold]{_LEDGER_SUMMARY_TITLE}[/bold]")
+    console.print(f"  Setup steps recorded            : {summary['applied']} of {summary['total']}")
+    console.print(f"  Not yet applied                 : {summary['pending']}")
+    console.print(f"  Recorded elsewhere but not here : {summary['recorded_elsewhere']}")
+    console.print(f"  Content changed since it ran    : {summary['drift']}")
+    for step in payload["steps"]:
+        label = _STATE_HUMAN[step["state"]]
+        drift_note = f" [yellow]({_DRIFT_HUMAN})[/yellow]" if step["drift"] else ""
+        console.print(f"    {step['id']} [dim]({step['partition']})[/dim]: {label}{drift_note}")
+
+
+@app.command(name="ledger")
+def ledger(
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_LEDGER_JSON_HELP)] = False,
+) -> None:
+    """Report the migration ledger: which setup steps have run, and their state.
+
+    A **read-only** view of the two-partition migration ledger. It lists every
+    declared setup step in declared (manifest) order and, for each, shows:
+
+    \\b
+    * whether it is **already in place** (recorded, effect present here),
+    * **recorded elsewhere but not here** (a per-clone step the ledger records
+      but whose effect is absent on this checkout — e.g. a freshly pulled clone),
+    * **not yet applied**, and
+    * whether its source **content changed since it ran** (drift).
+
+    Drift is **audit-only**: it is reported, never re-applied. This command never
+    commits and never writes a file.
+
+    ``--json`` emits the one structured shape the human summary renders from.
+
+    Examples:
+
+        spec-kitty migrate ledger
+
+        spec-kitty migrate ledger --json
+    """
+    from specify_cli import __version__
+    from specify_cli.upgrade.detector import VersionDetector
+    from specify_cli.upgrade.ledger import assemble_report
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        # --json must still emit a parseable JSON envelope on the error path
+        # (the JSON-contract census asserts every --json command parses, even on
+        # a non-zero exit); the human path keeps the plain stderr error.
+        if json_output:
+            print(json.dumps({"ok": False, "error": {"code": "NO_PROJECT_ROOT", "message": _NO_PROJECT_ROOT}}, indent=2))
+        else:
+            _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    auto_discover_migrations()
+    declared = MigrationRegistry.get_all()
+    rows = assemble_report(declared, repo_root)
+    pending_ids = {m.migration_id for m in VersionDetector(repo_root).applicable_migrations(__version__)}
+    payload = _ledger_payload(rows, pending_ids)
+
+    if json_output:
+        print(json.dumps(payload, indent=2))
+    else:
+        _print_ledger_summary(payload)
+
+
 def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console.print(f"[red]Error:[/red] {message}")

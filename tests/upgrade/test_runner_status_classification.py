@@ -8,6 +8,7 @@ from kernel.clock import datetime, now_utc
 from pathlib import Path
 
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
@@ -90,15 +91,12 @@ def test_already_applied_migration_is_reported_as_skipped(
     tmp_path: Path,
 ) -> None:
     project_path = _setup_project(tmp_path)
-    metadata = ProjectMetadata(
-        version="1.0.0",
-        initialized_at=now_utc(),
-    )
-    metadata.record_migration(_AppliedMigration.migration_id, "success", "already applied")
-    metadata.save(project_path / ".kittify")
+    migration = _AppliedMigration()
+    # Pre-seed the LEDGER -- the single "already applied" authority post-cutover
+    # (ADR 2026-10-17-1); metadata.yaml no longer records applied state.
+    MigrationLedger(project_path).append(build_record(migration, "success"))
 
     runner = MigrationRunner(project_path)
-    migration = _AppliedMigration()
 
     monkeypatch.setattr(runner.detector, "detect_version", lambda: "1.0.0")
     monkeypatch.setattr(
@@ -244,14 +242,15 @@ def test_upgrade_persists_successful_migrations_before_later_failure(
     )
 
     result = runner.upgrade("10.0.0", include_worktrees=False)
-    metadata = ProjectMetadata.load(project_path / ".kittify")
+    # The ledger (not metadata.yaml) is the applied authority post-cutover: the
+    # successful first migration is recorded before the later failure.
+    ledger_records = MigrationLedger(project_path).read_all()
 
     assert result.success is False
     assert result.migrations_applied == [first.migration_id]
     assert result.errors == ["boom"]
-    assert metadata is not None
-    assert metadata.has_migration(first.migration_id)
-    assert any(record.id == second.migration_id and record.result == "failed" for record in metadata.applied_migrations)
+    assert any(r.id == first.migration_id and r.result == "success" for r in ledger_records)
+    assert any(r.id == second.migration_id and r.result == "failed" for r in ledger_records)
 
 
 # ---------------------------------------------------------------------------
@@ -304,10 +303,10 @@ def test_repeated_not_needed_upgrade_does_not_grow_applied_migrations(
     _run()
     _run()
 
-    metadata = ProjectMetadata.load(project_path / ".kittify")
-    assert metadata is not None
-    skipped = [m for m in metadata.applied_migrations if m.id == migration.migration_id]
-    assert [m.result for m in skipped] == ["skipped"]
+    # The ledger records the not-applicable migration once as "skipped"; a
+    # re-run does not duplicate it (idempotent append), so it does not grow.
+    skipped = [r for r in MigrationLedger(project_path).read_all() if r.id == migration.migration_id]
+    assert [r.result for r in skipped] == ["skipped"]
 
 
 def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
@@ -340,9 +339,10 @@ def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
     after_second = ProjectMetadata.load(wt_kittify)
     assert after_second is not None
 
-    # Exactly one skipped record, and the timestamp did not move on the no-op re-run.
-    skipped = [m for m in after_second.applied_migrations if m.id == migration.migration_id]
-    assert [m.result for m in skipped] == ["skipped"]
+    # Exactly one skipped record in the worktree LEDGER, and the timestamp did
+    # not move on the no-op re-run.
+    skipped = [r for r in MigrationLedger(worktree).read_all() if r.id == migration.migration_id]
+    assert [r.result for r in skipped] == ["skipped"]
     assert after_second.last_upgraded_at == stamp_first
 
 

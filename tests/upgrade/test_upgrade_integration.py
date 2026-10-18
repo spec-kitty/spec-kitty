@@ -85,12 +85,39 @@ _METADATA_YAML = (
 )
 
 
-def _init_project(root: Path, *, version: str = "1.0.0a1") -> None:
-    """A minimal, real git-backed Spec Kitty project (up to date at *version*)."""
+def _seed_full_ledger(root: Path) -> None:
+    """Record every declared migration as applied so the project is genuinely up to date.
+
+    Under ledger-diff selection (ADR 2026-10-17-1) the two-partition ledger --
+    not a retired version window -- is the applied authority, so an up-to-date
+    fixture must carry a ``success`` record for every declared migration; else
+    every migration is re-selected and the run reports ``success`` (migrations
+    ran) rather than ``up_to_date``.
+    """
+    from specify_cli.upgrade.ledger import MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry
+
+    auto_discover_migrations()
+    ledger = MigrationLedger(root)
+    for migration in MigrationRegistry.get_all():
+        ledger.append(build_record(migration, "success"))
+
+
+def _init_project(root: Path, *, version: str = "1.0.0a1", up_to_date: bool = False) -> None:
+    """A minimal, real git-backed Spec Kitty project.
+
+    With ``up_to_date=True`` the full migration ledger is seeded before the
+    initial commit, so ledger-diff selects nothing and the run takes the
+    no-migrations branch (the honest state the version string alone used to
+    imply before the version window was retired).
+    """
     root.mkdir(parents=True, exist_ok=True)
     kittify = root / ".kittify"
     kittify.mkdir()
     (kittify / "metadata.yaml").write_text(_METADATA_YAML.format(version=version), encoding="utf-8")
+    if up_to_date:
+        _seed_full_ledger(root)
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
@@ -120,7 +147,7 @@ def test_no_migrations_outcome_prints_completion_and_exits_zero(tmp_path: Path) 
     outcome AND derives exit 0 from the single ``UpgradeOutcome`` — distinct
     from the NFR-001 no-op idempotency assertion (test_upgrade_idempotency.py)."""
     project = tmp_path / "proj"
-    _init_project(project)
+    _init_project(project, up_to_date=True)
 
     result = _run_upgrade(
         ["--target", "1.0.0a1", "--yes", "--no-worktrees", "--json"],
@@ -138,7 +165,7 @@ def test_no_migrations_outcome_prints_completion_human_mode(tmp_path: Path) -> N
     """Same branch, human-readable renderer: a completion line is printed and
     the command exits 0 (no stray raise anywhere in the tail)."""
     project = tmp_path / "proj"
-    _init_project(project)
+    _init_project(project, up_to_date=True)
 
     result = _run_upgrade(["--target", "1.0.0a1", "--yes", "--no-worktrees"], cwd=project)
 
@@ -156,7 +183,7 @@ def test_project_yes_full_success_exits_zero_with_printed_outcome(tmp_path: Path
     exits 0 — the exact regression this mission fixes (the pre-refactor code
     had three independent, divergent success/exit-code formulas)."""
     project = tmp_path / "proj"
-    _init_project(project)
+    _init_project(project, up_to_date=True)
 
     result = _run_upgrade(
         ["--project", "--yes", "--no-worktrees", "--target", "1.0.0a1"],

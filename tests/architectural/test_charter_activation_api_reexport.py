@@ -38,6 +38,7 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("load_yaml", "charter.activation.synthesizer.manifest"),
     ("read_mission_type", "charter.activation.mission_type_key"),
     ("requires_substantive_spec_for", "charter.activation.mission_type_profiles"),
+    ("resolve_activation_write_target", "charter.activation.pack_manager"),
     ("verify", "charter.activation.synthesizer.manifest"),
 ]
 

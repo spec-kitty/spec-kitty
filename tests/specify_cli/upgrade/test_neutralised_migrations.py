@@ -104,7 +104,14 @@ def test_runner_records_skipped_not_applicable(
 
     assert status == "skipped"
     assert result.success is True
-    reloaded = ProjectMetadata.load(kittify)
-    assert reloaded is not None
-    (record,) = [m for m in reloaded.applied_migrations if m.id == migration_id]
+    # The ledger -- not metadata.yaml -- is the applied authority after the WP04
+    # hard cutover (C-001): ``save()`` no longer persists ``migrations.applied``,
+    # so the recorded skip is read from the two-partition ledger.
+    from specify_cli.upgrade.ledger import MigrationLedger
+
+    ledger_results = [r.result for r in MigrationLedger(tmp_path).read_all() if r.id == migration_id]
+    assert ledger_results == ["skipped"]
+    # The runner's transitional in-memory dual-write still annotates the skip
+    # (``record_migration`` mutates the passed model, even though ``save()`` drops it).
+    (record,) = [m for m in metadata.applied_migrations if m.id == migration_id]
     assert (record.result, record.notes) == ("skipped", "Not applicable")

@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
-
-logger = logging.getLogger(__name__)
 
 
 class ClaudeignorePathError(Exception):
@@ -102,11 +99,16 @@ class BaseMigration(ABC):
     # when the upgrade runner is invoked with include_worktrees=True.
     runs_on_worktrees: bool = True
 
-    #: Selected before every other applicable migration by
-    #: ``MigrationRegistry.get_applicable``; at most one registered migration
-    #: may set it. A ``runs_first`` migration is selected on ``detect()`` alone,
-    #: independent of the ``from_version``/``target_version`` window, so its
-    #: ``detect()`` must be content-driven, never version-driven
+    #: Marks a migration for RESELECTION even once its ledger record exists:
+    #: :meth:`reselect_when_recorded` re-selects a ``runs_first`` migration whose
+    #: :meth:`structural_detect` reports the old state present (a pulled
+    #: ``metadata.yaml`` or a merge can revive the legacy state after the first
+    #: application); at most one registered migration may set it. It does NOT
+    #: govern execution ORDER -- ordering is owned solely by
+    #: ``order_manifest.txt`` (the manifest's ``# runs-first:`` annotation is the
+    #: distinct "ordering-lead" concept, e.g. the backfill at index 0). A
+    #: ``runs_first`` migration's ``detect()``/``structural_detect`` must be
+    #: content-driven, never version-driven
     #: (charter-pack-cutover research/runtime-seams.md §1.2).
     runs_first: ClassVar[bool] = False
 
@@ -124,6 +126,21 @@ class BaseMigration(ABC):
     #: gate.
     clone_local_effect: ClassVar[bool] = False
 
+    #: The stable drift key (ADR ``2026-10-17-1`` §4). Empty by default, in which
+    #: case the ledger falls back to :attr:`migration_id`. Declare an explicit
+    #: ``identity`` only when a migration's drift should be tracked under a name
+    #: that outlives a rename of its ``migration_id``. The WP01 ledger reaches it
+    #: by defensive ``getattr``, so it works whether or not a subclass sets it.
+    identity: ClassVar[str] = ""
+
+    #: The source files whose bytes define this migration's ``content_hash``
+    #: (ADR ``2026-10-17-1`` §4). Empty (the default) means "the migration's own
+    #: defining module file"; a non-empty tuple names module-relative or absolute
+    #: files whose sorted-concatenated bytes are hashed (deterministic regardless
+    #: of declaration order). Audit-only: a hash mismatch is surfaced read-only
+    #: and never re-selects or re-applies the migration.
+    content_hash_sources: ClassVar[tuple[str, ...]] = ()
+
     def structural_detect(self, project_path: Path) -> bool:  # noqa: ARG002 -- hook; the default ignores the project
         """Return True when the project still carries state this migration owns.
 
@@ -138,42 +155,20 @@ class BaseMigration(ABC):
     def reselect_when_recorded(self, project_path: Path) -> bool:
         """True when a recorded application must not settle this migration.
 
-        A :attr:`clone_local_effect` migration whose :meth:`detect` reports the
-        effect still absent on THIS checkout qualifies -- the shared ledger is
-        not authoritative for clone-local state (#6233). So does a
-        ``runs_first`` migration whose :meth:`structural_detect` is True. Every
-        other recorded migration is skipped as applied.
+        Only a ``runs_first`` migration whose :meth:`structural_detect` reports
+        the old state present qualifies (a pulled ``metadata.yaml`` or a merge
+        can bring the legacy state back after the first application). Every other
+        recorded migration is skipped as applied.
+
+        Clone-local reselection is no longer a per-migration hook: under the
+        two-partition ledger (ADR ``2026-10-17-1``) a clone-local migration's
+        applicable authority IS its per-clone ledger, so a pulled clone whose
+        per-clone ledger lacks the record re-selects it by ledger-diff and the
+        runner's ``detect()`` idempotency guard no-ops when the effect is
+        already present. The ``clone_local_effect`` flag survives only as the
+        ledger's routing key.
         """
-        if self.clone_local_effect and self._detect_effect_present_fail_closed(project_path):
-            return True
         return self.runs_first and self.structural_detect(project_path)
-
-    def _detect_effect_present_fail_closed(self, project_path: Path) -> bool:
-        """Run :meth:`detect` for the reselection gate, failing closed on a probe error.
-
-        :meth:`reselect_when_recorded` is reached by both the runner skip gate and the
-        selection arm (``registry._clone_local_selected_below_window``), and neither wraps
-        this call in ``registry._detect_fail_closed``. A clone-local migration's
-        ``detect()`` probes real on-disk state (e.g. a merge-driver migration reads
-        ``.gitattributes`` via ``read_text()``); a pathological checkout -- an unreadable
-        or directory ``.gitattributes`` -- raises ``OSError``, which would otherwise
-        propagate out of the gate and crash the whole upgrade before any migration runs
-        (#6350 review follow-up). Fail closed, matching ``_detect_fail_closed``'s
-        philosophy: treat a probe error as "effect needs attention" (``True``) so the
-        runner reselects the migration and records a fail-closed failure rather than
-        skipping it silently or aborting the run.
-        """
-        from specify_cli.gitignore_manager import GitignorePathError  # noqa: PLC0415
-
-        try:
-            return self.detect(project_path)
-        except (GitignorePathError, MigrationStateUnreadableError, OSError) as exc:
-            logger.warning(
-                "Reselecting clone-local migration %s after its detect() failed closed: %s",
-                self.migration_id,
-                exc,
-            )
-            return True
 
     @abstractmethod
     def detect(self, project_path: Path) -> bool:

@@ -28,12 +28,11 @@
 #   This folder carries no PROMISES.md and uses the untagged-gating style of
 #   upgrade.feature; these scenarios therefore carry no @promise tag (operator
 #   ruling, 2026-10-17).
-# - Gating vs @wip: the two scenarios that reuse only already-bound steps gate the
-#   nightly today. The rest need new acceptance-jvm steps (and the
-#   applied-work read surface, e.g. `spec-kitty upgrade --list-applied` /
-#   `spec-kitty doctor migrations`), which the #5230 implementation mission binds;
-#   until then they are @wip and run information-only. New steps the mission must
-#   bind are listed at the foot of this file.
+# - Read surface: the operator-facing visibility surface these scenarios drive is
+#   `spec-kitty migrate ledger` (#5230 / IC-05). It reports which setup steps ran,
+#   in declared order, in which partition, whether a local-only step is in place
+#   here or only recorded elsewhere, and whether a step's content changed since it
+#   ran. It is read-only (never commits, never writes a file).
 
 Feature: Upgrade runs exactly the setup work a project still needs
   As a developer who already adopted Spec Kitty
@@ -66,7 +65,6 @@ Feature: Upgrade runs exactly the setup work a project still needs
     And the folder ".claude/skills" exists
     And the repository has no new commits
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: An interrupted upgrade finishes the job when re-run
     Given a project already set up with Spec Kitty for the agents "claude"
     And a setup step the project declares but has not recorded as run
@@ -77,14 +75,12 @@ Feature: Upgrade runs exactly the setup work a project still needs
     Then the command succeeds
     And the repository has no new commits
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: A teammate's clone gets its own local git setup even though the project was already set up elsewhere
     Given a freshly pulled clone whose shared records show its local git setup ran but whose own local git state is missing
     When I run "spec-kitty upgrade --yes"
     Then the command succeeds
     And this clone's own local git setup is in place
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: Re-running upgrade on a clone that already has its local setup changes nothing further
     Given a freshly pulled clone whose shared records show its local git setup ran but whose own local git state is missing
     When I run "spec-kitty upgrade --yes"
@@ -94,21 +90,18 @@ Feature: Upgrade runs exactly the setup work a project still needs
     And the repository has no new commits
     And the working tree has no uncommitted changes
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: I can ask what setup steps ran and in what order
     Given a project already set up with Spec Kitty for the agents "claude"
-    When I run "spec-kitty upgrade --list-applied"
+    When I run "spec-kitty migrate ledger"
     Then the command succeeds
     And the setup steps that ran are listed in the order they ran
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
-  Scenario: The report tells me whether a local-only step is actually in place here, not just recorded
+  Scenario: The report tells me a local-only step is not yet in place on this checkout
     Given a freshly pulled clone whose shared records show its local git setup ran but whose own local git state is missing
-    When I run "spec-kitty doctor migrations"
+    When I run "spec-kitty migrate ledger"
     Then the command succeeds
-    And the report shows a local-only setup as recorded elsewhere but not yet in place here
+    And the report shows a local-only setup step as not yet in place on this checkout
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: A project upgraded from before the ledger existed keeps its already-done work recognized
     Given a project set up before Spec Kitty recorded its applied setup steps
     When I run "spec-kitty upgrade --yes"
@@ -116,15 +109,13 @@ Feature: Upgrade runs exactly the setup work a project still needs
     And the setup work already done is not done again
     And the repository has no new commits
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-17
   Scenario: The system tells me when a setup step's content no longer matches what it ran
     Given a project whose recorded setup step no longer matches its current definition
-    When I run "spec-kitty doctor migrations"
+    When I run "spec-kitty migrate ledger"
     Then the command succeeds
     And the report flags a setup step whose content changed since it ran
 
-# New acceptance-jvm steps the #5230 implementation mission must bind
-# (every @wip scenario above stays information-only until these exist):
+# The acceptance-jvm steps these scenarios bind (all nine gate the nightly):
 #   Arrange (Given):
 #     - "a setup step the project declares but has not recorded as run"
 #     - "a freshly pulled clone whose shared records show its local git setup ran
@@ -135,10 +126,13 @@ Feature: Upgrade runs exactly the setup work a project still needs
 #     - "the previously pending setup step has taken effect"
 #     - "this clone's own local git setup is in place"
 #     - "the setup steps that ran are listed in the order they ran"
-#     - "the report shows a local-only setup as recorded elsewhere but not yet in place here"
+#     - "the report shows a local-only setup step as not yet in place on this checkout"
 #     - "the setup work already done is not done again"
 #     - "the report flags a setup step whose content changed since it ran"
-# The read surface the last four scenarios drive (`spec-kitty upgrade --list-applied`
-# and/or `spec-kitty doctor migrations`) is also part of the #5230 mission; the exact
-# command name is the mission's to settle. The clone Given needs a fixture that seeds a
-# recorded-but-locally-absent state (a pushed record without the clone-local effect).
+# The read surface the last four scenarios drive is `spec-kitty migrate ledger`
+# (the read-only applied-work visibility surface, #5230 / IC-05). The clone Given
+# seeds a genuine freshly pulled clone: the shared, committed records show the
+# project's setup ran, but this checkout has neither the per-clone record (it lives
+# only in the git-ignored per-clone ledger, which never travels) nor the clone-local
+# git effect — so the report shows that local-only step as not yet in place here, and
+# upgrade installs it.

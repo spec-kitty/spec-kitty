@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "mission_slug": "migration-ledger-01M55SFA",
+  "mission_id": "01M55SFAABMG6V5YY89FEYZPY5",
+  "mission_branch": "kitty/mission-migration-ledger-01M55SFA",
+  "target_branch": "issue-5230-migration-ledger-impl",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/upgrade/ledger.py",
+        "src/specify_cli/upgrade/manifest.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_backfill_migration_ledger.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "tests/architectural/test_migration_order_manifest.py",
+        "tests/upgrade/test_backfill_migration.py",
+        "tests/upgrade/test_ledger.py",
+        "tests/upgrade/test_order_manifest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/detector.py",
+        "src/specify_cli/upgrade/migrations/base.py",
+        "src/specify_cli/upgrade/registry.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/specify_cli/upgrade/test_registry_runs_first.py",
+        "tests/upgrade/test_clone_local_migration_idempotent.py",
+        "tests/upgrade/test_clone_local_selection.py",
+        "tests/upgrade/test_ledger_drift.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "tests/specify_cli/upgrade/test_migrate_ledger_cmd.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/metadata.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_6_decisions_event_log_merge_driver.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_6_meta_traces_merge_drivers.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py",
+        "tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_paths.py",
+        "tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_summary.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_0rc35_provenance_gitignore.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_4_derived_views_gitignore.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_5_agents_skills_gitignore.py",
+        "tests/specify_cli/upgrade/migrations/test_session_presence_upgrade_smoke.py",
+        "tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py",
+        "tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py",
+        "tests/upgrade/migrations/test_m_2_1_1_repair_skill_pack.py",
+        "tests/upgrade/preview_support/test_public_witnesses.py",
+        "tests/upgrade/test_auto_discovery.py",
+        "tests/upgrade/test_backfill_ledger.py",
+        "tests/upgrade/test_metadata_final_file_5229.py",
+        "tests/upgrade/test_migration_robustness.py",
+        "tests/upgrade/test_preview_oracle.py",
+        "tests/upgrade/test_runner_status_classification.py",
+        "tests/upgrade/test_symlinked_ignore_guard.py",
+        "tests/upgrade/test_upgrade_auto_commit_unit.py",
+        "tests/upgrade/test_upgrade_cli_contract.py",
+        "tests/upgrade/test_upgrade_commit_outcomes_5443.py",
+        "tests/upgrade/test_upgrade_idempotency.py",
+        "tests/upgrade/test_upgrade_integration.py",
+        "tests/upgrade/test_upgrade_outcome_rendering.py",
+        "tests/upgrade/test_upgrade_preview_acceptance.py",
+        "tests/upgrade/test_upgrade_surface_repair_step.py",
+        "tests/upgrade/test_version_stamp_boundary.py",
+        "tests/upgrade/test_worktree_stamp_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/ArrangeSteps.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/AssertSteps.java",
+        "tests/scenarios/upgrade/migration-ledger.feature"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-10-18T08:12:05.701569+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "80422a08cc614b19eb37379ebf5200ffb7a5717d"
+}

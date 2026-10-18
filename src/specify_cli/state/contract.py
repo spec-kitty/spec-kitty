@@ -157,6 +157,28 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         target_owned=True,
     ),
     StateSurface(
+        name="migration_ledger",
+        path_pattern=".kittify/migration-ledger.jsonl",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSONL,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.TRACKED,
+        owner_module="upgrade/ledger",
+        creation_trigger="spec-kitty upgrade (migration ledger record)",
+        atomic_write=True,
+        notes=(
+            "Tracked partition of the explicit two-partition migration ledger "
+            "(ADR 2026-10-17-1): the authority for migrations whose "
+            "clone_local_effect is False, a tracked sibling of metadata.yaml "
+            "that travels with the commit. The per-clone partition "
+            "(.kittify/migrations/clone-local.jsonl) is NOT a separate surface "
+            "— it falls under the already-IGNORED .kittify/migrations/ tree "
+            "(see legacy_migration_scratch). TRACKED surfaces are excluded from "
+            "get_runtime_gitignore_entries(), and the .kittify/migrations/ "
+            "ignore does not match this file (git check-ignore verified)."
+        ),
+    ),
+    StateSurface(
         name="workspace_context",
         path_pattern=".kittify/workspaces/<feature>-<WP>.json",
         root=StateRoot.PROJECT,

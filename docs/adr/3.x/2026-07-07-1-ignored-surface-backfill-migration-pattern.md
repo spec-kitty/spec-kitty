@@ -111,6 +111,27 @@ When adding a `GitClass.IGNORED` surface to `state/contract.py`:
 - [ ] **Migration tests**: cover `apply()`, `detect()`, equivalence variants,
   idempotency, dry-run, end-to-end via `MigrationRunner`, and the worktree
   composition path (`include_worktrees=True`).
+- [ ] **Order-manifest entry** (ledger model, ADR
+  [`2026-10-17-1`](../4.x/2026-10-17-1-explicit-migration-ledger.md)): add the
+  `migration_id` to `src/specify_cli/upgrade/migrations/order_manifest.txt` in
+  execution order — the single ordering authority. Annotate an intentional
+  equal-`target_version` run with a trailing `# tie: <reason>`. The build-time
+  gate `tests/architectural/test_migration_order_manifest.py` requires every
+  registered migration to appear in the manifest exactly once. Selection is now
+  **ledger-diff**, not the version window, so a migration is reconsidered until
+  it records `success` in its ledger partition — `detect()` stays the
+  idempotency guard, never the selection authority.
+- [ ] **Ledger routing** (ledger model, ADR
+  [`2026-10-17-1`](../4.x/2026-10-17-1-explicit-migration-ledger.md)): a gitignore
+  backfill lands in the TRACKED `.gitignore`, so keep the `clone_local_effect`
+  ClassVar at its `False` default — its applied record goes to the tracked
+  `.kittify/migration-ledger.jsonl` and correctly propagates to every clone.
+  ONLY a migration whose effect lives outside version control
+  (`.git/info/exclude`, `git config --local`, `.git/hooks`) sets
+  `clone_local_effect = True`, routing its record to the per-clone
+  `.kittify/migrations/clone-local.jsonl`. Optionally declare `identity` (a
+  stable drift key) / `content_hash_sources` (multi-file hash input); drift is
+  audit-only. `spec-kitty migrate ledger` reports what ran.
 - [ ] **Ratchet baseline**: (superseded 2026-09, mission
   ratchet-baseline-census-gate-remediation-01M3EW3Z: the `category_1` baseline
   leaf was retired; adding the migration to `_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS`
@@ -160,3 +181,5 @@ The fix tags such migrations `clone_local_effect = True` (`BaseMigration`, defau
 Together: a recorded clone-local migration re-applies whenever its effect is absent on this checkout, and settles once `detect()` reports it present. A TRACKED-effect migration (the backfills this ADR governs included) keeps the default `False` and is excluded at **both** layers — the sub-current selection branch skips it and the skip gate trusts the ledger — so it stays recorded-once-and-skipped. Reselection requires an idempotent `apply()`; the `tests/upgrade/test_clone_local_migration_idempotent.py` gate pins the clone-local member set and its idempotency.
 
 This is a per-clone reselection seam, not the explicit, machine-readable clone-local ledger that would record the effect's presence directly; that longer-term home is tracked by epic **#2933**.
+
+> **Superseded 2026-10-17 (#5230 / epic #2933) — the explicit ledger has landed.** The per-clone reselection seam described in this amendment is retired. ADR [`2026-10-17-1`](../4.x/2026-10-17-1-explicit-migration-ledger.md) replaced `metadata.yaml.applied_migrations` and the version window with an explicit two-partition applied-migration ledger (tracked `.kittify/migration-ledger.jsonl` + per-clone `.kittify/migrations/clone-local.jsonl`). `clone_local_effect` is now the ledger's **routing key**, no longer a reselection trigger: the sub-window selection branch (`_clone_local_selected_below_window`) is removed and `reselect_when_recorded` collapses to a ledger lookup. Selection is **ledger-diff**; `detect()` remains only the runner's idempotency guard. See the Author Checklist above and ADR `2026-10-17-1`.

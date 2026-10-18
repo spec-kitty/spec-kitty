@@ -1,8 +1,10 @@
 """Migration: the charter-pack cutover (FR-012, #3732).
 
 One idempotent migration that rewrites a project's pre-cutover state into the
-charter vocabulary. It runs **before every other pending migration**
-(``runs_first``), so every later migration reads canonical state.
+charter vocabulary. ``order_manifest.txt`` orders it ahead of its rc7+ dependents
+(execution order is owned solely by the manifest); its ``runs_first`` ClassVar
+marks it for RESELECTION if the pre-cutover state revives after recording, and no
+longer forces an execution-order lead.
 
 Contract: ``kitty-specs/charter-pack-cutover-01M491G6/contracts/upgrade-migration.md``.
 Inventory: spec FR-012. ``apply()`` runs these steps in order, each its own
@@ -89,8 +91,8 @@ from specify_cli.migration.legacy_charter_layout import (
 )
 from specify_cli.tool_surface.operations import OwnershipProof
 
-from ..metadata import ProjectMetadata
-from ..registry import MigrationRegistry
+from ..ledger import MigrationLedger
+from ..registry import MigrationRegistry, migration_settled
 from ._charter_pack_cutover_report import CutoverReport
 from ._charter_pack_cutover_resets import apply_resets, plan_resets
 from ._charter_pack_cutover_skills import remove_skill_copies
@@ -813,12 +815,18 @@ def _rewrite_activation_pack_ids(run: _Run) -> None:
 
 
 def _is_first_application(project_path: Path) -> bool:
-    """True while ``metadata.yaml`` does not record the cutover as applied (unreadable: never recorded)."""
-    try:
-        metadata = ProjectMetadata.load(project_path / KITTIFY_DIRNAME)
-    except Exception:  # unreadable metadata: treat the migration as never recorded
+    """True while the migration ledger does not record the cutover as applied.
+
+    Repointed by the IC-06 hard cutover (WP04, FR-013): the two-partition
+    ledger -- not ``metadata.yaml`` -- is the single "already applied" authority
+    (C-001). ``migration_settled`` is success-only (a ``failed`` record does not
+    settle; an unreadable/absent ledger reads as not recorded), matching the
+    retired ``ProjectMetadata.has_migration`` semantics exactly.
+    """
+    migration = MigrationRegistry.get_by_id(MIGRATION_ID)
+    if migration is None:  # never registered: treat as never recorded
         return True
-    return metadata is None or not metadata.has_migration(MIGRATION_ID)
+    return not migration_settled(MigrationLedger(project_path), migration)
 
 
 def _merge_report(report: CutoverReport, fragment: CutoverReport) -> None:

@@ -1502,6 +1502,24 @@ def init(  # noqa: C901
         # Stamp is additive and best-effort: never fail init.
         _console.print(f"[dim]Note: Could not stamp schema metadata: {e}[/dim]")
 
+    # Seed the migration ledger so the first `spec-kitty upgrade` on this fresh
+    # project is a no-op (finding-1 remediation). Without this baseline,
+    # ledger-diff selection (ADR 2026-10-17-1 §3) would diff an empty ledger and
+    # replay every historical migration against an already-current project; two
+    # of them disagree over `mission_type_activations`, mutating config and
+    # auto-committing (NFR-002). A fresh init already embodies those outcomes, so
+    # record them once -- partition-correct and idempotent. Best-effort like the
+    # metadata/schema steps around it: a seeding failure degrades the first
+    # upgrade to the old replay, it never fails init.
+    try:
+        from specify_cli.upgrade.init_seed import seed_migration_ledger_for_init
+
+        _seeded = seed_migration_ledger_for_init(project_path)
+        if _seeded:
+            _console.print(f"[dim]Seeded migration ledger ({len(_seeded)} records)[/dim]")
+    except Exception as e:
+        _console.print(f"[dim]Note: Could not seed migration ledger: {e}[/dim]")
+
     # Save VCS preference to config.yaml
     if selected_vcs:
         try:

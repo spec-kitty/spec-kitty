@@ -75,6 +75,12 @@ pyproject.local.toml
 .kittify/encoding-provenance/
 .test-full-status
 .kittify/migrations/
+# The tracked migration ledger is a sibling of metadata.yaml and must stay
+# tracked (ADR 2026-10-17-1, two-partition ledger). The .kittify/migrations/
+# entry above does not match this file, but make the intent explicit and
+# robust against any future broad pattern. The per-clone partition
+# (.kittify/migrations/clone-local.jsonl) stays ignored by the entry above.
+!.kittify/migration-ledger.jsonl
 .kittify/logs/
 # Per-machine skill install ledger (timestamps, hashes, delivery_mode) — #2412.
 .kittify/skills-manifest.json

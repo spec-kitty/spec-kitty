@@ -3820,6 +3820,10 @@ pages:
     - {slug: "touchpoints", text: "Touchpoints", level: 2}
     - {slug: "follow-up-child-issues-spike-5230-output-epic-2933", text: "Follow-up child issues (spike #5230 output, epic #2933)", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-18-closeout-findings", text: "Amendment 2026-10-18 (closeout findings)", level: 2}
+    - {slug: "1-init-seed-baseline-finding-1-remediation", text: "1. Init-seed baseline (finding-1 remediation)", level: 3}
+    - {slug: "2-recorded-elsewhere-vs-pending-for-a-fresh-clone-finding-2", text: "2. \"Recorded elsewhere\" vs \"pending\" for a fresh clone (finding-2)", level: 3}
+    - {slug: "3-incidental-notes", text: "3. Incidental notes", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4296,6 +4300,7 @@ pages:
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
+    - {slug: "spec-kitty-migrate-ledger", text: "spec-kitty migrate ledger", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
     - {slug: "spec-kitty-migrate-backfill-merge-commit", text: "spec-kitty migrate backfill-merge-commit", level: 2}
     - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
