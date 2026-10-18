@@ -1,0 +1,53 @@
+# plan mission / specify action (mirrored from the software-dev contracts).
+# Required top-level fields: schema_version, id, action, mission, steps[]
+# Each step: id, description; optional command, delegates_to{kind, candidates[]},
+# guidance. No expected_artifacts field, no doctrine-reference field.
+# Contracts are discovered by directory glob over built_in_step_contracts/ and
+# keyed by the internal (mission, action) pair -- not by filename and not via a
+# manifest. This file supplies the plan mission's `specify` action, whose spec is
+# DECISION-shaped (problem, goals/non-goals, stakeholders, constraints, success
+# criteria, open questions, out of scope) -- not a software feature spec.
+schema_version: "1.0"
+id: plan-specify
+action: specify
+mission: plan
+steps:
+  - id: bootstrap
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action specify --json"
+
+  - id: frame_problem
+    description: Capture the decision-shaped problem and stakeholder intent
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_010
+        - DIRECTIVE_037
+  - id: validate_boundaries
+    description: Make goals, non-goals, constraints, and success criteria explicit and testable
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+
+  - id: document_decisions
+    description: Record any scoping decisions made while framing the plan spec
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_003
+  - id: write_spec
+    description: Write spec.md to kitty-specs/{mission_slug}/
+    command: "Write spec.md in kitty-specs/{mission_slug}/"
+    guidance: >
+      A plan spec is DECISION-shaped, not a feature spec: state the problem,
+      goals and non-goals, stakeholders, constraints, success criteria, open
+      questions, and what is explicitly out of scope.
+
+  - id: commit_spec
+    description: Commit the plan spec with co-author attribution
+    delegates_to:
+      kind: directive
+      candidates:
+        - DIRECTIVE_029
+        - DIRECTIVE_033

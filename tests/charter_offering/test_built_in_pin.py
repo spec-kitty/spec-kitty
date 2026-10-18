@@ -25,7 +25,7 @@ _THIS = Path(__file__).resolve()
 REPO_ROOT = _THIS.parents[2]
 PACK_ROOT = REPO_ROOT / "packs" / "built-in"
 LOCKFILE = REPO_ROOT / "packs" / "built-in.source.yaml"
-SHA = "1c09592df5f55b5b2dd51bdd172d9e7349d2a159"
+SHA = "7f063aecbdede29d05cc4d5fc9a5b13f9c7434d7"
 REPO_URL = "git@github.com:spec-kitty/spec-kitty-open-packs.git"
 
 

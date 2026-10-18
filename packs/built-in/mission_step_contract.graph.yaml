@@ -23,6 +23,18 @@ nodes:
 - urn: mission_step_contract:documentation/validate
   kind: mission_step_contract
   label: validate
+- urn: mission_step_contract:plan/plan
+  kind: mission_step_contract
+  label: plan
+- urn: mission_step_contract:plan/research
+  kind: mission_step_contract
+  label: research
+- urn: mission_step_contract:plan/review
+  kind: mission_step_contract
+  label: review
+- urn: mission_step_contract:plan/specify
+  kind: mission_step_contract
+  label: specify
 - urn: mission_step_contract:research/gathering
   kind: mission_step_contract
   label: gathering
