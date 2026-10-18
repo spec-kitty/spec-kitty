@@ -66,8 +66,26 @@ FAST_TIER_MARKERS = (fast or unit) and not slow and not e2e and not integration 
 # `test-full` target below.
 PARALLEL_UNSAFE_MARKERS = not stress and not timing
 
+# Pytest entry point. Prefer an existing local virtualenv over `uv run --frozen`:
+# a bare `uv run` re-syncs the environment and can destroy a hand-built `.venv`
+# (AGENTS.md, UI-testing section). Falls back to `uv run --frozen` when there is
+# no local venv to protect, so CI and a fresh clone behave exactly as before.
+# Both POSIX (`.venv/bin/pytest`) and Windows (`.venv/Scripts/pytest.exe`)
+# layouts are honoured. (#3950)
+#
+# Deliberately lowercase. `_recipe_commands` in
+# tests/architectural/test_makefile_tier_topology.py picks out `test-fast`'s
+# recipe lines by the literal text `pytest`, so an upper-case `$(PYTEST)`
+# reference would make that gate miss the command and red on "expected exactly
+# one pytest command". The upper-case variables in this file are the ones that
+# gate parses via `_VAR_RE`; this one is recipe plumbing only.
+pytest_cmd := $(firstword $(wildcard .venv/bin/pytest .venv/Scripts/pytest.exe))
+ifeq ($(strip $(pytest_cmd)),)
+  pytest_cmd := uv run --frozen pytest
+endif
+
 test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
-	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest $(FAST_TIER_DIRS) \
+	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 $(pytest_cmd) $(FAST_TIER_DIRS) \
 	  -m "$(FAST_TIER_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q
 
 # Keep make test-full green in under 30 minutes on main. Re-measure if a
