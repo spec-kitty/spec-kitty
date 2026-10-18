@@ -1,11 +1,10 @@
 ---
 title: Recovery guides
-description: Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session or a coord/lane split-brain.
+description: Recovery procedures for Spec Kitty operational states, such as a coord/lane split-brain or a refusal after an upgrade mid-Mission.
 doc_status: active
 updated: '2026-10-04'
 related:
 - docs/index.md
-- docs/operations/logged-out-teamspace.md
 - docs/operations/upgrade-with-live-lanes-recovery.md
 - docs/guides/how-to/recovery/index.md
 ---
@@ -16,8 +15,6 @@ state after a failure or interruption.
 
 ## In this section
 
-- [Logged-out teamspace](logged-out-teamspace.md) — restore access when your teamspace session has logged out.
-- [Sync-drain runbook](sync-drain.md) — work the 3-gate drain order (flag/consent, auth, teamspace) and avoid the `sync doctor` false-green trap.
 - [Refusal after an upgrade mid-Mission](upgrade-with-live-lanes-recovery.md) — recover when `consolidate`, review or implement refuses on `.kittify/metadata.yaml` after `spec-kitty upgrade` ran while a Mission had live lanes.
 
 ### Coord/lane split-brain recovery

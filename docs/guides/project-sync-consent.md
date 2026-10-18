@@ -11,7 +11,7 @@ related:
 - docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
 - docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
-- docs/architecture/team-kitty-saas.md
+- docs/context/team-kitty.md
 ---
 # Per-Project Sync Consent
 
@@ -214,6 +214,5 @@ this program's scope.
 - [ADR: One Project UUID Owns One Sync Store and One Consent Decision](../adr/3.x/2026-08-09-1-project-sync-store-boundary.md)
 - [ADR: Egress Consent Boundary](../adr/3.x/2026-08-04-1-egress-consent-boundary.md)
 - [ADR: Operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
-- [Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md) — where this stage fits
-  in the full opt-in → sync flow
+- [Team Kitty](../context/team-kitty.md) — the hosted surfaces removed in #6164 and what stays
 - [Environment variables reference](../api/environment-variables.md)

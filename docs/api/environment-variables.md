@@ -306,9 +306,10 @@ A missing or rejected credential fails closed with a precise remediation —
 never a device-flow or browser prompt — and the secret value never appears
 in output, logs, or errors.
 
-**See also**: [CI Machine Authentication](../operations/ci-machine-auth.md)
-for the full runbook — the three authentication modes, provisioning,
-rotation, and revocation.
+**Removed**: `spec-kitty auth` was removed from open-core in
+[#6164](https://github.com/spec-kitty/spec-kitty/issues/6164); the former CI
+machine-authentication runbook went with it. The code is preserved in the
+`spec-kitty/event-router` repository.
 
 ---
 
@@ -410,7 +411,7 @@ shows presence and tier only.
 
 **See also**: [ADR: operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md),
 [Configuration Reference § env_file Pointer](configuration.md#env_file-pointer),
-[Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md).
+[Team Kitty](../context/team-kitty.md).
 
 ---
 
@@ -602,7 +603,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md) — Common automation patterns
 - [ADR: operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md) — the `.kitty.env` / provenance-token mechanism
 - [ADR: default-off rc release channel](../adr/3.x/2026-08-16-4-rc-release-channel.md) — `SPEC_KITTY_PRERELEASE`
-- [Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md) — the end-to-end hosted-sync flow these variables gate
+- [Team Kitty](../context/team-kitty.md) — the hosted surfaces removed in #6164 and what stays
 
 ## Getting Started
 

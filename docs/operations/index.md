@@ -30,7 +30,7 @@ across missions (unlike the effort-scoped notes that live under
 
 - [SSH deploy-key setup for CI/CD](ssh-deploy-keys.md) — one-time deploy-key provisioning runbook.
 - [Identity-boundary CI gate](identity-boundary-ci-gate.md) — retired record of the former `drift-detector` required check, deleted with the sync transport.
-- [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including [logged-out on a connected teamspace](logged-out-teamspace.md).
+- [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including coord/lane split-brain recovery.
 - [Recovery after an upgrade with live lanes](upgrade-with-live-lanes-recovery.md) — recover when `consolidate`, review or implement refuses on `.kittify/metadata.yaml` after an upgrade mid-Mission.
 - [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
 - [How to maintain the issue tracker](how-to-maintain.md) — maintainer runbook for tracker structure, priority levels, issue types, and milestone/release-goal conventions.

@@ -75,9 +75,11 @@ For where Team Kitty sits among the Spec Kitty Inc. product lines (Build Kitty, 
 
 ## Stale surfaces you will meet
 
-Marked deprecated and kept for history: `docs/architecture/team-kitty-saas.md`,
-`docs/operations/sync-drain.md`, `docs/guides/project-sync-consent.md`, and the 2.x/3.x
-sync ADRs. ADR [hosted interaction is opt-in](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
+Marked deprecated and kept for history: `docs/guides/project-sync-consent.md` and the 2.x/3.x
+sync ADRs. `docs/architecture/team-kitty-saas.md` and `docs/operations/logged-out-teamspace.md`
+are now stubs that only keep old links resolving; `docs/operations/sync-drain.md` and
+`docs/operations/ci-machine-auth.md` were deleted (#6219). The removed code lives in the
+`spec-kitty/event-router` repository. ADR [hosted interaction is opt-in](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
 and [convergence retirement and client-repo inversion](../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md)
 describe the earlier design. See also [system events](system-events.md) for the canonical
 event envelope.
