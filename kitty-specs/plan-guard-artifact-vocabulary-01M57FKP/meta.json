@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-18T12:55:28.030694+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "d8c34bea43df87bd3a0433cc16f839f5cbede9e9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-18T12:55:28.030694+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "d8c34bea43df87bd3a0433cc16f839f5cbede9e9",
   "coordination_branch": "kitty/mission-plan-guard-artifact-vocabulary-01M57FKP",
   "created_at": "2026-10-18T12:25:59.306008+00:00",
   "flattened": false,
@@ -13,5 +25,7 @@
   "purpose_tldr": "Let a built-in plan mission advance past specify by reconciling the plan family's expected-artifacts manifest with the artifacts its step contracts and guards actually use.",
   "slug": "plan-guard-artifact-vocabulary-01M57FKP",
   "target_branch": "fix/plan-guard-artifact-vocabulary",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-18T12:36:05.129146+00:00"
 }
