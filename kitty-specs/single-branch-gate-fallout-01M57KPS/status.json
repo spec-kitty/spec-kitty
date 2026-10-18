@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M57M14Y52J9X3N92Y8CCM7KC",
-  "materialized_at": "2026-10-18T13:43:14.629949+00:00",
+  "event_count": 4,
+  "last_event_id": "01M57M280SM9D6YJ1MG28AKHNW",
+  "materialized_at": "2026-10-18T13:43:50.441170+00:00",
   "mission_number": "",
   "mission_slug": "single-branch-gate-fallout-01M57KPS",
   "mission_type": "software-dev",
@@ -13,17 +13,26 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M57M12K6HZSHZ5JN9PSF154Y",
-      "last_transition_at": "2026-10-18T13:43:12.230593+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M57M280SM9D6YJ1MG28AKHNW",
+      "last_transition_at": "2026-10-18T13:43:50.441170+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 10512,
+      "shell_pid_created_at": "1792331022.76"
     },
     "WP02": {
       "actor": "finalize-tasks",
