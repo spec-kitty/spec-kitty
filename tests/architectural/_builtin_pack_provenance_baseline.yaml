@@ -158,7 +158,7 @@ missions/plan/actions/review/index.yaml:
 missions/plan/actions/specify/index.yaml:
   provenance: 2
 missions/plan/expected-artifacts.yaml:
-  repo_paths: 2
+  repo_paths: 1
 missions/plan/governance-profile.yaml:
   repo_paths: 1
   provenance: 5

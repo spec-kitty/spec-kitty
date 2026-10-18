@@ -3,17 +3,11 @@
 # Defines which artifacts are required/optional at each plan-mission step.
 #
 # Step keys are the RUNTIME ACTION IDS of the plan step contracts
-# (packs/built-in/missions/built_in_step_contracts/plan-*.step-contract.yaml):
-# specify / research / plan / review. That is the one canonical vocabulary --
-# `_GUARD_TABLES["plan"]` (`_evaluate_plan_guards` in
-# src/runtime/next/runtime_bridge_cores.py) dispatches on these action ids,
-# `_check_cli_guards` resolves the mission's real family before gathering
-# presence (#3386), and `gather_artifact_presence` builds its snapshot from
-# this manifest. Keying the manifest on another vocabulary (the old
-# goals/structure/draft/done phase names) makes a committed artifact read as
-# absent and the guard block with an empty `guard_failure_paths` (#6388).
-# tests/architectural/test_mission_type_vocabulary_coherence.py fails when
-# these keys diverge from the step-contract action ids.
+# (missions/built_in_step_contracts/plan-*.step-contract.yaml):
+# specify / research / plan / review. The runtime guard dispatches on these
+# action ids and gathers artifact presence from this manifest, so keying it on
+# another vocabulary (the old goals/structure/draft/done phase names) makes a
+# committed artifact read as absent and the step block without naming a path.
 #
 # `review` gates on an approval gate, not a filesystem artifact, so it carries
 # no required-artifact entry.

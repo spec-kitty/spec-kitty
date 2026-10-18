@@ -1174,14 +1174,13 @@ class TestPlanManifest:
 
     def test_plan_manifest_header_names_action_vocabulary(self):
         """The header comment must describe the CURRENT mechanism (#6388): keys
-        are runtime action ids, `_GUARD_TABLES["plan"]` is live, and the
-        coherence guard enforces it. Reads the raw file text, since the header
-        comment is not part of the parsed schema."""
+        are runtime action ids. Reads the raw file text, since the header
+        comment is not part of the parsed schema. The comment ships to every
+        consumer, so it names no repository-internal symbol, test or tracker
+        number (``test_builtin_pack_provenance_ratchet``)."""
         raw_text = self._PLAN_MANIFEST_PATH.read_text(encoding="utf-8")
 
         assert "action ids" in raw_text
-        assert "_GUARD_TABLES" in raw_text
-        assert "test_mission_type_vocabulary_coherence" in raw_text
 
         # The stale claims (no plan guard branch; keys mirror mission.yaml
         # state ids; hardcoded software-dev family) are false post-#3386.
