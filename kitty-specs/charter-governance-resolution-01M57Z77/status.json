@@ -1,7 +1,7 @@
 {
-  "event_count": 47,
-  "last_event_id": "01M58KPQJB5ED26GH2TRN3J0FW",
-  "materialized_at": "2026-10-18T22:56:47.691111+00:00",
+  "event_count": 48,
+  "last_event_id": "01M58KV0WJZCFBMEKYG2ERTMNQ",
+  "materialized_at": "2026-10-18T22:59:08.306270+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 3
   },
   "work_packages": {
@@ -222,21 +222,22 @@
     "WP09": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "python-pedro",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M58KPQJB5ED26GH2TRN3J0FW",
-      "last_transition_at": "2026-10-18T22:56:47.691111+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M58KV0WJZCFBMEKYG2ERTMNQ",
+      "last_transition_at": "2026-10-18T22:59:08.306270+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-18T22:46:50Z – claude – shell_pid=6920 – Out-of-map edits: tests/next/test_prompt_builder_unit.py, CHANGELOG.md. CLI also passes directives_source (trivially additive)."
+        "- 2026-10-18T22:46:50Z – claude – shell_pid=6920 – Out-of-map edits: tests/next/test_prompt_builder_unit.py, CHANGELOG.md. CLI also passes directives_source (trivially additive).",
+        "T039-T042 done. diagnostics top-level key (schema 1.4.0, ledger+2 pins), CLI pass-through of diagnostics+directives_source, doctor warning naming dropped ids, prompt-builder already rendered diagnostics (test added), org entries carry org provenance via IdentityIndex layer. IdentityIndex built once in build_charter_context_json. Gates: ruff check 0, ruff format --check 0, C901 0, mypy --strict identical to baseline (108 env import errors, 0 new), boundary/json-contract/terminology gates pass. Sweep: 13433 passed, 18 failed = #6424 (2) + 16 pre-existing (upgrade_command, doctrine_asset, reassess, skill_drift, regenerate_graph; 15 reproduce on base)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 6920,
-      "shell_pid_created_at": "1792357241.68",
+      "role": "reviewer",
+      "shell_pid": 25689,
+      "shell_pid_created_at": "1792364338.51",
       "subtasks": {
         "T039": "done",
         "T040": "done",
