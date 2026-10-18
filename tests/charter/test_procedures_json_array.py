@@ -126,9 +126,9 @@ class TestProceduresTypedArray:
 
     def test_schema_version_tracks_the_combined_contract(self, tmp_path: Path) -> None:
         """The versioned contract includes procedures and directives-source (C-005)."""
-        assert CONTEXT_SCHEMA_VERSION == "1.3.0"
+        assert CONTEXT_SCHEMA_VERSION == "1.4.0"
         payload = _implement_payload(tmp_path)
-        assert payload["context_schema_version"] == "1.3.0"
+        assert payload["context_schema_version"] == "1.4.0"
 
     def test_procedures_recorded_in_top_level_ledger(self) -> None:
         """``procedures`` is declared in the top-level key ledger."""
