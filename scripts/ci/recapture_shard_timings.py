@@ -131,6 +131,11 @@ _SECONDS_KEY = "module_duration_seconds"
 _PROVENANCE_KEY = "module_capture_provenance"
 _MODULE_TABLE_KEYS = (_DURATIONS_KEY, _COUNT_KEY, _SECONDS_KEY, _PROVENANCE_KEY)
 
+#: The producer's per-suite battery tables (``scripts/ci/recapture_battery_timings.py``
+#: refreshes them from nightly junit, #6365): durations and provenance, written as a pair.
+_BATTERY_DURATIONS_KEY = "battery_file_durations"
+_BATTERY_PROVENANCE_KEY = "battery_capture_provenance"
+
 #: Pytest exit statuses that mean "the suite ran" (0 clean, 1 some tests failed).
 _VALID_EXIT_CODES = (0, 1)
 _NODE_ID_SEPARATOR = "::"
@@ -142,15 +147,18 @@ COMMIT_AUTHOR_EMAIL = "ci-bot@users.noreply.github.com"
 #: Fixed commit subject / PR title.
 COMMIT_MESSAGE = "chore(ci): automated shard-timings recapture"
 
-#: PR-body template; the ``{captured}``/``{failed}``/``{deferred}`` fields are module lists.
+#: PR-body template; the ``{captured}``/``{failed}``/``{deferred}`` fields are module lists,
+#: the ``{battery_*}`` fields battery suite lists.
 PR_BODY_TEMPLATE = (
     "Automated recapture opened by the scheduled `ci-shard-recapture.yml` workflow "
-    "(`scripts/ci/recapture_shard_timings.py`). Refreshes the drifted modules' entries in "
-    "`.github/ci-shard-timings.json`.\n\n"
+    "(`scripts/ci/recapture_shard_timings.py`, `scripts/ci/recapture_battery_timings.py`). "
+    "Refreshes the drifted entries in `.github/ci-shard-timings.json`.\n\n"
     "- Captured: {captured}\n"
     "- Failed (committed data left unchanged): {failed}\n"
-    "- Deferred (time budget spent, retried next run): {deferred}\n\n"
-    "Workflow run: `{run_url}`. See spec-kitty#5189."
+    "- Deferred (time budget spent, retried next run): {deferred}\n"
+    "- Battery tables refreshed from nightly junit: {battery_captured}\n"
+    "- Battery tables that could not be refreshed: {battery_failed}\n\n"
+    "Workflow run: `{run_url}`. See spec-kitty#5189 and spec-kitty#6365."
 )
 
 _NONE_LABEL = "none"
@@ -250,9 +258,11 @@ def overlay_proposal(baseline: Mapping[str, Any], proposal: Mapping[str, Any]) -
     A module counts as refreshed by the proposal when its provenance record differs from the
     baseline's. Only those modules' four tables move; every other key (including modules the
     primary branch changed after the proposal was cut) stays as the baseline has it, so the
-    follow-up commit never reverts unrelated changes.
+    follow-up commit never reverts unrelated changes. A battery suite moves the same way: its
+    two tables are taken from the proposal when its provenance record differs (#6365).
     """
     merged: dict[str, Any] = dict(baseline)
+    _overlay_battery_suites(merged, baseline, proposal)
     proposal_records = proposal.get(_PROVENANCE_KEY)
     if not isinstance(proposal_records, Mapping):
         return merged
@@ -266,19 +276,41 @@ def overlay_proposal(baseline: Mapping[str, Any], proposal: Mapping[str, Any]) -
     return merged
 
 
+def _overlay_battery_suites(merged: dict[str, Any], baseline: Mapping[str, Any], proposal: Mapping[str, Any]) -> None:
+    """Move into *merged* every battery suite whose provenance the proposal changed."""
+    proposal_records = proposal.get(_BATTERY_PROVENANCE_KEY)
+    proposal_durations = proposal.get(_BATTERY_DURATIONS_KEY)
+    if not isinstance(proposal_records, Mapping) or not isinstance(proposal_durations, Mapping):
+        return
+    baseline_records = baseline.get(_BATTERY_PROVENANCE_KEY)
+    baseline_records = baseline_records if isinstance(baseline_records, Mapping) else {}
+    for suite, record in proposal_records.items():
+        if baseline_records.get(suite) == record or suite not in proposal_durations:
+            continue
+        merged[_BATTERY_DURATIONS_KEY] = {**(merged.get(_BATTERY_DURATIONS_KEY) or {}), suite: proposal_durations[suite]}
+        merged[_BATTERY_PROVENANCE_KEY] = {**(merged.get(_BATTERY_PROVENANCE_KEY) or {}), suite: record}
+
+
 def _format_modules(modules: Sequence[str]) -> str:
     return ", ".join(f"`{module}`" for module in modules) if modules else _NONE_LABEL
 
 
 @dataclass(frozen=True)
 class RecaptureResult:
-    """The outcome of one ``capture`` run, threaded to ``publish`` as one JSON line."""
+    """The outcome of one ``capture`` run, threaded to ``publish`` as one JSON line.
+
+    ``battery_captured`` / ``battery_failed`` name battery suites (not modules) refreshed, or
+    not, from nightly junit by ``scripts/ci/recapture_battery_timings.py``; a battery failure's
+    reason is keyed ``battery:<suite>`` in *reasons*.
+    """
 
     drifted: tuple[str, ...] = ()
     captured: tuple[str, ...] = ()
     failed: tuple[str, ...] = ()
     deferred: tuple[str, ...] = ()
     reasons: Mapping[str, str] = field(default_factory=dict)
+    battery_captured: tuple[str, ...] = ()
+    battery_failed: tuple[str, ...] = ()
 
     def to_json(self) -> str:
         return json.dumps(
@@ -288,6 +320,8 @@ class RecaptureResult:
                 "failed": list(self.failed),
                 "deferred": list(self.deferred),
                 "reasons": dict(self.reasons),
+                "battery_captured": list(self.battery_captured),
+                "battery_failed": list(self.battery_failed),
             },
             sort_keys=True,
         )
@@ -301,12 +335,14 @@ class RecaptureResult:
             failed=tuple(payload["failed"]),
             deferred=tuple(payload["deferred"]),
             reasons=dict(payload.get("reasons", {})),
+            battery_captured=tuple(payload.get("battery_captured", ())),
+            battery_failed=tuple(payload.get("battery_failed", ())),
         )
 
     @property
     def publishable(self) -> bool:
-        """True when at least one module holds a fresh, valid capture to publish."""
-        return bool(self.captured)
+        """True when at least one module or battery suite holds a fresh, valid capture to publish."""
+        return bool(self.captured or self.battery_captured)
 
     def summary_table(self) -> str:
         """A markdown job-summary table: one row per drifted module, then the failures' reasons."""
@@ -314,6 +350,8 @@ class RecaptureResult:
         lines += [f"| `{module}` | captured |" for module in self.captured]
         lines += [f"| `{module}` | failed: {self.reasons.get(module, 'invalid capture')} |" for module in self.failed]
         lines += [f"| `{module}` | deferred (time budget spent) |" for module in self.deferred]
+        lines += [f"| battery `{suite}` | refreshed from nightly junit |" for suite in self.battery_captured]
+        lines += [f"| battery `{suite}` | failed: {self.reasons.get(battery_reason_key(suite), 'invalid capture')} |" for suite in self.battery_failed]
         if len(lines) == 2:
             lines.append("| _none_ | nothing drifted |")
         return "\n".join(lines)
@@ -323,11 +361,23 @@ class RecaptureResult:
             captured=_format_modules(self.captured),
             failed=_format_modules(self.failed),
             deferred=_format_modules(self.deferred),
+            battery_captured=_format_modules(self.battery_captured),
+            battery_failed=_format_modules(self.battery_failed),
             run_url=run_url,
         )
 
     def commit_message(self) -> str:
-        return f"{COMMIT_MESSAGE}\n\nCaptured: {_format_modules(self.captured)}\nFailed: {_format_modules(self.failed)}\nDeferred: {_format_modules(self.deferred)}"
+        message = (
+            f"{COMMIT_MESSAGE}\n\nCaptured: {_format_modules(self.captured)}\nFailed: {_format_modules(self.failed)}\nDeferred: {_format_modules(self.deferred)}"
+        )
+        if self.battery_captured or self.battery_failed:
+            message += f"\nBattery refreshed: {_format_modules(self.battery_captured)}\nBattery failed: {_format_modules(self.battery_failed)}"
+        return message
+
+
+def battery_reason_key(suite: str) -> str:
+    """The *reasons* key of a battery suite's failure (kept apart from module names)."""
+    return f"battery:{suite}"
 
 
 def find_open_recapture_pr(open_prs: Sequence[Mapping[str, object]]) -> int | None:

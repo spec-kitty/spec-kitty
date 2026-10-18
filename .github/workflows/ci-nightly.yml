@@ -1188,7 +1188,9 @@ jobs:
   #
   # Its junit report is the per-file timings refresh source for the battery
   # partition (D-29/D-36: the seed comes from census logs, junit capture via
-  # `--from-junit` is the refresh path).
+  # `--from-junit` is the refresh path). ci-shard-recapture.yml downloads the
+  # `ci-nightly-architectural-backstop-reports` artefact of recent runs by that
+  # name (scripts/ci/recapture_battery_timings.py, #6365): keep both in step.
   # ---------------------------------------------------------------------------
   architectural-backstop:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')

@@ -35,6 +35,15 @@
 #     only; `uv sync` and the long in-process pytest captures run without it
 #     (see the job's comments). A push the token cannot make (HTTP 403) fails
 #     the publish step with a message naming the secret to fix.
+#     The same job also refreshes the architectural battery's per-file table
+#     (`battery_file_durations.architectural`, #6365) after the module capture:
+#     `scripts/ci/recapture_battery_timings.py` downloads the junit report of
+#     the most recent `ci-nightly.yml` `architectural-backstop` runs (read-only
+#     workflow token, `actions: read`) and folds it in through the canonical
+#     producer (`capture_shard_timings.py --suite architectural --from-junit`;
+#     charter C-009: never from a local run). The table is replaced only when
+#     the committed one is not a junit capture, its file set changed, or it is
+#     older than 14 days; the refresh rides the same proposal PR.
 #   * `strict-shard-timings-check`: runs the architectural length-agreement
 #     gates, the battery timing-table drift gates
 #     (`tests/ci/test_battery_roster_budgets.py`, `SPEC_KITTY_STRICT_SHARD_TIMINGS=1`),
@@ -111,7 +120,8 @@ concurrency:
 # Least privilege: `git push`/`gh pr list`/`gh pr create` authenticate
 # through the dedicated CHARTER_SHARD_RECAPTURE_TOKEN PAT (wired into the
 # recapture job's `detect` and `publish` step env only), never through GITHUB_TOKEN, so no
-# job-level escalation is needed at the workflow level.
+# write escalation is needed anywhere. The recapture job adds only `actions: read`, for
+# the battery step's read-only `gh run list` / `gh run download` (#6365).
 permissions:
   contents: read
 
@@ -123,6 +133,11 @@ jobs:
     # F4: never publish a topic branch's capture -- see the header comment.
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
+    # `actions: read` lets the read-only workflow token list the nightly runs and
+    # download their battery junit artefact (the battery refresh step only).
+    permissions:
+      contents: read
+      actions: read
     # Time arithmetic (NFR-007). The capture step stops STARTING captures after
     # `--budget-seconds 4200` (70 min, counted from the script's start, so the
     # count-only pass is inside it) and reports the rest as deferred. A capture
@@ -130,10 +145,11 @@ jobs:
     # (`DEFAULT_CAPTURE_TIMEOUT_SECONDS`; `charter`, the longest module, took about
     # 25 min on a runner in the runs that hit the previous 30-minute cap, so 35 min
     # leaves 40% headroom while still bounding a hung capture). So the script
-    # finishes within 70 + 35 = 105 min, and 120 min leaves 15 min for checkout,
-    # `uv sync`, `detect` and `publish`: at most one capture can start late and
-    # the job cannot time out in the middle of the next one.
-    timeout-minutes: 120
+    # finishes within 70 + 35 = 105 min, and 130 min leaves 25 min for checkout,
+    # `uv sync`, `detect`, the battery refresh (its own 10-minute step limit; three
+    # ~100 KB downloads and a junit parse in practice) and `publish`: at most one
+    # capture can start late and the job cannot time out in the middle of the next one.
+    timeout-minutes: 130
     steps:
       # Credential wiring (F1, #5271 landing pass). The write PAT must never
       # be reachable by the long in-process pytest captures (they run whole
@@ -179,16 +195,33 @@ jobs:
           RECAPTURE_PROPOSAL_OPEN: ${{ steps.proposal.outputs.proposal_open }}
         run: |
           uv run --frozen python -m scripts.ci.recapture_shard_timings capture --write --budget-seconds 4200
+      # Battery per-file timings (#6365). Runs after the module capture (whose open-
+      # proposal overlay already carried any battery table the proposal refreshed),
+      # even when a module failed. Gets the read-only workflow token as GH_TOKEN for
+      # `gh run list` / `gh run download` only -- never the recapture PAT, which the
+      # script refuses. Re-emits the combined result (module + battery) as its own
+      # `drift` / `result` outputs; a failed refresh fails the step, the module
+      # captures are still published.
+      - name: Refresh battery timings from nightly junit (read-only token)
+        id: battery
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECAPTURE_RESULT: ${{ steps.capture.outputs.result }}
+        run: |
+          uv run --frozen python -m scripts.ci.recapture_battery_timings --junit-root "$RUNNER_TEMP/nightly-battery-junit"
       # Runs when something was captured, even if another module failed (the
       # failure keeps the job red). Re-checks for an open recapture PR
       # immediately before publishing: none open -> push the branch (force is
       # acceptable only here, the branch has no open PR) and open a PR; one open
       # -> add a follow-up commit with a plain push, never a force.
       - name: Publish the recapture proposal
-        if: ${{ !cancelled() && steps.capture.outputs.drift == 'true' }}
+        if: ${{ !cancelled() && (steps.capture.outputs.drift == 'true' || steps.battery.outputs.drift == 'true') }}
         env:
           CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
-          RECAPTURE_RESULT: ${{ steps.capture.outputs.result }}
+          # The battery step's combined result when it ran; the module result alone otherwise.
+          RECAPTURE_RESULT: ${{ steps.battery.outputs.result || steps.capture.outputs.result }}
           # GITHUB_SERVER_URL/GITHUB_REPOSITORY/GITHUB_RUN_ID/GITHUB_STEP_SUMMARY
           # are runner defaults and deliberately NOT re-declared here: there is
           # no `github.step_summary` context property, so re-declaring it would

@@ -625,6 +625,50 @@ def test_recapture_result_round_trips_and_only_captures_are_publishable() -> Non
     assert "`c` | deferred" in table
 
 
+def test_overlay_proposal_takes_a_battery_suite_the_proposal_refreshed() -> None:
+    """#6365: a battery table the open proposal already refreshed is carried over (both tables)."""
+    baseline = _payload({"a": _entry_tables(3, captured_at=OLD)})
+    baseline["battery_file_durations"] = {"architectural": {"tests/architectural/test_a.py": 1.0}}
+    baseline["battery_capture_provenance"] = {"architectural": {"producer": "census-seed"}}
+    proposal = json.loads(json.dumps(baseline))
+    proposal["battery_file_durations"]["architectural"] = {"tests/architectural/test_b.py": 2.0}
+    proposal["battery_capture_provenance"]["architectural"] = {"producer": "scripts/ci/capture_shard_timings.py", "run_ids": ["nightly-1"]}
+    merged = recapture.overlay_proposal(baseline, proposal)
+    assert merged["battery_file_durations"] == proposal["battery_file_durations"]
+    assert merged["battery_capture_provenance"] == proposal["battery_capture_provenance"]
+    assert _module_slice(merged, "a") == _module_slice(baseline, "a")
+
+
+def test_paired_control_overlay_keeps_the_baseline_battery_when_the_proposal_did_not_refresh_it() -> None:
+    baseline = _payload({})
+    baseline["battery_file_durations"] = {"architectural": {"tests/architectural/test_a.py": 1.0}}
+    baseline["battery_capture_provenance"] = {"architectural": {"producer": "census-seed"}}
+    proposal = json.loads(json.dumps(baseline))
+    proposal["battery_file_durations"]["architectural"] = {"tests/architectural/test_old.py": 9.0}  # cut before main changed it
+    merged = recapture.overlay_proposal(baseline, proposal)
+    assert merged["battery_file_durations"] == baseline["battery_file_durations"]
+
+
+def test_a_battery_only_result_is_publishable_and_reported() -> None:
+    result = recapture.RecaptureResult(battery_captured=("architectural",))
+    assert recapture.RecaptureResult.from_json(result.to_json()) == result
+    assert result.publishable is True
+    assert "battery `architectural` | refreshed from nightly junit" in result.summary_table()
+    assert "Battery refreshed: `architectural`" in result.commit_message()
+    assert "Battery tables refreshed from nightly junit: `architectural`" in result.proposal_body(RUN_URL)
+    failed = recapture.RecaptureResult(battery_failed=("architectural",), reasons={recapture.battery_reason_key("architectural"): "no junit"})
+    assert failed.publishable is False
+    assert "battery `architectural` | failed: no junit" in failed.summary_table()
+
+
+def test_a_result_written_before_the_battery_fields_still_parses() -> None:
+    legacy = json.dumps({"drifted": ["a"], "captured": ["a"], "failed": [], "deferred": [], "reasons": {}})
+    result = recapture.RecaptureResult.from_json(legacy)
+    assert result.battery_captured == ()
+    assert result.battery_failed == ()
+    assert "Battery" not in result.commit_message()
+
+
 def test_proposal_body_and_commit_message_list_captured_failed_and_deferred() -> None:
     result = recapture.RecaptureResult(drifted=("a", "b", "c"), captured=("a",), failed=("b",), deferred=("c",))
     for text in (result.proposal_body(RUN_URL), result.commit_message()):
@@ -730,7 +774,7 @@ def test_nothing_drifted_captures_nothing_and_reports_drift_false(world: World) 
 
     assert exit_code == 0
     assert outputs["drift"] == "false"
-    assert result == {"drifted": [], "captured": [], "failed": [], "deferred": [], "reasons": {}}
+    assert result == {"drifted": [], "captured": [], "failed": [], "deferred": [], "reasons": {}, "battery_captured": [], "battery_failed": []}
     assert world.producer_calls() == []
     assert world.timings_path.read_bytes() == before
 
@@ -1469,7 +1513,8 @@ def test_the_capture_step_writes_with_a_budget_and_publish_runs_when_something_w
     publish = _step("Publish")
     assert "steps.capture.outputs.drift == 'true'" in publish["if"]
     assert "!cancelled()" in publish["if"]  # a run that captured some and failed others still publishes the good ones
-    assert publish["env"][recapture.RESULT_ENV_VAR] == "${{ steps.capture.outputs.result }}"
+    # The battery refresh step (#6365) re-emits the combined result; the module result is the fallback.
+    assert publish["env"][recapture.RESULT_ENV_VAR] == "${{ steps.battery.outputs.result || steps.capture.outputs.result }}"
 
 
 def test_the_job_timeout_covers_the_budget_plus_one_late_capture_and_publishing() -> None:
