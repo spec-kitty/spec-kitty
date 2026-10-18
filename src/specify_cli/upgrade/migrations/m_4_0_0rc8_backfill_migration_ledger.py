@@ -45,6 +45,18 @@ class _PlanItem:
     clone_local: bool
 
 
+def _detect_or_pending(migration: BaseMigration, project_path: Path) -> bool:
+    """``migration.detect()``, with an unreadable probe target read as "effect absent".
+
+    An ``OSError`` (for example ``.gitattributes`` being a directory) leaves the
+    clone-local migration pending rather than crashing the whole upgrade.
+    """
+    try:
+        return migration.detect(project_path)
+    except OSError:
+        return True
+
+
 @MigrationRegistry.register
 class BackfillMigrationLedgerMigration(BaseMigration):
     """Backfill the migration ledger from ``metadata.yaml.applied_migrations``."""
@@ -128,7 +140,7 @@ class BackfillMigrationLedgerMigration(BaseMigration):
         if clone_local:
             # Detect-gated: only backfill when the effect is present here
             # (detect() True == old state present == effect absent).
-            if migration is None or migration.detect(project_path):
+            if migration is None or _detect_or_pending(migration, project_path):
                 return True
             return canonical in clone_recorded
         return canonical in tracked_recorded

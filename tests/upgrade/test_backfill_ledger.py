@@ -193,3 +193,24 @@ def test_backfill_prefers_success_over_an_earlier_non_success_record(tmp_path: P
 
     records = [r for r in MigrationLedger(tmp_path).read_tracked() if r.id == _PRIOR_ID]
     assert [r.result for r in records] == ["success"]
+
+
+class _RaisingDetectMigration:
+    """A clone-local migration whose ``detect()`` hits an unreadable file."""
+
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002 - stub
+        raise IsADirectoryError(".gitattributes is a directory")
+
+
+def test_detect_oserror_leaves_clone_local_migration_pending(tmp_path: Path) -> None:
+    """A ``detect()`` OSError means "effect absent": skip the backfill, never crash the upgrade."""
+    skipped = BackfillMigrationLedgerMigration._should_skip(
+        "3.2.6_gate_artifact_merge_drivers",
+        _RaisingDetectMigration(),  # type: ignore[arg-type]  # duck-typed stub
+        True,
+        tmp_path,
+        set(),
+        set(),
+    )
+
+    assert skipped is True
