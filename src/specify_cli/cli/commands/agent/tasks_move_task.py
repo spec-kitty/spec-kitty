@@ -978,9 +978,11 @@ def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
     if not patterns or not any(_mt_matches_owned_file(path, patterns) for path in changed):
         raise ActionContextError(
             "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
-            f"Refusing to move {st.task_id} into review without a committed implementation: no commit on the "
-            "single_branch mission branch touches its owned_files. Commit the work package's implementation to "
-            "its owned_files, then retry (ticked subtask checkboxes are not shipped code).",
+            # "no implementation commit" is the phrase lanes/for_review_gate.py and the consolidate
+            # axis use; this gate runs before for_review_gate, so its words are what operators read (#6369).
+            f"{st.task_id} cannot move into review: no implementation commit touching its owned_files on the "
+            "single_branch mission branch. Commit the work package's implementation to its owned_files, then "
+            "retry (ticked subtask checkboxes are not shipped code).",
         )
 
 
