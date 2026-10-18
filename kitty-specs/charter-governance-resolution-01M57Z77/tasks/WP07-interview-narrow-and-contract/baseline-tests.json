@@ -1,6 +1,6 @@
 {
   "wp_id": "WP07",
-  "captured_at": "2026-10-18T22:32:23Z",
+  "captured_at": "2026-10-18T22:36:08Z",
   "base_branch": "e0191343f6b745f8902e81ee7e45ce5a1add4912",
   "base_commit": "e0191343f6b745f8902e81ee7e45ce5a1add4912",
   "test_runner": "custom",
