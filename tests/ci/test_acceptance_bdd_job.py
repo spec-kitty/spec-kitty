@@ -151,6 +151,26 @@ def test_escalation_is_fail_closed(jobs: dict[str, Any]) -> None:
     assert "${ACCEPTANCE_RESULT:-failure}" in verdict
 
 
+def test_escalation_names_the_failing_gating_scenarios_of_every_leg(jobs: dict[str, Any]) -> None:
+    """#6369: the P0 lists the red scenarios, read from each leg's gating JUnit XML (never wip/)."""
+    steps = jobs["acceptance-bdd-escalation"]["steps"]
+    uses = [str(s.get("uses") or "") for s in steps]
+    download_index = next(i for i, u in enumerate(uses) if u.startswith("actions/download-artifact@"))
+    download = steps[download_index]
+    assert download["if"] == "always() && github.ref == 'refs/heads/main'"
+    assert download["continue-on-error"] is True
+    assert download["with"]["pattern"] == "acceptance-bdd-results-*"
+    assert download["with"]["merge-multiple"] is False, "Gradle's TEST-<class>.xml names collide across legs"
+    escalate_index = next(i for i, s in enumerate(steps) if "nightly_escalation.py" in str(s.get("run") or ""))
+    assert download_index < escalate_index
+    run = str(steps[escalate_index]["run"])
+    path = download["with"]["path"]
+    assert f"{path}/acceptance-bdd-results-*/gating/junit" in run
+    assert 'xunit_args+=(--xunit "$junit")' in run
+    assert '"${xunit_args[@]}"' in run
+    assert "/wip/" not in run
+
+
 def test_acceptance_jobs_are_aggregated_by_nightly_summary(jobs: dict[str, Any]) -> None:
     needs = jobs["nightly-summary"]["needs"]
     assert {"acceptance-bdd", "acceptance-bdd-escalation"} <= set(needs)

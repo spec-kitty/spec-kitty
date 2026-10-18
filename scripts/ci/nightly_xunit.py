@@ -86,6 +86,39 @@ def read_xunit(path: Path) -> XunitRead:
         return XunitRead((), str(exc))
 
 
+def read_xunit_paths(paths: Sequence[Path]) -> XunitRead:
+    """Read several reports as one. A directory stands for the ``*.xml`` files directly in it.
+
+    Failures keep first-seen order and are deduped by test id, so a test red on
+    every leg of a matrix is listed once. An unreadable file, or a directory
+    holding no report, makes the whole read a problem.
+    """
+    files: list[Path] = []
+    problems: list[str] = []
+    for path in paths:
+        if path.is_dir():
+            found = sorted(path.glob("*.xml"))
+            if not found:
+                problems.append(f"{path} (no xunit report in directory)")
+            files.extend(found)
+        else:
+            files.append(path)
+    failures: list[FailedTest] = []
+    seen: set[str] = set()
+    for file in files:
+        read = read_xunit(file)
+        if read.problem:
+            problems.append(read.problem)
+            continue
+        for item in read.failures:
+            if item.test_id not in seen:
+                seen.add(item.test_id)
+                failures.append(item)
+    if problems:
+        return XunitRead((), "; ".join(problems))
+    return XunitRead(tuple(failures), None)
+
+
 def recorded_ids(text: str) -> tuple[str, ...] | None:
     """Return the failure ids stored in ``text``, or ``None`` when none were stored."""
     matches = _MARKER_RE.findall(text)

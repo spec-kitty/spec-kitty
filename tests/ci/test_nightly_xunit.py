@@ -22,6 +22,7 @@ from scripts.ci.nightly_xunit import (
     parse_xunit,
     plain_report,
     read_xunit,
+    read_xunit_paths,
     recorded_ids,
     summary_markdown,
     with_recorded_ids,
@@ -172,3 +173,56 @@ def test_a_suite_that_drops_its_summary_call_is_caught() -> None:
     )
     problems = missing_xunit_wiring(text)
     assert any(problem.startswith("performance:") for problem in problems), problems
+
+
+# --- several reports read as one (#6369): the acceptance-bdd legs each write a junit folder ---
+
+
+def _gradle_case(feature: str, scenario: str, *, failed: bool = True) -> str:
+    failure = '<failure message="expected exit 0">trace</failure>' if failed else ""
+    return f'<testcase name="{scenario}" classname="{feature}" time="1.0">{failure}</testcase>'
+
+
+def _write(path: Path, cases: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f'<?xml version="1.0" ?><testsuite name="x" tests="1">{cases}</testsuite>', encoding="utf-8")
+    return path
+
+
+def test_directories_are_read_as_their_xml_files_and_failures_dedupe_across_legs(tmp_path: Path) -> None:
+    linux = tmp_path / "acceptance-bdd-results-ubuntu" / "gating" / "junit"
+    windows = tmp_path / "acceptance-bdd-results-windows" / "gating" / "junit"
+    _write(linux / "TEST-A.xml", _gradle_case("Consolidate", "lands a lane") + _gradle_case("Consolidate", "green", failed=False))
+    _write(linux / "TEST-B.xml", _gradle_case("Review", "rejects a stale lane"))
+    (linux / "notes.txt").write_text("not a report", encoding="utf-8")
+    _write(windows / "TEST-A.xml", _gradle_case("Consolidate", "lands a lane") + _gradle_case("Consolidate", "windows only"))
+
+    report = read_xunit_paths([linux, windows])
+
+    assert report.problem is None
+    assert [item.test_id for item in report.failures] == [
+        "Consolidate::lands a lane",
+        "Review::rejects a stale lane",
+        "Consolidate::windows only",
+    ]
+
+
+def test_a_single_file_reads_like_read_xunit(tmp_path: Path) -> None:
+    report = _write(tmp_path / "xunit.xml", _case("test_one"))
+    assert read_xunit_paths([report]) == read_xunit(report)
+
+
+def test_an_empty_directory_or_unreadable_file_makes_the_whole_read_a_problem(tmp_path: Path) -> None:
+    good = _write(tmp_path / "good" / "TEST-A.xml", _gradle_case("Consolidate", "lands a lane")).parent
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    broken = tmp_path / "broken" / "TEST-B.xml"
+    broken.parent.mkdir()
+    broken.write_text("<testsuite", encoding="utf-8")
+
+    report = read_xunit_paths([good, empty, broken.parent])
+
+    assert report.failures == ()
+    assert report.problem is not None
+    assert f"{empty} (no xunit report in directory)" in report.problem
+    assert "not valid XML" in report.problem
