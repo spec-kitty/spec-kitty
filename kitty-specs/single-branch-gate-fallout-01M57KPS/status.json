@@ -29,6 +29,9 @@
       "last_event_id": "01M57MVBRYMTP6CDA43ZD94ZH7",
       "last_transition_at": "2026-10-18T13:57:33.599056+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Fixture records the planning commit + distinct implementer/reviewer; 8/8 test_specify_topology_flag.py"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 10512,
