@@ -52,7 +52,7 @@ def _detect_or_pending(migration: BaseMigration, project_path: Path) -> bool:
     clone-local migration pending rather than crashing the whole upgrade.
     """
     try:
-        return migration.detect(project_path)
+        return bool(migration.detect(project_path))
     except OSError:
         return True
 

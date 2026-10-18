@@ -206,7 +206,7 @@ def test_detect_oserror_leaves_clone_local_migration_pending(tmp_path: Path) -> 
     """A ``detect()`` OSError means "effect absent": skip the backfill, never crash the upgrade."""
     skipped = BackfillMigrationLedgerMigration._should_skip(
         "3.2.6_gate_artifact_merge_drivers",
-        _RaisingDetectMigration(),  # type: ignore[arg-type]  # duck-typed stub
+        _RaisingDetectMigration(),
         True,
         tmp_path,
         set(),
