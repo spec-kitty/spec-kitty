@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3386": {
+      "evidence_ref": "Context reference (done/prior work): #3386 introduced the live _evaluate_plan_guards; #3883/#4390 are the guard_failure_paths 'name the path' provenance work this mission restores for the plan family (FR-003). No work owed to these issues by this mission; cited for context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3883": {
+      "evidence_ref": "Context reference (done/prior work): #3386 introduced the live _evaluate_plan_guards; #3883/#4390 are the guard_failure_paths 'name the path' provenance work this mission restores for the plan family (FR-003). No work owed to these issues by this mission; cited for context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#42": {
+      "evidence_ref": "Cross-repo context reference only (spec-kitty-charter#42 profile-table design debt / spec-kitty-open-packs#42 plan step-contract authoring); not an issue in spec-kitty/spec-kitty and owes this mission no work. Extracted as a bare #42 by matrix parsing.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4390": {
+      "evidence_ref": "Context reference (done/prior work): #3386 introduced the live _evaluate_plan_guards; #3883/#4390 are the guard_failure_paths 'name the path' provenance work this mission restores for the plan family (FR-003). No work owed to these issues by this mission; cited for context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6388": {
+      "evidence_ref": "Mission-owning P0: fixed by WP01 (reconcile plan expected-artifacts manifest to the action vocabulary + parity/coherence/guard_failure_paths tests) and WP02 (descriptive mission.yaml + doc). Flip to terminal 'fixed' at merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
