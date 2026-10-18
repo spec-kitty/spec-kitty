@@ -29,8 +29,9 @@ execution_mode: code_change
 model: sonnet
 owned_files:
 - src/charter/activation/synthesizer/reach_only.py
-- src/charter/activation/synthesizer/orchestrator.py
 - src/charter/activation/compiler.py
+- src/specify_cli/cli/commands/charter/synthesize.py
+- src/specify_cli/cli/commands/charter/resynthesize.py
 - tests/charter/synthesizer/test_reach_only_delivery.py
 - tests/charter/synthesizer/test_synthesize_activation_append.py
 - tests/charter/test_action_bundle_delivery.py
@@ -75,9 +76,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -101,7 +103,8 @@ Requirement refs: FR-002, FR-003, C-001.
 - Provenance is **not** tagged on the default merge path (`_drg_helpers.py:277` `merge_layers`), and the set must be computed **before** `filter_graph_by_activation` (else a deactivated directive's edge disappears and the tactic looks like a root).
 - Reference seeds: `src/charter/activation/compiler.py` ~:1768 `start_urns |= direct_root_urns` — apply the same subtraction.
 - Activation append hook: `src/charter/activation/synthesizer/orchestrator.py` `synthesize`, after `_apply_post_condition` (~:327-332), preserve and prune modes only (dry-run returns at ~:303). APIs: `pack_manager.resolve_activation_write_target(repo_root)` (:577), `activation_engine.promote_activations(...)` (:600, append-only, dedupes), `bundle_restamp.restamp_bundle_hash(repo_root)` (pair as in `pack_manager.py:770-771`). Ids: this run's results `[prov.artifact_slug for _, prov in results if prov.artifact_kind == "tactic"]` (tactic stem == declared id == slug).
-- Out-of-map: one call line in `action_governance_bundle.py` (owned by WP03) to subtract the reach-only set — record the rationale.
+- `action_governance_bundle.py` (owned by WP03) gets the subtraction call; WP05 depends on WP03.
+- Test the topic path and the refused path (orphan refusal → `activated_tactics` unchanged).
 
 ## Subtasks & Detailed Guidance
 
@@ -122,15 +125,15 @@ Commit red: `test: red repro for #6404 synthesized tactic delivery`.
 
 - `action_governance_bundle`: compute the set before activation filtering; after the org-required union, `selected_tactics -= reach_only` (both absent-key and explicit-key paths). `compiler.py` reference seeds: same subtraction.
 
-### Subtask T025 – Activation append in synthesize
+### Subtask T025 – Activation append in synthesize (full and `--topic` paths)
 
-- In `orchestrator.synthesize` after the post-condition (not dry-run): collect this run's tactic slugs; `target_path, data, save = resolve_activation_write_target(repo_root)`; if `data.get("activated_tactics") is None`: return; else `promote_activations({"activated_tactics": ids}, config_path=target_path, config_data=data, save=save, effective_sets={})`; then `restamp_bundle_hash(repo_root)`. Surface promotion warnings in the synthesize result/output if the existing result type carries warnings.
+- Placement: the CLI orphan refusal runs **after** `orchestrator.synthesize()` returns (`src/specify_cli/cli/commands/charter/synthesize.py:510-525`), and `resynthesize` (`--topic`, `orchestrator.py:342-383` / `resynthesize_pipeline`) bypasses `synthesize()`. So add a helper `append_synthesized_tactic_activations(repo_root, tactic_slugs) -> list[str]` (warnings) in `synthesizer/reach_only.py`, and call it from the CLI after the refusal check in `synthesize.py` and after a successful run in `resynthesize.py` (and from `activate --resynthesize` if it does not go through those commands). Never append on dry-run or refused runs. In the helper: collect this run's tactic slugs; `target_path, data, save = resolve_activation_write_target(repo_root)`; if `data.get("activated_tactics") is None`: return; else `promote_activations({"activated_tactics": ids}, config_path=target_path, config_data=data, save=save, effective_sets={})`; then `restamp_bundle_hash(repo_root)`. Surface promotion warnings in the synthesize result/output if the existing result type carries warnings.
 
 ## Test Strategy
 
 ```bash
 uv run --frozen pytest tests/charter/synthesizer/test_reach_only_delivery.py tests/charter/synthesizer/test_synthesize_activation_append.py tests/charter/test_action_bundle_delivery.py tests/charter/test_action_governance_bundle_activation.py tests/charter/test_default_in_force_snapshot.py -q
-uv run --frozen pytest tests/charter/ tests/charter_offering/ tests/specify_cli/cli/commands/charter/ -q -p no:randomly
+uv run --frozen pytest tests/charter/ tests/charter_offering/ tests/specify_cli/cli/commands/charter/ -q -n auto --dist loadfile
 uv run --frozen mypy --strict src/charter/activation/synthesizer/reach_only.py src/charter/activation/synthesizer/orchestrator.py src/charter/activation/compiler.py
 ```
 

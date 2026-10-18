@@ -68,9 +68,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -84,7 +85,7 @@ Done when:
 - root `pyproject.toml` + nested `a/b/c/package.json` + `tsconfig.json` → `python`;
 - equal-depth tie broken by file counts; indicator order breaks count ties;
 - frameworks/test frameworks still detected from nested files;
-- `_is_generic_scoped("java", "java-style-guide")` is False and `_is_generic_scoped("java", "javascript-style-guide")` is True.
+- `_is_generic_scoped(kind, "java-style-guide", evidence)` is False and `_is_generic_scoped(kind, "javascript-style-guide", evidence)` is True for an `EvidenceBundle` whose `CodeSignals.scope_tag == "java"` (real signature `(_target_kind, target_slug, evidence)`, `write_pipeline.py:308`; see `test_write_pipeline.py:187`).
 
 Requirement refs: FR-015, FR-016, C-006.
 
@@ -110,7 +111,7 @@ Requirement refs: FR-015, FR-016, C-006.
 
 ### Subtask T037 – Root-first `_detect_language`
 
-- `hits = {n: d for n, d in indicator_depths.items() if n in LANGUAGE_INDICATORS}`; none → `"unknown"`; `top = min(hits.values())`; candidate languages in indicator order for names at `top` (`package.json` → `_js_or_ts(scan)`, the existing tsconfig/majority rule); one → return; several → `_break_tie(langs, ext_counts)` (max count; ties by order). Every function ≤ 15 (target ≤ 8).
+- `hits = {n: d for n, d in indicator_depths.items() if n in LANGUAGE_INDICATORS}`; none → `"unknown"`; `top = min(hits.values())`; candidate languages in indicator order for names at `top` (`package.json` → `_js_or_ts(scan)`: `typescript` when a `tsconfig.json` sits at the same depth as the chosen `package.json`, else the existing ts/js majority rule); one → return; several → `_break_tie(langs, ext_counts)` (max count; ties by order). Every function ≤ 15 (target ≤ 8).
 
 ### Subtask T038 – Neutrality slug components
 
@@ -120,7 +121,7 @@ Requirement refs: FR-015, FR-016, C-006.
 
 ```bash
 uv run --frozen pytest tests/charter/evidence/ tests/charter/synthesizer/test_write_pipeline.py tests/charter/test_phase3_integration.py -q
-uv run --frozen pytest tests/charter/ -q -p no:randomly
+uv run --frozen pytest tests/charter/ -q -n auto --dist loadfile
 uv run --frozen mypy --strict src/charter/activation/evidence/code_reader.py src/charter/activation/synthesizer/write_pipeline.py
 ```
 

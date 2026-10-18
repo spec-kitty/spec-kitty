@@ -79,9 +79,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -110,7 +111,7 @@ Requirement refs: FR-006, NFR-003, NFR-004, C-002, C-007.
 
 - **Purpose**: freeze today's default in-force sets so later WPs can prove they did not change them.
 - **Steps**:
-  1. Create `tests/charter/test_default_in_force_snapshot.py`. Reuse the `_delivered()` approach from `tests/charter_offering/test_owner_delivery.py:88-105` (write a bare project: no `.kittify/config.yaml` activation keys, no org packs, no synthesized artifacts; call `_load_action_governance_bundle(..., mission_type="software-dev")` and collect delivered directive/tactic/styleguide ids per action).
+  1. Create `tests/charter/test_default_in_force_snapshot.py`. Do **not** reuse `test_owner_delivery._delivered` as is (it writes a pack config and passes `pack_context=None`). Build a bare project: `git init`, `.kittify/` with no activation keys, no org packs, no synthesized artifacts; `pack_context = PackContext.from_config(root)`; call `_load_action_governance_bundle(...)` (`action_governance_bundle.py:251`; it requires `effective_depth`) with `mission_type="software-dev"` at depths 1 and 2, and collect delivered directive/tactic/styleguide ids per action. JSON layout: `{"bundles": {action: {depth: {kind: [sorted ids]}}}, "governance": {...}}`. Assert non-empty directive sets for `specify`, `plan`, `implement`, `review` (non-vacuity).
   2. Parametrise over every action directory under `packs/built-in/missions/mission-steps/software-dev/`.
   3. Also snapshot `asdict(resolve_project_governance(root))` (directives, paradigms, tools, template set, diagnostics).
   4. Store the golden as `tests/charter/fixtures/default_in_force_snapshot.json` (sorted lists, stable key order). Provide a helper `UPDATE_SNAPSHOT=1` env path that rewrites the golden; default mode compares.
@@ -143,24 +144,25 @@ Requirement refs: FR-006, NFR-003, NFR-004, C-002, C-007.
   1. `@dataclass(frozen=True) class IdentityEntry: kind: ArtifactKind; stem: str; declared_id: str; layer: str` (`"project" | "org" | "built-in"`).
   2. `IdentityIndex.build(repo_root, *, org_roots=None)`: canonicalise roots once — org roots that exist (declaration order, from `resolve_pack_chain(repo_root, strict=False)` when not given), `{"project": project_pack_root(repo_root)}` only when it is a dir, offering root = built-in; one private `ResolutionPass`. `from_pack_context(ctx)` uses `ctx.org_roots` filtered to existing dirs.
   3. Lazy per-kind build: walk the same roots in `_scan_roots` order (reuse kind_vocabulary's path iteration and `_read_id`; expose a small internal helper there if needed rather than duplicating), producing ordered entries; derive `by_stem` and `by_id` (first match), and `ids_by_stem` for directive ambiguity.
-  4. Methods: `declared_id`, `selection_id`, `stem`, `knows`, `source_layer`, `resolve_many` as in plan D1. Keep each function ≤ 15 complexity.
+  4. Methods: `declared_id`, `selection_id`, `stem`, `knows`, `source_layer`, `resolve_many` as in plan D1, plus `activation_id(kind, token, warnings) -> str` — the single route for activation-list tokens: declared id when known; otherwise directives fall back to the normaliser and other kinds return the token unchanged, appending one warning (text compatible with today's #4240 warning). WP02/WP03/WP10 must use it rather than re-implementing the fallback. Note `_iter_artifact_paths` (:352) returns a flat list without layer attribution: iterate `_scan_roots` and call `kind_vocabulary._scan_dir_matches` (:383) / `_read_id` (:120) **through the module attribute** (so the probe sees the calls). Keep each function ≤ 15 complexity.
   5. Export `IdentityIndex` (and `IdentityEntry`) from `charter/activation/api.py` `__all__`; update `tests/architectural/test_charter_activation_api_reexport.py` accordingly.
 - **Files**: `src/charter/activation/identity_index.py` (new), `src/charter/activation/api.py`, `tests/architectural/test_charter_activation_api_reexport.py`.
 
-### Subtask T004 – Declared-id fallback for every kind in `resolve_artifact_urn`
+### Subtask T004 – Declared-id fallback for every kind in `resolve_artifact_urn`, stems stay the written form
 
-- **Steps**: generalise the fallback at `kind_vocabulary.py:466-480` so any kind accepts an exact declared id after the stem scan misses (directives keep their round-trip/ambiguity rule). Update the module comment ("other kinds remain stem-only"). Keep `UnknownArtifactIdError` for genuine misses.
+- **Steps**: (0) `resolve_selected_id_to_stem` (`kind_vocabulary.py:674-712`) must keep returning the **stem** for every kind: today its stem-first branch returns `raw_id` once `resolve_artifact_urn` succeeds, which after this change would return a declared id verbatim. Make it match the stem explicitly first and map a declared id to its stem via `resolve_config_id`; add a test (tactic selection by declared id `qa-seven` → `qa-tactic-seven`). Producers (`org_charter._normalize_required_ids`, interview promotion, presets, `charter activate`) must keep writing stems (#2529). Then generalise the fallback at `kind_vocabulary.py:466-480` so any kind accepts an exact declared id after the stem scan misses (directives keep their round-trip/ambiguity rule). Update the module comment ("other kinds remain stem-only"). Keep `UnknownArtifactIdError` for genuine misses.
 - **Files**: `src/charter/activation/kind_vocabulary.py`, `tests/charter/test_kind_vocabulary.py`.
 
-### Subtask T005 – Scan-count probe (NFR-003)
+### Subtask T005 – Scan-count probe (NFR-003) and blast radius
 
-- **Steps**: in `test_identity_index.py`, wrap the per-root scan function (pattern: `tests/charter/test_directive_resolution_memoization.py:34-48` `scan_calls`) and assert that 50 lookups across stems and ids for one kind trigger exactly one scan per root for that kind; a second kind adds one scan per root.
+- **Steps**: in `test_identity_index.py`, patch `kind_vocabulary._scan_dir_matches` (pattern: `tests/charter/test_directive_resolution_memoization.py:34-48` `scan_calls`) and assert that 50 lookups across stems and ids for one kind trigger exactly one scan per root for that kind (`len(calls) == expected > 0`); a second kind adds one scan per root.
+- **Blast radius**: `resolve_artifact_urn` is also called from `src/specify_cli/cli/commands/charter/activate.py`, `deactivate.py`, `consistency_check.py` and `_resynthesis_preflight.py`. Run `tests/specify_cli/cli/commands/charter/ -n auto --dist loadfile` and confirm `charter activate tactic <declared-id>` writes the **stem** (add a test).
 
 ## Test Strategy
 
 ```bash
 uv run --frozen pytest tests/charter/activation/test_identity_index.py tests/charter/test_kind_vocabulary.py tests/charter/test_default_in_force_snapshot.py tests/architectural/test_charter_activation_api_reexport.py -q
-uv run --frozen pytest tests/charter/ -q -x -p no:randomly
+uv run --frozen pytest tests/charter/ -q -n auto --dist loadfile
 uv run --frozen mypy --strict src/charter/activation/identity_index.py src/charter/activation/kind_vocabulary.py src/charter/activation/api.py
 ```
 

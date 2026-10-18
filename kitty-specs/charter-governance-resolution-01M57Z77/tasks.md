@@ -20,12 +20,9 @@
 | T007 | Directive base and selection validation through the index | WP02 | |
 | T008 | Paradigm validation and remediation texts | WP02 | |
 | T009 | Service getters for every kind | WP02 | |
-| T010 | Diagnostics in compact and JSON context | WP02 | |
 | T011 | Verify WP02 | WP02 | |
 | T012 | Red tests for identity surfaces | WP03 | |
 | T013 | Action bundle and activation filter | WP03 | |
-| T014 | `--include` and selection block | WP03 | |
-| T015 | Preset application and `charter list` | WP03 | |
 | T016 | Verify WP03 | WP03 | |
 | T017 | Red tests for the synthesized tactic edge | WP04 | [P] |
 | T018 | Emission: directive suggests tactic | WP04 | |
@@ -49,6 +46,14 @@
 | T036 | Scan restructuring | WP08 | |
 | T037 | Root-first `_detect_language` | WP08 | |
 | T038 | Neutrality slug components | WP08 | |
+| T039 | Red tests for diagnostics surfaces | WP09 | |
+| T040 | Compact, JSON builder, contract, CLI pass-through | WP09 | |
+| T041 | Doctor and prompt builder | WP09 | |
+| T042 | Verify WP09 | WP09 | |
+| T043 | Red tests for render and list surfaces | WP10 | |
+| T044 | `--include` and selection block | WP10 | |
+| T045 | Preset application and `charter list` | WP10 | |
+| T046 | Verify WP10 | WP10 | |
 
 ---
 
@@ -79,7 +84,7 @@ T005 Scan-count probe (WP01)
 
 ## Work Package WP02: Governance resolution identity (Priority: P1)
 
-**Goal**: declared ids in the governance base (#6406), layer-aware selections with unknown ids dropped and diagnosed (#6407), every service getter delivers stem ≠ id artifacts, JSON `diagnostics`.
+**Goal**: declared ids in the governance base (#6406), layer-aware selections with unknown ids dropped and diagnosed (#6407; supersedes the #3908 fail-loud test), every service getter delivers stem ≠ id artifacts.
 **Independent Test**: fixture org pack (`qa-003-no-fake-green` → `QA_003`) shows `QA_003`; `[QA_003, NOPE_999]` keeps governance and reports `NOPE_999`.
 **Prompt**: `tasks/WP02-governance-resolution-identity.md`
 **Requirement Refs**: FR-007, FR-008, FR-009, FR-010, FR-011, NFR-004
@@ -90,7 +95,6 @@ T006 Fixture org pack + red tests (WP02)
 T007 Directive base and selection validation through the index (WP02)
 T008 Paradigm validation and remediation texts (WP02)
 T009 Service getters for every kind (WP02)
-T010 Diagnostics in compact and JSON context (WP02)
 T011 Verify (WP02)
 
 ### Dependencies
@@ -99,24 +103,62 @@ T011 Verify (WP02)
 
 ---
 
-## Work Package WP03: Identity surfaces (Priority: P1)
+## Work Package WP09: Governance diagnostics surfaces (Priority: P1)
 
-**Goal**: action bundle, activation filter, `--include`, selection block, preset application and `charter list` use the index.
-**Independent Test**: both spellings resolve in `--include`; org tactic with stem ≠ id delivered and listed as activated.
-**Prompt**: `tasks/WP03-identity-surfaces.md`
-**Requirement Refs**: FR-007, FR-008, FR-017, NFR-003
+**Goal**: unknown-selection diagnostics visible in compact text, JSON (`diagnostics`, schema 1.4.0), the CLI pass-through, doctor and the prompt builder.
+**Independent Test**: `[QA_003, NOPE_999]` → CLI JSON exit 0 with `diagnostics` naming `NOPE_999`.
+**Prompt**: `tasks/WP09-governance-diagnostics-surfaces.md`
+**Requirement Refs**: FR-010, FR-011, NFR-003
+
+### Included Subtasks
+
+T039 Red tests (WP09)
+T040 Compact, JSON builder, contract, CLI pass-through (WP09)
+T041 Doctor and prompt builder (WP09)
+T042 Verify (WP09)
+
+### Dependencies
+
+- Depends on WP02.
+
+---
+
+## Work Package WP03: Action bundle identity (Priority: P1)
+
+**Goal**: action bundle and DRG activation filter resolve tokens through the index.
+**Independent Test**: org tactic with stem ≠ id delivered under stem and declared-id tokens.
+**Prompt**: `tasks/WP03-action-bundle-identity.md`
+**Requirement Refs**: FR-007, FR-008, NFR-003
 
 ### Included Subtasks
 
 T012 Red tests (WP03)
 T013 Action bundle and activation filter (WP03)
-T014 `--include` and selection block (WP03)
-T015 Preset application and `charter list` (WP03)
 T016 Verify (WP03)
 
 ### Dependencies
 
-- Depends on WP02.
+- Depends on WP02, WP09.
+
+---
+
+## Work Package WP10: Render and list identity (Priority: P1)
+
+**Goal**: `--include`, selection block, presets and `charter list` use the index.
+**Independent Test**: both spellings resolve in `--include`; `charter list` shows the activated org tactic as activated.
+**Prompt**: `tasks/WP10-render-and-list-identity.md`
+**Requirement Refs**: FR-007, FR-017
+
+### Included Subtasks
+
+T043 Red tests (WP10)
+T044 `--include` and selection block (WP10)
+T045 Preset application and `charter list` (WP10)
+T046 Verify (WP10)
+
+### Dependencies
+
+- Depends on WP02, WP09.
 
 ---
 
@@ -178,7 +220,7 @@ T030 CLI `--only` (WP06)
 
 ### Dependencies
 
-- None (parallel).
+- Depends on WP01.
 
 ---
 
@@ -186,7 +228,7 @@ T030 CLI `--only` (WP06)
 
 **Goal**: `charter interview --narrow-activation`; `/spec-kitty.charter` contract text.
 **Independent Test**: narrow interview writes selection + org-required only; JSON `narrowed`.
-**Prompt**: `tasks/WP07-interview-narrow-and-contract.md`
+**Prompt**: `tasks/WP07-interview-narrow-and-contract.md` (also regenerates CLI reference docs)
 **Requirement Refs**: FR-013, FR-014, C-003
 
 ### Included Subtasks
@@ -224,7 +266,19 @@ T038 Neutrality slug components (WP08)
 
 ## Parallel Opportunities
 
-WP01, WP04, WP06 and WP08 can start immediately; WP02 → WP03 → WP05 and WP06 → WP07 are the chains.
+WP01, WP04 and WP08 can start immediately; chains: WP01 → WP02 → WP09 → {WP03, WP10}; {WP03, WP04} → WP05; WP01 → WP06 → WP07.
+
+## Success Criteria Coverage
+
+| SC | WP |
+|----|----|
+| SC-001 | WP05 |
+| SC-002 | WP02, WP09, WP10 |
+| SC-003 | WP02, WP09 |
+| SC-004 | WP06 |
+| SC-005 | WP08 |
+
+NFR-001, NFR-002 and C-005 are cross-cutting: every WP's quality gates and diff coverage apply.
 
 ## MVP
 

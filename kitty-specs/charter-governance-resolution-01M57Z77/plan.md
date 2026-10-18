@@ -66,9 +66,11 @@ src/charter/activation/
 ├── org_charter.py               (org_required_stems)
 ├── compiler.py                  (reach-only subtraction in reference seeds)
 ├── evidence/code_reader.py
-└── synthesizer/{project_drg,reconcile,orchestrator,write_pipeline}.py
+└── synthesizer/{project_drg,reconcile,reach_only,write_pipeline}.py
 src/charter/offering/drg/{models.py,merge.py}   (applies prose)
-src/specify_cli/cli/commands/charter/{activate,interview,list_cmd}.py
+src/specify_cli/cli/commands/charter/{activate,interview,list_cmd,context,synthesize,resynthesize}.py
+src/specify_cli/runtime/doctor.py, src/runtime/next/prompt_builder.py
+docs/api/{cli-commands,charter-commands}.md
 packs/built-in/missions/mission-steps/software-dev/charter/prompt.md
 docs/architecture/doctrine-relationships.md
 ```
@@ -116,8 +118,8 @@ class IdentityIndex:
 - **Emission** (`project_drg.py:349-375`): tactic targets emit `DRGEdge(source=source_urn, target=urn, relation=SUGGESTS)`; directive targets keep `REQUIRES`; the built-in duplicate-triple check uses the oriented triple. `source_urns` already carry declared ids (`compiler.resolve_config_activated_roots` → `resolve_artifact_urn`), so org directives get correct endpoints.
 - **Ownership** (`reconcile.py`): new `edge_owner(edge, overlay_urns)`: the synthesis shape (`suggests`, `directive:*` → overlay `tactic:*`) is owned by the target; otherwise the source if it is an overlay node; otherwise the target if it is. Used by `merge_project_overlay`, `_graph_delta`, `_edge_ref` (backing artifact; avoids a spurious orphan refusal in `_synthesis.py:859-878`), `_edge_conflict`, `_classify_conflicts`. `apply_prune` drops every edge touching a removable node.
 - **Legacy strip (FR-005)**: `merge_project_overlay` and `_graph_delta` drop existing `applies` edges whose source is an overlay node (only synthesis ever emitted them). Covers full and `--topic` runs.
-- **Reach-only tactics (FR-002)**: new `reach_only_tactic_ids(repo_root)` in `synthesizer/project_drg.py`: overlay `tactic` nodes that are the target of an overlay `directive:* --suggests-->` edge, computed from the project overlay before activation filtering (degrades to empty on load errors). `action_governance_bundle` subtracts it from tactic seeds after the org-required union; `compiler.py` (~1768) applies the same subtraction to reference seeds. Edgeless synthesized tactics (`testing-philosophy-tactic`, `review-policy-tactic`) and hand-authored project tactics stay roots; spec FR-002 is worded accordingly.
-- **Activation append (FR-003)**: in `orchestrator.synthesize` after the post-condition (non-dry-run): ids = this run's tactic provenance slugs; `resolve_activation_write_target(repo_root)`; return if `activated_tactics` absent; `promote_activations({"activated_tactics": ids}, ..., effective_sets={})`; then `restamp_bundle_hash(repo_root)`.
+- **Reach-only tactics (FR-002)**: new `reach_only_tactic_ids(repo_root)` in `synthesizer/reach_only.py`: overlay `tactic` nodes that are the target of an overlay `directive:* --suggests-->` edge, computed from the project overlay before activation filtering (degrades to empty on load errors). `action_governance_bundle` subtracts it from tactic seeds after the org-required union; `compiler.py` (~1768) applies the same subtraction to reference seeds. Edgeless synthesized tactics (`testing-philosophy-tactic`, `review-policy-tactic`) and hand-authored project tactics stay roots; spec FR-002 is worded accordingly.
+- **Activation append (FR-003)**: helper in `synthesizer/reach_only.py`, called by the `synthesize` and `resynthesize` CLI commands after the orphan-refusal check (never on dry-run or refused runs): ids = this run's tactic provenance slugs; `resolve_activation_write_target(repo_root)`; return if `activated_tactics` absent; `promote_activations({"activated_tactics": ids}, ..., effective_sets={})`; then `restamp_bundle_hash(repo_root)`.
 - **Prose**: `RELATION_DESCRIPTIONS[APPLIES]` (`models.py:181-193`) and `docs/architecture/doctrine-relationships.md:163` updated in lockstep (no synthesis emitter remains); `merge.py:92-98` comment updated. `test_no_authored_applies_edge.py` unaffected.
 
 ### D3 — Narrow activation

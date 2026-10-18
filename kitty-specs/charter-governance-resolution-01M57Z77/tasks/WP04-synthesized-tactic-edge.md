@@ -35,7 +35,11 @@ owned_files:
 - tests/charter/synthesizer/test_synthesize_conflict_routing.py
 - tests/charter/synthesizer/test_synthesize_node_preservation.py
 - tests/charter/synthesizer/test_validation_gate.py
+- tests/charter/synthesizer/test_orchestrator_resynthesize.py
 - tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py
+- tests/specify_cli/cli/commands/charter/test_activate_preserve.py
+- tests/acceptance/charter_pack_cutover/test_promotion.py
+- tests/architectural/test_no_authored_applies_edge.py
 role: implementer
 task_type: implement
 ---
@@ -77,9 +81,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -125,20 +130,23 @@ Commit red: `test: red repro for #6404 synthesized tactic edge`.
 - Use it in `merge_project_overlay` (group, preserve test, dedup/insert; `all_urns = existing ∪ updated`), `_graph_delta`, `_edge_ref` (thread `overlay_urns`), `_edge_conflict` (provenance and backing), `_classify_conflicts` (`overlay_urns = {n.urn for n in merged_overlay.nodes}`).
 - `apply_prune`: keep an edge only if neither endpoint is removable.
 
-### Subtask T020 – Legacy `applies` strip
+### Subtask T020 – Legacy `applies` strip (reported, never silent)
 
-- In `merge_project_overlay` (and the same filter in `_graph_delta` so stripped edges are not reported as retained/removable): drop existing edges with `relation is APPLIES and source in existing_node_urns`. Applies to full and partial runs.
+- In `merge_project_overlay`: drop existing edges with `relation is APPLIES` whose source is a **synthesis-provenance** node (a node whose (kind, slug) is in the synthesis manifest), never a hand-authored or project-scanned node (positive-control test: a hand-authored project node's `applies` edge survives). Applies to full and partial runs.
+- Report every stripped edge: `_graph_delta` lists it as a removal with a reason (e.g. `legacy applies edge replaced by suggests`), and the `charter synthesize` / `activate --resynthesize` output names the count, so preserve mode never drops silently.
+- Update `tests/specify_cli/cli/commands/charter/test_activate_preserve.py:216-223,350` (legacy `applies` edge expected to survive resynthesis → now stripped and reported) and `tests/acceptance/charter_pack_cutover/test_promotion.py` (fixture `graph.yaml` with `relation: applies`).
 
 ### Subtask T021 – Prose in lockstep
 
-- Rewrite `RELATION_DESCRIPTIONS[APPLIES]` (no synthesis emitter; still traversed by nothing), the same text in `docs/architecture/doctrine-relationships.md:163`, and the `merge.py:92-98` comment. Update the `test_no_authored_applies_edge.py` docstring only if it names project_drg (leave the gate logic).
+- Rewrite `RELATION_DESCRIPTIONS[APPLIES]` (no synthesis emitter; still traversed by nothing), the same text in `docs/architecture/doctrine-relationships.md:163`, and the `merge.py:92-98` comment. The new APPLIES text must keep the phrase "zero edges" (`tests/charter_offering/drg/test_single_owner_edges.py:95` selects relations by it). Update the `tests/architectural/test_no_authored_applies_edge.py` docstring if it names project_drg (leave the gate logic).
+- Verification targets (edit only if they encode the legacy shape): `tests/charter/synthesizer/test_orchestrator_resynthesize.py:367-395`, `tests/charter/synthesizer/test_orchestrator_synthesize.py`, `tests/agent/cli/commands/test_charter_resynthesize_cli.py`, `tests/charter/test_phase3_integration.py`; `tests/charter_offering/test_overlay_precedence.py` and `test_drg_merge.py` use APPLIES deliberately — leave them.
 - Update every remaining legacy-shape test fixture: `test_synthesize_conflict_routing.py` (:175-196, :273-280, :349-387, :513-520, :564), `test_synthesize_node_preservation.py:119-135`, `tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py:183,241`, `test_validation_gate.py:194`.
 
 ## Test Strategy
 
 ```bash
-uv run --frozen pytest tests/charter/synthesizer/ tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py tests/charter_offering/test_relation_doc_parity.py tests/architectural/test_no_authored_applies_edge.py tests/architectural/test_no_legacy_terminology.py -q
-uv run --frozen pytest tests/charter/ tests/charter_offering/ -q -p no:randomly
+uv run --frozen pytest tests/charter/synthesizer/ tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py tests/specify_cli/cli/commands/charter/test_activate_preserve.py tests/acceptance/charter_pack_cutover/test_promotion.py tests/agent/cli/commands/test_charter_resynthesize_cli.py tests/charter/test_phase3_integration.py tests/charter_offering/drg/test_single_owner_edges.py tests/charter_offering/test_relation_doc_parity.py tests/architectural/test_no_authored_applies_edge.py tests/architectural/test_no_legacy_terminology.py -q
+uv run --frozen pytest tests/charter/ tests/charter_offering/ -q -n auto --dist loadfile
 uv run --frozen mypy --strict src/charter/activation/synthesizer/project_drg.py src/charter/activation/synthesizer/reconcile.py src/charter/offering/drg/models.py src/charter/offering/drg/merge.py
 ```
 

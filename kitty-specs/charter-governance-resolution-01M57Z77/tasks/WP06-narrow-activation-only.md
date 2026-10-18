@@ -1,7 +1,8 @@
 ---
 work_package_id: WP06
 title: 'Opt-in narrow activation: charter activate --only and frozen-list warnings'
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - FR-012
 - FR-014
@@ -35,7 +36,6 @@ owned_files:
 - tests/charter/test_activation_preserves_effective_4253.py
 - tests/charter/activation/test_promotion_fail_closed.py
 - tests/charter/activation/test_org_charter_union.py
-- tests/specify_cli/cli/commands/charter/test_activate_preserve.py
 - tests/specify_cli/cli/commands/charter/test_activate_preset.py
 - tests/specify_cli/test_charter_activate_vendored_click.py
 role: implementer
@@ -79,9 +79,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -100,7 +101,11 @@ Requirement refs: FR-012, FR-014, C-001.
 
 ## Context & Constraints
 
-- Engine (`src/charter/activation/activation_engine.py`): `ActivationPlan.deactivated` :191 (exists, unused by activate); `plan_activation` :220-363 (absent-key materialisation :334-343; "Initialized from" text :338-342); `_plan_promotion` :550-584 ("Preserved N" text :568); `promote_activations` :587-661.
+- Depends on WP01 (stems stay the written form after the declared-id fallback). Use a **local** stem ≠ id org-pack fixture in your test files (do not import WP02's helper).
+- `narrow_base` / `narrow_bases` are keyword-only with default `None` (WP05 calls `promote_activations` in parallel).
+- `tests/specify_cli/cli/commands/charter/test_activate_preserve.py` is owned by WP04; put new CLI tests in `test_activate_only_6408.py`.
+
+- Engine (`src/charter/activation/activation_engine.py`): `ActivationPlan.deactivated` :191 (exists, unused by activate); `plan_activation` :220-363 (absent-key materialisation :334-343; "Initialized from" text :338-342); `_plan_promotion` :550-590 ("Preserved N" text :580); `promote_activations` :600-661.
 - Manager (`src/charter/activation/pack_manager.py`): `_preservation_set` :429-476; `ActivationResult.deactivated` :502; `ActiveCharterManager.activate` :685-772 (seed :752, `plan_activation(..., effective_ids=preserved, ...)` :757-766, `commit_plan` + `restamp_bundle_hash` :770-771).
 - Org-required: `load_org_charter_policies(repo_root)` → `getattr(policy, f"required_{plural}")` (`org_charter.py:705`, `REQUIRED_KIND_FIELDS` :100) are **declared ids**; converter `_normalize_required_ids` :294-336 (via `resolve_selected_id_to_stem`). Do not reuse `preset_application._org_required` (refuses, returns raw ids).
 - CLI (`src/specify_cli/cli/commands/charter/activate.py`): `_check_preset_flags` :768-783 (exit 2 via `ctx.fail`; keep `ctx.fail`, vendored-click path pinned by `tests/specify_cli/test_charter_activate_vendored_click.py`); `activate_cmd` :852 **already complexity 15**; `manager.activate(...)` :983-990; render :994-997; cascade loop :269-292.
@@ -111,7 +116,7 @@ Requirement refs: FR-012, FR-014, C-001.
 
 ### Subtask T026 – Red tests
 
-- New `tests/specify_cli/cli/commands/charter/test_activate_only_6408.py` (CLI via `CliRunner`, fresh `spec-kitty init`-style fixture as in `test_activate_preserve.py`): scenarios 1-4 and 6 of US4 (fresh `--only`; present-list replace then plain append; `--only --preset` exit 2; cascade narrows only the named kind; exact dropped-id list asserted against the same fixture's effective set as positive control).
+- New `tests/specify_cli/cli/commands/charter/test_activate_only_6408.py` (CLI via `CliRunner`, fresh `spec-kitty init`-style fixture as in `test_activate_preserve.py`): scenarios 1-4 and 6 of US4 (fresh `--only`; present-list replace then plain append; `charter activate --preset minimal --only` (no positional — a positional already exits 2 today) exits 2 with the new message text; cascade narrows only the named kind; exact dropped-id list asserted against the same fixture's effective set as positive control).
 - `tests/charter/test_activation_engine.py`: `plan_activation(..., narrow_base=[...], previous_ids=[...])` → `new_list` and `deactivated` exact.
 - `tests/charter/activation/test_org_charter_union.py`: `org_required_stems` maps a declared id with stem ≠ id to its stem; unknown id kept raw with a warning.
 - Warning text: extend `tests/charter/test_pack_manager.py` / `test_activation_preserves_effective_4253.py` to assert the frozen-list sentence and `--only`.
@@ -132,13 +137,13 @@ Commit red: `test: red repro for #6408 narrow activation`.
 
 ### Subtask T030 – CLI `--only`
 
-- Add `only: bool = typer.Option(False, "--only", help="Replace this kind's activation list with this id plus org-required ids (prints what stops being in force).")`; refuse with `--preset` in `_check_preset_flags`; extract `_render_activation_result(result, registration)` (keeps `activate_cmd` ≤ 15) printing "No longer in force (N): a, b, ...". Cascade loop unchanged.
+- Add `only: bool = typer.Option(False, "--only", help="Replace this kind's activation list with this id plus org-required ids (prints what stops being in force).")`; refuse with `--preset` in `_check_preset_flags`; extract `_render_activation_result(result, registration)` — it must remove at least one branch from `activate_cmd` (C901 = 15 today) before `--only` adds one printing "No longer in force (N): a, b, ...". Cascade loop unchanged.
 
 ## Test Strategy
 
 ```bash
 uv run --frozen pytest tests/specify_cli/cli/commands/charter/test_activate_only_6408.py tests/specify_cli/cli/commands/charter/test_activate_preserve.py tests/specify_cli/cli/commands/charter/test_activate_preset.py tests/specify_cli/test_charter_activate_vendored_click.py tests/charter/test_activation_engine.py tests/charter/test_pack_manager.py tests/charter/test_activation_preserves_effective_4253.py tests/charter/activation/ -q
-uv run --frozen pytest tests/charter/ tests/specify_cli/cli/commands/charter/ -q -p no:randomly
+uv run --frozen pytest tests/charter/ tests/specify_cli/cli/commands/charter/ -q -n auto --dist loadfile
 uv run --frozen pytest tests/architectural/test_json_contract_enumeration.py -q
 uv run --frozen mypy --strict src/charter/activation/activation_engine.py src/charter/activation/pack_manager.py src/charter/activation/org_charter.py src/specify_cli/cli/commands/charter/activate.py
 ```

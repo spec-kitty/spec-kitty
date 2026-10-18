@@ -1,6 +1,6 @@
 ---
 work_package_id: WP07
-title: Interview --narrow-activation and charter command contract text
+title: Interview --narrow-activation, charter command contract text and CLI reference docs
 dependencies:
 - WP06
 requirement_refs:
@@ -26,13 +26,15 @@ model: sonnet
 owned_files:
 - src/specify_cli/cli/commands/charter/interview.py
 - packs/built-in/missions/mission-steps/software-dev/charter/prompt.md
+- docs/api/cli-commands.md
+- docs/api/charter-commands.md
 - tests/specify_cli/cli/commands/test_charter_interview_promotion.py
 - tests/specify_cli/cli/commands/test_charter_interview_org_prefill.py
 role: implementer
 task_type: implement
 ---
 
-# Work Package Prompt: WP07 – Interview --narrow-activation and charter command contract text
+# Work Package Prompt: WP07 – Interview --narrow-activation, charter command contract text and CLI reference docs
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -69,9 +71,10 @@ Never construct a workspace path by hand.
 - **Red first** (ADR 2026-07-17-1): write the issue-pinned failing test(s) for the WP's acceptance scenarios and commit them on their own *before* the fix commit (`test: red repro for #NNNN ...`). After the fix, keep them as focused tests (not left marked `regression`).
 - **Non-vacuity**: every absence/refusal assertion is paired with a positive control on the same fixture (tactic `acceptance-criteria-non-vacuity`).
 - **Quality gates** (NFR-001): `uv run --frozen ruff check <changed files>`, `uv run --frozen ruff format --check --force-exclude <changed files>`, `uv run --frozen mypy --strict <changed src files>`; cyclomatic complexity ≤ 15; no new `# noqa` / `# type: ignore`.
-- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
+- **Tests**: run the WP's own test files plus the owning subsystem directory (`tests/charter/` and, for `src/charter/offering/**`, `tests/charter_offering/`). Subsystem sweeps are large (`tests/charter/` ≈ 3,900 tests): always run them with `-n auto --dist loadfile` (pytest-xdist is installed), never `--dist load`. Do not run `make test-full` or the whole `tests/architectural/` directory; run only the named gate files.
 - **Terminology**: "Mission", never the retired term. Run `uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q` when touching prose or `src/charter/offering/`.
 - **Commits**: conventional types (`fix`, `feat`, `test`, `refactor`, `docs`); end every commit message with the session attribution lines given to you.
+- Diagnostic wording for unknown selected ids is fixed Mission-wide (WP02 defines the constant `UNKNOWN_SELECTION_DIAGNOSTIC` in `resolver.py`): `"Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'."`
 - Stay inside `owned_files`; a small out-of-map edit is acceptable only with a one-line rationale in the commit message and `add-history` note.
 
 ## Objectives & Success Criteria
@@ -80,7 +83,9 @@ Never construct a workspace path by hand.
 
 Done when:
 - `charter interview --defaults --narrow-activation --selected-directives DIRECTIVE_001 --json` → `activated_directives` holds only `001-architectural-integrity-standard` plus org-required directives; JSON `narrowed` lists the dropped directive ids;
-- without `--narrow-activation` the result is identical to today (38 directives) and JSON `narrowed` is `{}`;
+- without `--narrow-activation` the result is identical to today (assert against the effective-set count computed on the same fixture, never a hard-coded 38) and JSON `narrowed` is `{}`;
+- `--defaults` fills `selected_paradigms` from the profile defaults, so `--narrow-activation` also narrows paradigms to those defaults — intended; pinned by a test and shown in the output;
+- CLI reference docs regenerated: `docs/api/cli-commands.md` via `scripts/docs/build_cli_reference.py` (covers WP06's `--only` and this WP's flag; `scripts/docs/check_cli_reference_freshness.py` clean) and the interview flag table in `docs/api/charter-commands.md:64-73` gains `--narrow-activation`;
 - a kind with an empty selection is not narrowed;
 - the contract text at `packs/built-in/missions/mission-steps/software-dev/charter/prompt.md` (:83 and :305-307) explains: selections are additive; the first explicit activation list is frozen; use `charter activate <kind> <id> --only`, `charter interview --narrow-activation` or `charter activate --preset minimal` to stay narrow.
 
@@ -117,7 +122,7 @@ Commit red: `test: red repro for #6408 interview narrow activation`.
 
 ```bash
 uv run --frozen pytest tests/specify_cli/cli/commands/test_charter_interview_promotion.py tests/specify_cli/cli/commands/test_charter_interview_org_prefill.py tests/specify_cli/cli/commands/test_charter_ambiguous_directives.py tests/charter_offering/test_builtin_cli_command_references.py tests/charter_offering/missions/ tests/architectural/test_doctrine_regenerate_graph_roundtrip.py tests/architectural/test_no_legacy_terminology.py -q
-uv run --frozen pytest tests/specify_cli/cli/commands/charter/ -q -p no:randomly
+uv run --frozen pytest tests/specify_cli/cli/commands/charter/ -q -n auto --dist loadfile
 uv run --frozen mypy --strict src/specify_cli/cli/commands/charter/interview.py
 ```
 
