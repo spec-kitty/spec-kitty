@@ -397,8 +397,16 @@ def _seed_planned(feature_dir: Path, slug: str, wp_id: str) -> None:
     )
 
 
+_SEED_IMPLEMENTER = "implementer-ivan"
+_SEED_REVIEWER = "reviewer-renata"
+
+
 def _seed_wp_approved(feature_dir: Path, slug: str, wp_id: str) -> None:
-    """Drive a WP from planned to approved via the REAL status-emit pipeline."""
+    """Drive a WP from planned to approved via the REAL status-emit pipeline.
+
+    The implementing hops and the review hops carry DISTINCT recorded actors: the
+    #5939 single_branch independence axis refuses an approval whose actor matches
+    the implementer of record (or where either is unrecorded), #6370."""
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult, TransitionRequest
 
@@ -415,7 +423,7 @@ def _seed_wp_approved(feature_dir: Path, slug: str, wp_id: str) -> None:
                 mission_slug=slug,
                 wp_id=wp_id,
                 to_lane=to_lane,
-                actor="seed",
+                actor=_SEED_REVIEWER if to_lane == "in_review" else _SEED_IMPLEMENTER,
                 force=gating,
                 reason="seed: manufacture reviewable state" if gating else None,
             )
@@ -426,16 +434,16 @@ def _seed_wp_approved(feature_dir: Path, slug: str, wp_id: str) -> None:
             mission_slug=slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="seed",
+            actor=_SEED_REVIEWER,
             evidence={
                 "review": {
-                    "reviewer": "reviewer-renata",
+                    "reviewer": _SEED_REVIEWER,
                     "verdict": "approved",
                     "reference": f"review-{wp_id}",
                 }
             },
             review_result=ReviewResult(
-                reviewer="reviewer-renata",
+                reviewer=_SEED_REVIEWER,
                 verdict="approved",
                 reference=f"review-{wp_id}",
             ),
@@ -531,7 +539,9 @@ def _finalize_single_branch_lanes(repo: Path, feature_dir: Path, meta: dict[str,
         {wp: WPMetadata(work_package_id=wp, title=wp, execution_mode="code_change") for wp in scopes},
         {},
         "main",
-        planning_commit_sha=None,
+        # The tip finalize-tasks records (``capture_branch_tip`` before its own commit),
+        # so the #5939 evidence window ``planning_commit..main`` covers the WP code commits.
+        planning_commit_sha=_git(repo, "rev-parse", "main").stdout.strip(),
         mission_id=str(meta["mission_id"]),
         topology=MissionTopology.SINGLE_BRANCH,
     )
@@ -603,7 +613,7 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
     # lock-only residue the second claim must tolerate is that STAGED meta.json.
     meta_rel = (feature_dir / "meta.json").relative_to(repo).as_posix()
     with _preflight_bypassed():
-        implement("WP01", mission=slug, auto_commit=False, recover=False)
+        implement("WP01", mission=slug, auto_commit=False, recover=False, actor=_SEED_IMPLEMENTER)
         assert _read_meta(feature_dir).get("vcs") == "git", (
             "the real claim path must have written the vcs-lock self-write to meta.json"
         )
@@ -648,7 +658,7 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
             "the meta.json residue must be a vcs-lock-only diff (WP02 scope)"
         )
         try:
-            implement("WP02", mission=slug, auto_commit=False, recover=False)
+            implement("WP02", mission=slug, auto_commit=False, recover=False, actor=_SEED_IMPLEMENTER)
         except typer.Exit as exc:  # pragma: no cover - only on a real regression
             raise AssertionError(
                 f"the second auto_commit=False claim aborted (exit {exc.exit_code}); "
