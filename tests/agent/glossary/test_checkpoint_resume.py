@@ -519,8 +519,8 @@ class TestCrossSessionResumeFlow:
                     severity=Severity.HIGH,
                     confidence=0.9,
                     candidate_senses=[
-                        SenseRef("api", "team", "REST API", 0.9),
-                        SenseRef("api", "team", "GraphQL API", 0.8),
+                        SenseRef("api", "team_domain", "REST API", 0.9),
+                        SenseRef("api", "team_domain", "GraphQL API", 0.8),
                     ],
                     context="step input",
                 ),
@@ -576,8 +576,8 @@ class TestCrossSessionResumeFlow:
                     severity=Severity.HIGH,
                     confidence=0.9,
                     candidate_senses=[
-                        SenseRef("api", "team", "REST", 0.9),
-                        SenseRef("api", "team", "gRPC", 0.8),
+                        SenseRef("api", "team_domain", "REST", 0.9),
+                        SenseRef("api", "team_domain", "gRPC", 0.8),
                     ],
                     context="test",
                 ),
@@ -628,8 +628,8 @@ class TestCrossSessionResumeFlow:
                     severity=Severity.HIGH,
                     confidence=0.9,
                     candidate_senses=[
-                        SenseRef("api", "team", "REST", 0.9),
-                        SenseRef("api", "team", "gRPC", 0.8),
+                        SenseRef("api", "team_domain", "REST", 0.9),
+                        SenseRef("api", "team_domain", "gRPC", 0.8),
                     ],
                     context="test",
                 ),
@@ -730,8 +730,8 @@ class TestCrossSessionResumeFlow:
                     severity=Severity.HIGH,
                     confidence=0.9,
                     candidate_senses=[
-                        SenseRef("test", "team", "def1", 0.9),
-                        SenseRef("test", "team", "def2", 0.8),
+                        SenseRef("test", "team_domain", "def1", 0.9),
+                        SenseRef("test", "team_domain", "def2", 0.8),
                     ],
                     context="test",
                 ),
