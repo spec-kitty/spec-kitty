@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "d8c34bea43df87bd3a0433cc16f839f5cbede9e9",
   "baseline_merge_commit": "c77b0c1a91da0958600b7cf5605307b542d37595",
-  "coordination_branch": "kitty/mission-plan-guard-artifact-vocabulary-01M57FKP",
   "created_at": "2026-10-18T12:25:59.306008+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Fix plan-mission guard/manifest artifact-vocabulary mismatch",
   "merged_at": "2026-10-18T12:56:38.919172+00:00",
   "merged_commit": "0fccaeba498768fe8bf82c557ea11005f14e577c",
@@ -31,7 +30,6 @@
   "slug": "plan-guard-artifact-vocabulary-01M57FKP",
   "status_phase": "1",
   "target_branch": "fix/plan-guard-artifact-vocabulary",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-18T12:36:05.129146+00:00"
 }
