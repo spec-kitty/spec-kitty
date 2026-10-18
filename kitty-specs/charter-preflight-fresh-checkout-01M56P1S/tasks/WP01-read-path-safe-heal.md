@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: fix/charter-preflight-fresh-checkout
 merge_target_branch: fix/charter-preflight-fresh-checkout
 branch_strategy: Planning artifacts for this mission were generated on fix/charter-preflight-fresh-checkout. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/charter-preflight-fresh-checkout unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-preflight-fresh-checkout-01M56P1S
+base_commit: b329e0b00160fd466f1b494703998d12ded536d4
+created_at: '2026-10-18T05:19:56.584726+00:00'
 subtasks:
 - T001
 - T002
