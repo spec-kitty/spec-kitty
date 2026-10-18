@@ -27,6 +27,7 @@ from specify_cli.upgrade.ledger import LedgerRecord, MigrationLedger, build_reco
 from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
+from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
@@ -43,7 +44,13 @@ BACKFILL_ID = "4.0.0rc8_backfill_migration_ledger"
 
 @pytest.fixture
 def registry() -> Iterator[type[MigrationRegistry]]:
-    """An empty registry for the test; the real one is restored afterwards."""
+    """An empty registry for the test; the real one is restored afterwards.
+
+    Discover first: a migration module imported for the first time inside the
+    cleared window would register into the throwaway registry, be wiped by the
+    restore, and never register again (the module stays cached in sys.modules).
+    """
+    auto_discover_migrations()
     saved = dict(MigrationRegistry._migrations)
     MigrationRegistry.clear()
     try:
