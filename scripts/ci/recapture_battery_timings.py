@@ -70,8 +70,9 @@ RUNS_WANTED = 3
 RUNS_SCANNED = 10
 #: A table older than this is refreshed even when its file set is unchanged.
 MAX_AGE_DAYS = 14
-#: The producer only parses junit (no test code runs), so a short bound suffices.
-PRODUCER_TIMEOUT_SECONDS = 10 * 60
+#: The producer only parses junit (no test code runs), so a short bound suffices. It stays well
+#: inside the step's own limit, which also covers the downloads, so a hang is reported, not killed.
+PRODUCER_TIMEOUT_SECONDS = 5 * 60
 #: The run-id prefix recorded in the provenance, followed by the GitHub Actions run id.
 RUN_ID_PREFIX = "nightly-"
 

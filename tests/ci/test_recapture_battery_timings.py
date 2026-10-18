@@ -458,3 +458,20 @@ def test_the_job_timeout_still_covers_the_capture_budget_plus_the_battery_step()
     setup_and_publish = 10 * 60
     total = int(budget_match.group(1)) + recapture.DEFAULT_CAPTURE_TIMEOUT_SECONDS + int(battery_step["timeout-minutes"]) * 60 + setup_and_publish
     assert total <= int(job["timeout-minutes"]) * 60
+
+
+def test_the_producer_timeout_leaves_the_step_time_to_report_it() -> None:
+    """The step limit also covers the artefact downloads, so the producer bound sits well inside it."""
+    job = _recapture_job()
+    battery_step = job["steps"][_step_index(job["steps"], "battery")]
+    step_limit_seconds = int(battery_step["timeout-minutes"]) * 60
+    assert step_limit_seconds // 2 >= battery.PRODUCER_TIMEOUT_SECONDS
+
+
+def test_the_script_runs_bare_without_pythonpath() -> None:
+    """A main-only scheduled script must import ``scripts.*`` on its own (no PYTHONPATH from the runner)."""
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    script = recapture.REPO_ROOT / "scripts" / "ci" / "recapture_battery_timings.py"
+    proc = subprocess.run(["python3", str(script), "--help"], cwd=recapture.REPO_ROOT, env=env, capture_output=True, text=True, check=False, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    assert "--junit-root" in proc.stdout
