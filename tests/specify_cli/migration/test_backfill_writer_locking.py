@@ -207,8 +207,9 @@ def test_runtime_backfill_waits_for_a_concurrent_lock_holder(tmp_path: Path) -> 
 
 
 def test_backfill_never_mints_a_git_dir_in_a_bare_tree(tmp_path: Path) -> None:
-    """The lock's non-git degrade must not turn the tree into a fake repo root."""
+    """The lock's non-git degrade must not turn the tree into a fake repo or project root."""
     feature_dir = build_mission(tmp_path)
     brs.backfill_runtime_state(feature_dir)
     assert not (tmp_path / ".git").exists()
-    assert (tmp_path / ".kittify" / "spec-kitty-locks").is_dir()
+    assert not (tmp_path / ".kittify").exists()
+    assert (tmp_path / ".spec-kitty" / "spec-kitty-locks").is_dir()

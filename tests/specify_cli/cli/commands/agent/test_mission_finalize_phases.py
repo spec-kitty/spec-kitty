@@ -1131,11 +1131,16 @@ def test_flush_frontmatter_writes_skips_in_validate_only(tmp_path: Path) -> None
 
 
 def test_flush_frontmatter_writes_persists_when_committing(tmp_path: Path) -> None:
+    # A real ``kitty-specs/<mission>/tasks/`` layout and an explicit repo root: the flush locks
+    # ``wp_file.parent.parent``, so a bare ``tmp_path / "WP01.md"`` anchored the Mission write
+    # lock on the shared pytest basetemp, outside this test's own tree (#6367).
+    tasks_dir = tmp_path / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
     state = seam._BootstrapState()
-    target = tmp_path / "WP01.md"
+    target = tasks_dir / "WP01.md"
     meta = WPMetadata(work_package_id="WP01", title="t")
     state.pending_writes.append((target, meta, "body"))
-    seam._flush_frontmatter_writes(state, validate_only=False)
+    seam._flush_frontmatter_writes(state, validate_only=False, repo_root=tmp_path)
     assert target.exists()
 
 

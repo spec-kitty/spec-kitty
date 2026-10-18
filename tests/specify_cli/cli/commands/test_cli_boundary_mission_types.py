@@ -10,9 +10,11 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
+from specify_cli.cli import helpers as _cli_helpers
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
+from specify_cli.core.paths import locate_project_root
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
@@ -104,14 +106,17 @@ def test_empty_activated_roster_is_json_success(project: Path, app: Any, args: l
 )
 def test_mutating_siblings_outside_project_are_json_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
     monkeypatch.chdir(tmp_path)
-    # Hermeticity (#6221): locate_project_root's Tier-1 honours SPECIFY_REPO_ROOT, so a
-    # sibling test leaking that env var makes these commands resolve a real project and
-    # reach mission-specific codes (mission_unrecoverable / mission_identity_missing)
-    # instead of the not_in_project guard -- an order-dependent nightly red. Clearing it
-    # here forces the genuine "outside any project" condition the assertions pin. (Tier-2,
-    # the .git/.kittify ancestor walk, stays clean by virtue of tmp_path living under the
-    # system temp tree, whose ancestors carry no .kittify marker.)
+    # Hermeticity (#6221, #6367): both tiers of locate_project_root can see state this test
+    # does not own. Tier-1 honours SPECIFY_REPO_ROOT, so a sibling test leaking that env var
+    # makes these commands resolve a real project and reach mission-specific codes
+    # (mission_unrecoverable / mission_identity_missing) instead of the not_in_project guard;
+    # clear it. Tier-2, the .git/.kittify ancestor walk, is NOT clean by virtue of tmp_path
+    # living under the temp tree: tmp_path's parent is the pytest basetemp every test in the
+    # session shares, so a sibling test that leaves a marker there turns this tmp_path into
+    # the inside of a project (#6367). Bound the walk at tmp_path, the boundary
+    # locate_project_root's own ``stop`` parameter exists for, so only this test's tree counts.
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    monkeypatch.setattr(_cli_helpers, "locate_project_root", lambda start=None: locate_project_root(start, stop=tmp_path))
     human = runner.invoke(mission_type_app, args)
     machine = runner.invoke(mission_type_app, [*args, "--json"])
     assert human.exit_code == machine.exit_code == 1

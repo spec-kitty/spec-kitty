@@ -113,7 +113,7 @@ def test_project_event_log_lock_shares_the_same_reentrancy_contract(tmp_path: Pa
     delegated to ``kernel.locks``), and the sidecar-holder gating mirrors
     :func:`feature_status_lock`'s (outermost acquire/release only).
     """
-    project_lock_path = Path(tmp_path) / ".kittify" / "spec-kitty-locks" / "__project__.status.lock"
+    project_lock_path = Path(tmp_path) / ".spec-kitty" / "spec-kitty-locks" / "__project__.status.lock"
     holder_sidecar = _holder_path(project_lock_path)
 
     with project_event_log_lock(tmp_path):

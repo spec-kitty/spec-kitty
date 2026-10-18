@@ -59,6 +59,11 @@ UNBOUNDED_LOCK_WAIT: float = -1
 
 _HOLDER_SUFFIX = ".holder"
 
+#: Lock home for a bare non-git tree (no ``.git`` and no ``.kittify``). Not a
+#: project or repository marker, so creating it never changes what a later
+#: root walk resolves (#6367). Same directory name ``review.lock`` uses.
+_NON_GIT_LOCK_HOME = ".spec-kitty"
+
 
 class FeatureStatusLockTimeoutError(RuntimeError):
     """Raised when the mission status lock cannot be acquired within budget.
@@ -148,12 +153,16 @@ def _git_common_dir(repo_root: Path) -> Path:
     * it does (a real checkout whose probe failed transiently): keep the
       historical ``<repo_root>/.git`` so the lock stays where every other
       process of that checkout expects it;
-    * it does not (a genuinely non-git tree): use ``<repo_root>/.kittify``.
-      Minting ``<repo_root>/.git/`` here used to turn the tree into a bogus
-      repo root for every later ``resolve_canonical_root`` walk (the
-      "fake repo root" trap ``tests/review/test_artifacts.py`` documents),
-      which is a real side effect for any non-git consumer and a fixture
-      hazard for every test that builds bare mission trees.
+    * it does not, but ``<repo_root>/.kittify`` does (a non-git Spec Kitty
+      project): lock under that existing ``.kittify``;
+    * neither exists (a bare non-git tree): use ``<repo_root>/.spec-kitty``
+      (:data:`_NON_GIT_LOCK_HOME`), which no project-root walk treats as a
+      marker. Minting ``<repo_root>/.git/`` here used to turn the tree into a
+      bogus repo root for every later ``resolve_canonical_root`` walk (the
+      "fake repo root" trap ``tests/review/test_artifacts.py`` documents), and
+      minting ``<repo_root>/.kittify/`` turned it into a bogus *project* root
+      for every later ``locate_project_root`` walk from below it (#6367): a
+      lock must never create either marker.
     """
     try:
         return git_common_dir(repo_root)
@@ -161,7 +170,10 @@ def _git_common_dir(repo_root: Path) -> Path:
         dot_git = repo_root / ".git"
         if dot_git.is_dir():
             return dot_git
-        return Path(repo_root / KITTIFY_DIR)
+        kittify = Path(repo_root / KITTIFY_DIR)
+        if kittify.is_dir():
+            return kittify
+        return Path(repo_root / _NON_GIT_LOCK_HOME)
 
 
 def feature_status_lock_path(repo_root: Path, lock_key: str) -> Path:
