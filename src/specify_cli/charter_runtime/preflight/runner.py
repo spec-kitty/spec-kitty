@@ -153,6 +153,7 @@ def run_charter_preflight(
     auto_refresh: bool = False,
     allow_missing_charter: bool = False,
     strict: bool = False,
+    allow_heal: bool = False,
 ) -> CharterPreflightResult:
     """Compute charter freshness, optionally refresh, return a result.
 
@@ -182,6 +183,11 @@ def run_charter_preflight(
             code 1.  Kept in the signature so callers (``spec-kitty next``,
             ``implement``) can forward their own ``strict``
             config without an extra branch.
+        allow_heal: When ``True`` and ``synthesized_drg`` is stale solely
+            because the manifest ``bundle_content_hash`` lags a clean
+            recompute while every manifest artifact still verifies, re-stamp
+            that one field in-process (see :func:`_try_safe_restamp`).
+            Independent of ``auto_refresh``; read-only callers pass ``False``.
 
     Returns:
         A frozen :class:`CharterPreflightResult`.  Never raises.
@@ -191,6 +197,7 @@ def run_charter_preflight(
         auto_refresh=auto_refresh,
         allow_missing_charter=allow_missing_charter,
         strict=strict,
+        allow_heal=allow_heal,
     )
     profile_warnings = _deactivated_mission_default_profile_warnings(repo_root)
     if not profile_warnings:
@@ -245,10 +252,13 @@ def _run_charter_preflight_freshness(
     auto_refresh: bool = False,
     allow_missing_charter: bool = False,
     strict: bool = False,
+    allow_heal: bool = False,
 ) -> CharterPreflightResult:
     """Freshness-only core of :func:`run_charter_preflight` (pre-#4115 body)."""
     del strict  # kept for caller symmetry; consumed by the CLI exit-code mapping, not by the runner itself.
     freshness = compute_freshness(repo_root)
+    if allow_heal and freshness.synthesized_drg.state == "stale" and _try_safe_restamp(repo_root):
+        freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
 
     # C-001 / FR-016: only canonical freshness states decide pass/block.
@@ -293,6 +303,51 @@ def _run_charter_preflight_freshness(
         auto_refresh_actions=[],
         blocked_reason=blocked_reason,
     )
+
+
+# ---------------------------------------------------------------------------
+# Safe-heal: re-stamp a lagging manifest bundle_content_hash (#6366)
+# ---------------------------------------------------------------------------
+
+
+def _try_safe_restamp(repo_root: Path) -> bool:
+    """Re-stamp ``bundle_content_hash`` iff that is the only thing wrong.
+
+    Safe-heal predicate (all must hold, otherwise nothing is written):
+    the stored stamp and the clean recompute are both present and differ, AND
+    ``manifest.verify`` proves every manifest artifact is intact. Only
+    ``bundle_content_hash`` (and the derived ``manifest_hash``, via
+    ``finalize_manifest``) change; the write is atomic and idempotent. Any
+    error fails closed (returns ``False``) so a genuine inconsistency still
+    surfaces through the normal blocked path. No subprocess is spawned.
+    """
+    try:
+        from kernel.atomic import atomic_write  # noqa: PLC0415
+
+        from charter.activation.synthesizer.manifest import (  # noqa: PLC0415
+            MANIFEST_PATH,
+            finalize_manifest,
+            load_yaml,
+            verify,
+        )
+        from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml  # noqa: PLC0415
+        from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
+
+        manifest_path = repo_root / MANIFEST_PATH
+        manifest = load_yaml(manifest_path)
+        current = compute_bundle_content_hash(repo_root)
+        stored = manifest.bundle_content_hash
+        if stored is None or current is None or stored == current:
+            return False
+        verify(manifest, repo_root)
+        healed = finalize_manifest(manifest.model_copy(update={"bundle_content_hash": current}))
+        text: str = canonical_yaml(healed.model_dump(mode="python")).decode("utf-8")
+        atomic_write(manifest_path, text)
+    except Exception:  # noqa: BLE001 — fail closed: any doubt means no heal, the block stands.
+        logger.debug("charter preflight safe re-stamp declined at %s", repo_root, exc_info=True)
+        return False
+    logger.info("charter preflight re-stamped synthesis manifest bundle_content_hash at %s", repo_root)
+    return True
 
 
 # ---------------------------------------------------------------------------
