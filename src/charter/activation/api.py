@@ -76,12 +76,22 @@ from charter.activation.pack_manager import (
     resolve_activation_write_target as resolve_activation_write_target,
 )
 
+# Identity index — the per-invocation, layer-aware token <-> declared id <-> stem
+# map every activation/selection consumer resolves through. Public per
+# charter.activation.identity_index.__all__.
+from charter.activation.identity_index import (
+    IdentityEntry as IdentityEntry,
+    IdentityIndex as IdentityIndex,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
 #: ``tests/architectural/test_charter_activation_api_reexport.py``.
 __all__ = [
     "MANIFEST_PATH",
+    "IdentityEntry",
+    "IdentityIndex",
     "canonical_mission_type_key",
     "canonical_yaml",
     "finalize_manifest",
