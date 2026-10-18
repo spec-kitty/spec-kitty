@@ -1583,8 +1583,8 @@ jobs:
           path: out/acceptance-bdd-results
           merge-multiple: false
       # --xunit gets each leg's GATING junit folder only (never wip/, whose reds never fail a leg);
-      # the script dedupes a scenario that went red on several legs. No folder: no --xunit, and the
-      # issue falls back to the exit-code message.
+      # the script dedupes a scenario that went red on several legs. A leg with no gating folder is
+      # warned about; with none at all there is no --xunit and the issue keeps the exit-code message.
       - name: Escalate acceptance-bdd red -> deduped P0 (fail-closed)
         if: always() && github.ref == 'refs/heads/main'
         shell: bash
@@ -1594,8 +1594,10 @@ jobs:
         run: |
           if [ "${ACCEPTANCE_RESULT:-failure}" = "success" ]; then conclusion=success; else conclusion=failure; fi
           xunit_args=()
-          for junit in out/acceptance-bdd-results/acceptance-bdd-results-*/gating/junit; do
-            if [ -d "$junit" ]; then xunit_args+=(--xunit "$junit"); fi
+          for leg in out/acceptance-bdd-results/acceptance-bdd-results-*; do
+            [ -d "$leg" ] || continue
+            junit="$leg/gating/junit"
+            if [ -d "$junit" ]; then xunit_args+=(--xunit "$junit"); else echo "::warning::${leg##*/} has no gating JUnit XML; its failures are not listed in the P0"; fi
           done
           python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" "${xunit_args[@]}"
       # The job mirrors the matrix verdict so nightly-summary shows a red acceptance run in one row.

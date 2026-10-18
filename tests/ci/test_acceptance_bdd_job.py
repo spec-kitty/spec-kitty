@@ -165,10 +165,14 @@ def test_escalation_names_the_failing_gating_scenarios_of_every_leg(jobs: dict[s
     assert download_index < escalate_index
     run = str(steps[escalate_index]["run"])
     path = download["with"]["path"]
-    assert f"{path}/acceptance-bdd-results-*/gating/junit" in run
+    assert f"for leg in {path}/acceptance-bdd-results-*; do" in run
+    assert 'junit="$leg/gating/junit"' in run
+    # The gating folder is the only --xunit source: no other flag, no other folder.
+    assert run.count("--xunit") == 1
     assert 'xunit_args+=(--xunit "$junit")' in run
+    assert "wip" not in run
     assert '"${xunit_args[@]}"' in run
-    assert "/wip/" not in run
+    assert "::warning::" in run, "a leg without gating JUnit XML must be named, not silently dropped"
 
 
 def test_acceptance_jobs_are_aggregated_by_nightly_summary(jobs: dict[str, Any]) -> None:

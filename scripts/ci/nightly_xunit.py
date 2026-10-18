@@ -91,32 +91,37 @@ def read_xunit_paths(paths: Sequence[Path]) -> XunitRead:
 
     Failures keep first-seen order and are deduped by test id, so a test red on
     every leg of a matrix is listed once. An unreadable file, or a directory
-    holding no report, makes the whole read a problem.
+    holding no report, makes the whole read a problem: a partial list is never
+    presented as the complete one.
     """
-    files: list[Path] = []
-    problems: list[str] = []
-    for path in paths:
-        if path.is_dir():
-            found = sorted(path.glob("*.xml"))
-            if not found:
-                problems.append(f"{path} (no xunit report in directory)")
-            files.extend(found)
-        else:
-            files.append(path)
+    files, problems = _expand_report_paths(paths)
     failures: list[FailedTest] = []
     seen: set[str] = set()
-    for file in files:
-        read = read_xunit(file)
+    for read in (read_xunit(file) for file in files):
         if read.problem:
             problems.append(read.problem)
             continue
-        for item in read.failures:
-            if item.test_id not in seen:
-                seen.add(item.test_id)
-                failures.append(item)
+        fresh = [item for item in read.failures if item.test_id not in seen]
+        seen.update(item.test_id for item in fresh)
+        failures.extend(fresh)
     if problems:
         return XunitRead((), "; ".join(problems))
     return XunitRead(tuple(failures), None)
+
+
+def _expand_report_paths(paths: Sequence[Path]) -> tuple[list[Path], list[str]]:
+    """Replace each directory by its ``*.xml`` files; an empty directory is a problem."""
+    files: list[Path] = []
+    problems: list[str] = []
+    for path in paths:
+        if not path.is_dir():
+            files.append(path)
+            continue
+        found = sorted(path.glob("*.xml"))
+        if not found:
+            problems.append(f"{path} (no xunit report in directory)")
+        files.extend(found)
+    return files, problems
 
 
 def recorded_ids(text: str) -> tuple[str, ...] | None:
