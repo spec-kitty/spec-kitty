@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -104,3 +105,35 @@ def test_directives_source_comes_from_single_resolution(tmp_path: Path, monkeypa
     assert calls["n"] == 1, (
         f"resolve_project_governance called {calls['n']}x; the JSON payload must obtain all_directives and directives_source from a single resolution."
     )
+
+
+def test_json_payload_carries_unknown_selection_diagnostics(tmp_path: Path) -> None:
+    """#6407 (FR-010): top-level ``diagnostics`` names the dropped id; org entry is kept."""
+    from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
+    from tests.charter.test_resolver import _identity_project
+
+    repo = _identity_project(
+        tmp_path,
+        selected="[QA_003, NOPE_999]",
+        activated_directives=["001-architectural-integrity-standard"],
+    )
+
+    payload = build_charter_context_json(repo, action="plan")
+
+    diagnostics = cast("list[str]", payload["diagnostics"])
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in diagnostics
+    entries = {e["id"]: e for e in cast("list[dict[str, object]]", payload["all_directives"])}
+    assert "QA_003" in entries
+    assert entries["QA_003"]["source"] == "org"
+
+
+def test_json_payload_diagnostics_empty_on_clean_fixture(tmp_path: Path) -> None:
+    """Positive control: ``diagnostics`` is always present and empty when nothing is unknown."""
+    from tests.charter.test_resolver import _identity_project
+
+    repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=[])
+
+    payload = build_charter_context_json(repo, action="plan")
+
+    assert payload["diagnostics"] == []
+    assert "diagnostics" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
