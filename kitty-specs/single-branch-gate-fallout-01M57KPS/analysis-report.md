@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: single-branch-gate-fallout-01M57KPS
 mission_id: 01M57KPSBP11Q7WVXCHH0FXN1F
-generated_at: '2026-10-18T13:43:34.403841+00:00'
+generated_at: '2026-10-18T14:02:44.201752+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
     path: kitty-specs/single-branch-gate-fallout-01M57KPS/spec.md
-    sha256: 4cdd3dd661d9a76d953af09fba9e422a7327d4bd0191e57f7fe0c167b65226a8
+    sha256: 775d55b106367f36ab08b3cf9ac04a03b3342ac48553601dfa8f8117be19c363
   plan.md:
     path: kitty-specs/single-branch-gate-fallout-01M57KPS/plan.md
     sha256: 2a8487f6d25ecda1431515e438c555ef472956f10c756d4cf4ce51552af1b257
@@ -22,10 +22,10 @@ input_artifacts:
 verdict: unknown
 issue_counts:
   info:
+  high:
   critical:
   medium:
   low:
-  high:
 findings: []
 ---
 
@@ -51,3 +51,7 @@ findings: []
 ## Findings
 
 No CRITICAL or HIGH issues. One LOW: SC-* are not cited in requirement_refs, which is allowed.
+
+## Re-analysis (2026-10-18)
+
+spec.md User Story 1 now cites the existing negative controls in `tests/consolidation/test_single_branch_evidence_axis.py`, a post-spec squad fold. Coverage is unchanged and no new issues were found.
