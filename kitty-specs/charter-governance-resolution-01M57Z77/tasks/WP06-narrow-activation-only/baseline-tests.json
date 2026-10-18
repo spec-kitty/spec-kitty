@@ -1,13 +1,19 @@
 {
   "wp_id": "WP06",
-  "captured_at": "2026-10-18T20:36:50Z",
+  "captured_at": "2026-10-18T20:39:43Z",
   "base_branch": "e0191343f6b745f8902e81ee7e45ce5a1add4912",
   "base_commit": "e0191343f6b745f8902e81ee7e45ce5a1add4912",
   "test_runner": "custom",
-  "total": 0,
+  "total": 1,
   "passed": 0,
-  "failed": 0,
+  "failed": 1,
   "skipped": 0,
-  "failures": [],
-  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+  "failures": [
+    {
+      "test": "<declared-command>",
+      "error": "baseline command timed out after 300s",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/text"
 }
