@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "single-branch-gate-fallout-01M57KPS",
+  "mission_id": "01M57KPSBP11Q7WVXCHH0FXN1F",
+  "mission_branch": "issue-6370-single-branch-gate-fallout",
+  "target_branch": "issue-6370-single-branch-gate-fallout",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/specify_cli/cli/commands/agent/test_single_branch_refusal_wording.py",
+        "tests/specify_cli/test_specify_topology_flag.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-18T13:43:15.927482+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6ccb3d1f1595198c837ad7f39a69e95a3aa03869"
+}
