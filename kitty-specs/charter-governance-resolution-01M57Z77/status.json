@@ -198,11 +198,16 @@
     "WP09": {
       "actor": "claude",
       "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "in_progress",
       "last_event_id": "01M58D3CDKEV4GQ81AGMFD8P2H",
       "last_transition_at": "2026-10-18T21:01:22.043331+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 6920,
       "shell_pid_created_at": "1792357241.68"
     },
