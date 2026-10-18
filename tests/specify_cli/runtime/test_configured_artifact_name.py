@@ -134,7 +134,7 @@ class TestResolveConfiguredArtifactNameBuiltins:
             ("research", "evidence.source-register", "source-register.csv"),
             ("research", "output.findings.main", "findings.md"),
             ("research", "output.report.publication", "report.md"),
-            ("plan", "output.goals.main", "goals.md"),
+            ("plan", "output.spec.main", "spec.md"),
             ("plan", "evidence.research", "research.md"),
             ("plan", "output.plan.main", "plan.md"),
         ],

@@ -228,3 +228,30 @@ class TestUnregisteredCustomFamilyBareTags:
         )
 
         assert resolved == {_CUSTOM_FILENAME: f"kitty-specs/qa-run-01M1ZZZZ/{_CUSTOM_FILENAME}"}
+
+
+# ---------------------------------------------------------------------------
+# #6388 -- a genuine plan-family miss at ``specify`` must name its path.
+# Pre-fix the plan manifest was keyed ``goals``, so no artifact was required at
+# ``specify`` and ``guard_failure_paths`` came back empty for a real block.
+# ---------------------------------------------------------------------------
+
+
+def test_plan_specify_miss_reports_the_spec_md_path(tmp_path: Path) -> None:
+    from specify_cli.runtime.resolver import required_artifacts_for  # noqa: PLC0415
+
+    feature_dir = tmp_path / "kitty-specs" / "plan-run-01M1ZZZZ"
+    feature_dir.mkdir(parents=True)
+
+    assert required_artifacts_for("specify", "plan") == ["spec.md"]
+    assert required_artifacts_for("plan", "plan") == ["plan.md"]
+
+    paths = guard_failure_artifact_paths(
+        feature_dir,
+        mission_family="plan",
+        repo_root=tmp_path,
+        guard_failures=["Required artifact missing: spec.md"],
+    )
+
+    assert set(paths) == {"spec.md"}
+    assert paths["spec.md"].endswith("spec.md")
