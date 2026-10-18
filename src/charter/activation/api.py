@@ -53,12 +53,31 @@ from charter.activation.mission_type_profiles import (
     requires_substantive_spec_for as requires_substantive_spec_for,
 )
 
+# Synthesis-manifest primitives — the manifest path/load/verify/finalize +
+# canonical serialization the charter preflight safe-heal (#6366) consumes to
+# re-stamp a lagging ``bundle_content_hash`` without reaching activation
+# internals. Public per the respective modules' ``__all__``.
+from charter.activation.synthesizer.manifest import (
+    MANIFEST_PATH as MANIFEST_PATH,
+    finalize_manifest as finalize_manifest,
+    load_yaml as load_yaml,
+    verify as verify,
+)
+from charter.activation.synthesizer.synthesize_pipeline import (
+    canonical_yaml as canonical_yaml,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
 #: ``tests/architectural/test_charter_activation_api_reexport.py``.
 __all__ = [
+    "MANIFEST_PATH",
     "canonical_mission_type_key",
+    "canonical_yaml",
+    "finalize_manifest",
+    "load_yaml",
     "read_mission_type",
     "requires_substantive_spec_for",
+    "verify",
 ]

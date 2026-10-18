@@ -23,6 +23,7 @@ module) row below.
 from __future__ import annotations
 
 import importlib
+import inspect
 
 import pytest
 
@@ -30,9 +31,14 @@ pytestmark = pytest.mark.architectural
 
 #: (symbol, charter.activation source module). Keep in sync with charter.activation.api.__all__.
 _SEAM_TABLE: list[tuple[str, str]] = [
+    ("MANIFEST_PATH", "charter.activation.synthesizer.manifest"),
     ("canonical_mission_type_key", "charter.activation.mission_type_key"),
+    ("canonical_yaml", "charter.activation.synthesizer.synthesize_pipeline"),
+    ("finalize_manifest", "charter.activation.synthesizer.manifest"),
+    ("load_yaml", "charter.activation.synthesizer.manifest"),
     ("read_mission_type", "charter.activation.mission_type_key"),
     ("requires_substantive_spec_for", "charter.activation.mission_type_profiles"),
+    ("verify", "charter.activation.synthesizer.manifest"),
 ]
 
 
@@ -66,13 +72,21 @@ def test_seam_reexports_only_activation_never_offering() -> None:
     seam = importlib.import_module("charter.activation.api")
     for name in seam.__all__:
         obj = getattr(seam, name)
+        # ``__module__`` marks *definition origin* only for classes and routines
+        # (functions/methods). A plain value constant reports its TYPE's module
+        # instead — e.g. a ``Path`` constant reports ``pathlib`` — which says
+        # nothing about where the constant is defined, so an origin check on it is
+        # meaningless. Those are exactly the symbols the gate's own comment meant by
+        # "a plain constant/value, which is fine"; the identity table (_SEAM_TABLE)
+        # already pins every symbol — constants included — to a charter.activation
+        # source module, so the offering-split stays enforced for them there. Apply
+        # the module-origin check only to the realistic offering-leak vectors.
+        if not (inspect.isclass(obj) or inspect.isroutine(obj)):
+            continue
         origin = getattr(obj, "__module__", "") or ""
         assert not origin.startswith("charter.offering"), (
             f"charter.activation.api.{name} originates from {origin}: an offering symbol must "
             "be exported from charter.offering.api / a charter.* offering facade, not the "
             "activation seam (offering/activation are separate extractable units)."
         )
-        # A class/function carries a usable ``__module__`` (empty for a plain
-        # constant/value, which is fine); when present it must stay inside charter.
-        if origin:
-            assert origin.startswith("charter."), f"charter.activation.api.{name} originates from {origin}, outside charter."
+        assert origin.startswith("charter."), f"charter.activation.api.{name} originates from {origin}, outside charter."

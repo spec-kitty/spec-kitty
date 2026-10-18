@@ -324,13 +324,13 @@ def _try_safe_restamp(repo_root: Path) -> bool:
     try:
         from kernel.atomic import atomic_write  # noqa: PLC0415
 
-        from charter.activation.synthesizer.manifest import (  # noqa: PLC0415
+        from charter.activation.api import (  # noqa: PLC0415
             MANIFEST_PATH,
+            canonical_yaml,
             finalize_manifest,
             load_yaml,
             verify,
         )
-        from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml  # noqa: PLC0415
         from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
         manifest_path = repo_root / MANIFEST_PATH
