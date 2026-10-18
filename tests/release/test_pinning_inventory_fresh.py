@@ -34,8 +34,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import sys
+import warnings
 from pathlib import Path
 from types import ModuleType
 
@@ -50,6 +52,36 @@ _ARTEFACT = _REPO_ROOT / "tests" / "release" / "pinning_rule_inventory.json"
 #: A reason short enough to be a label rather than a justification is not one.
 #: The contract requires a *stated reason*, and "moot" is not a reason.
 _MIN_REASON_CHARS = 60
+
+# The re-derivation freshness gate reds on pure line-number drift whenever an
+# unrelated commit shifts a pinned rule's line, but nothing re-derives the
+# committed inventory per-PR -- so it would hard-block every code PR on
+# `main`-wide maintenance debt (operator ruling 2026-10-18, same class as the
+# battery timing-table and module-length-agreement freshness gates). Mirrors
+# ``tests/ci/test_battery_roster_budgets.py`` (#6373): the re-derivation gate
+# below warns per PR and asserts only under
+# ``SPEC_KITTY_STRICT_PINNING_INVENTORY=1``, which ``ci-shard-recapture.yml``'s
+# scheduled ``strict-shard-timings-check`` job sets. The other four gates in this
+# file are completeness/correctness checks (disposition vocabulary, retirement
+# truth, successor resolution, load-bearing presence), NOT corpus drift, so they
+# stay per-PR blocking.
+_STRICT_ENV_VAR = "SPEC_KITTY_STRICT_PINNING_INVENTORY"
+
+
+class PinningInventoryDriftWarning(UserWarning):
+    """Committed pinning inventory no longer re-derives byte-for-byte (non-blocking per PR)."""
+
+
+def _strict_mode() -> bool:
+    """True only when ``SPEC_KITTY_STRICT_PINNING_INVENTORY`` is exactly ``"1"`` (else warn-only)."""
+    return os.environ.get(_STRICT_ENV_VAR) == "1"
+
+
+def _report_drift(message: str, *, strict: bool) -> None:
+    """Fail under strict mode; otherwise warn so the drift stays visible without blocking."""
+    if strict:
+        pytest.fail(message)
+    warnings.warn(PinningInventoryDriftWarning(message), stacklevel=2)
 
 
 def _load_deriver(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
@@ -112,11 +144,13 @@ def test_inventory_is_reproducible_by_rerunning_the_derivation(monkeypatch: pyte
     deriver = _load_deriver(monkeypatch)
     fresh = deriver.serialize(deriver.build_document())
     committed = _ARTEFACT.read_text(encoding="utf-8")
-    assert fresh == committed, (
-        f"{_ARTEFACT.relative_to(_REPO_ROOT)} is stale or hand-edited — re-run "
-        f"`python3 {_SCRIPT.relative_to(_REPO_ROOT)}`. A rule added to the tree since the last "
-        "derivation must be dispositioned, not regenerated away."
-    )
+    if fresh != committed:
+        _report_drift(
+            f"{_ARTEFACT.relative_to(_REPO_ROOT)} is stale or hand-edited — re-run "
+            f"`python3 {_SCRIPT.relative_to(_REPO_ROOT)}`. A rule added to the tree since the last "
+            "derivation must be dispositioned, not regenerated away.",
+            strict=_strict_mode(),
+        )
 
 
 def test_every_entry_carries_a_disposition_from_the_vocabulary_and_a_reason(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -201,3 +235,25 @@ def test_the_load_bearing_dispositions_are_present_and_of_the_right_kind() -> No
         f"(got {by_rule[parity]['disposition']!r}) — it is the only thing preventing the Sonar "
         "surfaces' action pins from drifting apart"
     )
+
+
+# ---------------------------------------------------------------------------
+# Strict-switch self-tests: the re-derivation gate warns per PR, asserts nightly
+# ---------------------------------------------------------------------------
+def test_strict_mode_reads_only_the_exact_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(_STRICT_ENV_VAR, raising=False)
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "0")
+    assert _strict_mode() is False
+    monkeypatch.setenv(_STRICT_ENV_VAR, "1")
+    assert _strict_mode() is True
+
+
+def test_report_drift_warns_by_default() -> None:
+    with pytest.warns(PinningInventoryDriftWarning, match="inventory drift"):
+        _report_drift("inventory drift: re-derivation differs", strict=False)
+
+
+def test_report_drift_fails_in_strict_mode() -> None:
+    with pytest.raises(pytest.fail.Exception, match="inventory drift"):
+        _report_drift("inventory drift: re-derivation differs", strict=True)

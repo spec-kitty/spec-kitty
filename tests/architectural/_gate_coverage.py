@@ -136,9 +136,10 @@ WORKFLOW_FILES: tuple[str, ...] = (
     # Added by mission per-pr-shard-timings-recapture-friction-01M3H7V8 WP03:
     # its ``strict-shard-timings-check`` job runs a real, directly-anchored
     # ``uv run --frozen pytest tests/architectural/test_module_length_agreement.py
-    # tests/ci/test_battery_roster_budgets.py`` invocation on a schedule (the
-    # exact-count invariant's strict-mode home; the battery timing-table drift
-    # gate joined it per the 2026-10-18 operator ruling).
+    # tests/ci/test_battery_roster_budgets.py
+    # tests/release/test_pinning_inventory_fresh.py`` invocation on a schedule (the
+    # exact-count invariant's strict-mode home; the battery timing-table and
+    # pinning-inventory drift gates joined it per the 2026-10-18 operator ruling).
     "ci-shard-recapture.yml",
 )
 
