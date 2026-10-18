@@ -86,24 +86,21 @@ REVIEWER_SELF_APPROVAL = "ReviewerSelfApproval"
 
 # Post-mission lifecycle events (WP01 / FR-001). These record facts about a
 # mission *after* it has merged/closed: a re-open returning it to an actionable
-# state, and a follow-up commit/PR attributed to it. They are LOCAL-ONLY this
-# mission — intentionally kept off the SaaS strict-validation path
-# (``_validate_lifecycle_payload(strict=True)``): the external ``spec_kitty_events``
-# package does not yet know these types, and propagating them to SaaS requires an
-# external contract bump (follow-up, out of scope). The local event log remains
-# authoritative. See research.md C-SAAS.
+# state, and a follow-up commit/PR attributed to it. Both are canonical
+# ``spec_kitty_events`` types (committed schemas since 10.7.0), so they take the
+# same strict-validation path as every other lifecycle event (#6399).
 MISSION_REOPENED = "MissionReopened"
 FOLLOW_UP_RECORDED = "FollowUpRecorded"
 
-# The lifecycle event types that are LOCAL-ONLY: emitted after a mission's active
-# lifecycle (reopen / follow-up) and deliberately kept OFF the SaaS strict-
-# validation delivery path. The SINGLE public owner of this membership (#2884),
-# consumed by the post-mission ordering in ``status/lifecycle.py`` and the import
-# scan in ``sync/history_import/scan.py`` — replacing two hand-mirrored frozenset
-# copies. NOTE: this is NOT the installed ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``,
-# which is empty in the package while both types ARE in its model map, so trusting
-# it would let these reach strict validation and reject the whole batch.
-LOCAL_ONLY_LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+# The post-mission lifecycle event types: the SINGLE public owner of this
+# membership (#2884), consumed by the post-mission ordering in
+# ``status/lifecycle.py``. It names which events describe a mission after it
+# merged or closed; it is not a transport policy. It replaces the retired
+# ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` (#6399): the local-only concept was retired
+# in ``spec_kitty_events`` 11.0.0.
+POST_MISSION_LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+
+LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
 
 LIFECYCLE_EVENT_TYPES = frozenset(
     {
@@ -359,26 +356,18 @@ def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> 
     the SaaS boundary as a runtime canary failure instead of a producer
     emit-time error.
 
-    Local-only event types (``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES``)
-    skip strict validation by design — the set is currently empty but
-    reserved for future internal-only event types. The local
-    :data:`LOCAL_ONLY_LIFECYCLE_EVENT_TYPES` SSOT is also consulted here
-    (#2884): it is the actual enforcement point for the "kept OFF the SaaS
-    strict-validation path" invariant its own docstring claims, since the
-    external set does not yet cover ``MissionReopened`` / ``FollowUpRecorded``
-    even though both are present in ``_EVENT_TYPE_TO_MODEL``.
+    ``MissionReopened`` and ``FollowUpRecorded`` are validated like every
+    other known type: the local-only exemption was retired with
+    ``spec_kitty_events`` 11.0.0, which removed ``LOCAL_ONLY_EVENT_TYPES``
+    (#6399).
 
     Unknown event types (event_type not in ``_EVENT_TYPE_TO_MODEL``) pass
     through quietly so unrecognised types don't become sudden hard
     failures. The producer lint catches the corresponding hand-rolled
     dict at static analysis time.
     """
-    from spec_kitty_events import LOCAL_ONLY_EVENT_TYPES
     from spec_kitty_events.conformance import validate_event
     from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
-
-    if event_type in LOCAL_ONLY_EVENT_TYPES or event_type in LOCAL_ONLY_LIFECYCLE_EVENT_TYPES:
-        return
 
     if event_type not in _EVENT_TYPE_TO_MODEL:
         return

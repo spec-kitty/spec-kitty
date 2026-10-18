@@ -1002,40 +1002,29 @@ def test_validate_lifecycle_payload_falls_through_for_unknown_event_types() -> N
     lifecycle._validate_lifecycle_payload("NotARealEventType", {"foo": "bar"})
 
 
-def test_validate_lifecycle_payload_skips_local_only_lifecycle_types() -> None:
-    """MISSION_REOPENED / FOLLOW_UP_RECORDED must skip strict validation.
+def test_validate_lifecycle_payload_strictly_validates_post_mission_types() -> None:
+    """MISSION_REOPENED / FOLLOW_UP_RECORDED take the strict-validation path.
 
-    Regression guard for the #2884 review finding: both event types are
-    present in the installed ``spec_kitty_events`` model map (so they are
-    NOT "unknown" and would otherwise fall into ``validate_event(strict=True)``),
-    while ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES`` is empty and does not
-    yet cover them. Without consulting the local
-    ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` SSOT, a malformed payload for either
-    type would incorrectly raise here, contradicting the module docstring's
-    claim that they are "deliberately kept OFF the SaaS strict-validation
-    delivery path". A payload that is missing required canonical fields and
-    carries extra ones must still pass without raising.
+    ``spec_kitty_events`` 11.0.0 retired the local-only concept and removed
+    ``LOCAL_ONLY_EVENT_TYPES`` (#6399), so the post-mission types are no longer
+    exempt: a payload that is nowhere near canonical shape must now raise,
+    like any other known lifecycle type.
     """
     from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
 
     assert lifecycle.MISSION_REOPENED in _EVENT_TYPE_TO_MODEL
     assert lifecycle.FOLLOW_UP_RECORDED in _EVENT_TYPE_TO_MODEL
     malformed_payload = {"unexpected_field": "drift", "mission_slug": "demo"}
-    # Should not raise for either local-only lifecycle event type, despite
-    # the payload being nowhere near canonical shape.
-    lifecycle._validate_lifecycle_payload(lifecycle.MISSION_REOPENED, malformed_payload)
-    lifecycle._validate_lifecycle_payload(lifecycle.FOLLOW_UP_RECORDED, malformed_payload)
+    for event_type in lifecycle.POST_MISSION_LIFECYCLE_EVENT_TYPES:
+        with pytest.raises(ValueError, match="fails canonical contract"):
+            lifecycle._validate_lifecycle_payload(event_type, malformed_payload)
 
 
 def test_validate_lifecycle_payload_still_strict_for_delivery_path_types() -> None:
-    """A non-local-only, known event type must still validate strictly.
+    """A known delivery-path event type validates strictly.
 
-    Guards against the fix in the sibling test above degrading into a
-    blanket skip: only types in ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` are
-    exempted; MissionCreated (a real delivery-path type) still rejects a
-    payload with extra/missing fields.
+    MissionCreated still rejects a payload with extra/missing fields.
     """
-    assert lifecycle.MISSION_CREATED not in lifecycle.LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
     bad_payload = {
         "mission_slug": "demo",
         "mission_number": None,

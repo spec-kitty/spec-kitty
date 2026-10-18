@@ -18,7 +18,7 @@ from kernel.atomic import notify_written
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
-    LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
+    POST_MISSION_LIFECYCLE_EVENT_TYPES,
     MISSION_REOPENED,
     mission_event_log_path,
     read_lifecycle_events,
@@ -160,9 +160,9 @@ def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
     return _parse_dt(snapshot.materialized_at)
 
 
-# Post-mission events (reopen / follow-up) ARE the local-only lifecycle set by
-# design; alias the single public owner rather than re-declaring the membership.
-_POST_MISSION_EVENT_TYPES = LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
+# Alias the single public owner of the post-mission membership rather than
+# re-declaring it.
+_POST_MISSION_EVENT_TYPES = POST_MISSION_LIFECYCLE_EVENT_TYPES
 
 
 def _event_sort_key(event: dict[str, Any]) -> tuple[str, str]:
