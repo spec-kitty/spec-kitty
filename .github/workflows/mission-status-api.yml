@@ -381,7 +381,7 @@ jobs:
           merge-multiple: true
           path: ${{ runner.temp }}/digests
       - name: Compare the four per-leg digests
-        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" --expected-count 4 --request-floor 49
+        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" --expected-count 4 --request-floor 53
 
   # --- WP15 ---
   # The release job (plan.md section 12, operator decision E-4). It runs only on a push of a mission-status-api-v*.*.* tag in the
