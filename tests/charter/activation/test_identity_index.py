@@ -56,31 +56,18 @@ def project(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize("kind", _KINDS)
-def test_org_layer_stem_and_declared_id_tokens(project: Path, kind: ArtifactKind) -> None:
-    stem, declared, _, _ = _STEM_NE_ID[kind]
+def test_every_kind_resolves_stem_and_declared_id_tokens_per_layer(project: Path, kind: ArtifactKind) -> None:
+    org_stem, org_id, proj_stem, proj_id = _STEM_NE_ID[kind]
     index = IdentityIndex.build(project)
-    assert index.declared_id(kind, stem) == declared
-    assert index.declared_id(kind, declared) == declared
-    assert index.stem(kind, declared) == stem
-    assert index.stem(kind, stem) == stem
-    assert index.knows(kind, stem) and index.knows(kind, declared)
-    assert index.source_layer(kind, declared) == "org"
-
-
-@pytest.mark.parametrize("kind", _KINDS)
-def test_project_layer_stem_and_declared_id_tokens(project: Path, kind: ArtifactKind) -> None:
-    _, _, stem, declared = _STEM_NE_ID[kind]
-    index = IdentityIndex.build(project)
-    assert index.declared_id(kind, stem) == declared
-    assert index.declared_id(kind, declared) == declared
-    assert index.stem(kind, declared) == stem
-    assert index.source_layer(kind, stem) == "project"
-
-
-@pytest.mark.parametrize("kind", _KINDS)
-def test_unknown_token_is_unknown_with_known_positive_control(project: Path, kind: ArtifactKind) -> None:
-    index = IdentityIndex.build(project)
-    assert index.knows(kind, _STEM_NE_ID[kind][1])  # positive control
+    for stem, declared, layer in ((org_stem, org_id, "org"), (proj_stem, proj_id, "project")):
+        assert index.declared_id(kind, stem) == declared
+        assert index.declared_id(kind, declared) == declared
+        assert index.stem(kind, declared) == stem
+        assert index.stem(kind, stem) == stem
+        assert index.knows(kind, stem) and index.knows(kind, declared)
+        assert index.source_layer(kind, declared) == layer
+        assert index.source_layer(kind, stem) == layer
+    # unknown token, with the known tokens above as positive control
     assert index.declared_id(kind, "no-such-artifact-anywhere") is None
     assert index.knows(kind, "no-such-artifact-anywhere") is False
     assert index.stem(kind, "no-such-artifact-anywhere") is None
@@ -132,7 +119,7 @@ def test_resolve_many_splits_known_and_unknown(project: Path) -> None:
 
 def test_directive_normaliser_fallback_only_when_normalised_id_known(project: Path) -> None:
     index = IdentityIndex.build(project)
-    assert index.declared_id(D, "DIRECTIVE_1") == "DIRECTIVE_001"
+    assert index.declared_id(D, "1") == "DIRECTIVE_001"
     assert index.declared_id(D, "24") == "DIRECTIVE_024"
     assert index.declared_id(D, "DIRECTIVE_9999") is None
     assert index.declared_id(D, "9999") is None
@@ -150,8 +137,10 @@ def test_activation_id_known_unknown_and_warning(project: Path) -> None:
     assert warnings == []
     assert index.activation_id(T, "ghost", warnings) == "ghost"
     assert len(warnings) == 1 and "ghost" in warnings[0]
-    assert index.activation_id(D, "DIRECTIVE_1", warnings) == "DIRECTIVE_001"
+    assert index.activation_id(D, "1", warnings) == "DIRECTIVE_001"
     assert len(warnings) == 1  # normalised and known: no new warning
+    assert index.activation_id(D, "9999", warnings) == "DIRECTIVE_9999"
+    assert len(warnings) == 2  # normalised but unknown: warns
 
 
 def test_unconfigured_project_has_only_built_ins(tmp_path: Path) -> None:
