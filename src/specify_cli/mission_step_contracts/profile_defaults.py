@@ -41,6 +41,10 @@ _ACTION_PROFILE_DEFAULTS: Final[dict[tuple[str, str], str]] = {
     ("documentation", "validate"): "reviewer-renata",
     ("documentation", "publish"): "reviewer-renata",
     ("documentation", "accept"): "reviewer-renata",
+    ("plan", "specify"): "researcher-robbie",
+    ("plan", "research"): "researcher-robbie",
+    ("plan", "plan"): "architect-alphonso",
+    ("plan", "review"): "reviewer-renata",
 }
 
 #: Primary role of each shipped default profile above (mirrors each

@@ -1020,20 +1020,38 @@ def test_dispatch_via_composition_surfaces_unexpected_exception_as_structured_fa
     assert "ValueError" in failures[0]
 
 
-def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_error(
+def test_dispatch_via_composition_plan_mission_resolves_registered_step_contract(
     tmp_path: Path,
 ) -> None:
-    """Blast Radius (plan.md, User Story 1 AC4, SC-001a): `plan` is NOT a
-    beneficiary of the FR-001/FR-003 fix -- dispatching an action in
-    `plan`'s own action_sequence must still raise the pre-existing, distinct
-    ``StepContractExecutionError("No step contract found for mission/action
-    plan/<action>")``, never ``profile_hint is required`` and no other
-    newly-introduced behavior. Driven through the REAL charter/executor
-    stack (repo_root=_REPO_ROOT, no mocking) against this repo's actual
-    doctrine data: `plan` is a built-in mission type with no registered step
-    contract for any of its actions (registering one is out of scope, per
-    plan.md), so the executor's own ``get_by_action`` miss fires before
-    ``_resolve_profile_hint`` is ever reached."""
+    """Non-regression for #4988 / #6372: the built-in `plan` mission type is
+    now driveable past its first step. Two complementary fixes land together:
+    `packs/built-in/` ships a step contract for every action in plan's
+    ``specify -> research -> plan -> review`` sequence (#6372), and ``plan`` is
+    added to ``_ACTION_PROFILE_DEFAULTS`` alongside the other built-in missions
+    (profile_defaults.py). Before, ``spec-kitty next`` blocked at ``specify``
+    with ``No step contract found for mission/action plan/specify``.
+
+    This supersedes the earlier Blast-Radius pin (#3830), which asserted the
+    opposite -- that ``plan`` had no registered contract and that registering
+    one was out of scope. #4988 (P1, from QA) flagged exactly that pinned gap
+    as the bug.
+
+    Driven through the REAL charter/executor stack (repo_root=_REPO_ROOT, no
+    mocking). Every built-in step carries ``agent_profile: null`` (plan,
+    software-dev and research alike), so profile resolution runs through
+    ``_ACTION_PROFILE_DEFAULTS``, not ``_resolve_step_agent_profile``. With
+    plan now in that table, ``plan/specify`` resolves its profile and composes
+    all four steps: the dispatch no longer surfaces ``No step contract found``
+    (the contract is registered) nor ``profile_hint is required`` (the profile
+    resolves), and the only residual is the ordinary post-composition artifact
+    guard (``Required artifact missing: spec.md``) -- proof composition reached
+    the end of the step sequence. In a real plan mission the agent writes
+    ``spec.md`` and that guard passes.
+
+    Non-vacuous on both folds: reverting the four plan contracts restores the
+    ``No step contract found`` failure; removing plan from
+    ``_ACTION_PROFILE_DEFAULTS`` restores the ``profile_hint is required``
+    failure. Either reds this test."""
     failures = composition._dispatch_via_composition(
         repo_root=_REPO_ROOT,
         mission="plan",
@@ -1047,8 +1065,14 @@ def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_erro
 
     assert failures is not None
     assert len(failures) == 1
-    assert "No step contract found for mission/action plan/specify" in failures[0]
+    # The contract is now registered: the "no contract" miss is gone...
+    assert "No step contract found for mission/action plan/specify" not in failures[0]
+    # ...and the profile resolves via _ACTION_PROFILE_DEFAULTS, so composition
+    # is no longer blocked there either...
     assert "profile_hint is required" not in failures[0]
+    # ...it runs to the end of the step sequence, leaving only the ordinary
+    # write-spec artifact guard -- i.e. plan/specify is driveable.
+    assert "spec.md" in failures[0]
 
 
 def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
