@@ -1,0 +1,713 @@
+{
+ "description": "The shared cases of the artifact conformance gate. Each case is a project tree, described as data so that symbolic links, NUL bytes, invalid UTF-8 and large files need not be committed, and a list of requests. The Python reference reader (tests/contract/_mission_status_artifact_goldens.py) materializes each tree and writes golden.json; the Java service materializes the same tree and must answer the same. Credentials, host paths and addresses are assembled from parts so that no literal one is committed. Every request uses missionId 01J01000000000000000000001 unless it names its own.",
+ "missionId": "01J01000000000000000000001",
+ "cases": [
+  {
+   "name": "populated",
+   "description": "Every artifact kind, names with a space, an accented letter and a supplementary character, and the two status records that are never listed.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/status.events.jsonl",
+     "text": ""
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/status.json",
+     "text": "{}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/spec.md",
+     "text": "# Spec\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/plan.md",
+     "text": "# Plan\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks.md",
+     "text": "# Tasks\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/data-model.md",
+     "text": "# Data\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/quickstart.md",
+     "text": "# Quick\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/analysis-report.md",
+     "text": "# Analysis\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/research.md",
+     "text": "# Research\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/research/data.csv",
+     "text": "a,b\n1,2\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/contracts/api.yaml",
+     "text": "a: 1\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/contracts/schema.json",
+     "text": "{\"v\": 1}\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/checklists/requirements.md",
+     "text": "- [x] done\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks/WP01-example.md",
+     "text": "prompt\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks/WP01-example/review-cycle-1.md",
+     "text": "cycle\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks/WP01-example/review-cycle-01.md",
+     "text": "not a cycle\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/tasks/README.md",
+     "text": "readme\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/with space.md",
+     "text": "space\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/été.md",
+     "text": "summer\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/😀.md",
+     "text": "emoji\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/�.md",
+     "text": "replacement\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/events.jsonl",
+     "text": "{}\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/.hidden",
+     "text": "dot\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/empty-dir",
+     "dir": true
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/with space.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/été.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "😀.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "contracts/schema.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "research/data.csv"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "events.jsonl"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "meta.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ".hidden"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "content-decisions",
+   "description": "The order of decision of a content read: the size cap, NUL bytes, strict UTF-8, credentials, an empty file and a byte order mark.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/big.bin",
+     "repeat": {
+      "byte": 120,
+      "count": 262145
+     }
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/exact.txt",
+     "repeat": {
+      "byte": 120,
+      "count": 262144
+     }
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/nul.txt",
+     "base64": "YQBi"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/latin1.txt",
+     "base64": "Y2Fm6Q=="
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/surrogate.txt",
+     "base64": "7aCA"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/overlong.txt",
+     "base64": "wIA="
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/secret-github.md",
+     "parts": [
+      "token gh",
+      "p_",
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/secret-pem.md",
+     "parts": [
+      "-----BEGIN ",
+      "RSA PRIVATE ",
+      "KEY-----\nabc\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/secret-aws.md",
+     "parts": [
+      "key AK",
+      "IA",
+      "BBBBBBBBBBBBBBBB",
+      "\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/empty.txt",
+     "text": ""
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/bom.md",
+     "base64": "77u/aGkK"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/crlf.md",
+     "text": "a\r\nb\r\n"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      "big.bin"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "exact.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "nul.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "latin1.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "surrogate.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "overlong.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "secret-github.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "secret-pem.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "secret-aws.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "empty.txt"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "bom.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "crlf.md"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "redaction",
+   "description": "Host paths and e-mail addresses become [path] and [email]; text without either is unchanged.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/handoff.md",
+     "parts": [
+      "Work happened in /",
+      "home/alice/project/x.md and /",
+      "tmp/build/out, C:\\",
+      "Users\\bob\\notes.txt; ask alice",
+      "@",
+      "example.com or bob",
+      "@",
+      "localhost.\n"
+     ]
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/plain.md",
+     "text": "owner/repo@ref and HEAD@{1} and name@123 stay.\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/relative.md",
+     "text": "see home/alice and ./tmp/x\n"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/handoff.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/plain.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/relative.md"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "path-refusals",
+   "description": "A missing, repeated or malformed path is 400; a path that names no eligible artifact is 404.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/status.events.jsonl",
+     "text": ""
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/Status.Json",
+     "text": "{}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/spec.md",
+     "text": "# Spec\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/notes/a.md",
+     "text": "a\n"
+    }
+   ],
+   "requests": [
+    {
+     "op": "content",
+     "paths": []
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md",
+      "spec.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      ""
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "../meta.json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "/etc/passwd"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "a\\b"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes/"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes//a.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "./spec.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "C:spec.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "~/x"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "a b"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "Status.Json"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "status.events.jsonl"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "STATUS.EVENTS.JSONL"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "notes"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "missing.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md/inner"
+     ]
+    },
+    {
+     "op": "list"
+    }
+   ]
+  },
+  {
+   "name": "links",
+   "description": "A symbolic link is never listed, never entered and never read, as the file or as a directory on the way.",
+   "needsSymlinks": true,
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/spec.md",
+     "text": "# Spec\n"
+    },
+    {
+     "path": "outside/x.md",
+     "text": "outside\n"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/linked.md",
+     "symlink": "../../outside/x.md"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/linked-dir",
+     "symlink": "../../outside"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/dangling.md",
+     "symlink": "nowhere.md"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      "linked.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "linked-dir/x.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "dangling.md"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "linked-mission",
+   "description": "A Mission directory that is a symbolic link is not served.",
+   "needsSymlinks": true,
+   "tree": [
+    {
+     "path": "elsewhere/beta/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"created_at\": \"2026-09-01T10:00:00+00:00\"}"
+    },
+    {
+     "path": "elsewhere/beta/spec.md",
+     "text": "x\n"
+    },
+    {
+     "path": "kitty-specs/beta",
+     "symlink": "../elsewhere/beta"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "mission-selection",
+   "description": "The Mission is selected by mission_id; for an id two directories hold, the first in code-point order wins; an unusable meta.json is skipped; an unknown or ill-formed id is 404.",
+   "tree": [
+    {
+     "path": "kitty-specs/aa-broken/meta.json",
+     "text": "{not json"
+    },
+    {
+     "path": "kitty-specs/ab-number/meta.json",
+     "text": "{\"mission_id\": 7}"
+    },
+    {
+     "path": "kitty-specs/ac-list/meta.json",
+     "text": "[]"
+    },
+    {
+     "path": "kitty-specs/ad-file",
+     "text": "not a directory"
+    },
+    {
+     "path": "kitty-specs/beta-copy/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\"}"
+    },
+    {
+     "path": "kitty-specs/beta-copy/copy.md",
+     "text": "copy\n"
+    },
+    {
+     "path": "kitty-specs/zeta-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"zeta-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/zeta-01J01000/spec.md",
+     "text": "zeta\n"
+    },
+    {
+     "path": "kitty-specs/gamma/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000002\", \"extra\": [1, 2]}"
+    },
+    {
+     "path": "kitty-specs/gamma/g.md",
+     "text": "g\n"
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    },
+    {
+     "op": "list",
+     "missionId": "01J01000000000000000000002"
+    },
+    {
+     "op": "list",
+     "missionId": "01J01000000000000000000009"
+    },
+    {
+     "op": "list",
+     "missionId": "nope"
+    },
+    {
+     "op": "content",
+     "missionId": "01j01000000000000000000001",
+     "paths": [
+      "copy.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "copy.md"
+     ]
+    },
+    {
+     "op": "content",
+     "paths": [
+      "spec.md"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "truncated",
+   "description": "More than 1000 eligible files: the first 1000 in byte order and truncated set.",
+   "tree": [
+    {
+     "path": "kitty-specs/alpha-01J01000/meta.json",
+     "text": "{\"mission_id\": \"01J01000000000000000000001\", \"mission_slug\": \"alpha-01J01000\", \"created_at\": \"2026-09-01T10:00:00+00:00\", \"target_branch\": \"main\"}"
+    },
+    {
+     "path": "kitty-specs/alpha-01J01000/n",
+     "generate": {
+      "count": 1001,
+      "nameFormat": "%04d.md",
+      "text": "x\n"
+     }
+    }
+   ],
+   "requests": [
+    {
+     "op": "list"
+    }
+   ]
+  }
+ ]
+}
