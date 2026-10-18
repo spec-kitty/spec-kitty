@@ -470,14 +470,6 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # identity/counts unit suites exercise them meanwhile. Moved from
         # specify_cli.doctrine by charter-pack-cutover-01M491G6 WP04 (#3732).
         "charter.offering.packs.pack_lineage",
-        # #6046 vendoring prerequisites, library-first for #3504: core_compat
-        # (check_requires_core) + pack_clean_digest (clean_tree_digest) are the
-        # tooling the open-packs vendor/drift pipeline (#3504) will call. They
-        # have no in-core production caller by design (spec FR-014/FR-015: "do
-        # not change core's own behaviour"); their unit suites exercise them
-        # meanwhile. Drains when #3504 wires them. Follow-up: #3504.
-        "charter.offering.packs.core_compat",
-        "charter.offering.packs.pack_clean_digest",
         # specify_cli.cli.commands.charter._charter_write_root removed
         # (#4785 WP03+WP04): activate.py/deactivate.py (WP03) and
         # generate.py/synthesize.py/resynthesize.py (WP04) now wire
