@@ -1,20 +1,20 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M57PNT9V3N625SGD4KCX7S3F",
-  "materialized_at": "2026-10-18T14:29:29.019639+00:00",
+  "event_count": 10,
+  "last_event_id": "01M57PR7B2MCCAXQ7RZSMG3HB0",
+  "materialized_at": "2026-10-18T14:30:47.906554+00:00",
   "mission_number": "",
   "mission_slug": "single-branch-gate-fallout-01M57KPS",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -25,14 +25,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M57PNT9V3N625SGD4KCX7S3F",
-      "last_transition_at": "2026-10-18T14:29:29.019639+00:00",
+      "lane": "approved",
+      "last_event_id": "01M57PR7B2MCCAXQ7RZSMG3HB0",
+      "last_transition_at": "2026-10-18T14:30:47.906554+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Fixture records the planning commit + distinct implementer/reviewer; 8/8 test_specify_topology_flag.py"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261018",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 18002,
       "shell_pid_created_at": "1792333763.49",
