@@ -1,7 +1,7 @@
 {
-  "event_count": 49,
-  "last_event_id": "01M58N7KEBA7C4RKDC8F7R5PT9",
-  "materialized_at": "2026-10-18T23:23:29.099928+00:00",
+  "event_count": 51,
+  "last_event_id": "01M58NBAGS8XA0YG504EHBRT3R",
+  "materialized_at": "2026-10-18T23:25:30.837129+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 1,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -165,33 +165,34 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": "claude",
-      "agent_profile": "reviewer-renata",
+      "agent": null,
+      "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M58N7KEBA7C4RKDC8F7R5PT9",
-      "last_transition_at": "2026-10-18T23:23:29.099928+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M58NBAGS8XA0YG504EHBRT3R",
+      "last_transition_at": "2026-10-18T23:25:30.837129+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP07: interview --narrow-activation (helpers _narrow_bases; interview() complexity unchanged), JSON narrowed always present, text 'No longer in force' lines, prompt.md contract text, cli-commands.md regenerated, charter-commands.md row. Gates: ruff check/format OK, C901 OK, regenerate-graph --check fresh, pack vendor --check matches pin, cli-reference freshness clean, 612 arch/offering tests pass; wider sweep 17 red all identical on base (incl #6424). mypy --strict: only 9 env import-not-found/untyped-decorator errors, identical on base."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/charter-governance-resolution-01M57Z77-coord/kitty-specs/charter-governance-resolution-01M57Z77/tasks/WP07-interview-narrow-and-contract/review-cycle-1.md",
         "reference": "review-cycle://charter-governance-resolution-01M57Z77/WP07-interview-narrow-and-contract/review-cycle-1.md",
         "reviewer": "claude",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 28743,
-      "shell_pid_created_at": "1792363526.46",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T031": "done",
-        "T032": "done",
-        "T033": "done",
-        "T034": "done"
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned"
       }
     },
     "WP08": {
