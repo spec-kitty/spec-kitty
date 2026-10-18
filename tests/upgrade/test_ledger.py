@@ -232,3 +232,32 @@ def test_assemble_report_captures_partition_applied_and_in_place(tmp_path: Path)
     assert rows["clone_absent_rep"].in_place_here is False  # detect() True -> effect absent
     assert rows["pending_rep"].applied is False
     assert rows["pending_rep"].drift is None
+
+
+def test_assemble_report_applied_agrees_with_the_success_only_settled_predicate(tmp_path: Path) -> None:
+    """``applied`` is success-only (like ``migration_settled``); the ledger read keeps the latest record per id."""
+    from specify_cli.upgrade.registry import migration_settled
+
+    only_failed = _FakeMigration("only_failed_rep")
+    only_skipped = _FakeMigration("only_skipped_rep")
+    failed_then_ok = _FakeMigration("failed_then_ok_rep")
+    ok_then_skipped = _FakeMigration("ok_then_skipped_rep")
+    ledger = MigrationLedger(tmp_path)
+    for migration, results in (
+        (only_failed, ["failed"]),
+        (only_skipped, ["skipped"]),
+        (failed_then_ok, ["failed", "success"]),
+        (ok_then_skipped, ["success", "skipped"]),
+    ):
+        for result in results:
+            ledger.append(build_record(migration, result, cli_version="4.0.0rc8"))
+
+    migrations: list[object] = [only_failed, only_skipped, failed_then_ok, ok_then_skipped]
+    rows = {row.id: row for row in assemble_report(migrations, tmp_path)}
+
+    for migration in (only_failed, only_skipped, failed_then_ok, ok_then_skipped):
+        assert rows[migration.migration_id].applied is migration_settled(ledger, migration)
+    assert (rows["only_failed_rep"].applied, rows["only_failed_rep"].result) == (False, "failed")
+    assert (rows["only_skipped_rep"].applied, rows["only_skipped_rep"].result) == (False, "skipped")
+    assert (rows["failed_then_ok_rep"].applied, rows["failed_then_ok_rep"].result) == (True, "success")
+    assert (rows["ok_then_skipped_rep"].applied, rows["ok_then_skipped_rep"].result) == (False, "skipped")

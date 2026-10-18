@@ -263,6 +263,11 @@ class MigrationLedger:
         return match.content_hash != compute_content_hash(migration)
 
 
+#: The ledger result that settles a migration; the single source of the success-only
+#: "applied" rule, shared with ``registry.migration_settled``.
+SETTLED_RESULT = "success"
+
+
 def _safe_detect(migration: object, project_root: Path) -> bool:
     detect = getattr(migration, "detect", None)
     if detect is None:
@@ -295,7 +300,7 @@ def assemble_report(migrations: list[object], project_root: Path | str) -> list[
                 id=_migration_id_of(migration),
                 identity=identity,
                 partition=_PARTITION_CLONE_LOCAL if clone_local else _PARTITION_TRACKED,
-                applied=match is not None,
+                applied=match is not None and match.result == SETTLED_RESULT,
                 result=match.result if match else None,
                 drift=ledger.drift_for(migration) if match is not None else None,
                 in_place_here=(not _safe_detect(migration, root)) if clone_local else None,

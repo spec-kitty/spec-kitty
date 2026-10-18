@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
-from .ledger import MigrationLedger
+from .ledger import SETTLED_RESULT, MigrationLedger
 from .manifest import load_order_manifest
 
 if TYPE_CHECKING:
@@ -150,11 +150,6 @@ class MigrationRegistry:
         cls._migrations.clear()
 
 
-#: The ledger result that settles a migration (mirrors the retired success-only
-#: ``ProjectMetadata.has_migration``). A ``skipped`` or ``failed`` record does not.
-_SETTLED_RESULT = "success"
-
-
 def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool:
     """True when *migration*'s authoritative ledger partition records it applied (``success``).
 
@@ -166,7 +161,7 @@ def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool
     consulted here; the ledger is the applied authority (C-001/C-003).
     """
     migration_id = migration.migration_id
-    return any(record.id == migration_id and record.result == _SETTLED_RESULT for record in ledger.applicable_records_for(migration))
+    return any(record.id == migration_id and record.result == SETTLED_RESULT for record in ledger.applicable_records_for(migration))
 
 
 # Export standalone decorator for convenience
