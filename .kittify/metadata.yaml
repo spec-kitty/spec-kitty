@@ -5,7 +5,7 @@
 spec_kitty:
   version: 4.0.0rc8
   initialized_at: '2026-04-07T09:10:40.826207'
-  last_upgraded_at: '2026-06-11T05:07:36.243731'
+  last_upgraded_at: '2026-10-18T08:51:49.636416+00:00'
   schema_version: 3
   schema_capabilities:
     canonical_context: true
@@ -447,5 +447,4 @@ migrations:
   - id: 4.0.0rc7_pack_level_backfill
     applied_at: '2026-10-12T05:02:18.155702+00:00'
     result: success
-    notes: 'Wrote .kittify/charter-packs/pack.yaml
-      with pack_level: project'
+    notes: 'Wrote .kittify/charter-packs/pack.yaml with pack_level: project'
