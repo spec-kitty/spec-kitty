@@ -664,6 +664,23 @@ class TestSemanticCheckEvaluatedEmission:
         )
         assert event["effective_strictness"] == "max"
 
+    def test_unresolved_strictness_is_written_as_medium(self, tmp_path, mock_context):
+        """An unresolved strictness (None on the context) is written as "medium", never "None".
+
+        The semantic-check middleware emits before the generation gate resolves
+        strictness, so the context still carries None here (#6399).
+        """
+        from spec_kitty_events.persistence import build_record
+
+        mock_context.effective_strictness = None
+        event = emit_semantic_check_evaluated(
+            context=mock_context,
+            conflicts=[],
+            repo_root=tmp_path,
+        )
+        assert event["effective_strictness"] == "medium"
+        build_record(event)  # conforms to the spec-kitty-events contract
+
 
 class TestGenerationBlockedEmission:
     """Tests for emit_generation_blocked_event()."""
@@ -778,6 +795,33 @@ class TestClarificationEmission:
         assert event["conflict_id"] == "test-uuid"
         assert len(event["options"]) == 2
         assert event["urgency"] == "high"
+
+    @pytest.mark.parametrize("prior_check_id", ["absent", None, ""])
+    def test_requested_omits_semantic_check_event_id_without_a_prior_check(
+        self, tmp_path, mock_context, sample_conflict, prior_check_id
+    ):
+        """No preceding semantic check leaves the reference out instead of writing "" (#6399)."""
+        from spec_kitty_events.persistence import build_record
+
+        if prior_check_id != "absent":
+            mock_context.semantic_check_event_id = prior_check_id
+        event = emit_clarification_requested(
+            conflict=sample_conflict,
+            context=mock_context,
+            repo_root=tmp_path,
+        )
+        assert "semantic_check_event_id" not in event
+        build_record(event)  # conforms to the spec-kitty-events contract
+
+    def test_requested_carries_the_prior_semantic_check_event_id(self, tmp_path, mock_context, sample_conflict):
+        """A preceding semantic check is referenced by its event id."""
+        mock_context.semantic_check_event_id = "check-001"
+        event = emit_clarification_requested(
+            conflict=sample_conflict,
+            context=mock_context,
+            repo_root=tmp_path,
+        )
+        assert event["semantic_check_event_id"] == "check-001"
 
     def test_requested_auto_generates_id(self, tmp_path, mock_context, sample_conflict):
         """conflict_id is auto-generated if not provided."""

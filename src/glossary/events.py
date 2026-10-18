@@ -709,7 +709,10 @@ def emit_semantic_check_evaluated(
     else:
         recommended = "warn"
 
-    eff_str_raw: Any = effective_strictness or getattr(context, "effective_strictness", "medium")
+    # The semantic-check middleware emits before the generation gate resolves
+    # strictness, so the context can still carry None: write the default rather
+    # than the string "None" (#6399).
+    eff_str_raw: Any = effective_strictness or getattr(context, "effective_strictness", None) or "medium"
     eff_str: str = eff_str_raw.value if hasattr(eff_str_raw, "value") else str(eff_str_raw)
 
     blocked = len(conflicts) > 0 and eff_str != "off"
@@ -896,7 +899,11 @@ def emit_clarification_requested(
         step_id=step_id,
         conflict_id=cid,
     )
-    event["semantic_check_event_id"] = getattr(context, "semantic_check_event_id", "")
+    # Reference the preceding semantic check only when there was one; the
+    # contract makes the field optional but never empty (#6399).
+    semantic_check_event_id = getattr(context, "semantic_check_event_id", None)
+    if semantic_check_event_id:
+        event["semantic_check_event_id"] = semantic_check_event_id
 
     try:
         if repo_root is not None:
