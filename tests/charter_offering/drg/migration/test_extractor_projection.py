@@ -852,8 +852,13 @@ _EXPECTED_NODE_COUNT = pure_builtin_node_count()
 #: Built-in mission step contracts. ``mission_step_contract.graph.yaml`` ships
 #: ``edges: []`` by construction (ledger entry 2): a contract is resolved by the
 #: ``(mission_type, action)`` join at pre-review activation, never by graph
-#: traversal, so it has no edge to carry. 17 shipped = documentation 7 +
-#: research 5 + software-dev 5.
+#: traversal, so it has no edge to carry. 21 shipped = documentation 7 +
+#: research 5 + software-dev 5 + plan 4.
+#: Ledger (plan step contracts, open-packs#45 / spec-kitty#6379): the built-in
+#: pin bump vendors the plan mission's four step contracts and regenerates the
+#: graph with their four ``mission_step_contract:plan/*`` nodes. Like every other
+#: step-contract node they are edge-less by construction, so each is a new shipped
+#: orphan. +4 nodes / +0 edges / +4 orphans.
 _EDGELESS_BY_CONSTRUCTION: frozenset[str] = frozenset(
     {
         f"mission_step_contract:{contract}"
@@ -865,6 +870,10 @@ _EDGELESS_BY_CONSTRUCTION: frozenset[str] = frozenset(
             "documentation/generate",
             "documentation/publish",
             "documentation/validate",
+            "plan/plan",
+            "plan/research",
+            "plan/review",
+            "plan/specify",
             "research/gathering",
             "research/methodology",
             "research/output",
