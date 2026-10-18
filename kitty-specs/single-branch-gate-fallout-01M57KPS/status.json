@@ -58,6 +58,9 @@
       "last_event_id": "01M57PSWG92YDD5Y3JSY0SQVA1",
       "last_transition_at": "2026-10-18T14:31:42.345431+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: message-only src change (code SINGLE_BRANCH_IMPLEMENTATION_MISSING, decision logic, envelope unchanged; C-001/C-002). New unit test pins code+phrase (old wording lacked 'no implementation commit', so red-first), parametrized for_review/approved, with positive control; 3/3 green. Guard suites 64/64 green incl. test_context_error_envelope_is_opt_in. ruff/format/mypy clean. CHANGELOG quote matches. Checklist 1-8 PASS/N/A."
+      ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261018",
