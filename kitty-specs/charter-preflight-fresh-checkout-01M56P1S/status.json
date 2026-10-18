@@ -2,10 +2,9 @@
   "event_count": 14,
   "last_event_id": "01M56RNJNRE9EKWJ4F18FHBNT0",
   "materialized_at": "2026-10-18T05:45:03.928041+00:00",
-  "mission_number": "234",
+  "mission_number": "",
   "mission_slug": "charter-preflight-fresh-checkout-01M56P1S",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,68 +20,34 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M56RNH0WXZCQQXEWFKXM9BKG",
       "last_transition_at": "2026-10-18T05:45:02.236753+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review: default-on in-process safe-heal re-stamp of manifest bundle_content_hash (runner.py allow_heal, hook.py or_abort=True/warn_only=False). pytest test_fresh_checkout_preflight_heal.py + test_boundary_heal.py 14 passed; mypy/ruff check/ruff format clean on 3 changed files (exit 0)",
-        "Review passed (reviewer-renata/opus): 7/7 twin+control green, 169 passed/1 skipped charter suites, layer-rules 74 passed, ruff+mypy clean; non-vacuity (real synthesized fixture, positive control reaches verify()), default-on/query-read-only, no-subprocess warm path, single hash authority, scope clean all verified."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261018",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 521855,
-      "shell_pid_created_at": "1792301558.37",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid": 401449,
+      "shell_pid_created_at": "1792300785.05"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M56RNJNRE9EKWJ4F18FHBNT0",
       "last_transition_at": "2026-10-18T05:45:03.928041+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review: new charter.activation.bundle_restamp.restamp_bundle_hash (single compute_bundle_content_hash authority + finalize_manifest) called after commit_plan in ActiveCharterManager.activate/deactivate and at end of compiler.write_compiled_charter; red-first 3 failures -> green. pytest tests/charter/test_activate_restamps_bundle_hash.py tests/charter_offering/test_fresh_seed_restamp_parity.py tests/charter/test_pack_manager.py tests/charter/test_activation_engine_charter_yaml.py: 80 passed, exit 0; ruff check/format clean; no #3504 files touched",
-        "Review passed (reviewer-renata/opus): correct recompile sites (FR-004); single-authority re-stamp, no greenwash; charter.md untouched; mypy baseline-verified 0 new errors (6 pre-existing at merge-base 5e40fb68ce); orthogonal to #3504 confirmed; 12 tests green."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261018",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 521855,
-      "shell_pid_created_at": "1792301558.37",
-      "subtasks": {
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done",
-        "T012": "done"
-      }
+      "shell_pid": 407007,
+      "shell_pid_created_at": "1792300813.11"
     }
   }
 }
