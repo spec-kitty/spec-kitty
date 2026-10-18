@@ -30,9 +30,9 @@ class _SaveSpy:
         self.calls.append({key: list(value) if isinstance(value, list) else value for key, value in data.items()})
 
 
-def _promote(config: dict[str, Any], promotions: dict[str, list[str]], effective: dict[str, EffectiveSet]) -> tuple[PromotionOutcome, _SaveSpy]:
+def _promote(config: dict[str, Any], promotions: dict[str, list[str]], effective: dict[str, EffectiveSet], **kwargs: Any) -> tuple[PromotionOutcome, _SaveSpy]:
     save = _SaveSpy()
-    outcome = promote_activations(promotions, config_path=_PATH, config_data=config, save=save, effective_sets=effective)
+    outcome = promote_activations(promotions, config_path=_PATH, config_data=config, save=save, effective_sets=effective, **kwargs)
     return outcome, save
 
 
@@ -48,6 +48,7 @@ def test_resolved_absent_key_is_written_once_as_a_superset() -> None:
     assert outcome.left_absent == {}
     assert outcome.committed[0].activated == ["c-proc"]
     assert any("Preserved 2 effective entries" in warning for warning in outcome.committed[0].warnings)
+    assert any("This list is now explicit" in warning and "--only" in warning for warning in outcome.committed[0].warnings)
 
 
 def test_unresolved_absent_key_is_left_absent_and_reported() -> None:
@@ -128,3 +129,22 @@ def test_org_charter_union_leaves_an_unresolvable_key_absent_and_reports_it(tmp_
 
     assert "activated_directives" not in YAML(typ="safe").load(config.read_text(encoding="utf-8"))
     assert any("activated_directives" in message and "does-not-exist" in message for message in messages), messages
+
+
+def test_narrow_bases_replaces_a_present_key_and_reports_the_dropped_ids() -> None:
+    config: dict[str, Any] = {_KEY: ["old-a", "old-b"], "activated_tactics": ["t1"]}
+
+    outcome, save = _promote(config, {_KEY: ["new"], "activated_tactics": ["t2"]}, {}, narrow_bases={_KEY: ["base", "new"]})
+
+    assert config[_KEY] == ["base", "new"]
+    procedures = next(plan for plan in outcome.committed if plan.yaml_key == _KEY)
+    assert procedures.deactivated == ["old-a", "old-b"]
+    # positive control: a key absent from narrow_bases still appends
+    assert config["activated_tactics"] == ["t1", "t2"]
+    assert len(save.calls) == 2
+
+
+def test_narrow_bases_default_none_keeps_the_append_behaviour() -> None:
+    config: dict[str, Any] = {_KEY: ["old-a"]}
+    _promote(config, {_KEY: ["new"]}, {})
+    assert config[_KEY] == ["old-a", "new"]
