@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import subprocess
+from typing import Any
 
 import pytest
 from ruamel.yaml import YAML
@@ -102,3 +103,49 @@ def test_colliding_override_stem_preserves_selected_identity(tmp_path: Path, mon
     assert "DIRECTIVE_025" not in delivered
     assert delivered["DIRECTIVE_001"].title == "Project architecture"
     assert delivered["DIRECTIVE_001"].intent == "Require project architecture review."
+
+
+def _context_json(repo: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    import json
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    result = CliRunner().invoke(
+        app,
+        ["context", "--action", "plan", "--mission-type", "software-dev", "--json", "--no-mark-loaded"],
+    )
+    assert result.exit_code == 0, result.output
+    data: dict[str, Any] = json.loads(result.output)
+    return data
+
+
+def test_context_json_passes_diagnostics_through(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6407: ``charter context --json`` exposes the unknown-selection diagnostic and the org entry."""
+    from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
+    from tests.charter.test_resolver import _identity_project
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    repo = _identity_project(
+        tmp_path,
+        selected="[QA_003, NOPE_999]",
+        activated_directives=["001-architectural-integrity-standard"],
+    )
+
+    data = _context_json(repo, monkeypatch)
+
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in data["diagnostics"]
+    entries = {e["id"]: e for e in data["all_directives"]}
+    assert entries["QA_003"]["source"] == "org"
+    assert data["context_schema_version"] == "1.4.0"
+
+
+def test_context_json_diagnostics_empty_on_clean_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.charter.test_resolver import _identity_project
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=[])
+
+    data = _context_json(repo, monkeypatch)
+
+    assert isinstance(data["diagnostics"], list)
+    assert not any(d.startswith("Unknown selected") for d in data["diagnostics"])

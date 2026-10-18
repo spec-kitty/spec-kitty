@@ -37,7 +37,7 @@ from __future__ import annotations
 #: payload shape. Bump this whenever ``CONTEXT_CONTRACT_TOP_LEVEL_KEYS``
 #: changes. Semantic-version string (``MAJOR.MINOR.PATCH``); not tied to
 #: the package release version.
-CONTEXT_SCHEMA_VERSION = "1.3.0"
+CONTEXT_SCHEMA_VERSION = "1.4.0"
 
 #: The complete set of top-level keys the ``build_charter_context_json``
 #: payload may carry, across both bootstrap (``mode == "bootstrap"``) and
@@ -73,6 +73,12 @@ CONTEXT_SCHEMA_VERSION = "1.3.0"
 #:   rehome-writing-comms-doctrine because it embedded the live directive
 #:   catalog and red on every doctrine addition.)
 #:
+#: **``diagnostics`` (#6407, FR-010, bumped to 1.4.0).** A top-level
+#: ``list[str]``, always present (``[]`` when clean): the governance
+#: resolution's ``GovernanceResolution.diagnostics``, for example the
+#: ``Unknown selected {kind} '{token}' dropped`` line for a selected id found
+#: in no layer. Additive; consumers that ignore unknown keys are unaffected.
+#:
 #: This is a superset guard, not a strict-equality contract: which of these
 #: keys are actually present is conditional on the action (bootstrap vs.
 #: non-bootstrap) and on charter/doctrine state (e.g. an org pack absent ->
@@ -91,6 +97,7 @@ CONTEXT_CONTRACT_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "procedures",
         "all_directives",
         "directives_source",
+        "diagnostics",
         "references",
         "project_charter",
         "org_charter",
