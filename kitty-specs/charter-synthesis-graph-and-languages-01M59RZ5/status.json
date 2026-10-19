@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M59V17DW63METRW70N4Q2FQM",
-  "materialized_at": "2026-10-19T10:24:06.076327+00:00",
+  "event_count": 2,
+  "last_event_id": "01M59V1BM7ARHP0NJAX1XANVRQ",
+  "materialized_at": "2026-10-19T10:24:10.375800+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -24,6 +24,13 @@
       "lane": "planned",
       "last_event_id": "01M59V17DW63METRW70N4Q2FQM",
       "last_transition_at": "2026-10-19T10:24:06.076327+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M59V1BM7ARHP0NJAX1XANVRQ",
+      "last_transition_at": "2026-10-19T10:24:10.375800+00:00"
     }
   }
 }
