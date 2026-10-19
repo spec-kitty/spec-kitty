@@ -366,7 +366,7 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    nightly, so a red there can be real on `main` although every PR was green. Check the
    latest nightly and its auto-opened issue before calling it environmental.
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
-green-wash category 1, and never misattribute categories 2–5 to your own work. Full policy:
+green-wash category 1, and never misattribute categories 2–5 to your own work (category 6 can be a real red on `main`: attribute it to the nightly issue, not to your branch). Full policy:
 [docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
