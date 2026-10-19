@@ -41,8 +41,8 @@ _TESTING_STYLEGUIDE = "testing-style-guide"
 _LANGUAGE_STYLEGUIDE = "python-style-guide"
 _SOURCE_BY_SECTION = {
     "testing_philosophy": ("DIRECTIVE_034", "testing-style-guide"),
-    "quality_gates": ("DIRECTIVE_030", "quality-gates-styleguide"),
-    "documentation_policy": ("DIRECTIVE_037", "documentation-policy-styleguide"),
+    "quality_gates": ("DIRECTIVE_030", "quality-gates-style-guide"),
+    "documentation_policy": ("DIRECTIVE_037", "documentation-policy-style-guide"),
 }
 _CONTROL = "adversarial-qa-handoff"
 _ALL_KINDS = frozenset({"directives", "tactics", "paradigms", "styleguides", "toolguides", "procedures"})
@@ -79,7 +79,12 @@ def _install_overlay(repo_root: Path, overlay: DRGGraph) -> None:
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, ManifestArtifactEntry, SynthesisManifest, finalize_manifest
 
     pack = repo_root / ".kittify" / "charter-packs"
-    pack.mkdir(parents=True, exist_ok=True)
+    (pack / "styleguide").mkdir(parents=True, exist_ok=True)
+    for node in overlay.nodes:
+        if node.kind is NodeKind.STYLEGUIDE:  # the identity index resolves activation tokens through real artifacts
+            slug = node.urn.split(":", 1)[1]
+            body = {"id": slug, "schema_version": "1.0", "title": slug, "scope": "testing", "principles": ["Fixture principle."]}
+            (pack / "styleguide" / f"{slug}.styleguide.yaml").write_text(yaml.safe_dump(body), encoding="utf-8")
     (pack / "graph.yaml").write_text(yaml.safe_dump(overlay.model_dump(mode="json", exclude_none=True)), encoding="utf-8")
     entries = [
         ManifestArtifactEntry(
@@ -155,7 +160,7 @@ def test_snapshot_without_the_table_directive_omits_the_edge_and_does_not_raise(
 
     assert f"styleguide:{_TESTING_STYLEGUIDE}" in {n.urn for n in overlay.nodes}
     assert _edges_into(overlay, f"styleguide:{_TESTING_STYLEGUIDE}") == []
-    assert _edges_into(overlay, "styleguide:quality-gates-styleguide") != []  # control: present directives still link
+    assert _edges_into(overlay, "styleguide:quality-gates-style-guide") != []  # control: present directives still link
 
 
 # --------------------------------------------------------------------------
@@ -203,9 +208,7 @@ def _merged_with_overlay_edges(overlay: DRGGraph) -> DRGGraph:
     return DRGGraph(schema_version="1.0", generated_at=_GENERATED_AT, generated_by="test", nodes=nodes, edges=edges)
 
 
-def _delivered_styleguides(
-    repo_root: Path, *, directives: frozenset[str], styleguides: frozenset[str] | None
-) -> frozenset[str]:
+def _delivered_styleguides(repo_root: Path, *, directives: frozenset[str], styleguides: frozenset[str] | None) -> frozenset[str]:
     overlay = _overlay()
     _install_overlay(repo_root, overlay)
     context = PackContext(
@@ -252,7 +255,7 @@ def test_action_bundle_seeds_no_styleguide_root(tmp_path: Path) -> None:
     """Pin: with the directive off, no explicit list entry seeds a styleguide into the bundle."""
     off = _delivered_styleguides(tmp_path, directives=frozenset(), styleguides=_EXPLICIT | {_CONTROL})
 
-    assert not (off & {_TESTING_STYLEGUIDE, "quality-gates-styleguide", "documentation-policy-styleguide"})
+    assert not (off & {_TESTING_STYLEGUIDE, "quality-gates-style-guide", "documentation-policy-style-guide"})
 
 
 # --------------------------------------------------------------------------
@@ -267,7 +270,8 @@ def _seed_project(repo: Path, **activated: list[str] | None) -> Path:
     kittify = repo / ".kittify"
     (kittify / "charter").mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text("vcs:\n  type: git\ncharter: .kittify/charter/charter.yaml\n", encoding="utf-8")
-    body = _CHARTER_YAML + yaml.safe_dump({key: value for key, value in activated.items() if value is not None})
+    present = {key: value for key, value in activated.items() if value is not None}
+    body = _CHARTER_YAML + (yaml.safe_dump(present) if present else "")
     path = kittify / "charter" / "charter.yaml"
     path.write_text(body, encoding="utf-8")
     return path
@@ -322,12 +326,21 @@ def test_absent_keys_stay_absent_but_creation_is_recorded(tmp_path: Path) -> Non
     assert _record(tmp_path)["created_styleguides"] == [_NEW_STYLEGUIDE]
 
 
-def test_styleguides_already_in_the_manifest_are_not_appended(tmp_path: Path) -> None:
-    """A styleguide the manifest registered before a recording run was not created for the first time."""
-    charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
-    _install_overlay(tmp_path, _overlay())  # manifest registers testing-style-guide
+def test_styleguides_already_in_the_manifest_are_recorded_not_appended(tmp_path: Path) -> None:
+    """A styleguide the manifest registered before a recording run is not created for the first time.
 
-    _append(tmp_path, styleguide=[_TESTING_STYLEGUIDE, _NEW_STYLEGUIDE])
+    The first run creates only a new one; the pre-existing one is recorded without being appended, so
+    a later run that regenerates it (after a prune) does not append it either.
+    """
+    charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
+    _install_overlay(tmp_path, _overlay())  # the manifest registers testing-style-guide and its siblings
+
+    _append(tmp_path, styleguide=[_NEW_STYLEGUIDE])
+
+    assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, _NEW_STYLEGUIDE]
+    assert _TESTING_STYLEGUIDE in _record(tmp_path)["created_styleguides"]
+
+    _append(tmp_path, styleguide=[_TESTING_STYLEGUIDE])  # regenerated later
 
     assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, _NEW_STYLEGUIDE]
 
@@ -398,7 +411,7 @@ def test_legacy_styleguide_applies_edge_is_stripped_and_reported() -> None:
     from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
 
     regenerated = DRGNode(urn=f"styleguide:{_TESTING_STYLEGUIDE}", kind=NodeKind.STYLEGUIDE, label="s")
-    untargeted = DRGNode(urn="styleguide:quality-gates-styleguide", kind=NodeKind.STYLEGUIDE, label="q")
+    untargeted = DRGNode(urn="styleguide:quality-gates-style-guide", kind=NodeKind.STYLEGUIDE, label="q")
     legacy = DRGEdge(source=untargeted.urn, target="directive:DIRECTIVE_030", relation=Relation.APPLIES)
     existing = DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=[regenerated, untargeted], edges=[legacy])
     updated = DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=[regenerated], edges=[])

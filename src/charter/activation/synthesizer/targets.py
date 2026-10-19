@@ -185,6 +185,19 @@ def _validate_source_urns(
         )
 
 
+def _present_source_urns(
+    source_urns: tuple[str, ...],
+    drg_snapshot: dict[str, Any],
+) -> tuple[str, ...]:
+    """Keep the table-declared *source_urns* the run's own DRG snapshot holds (#6442).
+
+    A presence check, not validation: a snapshot without the directive omits the
+    edge instead of raising ``ProjectDRGValidationError``, so no URN ever dangles.
+    """
+    known = _known_drg_urns(drg_snapshot)
+    return tuple(urn for urn in source_urns if urn in known)
+
+
 # ---------------------------------------------------------------------------
 # #3052 edge wiring (FR-012/NFR-007)
 # ---------------------------------------------------------------------------
@@ -299,10 +312,14 @@ def build_targets(
                 artifact_id = slug
 
             # `explicit_source_urns` already resolved to the mission-type
-            # evidence URNs above when the answer context declared none, so
-            # this is a plain rename to the SynthesisTarget field name -- no
-            # combining/deduplication happens here.
-            all_source_urns = explicit_source_urns
+            # evidence URNs above when the answer context declared none. A
+            # per-kind source (#6442) is added for that kind only, after a
+            # presence check against this run's DRG snapshot.
+            kind_urns = _present_source_urns(
+                tuple(answer_context.get("source_urns_by_kind", {}).get(kind, ())),
+                drg_snapshot,
+            )
+            all_source_urns = tuple(dict.fromkeys((*explicit_source_urns, *kind_urns)))
 
             target = SynthesisTarget(
                 kind=kind,
