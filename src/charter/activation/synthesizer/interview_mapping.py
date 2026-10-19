@@ -52,6 +52,7 @@ from charter.offering.missions.mission_type_repository import builtin_mission_ty
 from charter.offering.shared.language_catalog import is_language_family
 
 __all__ = [
+    "STYLEGUIDE_SOURCE_DIRECTIVE_URNS",
     "canonicalize_interview_section_label",
     "normalize_interview_snapshot",
     "resolve_sections",
@@ -140,13 +141,21 @@ INTERVIEW_MAPPINGS: tuple[InterviewSectionMapping, ...] = (
 #: Directive each styleguide-producing section's styleguide elaborates (#6442). A
 #: fixed table: the styleguide is linked FROM that directive and reaches context
 #: only while it is in force. ``targets.build_targets`` keeps the entry only when
-#: the run's DRG snapshot holds the directive (no dangling URN); this module never
+#: the run's DRG snapshot holds the directive (no dangling URN) and the synthesis request
+#: always lists these (``STYLEGUIDE_SOURCE_DIRECTIVE_URNS``); this module never
 #: reads the DRG (R-9). ``language_scope`` styleguides are deliberately unsourced.
 _STYLEGUIDE_SOURCE_DIRECTIVES: dict[str, str] = {
     "testing_philosophy": "DIRECTIVE_034",
     "quality_gates": "DIRECTIVE_030",
     "documentation_policy": "DIRECTIVE_037",
 }
+
+#: Directive URNs of the table above, in table order. The synthesis request lists them in its
+#: DRG snapshot whether or not the directive is selected or active: the styleguide edge is
+#: always emitted (#6442), so the activation filter never decides whether it is a root.
+STYLEGUIDE_SOURCE_DIRECTIVE_URNS: tuple[str, ...] = tuple(
+    f"directive:{directive_id}" for directive_id in _STYLEGUIDE_SOURCE_DIRECTIVES.values()
+)
 
 # Real interview producer keys that feed legacy synthesis section labels.
 _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {

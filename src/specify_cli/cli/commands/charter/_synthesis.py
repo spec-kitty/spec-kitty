@@ -65,6 +65,7 @@ def _build_synthesis_request(
     from charter.activation.pack_context import PackContext
     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
     from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
+    from charter.activation.synthesizer.interview_mapping import STYLEGUIDE_SOURCE_DIRECTIVE_URNS
     from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
 
     import specify_cli.cli.commands.charter as _charter_pkg
@@ -129,17 +130,15 @@ def _build_synthesis_request(
     # fallback) so the two never drift into an inconsistent state where nodes
     # exist for directives no target references.
     drg_nodes = []
-    for directive_id in directives_for_synthesis:
+    # #6442: the styleguide table's source directives are always listed, selected or not, so
+    # the table edge is emitted in every project and an operator's deactivation cannot drop it.
+    snapshot_urns = list(dict.fromkeys([*(f"directive:{d}" for d in directives_for_synthesis), *STYLEGUIDE_SOURCE_DIRECTIVE_URNS]))
+    for urn in snapshot_urns:
         # Only fields ``DRGNode`` declares: the snapshot is validated as a
         # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
         # redundant with the URN suffix, read by nothing, and silently dropped
         # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
-        drg_nodes.append(
-            {
-                "urn": f"directive:{directive_id}",
-                "kind": "directive",
-            }
-        )
+        drg_nodes.append({"urn": urn, "kind": "directive"})
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
