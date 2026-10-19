@@ -49,11 +49,10 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_toolguide_body,
 )
 from charter.activation.context_renderers.section_bodies import render_critical_section_include
-from charter.offering.drg.migration.id_normalizer import normalize_directive_id
+from charter.activation.identity_index import IdentityIndex
 
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
-    from charter.activation.identity_index import IdentityIndex
     from charter.offering.artifact_kinds import ArtifactKind
 
     from charter.repository_protocol import ArtifactRepository
@@ -126,17 +125,16 @@ def _default_missions_root() -> Path:
     return MissionTemplateRepository.default_missions_root()
 
 
-def _include_lookup_id(
-    identity: IdentityIndex | None,
-    kind: ArtifactKind,
-    identifier: str,
-) -> str | None:
-    """Declared id for an ``--include`` token (stem or declared id), or ``None`` when unknown.
+def _include_lookup_id(identity: IdentityIndex | None, kind: ArtifactKind, identifier: str) -> str:
+    """Repository key for an ``--include`` token (stem or declared id).
 
     Repositories are keyed by declared id, so the index turns either spelling of
-    an artifact into the key the repository holds (FR-017, #6406).
+    an artifact into the key the repository holds (FR-017, #6406); an unknown
+    token falls back to :meth:`IdentityIndex.unindexed_key`.
     """
-    return identity.declared_id(kind, identifier) if identity is not None else None
+    if identity is None:
+        return IdentityIndex.unindexed_key(kind, identifier)
+    return identity.lookup_key(kind, identifier)
 
 
 def _render_directive_include(
@@ -159,7 +157,7 @@ def _render_directive_include(
 
     # The index resolves a declared id or a stem; the id normaliser stays as the
     # documented fallback for a directive the index does not know (#3816).
-    directive_id = _include_lookup_id(identity, ArtifactKind.DIRECTIVE, identifier) or normalize_directive_id(identifier)
+    directive_id = _include_lookup_id(identity, ArtifactKind.DIRECTIVE, identifier)
     directive = directives.get(directive_id)
     if directive is None:
         raise ValueError(f"No directive found for selector '{selector}'.")
@@ -187,7 +185,7 @@ def _render_tactic_include(
     """
     from charter.offering.artifact_kinds import ArtifactKind
 
-    tactic_id = _include_lookup_id(identity, ArtifactKind.TACTIC, identifier) or identifier
+    tactic_id = _include_lookup_id(identity, ArtifactKind.TACTIC, identifier)
     tactic = tactics.get(tactic_id)
     if tactic is None:
         raise ValueError(f"No tactic found for selector '{selector}'.")
@@ -338,7 +336,7 @@ def _render_offering_artifact_include(
 
     repo_attr, label, title_attr, body_formatter = renderer
     repo = getattr(service, repo_attr, None)
-    lookup_id = _include_lookup_id(identity, ArtifactKind(kind), identifier) or identifier
+    lookup_id = _include_lookup_id(identity, ArtifactKind(kind), identifier)
     artifact = repo.get(lookup_id) if repo is not None else None
     if artifact is None:
         raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")

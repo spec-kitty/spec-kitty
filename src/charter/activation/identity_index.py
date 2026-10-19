@@ -298,6 +298,27 @@ class IdentityIndex:
                 return entry.stem
         return None
 
+    @staticmethod
+    def unindexed_key(kind: ArtifactKind | None, token: str) -> str:
+        """Key for a *token* no index knows: the directive id normaliser, else the token itself."""
+        return normalize_directive_id(token) if kind is ArtifactKind.DIRECTIVE else token
+
+    def lookup_key(self, kind: ArtifactKind | None, token: str, *, selection: bool = False) -> str:
+        """Repository / comparison key of *token* (stem or declared id): the declared id when known.
+
+        One route for every surface that keys by declared id (selection rendering,
+        ``--include`` lookup, preset comparison; FR-017, #6406). An unknown token
+        falls back to :meth:`unindexed_key`. The two precedences differ only for
+        directives: ``selection=True`` uses :meth:`selection_id` (a declared id beats a
+        coincidentally equal filename, as selections do); the default uses
+        :meth:`declared_id` (stem first, as activation lists and ``--include`` do).
+        """
+        if kind is not None:
+            known = self.selection_id(kind, token) if selection else self.declared_id(kind, token)
+            if known is not None:
+                return known
+        return self.unindexed_key(kind, token)
+
     def activation_id(self, kind: ArtifactKind, token: str, warnings: list[str]) -> str:
         """Single route for activation-list tokens.
 

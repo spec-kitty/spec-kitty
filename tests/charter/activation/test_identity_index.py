@@ -328,3 +328,32 @@ def test_lookup_is_stem_first_across_layers_then_declared_id(tmp_path: Path) -> 
 
     assert index.declared_id(T, "shared-name") == "low-layer-id"
     assert index.source_layer(T, "shared-name") == "org"
+
+
+def test_lookup_key_returns_declared_id_for_either_spelling(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.lookup_key(T, "qa-tactic-seven") == "qa-seven"
+    assert index.lookup_key(T, "qa-seven") == "qa-seven"
+
+
+def test_lookup_key_unknown_token_falls_back_to_unindexed_key(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.lookup_key(T, "ghost") == "ghost"
+    assert index.lookup_key(D, "DIRECTIVE_9999") == IdentityIndex.unindexed_key(D, "DIRECTIVE_9999")
+    assert index.lookup_key(None, "anything") == "anything"
+    assert IdentityIndex.unindexed_key(D, "1") == "DIRECTIVE_001"
+    assert IdentityIndex.unindexed_key(T, "1") == "1"
+
+
+def test_lookup_key_selection_flag_switches_directive_precedence(tmp_path: Path) -> None:
+    """selection=True: a declared id beats a coincidentally equal stem; the default is stem first."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    org = tmp_path / "org"
+    _write(org / "directives", D, "clash", "A_ID")
+    _write(org / "directives", D, "b-file", "clash")
+    (tmp_path / ".kittify").mkdir()
+    _register_org(tmp_path, org)
+    index = IdentityIndex.build(tmp_path)
+
+    assert index.lookup_key(D, "clash") == "A_ID"
+    assert index.lookup_key(D, "clash", selection=True) == "clash"
