@@ -74,9 +74,10 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
 PACKAGE_JSON = "package.json"
 TSCONFIG_JSON = "tsconfig.json"
 
-#: A language whose files make up at least this share of the counted source files is listed
-#: in ``languages`` even without a top-depth manifest (D-06, FR-010). 20% keeps a few
-#: config scripts (a handful of ``.js`` files in a Python repository) out of the evidence.
+#: A secondary language is listed in ``languages`` only when its files make up at least this
+#: share of the counted source files; a manifest alone never lists it (D-06, FR-010,
+#: DM-01M5ASPC). 20% keeps tooling manifests and a few config scripts (a handful of ``.js``
+#: files in a Python repository) out of the evidence.
 _LANGUAGE_SHARE_THRESHOLD = 0.2
 
 _TYPESCRIPT = "typescript"
@@ -190,9 +191,10 @@ def resolve_languages(
 ) -> ObservedLanguages:
     """Return the primary language and every language the repository carries (FR-010).
 
-    Included: every language with a manifest at the shallowest manifest depth, plus any
-    language holding at least ``_LANGUAGE_SHARE_THRESHOLD`` of the counted sources. The
-    primary language is chosen as before: manifests at the shallowest depth win; a JVM
+    Included: the primary language (always), plus any other language holding at least
+    ``_LANGUAGE_SHARE_THRESHOLD`` of the counted sources. A manifest alone only nominates a
+    candidate for the primary (a tooling-only ``package.json`` in a Python repository does
+    not add ``javascript``). The primary language is chosen as before: manifests at the shallowest depth win; a JVM
     manifest picks ``java`` or ``kotlin`` by source counts (ties stay ``java``); several
     languages at that depth are resolved by source counts, then catalog order.
 
@@ -217,7 +219,9 @@ def resolve_languages(
     if shared:
         candidates = [_best_by_count(shared, counts) if lang == shared[0] else lang for lang in candidates]
     primary = _best_by_count(candidates, counts)
-    included = set(candidates) | set(_source_share_languages(counts))
+    # A manifest only nominates a candidate (the primary is the best one); a secondary language
+    # is listed only when it holds the threshold share of the counted sources (DM-01M5ASPC).
+    included = {primary} | set(_source_share_languages(counts))
     return ObservedLanguages(primary, _order_languages(primary, included, counts))
 
 
@@ -380,12 +384,15 @@ class LanguageSettlement:
     ``source`` is ``stored`` (an existing list kept as it was), ``confirmed`` (the operator's
     answer, written), ``detected`` (a non-interactive run stored the detected list because the
     key was absent) or ``none`` (nothing stored). ``languages`` is empty only for ``none``.
+    ``notice`` is set only for ``detected``: it tells the operator what was stored, that it was
+    detected rather than confirmed, and how to change it (DM-01M5ASPC).
     """
 
     languages: tuple[str, ...]
     source: Literal["stored", "confirmed", "detected", "none"]
     detected: tuple[str, ...]
     written: bool
+    notice: str | None = None
 
 
 def parse_language_answer(answer: str) -> tuple[str, ...]:
@@ -411,27 +418,68 @@ def _detect_repository_languages(repo_root: Path) -> tuple[str, ...]:
     return tuple(CodeReadingCollector(repo_root, use_configured_languages=False).collect().languages)
 
 
-def settle_project_languages(repo_root: Path, *, ask: Callable[[str], str] | None) -> LanguageSettlement:
+#: How many times an interactive answer is re-asked after an invalid entry before the step fails.
+LANGUAGE_ANSWER_ATTEMPTS = 3
+
+
+def _detected_notice(languages: tuple[str, ...]) -> str:
+    """Return the notice a non-interactive run shows after storing the detected list."""
+    return (
+        f"Project languages stored as DETECTED, not confirmed: {', '.join(languages)}. "
+        f"To change them, edit '{CONFIG_LANGUAGES_KEY}:' in {_CONFIG_RELATIVE.as_posix()} "
+        "or re-run 'spec-kitty charter interview' interactively."
+    )
+
+
+def _ask_until_valid(
+    ask: Callable[[str], str],
+    proposal: str,
+    on_invalid: Callable[[str], None] | None,
+) -> tuple[str, ...]:
+    """Ask for the language list, re-asking after an invalid answer; raise the last error after the bounded retries."""
+    for attempt in range(1, LANGUAGE_ANSWER_ATTEMPTS + 1):
+        try:
+            return parse_language_answer(ask(proposal))
+        except ValueError as exc:
+            if attempt == LANGUAGE_ANSWER_ATTEMPTS:
+                raise
+            if on_invalid is not None:
+                on_invalid(str(exc))
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _settle_without_asking(repo_root: Path, stored: tuple[str, ...] | None, detected: tuple[str, ...]) -> LanguageSettlement:
+    """Non-interactive settle: keep a stored list, else store the detected one with a notice."""
+    if stored is not None:
+        return LanguageSettlement(stored, "stored", detected, False)
+    if not detected:
+        return LanguageSettlement((), "none", detected, False)
+    write_configured_languages(repo_root, detected)
+    return LanguageSettlement(detected, "detected", detected, True, _detected_notice(detected))
+
+
+def settle_project_languages(
+    repo_root: Path,
+    *,
+    ask: Callable[[str], str] | None,
+    on_invalid: Callable[[str], None] | None = None,
+) -> LanguageSettlement:
     """Detect the repository's languages, propose them, and store the settled list (FR-020).
 
     *ask* receives the proposal (the stored list, else the detected one, comma-separated) and
     returns the operator's answer; it is ``None`` for a non-interactive or ``--defaults`` run,
     which never blocks and never overwrites a stored list: it stores the detected list only
-    when the key is absent. A blank or ``none`` answer leaves the key as it was; an invalid
-    answer raises ``ValueError`` before anything is written.
+    when the key is absent, and says so in ``notice``. An invalid answer is reported through
+    *on_invalid* and asked again, up to ``LANGUAGE_ANSWER_ATTEMPTS`` times; after that
+    ``ValueError`` is raised before anything is written. A blank or ``none`` answer leaves the
+    key as it was.
     """
     stored = configured_languages(repo_root)
     detected = _detect_repository_languages(repo_root)
-    proposal = stored or detected
     if ask is None:
-        if stored is not None:
-            return LanguageSettlement(stored, "stored", detected, False)
-        if not detected:
-            return LanguageSettlement((), "none", detected, False)
-        write_configured_languages(repo_root, detected)
-        return LanguageSettlement(detected, "detected", detected, True)
+        return _settle_without_asking(repo_root, stored, detected)
 
-    confirmed = parse_language_answer(ask(", ".join(proposal)))
+    confirmed = _ask_until_valid(ask, ", ".join(stored or detected), on_invalid)
     if not confirmed:
         return LanguageSettlement(stored or (), "stored" if stored else "none", detected, False)
     if confirmed == stored:

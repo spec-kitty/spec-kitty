@@ -207,12 +207,14 @@ def _settle_languages(repo_root: Path, *, interactive: bool) -> LanguageSettleme
     """Detect, propose and store the project language list in config.yaml (FR-020).
 
     Interactive runs show the stored list (else the detected one) as the default. A
-    ``--defaults`` or non-interactive run never prompts and never overwrites a stored list.
+    ``--defaults`` or non-interactive run never prompts, never overwrites a stored list, and
+    stores the detected list (with a notice) only when the key is absent. An invalid answer
+    is asked again (bounded), then fails without writing.
     """
     from charter.activation.api import settle_project_languages
 
     ask = (lambda default: typer.prompt(_LANGUAGES_PROMPT, default=default)) if interactive else None
-    return settle_project_languages(repo_root, ask=ask)
+    return settle_project_languages(repo_root, ask=ask, on_invalid=lambda message: typer.echo(message, err=True))
 
 
 @charter_app.command()
@@ -447,6 +449,7 @@ def interview(  # noqa: C901
                         "available_tools": interview_data.available_tools,
                         "languages": list(language_settlement.languages),
                         "languages_source": language_settlement.source,
+                        "languages_notice": language_settlement.notice,
                         "org_prefill_messages": org_prefill_messages,
                         "org_prefill_warning": org_prefill_warning,
                         "promotion_warnings": promotion_warnings,
@@ -463,6 +466,8 @@ def interview(  # noqa: C901
         console.print(f"Profile: {interview_data.profile}")
         if language_settlement.languages:
             console.print(f"Languages ({language_settlement.source}): {', '.join(language_settlement.languages)}")
+        if language_settlement.notice:
+            console.print(f"[yellow]Notice:[/yellow] {escape(language_settlement.notice)}")
         for msg in promotion_warnings:
             console.print(f"[yellow]Selection promotion:[/yellow] {msg}")
         for yaml_key, dropped in narrowed.items():
