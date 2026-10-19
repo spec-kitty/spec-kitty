@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02/WP03 approved: tests/charter/test_resolver_activation_gating.py stem and declared-id tokens per kind",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:08:16.771105+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
