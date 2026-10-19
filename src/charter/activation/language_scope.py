@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING
 
 from charter.activation.charter_yaml_io import read_catalog_field
 from charter.activation.interview import packaged_default_answer, read_interview_answers
+from charter.activation.language_authority import declared_languages, expand_language_families
 from charter.activation.language_vocabulary import scoped_language_vocabulary
+from charter.offering.shared.language_catalog import COMPOUND_PREFIX_GUARD
 from charter.offering.shared.scoping import (
     RESERVED_LANGUAGE_TOKENS,
     SENTINEL_LANGUAGE_TOKENS,
@@ -45,42 +47,18 @@ _NEEDS_CLARIFICATION_PREFIX = "[needs clarification"
 
 
 
-_LANGUAGE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("python", (r"\bpython\b", r"\bpytest\b", r"\bmypy\b", r"\bruff\b")),
-    ("typescript", (r"\btypescript\b", r"\btsc\b")),
-    ("javascript", (r"\bjavascript\b", r"\bjest\b", r"\bnode(?:\.js)?\b", r"\bnpm\b", r"\bpnpm\b", r"\byarn\b")),
-    ("rust", (r"\brust\b", r"\bcargo\b", r"\brustc\b")),
-    ("java", (r"\bjava\b", r"\bjunit\b", r"\bgradle\b", r"\bmaven\b")),
-    ("swift", (r"\bswift\b", r"\bxctest\b")),
-    ("ruby", (r"\bruby\b", r"\brspec\b", r"\brails\b")),
-    ("php", (r"\bphp\b", r"\bphpunit\b")),
-)
-
-
-#: A token preceded by ``word-`` is part of a longer compound name (e.g.
-#: ``librespot-java``), not a declaration of that language (#4613).  Trailing
-#: compounds such as ``Java-based`` still match.
-_COMPOUND_PREFIX_GUARD = r"(?<!\w-)"
-
-_COMPILED_PATTERNS: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = tuple(
-    (language, tuple(re.compile(_COMPOUND_PREFIX_GUARD + pattern) for pattern in patterns))
-    for language, patterns in _LANGUAGE_PATTERNS
-)
-
-
 #: Whole words only; ``C#``/``C++``-style tokens are not words and resolve to
 #: ``unknown`` (out of scope by design).
-_WORD_TOKEN = re.compile(_COMPOUND_PREFIX_GUARD + r"\b\w+\b(?![#+])")
+_WORD_TOKEN = re.compile(COMPOUND_PREFIX_GUARD + r"\b\w+\b(?![#+])")
 
 
 def extract_declared_languages(text: str) -> list[str]:
-    """Return canonical language identifiers mentioned in free-form text."""
-    haystack = text.lower()
-    matches: list[str] = []
-    for language, patterns in _COMPILED_PATTERNS:
-        if any(pattern.search(haystack) for pattern in patterns):
-            matches.append(language)
-    return list(normalize_languages(matches))
+    """Return canonical language identifiers mentioned in free-form text.
+
+    Delegates to :func:`charter.activation.language_authority.declared_languages`
+    (the build-token rule included): "Gradle" alone is ``["jvm"]``.
+    """
+    return declared_languages(text)
 
 
 def _normalize_answer(value: object) -> str:
@@ -175,15 +153,17 @@ def lacks_specialist_guidance(languages: Iterable[str] | None, repo_root: Path |
     candidates.  Otherwise reserved tokens are stripped and the remainder is
     compared with :func:`scoped_language_vocabulary`: ``[unknown]`` and
     ``[rust]`` (no shipped rust doctrine) lack guidance, ``[python]`` does not.
-    Drives the charter-extension advisory; the stored languages value is
-    rendered independently.
+    Families are expanded before intersecting (a ``jvm``-scoped artifact is guidance
+    for ``kotlin`` and ``java``). Drives the charter-extension advisory; the stored
+    languages value is rendered independently.
     """
     if languages is None:
         return False
     normalized = set(normalize_languages(languages))
     if not normalized:
         return False
-    return not (normalized - RESERVED_LANGUAGE_TOKENS) & scoped_language_vocabulary(repo_root)
+    active = set(expand_language_families(normalized)) - RESERVED_LANGUAGE_TOKENS
+    return not active & scoped_language_vocabulary(repo_root)
 
 
 def _read_compiled_languages(repo_root: Path) -> list[str] | None:

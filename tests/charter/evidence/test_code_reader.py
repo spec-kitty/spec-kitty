@@ -229,6 +229,21 @@ def test_gradle_kts_root_with_nested_site_is_java(tmp_path):
     assert signals.scope_tag == "java"
 
 
+def test_gradle_kts_root_with_kotlin_majority_is_kotlin(tmp_path):
+    """#6444: the same Gradle shape with Kotlin-majority sources is kotlin, not java."""
+    _make_file(tmp_path / "build.gradle.kts", "")
+    _make_file(tmp_path / "settings.gradle.kts", "")
+    for i in range(3):
+        _make_file(tmp_path / "src" / "main" / "kotlin" / f"K{i}.kt", "")
+    _make_file(tmp_path / "src" / "main" / "java" / "App.java", "class App {}")
+    _site_manifests(tmp_path)
+
+    signals = CodeReadingCollector(tmp_path).collect()
+
+    assert signals.primary_language == "kotlin"
+    assert signals.scope_tag == "kotlin"
+
+
 def test_docs_only_site_is_still_typescript_control(tmp_path):
     """Positive control: with no root indicator the nested site still wins."""
     _site_manifests(tmp_path)
