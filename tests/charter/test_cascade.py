@@ -405,9 +405,7 @@ _BUILT_IN_MISSION_TYPE_URNS: tuple[str, ...] = (
 #: projecting plan's type-wide governance-profile.yaml selections (1 directive,
 #: 9 tactics, 3 paradigms, 1 styleguide) as direct
 #: ``mission_type:plan --scope--> <gov>`` edges, so all four built-in mission
-#: types are now governance-bearing. See
-#: ``test_plan_cascade_reaches_its_authored_governance`` below for the specific
-#: membership assertions, and ``freshly_extracted_graph``'s docstring for why
+#: types are now governance-bearing. See ``freshly_extracted_graph``'s docstring for why
 #: these two tests assert against a freshly-extracted graph rather than
 #: ``built_in_graph`` (the committed goldens ARE re-ledgered in this mission —
 #: byte-identical to the canonical overlay regen, locked by
@@ -554,6 +552,9 @@ def test_instantiates_is_followed_but_template_dropped_at_candidacy() -> None:
     )
     result = cascade_activation_targets(graph, "mission_type:gamma", CascadeScope.all())
     assert result.activated == {}
+    # Reached via ``instantiates`` and only then filtered by kind; an unfollowed
+    # edge would leave this empty too, so pin the reach explicitly.
+    assert result.not_cascaded_kind_filtered == {"template": ["tmpl"]}
 
 
 def test_deactivation_shared_via_widened_set_is_skipped() -> None:

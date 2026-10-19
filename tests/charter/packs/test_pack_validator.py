@@ -143,10 +143,14 @@ class TestValidatePack:
         _write_directive(tmp_path, artifact_id="ACME-001")
         _write_directive(tmp_path, artifact_id="ACME-002")
 
+        assert not (tmp_path / "assets").exists()
+
         result = validate_pack(tmp_path)
 
         assert result.ok is True, result.errors
         assert result.errors == []
+        # An absent ``assets/`` directory is skipped, never reported.
+        assert not any(issue.artifact_type == "assets" for issue in result.advisories), result.advisories
 
     def test_schema_violation(self, tmp_path: Path) -> None:
         _write_directive(

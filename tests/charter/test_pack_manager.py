@@ -519,7 +519,9 @@ class TestMissionTypeLayerPrecedenceOrder:
         detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"org": org_root, "project": project_kittify / "charter-packs"})
 
         assert [entry.layer for entry in detailed if entry.artifact_id == "qa"] == ["org", "project"]
-        assert any(entry.layer == "built-in" for entry in detailed)
+        layers = [entry.layer for entry in detailed]
+        assert "built-in" in layers
+        assert layers.index("built-in") < layers.index("org")
 
 
 class TestMissionTypeProjectLayerNonCollision:
