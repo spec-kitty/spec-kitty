@@ -73,7 +73,7 @@ from charter.activation.synthesizer.synthesize_pipeline import (
 # charter.activation.synthesizer.reach_only.__all__.
 from charter.activation.synthesizer.reach_only import (
     append_synthesized_activations as append_synthesized_activations,
-    created_slugs as created_slugs,
+    created_slugs_by_kind as created_slugs_by_kind,
 )
 
 # Activation write-target resolution — the ``(path, data, save)`` triple a
@@ -117,7 +117,7 @@ __all__ = [
     "append_synthesized_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
-    "created_slugs",
+    "created_slugs_by_kind",
     "finalize_manifest",
     "load_yaml",
     "org_required_stems",

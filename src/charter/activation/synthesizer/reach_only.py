@@ -37,7 +37,7 @@ from charter.offering.drg.models import NodeKind
 from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import project_pack_root
 
-__all__ = ["append_synthesized_activations", "created_slugs", "reach_only_ids"]
+__all__ = ["append_synthesized_activations", "created_slugs_by_kind", "reach_only_ids"]
 
 #: Every reach-only artifact id synthesis has created, per kind; a listed id is never re-appended.
 CREATED_ARTIFACTS_PATH = Path(".kittify/charter/synthesized-artifacts.yaml")
@@ -155,6 +155,18 @@ def _first_time_slugs(
     return first_time
 
 
+#: Kinds whose edge-less artifacts keep today's activation semantics (#6442): only a reach-only one
+#: (sourced from its directive) is appended or recorded. Tactics keep the #6404 behaviour.
+_SOURCED_ONLY_KINDS: frozenset[str] = frozenset({"styleguide"})
+
+
+def _eligible(repo_root: Path, kind: str, slugs: list[str]) -> list[str]:
+    if kind not in _SOURCED_ONLY_KINDS or not slugs:
+        return slugs
+    reach_only = reach_only_ids(repo_root, kind)
+    return [slug for slug in slugs if slug in reach_only]
+
+
 def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> list[str]:
     """Append first-time created slugs to each explicit ``activated_<kind>s`` list; return warnings.
 
@@ -168,6 +180,7 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     manifest's bundle hash is restamped once after a config write.
     """
     slugs_by_kind = {kind: list(dict.fromkeys(created_by_kind.get(kind, ()))) for kind in REACH_ONLY_KINDS}
+    slugs_by_kind = {kind: _eligible(repo_root, kind, slugs) for kind, slugs in slugs_by_kind.items()}
     slugs_by_kind = {kind: slugs for kind, slugs in slugs_by_kind.items() if slugs}
     if not slugs_by_kind:
         return []
@@ -178,7 +191,10 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     first_time = _first_time_slugs(repo_root, slugs_by_kind, recorded)
     # Every slug of a participating kind is recorded, including those already in the manifest.
     updated = {
-        kind: recorded[kind] | set(slugs_by_kind[kind]) | _manifest_slugs(repo_root, kind) if kind in slugs_by_kind else recorded[kind] for kind in REACH_ONLY_KINDS
+        kind: recorded[kind] | set(slugs_by_kind[kind]) | set(_eligible(repo_root, kind, sorted(_manifest_slugs(repo_root, kind))))
+        if kind in slugs_by_kind
+        else recorded[kind]
+        for kind in REACH_ONLY_KINDS
     }
 
     def _record() -> None:
@@ -229,6 +245,11 @@ def _promote(additions: Mapping[str, list[str]], write_target: _WriteTarget) -> 
     target_path, data, save = write_target
     outcome = promote_activations(additions, config_path=target_path, config_data=data, save=save, effective_sets={})
     return [warning for plan in outcome.committed for warning in plan.warnings]
+
+
+def created_slugs_by_kind(reconciliation: object) -> dict[str, list[str]]:
+    """:func:`created_slugs` for every kind in ``REACH_ONLY_KINDS`` (the one place the kind list lives)."""
+    return {kind: created_slugs(reconciliation, kind) for kind in REACH_ONLY_KINDS}
 
 
 def created_slugs(reconciliation: object, kind: str) -> list[str]:
