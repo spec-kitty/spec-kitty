@@ -17,6 +17,7 @@ Import rule: this module must not import ``charter.activation.resolver`` or
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,6 +73,34 @@ class _KindTable:
         return cls(tuple(entries), by_stem, by_id, {stem: frozenset(found) for stem, found in ids.items()})
 
 
+#: A plain top-level scalar ``<id_field>: value`` (no quoting, anchors, tags, flow or block styles, comments).
+_PLAIN_ID_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._ -]*")
+
+
+def _full_parse(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+    declared: str | None = kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
+    return declared
+
+
+def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+    """Declared id of *path*; a plain top-level ``id:`` line skips the full YAML parse (NFR-003).
+
+    Anything the line scan cannot read with certainty (quoted, tagged, flow, block or
+    commented values, or no such line) falls back to the full parse, so the result
+    always equals :func:`kind_vocabulary._read_id`'s.
+    """
+    key = (path, id_field)
+    if key not in resolution_pass.ids:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return _full_parse(path, id_field, yaml, resolution_pass)
+        found = re.search(rf"^{re.escape(id_field)}:[ \t]+(\S[^\n]*?)[ \t]*$", text, re.MULTILINE)
+        if found is not None and _PLAIN_ID_VALUE.fullmatch(found.group(1)):
+            resolution_pass.ids[key] = found.group(1)
+    return _full_parse(path, id_field, yaml, resolution_pass)
+
+
 def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
     """Name the layer a scanned directory belongs to."""
     if project_root is not None and scan_dir.is_relative_to(project_root):
@@ -94,14 +123,27 @@ class IdentityIndex:
     # ------------------------------------------------------------ builders --
 
     @classmethod
-    def build(cls, repo_root: Path, *, org_roots: list[Path] | None = None) -> IdentityIndex:
-        """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain."""
+    def build(
+        cls,
+        repo_root: Path,
+        *,
+        org_roots: list[Path] | None = None,
+        resolution_pass: kind_vocabulary.ResolutionPass | None = None,
+    ) -> IdentityIndex:
+        """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain.
+
+        A caller that already resolved the roots passes *org_roots* and its shared
+        *resolution_pass* so each file is read once per plan (NFR-003).
+        """
         chain = resolve_pack_chain(repo_root, strict=False, quiet=True) if org_roots is None else org_roots
         project = project_pack_root(repo_root)
-        return cls(
+        index = cls(
             org_roots=[root for root in chain if root.is_dir()],
             project_root=project if project.is_dir() else None,
         )
+        if resolution_pass is not None:
+            index._pass = resolution_pass
+        return index
 
     @classmethod
     def from_pack_context(cls, ctx: PackContext, *, repo_root: Path | None = None) -> IdentityIndex:
@@ -137,7 +179,7 @@ class IdentityIndex:
         ):
             layer = _layer_of(scan_dir, self.project_root, self.org_roots)
             for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
-                declared = kind_vocabulary._read_id(path, id_field, yaml, self._pass)
+                declared = _declared_id_of(path, id_field, yaml, self._pass)
                 if declared:
                     entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer))
         return entries

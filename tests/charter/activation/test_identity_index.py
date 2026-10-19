@@ -195,3 +195,36 @@ def test_scan_count_is_one_per_root_per_kind(project: Path, scan_calls: list[Pat
     assert len(set(scan_calls)) == expected_roots
     index.declared_id(ArtifactKind.PARADIGM, _STEM_NE_ID[ArtifactKind.PARADIGM][1])
     assert len(scan_calls) == 2 * expected_roots
+
+
+def test_build_adopts_shared_resolution_pass_and_org_roots(tmp_path: Path) -> None:
+    shared = kind_vocabulary.ResolutionPass()
+    index = IdentityIndex.build(tmp_path, org_roots=[], resolution_pass=shared)
+    assert index._pass is shared
+    assert index.org_roots == []
+    assert IdentityIndex.build(tmp_path, org_roots=[])._pass is not shared
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "id: plain-one\ntitle: x\n",
+        'id: "quoted-one"\n',
+        "id: 'single'\n",
+        "id: tagged # comment\n",
+        "id: |\n  block\n",
+        "title: no id here\n",
+        "nested:\n  id: inner\nid: outer\n",
+        "id: 0\n",
+        "id: [flow]\n",
+        "id:   spaced-id   \n",
+    ],
+)
+def test_declared_id_fast_path_equals_full_parse(tmp_path: Path, body: str) -> None:
+    from charter.activation.identity_index import _declared_id_of
+
+    path = tmp_path / "thing.tactic.yaml"
+    path.write_text(body, encoding="utf-8")
+    yaml = YAML(typ="safe")
+    expected = kind_vocabulary._parse_id(path, "id", yaml)
+    assert _declared_id_of(path, "id", yaml, kind_vocabulary.ResolutionPass()) == expected

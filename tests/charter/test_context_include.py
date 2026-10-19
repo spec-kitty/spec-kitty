@@ -37,6 +37,7 @@ import charter.activation.context as context_module
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.context import build_charter_context_include
 from charter.activation.context_renderers import template_include as template_include_module
+from tests.charter.org_pack_identity_support import write_identity_org_pack
 
 
 pytestmark = pytest.mark.fast
@@ -436,8 +437,6 @@ class TestDirectiveIncludeSlugParity:
 # ---------------------------------------------------------------------------
 # #6406 / FR-017: --include accepts a declared id AND a file stem for every kind
 # ---------------------------------------------------------------------------
-
-from tests.charter.org_pack_identity_support import write_identity_org_pack  # noqa: E402 -- grouped with the #6406 tests below
 
 #: (include token, plural repo attribute, stub-repo declared id, expected header line)
 _IDENTITY_INCLUDE_CASES = [

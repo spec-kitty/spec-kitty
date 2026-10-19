@@ -9,6 +9,7 @@ Covers FR-004, FR-005, FR-006, FR-007:
 from __future__ import annotations
 
 import json
+from typing import Any
 from pathlib import Path
 from unittest.mock import patch
 
@@ -470,17 +471,17 @@ class TestListIdentity:
     """``activated_tactics: [qa-seven]`` activates the artifact in ``qa-tactic-seven.tactic.yaml``."""
 
     @staticmethod
-    def _tactic_row(payload: dict[str, object]) -> dict[str, object]:
-        rows = {row["kind"]: row for row in payload["kinds"]}  # type: ignore[index, union-attr]
-        return rows["tactic"]  # type: ignore[return-value]
+    def _tactic_row(payload: dict[str, Any]) -> dict[str, Any]:
+        rows: dict[str, dict[str, Any]] = {row["kind"]: row for row in payload["kinds"]}
+        return rows["tactic"]
 
     def test_available_entry_carries_declared_id_and_text_shows_both(self, tmp_path: Path) -> None:
         from tests.charter.org_pack_identity_support import write_identity_org_pack
 
         write_identity_org_pack(tmp_path)
 
-        payload = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
-        entries = [e for e in self._tactic_row(payload)["available"] if e["artifact_id"] == "qa-tactic-seven"]  # type: ignore[union-attr]
+        payload: dict[str, Any] = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
+        entries = [e for e in self._tactic_row(payload)["available"] if e["artifact_id"] == "qa-tactic-seven"]
         text = _invoke_list(tmp_path, "--all").output
 
         assert entries == [{"artifact_id": "qa-tactic-seven", "layer": "org", "declared_id": "qa-seven"}]
@@ -492,12 +493,12 @@ class TestListIdentity:
 
         write_identity_org_pack(tmp_path, activated_tactics=[token])
 
-        payload = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
+        payload: dict[str, Any] = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
         row = self._tactic_row(payload)
         text = _invoke_list(tmp_path, "--all").output
 
         assert row["activated"] == [token]
-        assert "qa-tactic-seven" not in {e["artifact_id"] for e in row["available"]}  # type: ignore[union-attr]
+        assert "qa-tactic-seven" not in {e["artifact_id"] for e in row["available"]}
         # Shown once, in the Activated column, and not again as available.
         assert text.count("qa-tactic-seven (qa-seven)") == 1
         # Positive control: an unactivated artifact of the same kind stays available.
