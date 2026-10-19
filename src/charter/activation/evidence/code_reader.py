@@ -17,6 +17,7 @@ from charter.activation.language_authority import (
     EXCLUDED_DIRS,
     TreeObservation,
     ObservedLanguages,
+    configured_languages,
     count_sources_uncapped,
     resolve_languages,
 )
@@ -128,11 +129,16 @@ class CodeReadingCollector:
         Absolute path to the repository root.
     max_depth:
         Maximum directory depth to walk (root = 0).  Defaults to 3.
+    use_configured_languages:
+        When true (default) the operator-confirmed ``languages`` list of
+        ``.kittify/config.yaml`` is the language list when set (FR-020). The interview
+        passes ``False`` to observe the repository for its proposal.
     """
 
-    def __init__(self, repo_root: Path, max_depth: int = 3) -> None:
+    def __init__(self, repo_root: Path, max_depth: int = 3, *, use_configured_languages: bool = True) -> None:
         self._repo_root = repo_root
         self._max_depth = max_depth
+        self._use_configured = use_configured_languages
 
     # ------------------------------------------------------------------
     # Public API
@@ -274,7 +280,14 @@ class CodeReadingCollector:
         return "+".join(parts_stack)
 
     def _detect_languages(self, scan: _TreeScan) -> ObservedLanguages:
-        """Return the observed languages, as decided by the language authority (one walk, NFR-005)."""
+        """Return the configured languages when set, else the observed ones (one walk, NFR-005).
+
+        A configured list is the language authority's answer as it stands: its first entry is
+        the primary language and the uncapped source count never runs.
+        """
+        configured = configured_languages(self._repo_root) if self._use_configured else None
+        if configured:
+            return ObservedLanguages(configured[0], configured)
         return resolve_languages(scan.observation, lambda: count_sources_uncapped(self._repo_root))
 
     @staticmethod

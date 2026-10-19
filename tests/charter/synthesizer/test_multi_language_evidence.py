@@ -153,11 +153,15 @@ def test_single_language_repository_lists_one_entry(tmp_path: Path) -> None:
 
 
 def test_share_rule_adds_a_language_without_a_manifest(tmp_path: Path) -> None:
+    """TypeScript has no manifest anywhere, yet its share of the sources (>= 20%) lists it."""
     _python_only(tmp_path)
     for index in range(2):
         _write(tmp_path, f"src/extra{index}.py")
     for index in range(3):
         _write(tmp_path, f"web/t{index}.ts")
+    # Essential, not a workaround: a single-language repository never runs the uncapped source
+    # count (NFR-005), so the share rule only fires once a second manifest (here ``go.mod``)
+    # names another language. TypeScript itself still has no manifest.
     _write(tmp_path, "go.mod")
     signals = CodeReadingCollector(tmp_path).collect()
     assert "typescript" in signals.languages

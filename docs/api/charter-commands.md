@@ -71,7 +71,35 @@ copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
 | `--available-tools TEXT` | Comma-separated tool IDs override | — |
 | `--narrow-activation` | Replace (not append to) activated directives, tactics and paradigms with the selection plus org-required ids; kinds with no selection are untouched | — |
 | `--mission-slug TEXT` | Mission slug for decision moment paper trail (optional) | — |
-| `--json` | Output JSON | — |
+| `--json` | Output JSON (adds `languages` and `languages_source`: `stored`, `confirmed`, `detected` or `none`) | — |
+
+**Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
+detects the repository's languages (manifests and source counts) and proposes them. You confirm or
+edit the list, primary language first, and it is stored as a top-level list of catalog tokens:
+
+```yaml
+languages:
+  - python
+  - typescript
+```
+
+The key is a plain top-level `languages` list because `charter:` (the charter.yaml pointer) and
+`charter_packs:` are taken. Other keys and comments in `config.yaml` are preserved.
+
+- **Precedence.** When the key is set it is the single list for both synthesis evidence
+  (`languages`, with the first entry as the primary language, and no source-count walk) and
+  doctrine scoping (`infer_repo_languages`, ahead of the compiled `catalog.languages` and the
+  interview free text; synthesis also makes it the `language_scope`, one styleguide per language).
+  File detection and free-text parsing apply only when the key is absent.
+- **Families.** Write members (`kotlin`), never families (`jvm`): a `jvm`-tagged artifact still
+  matches `[kotlin]` because families are expanded at match time.
+- **Validation.** An entry that is not a catalog language, or is a family, is refused when written
+  (`ValueError`; the interview exits 1 and writes nothing). On read it is dropped with a warning;
+  if valid entries remain they alone are used, and if none remain (or the list is empty or not a
+  list) the key reads as absent and detection applies. Answer `none` to leave the key unset.
+- **Re-running.** A later interactive interview shows the stored list as the default.
+- **`--defaults` and non-interactive runs** (`SPEC_KITTY_NON_INTERACTIVE=1`, no TTY) never prompt:
+  they store the detected list only when the key is absent and never overwrite a stored list.
 
 **Examples**:
 ```bash

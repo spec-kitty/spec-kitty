@@ -46,6 +46,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from charter.activation.language_authority import declared_languages, is_catalog_language
 from charter.activation.language_scope import extract_declared_languages, is_placeholder_language_answer
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 from charter.offering.shared.language_catalog import is_language_family
@@ -266,19 +267,29 @@ def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
     languages = _real_languages(_iter_clean_strings(normalized.get("language_scope", [])))
     if not languages and "languages_frameworks" in normalized:
         languages = _extract_languages_from_alias(normalized["languages_frameworks"])
-        if languages:
-            normalized["language_scope"] = list(languages)
     if languages:
+        normalized["language_scope"] = list(languages)
         normalized.pop("languages_frameworks", None)
 
 
 def _real_languages(values: tuple[str, ...]) -> tuple[str, ...]:
-    """Drop placeholder/``unknown`` and family members so they never become a styleguide target.
+    """Return the languages *values* name, through the language authority, as styleguide targets.
 
-    A family token (``jvm``, from a declared "Gradle") is a match-time scope, not a
-    language: it synthesizes no ``jvm-style-guide`` (FR-013).
+    Each entry is read by :func:`~charter.activation.language_authority.declared_languages`
+    (``"Python 3.12"`` names ``python``), and a catalog token stands for itself (``go``,
+    which free text cannot declare). Placeholder/``unknown`` entries and family members are
+    dropped: a family token (``jvm``, from a declared "Gradle") is a match-time scope, not a
+    language, so it synthesizes no ``jvm-style-guide`` (FR-013). An entry nothing recognises
+    keeps its own lower-cased spelling.
     """
-    return tuple(value for value in values if not is_placeholder_language_answer(value) and not is_language_family(value))
+    languages: list[str] = []
+    for value in values:
+        if is_placeholder_language_answer(value):
+            continue
+        token = value.strip().lower()
+        named = [token] if is_catalog_language(token) else declared_languages(value) or [token]
+        languages.extend(item for item in named if not is_language_family(item) and item not in languages)
+    return tuple(languages)
 
 
 def _extract_languages_from_alias(raw_alias: object) -> tuple[str, ...]:
