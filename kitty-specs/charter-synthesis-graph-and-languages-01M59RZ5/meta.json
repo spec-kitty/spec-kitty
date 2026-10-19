@@ -1,6 +1,8 @@
 {
+  "accept_commit": "3f3760c58b849b50d17ac5cdd51cf1667886a2b3",
   "acceptance_history": [
     {
+      "accept_commit": "3f3760c58b849b50d17ac5cdd51cf1667886a2b3",
       "acceptance_mode": "pr",
       "accepted_at": "2026-10-19T20:37:25.578839+00:00",
       "accepted_by": "claude-code/opus",
