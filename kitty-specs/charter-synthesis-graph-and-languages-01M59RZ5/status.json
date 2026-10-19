@@ -1,7 +1,7 @@
 {
-  "event_count": 79,
-  "last_event_id": "01M5AXF44M2JZ53W0FRS44BDWG",
-  "materialized_at": "2026-10-19T20:25:52.888196+00:00",
+  "event_count": 80,
+  "last_event_id": "01M5AXRS9B94SAJ4EB21Y5J4YG",
+  "materialized_at": "2026-10-19T20:31:09.611717+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -190,15 +190,15 @@
       }
     },
     "WP06": {
-      "actor": "implement-command",
+      "actor": "user",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "implement-command",
-      "lane": "in_progress",
-      "last_event_id": "01M5AXF44M2JZ53W0FRS44BDWG",
-      "last_transition_at": "2026-10-19T20:25:52.888196+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5AXRS9B94SAJ4EB21Y5J4YG",
+      "last_transition_at": "2026-10-19T20:31:09.611717+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-19T20:04:53Z – claude – shell_pid=16475 – T026-T028 done in core. Retag commit b407d10b9 (java-supply-chain, maven-review-checks -> jvm; pack-manifest regenerated; regenerate-graph --check green). Golden commit 85a8dd2b5. Golden vs main (prose): the synthesized testing, quality-gates and documentation styleguides move from compiled-references roots to reach-only, linked from DIRECTIVE_034/030/037, and are newly delivered in software-dev implement and review while those directives are in force; the always-synthesized directive is labelled 'Project Intent Directive' (slug project-intent-directive, PROJECT_001) with no requires edge to a mission type; evidence languages is [kotlin, typescript] (was a single primary language); kotlin-style-guide and typescript-style-guide stay unsourced. Default golden unchanged. T029 pending orchestrator re-seed; expected core clean_tree_digest 0f6f1d2a423c4f1c347264975fa3a39936ba024bd36330152124b67d2feb57ba (vs pin 0899b1d5...). Red until pin bump: vendor --check (exit 1, drift from pin 7f063aec), test_built_in_drift_gate::test_committed_tree_matches_pin, test_built_in_pin (digest_matches_lockfile, resolver_resolves_to_pinned_bytes), test_built_in_release_parity::test_built_wheel_built_in_digest_equals_pin.",
@@ -216,10 +216,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T026": "planned",
-        "T027": "planned",
-        "T028": "planned",
-        "T029": "planned"
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
       }
     },
     "WP07": {
