@@ -118,10 +118,10 @@
       "criterion_id": "FR-012",
       "description": "Verify FR-012 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP06 approved: tests/specify_cli/cli/commands/charter/test_activate_only_6408.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:08:48.309535+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
