@@ -384,6 +384,8 @@ class MigrationRunner:
         # next `spec-kitty upgrade` retries once the symlink is gone.
         try:
             migration_needed = migration.detect(self.project_path)
+        except NotInsideRepositoryError:
+            return self._not_inside_repository_skip(migration)
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             if not dry_run:
                 self._record_migration_result(
@@ -481,6 +483,11 @@ class MigrationRunner:
         record nothing, and let a run inside a repository apply it. Only this
         one exception type is caught, so a migration that wrote state and then
         failed for any other reason still surfaces as a failure.
+
+        The ``detect()`` and ``can_apply()`` catches are safe by construction (they
+        run before any write). The ``apply()`` catch is safe only because the known
+        raiser resolves the repo root before it writes anything; a migration that
+        wrote first and then raised this error would be skipped with partial state.
         """
         return (
             MigrationResult(
