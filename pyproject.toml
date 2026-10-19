@@ -135,7 +135,13 @@ spec-kitty = "specify_cli:main"
 # `twine==6.*` (pkginfo) rejects as "not a valid metadata version" — failing
 # `twine check` before publish. hatchling 1.31.0 emits the widely-accepted
 # `2.4`. Keep this in lockstep with uv.lock's hatchling entry.
-requires = ["hatchling==1.31.0"]
+# The custom build hook (hatch_build.py) imports charter.offering.packs.pack_fetch from
+# src/ to verify/fetch the pinned packs/built-in tree. Measured import closure of that
+# import (python -I, src/ on sys.path): ruamel.yaml, pydantic (with its own
+# pydantic-core / annotated-types / typing-extensions), packaging, python-ulid. These run
+# arbitrary code in the build environment, so they are pinned EXACTLY to the uv.lock
+# versions (supply chain), like hatchling. Keep every pin in lockstep with uv.lock.
+requires = ["hatchling==1.31.0", "ruamel.yaml==0.19.1", "pydantic==2.13.3", "packaging==26.2", "python-ulid==3.1.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -200,11 +206,24 @@ artifacts = [
 #
 # SCOPED TO `packs/built-in` ON PURPOSE: only the public product doctrine ships to
 # consumers. Other repo-local packs (e.g. `packs/internal/`, the maintainer-only
-# org-tier pack) must NOT be force-included into the wheel. Guarded by
+# org-tier pack) must NOT be shipped. Guarded by
 # tests/cross_cutting/packaging/test_packaging_safety.py.
-force-include = { "packs/built-in" = "packs/built-in" }
+#
+# The wheel's `packs/built-in` -> `packs/built-in` force-include is NOT declared here:
+# the build hook (hatch_build.py, registered below) adds it to `build_data["force_include"]`
+# only after the tree has been fetched/verified against packs/built-in.source.yaml, so a
+# stale or missing tree fails the build instead of shipping (#6451).
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
+# The pinned built-in tree is fetched, not tracked, so VCS-ignore would drop it from the
+# sdist; `artifacts` re-adds it (and `include` selects it). The pin file travels with it so
+# a wheel can be built from the sdist offline with a verify-only hook.
+artifacts = [
+    "packs/built-in/**",
+]
 include = [
     "src/**/*",
     # Relocated built-in doctrine packs — a top-level tree that `src/**/*` excludes.
@@ -212,6 +231,8 @@ include = [
     # relocate-builtin-doctrine-packs-01KYT87F, WP05 / NFR-002). Scoped to
     # `packs/built-in/**` so the maintainer-only `packs/internal/` pack never ships.
     "packs/built-in/**",
+    "packs/built-in.source.yaml",
+    "hatch_build.py",
     "src/charter/offering/curation/imports/**/*",
     "README.md",
     "LICENSE",
@@ -232,6 +253,10 @@ exclude = [
     # and shipped them in the sdist. tests/cross_cutting/packaging/test_packaging_safety.py reads the built archive for this.
     "services/**",
     "contracts/**",
+    # The bare `README.md` include above also matches packs/internal/README.md; the
+    # maintainer-only internal pack must never ship (C-002).
+    "packs/internal/**",
+    "packs/internal.source.yaml",
 ]
 
 # NOTE: pytest configuration (markers, pythonpath, testpaths, addopts) lives in
@@ -943,7 +968,6 @@ exclude = [
     "tests/charter/test_activation_engine_charter_yaml.py",
     "tests/charter/test_activation_identifier_normalization.py",
     "tests/charter/test_activation_vocabulary_setequal.py",
-    "tests/charter/test_alias_deleted_regression.py",
     "tests/charter/test_bundle_contract.py",
     "tests/charter/test_bundle_manifest_model.py",
     "tests/charter/test_bundle_validate_cli.py",
@@ -1031,8 +1055,6 @@ exclude = [
     "tests/charter/test_schemas_additive_fields.py",
     "tests/charter/test_schemas_selection.py",
     "tests/charter/test_section_selector_graceful_degrade.py",
-    "tests/charter/test_sonar_complexity_a_helpers.py",
-    "tests/charter/test_sonar_complexity_b_helpers.py",
     "tests/charter/test_tension_cascade_exclusion.py",
     "tests/charter/test_tension_unreconciled.py",
     "tests/charter/test_worktree_charter_via_canonical_root.py",
@@ -1137,7 +1159,6 @@ exclude = [
     "tests/charter_offering/test_pack_relocation_preflight.py",
     "tests/charter_offering/test_pack_version_relocation.py",
     "tests/charter_offering/test_package_smoke.py",
-    "tests/charter_offering/test_packaging_parity.py",
     "tests/charter_offering/test_paula_patterns_artifacts.py",
     "tests/charter_offering/test_post_validate_success_hook.py",
     "tests/charter_offering/test_procedure_consistency.py",

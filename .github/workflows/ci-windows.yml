@@ -122,6 +122,14 @@ jobs:
           echo "Using pipx venv Python: $VENV_PYTHON"
           echo "venv_python=$VENV_PYTHON" >> "$GITHUB_OUTPUT"
 
+      # #6451: packs/built-in and packs/internal are fetched from the pinned
+      # open-packs commits (NFR-004: the Windows leg must sync too), using the
+      # pipx venv interpreter so the script sees the installed dependencies.
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+        with:
+          python-exe: ${{ steps.pipx-venv.outputs.venv_python }}
+
       - name: Assert keyring is NOT installed on Windows
         shell: bash
         run: |

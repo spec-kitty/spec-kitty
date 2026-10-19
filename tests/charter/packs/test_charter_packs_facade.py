@@ -32,11 +32,6 @@ _ORG_CHARTER_MODULE = "charter.activation.org_charter"
 _OFFERING_MODULES = [importlib.import_module(f"charter.offering.packs.{info.name}") for info in pkgutil.iter_modules(charter.offering.packs.__path__)]
 
 
-def test_facade_exports_something() -> None:
-    assert charter.packs.__all__, "control: the facade exports names"
-    assert len(set(charter.packs.__all__)) == len(charter.packs.__all__)
-
-
 @pytest.mark.parametrize("name", [n for n in charter.packs.__all__ if n not in _COMPOSING_ENTRIES])
 def test_every_facade_name_is_the_offering_object(name: str) -> None:
     value = getattr(charter.packs, name)

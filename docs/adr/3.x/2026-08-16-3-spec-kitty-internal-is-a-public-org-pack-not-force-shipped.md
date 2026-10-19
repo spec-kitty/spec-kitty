@@ -136,3 +136,12 @@ system's purpose.
   scoped to `packs/built-in`, guard test tightened.
 * Companion decision (source of truth + re-vendor): `2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md`.
 * Catalog: `spec-kitty-open-packs/docs/packs/catalog-proposal.md` (pack #16).
+
+## Amendment (2026-10-19 — cross-reference, #6451)
+
+No decision change. `packs/internal/` is now pinned and fetched like `packs/built-in/`: its
+source lives in `spec-kitty-open-packs` (`packs/internal`), core holds only
+`packs/internal.source.yaml`, and `make sync-packs` places the tree. It is still never
+shipped: the wheel and sdist exclude it and `tests/cross_cutting/packaging/test_packaging_safety.py`
+is extended to cover the fetched tree and the `source.yaml` pins. See the 2026-10-19 amendment to
+`2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md`.

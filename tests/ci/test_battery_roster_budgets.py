@@ -178,6 +178,17 @@ def _base_files(spec: BatterySpec) -> tuple[str, ...]:
     return shard_select.enumerate_base_files(spec.base.paths, deselect=spec.base.deselect, root=_REPO_ROOT)
 
 
+def _report_census_problems(problems: Sequence[str]) -> None:
+    """Census-vs-registry mismatches warn per PR and fail only under the strict switch.
+
+    The committed timings are recaptured by CI on a schedule and drift with runner
+    speed, so a mismatch is never a PR blocker (operator ruling 2026-10-19, #6483);
+    ``ci-shard-recapture.yml`` sets the strict switch and owns the red.
+    """
+    if problems:
+        _report_drift("battery census drift: " + "; ".join(problems), strict=_strict_mode())
+
+
 def test_battery_timings_present_with_provenance() -> None:
     spec = _spec()
     timings = _timings(spec)
@@ -188,21 +199,21 @@ def test_battery_timings_present_with_provenance() -> None:
 
 def test_every_roster_file_is_timed_and_within_budget() -> None:
     spec = _spec()
-    assert roster_budget_problems(spec, _timings(spec)) == []
+    _report_census_problems(roster_budget_problems(spec, _timings(spec)))
 
 
 def test_roster_budgets_follow_the_one_rule() -> None:
     spec = _spec()
     timings = _timings(spec)
     assert timings, "no battery timings to derive budgets from"
-    assert budget_rule_problems(spec, timings) == []
+    _report_census_problems(budget_rule_problems(spec, timings))
 
 
 def test_roster_total_within_cap() -> None:
     spec = _spec()
     timings = _timings(spec)
     assert timings, "no battery timings to total"
-    assert roster_total_problems(spec, timings) == []
+    _report_census_problems(roster_total_problems(spec, timings))
 
 
 def test_predicted_legs_balanced(capsys: pytest.CaptureFixture[str]) -> None:
@@ -213,7 +224,7 @@ def test_predicted_legs_balanced(capsys: pytest.CaptureFixture[str]) -> None:
     fast_load = sum(timings[path] for path in spec.roster_paths)
     with capsys.disabled():
         print(f"\npredicted loads (worker-s): fast={fast_load:.1f} " + " ".join(f"{leg}={load:.1f}" for leg, load in partition.loads.items()))
-    assert leg_balance_problems(partition.loads) == []
+    _report_census_problems(leg_balance_problems(partition.loads))
     untimed = untimed_base_problems(sorted(partition.resolution.missing), _base_files(spec))
     if untimed:
         _report_drift(" ".join(untimed), strict=_strict_mode())

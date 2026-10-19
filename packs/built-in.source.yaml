@@ -1,10 +1,12 @@
-# Pin lockfile: which spec-kitty-open-packs commit packs/built-in/ was vendored from.
+# Pin lockfile: which spec-kitty-open-packs commit this pack was taken from.
 # Direction: open-packs -> core. (open-packs' own built-in.source.yaml records the
-# OPPOSITE anchor, core -> open-packs.) tree_digest = clean_tree_digest(packs/built-in,
-# level=built-in); this file sits OUTSIDE packs/built-in/ and is never digested.
-repository: git@github.com:spec-kitty/spec-kitty-open-packs.git
-commit: 7f063aecbdede29d05cc4d5fc9a5b13f9c7434d7
+# OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,
+# not vendored; tree_digest = clean_tree_digest(<subtree>, level=<tree_digest.level>).
+repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
+commit: 3fb9a7f08ecae3cc56d01c9c75cfc9fb74eb9a68
+subtree: packs/built-in
 tree_digest:
   algorithm: clean-tree-sha256
   value: 0899b1d54841443f995af8d83c718057344db22bf963481e58f6377650f2d0a2
+  level: built-in
 requires_core: '>=4.0.0rc7,<5'

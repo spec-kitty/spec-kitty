@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
+.PHONY: help dev-setup sync-packs lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -8,7 +8,11 @@ help: ## Show available targets
 
 dev-setup: ## Sync deps and install all slash commands for configured agents
 	uv sync --frozen --all-extras
+	$(MAKE) sync-packs
 	uv run --frozen spec-kitty doctor skills --fix
+
+sync-packs: ## Fetch and verify packs/built-in and packs/internal (test-fast does NOT sync; run once per worktree)
+	uv run --frozen python scripts/sync_packs.py --pack all
 
 lint: ## Run ruff linter
 	uv run --frozen ruff check src/

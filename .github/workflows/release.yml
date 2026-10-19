@@ -126,6 +126,7 @@ jobs:
       - name: Install tooling
         run: |
           uv sync --frozen --python "$(which python)" --extra test --extra lint
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           .venv/bin/pip install twine==6.2.0 tomli==2.4.1
 
@@ -182,8 +183,8 @@ jobs:
           fi
         shell: bash
 
-      - name: Verify built-in pack pin (fail-closed on drift)
-        run: uv run --frozen spec-kitty charter pack vendor --check
+      - name: Verify the fetched packs equal their pins (fail-closed on drift)
+        run: uv run --frozen --no-sync python scripts/sync_packs.py --pack all --check
 
       - name: Build distributions
         run: python -m build

@@ -222,6 +222,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("apply_spdd_blocks_for_project", "charter.offering.spdd_reasons"),
     ],
     "charter.pack_paths": [
+        ("BuiltInPackMissing", "charter.offering.pack_paths"),
         ("PackRootNotFound", "charter.offering.pack_paths"),
         ("built_in_dir", "charter.offering.pack_paths"),
         ("built_in_root", "charter.offering.pack_paths"),
@@ -279,14 +280,33 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("RETIRED_PACK_FIELD", "charter.offering.packs.pack_validator"),
         # #3504: the ``charter pack vendor`` command reaches the built-in pin, core-compat
         # and clean-digest helpers (lazily) through this door, not charter.offering.packs.*.
+        # #6451: BuiltInPin/BuiltInPinError are transitional aliases of PackPin/PackPinError.
         ("BuiltInPin", "charter.offering.packs.built_in_pin"),
         ("BuiltInPinError", "charter.offering.packs.built_in_pin"),
-        ("TreeDigest", "charter.offering.packs.built_in_pin"),
         ("load_built_in_pin", "charter.offering.packs.built_in_pin"),
+        ("PackPin", "charter.offering.packs.pack_pin"),
+        ("PackPinError", "charter.offering.packs.pack_pin"),
+        ("TreeDigest", "charter.offering.packs.pack_pin"),
+        ("load_pack_pin", "charter.offering.packs.pack_pin"),
+        ("verify_pack_pin", "charter.offering.packs.pack_pin"),
+        ("write_pack_pin", "charter.offering.packs.pack_pin"),
         ("verify_built_in_pin", "charter.offering.packs.built_in_pin"),
         ("write_built_in_pin", "charter.offering.packs.built_in_pin"),
         ("check_requires_core", "charter.offering.packs.core_compat"),
         ("clean_tree_digest", "charter.offering.packs.pack_clean_digest"),
+        # #6451: ``charter pack vendor`` checks placed trees and validates subtrees through this door.
+        ("PackTreeStatus", "charter.offering.packs.pack_fetch"),
+        ("check_pack", "charter.offering.packs.pack_fetch"),
+        # #6451: scripts/sync_packs.py fetches, places and reports pack trees through this door.
+        ("PACK_COMMIT_UNRESOLVABLE", "charter.offering.packs.pack_fetch"),
+        ("PACK_DIGEST_MISMATCH", "charter.offering.packs.pack_fetch"),
+        ("PACK_PIN_INVALID", "charter.offering.packs.pack_fetch"),
+        ("PACK_SYNC_UNAVAILABLE", "charter.offering.packs.pack_fetch"),
+        ("PACK_TREE_STALE", "charter.offering.packs.pack_fetch"),
+        ("PackSyncError", "charter.offering.packs.pack_fetch"),
+        ("fetch_to_cache", "charter.offering.packs.pack_fetch"),
+        ("place_pack", "charter.offering.packs.pack_fetch"),
+        ("validate_subtree", "charter.offering.packs.pack_pin"),
     ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),

@@ -5,6 +5,7 @@ Covers FR-001 / FR-002 / NFR-001 / C-006 / SC-002 / SC-004.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -13,12 +14,12 @@ from charter.offering.pack_paths import resolve_pack_root
 from charter.offering.packs.built_in_pin import (
     BuiltInPin,
     BuiltInPinError,
-    TreeDigest,
     load_built_in_pin,
     verify_built_in_pin,
     write_built_in_pin,
 )
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
+from charter.offering.packs.pack_pin import TreeDigest
 from kernel.pack_tiers import BUILT_IN
 
 _THIS = Path(__file__).resolve()
@@ -26,7 +27,7 @@ REPO_ROOT = _THIS.parents[2]
 PACK_ROOT = REPO_ROOT / "packs" / "built-in"
 LOCKFILE = REPO_ROOT / "packs" / "built-in.source.yaml"
 SHA = "7f063aecbdede29d05cc4d5fc9a5b13f9c7434d7"
-REPO_URL = "git@github.com:spec-kitty/spec-kitty-open-packs.git"
+REPO_URL = "https://github.com/spec-kitty/spec-kitty-open-packs.git"
 
 
 def _pin(
@@ -72,7 +73,7 @@ def test_lockfile_is_sibling_of_not_inside_digested_tree() -> None:
 def test_seeded_pin_provenance() -> None:
     pin = load_built_in_pin(LOCKFILE)
     assert pin.repository == REPO_URL
-    assert pin.commit == SHA
+    assert re.fullmatch(r"[0-9a-f]{40}", pin.commit)  # a pin bump must not break this test
     assert pin.tree_digest.algorithm == "clean-tree-sha256"
     assert pin.requires_core == ">=4.0.0rc7,<5"
 

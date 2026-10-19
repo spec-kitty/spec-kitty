@@ -56,7 +56,7 @@ writes `pack_level: project` into an existing project pack.
 
 `spec-kitty charter pack regenerate-graph [--check] --pack-root <dir>`
 regenerates (or, with `--check`, verifies) the sharded `*.graph.yaml` fragments
-and `pack-manifest.yaml` for a vendored copy of a **built-in-level** pack. The
+and `pack-manifest.yaml` for a fetched copy of a **built-in-level** pack. The
 root needs a valid `pack.yaml` declaring `pack_level: built-in`; org and project
 packs are refused with exit 1 before anything is written, because the generators
 would overwrite their `graph.yaml` or write a wrong manifest. Without the flag

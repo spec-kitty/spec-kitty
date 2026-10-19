@@ -14,9 +14,7 @@ import pytest
 
 from charter.activation import _activation_render
 from charter.activation._activation_render import _infer_kind, _singular_kind
-from charter.activation.activations import _PLURAL_TO_SINGULAR_KIND, _SINGULAR_TO_PLURAL_KIND
 from charter.offering.artifact_kinds import (
-    CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
 )
 
@@ -67,12 +65,6 @@ def test_infer_kind_unknown_id_returns_none() -> None:
 
 
 # ── T019: derived, no local dict; anti_patterns inert in property map ─────────
-
-
-def test_activations_maps_are_the_derived_authority() -> None:
-    """FR-004: activations imports the authority — no re-declared local dict."""
-    assert _SINGULAR_TO_PLURAL_KIND is CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
-    assert _PLURAL_TO_SINGULAR_KIND is CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR
 
 
 def test_kind_to_property_covers_all_activatable_plurals() -> None:

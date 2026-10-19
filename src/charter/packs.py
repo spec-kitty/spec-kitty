@@ -28,10 +28,30 @@ from charter.activation.org_charter import (
 from charter.offering.packs.built_in_pin import (
     BuiltInPin,
     BuiltInPinError,
-    TreeDigest,
     load_built_in_pin,
     verify_built_in_pin,
     write_built_in_pin,
+)
+from charter.offering.packs.pack_fetch import (
+    PACK_COMMIT_UNRESOLVABLE,
+    PACK_DIGEST_MISMATCH,
+    PACK_PIN_INVALID,
+    PACK_SYNC_UNAVAILABLE,
+    PACK_TREE_STALE,
+    PackSyncError,
+    PackTreeStatus,
+    check_pack,
+    fetch_to_cache,
+    place_pack,
+)
+from charter.offering.packs.pack_pin import (
+    PackPin,
+    PackPinError,
+    TreeDigest,
+    load_pack_pin,
+    validate_subtree,
+    verify_pack_pin,
+    write_pack_pin,
 )
 from charter.offering.packs.builtin_manifest import (
     builtin_manifest_is_fresh,
@@ -80,6 +100,14 @@ from charter.offering.packs.retired_fields import (
 )
 
 __all__ = [
+    "PACK_COMMIT_UNRESOLVABLE",
+    "PACK_DIGEST_MISMATCH",
+    "PACK_PIN_INVALID",
+    "PACK_SYNC_UNAVAILABLE",
+    "PACK_TREE_STALE",
+    "PackSyncError",
+    "fetch_to_cache",
+    "place_pack",
     "RECOGNISED_ARTIFACT_DIRS",
     "RETIRED_PACK_FIELD",
     "ActivationPreset",
@@ -87,6 +115,9 @@ __all__ = [
     "BuiltInPin",
     "BuiltInPinError",
     "OfferingPack",
+    "PackPin",
+    "PackPinError",
+    "PackTreeStatus",
     "PresetFormatError",
     "PresetNotFoundError",
     "RetiredPackFieldError",
@@ -96,6 +127,7 @@ __all__ = [
     "assemble_pack",
     "assemble_pack_with_org_charter",
     "builtin_manifest_is_fresh",
+    "check_pack",
     "check_requires_core",
     "clean_tree_digest",
     "count_snapshot_artifacts",
@@ -103,6 +135,7 @@ __all__ = [
     "generate_builtin_manifest",
     "list_offering_packs",
     "load_built_in_pin",
+    "load_pack_pin",
     "load_pack_descriptor",
     "load_preset",
     "load_preset_file",
@@ -117,8 +150,11 @@ __all__ = [
     "source_fingerprint",
     "strip_source_credentials",
     "validate_pack",
+    "validate_subtree",
     "verify_built_in_pin",
+    "verify_pack_pin",
     "validate_pack_with_org_charter",
     "write_built_in_pin",
+    "write_pack_pin",
     "write_pack_manifest",
 ]

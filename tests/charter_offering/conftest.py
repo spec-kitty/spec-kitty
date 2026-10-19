@@ -44,6 +44,28 @@ BUILT_IN_MISSIONS_ROOT: Path = REPO_ROOT / "packs" / "built-in" / "missions"
 
 
 # ---------------------------------------------------------------------------
+# Session-start guard: a missing built-in pack is loud, never a skip (A4)
+# ---------------------------------------------------------------------------
+
+
+def ensure_built_in_pack_present() -> None:
+    """Raise ``BuiltInPackMissing`` (naming ``make sync-packs``) when the tree is absent.
+
+    ``make sync-packs`` must run once per worktree (implement and review
+    worktrees included). Only the built-in tree is checked; a skip would hide
+    the whole suite going vacuous.
+    """
+    from charter.offering.pack_paths import built_in_root
+
+    built_in_root()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _built_in_pack_present() -> None:
+    ensure_built_in_pack_present()
+
+
+# ---------------------------------------------------------------------------
 # Built-in DRG graph seam fixtures (WP03/T012 seam, WP04/T018, FR-009, NFR-007)
 # ---------------------------------------------------------------------------
 #

@@ -245,3 +245,9 @@ pytest-of-*/
 # Allure results and generated reports from the acceptance-jvm runner
 acceptance-jvm/allure-results/
 acceptance-jvm/allure-report/
+
+# Packs are fetched from the commit pinned in packs/*.source.yaml (spec-kitty-open-packs),
+# never authored here: run `make sync-packs`. NOTE: still tracked until WP09 removes the
+# trees from the index; .gitignore alone does not untrack files.
+/packs/built-in/
+/packs/internal/

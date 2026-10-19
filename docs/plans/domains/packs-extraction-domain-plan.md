@@ -48,7 +48,7 @@ content across a package, wheel or repository boundary:
   **Superseded 2026-10-19:** the charter code is not extracted to its own repository; see the
   note under *Open work* below.
 - **Content.** Doctrine content for **both** pack tiers is authored in `spec-kitty-open-packs`
-  and vendored into the repository at release: `packs/built-in/` (#3504) and, as of the
+  and pinned to a commit in `packs/<pack>.source.yaml`, then fetched by `make sync-packs` and the wheel build hook: `packs/built-in/` (#3504, #6451) and, as of the
   2026-10-12 direction update, `packs/internal/` as well — a **source-location move only**. A
   later step may fetch built-in content at runtime (#3022). The packaging invariants are
   unchanged (§3.2).
@@ -125,7 +125,7 @@ narrowed to `packs/built-in/`, guarded by `tests/cross_cutting/packaging/test_pa
 Moving a tier's *source* changes neither its presence nor its exclusion in the consumer install.
 
 **Design of record.** ADR `2026-08-16-2` (Accepted) chose Option B: author the content in
-`spec-kitty-open-packs`, and have a release step vendor a pinned, checksummed ref before
+`spec-kitty-open-packs`, and have the build fetch a pinned, checksummed ref before
 `hatch build`. **Direction update 2026-10-12:** that open-packs source home now covers **both**
 tiers — `packs/built-in/` and `packs/internal/`. This is a **source-location move only** and is
 **not** a reversal of ADR `2026-08-16-3` (internal is a public org pack, not force-shipped);
@@ -133,7 +133,7 @@ it extends the already-chosen built-in provenance to name internal's source home
 packaging code or gate changes for it.
 
 **Open work.**
-- #3504 builds the re-vendor pipeline and a local `materialize` path for contributors.
+- #3504 and #6451 build the pin-and-fetch pipeline (`make sync-packs`; `charter pack vendor` is now a pin-bump helper).
 - #3022 is the deferred Option C: fetching built-in content at runtime like an org pack.
   It raises hard questions: `PackContext.pack_roots` assumes the built-in root is at
   index 0, and a missing pack would become a failure mode for every consumer's baseline
@@ -187,7 +187,7 @@ A snapshot for orientation. Check live state with
 | Mission data into `packs/built-in/missions` | 3.3 | #3091 | **Landed** (PR #3204) |
 | Curated public surface `charter.offering.api` | 3.1 | #3179 | Largely landed |
 | Doctrine/charter wheel split | 3.1 | #3101 | Open, design spike, Product backlog |
-| Re-vendor open-packs into `packs/built-in/` | 3.2 | #3504 | Open, Product backlog |
+| Pin and fetch open-packs into `packs/built-in/` and `packs/internal/` | 3.2 | #3504, #6451 | Landed on branch `feat/6451-built-in-from-open-packs`; pending merge |
 | Runtime-fetched built-in pack (Option C) | 3.2 | #3022 | Open, deferred, Product backlog |
 | Verified distribution | 3.4 | #2539 | Open, 4.x Work |
 

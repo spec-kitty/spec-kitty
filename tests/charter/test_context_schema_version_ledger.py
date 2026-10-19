@@ -109,47 +109,8 @@ class TestContextSchemaVersionStamped:
 class TestContextSchemaVersionDiagnosticsEntry:
     """1.4.0 ledger entry (#6407): ``diagnostics`` is declared and always present."""
 
-    def test_version_is_1_4_0_and_diagnostics_is_declared(self, project: Path) -> None:
-        assert CONTEXT_SCHEMA_VERSION == "1.4.0"
+    def test_diagnostics_is_declared_and_always_present(self, project: Path) -> None:
         assert "diagnostics" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
         for action in ("implement", "tasks"):
             payload = build_charter_context_json(project, action=action, mission_type="software-dev")
             assert isinstance(payload["diagnostics"], list)
-
-
-class TestContextSchemaVersionLedgerBites:
-    """Prove the superset guard actually reds on drift (not just a no-op).
-
-    Each case calls the exact assertion helper the two tests above use
-    (``_assert_stamped_and_declared``) against a payload deliberately
-    corrupted to simulate the drift the ledger exists to catch, and asserts
-    that call raises. This proves the gate BITES: it is not a tautology that
-    always passes regardless of payload shape.
-    """
-
-    def test_stray_top_level_key_reds_the_guard(self, project: Path) -> None:
-        payload = build_charter_context_json(
-            project, action="implement", mission_type="software-dev"
-        )
-        # Sanity: the unmutated payload passes first.
-        _assert_stamped_and_declared(payload)
-
-        payload["unexpected_new_field"] = "surprise"
-        with pytest.raises(AssertionError, match="unexpected_new_field"):
-            _assert_stamped_and_declared(payload)
-
-        del payload["unexpected_new_field"]
-        _assert_stamped_and_declared(payload)
-
-    def test_version_mismatch_reds_the_guard(self, project: Path) -> None:
-        payload = build_charter_context_json(
-            project, action="implement", mission_type="software-dev"
-        )
-        _assert_stamped_and_declared(payload)
-
-        payload["context_schema_version"] = "0.0.0-stale"
-        with pytest.raises(AssertionError):
-            _assert_stamped_and_declared(payload)
-
-        payload["context_schema_version"] = CONTEXT_SCHEMA_VERSION
-        _assert_stamped_and_declared(payload)

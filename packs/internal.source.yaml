@@ -1,0 +1,11 @@
+# Pin lockfile: which spec-kitty-open-packs commit this pack was taken from.
+# Direction: open-packs -> core. (open-packs' own built-in.source.yaml records the
+# OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,
+# not vendored; tree_digest = clean_tree_digest(<subtree>, level=<tree_digest.level>).
+repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
+commit: 3fb9a7f08ecae3cc56d01c9c75cfc9fb74eb9a68
+subtree: packs/internal
+tree_digest:
+  algorithm: clean-tree-sha256
+  value: 97404f63fd9d00c875b9e71440d3a31d9914d2189a9eb408500c886195460211
+  level: org

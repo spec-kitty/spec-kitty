@@ -25,6 +25,7 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 - [Create a doctrine artifact](create-a-doctrine-artifact.md) — author a new doctrine artifact end to end, including the loose-contract asset kind.
 - [Create and activate a pack skill](create-a-pack-skill.md) — author a shared `skill`, set its namespace, activate it into each configured tool, and check it with `doctor skills`.
 - [How to enable the internal charter and skills](enable-the-internal-pack.md) — register `packs/internal`, project the `kitty-*` maintainer skills, verify them, and work around two known defects.
+- [How to sync and bump the built-in and internal packs](sync-packs.md) — fetch the pinned `packs/built-in` and `packs/internal` trees, work offline, and bump a pin after an upstream change.
 - [Add an exemption to an architectural gate](add-architectural-gate-exemption.md) — exempt a site by content (descriptor or `CensusKey`), never by line number.
 - [Compress mission history](compress-mission-history.md) — the path-bucket recipe for compressing a noisy mission branch into a clean, reviewable history (not a default landing step).
 

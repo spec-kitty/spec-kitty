@@ -2915,11 +2915,14 @@ pages:
     - {slug: "why-it-was-needed", text: "Why it was needed", level: 3}
     - {slug: "amended-decisions", text: "Amended decisions", level: 3}
     - {slug: "sequence", text: "Sequence", level: 3}
+    - {slug: "amendment-2026-10-19-pin-and-fetch-replace-committed-trees-6451", text: "Amendment (2026-10-19 — pin and fetch replace committed trees, #6451)", level: 2}
+    - {slug: "decision", text: "Decision", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
-    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "consequences-2", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
     - {slug: "a-status-quo-built-in-in-core", text: "A — Status quo (built-in in core)", level: 3}
@@ -2942,6 +2945,7 @@ pages:
     - {slug: "b-one-public-org-pack-not-force-shipped", text: "B — One public org pack, not force-shipped", level: 3}
     - {slug: "c-ship-it-like-built-in", text: "C — Ship it like built-in", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-cross-reference-6451", text: "Amendment (2026-10-19 — cross-reference, #6451)", level: 2}
   - path: "docs/adr/3.x/2026-08-16-4-rc-release-channel.md"
     title: "Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE"
     divio_type: "none"
@@ -11429,6 +11433,16 @@ pages:
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
     - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/sync-packs.md"
+    title: "How to sync and bump the built-in and internal packs"
+    divio_type: "how-to"
+    abstract: "Fetch the pinned built-in and internal pack trees into a checkout, work offline from the cache, and bump a pin after changing pack content upstream."
+    anchors:
+    - {slug: "fetch-the-trees", text: "Fetch the trees", level: 2}
+    - {slug: "work-offline", text: "Work offline", level: 2}
+    - {slug: "change-pack-content", text: "Change pack content", level: 2}
+    - {slug: "error-codes", text: "Error codes", level: 2}
+    - {slug: "what-does-not-change", text: "What does not change", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
     divio_type: "none"

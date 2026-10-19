@@ -97,7 +97,7 @@ below (which still holds where this one is silent); where the two differ, this o
    asks ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
    Amendment 2026-10-12).
 6. **The packs source home moves to `spec-kitty-open-packs`.** `packs/internal/` and
-   `packs/built-in/` here are the vendored copy; the source is authored in
+   `packs/built-in/` here are fetched, pinned copies (pins in `packs/<pack>.source.yaml`, placed by `make sync-packs`); the source is authored in
    `spec-kitty-open-packs`. This is a source-location move only: the no-bundle invariant is
    unchanged and ADR [2026-08-16-3](../adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) is not reversed.
 

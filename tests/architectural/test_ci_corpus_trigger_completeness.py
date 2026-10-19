@@ -216,7 +216,6 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/charter_offering/test_pack_relocation_guard.py",
         "tests/charter_offering/test_pack_relocation_preflight.py",
         "tests/charter_offering/test_package_smoke.py",
-        "tests/charter_offering/test_packaging_parity.py",
         "tests/charter_offering/test_paula_patterns_artifacts.py",
         "tests/charter_offering/test_profile_diagnostics.py",
         "tests/charter_offering/test_profile_inheritance.py",

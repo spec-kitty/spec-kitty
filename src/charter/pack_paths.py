@@ -17,9 +17,10 @@ charter.offering.pack_paths.built_in_root``), enforced by
 ``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
-from charter.offering.pack_paths import PackRootNotFound, built_in_dir, built_in_root
+from charter.offering.pack_paths import BuiltInPackMissing, PackRootNotFound, built_in_dir, built_in_root
 
 __all__ = [
+    "BuiltInPackMissing",
     "PackRootNotFound",
     "built_in_dir",
     "built_in_root",

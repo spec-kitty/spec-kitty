@@ -63,9 +63,13 @@ from importlib.resources import files
 from pathlib import Path
 
 from charter.offering.artifact_kinds import ArtifactKind
-from kernel.pack_tiers import BUILT_IN, PackTier
+from kernel.pack_tiers import BUILT_IN, PackTier, pin_filename
 from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN, get_built_in_pack_root
 from kernel.sibling_paths import SiblingPathNotFound
+
+_PACKS_DIR = "packs"
+_BUILT_IN_PIN_NAME = pin_filename(BUILT_IN)
+_PACK_MANIFEST = "pack.yaml"
 
 # ``PackTier`` is a re-export of the single kernel authority
 # :data:`kernel.pack_tiers.PackTier` (WP04, #5825/#5961) -- the one place the
@@ -84,6 +88,7 @@ from kernel.sibling_paths import SiblingPathNotFound
 # non-seam consumer (e.g. org/project-tier resolution) imports it directly.
 __all__ = [
     "BuiltInContentDirNotAvailable",
+    "BuiltInPackMissing",
     "PackRootNotFound",
     "built_in_dir",
     "built_in_missions_root",
@@ -98,6 +103,21 @@ class PackRootNotFound(Exception):
     def __init__(self, tier: str) -> None:
         self.tier = tier
         super().__init__(f"No pack root found for tier {tier!r}")
+
+
+class BuiltInPackMissing(PackRootNotFound):
+    """The source checkout pins a built-in pack but its tree has not been synced.
+
+    Subclasses :class:`PackRootNotFound` so existing ``except PackRootNotFound``
+    callers keep working (C-001). Never raised for an installed wheel.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(BUILT_IN)
+        self.args = (
+            "The built-in pack tree is missing: this checkout pins it in packs/built-in.source.yaml but it was never "
+            "fetched. Run `make sync-packs` (network required once; later runs use the cache).",
+        )
 
 
 class BuiltInContentDirNotAvailable(Exception):
@@ -232,11 +252,34 @@ def _resolve_built_in() -> Path:
     (``charter/offering/packs/pack_validator.py``'s
     ``except (PackRootNotFound, BuiltInContentDirNotAvailable)``) depends on
     the specific :class:`PackRootNotFound` type surviving at this boundary.
+
+    A directory that exists but holds no ``pack.yaml`` (a partial or empty tree,
+    e.g. a leftover ``__pycache__``) counts as absent when this is a source
+    checkout carrying a pin: the resolver only proves the directory exists, so
+    without this check an unsynced checkout would load an empty pack silently.
     """
     try:
-        return get_built_in_pack_root()
+        root = get_built_in_pack_root()
     except SiblingPathNotFound as exc:
+        if _source_checkout_pin_present():
+            raise BuiltInPackMissing() from exc
         raise PackRootNotFound(BUILT_IN) from exc
+    # Only a tree whose own sibling pin exists is a synced pack; an env-relocated
+    # fixture root (no pin beside it) keeps its plain-directory semantics.
+    if not (root / _PACK_MANIFEST).is_file() and (root.parent / _BUILT_IN_PIN_NAME).is_file():
+        raise BuiltInPackMissing()
+    return root
+
+
+def _source_checkout_pin_present() -> bool:
+    """``True`` when a ``built-in.source.yaml`` pin sits beside the (absent) tree.
+
+    Looks for a ``packs/`` directory on this module's ancestor chain (the
+    source-checkout layout); the ``SPEC_KITTY_PACKS_ROOT`` env read stays owned
+    by the kernel resolver (DR-1). An installed wheel has no such pin, so it
+    keeps the plain :class:`PackRootNotFound`.
+    """
+    return any((parent / _PACKS_DIR / _BUILT_IN_PIN_NAME).is_file() for parent in Path(__file__).resolve().parents)
 
 
 def offering_package_dir() -> Path | None:
