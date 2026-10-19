@@ -294,3 +294,12 @@ def test_frameworks_still_detected_from_nested_files(tmp_path):
     assert signals.primary_language == "java"
     assert "nextjs" in signals.frameworks
     assert "jest" in signals.test_frameworks
+
+
+def test_root_package_json_beats_nested_android_gradle(tmp_path):
+    """Root-first rule: a root package.json wins over a nested android/build.gradle (React Native shape)."""
+    _make_file(tmp_path / "package.json", "{}")
+    _make_file(tmp_path / "android" / "build.gradle", "")
+    _make_file(tmp_path / "android" / "app" / "src" / "main" / "java" / "Main.java", "class Main {}")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "javascript"
