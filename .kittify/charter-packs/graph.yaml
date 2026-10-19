@@ -3,7 +3,7 @@ generated_at: '2026-10-10T18:08:15+00:00'
 generated_by: spec-kitty project registration
 nodes:
 - kind: directive
-  label: Mission Type Scope Directive
+  label: Project Intent Directive
   urn: directive:PROJECT_001
 - kind: directive
   label: Neutrality Posture Directive

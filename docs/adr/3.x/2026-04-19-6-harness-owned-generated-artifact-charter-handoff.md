@@ -61,7 +61,7 @@ The harness must match both the filename rule and the YAML identity rule.
 
 Examples:
 
-- `directive:PROJECT_001` → `.kittify/charter/generated/directives/001-mission-type-scope-directive.directive.yaml`
+- `directive:PROJECT_001` → `.kittify/charter/generated/directives/001-project-intent-directive.directive.yaml` (renamed from `001-mission-type-scope-directive`, see the 2026-10-19 amendment)
 - `tactic:testing-philosophy-tactic` → `.kittify/charter/generated/tactics/testing-philosophy-tactic.tactic.yaml`
 - `styleguide:python-style-guide` → `.kittify/charter/generated/styleguides/python-style-guide.styleguide.yaml`
 
@@ -144,3 +144,9 @@ matter.
 - `src/specify_cli/cli/commands/charter.py`
 - `src/charter/synthesizer/write_pipeline.py`
 - `tests/agent/cli/commands/test_charter_status_cli.py`
+
+## Amendment 2026-10-19: the always-synthesized directive is renamed
+
+The always-synthesized directive's slug is now `project-intent-directive` (title "Project Intent Directive"); it was `mission-type-scope-directive` (#6443, mission `charter-synthesis-graph-and-languages-01M59RZ5`). The generated-input layout above is unchanged except for that file name: `directives/<NNN>-project-intent-directive.directive.yaml`. The declared `PROJECT_00N` id, the `directive:PROJECT_00N` URN and the interview section label `mission_type` do not change, and synthesis no longer emits a `requires --> mission_type:*` edge for it.
+
+An existing project converges through one charter-layer helper, `rename_legacy_project_intent_directive` (`charter.activation.api`). It moves the artifact file and this harness input, rewrites the provenance and synthesis-manifest entries (recomputing the manifest hashes), relabels the overlay node, drops the dead edge, rewrites stem tokens in the activation write target and restamps the bundle hash. It never rewrites the artifact body, is idempotent, and refuses on a target collision having changed nothing. The upgrade migration `4.0.0rc8_project_intent_directive_rename` and `charter synthesize` / `resynthesize` (before they write, so a legacy file can never leave two files declaring `PROJECT_00N`) both call it. Without the harness-input move, the next synthesize would raise `GeneratedArtifactMissingError` for the new file name.

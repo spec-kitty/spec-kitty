@@ -14,9 +14,9 @@ inputs_hash: 8fe2111d7c9b9b145c9912050d552e016841af0fb22a5bf02929bc09c1ecb4c0
 produced_at: '2026-10-17T06:18:15+00:00'
 schema_version: '2'
 source_input_ids:
-- .kittify/charter-packs/directive/001-mission-type-scope-directive.directive.yaml
+- .kittify/charter-packs/directive/001-project-intent-directive.directive.yaml
 source_section: 
-  .kittify/charter-packs/directive/001-mission-type-scope-directive.directive.yaml
+  .kittify/charter-packs/directive/001-project-intent-directive.directive.yaml
 source_urns: []
 synthesis_run_id: 01M5485MT6830HP51AKJ7HGKWZ
 synthesizer_version: 4.0.0rc8
