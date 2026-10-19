@@ -96,6 +96,12 @@ def _has_foreign_document_marker(text: str) -> bool:
     return len(markers) > 1 or not leading
 
 
+def _next_line_is_continuation(text: str, line_end: int) -> bool:
+    """Whether the line after the one ending at *line_end* is indented (a multi-line plain scalar)."""
+    following = text[line_end + 1 :]
+    return following[:1] in (" ", "\t")
+
+
 def _fast_plain_id(text: str, id_field: str) -> str | None:
     """The id when *text* declares it once as a plain string scalar, else ``None`` (use the full parse)."""
     if "\ufeff" in text or "\r" in text or _has_foreign_document_marker(text):
@@ -105,6 +111,8 @@ def _fast_plain_id(text: str, id_field: str) -> str | None:
         return None
     found = re.search(rf"^{key}:[ \t]+(\S+)[ \t]*$", text, re.MULTILINE)
     if found is None:
+        return None
+    if "\t" in found.group(0) or _next_line_is_continuation(text, found.end()):
         return None
     value = found.group(1)
     if _PLAIN_ID_VALUE.fullmatch(value) is None or value.lower() in _YAML_SPECIAL_SCALARS:

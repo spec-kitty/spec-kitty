@@ -235,6 +235,11 @@ _EDGE_BODIES: dict[str, bytes] = {
     "bom": b"\xef\xbb\xbfid: bom-id\ntitle: x\n",
     "sequence-after": b"id: seq-after\n- a\n",
     "broken-later-accepted": b"id: ok-id\nother: [unclosed\n",
+    "continuation": b"id: first\n  second\ntitle: x\n",
+    "continuation-tab": b"id: first\n\tsecond\ntitle: x\n",
+    "tab-after-colon": b"id:\ttabbed-id\ntitle: x\n",
+    "tab-trailing": b"id: tab-trail\t\ntitle: x\n",
+    "no-continuation-next-key": b"id: solo\ntitle: x\n",
 }
 #: Documented limitation of the fast path: a syntax error elsewhere is not detected cheaply.
 _ACCEPTED_DIVERGENCE = {"broken-later-accepted", "sequence-after"}
