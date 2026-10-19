@@ -15,7 +15,7 @@ from charter.activation.language_authority import (
     TreeObservation,
     declared_languages,
     expand_language_families,
-    resolve_primary_language,
+    resolve_languages,
 )
 from charter.activation.language_scope import extract_declared_languages, infer_repo_languages, lacks_specialist_guidance
 
@@ -175,8 +175,8 @@ def test_single_non_jvm_manifest_never_pays_for_the_uncapped_walk() -> None:
     def _boom() -> Counter[str]:
         raise AssertionError("source counting must not run for a single non-JVM manifest")
 
-    assert resolve_primary_language(observation, _boom) == "rust"
-    assert resolve_primary_language(TreeObservation(), _boom) == "unknown"
+    assert resolve_languages(observation, _boom).primary == "rust"
+    assert resolve_languages(TreeObservation(), _boom).primary == "unknown"
 
 
 def test_kotlin_sources_without_a_jvm_manifest_do_not_make_a_kotlin_repo(tmp_path: Path) -> None:

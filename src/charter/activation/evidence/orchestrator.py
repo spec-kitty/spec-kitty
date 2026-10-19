@@ -73,6 +73,8 @@ class EvidenceOrchestrator:
                 warnings.append(f"Code-reading evidence collection failed: {exc}")
 
         if not self._skip_corpus:
+            # The corpus is chosen by the primary language only (stack_id is built from it);
+            # the other observed languages in ``code_signals.languages`` do not select one (D-06).
             profile_key = code_signals.stack_id if code_signals else "generic"
             try:
                 loader = CorpusLoader(corpus_root=self._corpus_root)

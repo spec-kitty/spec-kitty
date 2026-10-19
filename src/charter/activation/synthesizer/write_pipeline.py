@@ -44,6 +44,7 @@ from kernel.charter_pack_paths import (
     project_pack_path,
 )
 
+from charter.activation.language_authority import declared_languages, expand_language_families
 from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
@@ -305,42 +306,67 @@ def _substantively_equal(
 # ---------------------------------------------------------------------------
 
 
+def _observed_languages(evidence: EvidenceBundle | None) -> tuple[str, ...]:
+    """Return the languages the evidence observed, primary first (empty when unknown)."""
+    if evidence is None or evidence.code_signals is None:
+        return ()
+    signals = evidence.code_signals
+    if signals.scope_tag == "unknown":
+        return ()
+    return signals.languages or (signals.scope_tag,)
+
+
+def _declared_scope_languages(interview_snapshot: Mapping[str, Any]) -> tuple[str, ...]:
+    """Return the languages the interview declares (FR-011).
+
+    ``language_scope`` is the canonical list; the ``languages_frameworks`` free-form alias is
+    resolved through the language authority, so the gate and doctrine scoping agree.
+    """
+    scoped = interview_snapshot.get("language_scope")
+    if isinstance(scoped, (list, tuple)) and scoped:
+        return tuple(str(item).strip().lower() for item in scoped if str(item).strip())
+    alias = interview_snapshot.get("languages_frameworks")
+    if isinstance(alias, str):
+        return tuple(declared_languages(alias))
+    if isinstance(alias, (list, tuple)):
+        return tuple(declared_languages(", ".join(str(item) for item in alias)))
+    return ()
+
+
 def _is_generic_scoped(
     _target_kind: str,
     target_slug: str,
     evidence: EvidenceBundle | None,
+    declared: tuple[str, ...] = (),
 ) -> bool:
     """Return True if this artifact slot should be checked for language-specific bias.
 
-    An artifact is generic-scoped when there is no code-signals scope_tag
-    or when the artifact slug does not contain the scope_tag as a component.
-    Conservative default: if evidence is absent, all artifacts are generic-scoped.
+    An artifact is language-scoped when any hyphen-separated component of its slug names an
+    observed language (``CodeSignals.languages``, or the scope_tag), a declared language
+    (*declared*, from the interview), or the family one of those implies (``jvm`` for a
+    Kotlin repository). Everything else is generic-scoped and gets linted.
 
     Scope determination rules:
-    - No evidence / no code_signals → generic (lint it)
-    - scope_tag == "unknown" → generic (lint it)
-    - scope_tag IS one of the slug's hyphen-separated components → language-scoped (skip lint)
-    - scope_tag NOT a slug component (``java`` is not in ``javascript-...``) → generic (lint it)
+    - nothing observed (no evidence, no code_signals, scope_tag "unknown") and nothing declared → generic
+    - a slug component is in observed ∪ declared, after family expansion → language-scoped (skip lint)
+    - no component is (``java`` is not in ``javascript-...``) → generic (lint it)
 
-    Example: scope_tag="python", slug="python-style-guide" → language-scoped (False)
-    Example: scope_tag="python", slug="testing-philosophy" → generic (True)
+    Example: observed ["python"], slug="python-style-guide" → language-scoped (False)
+    Example: observed ["kotlin", "typescript"], slug="typescript-style-guide" → language-scoped (False)
+    Example: observed ["kotlin"], slug="jvm-build-guide" → language-scoped (False)
+    Example: observed ["python"], slug="testing-philosophy" → generic (True)
     """
-    if evidence is None or evidence.code_signals is None:
+    scope = set(expand_language_families((*_observed_languages(evidence), *declared)))
+    if not scope:
         return True  # no scope info → assume generic, apply lint
-
-    scope_tag = evidence.code_signals.scope_tag
-    if scope_tag == "unknown":
-        return True
-
-    # A language-scoped artifact slug typically contains the scope_tag as a component.
-    # e.g. "python-style-guide" contains "python"; "testing-philosophy" does not.
-    return scope_tag not in target_slug.split("-")
+    return scope.isdisjoint(target_slug.split("-"))
 
 
 def _run_neutrality_gate(
     staging_dir: StagingDir,
     results: list[tuple[Any, ProvenanceEntry]],
     evidence: EvidenceBundle | None,
+    declared: tuple[str, ...] = (),
 ) -> None:
     """Scan generic-scoped staged artifacts for language bias.
 
@@ -359,7 +385,9 @@ def _run_neutrality_gate(
     results:
         All ``(body, ProvenanceEntry)`` pairs from ``run_all()``.
     evidence:
-        EvidenceBundle from the synthesis request, used to determine scope_tag.
+        EvidenceBundle from the synthesis request, used to determine the observed languages.
+    declared:
+        Languages the interview declares (:func:`_declared_scope_languages`).
     """
     from charter.activation.neutrality.lint import run_neutrality_lint
 
@@ -367,7 +395,7 @@ def _run_neutrality_gate(
         kind = prov.artifact_kind
         slug = prov.artifact_slug
 
-        if not _is_generic_scoped(kind, slug, evidence):
+        if not _is_generic_scoped(kind, slug, evidence, declared):
             # Language-scoped artifact — language-specific terms are expected here.
             continue
 
@@ -443,7 +471,7 @@ def stage_and_validate(
         staged_artifacts.append(f"{kind}:{slug}")
 
     validation_callback(staging_dir)
-    _run_neutrality_gate(staging_dir, results, request.evidence)
+    _run_neutrality_gate(staging_dir, results, request.evidence, _declared_scope_languages(request.interview_snapshot))
     return staged_artifacts
 
 
@@ -753,7 +781,7 @@ def promote(
     # On NeutralityGateViolation the staging dir is NOT wiped — the
     # StagingDir context manager in the caller routes it to .failed/.
     # ------------------------------------------------------------------
-    _run_neutrality_gate(staging_dir, results, request.evidence)
+    _run_neutrality_gate(staging_dir, results, request.evidence, _declared_scope_languages(request.interview_snapshot))
 
     # Step 3: ordered os.replace into final live trees.
     _ensure_live_dirs(guard, repo_root)

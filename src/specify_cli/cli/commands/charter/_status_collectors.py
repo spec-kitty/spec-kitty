@@ -370,6 +370,7 @@ def _summarize_evidence(repo_root: Path) -> dict[str, Any]:
         code_summary = {
             "stack_id": bundle.code_signals.stack_id,
             "primary_language": bundle.code_signals.primary_language,
+            "languages": list(bundle.code_signals.languages),
             "frameworks": list(bundle.code_signals.frameworks),
             "test_frameworks": list(bundle.code_signals.test_frameworks),
             "representative_files_count": len(

@@ -2,8 +2,7 @@
 
 ``charter.offering.shared.language_catalog`` holds the vocabulary; this module applies it:
 
-* :func:`observe_primary_language` / :func:`resolve_primary_language` decide the primary
-  language of a repository from its manifests and source counts;
+* :func:`resolve_languages` decides the primary language and the full language list of a repository from its manifests and source counts;
 * :func:`declared_languages` decides which languages a free-form declaration names,
   including the build-token rule (``gradle``/``maven``/``junit`` add ``jvm`` only when no
   JVM language is declared).
@@ -37,7 +36,8 @@ __all__ = [
     "declared_languages",
     "expand_language_families",
     "count_sources_uncapped",
-    "resolve_primary_language",
+    "ObservedLanguages",
+    "resolve_languages",
     "TreeObservation",
 ]
 
@@ -59,6 +59,11 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
 
 PACKAGE_JSON = "package.json"
 TSCONFIG_JSON = "tsconfig.json"
+
+#: A language whose files make up at least this share of the counted source files is listed
+#: in ``languages`` even without a top-depth manifest (D-06, FR-010). 20% keeps a few
+#: config scripts (a handful of ``.js`` files in a Python repository) out of the evidence.
+_LANGUAGE_SHARE_THRESHOLD = 0.2
 
 _TYPESCRIPT = "typescript"
 _JAVASCRIPT = "javascript"
@@ -137,30 +142,63 @@ def _top_depth_candidates(observation: TreeObservation, top: int) -> tuple[list[
     return languages, shared
 
 
-def resolve_primary_language(
+@dataclass(frozen=True, slots=True)
+class ObservedLanguages:
+    """Observed languages of a repository: the primary one, then every other listed one.
+
+    ``languages`` is empty when nothing was observed (``primary == "unknown"``);
+    otherwise ``languages[0] == primary`` (FR-010).
+    """
+
+    primary: str
+    languages: tuple[str, ...] = ()
+
+
+def _source_share_languages(counts: Mapping[str, int]) -> list[str]:
+    """Return languages whose share of all counted sources reaches ``_LANGUAGE_SHARE_THRESHOLD``."""
+    total = sum(counts.values())
+    if total <= 0:
+        return []
+    return [lang for lang, count in counts.items() if count / total >= _LANGUAGE_SHARE_THRESHOLD]
+
+
+def _order_languages(primary: str, included: set[str], counts: Mapping[str, int]) -> tuple[str, ...]:
+    """Order *included*: primary first, then source count descending, then catalog order."""
+    catalog_order = {spec.token: index for index, spec in enumerate(LANGUAGES)}
+    rest = sorted(included - {primary}, key=lambda lang: (-counts.get(lang, 0), catalog_order.get(lang, len(catalog_order))))
+    return (primary, *rest)
+
+
+def resolve_languages(
     observation: TreeObservation,
     count_sources: Callable[[], Counter[str]],
-) -> str:
-    """Return the primary language, preferring the shallowest manifests.
+) -> ObservedLanguages:
+    """Return the primary language and every language the repository carries (FR-010).
 
-    Manifests at the shallowest depth win. A JVM manifest chooses between ``java`` and
-    ``kotlin`` by source counts (ties stay ``java``); several languages at that depth are
-    resolved by source counts, then catalog order. *count_sources* is the uncapped walk
-    (JVM sources sit deeper than the scan depth); it runs only when a JVM manifest or a
-    real tie needs it, and at most once (NFR-005).
+    Included: every language with a manifest at the shallowest manifest depth, plus any
+    language holding at least ``_LANGUAGE_SHARE_THRESHOLD`` of the counted sources. The
+    primary language is chosen as before: manifests at the shallowest depth win; a JVM
+    manifest picks ``java`` or ``kotlin`` by source counts (ties stay ``java``); several
+    languages at that depth are resolved by source counts, then catalog order.
+
+    *count_sources* is the uncapped walk (JVM sources sit deeper than the scan depth).
+    It runs only when a JVM manifest or two or more candidate languages need it, and at
+    most once (NFR-005); a single-language, non-JVM repository never triggers it.
     """
     manifest_hits = [depth for name, depth in observation.indicator_depths.items() if languages_for_manifest(name)]
     if not manifest_hits:
-        return "unknown"
+        return ObservedLanguages("unknown")
 
-    languages, shared = _top_depth_candidates(observation, min(manifest_hits))
-    if len(languages) == 1 and not shared:
-        return languages[0]
+    candidates, shared = _top_depth_candidates(observation, min(manifest_hits))
+    if len(candidates) == 1 and not shared:
+        return ObservedLanguages(candidates[0], (candidates[0],))
 
     counts = count_sources()
     if shared:
-        languages = [_best_by_count(shared, counts) if lang == shared[0] else lang for lang in languages]
-    return _best_by_count(languages, counts)
+        candidates = [_best_by_count(shared, counts) if lang == shared[0] else lang for lang in candidates]
+    primary = _best_by_count(candidates, counts)
+    included = set(candidates) | set(_source_share_languages(counts))
+    return ObservedLanguages(primary, _order_languages(primary, included, counts))
 
 
 # ---------------------------------------------------------------------------
