@@ -1,29 +1,39 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-title: "Local-only reds: upgrade outside git, orphan ceiling, nag-test hermeticity"
-task_type: "implement"
-phase: "Phase 1 - Foundations"
-execution_mode: "code_change"
+work_package_id: WP01
+title: 'Local-only reds: upgrade outside git, orphan ceiling, nag-test hermeticity'
 dependencies: []
-requirement_refs: ["FR-015", "FR-016", "FR-017", "C-006", "SC-005"]
-owned_files:
-  - "src/specify_cli/upgrade/runner.py"
-  - "tests/specify_cli/upgrade/test_runner_not_a_git_repository.py"
-  - "tests/specify_cli/cli/commands/test_upgrade_command.py"
-  - "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py"
-  - "docs/development/testing/testing-flakiness.md"
-authoritative_surface: "src/specify_cli/upgrade/"
+requirement_refs:
+- FR-015
+- FR-016
+- FR-017
+- C-006
+- SC-005
+planning_base_branch: issue-6442-charter-synthesis-graph-work
+merge_target_branch: issue-6442-charter-synthesis-graph-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
+subtasks:
+- T001
+- T002
+- T003
+- T004
+phase: Phase 1 - Foundations
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/upgrade/
 create_intent:
-  - "tests/specify_cli/upgrade/test_runner_not_a_git_repository.py"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5-5"
+- tests/specify_cli/upgrade/test_runner_not_a_git_repository.py
+execution_mode: code_change
+model: claude-sonnet-5-5
+owned_files:
+- src/specify_cli/upgrade/runner.py
+- tests/specify_cli/upgrade/test_runner_not_a_git_repository.py
+- tests/specify_cli/cli/commands/test_upgrade_command.py
+- tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py
+- docs/development/testing/testing-flakiness.md
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – Local-only reds: upgrade outside git, orphan ceiling, nag-test hermeticity
@@ -64,7 +74,7 @@ These were classified on 2026-10-19 in a clean environment; see `research/squad-
 - In `src/specify_cli/upgrade/runner.py` `_apply_migration` (around lines 425-450), treat `NotInsideRepositoryError` raised by `migration.can_apply(...)` or `migration.apply(...)` as not applicable:
   - return `MigrationResult(success=True, warnings=[f"Migration {id} not applicable here (not inside a git repository); skipping"])` with status `"skipped"`;
   - write no record.
-- Import the exception through a public charter seam if `tests/architectural/test_runtime_charter_activation_boundary.py` or the layer rules forbid `charter.resolution` from `specify_cli`. Check which import path existing `specify_cli` code uses for `NotInsideRepositoryError` (`git grep NotInsideRepositoryError src/specify_cli`) and follow it.
+- Import it lazily inside the runner with `from charter.resolution import NotInsideRepositoryError`. That is the established `specify_cli` path (see `context.py` and `dispatch.py`).
 - Do NOT edit `m_3_2_0rc35_unified_bundle.py`. It shipped, and DIRECTIVE_044 forbids editing it.
 - Keep `_apply_migration` at complexity ≤ 15; extract a helper if needed.
 - After the fix, the six tests below must pass:
@@ -83,7 +93,7 @@ These were classified on 2026-10-19 in a clean environment; see `research/squad-
 - **Preferred approach:** derive the ceiling from that set, so there is one hand-kept list. Do this only if it can be imported without fragile cross-test imports. If you share it, move the set to a small `tests/_support` or conftest-level constant. Ask the orchestrator first if that would touch files you do not own.
 - **Otherwise:** raise the ceiling to 25 with a dated comment (2026-10-19) citing #6379, in the style of the existing comment block (around lines 102-123).
 - Do not wire edges, and do not touch `packs/built-in/`.
-- Report the residual-doc addendum text to the orchestrator; WP06 or the closeout commits it. The doc is `kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md` (a dated section after its last section).
+- Report the residual-doc addendum text to the orchestrator in the WP history. A code_change work package cannot own `kitty-specs/`, so the orchestrator commits it at closeout. The doc is `kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md` (a dated section after its last section).
 
 ### Subtask T004: Nag-test hermeticity (FR-017)
 

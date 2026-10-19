@@ -1,34 +1,51 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog
+dependencies:
+- WP01
+- WP05
+requirement_refs:
+- FR-018
+- NFR-001
+- NFR-002
+- NFR-003
+- NFR-004
+- C-004
+- C-007
+- SC-004
+planning_base_branch: issue-6442-charter-synthesis-graph-work
+merge_target_branch: issue-6442-charter-synthesis-graph-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-title: "JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog"
-task_type: "implement"
-phase: "Phase 3 - Integration"
-execution_mode: "code_change"
-dependencies: ["WP01", "WP05"]
-requirement_refs: ["FR-018", "NFR-001", "NFR-002", "NFR-003", "NFR-004", "C-004", "C-007", "SC-004"]
-owned_files:
-  - "packs/built-in/toolguides/java-supply-chain.toolguide.yaml"
-  - "packs/built-in/toolguides/maven-review-checks.toolguide.yaml"
-  - "packs/built-in/toolguide.graph.yaml"
-  - "packs/built-in/pack-manifest.yaml"
-  - "packs/built-in.source.yaml"
-  - "tests/charter/test_synthesized_in_force_snapshot.py"
-  - "tests/charter/fixtures/synthesized_in_force_snapshot.json"
-  - "docs/changelog/CHANGELOG.md"
-  - "docs/api/charter-commands.md"
-authoritative_surface: "packs/built-in/toolguides/"
+- T026
+- T027
+- T028
+- T029
+phase: Phase 3 - Integration
+history: []
+agent_profile: python-pedro
+authoritative_surface: packs/built-in/toolguides/
 create_intent:
-  - "tests/charter/test_synthesized_in_force_snapshot.py"
-  - "tests/charter/fixtures/synthesized_in_force_snapshot.json"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5-5"
+- tests/charter/test_jvm_toolguide_scoping.py
+- tests/charter/test_synthesized_in_force_snapshot.py
+- tests/charter/fixtures/synthesized_in_force_snapshot.json
+execution_mode: code_change
+model: claude-sonnet-5-5
+owned_files:
+- tests/charter/test_jvm_toolguide_scoping.py
+- packs/built-in/toolguides/java-supply-chain.toolguide.yaml
+- packs/built-in/toolguides/maven-review-checks.toolguide.yaml
+- packs/built-in/toolguide.graph.yaml
+- packs/built-in/pack-manifest.yaml
+- packs/built-in.source.yaml
+- tests/charter/test_synthesized_in_force_snapshot.py
+- tests/charter/fixtures/synthesized_in_force_snapshot.json
+- docs/changelog/CHANGELOG.md
+- docs/api/charter-commands.md
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP06 – JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog
@@ -59,7 +76,7 @@ Retag the shared JVM toolguides to `jvm` through the vendor flow, so no Kotlin p
 - Set `applies_to_languages: [jvm]` in `packs/built-in/toolguides/java-supply-chain.toolguide.yaml` and `maven-review-checks.toolguide.yaml`.
 - `java-jenny` and `java-conventions` stay `java`.
 - Run `spec-kitty charter pack regenerate-graph`, and update the pack manifest if the regenerate step requires it.
-- Add a test, in a test file you own, showing that a project declaring "Kotlin, Gradle" receives both toolguides and one declaring "Python" receives neither.
+- Add `tests/charter/test_jvm_toolguide_scoping.py`, showing that a project declaring "Kotlin, Gradle" receives both toolguides and one declaring "Python" receives neither.
 - `vendor --check` will report drift until the pin bump. Report that to the orchestrator; do not work around it.
 
 ### Subtask T027: Synthesized in-force golden (NFR-001)
@@ -104,6 +121,7 @@ Retag the shared JVM toolguides to `jvm` through the vendor flow, so no Kotlin p
 - The new golden is committed and its diff is documented.
 - The default golden is unchanged.
 - `charter pack regenerate-graph --check` is green.
+- These are red only until the pin bump, then green: `tests/architectural/test_built_in_drift_gate.py`, `tests/charter_offering/test_built_in_pin.py`, `tests/cross_cutting/packaging/test_built_in_release_parity.py`, and `vendor --check`. Record them in the history.
 - The changelog, spelling and terminology checks pass.
 
 ## Risks
