@@ -279,9 +279,14 @@ def test_fr012_project_root_moved(tmp_path: Path) -> None:
     new_root = project / ".kittify" / "charter-packs"
     assert not legacy.exists()
     # The pack-level backfill (#6048) writes a ``pack.yaml`` (``pack_level: project``)
-    # at the new project pack root; every legacy file still moves across unchanged.
-    assert sorted(p.relative_to(new_root).as_posix() for p in new_root.rglob("*") if p.is_file()) == sorted([*files, "pack.yaml"])
-    assert (new_root / "directive" / edited.name).read_text(encoding="utf-8").endswith("# uncommitted operator edit\n")
+    # at the new project pack root; every legacy file still moves across unchanged. The
+    # project-intent rename (#6443, ``4.0.0rc8_project_intent_directive_rename``) then renames the
+    # legacy ``mission-type-scope-directive`` artifact in place, so the legacy file name is the
+    # only one that differs after the upgrade.
+    renamed = edited.name.replace("mission-type-scope-directive", "project-intent-directive")
+    expected = sorted([*(f"directive/{renamed}" if name == f"directive/{edited.name}" else name for name in files), "pack.yaml"])
+    assert sorted(p.relative_to(new_root).as_posix() for p in new_root.rglob("*") if p.is_file()) == expected
+    assert (new_root / "directive" / renamed).read_text(encoding="utf-8").endswith("# uncommitted operator edit\n")
     assert len(cutover_report(payload)["moved"]) == len(files)
 
 

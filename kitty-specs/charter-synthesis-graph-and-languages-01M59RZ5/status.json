@@ -1,0 +1,259 @@
+{
+  "event_count": 89,
+  "last_event_id": "01M5AY8PSD0J9SHBY17G1N0GAF",
+  "materialized_at": "2026-10-19T20:39:51.341580+00:00",
+  "mission_number": "237",
+  "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7MPMXSQ9H1YF7966EPD1",
+      "last_transition_at": "2026-10-19T20:39:16.436692+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T10:37:17Z – python-pedro – shell_pid=16634 – WP01 done, commit eb37e3924. Red-first: test_runner_not_a_git_repository (2 cases, dry_run True/False) failed with NotInsideRepositoryError from 3.2.0rc35_unified_bundle.apply before the runner guard; 4 nag tests failed with SPEC_KITTY_NO_NAG=1 exported before delenv. Green with SPEC_KITTY_NO_NAG=1: pytest tests/specify_cli/upgrade tests/specify_cli/cli/commands/test_upgrade_command.py tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py -n 6 --dist loadfile = 905 passed, 16 skipped, 0 failed. ruff check/format clean; mypy --strict runner.py reports one pre-existing no-any-return on _aligned_worktree_timestamp (same on base). Residual-doc addendum (kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md): '## 2026-10-19 addendum: ceiling 21 -> 25 (#6379, #6432) - the built-in pin bump of PR #6379 vendored the plan mission step contracts, adding mission_step_contract:plan/{plan,research,review,specify} to the shipped graph. They are edge-less by construction (resolved by the (mission_type, action) join), so the shipped-graph orphan count is 25 and DOCUMENTED_ORPHAN_RESIDUAL in tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py was raised 21 -> 25. No edges wired, packs/built-in untouched; they are already in _EDGELESS_BY_CONSTRUCTION in test_extractor_projection.py.'",
+        "Review passed: red-first confirmed (2 NotInsideRepositoryError fails at bf882d1b8, green at eb37e3924); 11 base reds (6 upgrade, 4 nag w/ NO_NAG=1, orphan) green; 905 passed w/ SPEC_KITTY_NO_NAG/NO_UPGRADE_CHECK/NON_INTERACTIVE exported; orphans=25 incl 4 plan/* nodes; layer_rules+no_dead_symbols 111 passed; ruff/format clean; no migration file changed. Nits: NotInsideRepositoryError imported at module top, not lazily as WP asked; ceiling kept as hand number (fallback path)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261019",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14987,
+      "shell_pid_created_at": "1792406764.97",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7T26BVDKM6QBTS041KT0",
+      "last_transition_at": "2026-10-19T20:39:21.926304+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T10:54:49Z – claude – shell_pid=16634 – Red-first: tests/charter/synthesizer/test_styleguide_reach_only.py (19 tests) was 17 failed / 2 passed on unchanged source (commit d3974499e); the 2 passing are controls (language_scope styleguide unsourced, action bundle seeds no styleguide root). Green after fix: 19 passed. Tests run (-n0, PYTHONPATH=worktree src): tests/charter/synthesizer/ + test_default_in_force_snapshot + charter CLI synth/resynth tests + bundle/activation tests + owner_delivery + arch gates (api_reexport, runtime_charter_activation_boundary, layer_rules, no_dead_symbols, charter_pack_path_authority, charter_path_literal_authority, no_stale_charter_path_literals, no_dead_src_path_literals): 847 passed, 12 skipped, 2 failed; the 2 failures (test_resynthesize_and_hotpath activate/deactivate_without_resynthesize_stays_stale) also fail on the unchanged base (verified by stash). Changed expectations: test_project_drg styleguide source now expects directive--suggests-->styleguide (was styleguide--applies-->directive); test_synthesize_reconcile legacy-applies test now strips synthesized styleguide applies edges (was: never stripped) and keeps hand-authored ones; test_reach_only_delivery/test_synthesize_reconcile use synthesized_edge_reason(kind, slug) (tactic text byte-identical); test_synthesize_activation_append uses CREATED_ARTIFACTS_PATH, new warning text, append_synthesized_activations/created_slugs; test_charter_activation_api_reexport rows renamed; UNOWNED test_interview_mapping::test_answer_context_carries_answer_kinds_and_provenance now expects source_urns_by_kind on testing_philosophy. No fixture re-keying was needed (no checked-in fixture request is sourced). ruff, format, mypy --strict clean on changed files (4 pre-existing mypy errors in compiler.py/synthesize.py/resynthesize.py untouched).",
+        "- 2026-10-19T11:42:32Z – claude – Review cycle 1 fixes: (1) styleguides are appended/recorded only when reach-only (reach_only_ids) so language_scope and missing-directive styleguides keep today's semantics; red-first: 3 new tests failed (commit before fix), now green; existing append tests now install a sourced overlay (expectation change: record also lists manifest-registered reach-only siblings). (2) created_slugs_by_kind derives kinds from REACH_ONLY_KINDS; CLI names no kind; api re-export row renamed. Unowned edit: tests/charter/synthesizer/test_interview_mapping.py (pinned context dict now carries source_urns_by_kind). Tests: synthesizer dir + snapshot + CLI charter synth tests + arch gates 700 passed, 12 skipped, 2 failed (pre-existing baseline reds test_*_without_resynthesize_stays_stale). ruff/format/mypy clean on reach_only.py.",
+        "Cycle 2 feedback: ruff format on synthesize.py (f14342964).",
+        "Review passed: cycle-1/2 items fixed; red-first verified; DoD suites green except pre-existing origin/main reds; ruff/format clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261019",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1824,
+      "shell_pid_created_at": "1792411189.39",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7ZQMVQ1ST96XREJWGH5Z",
+      "last_transition_at": "2026-10-19T20:39:27.732817+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T12:57:40Z – implement-command – shell_pid=4042 – Implemented T011-T015 (commits 64da0ff28, 953788a2b, bd9603bf2, efc82dc95, c7255baa0). Red-first: test_project_intent_directive.py on pre-fix source = 5 failed/3 passed (slug, title, source_urns x2, overlay edge, reconcile strip); test_legacy_rename.py and the migration test fail at collection on the base commit (helper/migration absent: ImportError/ModuleNotFoundError). Green: tests/charter/synthesizer + provenance_paths + default_in_force_snapshot 574 passed 12 skipped; status/synthesize CLI, edge/reconcile/arch gates (no_dead_symbols, api_reexport, order_manifest, path authorities, runtime boundary), migration tests 210 passed + the one fixed acceptance test. Baseline reds (also on base 0874d78ee, not mine): 16 in tests/acceptance/charter_pack_cutover (test_upgrade_migration x10, test_rename_skills_glossary x1: rc8 ledger backfill migration_failed) and 5 test_session_presence_upgrade_smoke. Changed expectations: all slug/title pins -> project-intent-directive; test_edge_wiring mission-type evidence tests removed and replaced by no-edge pins; test_fr012_project_root_moved expects the renamed artifact after upgrade; fixture-adapter fixtures git-mv'd to 26d34812f1be/4b33ebc9faf5/75ba87f4274b under directive/project-intent-directive (4293a00ba37b removed, unused). Kept legacy: acceptance legacy_fixtures/generate_golden_before/static synthesized tree, test_bundle_validate_fresh_seed stale-sidecar. Unowned edits: none (tests/charter/synthesizer/test_charter_synthesize_cli etc all owned). One narrowly justified type-ignore on LegacyRenameRefusedError (errors.py is on mypy exclude ratchet so SynthesisError is Any). Dogfood rename applied to .kittify (no overlay edge/stems/generated input existed); validate_synthesis_state and build_charter_context OK on the worktree.",
+        "- 2026-10-19T14:08:38Z – unknown – Review cycle 1 fixed: error class in errors.py (unowned edit, authorised), no type-ignore; migration no-any-return; noqa PLC0415 removed; _synthesis.py (unowned, authorised) reports dead edge with own wording + converge helper moved there; new CLI test (red on prior commit: _print_stripped_edges absent). Tests 403 passed, 2 known baseline reds (test_resynthesize_and_hotpath).",
+        "- 2026-10-19T14:21:26Z – unknown – Cycle 2: removed noqa TID251 (fixed digest constant) and WP02's new PLC0415 noqa in reach_only.py (unowned, authorised). Lane diff has zero new noqa/type-ignore. 57 tests pass.",
+        "Review passed (cycle 3): all cycle-1/2 items verified; 0 new noqa/type: ignore in lane diff; ruff/format clean; mypy only pre-existing BaseMigration misc; affected tests green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 13073,
+      "shell_pid_created_at": "1792419959.44",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY85JD3FVRW1PREENEE0P6",
+      "last_transition_at": "2026-10-19T20:39:33.709683+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T14:56:19Z – implement-command – shell_pid=15513 – Red-first: 14 behavioural tests failed with real assertions before the fix (Kotlin-majority Gradle/Maven primary was java; declared Kotlin/Gradle/JUnit gave java/unknown; jvm-tagged artifact did not match kotlin/java; lacks_specialist_guidance did not expand families); 3 interview_mapping tests red (Gradle gave a java target, Kotlin gave java); architectural test_single_language_vocabulary red on code_reader.py:50/71/173 and language_scope.py:48. Green: 1081 passed, 13 skipped over tests/charter/evidence, test_language_*.py, charter_offering/shared, charter/synthesizer, infer_repo_languages test files, arch test_single_language_vocabulary/layer_rules/runtime_charter_activation_boundary/no_dead_symbols. ruff, format, mypy --strict clean; no new noqa/type-ignore. Changed behaviour for CHANGELOG: declared 'Gradle'/'Maven'/'JUnit' alone now resolves to [jvm] (was [java]); 'Java, Gradle' stays [java]; Kotlin-majority JVM repos report kotlin (was java); declared order of extract_declared_languages now follows catalog order (python, go, rust, java, kotlin, ruby, php, javascript, typescript, swift). Deviations: canonical_tokens() omitted (dead-symbol gate: no src caller); no existing pinned expectation needed changing (code_reader Java cases are Java-majority); observe_primary_language does its own depth-capped walk (second walk beside the collector scan). Unowned edits: none. Schemas accept jvm (free string items; validate rejects only unknown/any/all). test_scoping_any_all.py untouched.",
+        "- 2026-10-19T15:34:44Z – unknown – Review 1 fixes: catalog declared_rank restores pre-catalog declared order (kotlin next to java, jvm tool tokens at java slot); red-first 9 tests failed before (order churn cases, one-walk), now green; collector reuses its single walk via resolve_primary_language (observe_primary_language wrapper removed, no src caller); vocabulary gate scans ast.List with a test; family constants kept out of __all__; canonical_tokens omitted (dead-symbol gate). DoD suites 1092 passed after fixing one test-only bug; ruff/format/mypy clean, no new suppressions.",
+        "Cycle 1 fixes dfbc73f33; orchestrator reran DoD subset: 455 passed, 7 skipped; zero new suppressions.",
+        "Cycle-2 review passed: declared order restored (only kotlin/jvm rows change), single capped walk, list gate; 418 targeted tests green, lint/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26246,
+      "shell_pid_created_at": "1792424696.46",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8BWBGR4M5M279TP6388N",
+      "last_transition_at": "2026-10-19T20:39:40.171426+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T16:14:42Z – implement-command – shell_pid=28807 – Red-first: test_multi_language_evidence.py 20 failed/3 passed on pre-change src (3 pass by design: pinned single-language hash literal 57586695...ab7a... equal on lane head and origin/main; two no-extra-walk guards); 23 passed after. Suites: synthesizer+evidence+test_language_authority+CLI status/synthesize+json_contract+no_dead_symbols+single_language_vocabulary 858 passed/13 skipped; final gate/perf rerun 291 passed/7 skipped. Threshold 20% (_LANGUAGE_SHARE_THRESHOLD, private to satisfy dead-symbol gate). Changed expectations: none in test_evidence/test_request/test_write_pipeline. Deviations: observe_languages(repo_root,...) replaced by resolve_languages(observation,count_sources) to keep ONE walk; resolve_primary_language removed (dead-symbol gate), 2 lines of tests/charter/test_language_authority.py updated to resolve_languages(...).primary. Unowned edits: src/charter/activation/evidence/orchestrator.py (corpus-by-primary comment only), tests/charter/test_language_authority.py.",
+        "- 2026-10-19T17:30:01Z – unknown – Review cycle 1 fixes: FR-010 share rule runs when manifests at any depth name 2+ languages; FR-011 declared language_scope resolved via language authority (single resolution). Red-first tests added. Commit 646db18b5.",
+        "Review passed (cycle 2, reviewer-renata): FR-010 any-depth share rule and FR-011 declared scope via language authority fixed; both new tests red on 646db18b5^ (2 failed/23 passed), green on lane (224 passed, 7 skipped incl. perf envelopes, dead-symbol, single-vocabulary gates); single-language hashes byte-identical to origin/main for python/typescript/java-gradle/maven/php/go/rust and python+deep sub-20% residue; non-JVM single-language = 1 walk; declared vocabulary unchanged vs main; 0 new noqa/type: ignore; ruff/format clean; mypy only pre-existing no-any-return. Non-blocking: test_share_rule_adds_a_language_without_a_manifest keeps the root go.mod with its explanatory comment removed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15605,
+      "shell_pid_created_at": "1792431209.0",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8PSD0J9SHBY17G1N0GAF",
+      "last_transition_at": "2026-10-19T20:39:51.341580+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T20:04:53Z – claude – shell_pid=16475 – T026-T028 done in core. Retag commit b407d10b9 (java-supply-chain, maven-review-checks -> jvm; pack-manifest regenerated; regenerate-graph --check green). Golden commit 85a8dd2b5. Golden vs main (prose): the synthesized testing, quality-gates and documentation styleguides move from compiled-references roots to reach-only, linked from DIRECTIVE_034/030/037, and are newly delivered in software-dev implement and review while those directives are in force; the always-synthesized directive is labelled 'Project Intent Directive' (slug project-intent-directive, PROJECT_001) with no requires edge to a mission type; evidence languages is [kotlin, typescript] (was a single primary language); kotlin-style-guide and typescript-style-guide stay unsourced. Default golden unchanged. T029 pending orchestrator re-seed; expected core clean_tree_digest 0f6f1d2a423c4f1c347264975fa3a39936ba024bd36330152124b67d2feb57ba (vs pin 0899b1d5...). Red until pin bump: vendor --check (exit 1, drift from pin 7f063aec), test_built_in_drift_gate::test_committed_tree_matches_pin, test_built_in_pin (digest_matches_lockfile, resolver_resolves_to_pinned_bytes), test_built_in_release_parity::test_built_wheel_built_in_digest_equals_pin.",
+        "Core side done (b407d10b9 retag, 85a8dd2b5 golden+CHANGELOG+docs). Pin bump to the open-packs re-seed lands at closeout; vendor --check and 4 pin tests are red only on the digest until then.",
+        "Review passed (cycle 2, reviewer-renata): 20% rule wording fixed in CHANGELOG #6444 and charter-commands synthesize section (consistent with WP07 interview section); re-key entry accurate (slug/source_urns already hashed, languages new for polyglot); #6442 and #6404 entries under 900 chars (style 0 errors, warnings 11->9); mypy strict clean on test_jvm_toolguide_scoping; #6379 entry no longer cites the pending addendum. 107 targeted tests pass; 4 pin tests + vendor --check red on digest only, pending closeout pin bump."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14628,
+      "shell_pid_created_at": "1792441886.09",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8HE7K67JBJJGHYZSF3PV",
+      "last_transition_at": "2026-10-19T20:39:45.863905+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T18:33:15Z – claude – shell_pid=19346 – WP07 done at 5fd9ae296. KEY: top-level 'languages' list of catalog tokens in .kittify/config.yaml (SC-006 wording); 'charter:' is the charter.yaml pointer and 'charter_packs:' is the pack section, so neither could carry it; written directly to config.yaml (not a pointed charter.yaml) via the shared atomic YAML writer, other keys/comments preserved. PRECEDENCE: config list > compiled catalog.languages > interview free text/detection; evidence uses it (primary = first entry, no source walk); synthesis request injects it as language_scope. Invalid/family entries refused on write (ValueError, interview exit 1), dropped with a warning on read; none valid or empty or non-list reads as absent. Interactive: prompt default = stored list else detected; --defaults/non-interactive (is_interactive false) never prompt, store detected only when absent, never overwrite. RED-FIRST: test_configured_languages.py 15 failed/7 passed against stubs (real assertion failures); test_interview_languages.py 7 failed with the command unwired. TESTS: broad blast radius 1612 passed, 14 skipped, 1 xfailed, 3 failed = 2 known baseline reds (resynthesize_and_hotpath) + test_no_dead_symbols (fixed after: CONFIG_LANGUAGES_KEY/write_configured_languages dropped from __all__); rerun test_no_dead_symbols + api_reexport + configured_languages = 84 passed. ruff/format/mypy --strict clean on new code (interview.py untyped-decorator error pre-existing), 0 new noqa/type-ignore. UNOWNED EDITS: charter/activation/api.py (+configured_languages, settle_project_languages, LanguageSettlement seam exports) and tests/architectural/test_charter_activation_api_reexport.py rows; synthesizer/interview_mapping.py (leftover a: language_scope via declared_languages/is_catalog_language, family dropped, config list used via snapshot) ; specify_cli/.../_synthesis.py (injects configured list as language_scope); tests/charter/synthesizer/test_multi_language_evidence.py (leftover b: go.mod is ESSENTIAL since a single-language repo skips the source count; restored with a clear comment). Docs: docs/api/charter-commands.md. Orchestrator: CHANGELOG entry needed.",
+        "Review cycle 1 fixed (DM-01M5ASPC7101YP5CQE54DC3G3Z): non-interactive store keeps the detected list with a visible notice (text) and languages_notice (JSON, additive); 20% rule moved into resolve_languages (manifest only nominates; primary kept; secondary needs >=20% of counted sources); no WP05 test expectation encoded manifest-alone, added 2 tests in test_multi_language_evidence.py (unowned WP05 file, scope warning); interview typo re-asks (3 attempts); env-var test drops --defaults; docs updated. CHANGELOG: interview_mapping slug change 'Python 3.12' -> python-style-guide and 'Kotlin and Java' -> two targets; intentional WP05 rule change (manifest alone no longer lists a language).",
+        "Review passed (cycle 2, reviewer-renata): DM-01M5ASPC implemented: non-interactive stores detected list only when key absent, never overwrites; text Notice + additive JSON languages_notice (null otherwise). 20% rule in resolve_languages: tooling-only package.json -> [python]; Kotlin+TS and python+TS(80%) both listed; single-language hashes byte-identical to origin/main (python/ts/java-gradle/maven/php/go/rust/tooling/py_residue); non-JVM single-language = 1 walk. Red-first: 6 new/changed tests fail on e3b146f06^. Bounded re-ask (3), nothing written on failure; env-var test without --defaults; docs accurate. 1210 passed (interview_languages + charter/synthesizer + charter/activation), 266 passed gates (dead-symbol, json_contract_enumeration, layer_rules, runtime boundary, api reexport, default in-force snapshot). 0 new noqa/type: ignore; ruff/format clean; mypy only pre-existing untyped-decorator. Non-blocking carry-over: cycle-1 item 3 (_real_languages phrase-slug change, e.g. python-3-12-style-guide -> python-style-guide) still lacks a CHANGELOG/WP-history line."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12244,
+      "shell_pid_created_at": "1792438625.55",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    }
+  }
+}

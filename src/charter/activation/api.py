@@ -67,13 +67,22 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
-# Reach-only tactic activation — the synthesis-run helpers the ``charter
-# synthesize`` / ``resynthesize`` CLI commands consume (#6404) to append the
-# tactics a run created to an explicit ``activated_tactics`` list. Public per
+# Legacy project-intent directive convergence (#6443, FR-008) — the one helper the
+# ``4.0.0rc8_project_intent_directive_rename`` migration and ``charter synthesize`` /
+# ``resynthesize`` both call. Public per charter.activation.synthesizer.legacy_rename.__all__.
+from charter.activation.synthesizer.legacy_rename import (
+    LegacyRenameRefusedError as LegacyRenameRefusedError,
+    RenameReport as RenameReport,
+    rename_legacy_project_intent_directive as rename_legacy_project_intent_directive,
+)
+
+# Reach-only activation — the synthesis-run helpers the ``charter synthesize`` /
+# ``resynthesize`` CLI commands consume (#6404, #6442) to append the tactics and
+# styleguides a run created to an explicit ``activated_<kind>s`` list. Public per
 # charter.activation.synthesizer.reach_only.__all__.
 from charter.activation.synthesizer.reach_only import (
-    append_synthesized_tactic_activations as append_synthesized_tactic_activations,
-    created_tactic_slugs as created_tactic_slugs,
+    append_synthesized_activations as append_synthesized_activations,
+    created_slugs_by_kind as created_slugs_by_kind,
 )
 
 # Activation write-target resolution — the ``(path, data, save)`` triple a
@@ -91,6 +100,14 @@ from charter.activation.pack_manager import (
 from charter.activation.identity_index import (
     IdentityEntry as IdentityEntry,
     IdentityIndex as IdentityIndex,
+)
+
+# Operator-confirmed project languages (``.kittify/config.yaml`` ``languages``): the read the
+# synthesis request builder uses and the interview's detect/propose/confirm/store step (FR-020).
+from charter.activation.language_authority import (
+    LanguageSettlement as LanguageSettlement,
+    configured_languages as configured_languages,
+    settle_project_languages as settle_project_languages,
 )
 
 # Activation result / effective-set / org-required-stem / selection-diagnostic
@@ -114,15 +131,21 @@ __all__ = [
     "EffectiveSet",
     "IdentityEntry",
     "IdentityIndex",
-    "append_synthesized_tactic_activations",
+    "LanguageSettlement",
+    "LegacyRenameRefusedError",
+    "RenameReport",
+    "append_synthesized_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
-    "created_tactic_slugs",
+    "configured_languages",
+    "created_slugs_by_kind",
     "finalize_manifest",
     "load_yaml",
     "org_required_stems",
     "read_mission_type",
+    "rename_legacy_project_intent_directive",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
+    "settle_project_languages",
     "verify",
 ]

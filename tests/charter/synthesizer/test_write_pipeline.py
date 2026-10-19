@@ -147,8 +147,8 @@ def test_extract_directive_number_falls_back_for_malformed_ids() -> None:
 
 def test_artifact_filename_builds_directive_filename_without_regex() -> None:
     assert (
-        artifact_filename("directive", "mission-type-scope-directive", "PROJECT_001")
-        == "001-mission-type-scope-directive.directive.yaml"
+        artifact_filename("directive", "project-intent-directive", "PROJECT_001")
+        == "001-project-intent-directive.directive.yaml"
     )
 
 

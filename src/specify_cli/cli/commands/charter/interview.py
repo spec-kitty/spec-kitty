@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import typer
 from rich.markup import escape
 
+from specify_cli.core.env import is_interactive
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.task_utils import TaskCliError
@@ -42,6 +43,7 @@ import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
     from charter.activation.api import EffectiveSet
+    from charter.activation.api import LanguageSettlement
     from charter.drg import ArtifactKind
 
 __all__ = ["interview"]
@@ -198,6 +200,23 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     return warnings, narrowed
 
 
+_LANGUAGES_PROMPT = "Project languages (comma-separated catalog tokens, primary first; 'none' to leave unset)"
+
+
+def _settle_languages(repo_root: Path, *, interactive: bool) -> LanguageSettlement:
+    """Detect, propose and store the project language list in config.yaml (FR-020).
+
+    Interactive runs show the stored list (else the detected one) as the default. A
+    ``--defaults`` or non-interactive run never prompts, never overwrites a stored list, and
+    stores the detected list (with a notice) only when the key is absent. An invalid answer
+    is asked again (bounded), then fails without writing.
+    """
+    from charter.activation.api import settle_project_languages
+
+    ask = (lambda default: typer.prompt(_LANGUAGES_PROMPT, default=default)) if interactive else None
+    return settle_project_languages(repo_root, ask=ask, on_invalid=lambda message: typer.echo(message, err=True))
+
+
 @charter_app.command()
 def interview(  # noqa: C901
     mission_type: str | None = typer.Option(
@@ -285,6 +304,10 @@ def interview(  # noqa: C901
             org_prefill_warning = str(exc)
             if not json_output:
                 console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
+
+        # FR-020 -- detect the repository's languages, propose them, and store the confirmed
+        # list in .kittify/config.yaml. When set it is the one list for evidence and scoping.
+        language_settlement = _settle_languages(repo_root, interactive=not use_defaults and is_interactive())
 
         # Resolve actor for Decision Moment events (non-fatal fallback)
         actor = _resolve_actor()
@@ -424,6 +447,9 @@ def interview(  # noqa: C901
                         "selected_paradigms": interview_data.selected_paradigms,
                         "selected_directives": interview_data.selected_directives,
                         "available_tools": interview_data.available_tools,
+                        "languages": list(language_settlement.languages),
+                        "languages_source": language_settlement.source,
+                        "languages_notice": language_settlement.notice,
                         "org_prefill_messages": org_prefill_messages,
                         "org_prefill_warning": org_prefill_warning,
                         "promotion_warnings": promotion_warnings,
@@ -438,6 +464,10 @@ def interview(  # noqa: C901
         console.print(f"Interview file: {answers_path.relative_to(repo_root)}")
         console.print(f"Mission: {interview_data.mission}")
         console.print(f"Profile: {interview_data.profile}")
+        if language_settlement.languages:
+            console.print(f"Languages ({language_settlement.source}): {', '.join(language_settlement.languages)}")
+        if language_settlement.notice:
+            console.print(f"[yellow]Notice:[/yellow] {escape(language_settlement.notice)}")
         for msg in promotion_warnings:
             console.print(f"[yellow]Selection promotion:[/yellow] {msg}")
         for yaml_key, dropped in narrowed.items():

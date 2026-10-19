@@ -129,15 +129,15 @@ def _drg_snapshot() -> dict[str, Any]:
 
 def _request(run_id: str) -> SynthesisRequest:
     """Same target + snapshots as ``tests/charter/synthesizer``'s ``_request``
-    helper (kind=directive, slug=mission-type-scope-directive) so this module
+    helper (kind=directive, slug=project-intent-directive) so this module
     resolves to the SAME committed fixture file deterministically -- only
     ``run_id`` differs, which ``compute_inputs_hash`` does not key on
     (mirrors ``test_noop_resynthesis_is_byte_stable_for_graph_and_manifest``).
     """
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )

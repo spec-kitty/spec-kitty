@@ -160,7 +160,7 @@ will surface failures you did not cause. **Classify every failure before you act
 misattribution wastes effort and, worse, tempts an agent to green-wash a signal the project
 deliberately keeps red.
 
-Five baseline-red categories that are **not yours to fix**:
+Six baseline-red categories that are **not yours to fix**:
 
 1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
    an open P0 bug is *expected* to red mainline. Its reproduction carries
@@ -200,6 +200,14 @@ Five baseline-red categories that are **not yours to fix**:
    the same ancestor leak is pinned by the `no_git_ancestry_inside_tmp_path` fixture in
    `tests/zeitgeist_client/conftest.py` (hoisting tracked at #614). Run inside the sandbox
    those guards establish rather than "fixing" the read-only ancestor mount.
+
+6. **Harness environment leaks.** Agent containers export `SPEC_KITTY_NO_NAG`,
+   `SPEC_KITTY_NO_UPGRADE_CHECK` and `SPEC_KITTY_NON_INTERACTIVE` into the shell that runs
+   pytest. The root test fixture keeps pre-existing `SPEC_KITTY_*` values by design, so a
+   test that needs the behaviour such a variable switches off (for example the upgrade
+   nag) goes red only inside an agent container and passes in CI. The remedy is a
+   test-local `monkeypatch.delenv("<NAME>", raising=False)`, never an edit of the root
+   fixture and never a skip.
 
 **The attribution test:** a failure is yours to fold only if it is **red on your branch and
 green on the base**. Confirm the base state by running the same node id against

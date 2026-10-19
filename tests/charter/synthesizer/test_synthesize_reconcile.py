@@ -97,8 +97,8 @@ def _request(
 ) -> SynthesisRequest:
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )
@@ -731,10 +731,10 @@ _SUGGESTS_TRIPLE = ("directive:DIRECTIVE_003", _SYNTH_TACTIC, "suggests")
 
 def _derived_edge_fixture(source: str, target: str) -> Any:
     """A directive ``suggests`` edge carrying the synthesis fingerprint (#6404)."""
-    from charter.activation.synthesizer.reconcile import synthesized_tactic_reason
+    from charter.activation.synthesizer.reconcile import synthesized_edge_reason
     from charter.offering.drg.models import DRGEdge, Relation
 
-    return DRGEdge(source=source, target=target, relation=Relation.SUGGESTS, reason=synthesized_tactic_reason(target.split(":", 1)[1]))
+    return DRGEdge(source=source, target=target, relation=Relation.SUGGESTS, reason=synthesized_edge_reason("tactic", target.split(":", 1)[1]))
 
 
 def _edge_triples(graph_path: Path) -> list[tuple[str, str, str]]:
@@ -956,9 +956,10 @@ def test_hand_authored_requires_edges_into_regenerated_tactic_survive(
         assert label in {r.urn for r in removable_refs}
 
 
-def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None:
-    """#6404: a styleguide's ``applies`` edge is never stripped; a topic-scoped run
-    leaves an untargeted tactic's legacy edge untouched, a full run strips it."""
+def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> None:
+    """#6404, #6442: a synthesized styleguide's source-side ``applies`` edge is legacy like a tactic's; a
+    topic-scoped run leaves an untargeted node's legacy edge untouched, a full run strips it. A node
+    synthesis does not own keeps its edge."""
     from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
     from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
 
@@ -972,16 +973,19 @@ def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None
     def legacy(src: str) -> DRGEdge:
         return DRGEdge(source=src, target=target, relation=Relation.APPLIES)
 
-    existing = _graph([regenerated, untargeted, style], [legacy("tactic:regen"), legacy("tactic:untargeted"), legacy("styleguide:style")])
+    hand_authored = DRGNode(urn="styleguide:hand-authored", kind=NodeKind.STYLEGUIDE, label="hand")
+    sources = ("tactic:regen", "tactic:untargeted", "styleguide:style", "styleguide:hand-authored")
+    existing = _graph([regenerated, untargeted, style, hand_authored], [legacy(src) for src in sources])
     updated = _graph([regenerated], [])
     synthesized = {"tactic:regen", "tactic:untargeted", "styleguide:style"}
 
     merged = merge_project_overlay(
         existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized, topic_scoped=True
     )
-    assert {e.source for e in merged.edges} == {"tactic:untargeted", "styleguide:style"}
+    assert {e.source for e in merged.edges} == {"tactic:untargeted", "styleguide:style", "styleguide:hand-authored"}
 
     full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
-    assert {e.source for e in full.edges} == {"styleguide:style"}
+    assert {e.source for e in full.edges} == {"styleguide:hand-authored"}  # not synthesized: untouched
     stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
     assert [e.source for e in stripped] == ["tactic:regen"]
+    assert {e.source for e in legacy_applies_edges(existing, synthesized)} == {"tactic:regen", "tactic:untargeted", "styleguide:style"}

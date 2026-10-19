@@ -61,6 +61,7 @@ def _build_synthesis_request(
 
     from charter.activation.compiler import resolve_config_activated_roots
     from charter.activation.interview import read_interview_answers
+    from charter.activation.api import configured_languages
     from charter.activation.pack_context import PackContext
     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
     from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
@@ -109,6 +110,11 @@ def _build_synthesis_request(
         "selected_paradigms": config_roots.paradigms,
     }
     interview_snapshot.update(dict(interview_data.answers))
+    # FR-020: the operator-confirmed ``languages`` list of config.yaml, when set, is the one list
+    # that scopes doctrine (one styleguide per language), whatever the free-text answer says.
+    configured = configured_languages(repo_root)
+    if configured:
+        interview_snapshot["language_scope"] = list(configured)
 
     # Build a minimal doctrine snapshot (directives only for now)
     doctrine_snapshot: dict[str, Any] = {
@@ -913,8 +919,52 @@ def _ref_to_dict(ref: NodeOrEdgeRef) -> dict[str, Any]:
     return payload
 
 
+def _converge_legacy_project_intent_directive(repo_root: Path, *, dry_run: bool, console: Any, json_output: bool) -> None:
+    """Run the shared FR-008 rename helper before a synthesis write (#6443).
+
+    A refusal is a ``SynthesisError`` the command's own handler renders. The notice goes to stderr
+    under ``--json`` so stdout stays one JSON document.
+    """
+    # deferred: keeps the charter activation seam off the CLI import path
+    from charter.activation.api import rename_legacy_project_intent_directive
+
+    report = rename_legacy_project_intent_directive(repo_root, dry_run=dry_run)
+    if not report.pending:
+        return
+    sink = err_console if json_output else console
+    heading = (
+        "Legacy project-intent directive found (dry run, nothing changed)"
+        if dry_run
+        else "Renamed the legacy mission-type-scope-directive to project-intent-directive"
+    )
+    sink.print(f"[yellow]{heading}:[/yellow]")
+    for action in report.actions:
+        sink.print(f"  - {action}")
+
+
+def _print_stripped_edges(stripped: tuple[NodeOrEdgeRef, ...], *, dry_run: bool) -> None:
+    """Report each stripped legacy edge under wording that matches its own ``reason`` (#6404, #6443)."""
+    # deferred: reconcile is imported lazily across this module (see the TYPE_CHECKING block above)
+    from charter.activation.synthesizer.reconcile import DEAD_MISSION_TYPE_EDGE_REASON
+
+    dead = [ref for ref in stripped if ref.reason == DEAD_MISSION_TYPE_EDGE_REASON]
+    replaced = [ref for ref in stripped if ref.reason != DEAD_MISSION_TYPE_EDGE_REASON]
+    if replaced:
+        if dry_run:
+            console.print("[yellow]Replaced legacy edges (removed without --prune):[/yellow]")
+        else:
+            console.print(f"[yellow]Replaced {len(replaced)} legacy 'applies' edge(s) with 'suggests':[/yellow]")
+        for ref in replaced:
+            console.print(f"  - {ref.ref_kind}: {ref.urn}" if dry_run else f"  - {ref.urn}")
+    if dead:
+        suffix = " (removed without --prune)" if dry_run else ""
+        console.print(f"[yellow]Removed {len(dead)} dead mission-type 'requires' edge(s){suffix}:[/yellow]")
+        for ref in dead:
+            console.print(f"  - {ref.urn}")
+
+
 def _stripped_legacy_edges(delta: ReconciliationDelta) -> tuple[NodeOrEdgeRef, ...]:
-    """Removals the run performed itself (legacy ``applies`` edges, #6404)."""
+    """Removals the run performed itself, each carrying its ``reason``: legacy ``applies`` edges (#6404) and the dead mission-type ``requires`` edge (#6443)."""
     return tuple(ref for ref in delta.removable if ref.reason is not None)
 
 
@@ -987,11 +1037,8 @@ def _emit_dry_run_report(
     stripped = _stripped_legacy_edges(delta)
     prune_only = [ref for ref in delta.removable if ref.reason is None]
     if stripped:
-        # Removed on every run (replaced by their ``suggests`` successor), NOT
-        # only under --prune.
-        console.print("[yellow]Replaced legacy edges (removed without --prune):[/yellow]")
-        for ref in stripped:
-            console.print(f"  - {ref.ref_kind}: {ref.urn}")
+        # Removed on every run, NOT only under --prune; each line says why.
+        _print_stripped_edges(stripped, dry_run=True)
     if prune_only:
         console.print("[yellow]Planned deletions (would run under --prune):[/yellow]")
         for ref in prune_only:
@@ -1119,9 +1166,7 @@ def _emit_real_run_report(
                     console.print(f"  - {ref.ref_kind}: {ref.urn}")
             stripped = _stripped_legacy_edges(reconciliation)
             if stripped:
-                console.print(f"[yellow]Replaced {len(stripped)} legacy 'applies' edge(s) with 'suggests':[/yellow]")
-                for ref in stripped:
-                    console.print(f"  - {ref.urn}")
+                _print_stripped_edges(stripped, dry_run=False)
             for conflict in reconciliation.conflicts:
                 console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
     if written_artifacts_real:

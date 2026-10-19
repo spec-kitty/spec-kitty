@@ -25,6 +25,7 @@ __all__ = [
     "FixtureAdapterMissingError",
     "GeneratedArtifactLoadError",
     "GeneratedArtifactMissingError",
+    "LegacyRenameRefusedError",
     "ManifestIntegrityError",
     "NeutralityGateViolation",
     "PathGuardViolation",
@@ -336,4 +337,23 @@ class NeutralityGateViolation(SynthesisError):
             f"Neutrality gate blocked promotion of {self.artifact_urn}.\n"
             f"Language-specific terms detected in a generic-scoped artifact: {terms}.\n"
             f"Inspect the staged artifact at: {self.staging_dir}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Legacy project-intent directive rename (#6443)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LegacyRenameRefusedError(SynthesisError):
+    """The legacy ``mission-type-scope-directive`` rename was refused; nothing was changed."""
+
+    reasons: tuple[str, ...]
+
+    def __str__(self) -> str:
+        detail = "; ".join(self.reasons)
+        return (
+            "Refused to rename the legacy 'mission-type-scope-directive' directive to "
+            f"'project-intent-directive': {detail}. Nothing was changed. Resolve the above and re-run."
         )

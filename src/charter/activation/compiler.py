@@ -34,7 +34,7 @@ from charter.activation.charter_yaml_io import (
 from kernel.charter_pack_paths import pack_presets_dir
 from kernel.clock import now_utc_stamp
 from kernel.errors import KittyInternalConsistencyError
-from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+from charter.activation.synthesizer.reach_only import reach_only_ids
 from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -305,10 +305,11 @@ def _direct_root_urns(config_roots: ConfigActivatedRoots, repo_root: Path | None
     DRG-reachable and are loaded directly from YAML, so neither appears here.
     """
     urns: set[str] = set()
-    # #6404: a synthesized tactic reached by a directive's suggests edge is not a root.
-    reach_only = reach_only_tactic_ids(repo_root) if repo_root is not None else frozenset()
-    urns.update(f"{ArtifactKind.TACTIC.value}:{artifact_id}" for artifact_id in config_roots.tactics if artifact_id not in reach_only)
-    urns.update(f"{ArtifactKind.STYLEGUIDE.value}:{artifact_id}" for artifact_id in config_roots.styleguides)
+    # #6404, #6442: a synthesized tactic or styleguide reached by a directive's suggests edge is not a root.
+    reach_only_tactics = reach_only_ids(repo_root, ArtifactKind.TACTIC.value) if repo_root is not None else frozenset()
+    reach_only_styleguides = reach_only_ids(repo_root, ArtifactKind.STYLEGUIDE.value) if repo_root is not None else frozenset()
+    urns.update(f"{ArtifactKind.TACTIC.value}:{artifact_id}" for artifact_id in config_roots.tactics if artifact_id not in reach_only_tactics)
+    urns.update(f"{ArtifactKind.STYLEGUIDE.value}:{artifact_id}" for artifact_id in config_roots.styleguides if artifact_id not in reach_only_styleguides)
     urns.update(f"{ArtifactKind.TOOLGUIDE.value}:{artifact_id}" for artifact_id in config_roots.toolguides)
     urns.update(f"{ArtifactKind.PROCEDURE.value}:{artifact_id}" for artifact_id in config_roots.procedures)
     urns.update(f"{ArtifactKind.AGENT_PROFILE.value}:{artifact_id}" for artifact_id in config_roots.agent_profiles)

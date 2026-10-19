@@ -367,6 +367,8 @@ def test_c_sharp_style_tokens_are_out_of_scope_and_resolve_to_unknown() -> None:
         ("Java-based backend", ["java"]),
         ("Python-based services", ["python"]),
         ("Java 21 with Gradle", ["java"]),
+        ("Kotlin with Gradle", ["kotlin"]),
+        ("Gradle", ["jvm"]),
         ("librespot-java", []),
         ("my-python-thing", []),
     ],

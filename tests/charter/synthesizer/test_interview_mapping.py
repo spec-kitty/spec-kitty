@@ -334,6 +334,21 @@ class TestResolveSectionsLanguageScope:
 
         assert [label for label, _ in results if label == "language_scope"] == []
 
+    @pytest.mark.regression
+    @pytest.mark.parametrize("snapshot", [{"languages_frameworks": "Gradle"}, {"language_scope": ["jvm"]}])
+    def test_family_token_never_becomes_a_styleguide_target(self, snapshot: dict[str, object]) -> None:
+        """#6444: a declared build tool names the ``jvm`` family, which synthesizes no ``jvm-style-guide``."""
+        results = resolve_sections(snapshot)
+
+        assert [label for label, _ in results if label == "language_scope"] == []
+
+    @pytest.mark.regression
+    def test_declared_kotlin_synthesizes_a_kotlin_target(self) -> None:
+        """#6444: "Kotlin" is a language like any other; build tools beside it add nothing."""
+        results = resolve_sections({"languages_frameworks": "Kotlin, Gradle, JUnit"})
+
+        assert [ctx["language"] for label, ctx in results if label == "language_scope"] == ["kotlin"]
+
     @pytest.mark.parametrize("answer", [["unknown"], ["N/A"], ["any", "TBD"]])
     def test_list_placeholder_answers_emit_no_language_target(self, answer: list[str]) -> None:
         """RED (pins the fix): list-shaped placeholders/unknown never become a styleguide target."""
@@ -451,6 +466,8 @@ class TestResolveFullSnapshot:
             "kinds": ["tactic", "styleguide"],
             "source_section": "testing_philosophy",
             "answer_source": "testing_philosophy",
+            # #6442: the styleguide is sourced from its directive (static table, no DRG read).
+            "source_urns_by_kind": {"styleguide": ("directive:DIRECTIVE_034",)},
         }
 
 

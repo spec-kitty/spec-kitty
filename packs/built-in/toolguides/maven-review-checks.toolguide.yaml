@@ -4,7 +4,7 @@ tool: maven-quality-stack
 title: Maven Review Checks
 guide_path: packs/built-in/toolguides/MAVEN_REVIEW_CHECKS.md
 applies_to_languages:
-  - java
+  - jvm
 summary: >
   Catalog of automated checks a reviewer should run or verify have been run
   before approving Java code. Organized by category: compilation, tests,

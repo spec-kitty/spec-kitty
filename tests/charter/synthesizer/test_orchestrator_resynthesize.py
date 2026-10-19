@@ -98,8 +98,8 @@ def minimal_drg_snapshot() -> dict[str, Any]:
 def base_target() -> SynthesisTarget:
     return SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )
@@ -273,7 +273,7 @@ class TestUs3KindSlug:
         target = result.resolved_topic.targets[0]
         assert target.kind == "directive"
         assert target.artifact_id == "PROJECT_001"
-        assert target.slug == "mission-type-scope-directive"
+        assert target.slug == "project-intent-directive"
 
     def test_resynthesize_single_tactic_by_kind_slug(
         self,

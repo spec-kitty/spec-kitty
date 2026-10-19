@@ -36,6 +36,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
 # ``_run_synthesis_dry_run_with_artifacts``) are routed via ``_charter_pkg``
 # below.
 from specify_cli.cli.commands.charter._synthesis import (
+    _converge_legacy_project_intent_directive,
     _catalog_is_established,
     _emit_dry_run_report,
     _emit_orphan_refusal,
@@ -212,6 +213,11 @@ def charter_synthesize(  # noqa: C901
         resolve_charter_write_root(Path.cwd())
 
         repo_root = _charter_pkg.find_repo_root()
+
+        # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything
+        # writes, so a run can never leave two files declaring the same PROJECT_00N id. The
+        # shared helper refuses (a SynthesisError, nothing changed) on a target collision.
+        _converge_legacy_project_intent_directive(repo_root, dry_run=dry_run, console=console, json_output=json_output)
 
         # T032 (#839 fresh-project): When the operator runs synthesize on a
         # fresh project (post `charter generate` but before the LLM harness
@@ -413,6 +419,7 @@ def charter_synthesize(  # noqa: C901
                                     {
                                         "stack_id": bundle.code_signals.stack_id,
                                         "primary_language": bundle.code_signals.primary_language,
+                                        "languages": list(bundle.code_signals.languages),
                                         "representative_files_count": len(bundle.code_signals.representative_files),
                                     }
                                     if bundle.code_signals
@@ -439,7 +446,7 @@ def charter_synthesize(  # noqa: C901
             console.print("[bold]Evidence dry-run summary:[/bold]")
             if bundle.code_signals:
                 cs = bundle.code_signals
-                console.print(f"  Code signals: stack={cs.stack_id}, lang={cs.primary_language}")
+                console.print(f"  Code signals: stack={cs.stack_id}, lang={'+'.join(cs.languages) if len(cs.languages) > 1 else cs.primary_language}")
                 console.print(f"  Representative files: {len(cs.representative_files)} found")
             else:
                 console.print("  Code signals: none (skipped or not detected)")
@@ -524,16 +531,13 @@ def charter_synthesize(  # noqa: C901
                 orphaned=orphaned,
             )
 
-        # #6404: append only the tactics THIS run created (never every manifest
-        # tactic: that would re-add one an operator removed) to an explicit
-        # ``activated_tactics`` list (absent key stays absent). Reached only
+        # #6404, #6442: append only the tactics and styleguides THIS run created (never
+        # every manifest entry: that would re-add one an operator removed) to an explicit
+        # ``activated_<kind>s`` list (absent key stays absent). Reached only
         # after the dry-run return and the orphan refusal above.
-        from charter.activation.api import (
-            append_synthesized_tactic_activations,
-            created_tactic_slugs,
-        )
+        from charter.activation.api import append_synthesized_activations, created_slugs_by_kind
 
-        activation_warnings = append_synthesized_tactic_activations(repo_root, created_tactic_slugs(getattr(result, "reconciliation", None)))
+        activation_warnings = append_synthesized_activations(repo_root, created_slugs_by_kind(getattr(result, "reconciliation", None)))
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:

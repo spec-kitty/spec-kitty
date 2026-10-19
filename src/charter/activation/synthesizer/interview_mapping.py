@@ -46,12 +46,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from charter.activation.language_authority import declared_languages, is_catalog_language
 from charter.activation.language_scope import extract_declared_languages, is_placeholder_language_answer
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.shared.language_catalog import is_language_family
 
 __all__ = [
     "canonicalize_interview_section_label",
-    "mission_type_urn_candidate",
     "normalize_interview_snapshot",
     "resolve_sections",
 ]
@@ -136,6 +137,17 @@ INTERVIEW_MAPPINGS: tuple[InterviewSectionMapping, ...] = (
     ),
 )
 
+#: Directive each styleguide-producing section's styleguide elaborates (#6442). A
+#: fixed table: the styleguide is linked FROM that directive and reaches context
+#: only while it is in force. ``targets.build_targets`` keeps the entry only when
+#: the run's DRG snapshot holds the directive (no dangling URN); this module never
+#: reads the DRG (R-9). ``language_scope`` styleguides are deliberately unsourced.
+_STYLEGUIDE_SOURCE_DIRECTIVES: dict[str, str] = {
+    "testing_philosophy": "DIRECTIVE_034",
+    "quality_gates": "DIRECTIVE_030",
+    "documentation_policy": "DIRECTIVE_037",
+}
+
 # Real interview producer keys that feed legacy synthesis section labels.
 _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
     "mission_type": ("project_intent",),
@@ -162,20 +174,6 @@ _MISSION_IDENTIFIER_ANSWERS: frozenset[str] = frozenset(
         for mission_type_id in builtin_mission_type_ids()
     }
 )
-
-# #3052 edge wiring (FR-012/NFR-007): underscore-normalized mission-type
-# identifier -> its ``mission_type:<id>`` DRG URN (built-in NodeKind.MISSION_TYPE,
-# see charter/offering/drg/models.py). Derived from the SAME canonical
-# ``builtin_mission_type_ids()`` read as ``_MISSION_IDENTIFIER_ANSWERS`` above
-# (single source of truth, #2669 IC-1a) so the two tables can never drift.
-# This is the ONLY additional evidence source wired by WP07: when the
-# ``mission_type`` answer IS (up to hyphen/underscore normalization) a shipped
-# mission-type id, that identity *is* the declared upstream URN -- not an
-# inferred relationship (NFR-007 no-fabrication).
-_MISSION_TYPE_URN_BY_NORMALIZED_ID: dict[str, str] = {
-    mission_type_id.replace("-", "_"): f"mission_type:{mission_type_id}"
-    for mission_type_id in builtin_mission_type_ids()
-}
 
 # Gated sections without a direct producer key. These remain accepted for
 # legacy/synthetic synthesis snapshots and are documented so contract tests do
@@ -269,21 +267,35 @@ def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
     languages = _real_languages(_iter_clean_strings(normalized.get("language_scope", [])))
     if not languages and "languages_frameworks" in normalized:
         languages = _extract_languages_from_alias(normalized["languages_frameworks"])
-        if languages:
-            normalized["language_scope"] = list(languages)
     if languages:
+        normalized["language_scope"] = list(languages)
         normalized.pop("languages_frameworks", None)
 
 
 def _real_languages(values: tuple[str, ...]) -> tuple[str, ...]:
-    """Drop placeholder/``unknown`` members so they never become a styleguide target."""
-    return tuple(value for value in values if not is_placeholder_language_answer(value))
+    """Return the languages *values* name, through the language authority, as styleguide targets.
+
+    Each entry is read by :func:`~charter.activation.language_authority.declared_languages`
+    (``"Python 3.12"`` names ``python``), and a catalog token stands for itself (``go``,
+    which free text cannot declare). Placeholder/``unknown`` entries and family members are
+    dropped: a family token (``jvm``, from a declared "Gradle") is a match-time scope, not a
+    language, so it synthesizes no ``jvm-style-guide`` (FR-013). An entry nothing recognises
+    keeps its own lower-cased spelling.
+    """
+    languages: list[str] = []
+    for value in values:
+        if is_placeholder_language_answer(value):
+            continue
+        token = value.strip().lower()
+        named = [token] if is_catalog_language(token) else declared_languages(value) or [token]
+        languages.extend(item for item in named if not is_language_family(item) and item not in languages)
+    return tuple(languages)
 
 
 def _extract_languages_from_alias(raw_alias: object) -> tuple[str, ...]:
     """Extract declared languages from the ``languages_frameworks`` alias value."""
     if isinstance(raw_alias, str):
-        return tuple(extract_declared_languages(raw_alias))
+        return _real_languages(tuple(extract_declared_languages(raw_alias)))
     return _real_languages(_iter_clean_strings(raw_alias))
 
 
@@ -313,28 +325,6 @@ def _section_answer_with_source(
     return "", section_label
 
 
-def mission_type_urn_candidate(answer: str) -> str | None:
-    """Return the ``mission_type:<id>`` URN *answer* would declare, or ``None``.
-
-    #3052 edge wiring (FR-012/NFR-007): ``answer`` is genuine evidence exactly
-    when it (up to hyphen/underscore normalization, mirroring
-    ``_MISSION_IDENTIFIER_ANSWERS``) names a shipped mission-type id -- the
-    built-in DRG carries a ``mission_type:<id>`` node for each one
-    (``charter.offering.drg.models.NodeKind.MISSION_TYPE``). A free-text answer that
-    does not name a shipped id carries no such evidence, so ``None`` is
-    returned -- never inferred, never fabricated.
-
-    This function only answers "does the answer name a shipped mission-type
-    id" -- it does NOT confirm the URN is present in any particular run's DRG
-    snapshot. Callers (``targets.build_targets``, R-9 forbids DRG access
-    here) are responsible for that presence check before wiring the URN as a
-    ``source_urns`` entry, so an incomplete DRG snapshot never turns into a
-    dangling-URN validation failure.
-    """
-    normalized = _normalize_section_selector(answer)
-    return _MISSION_TYPE_URN_BY_NORMALIZED_ID.get(normalized)
-
-
 def _append_table_driven_results(
     results: list[tuple[str, dict[str, Any]]],
     interview_snapshot: dict[str, Any],
@@ -347,17 +337,16 @@ def _append_table_driven_results(
         if mapping.requires_nonempty and not answer:
             continue
 
-        results.append(
-            (
-                label,
-                {
-                    "answer": answer,
-                    "kinds": list(mapping.kinds),
-                    "source_section": label,
-                    "answer_source": source_key,
-                },
-            )
-        )
+        context: dict[str, Any] = {
+            "answer": answer,
+            "kinds": list(mapping.kinds),
+            "source_section": label,
+            "answer_source": source_key,
+        }
+        directive_id = _STYLEGUIDE_SOURCE_DIRECTIVES.get(label)
+        if directive_id is not None and "styleguide" in mapping.kinds:
+            context["source_urns_by_kind"] = {"styleguide": (f"directive:{directive_id}",)}
+        results.append((label, context))
 
 
 def _iter_clean_strings(raw_values: object) -> tuple[str, ...]:

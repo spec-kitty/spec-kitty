@@ -59,8 +59,9 @@ __all__ = [
     "ReconciliationConflict",
     "ReconciliationDelta",
     "SynthesizeMode",
+    "REACH_ONLY_KINDS",
     "apply_prune",
-    "is_synthesized_tactic_edge",
+    "is_synthesized_source_edge",
     "legacy_strip_notice",
     "merge_project_overlay",
     "reconcile_synthesis",
@@ -219,31 +220,39 @@ class ReconciliationOutcome:
 
 
 LEGACY_APPLIES_REASON = "legacy applies edge replaced by suggests"
+DEAD_MISSION_TYPE_EDGE_REASON = "dead mission-type requires edge removed (#6443)"
 
 _DIRECTIVE_URN_PREFIX = "directive:"
-_TACTIC_URN_PREFIX = "tactic:"
+_SYNTHESIZED_DIRECTIVE_URN_PREFIX = "directive:PROJECT_"
+_MISSION_TYPE_URN_PREFIX = "mission_type:"
+
+#: Kinds a synthesis run links FROM their source directive (``directive --suggests--> <kind>``)
+#: so they reach action context only through that edge (#6404 tactics, #6442 styleguides).
+REACH_ONLY_KINDS: tuple[str, ...] = ("tactic", "styleguide")
+_REACH_ONLY_URN_PREFIXES: tuple[str, ...] = tuple(f"{kind}:" for kind in REACH_ONLY_KINDS)
 
 
-def synthesized_tactic_reason(slug: str) -> str:
-    """The ``reason`` text synthesis stamps on a tactic's derived ``suggests`` edge (#6404)."""
-    return f"Synthesized tactic {slug!r} is how this project applies the directive"
+def synthesized_edge_reason(kind: str, slug: str) -> str:
+    """The ``reason`` text synthesis stamps on a reach-only artifact's derived ``suggests`` edge.
+
+    The tactic text is byte-identical to the one #6404 shipped: existing overlays carry it.
+    """
+    return f"Synthesized {kind} {slug!r} is how this project applies the directive"
 
 
-def is_synthesized_tactic_edge(edge: DRGEdge) -> bool:
-    """True for the exact shape synthesis derives for a tactic (#6404).
+def is_synthesized_source_edge(edge: DRGEdge) -> bool:
+    """True for the exact shape synthesis derives for a reach-only artifact (#6404, #6442).
 
     The single "synthesis shape" predicate shared by reconcile ownership and the
-    reach-only reader: ``directive:<id> --suggests--> tactic:<slug>`` carrying the
-    reason :func:`synthesized_tactic_reason` stamps (see
-    ``project_drg._derived_edge``). A hand-authored edge of the same relation and
-    endpoints has a different reason and is therefore NOT a synthesized one.
+    reach-only reader: ``directive:<id> --suggests--> <kind>:<slug>`` for a kind in
+    :data:`REACH_ONLY_KINDS`, carrying the reason :func:`synthesized_edge_reason`
+    stamps (see ``project_drg._derived_edge``). A hand-authored edge of the same
+    relation and endpoints has a different reason and is therefore NOT a synthesized one.
     """
-    return (
-        edge.relation is Relation.SUGGESTS
-        and edge.source.startswith(_DIRECTIVE_URN_PREFIX)
-        and edge.target.startswith(_TACTIC_URN_PREFIX)
-        and edge.reason == synthesized_tactic_reason(edge.target[len(_TACTIC_URN_PREFIX) :])
-    )
+    if edge.relation is not Relation.SUGGESTS or not edge.source.startswith(_DIRECTIVE_URN_PREFIX):
+        return False
+    kind, _, slug = edge.target.partition(":")
+    return kind in REACH_ONLY_KINDS and edge.reason == synthesized_edge_reason(kind, slug)
 
 
 def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
@@ -252,8 +261,8 @@ def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
     The single ownership authority for every reconcile call site: an edge
     follows its owner through merge, delta, conflict classification and prune.
 
-    * A synthesized tactic edge (:func:`is_synthesized_tactic_edge`) is owned by
-      its tactic *target* (the node synthesis derived it for); its source is a
+    * A synthesized source edge (:func:`is_synthesized_source_edge`) is owned by
+      its reach-only *target* (the node synthesis derived it for); its source is a
       built-in or org directive the overlay does not own.
     * Every other edge, including a hand-authored ``directive:* --suggests--> tactic:*``,
       is owned by its source when that is an overlay node (so regenerating the
@@ -264,7 +273,7 @@ def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
       that tactic. Prune drops an edge touching a removed node at either end through
       its own explicit check.
     """
-    if is_synthesized_tactic_edge(edge) and edge.target in overlay_urns:
+    if is_synthesized_source_edge(edge) and edge.target in overlay_urns:
         return str(edge.target)
     if edge.source in overlay_urns:
         return str(edge.source)
@@ -280,27 +289,53 @@ def synthesized_node_urns(manifest: SynthesisManifest) -> frozenset[str]:
     return frozenset(f"{e.kind}:{e.slug}" for e in manifest.artifacts if e.kind != "directive")
 
 
+def _is_dead_mission_type_edge(edge: DRGEdge, regenerated_urns: Collection[str] | None = None) -> bool:
+    """A ``directive:PROJECT_* --requires--> mission_type:*`` edge the project-intent directive no longer carries (#6443).
+
+    Synthesis stopped emitting it: no traversal reads it and the directive is not scoped to a
+    mission type. Only an edge whose source is a synthesized (``PROJECT_*``) directive qualifies;
+    a hand-authored edge between other nodes is left alone. With *regenerated_urns* given (a
+    topic-scoped run) only a source regenerated in this run qualifies.
+    """
+    return (
+        edge.relation is Relation.REQUIRES
+        and edge.source.startswith(_SYNTHESIZED_DIRECTIVE_URN_PREFIX)
+        and edge.target.startswith(_MISSION_TYPE_URN_PREFIX)
+        and (regenerated_urns is None or edge.source in regenerated_urns)
+    )
+
+
 def _is_legacy_applies(
     edge: DRGEdge,
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
 ) -> bool:
-    """A legacy ``tactic --applies--> ...`` edge on a synthesized tactic (#6404).
+    """A legacy edge a run strips: ``<kind> --applies--> ...`` on a synthesized reach-only artifact
+    (#6404, #6442) or the dead project-intent ``requires --> mission_type:*`` edge (#6443).
 
-    Only ``tactic:`` sources qualify (a styleguide's ``applies`` edge is current
-    shape, not legacy). With *regenerated_urns* given (a topic-scoped run) only an
-    owner regenerated in this run qualifies; an untargeted node is left untouched.
+    Only sources of a kind in :data:`REACH_ONLY_KINDS` qualify for the ``applies`` case: the current
+    shape links FROM the directive, so a source-side ``applies`` edge is legacy. With
+    *regenerated_urns* given (a topic-scoped run) only an owner regenerated in this run qualifies;
+    an untargeted node is left untouched.
     """
+    if _is_dead_mission_type_edge(edge, regenerated_urns):
+        return True
     return (
         edge.relation is Relation.APPLIES
-        and edge.source.startswith(_TACTIC_URN_PREFIX)
+        and edge.source.startswith(_REACH_ONLY_URN_PREFIXES)
         and edge.source in synthesized_urns
         and (regenerated_urns is None or edge.source in regenerated_urns)
     )
 
 
+def _strip_reason(edge: DRGEdge) -> str:
+    return DEAD_MISSION_TYPE_EDGE_REASON if _is_dead_mission_type_edge(edge) else LEGACY_APPLIES_REASON
+
+
 def legacy_strip_notice(edge: DRGEdge) -> str:
-    """Operator-facing line naming one stripped legacy ``applies`` edge (#6404)."""
+    """Operator-facing line naming one stripped legacy edge (#6404, #6443)."""
+    if _is_dead_mission_type_edge(edge):
+        return f"{DEAD_MISSION_TYPE_EDGE_REASON}: {edge.source} --requires--> {edge.target}"
     return f"{LEGACY_APPLIES_REASON}: {edge.source} --applies--> {edge.target}"
 
 
@@ -328,7 +363,7 @@ def merge_project_overlay(
     a regenerated owner's prior edges are dropped in favor of its fresh set;
     every other owner's edges are preserved untouched.
 
-    Legacy ``applies`` edges sourced at a ``tactic:`` node in
+    Legacy ``applies`` edges sourced at a reach-only-kind node in
     *synthesized_urns* are dropped (#6404); a *topic_scoped* run drops only
     those of owners it regenerated. Callers report them via
     :func:`legacy_applies_edges`.
@@ -585,7 +620,7 @@ def _graph_delta(
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns
     ) + tuple(_edge_ref(e, urn_to_path, overlay_urns) for e in fresh_overlay.edges if not _owner_in(e, existing_node_urns))
-    stripped_refs = tuple(_edge_ref(e, urn_to_path, overlay_urns, reason=LEGACY_APPLIES_REASON) for e in legacy)
+    stripped_refs = tuple(_edge_ref(e, urn_to_path, overlay_urns, reason=_strip_reason(e)) for e in legacy)
     return preserved_refs, added_refs, preserved_refs + stripped_refs
 
 
