@@ -10,3 +10,4 @@ tree_digest:
   value: 0899b1d54841443f995af8d83c718057344db22bf963481e58f6377650f2d0a2
   level: built-in
 requires_core: '>=4.0.0rc7,<5'
+snapshot_sha256: 5fca621fce795a6bd3aa8c34ce6a8472509e0bb16a942d7a8cc85b293786469a

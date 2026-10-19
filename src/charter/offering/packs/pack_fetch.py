@@ -20,7 +20,7 @@ from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
 
-from charter.offering.packs.pack_pin import PackPin, verify_pack_pin
+from charter.offering.packs.pack_pin import TREE_DIGEST_ALGORITHM, PackPin, verify_pack_pin
 from kernel.tree_removal import remove_tool_owned_tree
 from kernel.git.remote import CommitUnresolvable, RemoteUnreachable, fetch_commit_subtree
 
@@ -80,6 +80,20 @@ def _require_subtree(pin: PackPin) -> str:
     return subtree
 
 
+def _require_verifiable(pin: PackPin) -> None:
+    """Refuse a pin that cannot be fully verified: unknown algorithm or no ``snapshot_sha256``."""
+    if pin.tree_digest.algorithm != TREE_DIGEST_ALGORITHM:
+        raise PackSyncError(
+            PACK_PIN_INVALID,
+            f"pin for {pin.repository} uses tree_digest.algorithm {pin.tree_digest.algorithm!r}; only {TREE_DIGEST_ALGORITHM!r} is supported",
+        )
+    if pin.snapshot_sha256 is None:
+        raise PackSyncError(
+            PACK_PIN_INVALID,
+            f"pin for {pin.repository} has no 'snapshot_sha256'; run `spec-kitty charter pack vendor --pack <pack> --ref {pin.commit}` to write it",
+        )
+
+
 def _find_symlink(root: Path) -> Path | None:
     for current, dirnames, filenames in os.walk(root):
         for name in (*dirnames, *filenames):
@@ -96,7 +110,7 @@ def _refuse_symlinks(root: Path) -> None:
 
 
 def _digest_ok(pin: PackPin, root: Path) -> bool:
-    """``True`` iff *root* is a symlink-free pack tree whose clean digest equals the pin's."""
+    """``True`` iff *root* is a symlink-free pack tree whose clean and full-tree digests both equal the pin's."""
     if not root.is_dir() or _find_symlink(root) is not None:
         return False
     try:
@@ -137,7 +151,8 @@ def _fetch_into_cache(pin: PackPin, subtree: str, target: Path, cache_root: Path
         if not _digest_ok(pin, fetched):
             raise PackSyncError(
                 PACK_DIGEST_MISMATCH,
-                f"'{subtree}' at {pin.commit} does not match the pinned tree_digest {pin.tree_digest.value}; the pin file and the repository disagree",
+                f"'{subtree}' at {pin.commit} does not match the pinned tree_digest {pin.tree_digest.value} / snapshot_sha256; "
+                "the pin file and the repository disagree",
             )
         target.parent.mkdir(parents=True, exist_ok=True)
         _remove_tree(target)
@@ -157,6 +172,7 @@ def fetch_to_cache(pin: PackPin, *, offline: bool = False, cache_root: Path | No
     is deleted and refetched. Nothing that fails its digest stays in the cache.
     """
     subtree = _require_subtree(pin)
+    _require_verifiable(pin)
     root = default_cache_root() if cache_root is None else Path(cache_root)
     commit: str = pin.commit
     target: Path = root / commit / subtree
@@ -231,6 +247,7 @@ def place_pack(
     at the start of the next run.
     """
     dest = Path(dest)
+    _require_verifiable(pin)
     dest.parent.mkdir(parents=True, exist_ok=True)
     recover_interrupted_swap(dest)
     staging = dest.parent / _STAGING_FMT.format(name=dest.name, pid=os.getpid())
@@ -254,9 +271,13 @@ def place_pack(
 
 
 def check_pack(pin: PackPin, dest: Path) -> PackTreeStatus:
-    """Compare the tree at *dest* with the pin, offline; re-hashes on every call, trusts no marker."""
+    """Compare the tree at *dest* with the pin, offline; re-hashes on every call, trusts no marker.
+
+    Read-only: it never repairs an interrupted swap (that is :func:`place_pack`'s job),
+    so it is safe to call concurrently with a live sync.
+    """
     dest = Path(dest)
-    recover_interrupted_swap(dest)
+    _require_verifiable(pin)
     if not dest.is_dir():
         return PackTreeStatus.MISSING
     return PackTreeStatus.OK if _digest_ok(pin, dest) else PackTreeStatus.STALE

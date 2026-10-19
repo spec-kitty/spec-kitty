@@ -15,7 +15,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
-from charter.offering.packs.pack_pin import PackPin, TreeDigest, load_pack_pin, write_pack_pin
+from charter.offering.packs.pack_pin import PackPin, TreeDigest, full_tree_digest, load_pack_pin, write_pack_pin
 from kernel.pack_tiers import BUILT_IN, ORG
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import pack_vendor as pack_vendor_module
@@ -112,6 +112,7 @@ def test_written_digest_matches_a_fresh_recompute_of_the_fetched_tree(h: Harness
     git(tmp_path, "clone", "-q", h.remote.url, str(clone))
     assert pin.tree_digest.value == clean_tree_digest(clone / "built-in", level=BUILT_IN)
     assert pin.tree_digest.value != h.remote.digest
+    assert pin.snapshot_sha256 == full_tree_digest(clone / "built-in")
 
 
 def test_branch_ref_is_resolved_to_a_sha(h: Harness, tmp_path: Path) -> None:
@@ -267,6 +268,7 @@ def test_check_in_sync_exits_zero_offline(h: Harness) -> None:
     h.write_pin(
         repository=(h.tmp_path / "unreachable.git").as_uri(),
         tree_digest=TreeDigest(algorithm="clean-tree-sha256", value=digest, level=BUILT_IN),
+        snapshot_sha256=full_tree_digest(h.live),
     )
 
     code, out = h.vendor("--check")
@@ -274,8 +276,18 @@ def test_check_in_sync_exits_zero_offline(h: Harness) -> None:
     assert code == 0, out
 
 
+def test_check_pin_without_snapshot_sha256_fails_with_pin_invalid(h: Harness) -> None:
+    digest = clean_tree_digest(h.live, level=BUILT_IN)
+    h.write_pin(tree_digest=TreeDigest(algorithm="clean-tree-sha256", value=digest, level=BUILT_IN))
+
+    code, out = h.vendor("--check")
+
+    assert code == 1, out
+    assert "PACK_PIN_INVALID" in out
+
+
 def test_check_drift_fails_with_remedy_and_does_not_mutate(h: Harness) -> None:
-    h.write_pin()
+    h.write_pin(snapshot_sha256="3" * 64)
     before = h.live_snapshot()
 
     code, out = h.vendor("--check")
@@ -288,7 +300,7 @@ def test_check_drift_fails_with_remedy_and_does_not_mutate(h: Harness) -> None:
 
 
 def test_check_missing_tree_fails(h: Harness) -> None:
-    h.write_pin()
+    h.write_pin(snapshot_sha256="3" * 64)
     for item in sorted(h.live.rglob("*"), reverse=True):
         item.unlink() if item.is_file() else item.rmdir()
     h.live.rmdir()

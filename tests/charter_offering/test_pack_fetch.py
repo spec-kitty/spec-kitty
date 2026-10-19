@@ -6,6 +6,7 @@ Every error code is driven by real git against a ``file://`` bare repository.
 from __future__ import annotations
 
 import shutil
+from dataclasses import replace
 import time
 from pathlib import Path
 
@@ -181,7 +182,7 @@ def test_symlink_planted_in_cache_is_refused_by_place_pack(tmp_path: Path) -> No
 def test_subtree_absent_in_commit_is_refused(tmp_path: Path) -> None:
     remote = make_pack_remote(tmp_path)
     pin = remote.pin()
-    absent = type(pin)(repository=pin.repository, commit=pin.commit, tree_digest=pin.tree_digest, subtree="no/such")
+    absent = replace(pin, subtree="no/such")
     with pytest.raises(PackSyncError) as info:
         fetch_to_cache(absent, cache_root=tmp_path / "cache")
     assert info.value.code == PACK_COMMIT_UNRESOLVABLE

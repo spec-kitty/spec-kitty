@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
-from charter.offering.packs.pack_pin import PackPin, TreeDigest
+from charter.offering.packs.pack_pin import PackPin, TreeDigest, full_tree_digest
 from kernel.pack_tiers import BUILT_IN
 
 __all__ = ["PackRemote", "git", "make_pack_remote", "write_pack_tree"]
@@ -25,13 +25,15 @@ class PackRemote:
     sha: str
     digest: str
     subtree: str
+    snapshot: str
 
-    def pin(self, *, digest: str | None = None, sha: str | None = None, url: str | None = None) -> PackPin:
+    def pin(self, *, digest: str | None = None, sha: str | None = None, url: str | None = None, snapshot: str | None = None) -> PackPin:
         return PackPin(
             repository=url or self.url,
             commit=sha or self.sha,
             tree_digest=TreeDigest(algorithm="clean-tree-sha256", value=digest or self.digest, level=BUILT_IN),
             subtree=self.subtree,
+            snapshot_sha256=snapshot or self.snapshot,
         )
 
 
@@ -72,6 +74,7 @@ def make_pack_remote(tmp_path: Path, *, subtree: str = "built-in", allow_filter:
     (work / "other").mkdir()
     (work / "other" / "noise.txt").write_text("noise\n", encoding="utf-8")
     digest = clean_tree_digest(work / subtree, level=BUILT_IN)
+    snapshot = full_tree_digest(work / subtree)
     if symlink is not None:
         (work / subtree / symlink).symlink_to("directives")
     git(work, "add", "-A")
@@ -81,4 +84,4 @@ def make_pack_remote(tmp_path: Path, *, subtree: str = "built-in", allow_filter:
     git(tmp_path, "clone", "-q", "--bare", str(work), str(bare))
     git(bare, "config", "uploadpack.allowFilter", "true" if allow_filter else "false")
     git(bare, "config", "uploadpack.allowAnySHA1InWant", "true")
-    return PackRemote(bare=bare, url=bare.as_uri(), sha=sha, digest=digest, subtree=subtree)
+    return PackRemote(bare=bare, url=bare.as_uri(), sha=sha, digest=digest, subtree=subtree, snapshot=snapshot)

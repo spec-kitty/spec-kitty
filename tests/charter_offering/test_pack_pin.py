@@ -16,6 +16,7 @@ from charter.offering.packs.pack_pin import (
     PackPin,
     PackPinError,
     TreeDigest,
+    full_tree_digest,
     load_pack_pin,
     validate_subtree,
     verify_pack_pin,
@@ -118,9 +119,12 @@ def test_verify_uses_pin_level(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     value = clean_tree_digest(pack, level="org")
-    good = PackPin(repository=URL, commit=SHA, tree_digest=TreeDigest("clean-tree-sha256", value, "org"), subtree="x")
+    snapshot = full_tree_digest(pack)
+    good = PackPin(repository=URL, commit=SHA, tree_digest=TreeDigest("clean-tree-sha256", value, "org"), subtree="x", snapshot_sha256=snapshot)
     assert verify_pack_pin(good, pack) is True
-    bad = PackPin(repository=URL, commit=SHA, tree_digest=TreeDigest("clean-tree-sha256", "0" * 64, "org"), subtree="x")
+    no_snapshot = PackPin(repository=URL, commit=SHA, tree_digest=TreeDigest("clean-tree-sha256", value, "org"), subtree="x")
+    assert verify_pack_pin(no_snapshot, pack) is False
+    bad = PackPin(repository=URL, commit=SHA, tree_digest=TreeDigest("clean-tree-sha256", "0" * 64, "org"), subtree="x", snapshot_sha256=snapshot)
     assert verify_pack_pin(bad, pack) is False
 
 

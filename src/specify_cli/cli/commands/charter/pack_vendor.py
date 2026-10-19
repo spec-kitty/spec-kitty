@@ -28,11 +28,13 @@ from ruamel.yaml.error import YAMLError
 from charter.packs import (
     PackPin,
     PackPinError,
+    PackSyncError,
     PackTreeStatus,
     TreeDigest,
     check_pack,
     check_requires_core,
     clean_tree_digest,
+    full_tree_digest,
     load_pack_descriptor,
     load_pack_pin,
     validate_subtree,
@@ -79,7 +81,11 @@ def check_pack_pin(live: Path, pack: str = _DEFAULT_PACK) -> PackPin:
     """Offline drift check: raise :class:`VendorError` unless the placed tree matches its pin."""
     pin = _load_pin(live, pack)
     dest = live.parent / pack
-    if check_pack(pin, dest) is not PackTreeStatus.OK:
+    try:
+        status = check_pack(pin, dest)
+    except PackSyncError as exc:
+        raise VendorError(f"packs/{pack}.source.yaml cannot be verified: {exc}") from exc
+    if status is not PackTreeStatus.OK:
         raise VendorError(f"packs/{pack}/ is missing or drifted from the pin (commit {pin.commit}). {_DRIFT_REMEDY}")
     return pin
 
@@ -146,7 +152,13 @@ def bump_pin(live: Path, pack: str = _DEFAULT_PACK, *, ref: str | None = None, s
         fetched = _fetch_subtree(pin.repository, sha, new_subtree, scratch)
         _assert_core_compatible(pin.requires_core, fetched)
         digest: str = clean_tree_digest(fetched, level=cast(PackTier, level))
-        new_pin = replace(pin, commit=sha, subtree=new_subtree, tree_digest=TreeDigest(algorithm=_DIGEST_ALGORITHM, value=digest, level=level))
+        try:
+            snapshot = full_tree_digest(fetched)
+        except OSError as exc:
+            raise VendorError(f"the fetched subtree is unusable ({exc}); the pin was not changed") from exc
+        new_pin = replace(
+            pin, commit=sha, subtree=new_subtree, tree_digest=TreeDigest(algorithm=_DIGEST_ALGORITHM, value=digest, level=level), snapshot_sha256=snapshot
+        )
         if check_pack(new_pin, fetched) is not PackTreeStatus.OK:
             raise VendorError("the fetched subtree is unusable (symlink or unreadable file); the pin was not changed")
     write_pack_pin(new_pin, _pin_path(live, pack))

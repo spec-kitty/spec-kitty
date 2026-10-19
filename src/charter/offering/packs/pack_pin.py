@@ -13,8 +13,11 @@ Fields beyond the original built-in pin:
   org pack, so its pin records ``org``. Absent means ``built-in`` (backward
   compatible).
 
-Integrity authority: ``tree_digest`` is :func:`clean_tree_digest` (declared file
-set, LF-normalised, pollution-immune). The ``commit`` is always a 40-hex SHA; a
+Integrity authority: BOTH ``tree_digest`` (:func:`clean_tree_digest`: declared file
+set, LF-normalised, pollution-immune) and ``snapshot_sha256`` (:func:`full_tree_digest`:
+every file, raw bytes, including ``missions/``, ``templates/``, ``presets/``,
+``pack-manifest.yaml`` and dotfiles; only ``__pycache__/`` and ``*.pyc`` are exempt)
+must match. ``snapshot_sha256`` is required for verification. The ``commit`` is always a 40-hex SHA; a
 tag is only a resolution input and is never persisted.
 """
 
@@ -29,17 +32,21 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
+from charter.offering.packs.pack_manifest import snapshot_sha256
 from kernel.pack_tiers import BUILT_IN, PACK_TIERS, PackTier
 
 __all__ = [
     "PackPin",
     "PackPinError",
+    "TREE_DIGEST_ALGORITHM",
     "TreeDigest",
+    "full_tree_digest",
     "load_pack_pin",
     "verify_pack_pin",
     "write_pack_pin",
 ]
 
+TREE_DIGEST_ALGORITHM = "clean-tree-sha256"
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
 # Mirrors kernel.git.remote._ALLOWED_URL_SCHEMES (kernel cannot be imported for a private name).
 _ALLOWED_REPOSITORY_SCHEMES = ("https://", "file://")
@@ -153,10 +160,20 @@ def load_pack_pin(path: Path, *, require_subtree: bool = True) -> PackPin:
     )
 
 
+def full_tree_digest(pack_root: Path) -> str:
+    """Raw-byte digest of every regular file under *pack_root* (symlinks refused, bytecode exempt)."""
+    return snapshot_sha256(pack_root, include_manifest=True, skip_bytecode=True)
+
+
 def verify_pack_pin(pin: PackPin, pack_root: Path) -> bool:
-    """Return True iff the clean-tree digest of *pack_root* equals the pin's."""
+    """Return True iff BOTH the clean-tree digest and the full-tree digest of *pack_root* equal the pin's.
+
+    A pin without ``snapshot_sha256`` or with an unknown digest algorithm never verifies.
+    """
+    if pin.tree_digest.algorithm != TREE_DIGEST_ALGORITHM or pin.snapshot_sha256 is None:
+        return False
     actual: str = clean_tree_digest(pack_root, level=cast(PackTier, pin.tree_digest.level))
-    return actual == pin.tree_digest.value
+    return actual == pin.tree_digest.value and full_tree_digest(pack_root) == pin.snapshot_sha256
 
 
 def write_pack_pin(pin: PackPin, path: Path) -> None:
@@ -175,6 +192,7 @@ def write_pack_pin(pin: PackPin, path: Path) -> None:
         payload["snapshot_sha256"] = pin.snapshot_sha256
     yaml = YAML()
     yaml.default_flow_style = False
+    yaml.width = 4096  # never fold a long digest onto a continuation line
     with Path(path).open("w", encoding="utf-8") as handle:
         handle.write(_HEADER)
         yaml.dump(payload, handle)

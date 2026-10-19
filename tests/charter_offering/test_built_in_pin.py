@@ -19,7 +19,7 @@ from charter.offering.packs.built_in_pin import (
     write_built_in_pin,
 )
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
-from charter.offering.packs.pack_pin import TreeDigest
+from charter.offering.packs.pack_pin import TreeDigest, full_tree_digest
 from kernel.pack_tiers import BUILT_IN
 
 _THIS = Path(__file__).resolve()
@@ -99,7 +99,10 @@ def test_write_load_round_trip_without_optionals(tmp_path: Path) -> None:
 def test_verify_false_on_digest_mismatch(tmp_path: Path) -> None:
     pack = _make_pack(tmp_path)
     assert verify_built_in_pin(_pin(), pack) is False
-    good = _pin(tree_digest=TreeDigest("clean-tree-sha256", clean_tree_digest(pack, level=BUILT_IN)))
+    good = _pin(
+        tree_digest=TreeDigest("clean-tree-sha256", clean_tree_digest(pack, level=BUILT_IN)),
+        snapshot_sha256=full_tree_digest(pack),
+    )
     assert verify_built_in_pin(good, pack) is True
 
 

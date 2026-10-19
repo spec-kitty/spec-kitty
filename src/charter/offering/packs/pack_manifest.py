@@ -410,17 +410,28 @@ def source_fingerprint(safe_url: str) -> str:
     ).hexdigest()
 
 
-def snapshot_sha256(snapshot_root: Path) -> str:
-    """Hash installed snapshot files, excluding the manifest itself."""
+def _is_bytecode(relative: Path) -> bool:
+    return "__pycache__" in relative.parts or relative.suffix == ".pyc"
+
+
+def snapshot_sha256(snapshot_root: Path, *, include_manifest: bool = False, skip_bytecode: bool = False) -> str:
+    """Hash every regular file of a snapshot (raw bytes), refusing symlinks.
+
+    By default the manifest itself is excluded (installed-snapshot use). The pack
+    pin's full-tree integrity check passes ``include_manifest=True`` and
+    ``skip_bytecode=True`` so that only ``__pycache__/`` and ``*.pyc`` are exempt.
+    """
     digest = hashlib.sha256()  # noqa: TID251 - local snapshot integrity checksum
     for path in sorted(
         snapshot_root.rglob("*"),
         key=lambda candidate: candidate.relative_to(snapshot_root).as_posix(),
     ):
         relative = path.relative_to(snapshot_root)
+        if skip_bytecode and _is_bytecode(relative):
+            continue
         if path.is_symlink():
             raise OSError(f"Snapshot contains unsupported symlink: {relative}")
-        if relative == Path(_PACK_MANIFEST_FILENAME):
+        if relative == Path(_PACK_MANIFEST_FILENAME) and not include_manifest:
             continue
         if path.is_dir():
             continue

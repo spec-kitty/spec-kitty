@@ -9,3 +9,4 @@ tree_digest:
   algorithm: clean-tree-sha256
   value: 97404f63fd9d00c875b9e71440d3a31d9914d2189a9eb408500c886195460211
   level: org
+snapshot_sha256: 1be4215a728c4034c56cca34a6c491c1fe857ea64034cb49c825fe65b812c1c9
