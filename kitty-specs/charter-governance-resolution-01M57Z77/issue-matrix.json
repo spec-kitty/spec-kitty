@@ -12,8 +12,32 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#3838": {
+      "evidence_ref": "cited for context only (culprit commit provenance)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#3908": {
       "evidence_ref": "cited for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4185": {
+      "evidence_ref": "cited for context only (culprit commit provenance)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -119,6 +143,30 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
       "wp": "WP06"
+    },
+    "#6423": {
+      "evidence_ref": "Follow-up: declared-id activation, out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#677": {
+      "evidence_ref": "cited for context only (culprit commit provenance)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     },
     "#688": {
       "evidence_ref": "cited for context only",

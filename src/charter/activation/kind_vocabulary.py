@@ -431,8 +431,10 @@ def resolve_artifact_urn(
 
     Locates the artifact whose config stem (filename without suffixes) equals
     *config_id*, reads its ``id:`` field, and returns ``f"{kind.value}:{id}"``.
-    Directives also accept an exact declared ID when no filename stem matches,
-    recovering entries written by older org-required promotion.
+    Every kind also accepts an exact declared ID when no filename stem matches
+    (a stem match always wins); directives additionally require that the ID
+    round-trips to a safe stem, recovering entries written by older org-required
+    promotion.
 
     Args:
         kind: The artifact kind (route raw kind strings through
@@ -452,20 +454,23 @@ def resolve_artifact_urn(
     """
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
-    for path in _iter_artifact_paths(
+    paths = _iter_artifact_paths(
         kind,
         offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
         resolution_pass=resolution_pass,
-    ):
+    )
+    for path in paths:
         if _config_stem(path) == config_id:
             artifact_id = _read_id(path, id_field, yaml, resolution_pass)
             if artifact_id:
                 return f"{kind.value}:{artifact_id}"
-    # Older org-required promotion wrote declared directive IDs into activation
-    # lists. Accept those existing entries only after the normal stem lookup;
-    # unknown identities still fail closed, and other kinds remain stem-only.
+    # A stem miss falls back to an exact declared id (every kind; a stem match
+    # always wins above). Directives keep their round-trip/ambiguity rule: older
+    # org-required promotion wrote declared directive IDs into activation lists,
+    # and a declared id is accepted only when it resolves back to a safe stem.
+    # Unknown identities still fail closed.
     if kind is ArtifactKind.DIRECTIVE:
         try:
             resolve_config_id(
@@ -478,6 +483,8 @@ def resolve_artifact_urn(
             return f"{kind.value}:{config_id}"
         except ValueError:
             pass
+    elif _declares_id(paths, config_id, id_field, yaml, resolution_pass):
+        return f"{kind.value}:{config_id}"
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with config ID {config_id!r} found under "
         f"doctrine root {offering_root}{_org_roots_clause(org_roots)}. "
@@ -487,6 +494,11 @@ def resolve_artifact_urn(
         f"misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
+
+
+def _declares_id(paths: list[Path], artifact_id: str, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None) -> bool:
+    """Return whether any artifact in *paths* declares exactly *artifact_id*."""
+    return any(_read_id(path, id_field, yaml, resolution_pass) == artifact_id for path in paths)
 
 
 def _searched_layers(
@@ -701,23 +713,23 @@ def resolve_selected_id_to_stem(
             raise
         except ValueError:
             pass
-    try:
-        resolve_artifact_urn(
-            kind,
-            raw_id,
-            offering_root=offering_root,
-            org_roots=org_roots,
-            layer_roots=layer_roots,
-        )
+    # One pass is shared by the stem probe, the URN check and the id -> stem
+    # mapping, so each layer is walked once. Selections stay stem-valued for every
+    # kind (#2529): a declared id maps back to its stem, it is never returned verbatim.
+    shared_pass = ResolutionPass()
+    stems = {
+        _config_stem(path)
+        for path in _iter_artifact_paths(kind, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, resolution_pass=shared_pass)
+    }
+    if raw_id in stems:
         return raw_id
-    except UnknownArtifactIdError:
-        pass
     try:
         return resolve_config_id(
             f"{kind.value}:{raw_id}",
             offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
+            resolution_pass=shared_pass,
         )
     except ValueError:
         return None

@@ -24,7 +24,7 @@ nodes:
   kind: styleguide
   label: Testing Philosophy Styleguide
 edges:
-- source: tactic:how-we-apply-directive-003
-  target: directive:DIRECTIVE_003
-  relation: applies
-  reason: Derived from synthesis target 'how-we-apply-directive-003'
+- source: directive:DIRECTIVE_003
+  target: tactic:how-we-apply-directive-003
+  relation: suggests
+  reason: Synthesized tactic 'how-we-apply-directive-003' is how this project applies the directive

@@ -510,14 +510,14 @@ class TestFullPipelineNewEmitCollisionStillRaises:
         }
         # The built-in layer already carries the EXACT triple the
         # "how-we-apply-directive-003" tactic target is about to emit
-        # (tactic:how-we-apply-directive-003 --applies--> directive:DIRECTIVE_003).
+        # (directive:DIRECTIVE_003 --suggests--> tactic:how-we-apply-directive-003, #6404).
         drg = {
             "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
             "edges": [
                 {
-                    "source": "tactic:how-we-apply-directive-003",
-                    "target": "directive:DIRECTIVE_003",
-                    "relation": "applies",
+                    "source": "directive:DIRECTIVE_003",
+                    "target": "tactic:how-we-apply-directive-003",
+                    "relation": "suggests",
                 }
             ],
             "schema_version": "1",
