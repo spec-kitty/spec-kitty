@@ -209,12 +209,7 @@ class ActiveCharterService:
         """Return the per-service identity index, building it from *pack_ctx* on first use."""
         identity: IdentityIndex | None = object.__getattribute__(self, "_identity")
         if identity is None:
-            # Duck-typed read: callers hand in real PackContexts and lightweight stand-ins alike.
-            repo_root: Path | None = getattr(pack_ctx, "repo_root", None)
-            if repo_root is not None:
-                identity = IdentityIndex.from_pack_context(pack_ctx, repo_root=repo_root)
-            else:
-                identity = IdentityIndex(org_roots=[root for root in getattr(pack_ctx, "org_roots", ()) if root.is_dir()])
+            identity = IdentityIndex.from_pack_context(pack_ctx, repo_root=pack_ctx.repo_root)
             object.__setattr__(self, "_identity", identity)
         return identity
 

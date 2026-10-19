@@ -17,7 +17,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner, Result
 
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import ActiveCharterManager
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration]
@@ -146,3 +146,37 @@ def test_only_with_cascade_narrows_only_the_named_kind(tmp_path: Path) -> None:
     cascaded = listed[1:]
     assert cascaded, "cascade=all must have appended at least one referenced directive"
     assert "Cascade-activated" in result.output
+    # cascaded entries of OTHER kinds were appended to their (previously absent) lists, never narrowed:
+    # each such list is the kind's whole effective set plus the cascaded id.
+    other = [(kind, item) for kind, item in re.findall(r"Cascade-activated.*?: (\S+?)/(\S+)", result.output) if kind != "directive"]
+    assert other, "fixture invalid: the cascade must reach at least one other kind"
+    for kind, item in other:
+        listed_other = data[YAML_KEY_MAP[kind]]
+        available_other = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), kind))
+        assert item in listed_other
+        assert available_other - {_ORG_ID} <= set(listed_other), f"{kind} was narrowed instead of appended"
+
+
+def test_only_with_an_unresolvable_effective_set_keeps_the_warnings_and_names_no_stand_in_dropped_ids(tmp_path: Path) -> None:
+    gone = tmp_path / "does-not-exist"
+    root = _project(tmp_path, required=False, extra="")
+    config = root / ".kittify" / "config.yaml"
+    config.write_text(config.read_text(encoding="utf-8") + f"      - name: gone\n        local_path: {gone}\n", encoding="utf-8")
+
+    result = ActiveCharterManager().activate(ProjectContext.from_repo(root), "toolguide", _TARGET, only=True)
+
+    assert _list(root) == [_TARGET]
+    assert any("could not be resolved" in warning for warning in result.warnings), result.warnings
+    assert result.deactivated == [], "an unresolved effective set must not be replaced by a stand-in list of dropped ids"
+
+
+def test_only_for_a_mission_type_drops_only_types_that_were_in_force(tmp_path: Path) -> None:
+    root = _project(tmp_path, required=False)
+    config = root / ".kittify" / "config.yaml"
+    assert "mission_type_activations" in config.read_text(encoding="utf-8")
+    available = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), "mission-type"))
+    assert len(available) > 1, "fixture invalid: need other mission types that are not in force"
+
+    result = ActiveCharterManager().activate(ProjectContext.from_repo(root), "mission-type", "research", only=True)
+
+    assert result.deactivated == ["software-dev"], "only the type that was in force may be reported dropped, not every available type"

@@ -139,9 +139,21 @@ def test_narrow_bases_replaces_a_present_key_and_reports_the_dropped_ids() -> No
     assert config[_KEY] == ["base", "new"]
     procedures = next(plan for plan in outcome.committed if plan.yaml_key == _KEY)
     assert procedures.deactivated == ["old-a", "old-b"]
+    assert procedures.activated == ["new"], "the base ids are written but are not reported as activated"
     # positive control: a key absent from narrow_bases still appends
     assert config["activated_tactics"] == ["t1", "t2"]
     assert len(save.calls) == 2
+
+
+def test_narrow_bases_activated_lists_only_selection_ids_that_were_not_already_in_force() -> None:
+    config: dict[str, Any] = {_KEY: ["kept", "old"]}
+
+    outcome, _ = _promote(config, {_KEY: ["kept", "new"]}, {}, narrow_bases={_KEY: ["base"]})
+
+    plan = outcome.committed[0]
+    assert config[_KEY] == ["base", "kept", "new"]
+    assert plan.activated == ["new"]  # "kept" stays in force, "base" is the org base
+    assert plan.deactivated == ["old"]
 
 
 def test_narrow_bases_default_none_keeps_the_append_behaviour() -> None:

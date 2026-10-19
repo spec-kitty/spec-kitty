@@ -605,10 +605,13 @@ def _plan_promotion(
     if narrow_base is not None:
         previous = current if current is not None else sorted(effective.ids) if effective is not None and effective.resolved else []
         new_list = list(dict.fromkeys([*narrow_base, *ids]))
+        # `activated` is only the selection ids that were not already in force; the
+        # base is written but not reported as activated, and what stopped being in
+        # force is `deactivated`.
         return ActivationPlan(
             yaml_key=yaml_key,
             new_list=new_list,
-            activated=list(new_list),
+            activated=[item for item in dict.fromkeys(ids) if item not in previous],
             deactivated=[item for item in previous if item not in new_list],
         )
 

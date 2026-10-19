@@ -17,7 +17,7 @@ from charter.activation.resolver import (
     resolve_project_governance,
 )
 
-from tests.charter.org_pack_identity_support import write_identity_org_pack
+from tests.charter.org_pack_identity_support import real_pack_context, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
@@ -834,10 +834,9 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_active_charter_service_paradigms_filtered_by_pack_context() -> None:
+def test_active_charter_service_paradigms_filtered_by_pack_context(tmp_path: Path) -> None:
     """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
-    from charter.activation.pack_context import PackContext
 
     paradigm_a = MagicMock()
     paradigm_a.id = "test-first"
@@ -847,8 +846,7 @@ def test_active_charter_service_paradigms_filtered_by_pack_context() -> None:
     inner = MagicMock()
     inner.paradigms.list_all.return_value = [paradigm_a, paradigm_b]
 
-    pack_ctx = MagicMock(spec=PackContext)
-    pack_ctx.activated_paradigms = frozenset({"test-first"})
+    pack_ctx = real_pack_context(tmp_path, activated_paradigms=frozenset({"test-first"}))
 
     service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.paradigms
@@ -872,10 +870,9 @@ def test_active_charter_service_paradigms_unfiltered_when_pack_context_none() ->
     assert "test-first" in result
 
 
-def test_active_charter_service_procedures_filtered_by_pack_context() -> None:
+def test_active_charter_service_procedures_filtered_by_pack_context(tmp_path: Path) -> None:
     """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
-    from charter.activation.pack_context import PackContext
 
     proc_a = MagicMock()
     proc_a.id = "tdd"
@@ -885,8 +882,7 @@ def test_active_charter_service_procedures_filtered_by_pack_context() -> None:
     inner = MagicMock()
     inner.procedures.list_all.return_value = [proc_a, proc_b]
 
-    pack_ctx = MagicMock(spec=PackContext)
-    pack_ctx.activated_procedures = frozenset({"tdd"})
+    pack_ctx = real_pack_context(tmp_path, activated_procedures=frozenset({"tdd"}))
 
     service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.procedures
