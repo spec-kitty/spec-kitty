@@ -210,7 +210,7 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     # Record only once the config write succeeded: a failed promote must leave the
     # artifact unrecorded so a later run still appends it.
     _record()
-    from charter.activation.bundle_restamp import restamp_bundle_hash  # noqa: PLC0415
+    from charter.activation.bundle_restamp import restamp_bundle_hash  # deferred import
 
     restamp_bundle_hash(repo_root)
     return warnings
@@ -220,7 +220,7 @@ _WriteTarget = tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None
 
 
 def _activation_write_target(repo_root: Path) -> _WriteTarget:
-    from charter.activation.pack_manager import resolve_activation_write_target  # noqa: PLC0415
+    from charter.activation.pack_manager import resolve_activation_write_target  # deferred import
 
     target: _WriteTarget = resolve_activation_write_target(repo_root)
     return target
@@ -240,7 +240,7 @@ def _config_additions(data: Mapping[str, Any], first_time: Mapping[str, list[str
 
 
 def _promote(additions: Mapping[str, list[str]], write_target: _WriteTarget) -> list[str]:
-    from charter.activation.activation_engine import promote_activations  # noqa: PLC0415
+    from charter.activation.activation_engine import promote_activations  # deferred import
 
     target_path, data, save = write_target
     outcome = promote_activations(additions, config_path=target_path, config_data=data, save=save, effective_sets={})
@@ -258,7 +258,7 @@ def created_slugs(reconciliation: object, kind: str) -> list[str]:
     Only entries new to the manifest count; :func:`append_synthesized_activations`
     further drops any artifact synthesis created before (an operator's removal sticks).
     """
-    from charter.activation.synthesizer.reconcile import ReconciliationDelta  # noqa: PLC0415
+    from charter.activation.synthesizer.reconcile import ReconciliationDelta  # deferred import
 
     if not isinstance(reconciliation, ReconciliationDelta):
         return []
