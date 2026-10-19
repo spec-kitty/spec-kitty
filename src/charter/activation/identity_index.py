@@ -73,8 +73,12 @@ class _KindTable:
         return cls(tuple(entries), by_stem, by_id, {stem: frozenset(found) for stem, found in ids.items()})
 
 
-#: A plain top-level scalar ``<id_field>: value`` (no quoting, anchors, tags, flow or block styles, comments).
-_PLAIN_ID_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._ -]*")
+#: Conservative plain-string shape ruamel types as ``str``: a letter first, then ``[A-Za-z0-9_.-]``.
+_PLAIN_ID_VALUE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]*")
+#: YAML scalars that are not strings (any case); a match always goes to the full parse.
+_YAML_SPECIAL_SCALARS = frozenset({"true", "false", "yes", "no", "on", "off", "null", "y", "n", "~", ".nan", ".inf"})
+_DOC_MARKER = re.compile(r"^(?:---|\.\.\.)(?:[ \t]|$)", re.MULTILINE)
+_BLANK_OR_COMMENT = re.compile(r"(?:[ \t]*(?:#[^\n]*)?\n)*")
 
 
 def _full_parse(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
@@ -82,12 +86,44 @@ def _full_parse(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_voc
     return declared
 
 
-def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
-    """Declared id of *path*; a plain top-level ``id:`` line skips the full YAML parse (NFR-003).
+def _has_foreign_document_marker(text: str) -> bool:
+    """Whether *text* has a ``...`` line or a ``---`` other than a leading one (after comments)."""
+    markers = list(_DOC_MARKER.finditer(text))
+    if not markers:
+        return False
+    first = markers[0]
+    leading = first.group(0).startswith("---") and _BLANK_OR_COMMENT.fullmatch(text[: first.start()]) is not None
+    return len(markers) > 1 or not leading
 
-    Anything the line scan cannot read with certainty (quoted, tagged, flow, block or
-    commented values, or no such line) falls back to the full parse, so the result
-    always equals :func:`kind_vocabulary._read_id`'s.
+
+def _fast_plain_id(text: str, id_field: str) -> str | None:
+    """The id when *text* declares it once as a plain string scalar, else ``None`` (use the full parse)."""
+    if "\ufeff" in text or "\r" in text or _has_foreign_document_marker(text):
+        return None
+    key = re.escape(id_field)
+    if len(re.findall(rf"^[\"']?{key}[\"']?[ \t]*:", text, re.MULTILINE)) != 1:
+        return None
+    found = re.search(rf"^{key}:[ \t]+(\S+)[ \t]*$", text, re.MULTILINE)
+    if found is None:
+        return None
+    value = found.group(1)
+    if _PLAIN_ID_VALUE.fullmatch(value) is None or value.lower() in _YAML_SPECIAL_SCALARS:
+        return None
+    return value
+
+
+def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+    """Declared id of *path*; a single plain-string top-level ``id:`` line skips the full YAML parse (NFR-003).
+
+    The fast path is taken only when the text has exactly one top-level ``<field>:`` key,
+    its value is a conservative plain string (letter first, ``[A-Za-z0-9_.-]``, no comment,
+    not a YAML special scalar), and the text has no BOM, CR or extra document markers.
+    Everything else (numbers, booleans, null, quoted, commented, multi-document,
+    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`.
+
+    Known, accepted limitation: syntax errors elsewhere in the file are not detected
+    cheaply, so such a file yields its id here where the full parse yields ``None``. The
+    artifact repositories reject that file when they load it, so it is never activatable.
     """
     key = (path, id_field)
     if key not in resolution_pass.ids:
@@ -95,9 +131,9 @@ def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind
             text = path.read_text(encoding="utf-8")
         except OSError:
             return _full_parse(path, id_field, yaml, resolution_pass)
-        found = re.search(rf"^{re.escape(id_field)}:[ \t]+(\S[^\n]*?)[ \t]*$", text, re.MULTILINE)
-        if found is not None and _PLAIN_ID_VALUE.fullmatch(found.group(1)):
-            resolution_pass.ids[key] = found.group(1)
+        fast = _fast_plain_id(text, id_field)
+        if fast is not None:
+            resolution_pass.ids[key] = fast
     return _full_parse(path, id_field, yaml, resolution_pass)
 
 

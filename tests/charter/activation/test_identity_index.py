@@ -205,26 +205,96 @@ def test_build_adopts_shared_resolution_pass_and_org_roots(tmp_path: Path) -> No
     assert IdentityIndex.build(tmp_path, org_roots=[])._pass is not shared
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
-        "id: plain-one\ntitle: x\n",
-        'id: "quoted-one"\n',
-        "id: 'single'\n",
-        "id: tagged # comment\n",
-        "id: |\n  block\n",
-        "title: no id here\n",
-        "nested:\n  id: inner\nid: outer\n",
-        "id: 0\n",
-        "id: [flow]\n",
-        "id:   spaced-id   \n",
-    ],
-)
-def test_declared_id_fast_path_equals_full_parse(tmp_path: Path, body: str) -> None:
+_EDGE_BODIES: dict[str, bytes] = {
+    "plain": b"id: plain-one\ntitle: x\n",
+    "dquoted": b'id: "quoted-one"\n',
+    "squoted": b"id: 'single'\n",
+    "trailing-comment": b"id: tagged # comment\n",
+    "block": b"id: |\n  block\n",
+    "no-id": b"title: no id here\n",
+    "nested-then-top": b"nested:\n  id: inner\nid: outer\n",
+    "zero": b"id: 0\n",
+    "flow": b"id: [flow]\n",
+    "spaced": b"id:   spaced-id   \n",
+    "leading-zeros": b"id: 001\n",
+    "true": b"id: true\n",
+    "True-cap": b"id: True\n",
+    "null": b"id: null\n",
+    "Null": b"id: Null\n",
+    "tilde": b"id: ~\n",
+    "yes": b"id: yes\n",
+    "float": b"id: 1.50\n",
+    "exp": b"id: 1e3\n",
+    "hex": b"id: 0x1F\n",
+    "octal": b"id: 0o17\n",
+    "multi-document": b"id: first\n---\nid: second\n",
+    "leading-marker": b"---\nid: lead-marker\n",
+    "doc-end": b"id: ended\n...\n",
+    "duplicate-key": b"id: one\nid: two\n",
+    "crlf": b"id: crlf-id\r\ntitle: x\r\n",
+    "bom": b"\xef\xbb\xbfid: bom-id\ntitle: x\n",
+    "sequence-after": b"id: seq-after\n- a\n",
+    "broken-later-accepted": b"id: ok-id\nother: [unclosed\n",
+}
+#: Documented limitation of the fast path: a syntax error elsewhere is not detected cheaply.
+_ACCEPTED_DIVERGENCE = {"broken-later-accepted", "sequence-after"}
+
+
+@pytest.mark.parametrize("name", sorted(set(_EDGE_BODIES) - _ACCEPTED_DIVERGENCE))
+def test_declared_id_fast_path_equals_full_parse(tmp_path: Path, name: str) -> None:
     from charter.activation.identity_index import _declared_id_of
 
     path = tmp_path / "thing.tactic.yaml"
-    path.write_text(body, encoding="utf-8")
+    path.write_bytes(_EDGE_BODIES[name])
     yaml = YAML(typ="safe")
     expected = kind_vocabulary._parse_id(path, "id", yaml)
     assert _declared_id_of(path, "id", yaml, kind_vocabulary.ResolutionPass()) == expected
+
+
+def test_declared_id_fast_path_accepts_broken_yaml_elsewhere(tmp_path: Path) -> None:
+    """Pinned limitation (see ``_declared_id_of``): the full parse says None, the fast path the id."""
+    from charter.activation.identity_index import _declared_id_of
+
+    path = tmp_path / "thing.tactic.yaml"
+    yaml = YAML(typ="safe")
+    for name, expected in (("broken-later-accepted", "ok-id"), ("sequence-after", "seq-after")):
+        path.write_bytes(_EDGE_BODIES[name])
+        assert kind_vocabulary._parse_id(path, "id", yaml) is None
+        assert _declared_id_of(path, "id", yaml, kind_vocabulary.ResolutionPass()) == expected
+
+
+def _built_in_artifacts() -> list[tuple[ArtifactKind, Path]]:
+    root = Path(__file__).resolve().parents[3] / "packs" / "built-in"
+    found: list[tuple[ArtifactKind, Path]] = []
+    for kind in _ACTIVATABLE:
+        if kind.glob_pattern:
+            found.extend((kind, path) for path in sorted(root.rglob(kind.glob_pattern)))
+    return found
+
+
+_BUILT_IN = _built_in_artifacts()
+
+
+def test_built_in_artifacts_are_found() -> None:
+    assert _BUILT_IN
+
+
+@pytest.mark.parametrize("kind,path", _BUILT_IN, ids=[f"{k.value}:{p.name}" for k, p in _BUILT_IN])
+def test_declared_id_fast_path_equals_full_parse_on_built_in_packs(kind: ArtifactKind, path: Path) -> None:
+    from charter.activation.identity_index import _declared_id_of
+
+    yaml = YAML(typ="safe")
+    for id_field in {"id", kind_vocabulary._id_field_for(kind)}:
+        expected = kind_vocabulary._parse_id(path, id_field, yaml)
+        assert _declared_id_of(path, id_field, yaml, kind_vocabulary.ResolutionPass()) == expected
+
+
+@pytest.mark.parametrize("name", ["leading-zeros", "true", "null", "float", "exp", "hex", "octal", "multi-document", "duplicate-key", "crlf", "bom"])
+def test_index_returns_full_parse_identity(tmp_path: Path, name: str) -> None:
+    root = tmp_path / "org"
+    (root / "tactics").mkdir(parents=True)
+    path = root / "tactics" / "edge.tactic.yaml"
+    path.write_bytes(_EDGE_BODIES[name])
+    expected = kind_vocabulary._parse_id(path, "id", YAML(typ="safe"))
+    index = IdentityIndex(org_roots=[root], _offering_root=tmp_path / "none")
+    assert index.declared_id(T, "edge") == expected
