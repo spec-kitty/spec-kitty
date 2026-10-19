@@ -42,12 +42,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-export (FR-007)
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
-from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, Relation
 from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_root
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
     from pathlib import Path
 
     from .manifest import ManifestArtifactEntry, SynthesisManifest
@@ -60,6 +60,8 @@ __all__ = [
     "ReconciliationDelta",
     "SynthesizeMode",
     "apply_prune",
+    "edge_owner",
+    "legacy_strip_notice",
     "merge_project_overlay",
     "reconcile_synthesis",
     "rewrite_manifest",
@@ -149,11 +151,15 @@ class NodeOrEdgeRef:
     ``backing_artifact`` is the repo-relative doctrine artifact path when the
     referenced content is still backed on disk, else ``None`` (orphaned) --
     populated by probing the filesystem, never assumed (amendment #4).
+    ``reason`` is set only on a removal the run performs on its own (a legacy
+    ``applies`` edge replaced by its ``suggests`` successor, #6404), so the
+    operator-facing report names it instead of dropping it silently.
     """
 
     ref_kind: Literal["node", "edge"]
     urn: str
     backing_artifact: str | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -212,18 +218,79 @@ class ReconciliationOutcome:
 # ---------------------------------------------------------------------------
 
 
+LEGACY_APPLIES_REASON = "legacy applies edge replaced by suggests"
+
+_DIRECTIVE_URN_PREFIX = "directive:"
+_TACTIC_URN_PREFIX = "tactic:"
+
+
+def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
+    """Return the overlay node that owns *edge*, or ``None`` when it has none (#6404).
+
+    The single ownership authority for every reconcile call site: an edge
+    follows its owner through merge, delta, conflict classification and prune.
+
+    * The synthesis shape ``directive:<id> --suggests--> tactic:<slug>`` is
+      owned by its tactic *target* (the node synthesis derived it for); its
+      source is a built-in or org directive the overlay does not own.
+    * Any other edge is owned by its source when that is an overlay node (a
+      hand-authored ``agent_profile --requires--> tactic:...`` stays with the
+      profile), else by its target when that is an overlay node.
+    """
+    if (
+        edge.relation is Relation.SUGGESTS
+        and edge.source.startswith(_DIRECTIVE_URN_PREFIX)
+        and edge.target.startswith(_TACTIC_URN_PREFIX)
+        and edge.target in overlay_urns
+    ):
+        return edge.target
+    if edge.source in overlay_urns:
+        return edge.source
+    if edge.target in overlay_urns:
+        return edge.target
+    return None
+
+
+def synthesized_node_urns(manifest: SynthesisManifest) -> frozenset[str]:
+    """Node URNs of the non-directive artifacts the synthesis manifest registers.
+
+    Directive nodes are keyed by artifact id, not slug, and never carried the
+    legacy ``applies`` edge, so only ``<kind>:<slug>`` URNs are derived.
+    """
+    return frozenset(f"{e.kind}:{e.slug}" for e in manifest.artifacts if e.kind != "directive")
+
+
+def _is_legacy_applies(edge: DRGEdge, synthesized_urns: Collection[str]) -> bool:
+    return edge.relation is Relation.APPLIES and edge.source in synthesized_urns
+
+
+def legacy_strip_notice(edge: DRGEdge) -> str:
+    """Operator-facing line naming one stripped legacy ``applies`` edge (#6404)."""
+    return f"{LEGACY_APPLIES_REASON}: {edge.source} --applies--> {edge.target}"
+
+
+def legacy_applies_edges(existing_overlay: DRGGraph, synthesized_urns: Collection[str]) -> tuple[DRGEdge, ...]:
+    """Existing ``applies`` edges whose source is a synthesis-provenance node (#6404)."""
+    return tuple(e for e in existing_overlay.edges if _is_legacy_applies(e, synthesized_urns))
+
+
 def merge_project_overlay(
     *,
     existing_overlay: DRGGraph,
     updated_overlay: DRGGraph,
+    synthesized_urns: Collection[str] = (),
 ) -> DRGGraph:
     """Replace only the resynthesized nodes/edges inside an existing overlay.
 
     A node whose URN is present in ``updated_overlay`` is replaced wholesale
     by the updated version; every other on-disk node is preserved untouched.
-    Edges follow their declaring ``source`` node atomically (FR-002): all of
-    a regenerated source's prior edges are dropped in favor of its fresh set;
-    every other source's edges are preserved untouched.
+    Edges follow their owner (:func:`edge_owner`) atomically (FR-002): all of
+    a regenerated owner's prior edges are dropped in favor of its fresh set;
+    every other owner's edges are preserved untouched.
+
+    Legacy ``applies`` edges sourced at a node in *synthesized_urns* are
+    dropped on every run (#6404); callers report them via
+    :func:`legacy_applies_edges`.
     """
     updated_urns = {node.urn for node in updated_overlay.nodes}
     updated_nodes_by_urn = {node.urn: node for node in updated_overlay.nodes}
@@ -233,23 +300,31 @@ def merge_project_overlay(
         merged_nodes.append(replacement if replacement is not None else node)
     merged_nodes.extend(updated_nodes_by_urn.values())
 
-    updated_edges_by_source: dict[str, list[DRGEdge]] = {}
+    all_urns = {n.urn for n in existing_overlay.nodes} | updated_urns
+
+    def _owner(edge: DRGEdge) -> str:
+        return edge_owner(edge, all_urns) or edge.source
+
+    updated_edges_by_owner: dict[str, list[DRGEdge]] = {}
     for edge in updated_overlay.edges:
-        updated_edges_by_source.setdefault(edge.source, []).append(edge)
+        updated_edges_by_owner.setdefault(_owner(edge), []).append(edge)
 
     merged_edges: list[DRGEdge] = []
-    inserted_sources: set[str] = set()
+    inserted_owners: set[str] = set()
     for edge in existing_overlay.edges:
-        if edge.source not in updated_urns:
+        if _is_legacy_applies(edge, synthesized_urns):
+            continue
+        owner = _owner(edge)
+        if owner not in updated_urns:
             merged_edges.append(edge)
             continue
-        if edge.source in inserted_sources:
+        if owner in inserted_owners:
             continue
-        merged_edges.extend(updated_edges_by_source.get(edge.source, []))
-        inserted_sources.add(edge.source)
+        merged_edges.extend(updated_edges_by_owner.get(owner, []))
+        inserted_owners.add(owner)
 
-    for source, edges in updated_edges_by_source.items():
-        if source not in inserted_sources:
+    for owner, edges in updated_edges_by_owner.items():
+        if owner not in inserted_owners:
             merged_edges.extend(edges)
 
     return DRGGraph(
@@ -416,11 +491,19 @@ def _edge_label(edge: DRGEdge) -> str:
     return f"{edge.source}--{edge.relation.value}-->{edge.target}"
 
 
-def _edge_ref(edge: DRGEdge, urn_to_path: dict[str, str]) -> NodeOrEdgeRef:
+def _edge_ref(
+    edge: DRGEdge,
+    urn_to_path: dict[str, str],
+    overlay_urns: Collection[str],
+    *,
+    reason: str | None = None,
+) -> NodeOrEdgeRef:
+    owner = edge_owner(edge, overlay_urns)
     return NodeOrEdgeRef(
         ref_kind="edge",
         urn=_edge_label(edge),
-        backing_artifact=urn_to_path.get(edge.source),
+        backing_artifact=urn_to_path.get(owner) if owner is not None else None,
+        reason=reason,
     )
 
 
@@ -434,24 +517,35 @@ def _graph_delta(
     existing_overlay: DRGGraph | None,
     fresh_overlay: DRGGraph,
     urn_to_path: dict[str, str],
+    synthesized_urns: Collection[str] = (),
 ) -> tuple[tuple[NodeOrEdgeRef, ...], tuple[NodeOrEdgeRef, ...], tuple[NodeOrEdgeRef, ...]]:
     """Return (retained, added, removable) graph-level refs."""
+    fresh_node_urns = {n.urn for n in fresh_overlay.nodes}
     if existing_overlay is None:
         added = tuple(_node_ref(n, urn_to_path) for n in fresh_overlay.nodes) + tuple(
-            _edge_ref(e, urn_to_path) for e in fresh_overlay.edges
+            _edge_ref(e, urn_to_path, fresh_node_urns) for e in fresh_overlay.edges
         )
         return (), added, ()
 
-    fresh_node_urns = {n.urn for n in fresh_overlay.nodes}
     existing_node_urns = {n.urn for n in existing_overlay.nodes}
+    overlay_urns = fresh_node_urns | existing_node_urns
+    legacy = legacy_applies_edges(existing_overlay, synthesized_urns)
+
+    def _owner_in(edge: DRGEdge, urns: set[str]) -> bool:
+        return edge_owner(edge, overlay_urns) in urns
 
     preserved_refs = tuple(
         _node_ref(n, urn_to_path) for n in existing_overlay.nodes if n.urn not in fresh_node_urns
-    ) + tuple(_edge_ref(e, urn_to_path) for e in existing_overlay.edges if e.source not in fresh_node_urns)
+    ) + tuple(
+        _edge_ref(e, urn_to_path, overlay_urns)
+        for e in existing_overlay.edges
+        if not _owner_in(e, fresh_node_urns) and not _is_legacy_applies(e, synthesized_urns)
+    )
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns
-    ) + tuple(_edge_ref(e, urn_to_path) for e in fresh_overlay.edges if e.source not in existing_node_urns)
-    return preserved_refs, added_refs, preserved_refs
+    ) + tuple(_edge_ref(e, urn_to_path, overlay_urns) for e in fresh_overlay.edges if not _owner_in(e, existing_node_urns))
+    stripped_refs = tuple(_edge_ref(e, urn_to_path, overlay_urns, reason=LEGACY_APPLIES_REASON) for e in legacy)
+    return preserved_refs, added_refs, preserved_refs + stripped_refs
 
 
 def _manifest_ref(entry: ManifestArtifactEntry, repo_root: Path) -> ManifestEntryRef:
@@ -483,12 +577,14 @@ def _edge_conflict(
     edge: DRGEdge,
     target_urns: set[str],
     urn_to_path: dict[str, str],
+    overlay_urns: Collection[str],
 ) -> ReconciliationConflict:
-    provenance: Literal["preserved", "new_emit"] = "new_emit" if edge.source in target_urns else "preserved"
+    owner = edge_owner(edge, overlay_urns)
+    provenance: Literal["preserved", "new_emit"] = "new_emit" if owner in target_urns else "preserved"
     return ReconciliationConflict(
         kind=kind,
         target_id=_edge_label(edge),
-        backing_artifact=urn_to_path.get(edge.source),
+        backing_artifact=urn_to_path.get(owner) if owner is not None else None,
         remediation=_RECONCILE_REMEDIATIONS[kind],
         provenance=provenance,
     )
@@ -519,13 +615,14 @@ def _classify_conflicts(
     base_layer = org_drg if org_drg is not None else built_in_drg
     full_graph = merge_layers(base_layer, merged_overlay)
     target_urns = {n.urn for n in fresh_overlay.nodes}
+    overlay_urns = {n.urn for n in merged_overlay.nodes}
 
     conflicts = [
-        _edge_conflict("duplicate_triple", edge, target_urns, urn_to_path)
+        _edge_conflict("duplicate_triple", edge, target_urns, urn_to_path, overlay_urns)
         for edge in duplicate_edge_triples(full_graph)
     ]
     conflicts.extend(
-        _edge_conflict("preserved_dangling_endpoint", edge, target_urns, urn_to_path)
+        _edge_conflict("preserved_dangling_endpoint", edge, target_urns, urn_to_path, overlay_urns)
         for edge in dangling_endpoints(full_graph)
     )
     return tuple(conflicts)
@@ -547,7 +644,8 @@ def _load_existing_overlay(pack_dir: Path) -> DRGGraph | None:
     """
     if not pack_dir.exists() or not has_graph_files(pack_dir):
         return None
-    return load_graph_or_dir(pack_dir)
+    graph: DRGGraph = load_graph_or_dir(pack_dir)
+    return graph
 
 
 def reconcile_synthesis(
@@ -598,21 +696,28 @@ def reconcile_synthesis(
     # charter pack root (FR-016).
     pack_dir = project_pack_root(repo_root)
     existing_overlay = _load_existing_overlay(pack_dir)
-    merged_overlay = (
-        fresh_overlay
-        if existing_overlay is None
-        else merge_project_overlay(existing_overlay=existing_overlay, updated_overlay=fresh_overlay)
-    )
 
     manifest_path = repo_root / MANIFEST_PATH
     existing_manifest = load_manifest(manifest_path) if manifest_path.exists() else _empty_manifest_seed(run_id)
     merged_manifest = rewrite_manifest(existing_manifest, new_results, run_id, repo_root)
+    synthesized_urns = synthesized_node_urns(merged_manifest)
+
+    merged_overlay = (
+        fresh_overlay
+        if existing_overlay is None
+        else merge_project_overlay(
+            existing_overlay=existing_overlay,
+            updated_overlay=fresh_overlay,
+            synthesized_urns=synthesized_urns,
+        )
+    )
 
     urn_to_path = _backing_path_by_urn(repo_root, merged_manifest)
     retained, added, removable = _graph_delta(
         existing_overlay=existing_overlay,
         fresh_overlay=fresh_overlay,
         urn_to_path=urn_to_path,
+        synthesized_urns=synthesized_urns,
     )
     manifest_delta = _manifest_delta(
         existing_manifest=existing_manifest,
@@ -649,7 +754,12 @@ def apply_prune(outcome: ReconciliationOutcome) -> ReconciliationOutcome:
 
     removable_node_urns = {ref.urn for ref in outcome.delta.removable if ref.ref_kind == "node"}
     pruned_nodes = [n for n in outcome.merged_overlay.nodes if n.urn not in removable_node_urns]
-    pruned_edges = [e for e in outcome.merged_overlay.edges if e.source not in removable_node_urns]
+    # An edge touching a removed node on either end goes with it (#6404).
+    pruned_edges = [
+        e
+        for e in outcome.merged_overlay.edges
+        if e.source not in removable_node_urns and e.target not in removable_node_urns
+    ]
     pruned_overlay = outcome.merged_overlay.model_copy(update={"nodes": pruned_nodes, "edges": pruned_edges})
 
     removable_manifest_keys = {(ref.kind, ref.slug) for ref in outcome.delta.manifest_delta.removable}
