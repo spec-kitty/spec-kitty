@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: issue-6404-charter-governance-resolution-work
 merge_target_branch: issue-6404-charter-governance-resolution-work
 branch_strategy: Planning artifacts for this mission were generated on issue-6404-charter-governance-resolution-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6404-charter-governance-resolution-work unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-governance-resolution-01M57Z77
+base_commit: 5fb8d811aaa8697669f01805c9264a4513955b37
+created_at: '2026-10-19T00:31:00.851410+00:00'
 subtasks:
 - T022
 - T023
