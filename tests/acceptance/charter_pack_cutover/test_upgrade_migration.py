@@ -284,7 +284,7 @@ def test_fr012_project_root_moved(tmp_path: Path) -> None:
     # legacy ``mission-type-scope-directive`` artifact in place, so the legacy file name is the
     # only one that differs after the upgrade.
     renamed = edited.name.replace("mission-type-scope-directive", "project-intent-directive")
-    expected = sorted([*(renamed if name == f"directive/{edited.name}" else name for name in files), "pack.yaml"])
+    expected = sorted([*(f"directive/{renamed}" if name == f"directive/{edited.name}" else name for name in files), "pack.yaml"])
     assert sorted(p.relative_to(new_root).as_posix() for p in new_root.rglob("*") if p.is_file()) == expected
     assert (new_root / "directive" / renamed).read_text(encoding="utf-8").endswith("# uncommitted operator edit\n")
     assert len(cutover_report(payload)["moved"]) == len(files)
