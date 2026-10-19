@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02/WP03/WP10 approved: tests/charter/test_resolver.py, test_action_governance_bundle_activation.py, test_context_include.py, test_charter_list_commands.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:08:08.872199+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
