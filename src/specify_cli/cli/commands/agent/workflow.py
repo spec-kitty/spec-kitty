@@ -229,9 +229,59 @@ def _enforce_bulk_edit_diff_compliance(
         render_diff_check_failure(_diff_result, rich_console)
         raise typer.Exit(1)
     elif _diff_result.warnings:
-        # Surface manual_review notes but don't block.
-        for _w in _diff_result.warnings:
-            rich_console.print(f"[yellow]manual_review:[/] {_w}")
+        _render_diff_check_warnings(_diff_result, rich_console)
+
+
+# Non-blocking note kinds, ordered the way a reviewer wants to read them:
+# the ones asking for judgement first, the mechanical exemptions last.
+# ``list_all`` marks the kinds that are always worth enumerating in full.
+_WARNING_KINDS: tuple[tuple[str, str, bool], ...] = (
+    ("path-heuristic", "need manual review", True),
+    ("structural-target", "structural-target exemptions (do_not_change bypass)", True),
+    ("added", "created by this diff", False),
+    ("non-occurrence", "carry no textual occurrence", False),
+    ("runtime-state", "this mission's own bookkeeping", False),
+)
+
+# Above this many paths of one kind, print a count and a sample rather than
+# every path. An ingest work package legitimately adds hundreds of files;
+# one line each buries the handful that actually want a human.
+_WARNING_LIST_LIMIT = 12
+
+
+def _render_diff_check_warnings(result: DiffCheckResult, console: Console) -> None:
+    """Summarise the non-blocking diff-check notes, grouped by kind.
+
+    Nothing is hidden — every kind is reported with its full count — but the
+    bulk exemptions are shown as a count plus a sample, so the notes that
+    ask for judgement are not lost among them.
+    """
+    by_source: dict[str, list[str]] = {}
+    for assessment in result.assessments:
+        if not assessment.violation:
+            by_source.setdefault(assessment.source, []).append(assessment.path)
+
+    console.print("[yellow]Bulk-edit diff notes[/] (non-blocking):")
+    for source, label, list_all in _WARNING_KINDS:
+        paths = sorted(by_source.get(source, []))
+        if not paths:
+            continue
+        console.print(f"  [yellow]{len(paths)}[/] {label}:")
+        shown = (
+            paths
+            if list_all or len(paths) <= _WARNING_LIST_LIMIT
+            else paths[:_WARNING_LIST_LIMIT]
+        )
+        for path in shown:
+            console.print(f"    {path}")
+        if len(shown) < len(paths):
+            console.print(f"    … and {len(paths) - len(shown)} more")
+
+    # Field-scoped exception pins are per-FIELD, not per-path, so they carry
+    # information the grouping above would drop. Printed verbatim.
+    for warning in result.warnings:
+        if "field-path exception pins" in warning:
+            console.print(f"  [yellow]•[/] {warning}")
 
 
 def _reset_workflow_receipts() -> None:
