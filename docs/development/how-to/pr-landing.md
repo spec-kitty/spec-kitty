@@ -80,7 +80,8 @@ changelog entry.
 
 ### PRs prepared by the SkyKitty fleet
 
-A `squad:passed` label (see [the agent fleet](../agent-fleet.md)) means the fleet's
+A `squad:passed` label (see [the agent fleet](../agent-fleet.md); the fleet is now
+switched off and the label was deleted, so this applies to PRs it prepared earlier) meant the fleet's
 review passed against the base the PR had at that time. It does not mean the PR is
 ready now. After the rebase:
 

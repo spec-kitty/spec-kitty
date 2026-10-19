@@ -151,7 +151,8 @@ native issue-type name, not Spec Kitty terminology; the domain object is always
 a Mission. The type is the *sole* kind
 carrier; the old `bug` label was retired repo-wide and must not be reintroduced.
 A capability request wearing a bug title is a `Feature` (retype it, don't leave
-it as a `Bug`). `enhancement` is a Feature, not a separate kind.
+it as a `Bug`). The `enhancement` label and the whole `type:*` label family are
+retired for the same reason; the issue templates set the native type directly.
 
 ### Priority, and what makes a P0
 
@@ -248,9 +249,9 @@ applies. Three points are easy to miss:
 
 - **Never set `priority:P0` in a pass.** Name the criterion the issue meets and flag
   it; escalation is the operator's decision.
-- **Do not touch `status:*`, `squad:*` or `needs:*` labels.** The fleet owns them as
-  leases and queue state (see [Label-driven fleet workflow](#label-driven-fleet-workflow)).
-  Report one that looks stale.
+- **Do not touch `status:*` or `taken-by-human` labels.** They are leases and queue
+  state, set by a human or by contributor tooling (see
+  [Issue workflow-state labels](#issue-workflow-state-labels)). Report one that looks stale.
 - **Check liveness against the canonical remote.** Judge "still exists" or "already
   shipped" against `main` of `spec-kitty/spec-kitty`, fetched now, not a fork's
   `origin/main`, which can lag far behind.
@@ -279,12 +280,16 @@ reopen or reuse the 3.x milestones.
 
 Two orthogonal axes carry the load and are documented above: the **native type**
 (`Bug` / `Feature` / `Task` — the sole kind carrier) and **priority**
-(`priority:P0`…`priority:P3`). Labels never encode kind — the retired `bug`
-label must not return, and neither may the **`type:*` label family**
-(`type:bug` / `type:feature` / `type:chore` / `type:fix`). These duplicated the
-native issue type as a parallel, drift-prone kind carrier and are **retired**:
-the native GitHub type is the single canonical authority for kind. Strip any
-`type:*` label you encounter during triage; never add one. Beyond type and
+(`priority:P0`…`priority:P3`). Labels never encode kind. The `bug` and
+`enhancement` labels and the whole **`type:*` label family** (`type:bug` /
+`type:feature` / `type:chore` / `type:fix` / `type:finding` / `type:flake` /
+`type:thesis`) duplicated the native issue type as a parallel, drift-prone kind
+carrier and are **retired**: the native GitHub type is the single canonical
+authority for kind. These labels were deleted from the repository on 2026-10-19;
+if one reappears, strip it and set the native type. The former `type:decision`
+label is now `triage:needs-decision` (see
+[Triage-state labels](#triage-state-labels--transient-hygiene-state-not-classification)).
+Beyond type and
 priority, labels fall into the families below. Apply as many as genuinely apply; a `catfooding` `reliability` `Bug` at
 `priority:P2` is a normal, well-triaged issue.
 
@@ -301,7 +306,8 @@ orthogonal to native type (a `catfooding` issue is still a Bug, Feature, or Task
   post-convergence dogfooding backlog; expect clusters of `catfooding`
   `workflow`/`git`/`usability` issues that circle a single root cause.
 - `tidy-up` — Campsite / declutter / degodding cleanup surfaced *during other
-  work* (the boy-scout residue a mission couldn't fold in-line).
+  work* (the boy-scout residue a mission couldn't fold in-line). The former
+  `cleanup` label was merged into it.
 - `tech-debt` — Accumulated lint, type-checking, static-analysis, and
   code-quality debt.
 - `design-spike` — Foundational design work.
@@ -345,7 +351,7 @@ below.
 | `domain:invocation` | `src/specify_cli/invocation/` — dispatch & profile-invocation routing (Op lifecycle) |
 | `domain:decisions` | `src/specify_cli/decisions/` + `cli/commands/decision.py` — Decision Moment flow, models, emit |
 | `domain:status` | `src/specify_cli/status/` + `lanes/` + `coordination/` + `workspace/` + `state/` — status event-log & lane state machine; `state/` is the project-scoped state-surface contract and `doctor` state-root checks |
-| `domain:merge` | `src/specify_cli/consolidation/` — mission merge / lane consolidation, retention, preflight |
+| `domain:consolidation` | `src/specify_cli/consolidation/` — lane consolidation, retention, preflight (formerly `domain:merge`) |
 | `domain:skills` | `src/specify_cli/skills/` — command/skill rendering, install, and the command-skills manifest |
 | `domain:upgrade` | `src/specify_cli/upgrade/` (incl. `upgrade/migrations/`) + `cli/commands/upgrade.py` — `spec-kitty upgrade`: version detection, migration registry/runner, redeploying generated commands and skills |
 | `domain:review` | `src/specify_cli/review/` + `cli/commands/review/` — WP review cycle, verdicts, arbiter, the pre-review transition gate (`gate_registry`, `pre_review_gate`), and the `spec-kitty review` mission-review gates |
@@ -356,30 +362,28 @@ below.
 | `domain:docs` | `docs/` + `scripts/docs/` + `src/specify_cli/docs/` + `cli/commands/docs.py` — documentation content, docs build/freshness tooling, and the `docs query` retrieval index |
 | `domain:ci` | GitHub Actions workflows (`.github/workflows/`) + `scripts/ci/` — pipeline, gate selection, coverage aggregation |
 | `domain:onboarding` | first-run setup spanning modules (init, charter, remote, first mission) |
+| `domain:git` | `src/specify_cli/git/` + `src/kernel/git/` — git operations, worktree / topology helpers |
+| `domain:agent-profiles` | `src/charter/offering/agent_profiles/` + profile loading in `specify_cli` |
+| `domain:schema-versioning` | `src/specify_cli/schemas/` — event / payload schema versioning and `spec-kitty-events` consumption |
+| `domain:status-api` | `services/mission-status-api/` — the Mission Status Read/Write API service, its contract and its consumers (successor of the removed dashboard, #5530; formerly `domain:dashboard`) |
 
-> `domain:ci`, `domain:docs` and `domain:onboarding` name a *workflow surface* that spans
-> modules rather than a single package. They are still domain labels because they
+> `domain:ci`, `domain:docs`, `domain:onboarding` and `domain:status-api` name a
+> *workflow surface* or service outside the Python Modularity SSOT rather than a
+> single package. They are still domain labels because they
 > answer *where the work lives* for routing — unlike the concern labels below,
 > which name a quality/experience axis that can attach to any domain.
 
-**Legacy non-namespaced labels (operator-owned rename).** These predate the
-`domain:*` namespace but still name a code domain. The target `domain:*` name is
-shown; the rename is an **operator decision** — a rename touches saved searches
-and any label-name automation, so it is not performed as a docs change.
+### Legacy labels — history only
 
-| Legacy label | Target | Code domain |
-|---|---|---|
-| `git` | `domain:git` | `src/specify_cli/git/` + worktree / topology helpers |
-| `dashboard` | `domain:dashboard` | formerly the `specify_cli.dashboard` package (removed, #5530); now the planned Mission Status Read API (#5528) and its out-of-repo replacement UI |
-| `saas` | `domain:hosted` | hosted Team Kitty surface: `saas_client/` + `zeitgeist_client/` + `auth/` |
-| `agent-profiles` | `domain:agent-profiles` | agent-profile system in `src/charter/offering/` + profile loading in `specify_cli` |
-| `schema-versioning` | `domain:schema-versioning` | schema / versioning infrastructure (`src/specify_cli/schemas/`, migrations) |
-
-`sync` is **retired, not renamed**: the local sync transport (daemon, offline
-queue, projection delivery) was deleted in The Convergence (ADR
-[`2026-09-06-1-convergence-retirement-and-client-repo-inversion`](../../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md));
-the hosted path is now the Zeitgeist moment. Re-route any live `sync` issue to
-`domain:hosted` (or `domain:tracker`) and close the transport-specific residue.
+`legacy:sync` (the local sync transport, deleted in The Convergence, ADR
+[`2026-09-06-1-convergence-retirement-and-client-repo-inversion`](../../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md))
+and `legacy:hosted` (the hosted Team Kitty clients `saas_client/`,
+`zeitgeist_client/` and `auth/`, removed in #6164; formerly `domain:hosted`) mark
+closed issues for history. Never apply them; re-home any live issue to the
+`domain:*` label whose code the fix edits. The earlier renames of the
+non-namespaced labels (`dashboard`, `saas`, `agent-profiles`,
+`schema-versioning`, `git`) are complete. A `legacy:*` label exists only for a
+retired *code area*; retired *process* labels are deleted outright.
 
 ### Cross-cutting concern labels — *what quality/experience axis*, not a code domain
 
@@ -388,8 +392,10 @@ do not route to one package. Apply them alongside a `domain:*` label.
 
 - `reliability` — Runtime reliability, resiliency, observability, incident
   prevention.
-- `usability` — Operator / user experience and ergonomics.
-- `workflow` — Workflow / UX improvements.
+- `usability` — Ergonomics of any operator-facing surface: messages, flags,
+  output, defaults.
+- `workflow` — The mission loop itself (specify → plan → tasks → implement →
+  review → consolidate) behaves wrongly or awkwardly.
 - `windows` — Windows-specific issues (a platform axis, not a module).
 
 ### Triage-state labels — transient hygiene state, not classification
@@ -408,19 +414,31 @@ working state, not a permanent property.
   test that could be a stale fixture/seed *or* a genuine product bug. Blocks final
   homing (parent/priority) until an investigation or debugger pass resolves the
   root-cause axis; remove it once the cause is known.
+- `triage:needs-decision` — A human (operator or maintainer) must make a call
+  before anyone implements; the body states the options. Formerly `type:decision`.
+
+Apply at most one `triage:*` label per triage cycle.
+
+### Provenance labels — who surfaced it
+
+These record where an issue came from. Provenance is orthogonal to type,
+priority and domain.
+
+- `from:ci` — Filed by CI automation (`scripts/ci/nightly_escalation.py`). Code
+  writes and searches for it; never remove it by hand.
+- `from:qa` — Found by a human QA tester.
+- `from:dev` — Found during development.
+- `from:squad` — An adversarial-squad finding (the `adversarial-squad` skill).
 
 ### PR-workflow labels — for pull requests, not issues
 
-These live on pull requests, not issues. The first is the fleet-coordination
-handshake; the rest are workflow state.
+These live on pull requests, not issues.
 
-- `ready-for-squad` — **fleet handshake**: the implementer has run the required tests
-  and self-review and hands the PR to the review squad and CI. The
-  [SkyKitty agent fleet](../agent-fleet.md) owns CI and squad review from this point;
-  the operator still performs the mainline merge. Do **not** apply it to a still-draft
-  scope or to work whose tests have not run — the label is the fleet's contract that the
-  PR is finished and independently testable. See
-  [The `ready-for-squad` handshake](../agent-fleet.md#the-ready-for-squad-handshake).
+- `ready-for-squad` — the implementer has run the required tests and self-review;
+  the PR is finished and independently testable. Do **not** apply it to a
+  still-draft scope or to work whose tests have not run. (While the
+  [SkyKitty agent fleet](../agent-fleet.md) was active this label also handed the
+  PR to the fleet; the fleet is switched off.)
 - `pr:p0-repro` — the PR lands the red-first reproduction test for a confirmed open
   P0 `Bug`. Reference the issue with `Refs #<n>`, not `Closes`, and mark the test
   `@pytest.mark.p0_repro(issue=<n>)` (see
@@ -433,12 +451,8 @@ handshake; the rest are workflow state.
   as-is.
 - `pr:deferred` — Held under a declared freeze; the label-gated CI jobs
   (`ci-windows.yml`, `check-spec-kitty-events-alignment.yml`,
-  `release-readiness.yml`) are skipped until it is removed. (The GitHub label
-  description may still name the old 3.2.x doctrine-surface freeze; that cycle
-  is closed.)
+  `release-readiness.yml`) are skipped until it is removed.
 - `pr:skip-ci` — Intentionally skip CI for this PR (docs / manual review only).
-- `ci:full` — Legacy: forced the full suite on a draft PR under the old draft
-  exemption. No current workflow reads it, and CI no longer exempts drafts.
 
 ### Lifecycle & community labels
 
@@ -448,17 +462,13 @@ handshake; the rest are workflow state.
 - `good first issue` — a good *entry point* (see
   [What "good first issue" means here](#what-good-first-issue-means-here)); not a
   difficulty signal.
-- `help wanted` — Extra attention is needed.
-- `mvp` — Required for the Team Kitty private team workspace MVP (the label
-  description still says "Private Teamspace"; `teamspace` is the old
-  identifier, see [Team Kitty](../../context/team-kitty.md)).
-- `release` — Release tracking and coordination.
-- `documentation` — Improvements or additions to documentation.
-- `enhancement` — GitHub's built-in label; treat it as a `Feature` synonym only.
-  Kind lives in the **native type** — prefer setting `--type Feature` over relying
-  on this label.
-- The stock GitHub defaults `duplicate`, `invalid`, `question`, and `wontfix`
-  keep their conventional meanings.
+- `release` — Release engineering: tagging, publishing, release-pipeline
+  integrity. Release and launch *scope* lives in milestones, not labels.
+- `duplicate` — A confirmed duplicate; pair it with the native "Close as
+  duplicate". `invalid`, `wontfix`, `question` and `help wanted` are retired:
+  use the native close reason "not planned", or a `triage:*` label.
+- Docs work is routed by `domain:docs` (the former `documentation` label was
+  merged into it); doctrine prose is routed by `domain:charter`.
 
 ### Grouping labels (documented above)
 
@@ -467,7 +477,30 @@ handshake; the rest are workflow state.
 they are not free-floating classification labels and carry structural obligations
 (native children vs. a body checklist).
 
+## Issue workflow-state labels
+
+The issue-side `status:*` labels and `taken-by-human` are human workflow state:
+
+| Label | Meaning |
+|---|---|
+| `status:triage` | New, untriaged work |
+| `status:ready` | Triaged, de-duplicated, and resolvable without a pending decision; ready to pick up |
+| `status:claimed` | Someone is actively working the issue. A lease: valid only with a live claim comment naming who is working it. Remove it when you stop |
+| `status:blocked` | Blocked, with a **Depends on:** #`<n>` line naming the gating issue |
+| `taken-by-human` | A human contributor owns the issue or its linked PR. Pair it with `status:claimed` when you begin |
+
+Contributor tooling may also set these labels; treat a label it set like one a
+person set.
+
 ## Label-driven fleet workflow
+
+> **Status: the SkyKitty fleet is switched off** (the `CI Fleet Verdict` workflow
+> is disabled; last run 2026-09-26). The issue-side `status:*` labels and
+> `taken-by-human` stay in use as human workflow state (see
+> [Issue workflow-state labels](#issue-workflow-state-labels)). The PR-lane
+> labels (`squad:*`, `needs:implementer`, `ci:green` / `ci:red`) were deleted on
+> 2026-10-19 and would be recreated if the fleet is reactivated. The rest of this
+> section is historical: it records how the fleet consumed the labels while active.
 
 The [SkyKitty agent fleet](../agent-fleet.md) and its sibling programme repos run on a
 **label-driven queue**: GitHub labels are the *only* admission control. Agents and humans
@@ -502,7 +535,8 @@ are **mid-negotiation**, not unowned — the groom skips them deliberately.
 1. The dispatcher (`bin/dispatch.sh`, deterministic, not an LLM) sweeps continuously. Each
    sweep lists open issues with `status:ready` and **no** `status:claimed`, ordered by
    priority `P0..P3`, then repo order (`PROGRAM.md` §2), then issue number.
-2. It skips issues labelled `status:blocked`, `epic`, or `type:decision` — a decision issue
+2. It skips issues labelled `status:blocked`, `epic`, or `triage:needs-decision` (formerly
+   `type:decision`; a reactivated dispatcher must match the new name) — a decision issue
    is never autonomous implementation work, even at `status:ready`; it waits on a resolving
    comment (`docs/DECISION-ISSUES.md`).
 3. For each issue up to free implementer capacity, the dispatcher claims it: adds
@@ -513,9 +547,9 @@ are **mid-negotiation**, not unowned — the groom skips them deliberately.
    and destroys the VM — the issue returns to the `status:ready` queue and is re-claimed on a
    later sweep. A VM older than 6 hours with no PR is treated the same.
 
-### PR-lane labels (review and landing)
+### PR-lane labels (review and landing; historical, labels deleted)
 
-PRs move through their own label set, driven by the same dispatcher (see also the
+PRs moved through their own label set, driven by the same dispatcher (see also the
 `ready-for-squad` handshake under [PR-workflow labels](#pr-workflow-labels--for-pull-requests-not-issues)):
 
 | Label | Meaning |

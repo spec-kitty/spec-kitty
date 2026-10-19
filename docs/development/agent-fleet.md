@@ -2,7 +2,7 @@
 title: The SkyKitty Agent Fleet
 description: 'SkyKitty, the Spec Kitty company agent fleet: its roles and the ready-for-squad handshake that hands a PR from the implementer to the review squad and CI.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
@@ -14,6 +14,14 @@ related:
 ---
 
 # The SkyKitty Agent Fleet
+
+> **Status (2026-10-19): the fleet is switched off.** The `CI Fleet Verdict` workflow
+> (`.github/workflows/ci-fleet-verdict.yml`) is disabled; its last run was 2026-09-26.
+> The PR-lane labels (`squad:*`, `needs:implementer`, `ci:green` / `ci:red`) were deleted
+> from the tracker. `ready-for-squad`, the issue-side `status:*` labels and
+> `taken-by-human` remain, as human workflow state (see
+> [Managing the Issue Tracker → Issue workflow-state labels](how-to/manage-issue-tracker.md#issue-workflow-state-labels)).
+> This page describes the fleet as it worked while active.
 
 **SkyKitty** is the proper name of the Spec Kitty **company agent fleet** — the set of
 governed AI agents that execute missions on this repository under an **operator** who
@@ -97,7 +105,7 @@ contract that the work is ready to be owned downstream.
 
 `ready-for-squad` is one of the fleet-coordination labels on pull requests. It travels with
 the `pr:*` family (`pr:needs-refresh`, `pr:needs-revision`, `pr:kept-for-reference`,
-`pr:deferred`, `pr:skip-ci`) and the CI control `ci:full`. All of them, together with the
+`pr:deferred`, `pr:skip-ci`). All of them, together with the
 issue-side taxonomy, are documented in
 [Managing the Issue Tracker → Label taxonomy](how-to/manage-issue-tracker.md#label-taxonomy).
 

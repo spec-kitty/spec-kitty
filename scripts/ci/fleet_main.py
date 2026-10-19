@@ -250,7 +250,10 @@ def report(api: GitHub, root: Path, ids: dict[str, int], reporter_id: int, attem
             {
                 "title": f"main-push CI is red at {outcome.head[:12]}",
                 "body": INCIDENT + "\n\n" + outcome.text,
-                "labels": ["type:fix", "priority:P0", "from:ci", "status:triage"],
+                # Kind is the native issue type, not a label: the `type:*` labels are
+                # retired (docs/development/how-to/manage-issue-tracker.md#label-taxonomy).
+                "type": "Bug",
+                "labels": ["priority:P0", "from:ci", "status:triage"],
             },
         )
 

@@ -92,7 +92,8 @@ def test_red_main_reaches_existing_fleet_p0_intake_and_deduplicates() -> None:
     fleet_main.report(api, ROOT, IDS, 123, 1)
     path, payload = api.mutations[0]
     assert path == "issues"
-    assert payload["labels"] == ["type:fix", "priority:P0", "from:ci", "status:triage"]
+    assert payload["labels"] == ["priority:P0", "from:ci", "status:triage"]
+    assert payload["type"] == "Bug"
     assert f"[ci] red @{HEAD}" in payload["body"]
     assert '"run_attempt": 1' in payload["body"]
     fleet_main.report(api, ROOT, IDS, 124, 1)

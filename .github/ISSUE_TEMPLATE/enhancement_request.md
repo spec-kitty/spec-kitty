@@ -2,7 +2,7 @@
 name: "✨ Enhancement / new capability"
 about: "Propose a concrete new capability or an improvement to an existing one"
 title: "[enhancement] "
-labels: ["enhancement"]
+type: "Feature"
 ---
 
 ## Problem or motivation

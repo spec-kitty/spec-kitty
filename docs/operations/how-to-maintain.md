@@ -118,47 +118,23 @@ objectively — from the conventional-commit prefix + labels — not by guesswor
 sample, ~24% (19/80) had **no** Type set (e.g. #1929, #1978 at time of audit). Backfilling Type on
 untyped open issues is a standing hygiene task.
 
-### Type-flavour labels (label-based, complement the native Type)
-
-These labels add a *flavour* the three native Types don't capture:
-
-- `tech-debt` — accumulated lint / type-check / static-analysis / code-quality debt.
-- `reliability` — runtime reliability, resiliency, observability, incident-prevention.
-- `usability` — operator/user experience and ergonomics.
-- `documentation` — docs additions/improvements.
-- `research-mission` — research-mission related.
-- `deferred` / `future` — paused pending an activation trigger / out-of-cycle vision work.
-
-### `triage:*` and `p1-decision:*` workflow labels
-
-These record **in-flight triage state**, not the final classification:
-
-- `triage:maybe-duplicate` — suspected dup pending confirmation (vs confirmed `duplicate`).
-- `triage:needs-revision` — scope/spec needs rework before action.
-- `triage:stale` — reproduce and close if no longer valid.
-- `p1-decision:keep | split | close-if-stale | defer` — the disposition reached for a P1 during a
-  triage sweep (keep as-is / split into children / reproduce-and-close / defer out of the lane).
-- `p1:verified`, `ddd-audit:reviewed` — audit provenance stamps.
-
-Clear `triage:*` labels once the decision is executed.
-
 ---
 
-## 4. Labels (area / component taxonomy)
+## 4. Labels
 
-Beyond priority and type-flavour labels, the area/component taxonomy (confirmed from `gh label list`):
+The label taxonomy is documented in one place:
+[Managing the issue tracker → Label taxonomy](../development/how-to/manage-issue-tracker.md#label-taxonomy).
+It is the canonical authority for every label family (priority, classification,
+`domain:*`, concern, `triage:*`, provenance `from:*`, PR-workflow, lifecycle,
+legacy).
 
-- **Subsystem / area:** `dashboard`, `doctrine`, `agent_profiles`, `schema-versioning`, `git`,
-  `workflow`, `windows`, `oauth-ddd-refactor`.
-- **Release / coordination:** `release` (tracking & coordination), `launch-blocker`
-  (must resolve before broad launch), `mvp` (current Private Teamspace MVP), `design-spike`.
-- **Version tag labels (current release-scoping mechanism):** `3.2.0` (43 issues), `3.3.0` (17),
-  and historically `0.15.0`. **(inferred)** These version labels are how releases are scoped today —
-  see §5, because GitHub *milestones* are not currently used for this.
-- **Stock GitHub labels:** `bug`, `enhancement`, `documentation`, `duplicate`, `invalid`, `question`,
-  `wontfix`, `help wanted`, `good first issue`.
-
-Keep area labels few and orthogonal; prefer native sub-issue parenting over inventing a new area label.
+Labels never encode kind: the `bug` and `enhancement` labels and the `type:*`
+label family are retired and were deleted from the repository on 2026-10-19; the
+native Type above is the sole kind carrier. There is no `future` label (paused
+work is `deferred`), and release scope lives in milestones (§5), not labels. The
+labels this section previously listed (`research-mission`, `doctrine`,
+`agent_profiles`, `oauth-ddd-refactor`, `launch-blocker`, `mvp`, the `3.2.0` /
+`3.3.0` version labels and `p1-decision:*`) no longer exist.
 
 ---
 

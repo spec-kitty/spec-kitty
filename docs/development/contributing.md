@@ -365,6 +365,11 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 ## Label-driven fleet workflow
 
+> **Status: the SkyKitty fleet is switched off** (the `CI Fleet Verdict` workflow is
+> disabled). The issue-side `status:*` labels and `taken-by-human` stay in use as human
+> workflow state; the PR-lane labels below (`squad:*`, `needs:implementer`) were deleted on
+> 2026-10-19. The rest of this section describes the fleet while it was active.
+
 This repo is one of the programme's repos worked by the **[SkyKitty agent fleet](agent-fleet.md)**,
 and the fleet runs on a **label-driven queue**: GitHub labels are the *only* admission
 control. Agents and humans move work by changing labels, never by out-of-band assignment.

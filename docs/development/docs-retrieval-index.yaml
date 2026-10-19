@@ -11370,15 +11370,18 @@ pages:
     - {slug: "label-taxonomy", text: "Label taxonomy", level: 2}
     - {slug: "classification-labels-what-kind-of-work-it-is", text: "Classification labels — what *kind of work* it is", level: 3}
     - {slug: "domain-labels-which-code-domain-the-work-routes-to", text: "Domain labels — *which code domain* the work routes to", level: 3}
+    - {slug: "legacy-labels-history-only", text: "Legacy labels — history only", level: 3}
     - {slug: "cross-cutting-concern-labels-what-quality-experience-axis-not-a-code-domain", text: "Cross-cutting concern labels — *what quality/experience axis*, not a code domain", level: 3}
     - {slug: "triage-state-labels-transient-hygiene-state-not-classification", text: "Triage-state labels — transient hygiene state, not classification", level: 3}
+    - {slug: "provenance-labels-who-surfaced-it", text: "Provenance labels — who surfaced it", level: 3}
     - {slug: "pr-workflow-labels-for-pull-requests-not-issues", text: "PR-workflow labels — for pull requests, not issues", level: 3}
     - {slug: "lifecycle-community-labels", text: "Lifecycle & community labels", level: 3}
     - {slug: "grouping-labels-documented-above", text: "Grouping labels (documented above)", level: 3}
+    - {slug: "issue-workflow-state-labels", text: "Issue workflow-state labels", level: 2}
     - {slug: "label-driven-fleet-workflow", text: "Label-driven fleet workflow", level: 2}
     - {slug: "the-status-lifecycle-issues", text: "The `status:*` lifecycle (issues)", level: 3}
     - {slug: "admission-from-label-to-vm", text: "Admission: from label to VM", level: 3}
-    - {slug: "pr-lane-labels-review-and-landing", text: "PR-lane labels (review and landing)", level: 3}
+    - {slug: "pr-lane-labels-review-and-landing-historical-labels-deleted", text: "PR-lane labels (review and landing; historical, labels deleted)", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/pr-landing.md"
     title: "Landing Contributor PRs: The Maintainer Runbook"
@@ -13650,9 +13653,7 @@ pages:
     - {slug: "how-a-mission-maps-to-issues", text: "How a mission maps to issues", level: 3}
     - {slug: "2-priority-levels", text: "2. Priority levels", level: 2}
     - {slug: "3-issue-types", text: "3. Issue Types", level: 2}
-    - {slug: "type-flavour-labels-label-based-complement-the-native-type", text: "Type-flavour labels (label-based, complement the native Type)", level: 3}
-    - {slug: "triage-and-p1-decision-workflow-labels", text: "`triage:*` and `p1-decision:*` workflow labels", level: 3}
-    - {slug: "4-labels-area-component-taxonomy", text: "4. Labels (area / component taxonomy)", level: 2}
+    - {slug: "4-labels", text: "4. Labels", level: 2}
     - {slug: "5-release-scoping-emergent-milestones-declarations-of-intent-implemented", text: "5. Release scoping: emergent milestones + declarations of intent (IMPLEMENTED)", level: 2}
     - {slug: "5a-emergent-milestones-per-minor-cycle-not-per-patch", text: "5a. Emergent milestones (per minor cycle, not per patch)", level: 3}
     - {slug: "5b-declarations-of-intent-the-canonical-goal-home", text: "5b. Declarations of intent (the canonical goal home)", level: 3}
