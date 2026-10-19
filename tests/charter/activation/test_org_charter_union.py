@@ -18,6 +18,7 @@ import pytest
 from charter.activation.pack_context import PackContext
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.activation.org_charter import (
+    org_required_stems,
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
     load_org_charter_policies,
@@ -203,3 +204,29 @@ def test_apply_org_charter_initialises_missing_selection_attribute(
     apply_org_charter_to_interview(interview, consumer)
 
     assert interview.selected_styleguides == ["org-sg"]
+
+
+def test_org_required_stems_maps_a_declared_id_to_its_stem_and_keeps_an_unknown_id_with_a_warning(tmp_path: Path) -> None:
+    pack = tmp_path / "pack"
+    (pack / "toolguides").mkdir(parents=True)
+    (pack / "toolguides" / "acme-file.toolguide.yaml").write_text("schema_version: '1.0'\nid: acme-id\ntitle: Acme\n", encoding="utf-8")
+    _write_org_charter(
+        pack,
+        """
+        schema_version: "1"
+        required_toolguides:
+          - acme-id
+          - no-such-toolguide
+        """,
+    )
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    _write_kittify_config(consumer, [("pack", pack)])
+
+    warnings: list[str] = []
+    stems = org_required_stems(consumer, "toolguides", warnings)
+
+    assert stems == ["acme-file", "no-such-toolguide"]
+    assert any("no-such-toolguide" in w for w in warnings)
+    assert not any("acme-id" in w for w in warnings), "control: a resolvable id must not warn"
+    assert org_required_stems(consumer, "no_such_kind", warnings) == []

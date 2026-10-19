@@ -566,3 +566,29 @@ def test_flow_style_target_root_is_a_config_error_and_unchanged(tmp_path: Path) 
     assert caught.value.code == "ACTIVE_CHARTER_CONFIG_INVALID"
     assert "cannot take the preset" in caught.value.body and "flow-style" in caught.value.body
     assert config.read_bytes() == before
+
+
+# ---------------------------------------------------------------------------
+# #6406 / FR-017: an org-required id spelled as a declared id equals its file stem
+# ---------------------------------------------------------------------------
+
+STEM_TACTIC_STEM = "acme-pairing-file"
+
+
+@pytest.mark.parametrize(("listed", "required"), [(STEM_TACTIC_STEM, ORG_TACTIC), (ORG_TACTIC, STEM_TACTIC_STEM)])
+def test_org_required_declared_id_counts_as_present_for_a_stem_listing(tmp_path: Path, listed: str, required: str) -> None:
+    root = _with_org_pack(
+        _project(tmp_path),
+        presets={"team": {"activated_tactics": [listed], "activated_kinds": ["tactics"]}},
+        org_charter={"required_tactics": [required]},
+    )
+    # A second spelling of the same tactic: file stem differs from the declared id.
+    _write(
+        root / ORG_DIR / "tactics" / f"{STEM_TACTIC_STEM}.tactic.yaml",
+        f'schema_version: "1.0"\nid: {ORG_TACTIC}\nname: {ORG_TACTIC}\npurpose: Org tactic.\nsteps:\n  - title: Act\n    description: Do it.\n',
+    )
+    (root / ORG_DIR / "tactics" / f"{ORG_TACTIC}.tactic.yaml").unlink()
+
+    plan = _apply(root, ORG, "team")
+
+    assert plan.written["activated_tactics"] == [listed], "the same artifact in two spellings is listed once"

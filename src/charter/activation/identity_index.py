@@ -17,6 +17,7 @@ Import rule: this module must not import ``charter.activation.resolver`` or
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,6 +73,70 @@ class _KindTable:
         return cls(tuple(entries), by_stem, by_id, {stem: frozenset(found) for stem, found in ids.items()})
 
 
+#: Conservative plain-string shape ruamel types as ``str``: a letter first, then ``[A-Za-z0-9_.-]``.
+_PLAIN_ID_VALUE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]*")
+#: YAML scalars that are not strings (any case); a match always goes to the full parse.
+_YAML_SPECIAL_SCALARS = frozenset({"true", "false", "yes", "no", "on", "off", "null", "y", "n", "~", ".nan", ".inf"})
+_DOC_MARKER = re.compile(r"^(?:---|\.\.\.)(?:[ \t]|$)", re.MULTILINE)
+_BLANK_OR_COMMENT = re.compile(r"(?:[ \t]*(?:#[^\n]*)?\n)*")
+
+
+def _full_parse(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+    declared: str | None = kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
+    return declared
+
+
+def _has_foreign_document_marker(text: str) -> bool:
+    """Whether *text* has a ``...`` line or a ``---`` other than a leading one (after comments)."""
+    markers = list(_DOC_MARKER.finditer(text))
+    if not markers:
+        return False
+    first = markers[0]
+    leading = first.group(0).startswith("---") and _BLANK_OR_COMMENT.fullmatch(text[: first.start()]) is not None
+    return len(markers) > 1 or not leading
+
+
+def _fast_plain_id(text: str, id_field: str) -> str | None:
+    """The id when *text* declares it once as a plain string scalar, else ``None`` (use the full parse)."""
+    if "\ufeff" in text or "\r" in text or _has_foreign_document_marker(text):
+        return None
+    key = re.escape(id_field)
+    if len(re.findall(rf"^[\"']?{key}[\"']?[ \t]*:", text, re.MULTILINE)) != 1:
+        return None
+    found = re.search(rf"^{key}:[ \t]+(\S+)[ \t]*$", text, re.MULTILINE)
+    if found is None:
+        return None
+    value = found.group(1)
+    if _PLAIN_ID_VALUE.fullmatch(value) is None or value.lower() in _YAML_SPECIAL_SCALARS:
+        return None
+    return value
+
+
+def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+    """Declared id of *path*; a single plain-string top-level ``id:`` line skips the full YAML parse (NFR-003).
+
+    The fast path is taken only when the text has exactly one top-level ``<field>:`` key,
+    its value is a conservative plain string (letter first, ``[A-Za-z0-9_.-]``, no comment,
+    not a YAML special scalar), and the text has no BOM, CR or extra document markers.
+    Everything else (numbers, booleans, null, quoted, commented, multi-document,
+    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`.
+
+    Known, accepted limitation: syntax errors elsewhere in the file are not detected
+    cheaply, so such a file yields its id here where the full parse yields ``None``. The
+    artifact repositories reject that file when they load it, so it is never activatable.
+    """
+    key = (path, id_field)
+    if key not in resolution_pass.ids:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return _full_parse(path, id_field, yaml, resolution_pass)
+        fast = _fast_plain_id(text, id_field)
+        if fast is not None:
+            resolution_pass.ids[key] = fast
+    return _full_parse(path, id_field, yaml, resolution_pass)
+
+
 def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
     """Name the layer a scanned directory belongs to."""
     if project_root is not None and scan_dir.is_relative_to(project_root):
@@ -94,14 +159,27 @@ class IdentityIndex:
     # ------------------------------------------------------------ builders --
 
     @classmethod
-    def build(cls, repo_root: Path, *, org_roots: list[Path] | None = None) -> IdentityIndex:
-        """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain."""
+    def build(
+        cls,
+        repo_root: Path,
+        *,
+        org_roots: list[Path] | None = None,
+        resolution_pass: kind_vocabulary.ResolutionPass | None = None,
+    ) -> IdentityIndex:
+        """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain.
+
+        A caller that already resolved the roots passes *org_roots* and its shared
+        *resolution_pass* so each file is read once per plan (NFR-003).
+        """
         chain = resolve_pack_chain(repo_root, strict=False, quiet=True) if org_roots is None else org_roots
         project = project_pack_root(repo_root)
-        return cls(
+        index = cls(
             org_roots=[root for root in chain if root.is_dir()],
             project_root=project if project.is_dir() else None,
         )
+        if resolution_pass is not None:
+            index._pass = resolution_pass
+        return index
 
     @classmethod
     def from_pack_context(cls, ctx: PackContext, *, repo_root: Path | None = None) -> IdentityIndex:
@@ -137,7 +215,7 @@ class IdentityIndex:
         ):
             layer = _layer_of(scan_dir, self.project_root, self.org_roots)
             for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
-                declared = kind_vocabulary._read_id(path, id_field, yaml, self._pass)
+                declared = _declared_id_of(path, id_field, yaml, self._pass)
                 if declared:
                     entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer))
         return entries
