@@ -48,11 +48,16 @@ def _stable_mission_dir_for_json(mission_dir: Path, mission_slug: str) -> str:
     return mission_slug or mission_dir.name
 
 
+# Severity rank: a lower rank is a more severe finding.
+_SEVERITY_RANK = {"error": 0, "warning": 1, "info": 2}
+
+
 class Severity(StrEnum):
     """Audit finding severity level.
 
-    Ordering: error < warning < info (lower index = higher severity).
-    Use ``__le__`` / ``__lt__`` for threshold comparisons, e.g.::
+    Ordering: error < warning < info (lower rank = higher severity).
+    All four ordering operators follow this rank, never the ``str`` order of
+    the values. Use ``<=`` / ``<`` for threshold comparisons, e.g.::
 
         if any(f.severity <= fail_on_threshold for f in findings):
             sys.exit(1)
@@ -62,13 +67,30 @@ class Severity(StrEnum):
     WARNING = "warning"
     INFO = "info"
 
-    def __le__(self, other: Severity) -> bool:  # type: ignore[override]
-        _order = {"error": 0, "warning": 1, "info": 2}
-        return _order[self.value] <= _order[other.value]
+    @property
+    def rank(self) -> int:
+        """This level's position in the severity order (lower = more severe)."""
+        return _SEVERITY_RANK[self.value]
 
-    def __lt__(self, other: Severity) -> bool:  # type: ignore[override]
-        _order = {"error": 0, "warning": 1, "info": 2}
-        return _order[self.value] < _order[other.value]
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.rank < other.rank
+
+    def __le__(self, other: object) -> bool:
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.rank <= other.rank
+
+    def __gt__(self, other: object) -> bool:
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.rank > other.rank
+
+    def __ge__(self, other: object) -> bool:
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.rank >= other.rank
 
 
 @dataclass(frozen=True)

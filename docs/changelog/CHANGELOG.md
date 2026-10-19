@@ -77,6 +77,10 @@ this section at publish._
 - **An org-pack id in `selected_directives` no longer erases governance** (#6407). **Before:** selections were checked against the built-in catalog only, so one org-pack id made `charter context` report "governance unresolved" and drop every directive while still exiting 0. **After:** selections are checked against built-in, org and project packs; an id no layer knows is dropped with a diagnostic pointing at org packs and `.kittify/charter-packs/`, and every other id still resolves. `spec-kitty doctor` warns about it.
 - **Stack detection reads the repository root first** (#6405). **Before:** a nested `site/package.json` made a Gradle/Java repository read as `typescript`, and `build.gradle.kts`, `settings.gradle` and `gradlew` were not recognized. **After:** root-level manifests decide, those files and `mvnw` count as Java, and same-depth ties go by source-file counts. A repository with only nested manifests in two languages now resolves by file counts rather than defaulting to JavaScript.
 
+### Internal
+
+- **Audit `Severity` now ranks `>` and `>=` like `<` and `<=` (error, then warning, then info), and the dossier indexer chains manifest specs instead of `sum()`-concatenating lists** (#4695; SonarCloud S8500, S8520).
+
 ## [4.0.0rc7] - 2026-10-15
 
 ### Breaking

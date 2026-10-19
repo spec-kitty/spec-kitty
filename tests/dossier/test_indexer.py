@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 from specify_cli.dossier import hasher as hasher_module
 from tests._support.eacces import deny_open_in
-from specify_cli.dossier.indexer import Indexer
+from specify_cli.dossier.indexer import Indexer, _manifest_specs
 from specify_cli.dossier.manifest import (
     ManifestRegistry,
     ExpectedArtifactManifest,
@@ -202,6 +202,46 @@ class TestArtifactClassification:
         indexer = Indexer(ManifestRegistry())
         with pytest.raises(ValueError, match="Cannot classify artifact"):
             indexer._classify_artifact(unknown_file, None)
+
+
+def _spec(key: str, pattern: str, artifact_class: ArtifactClassEnum) -> ExpectedArtifactSpec:
+    return ExpectedArtifactSpec(artifact_key=key, artifact_class=artifact_class, path_pattern=pattern)
+
+
+class TestManifestSpecMatching:
+    """Manifest-driven classification and keying walk every spec in priority order (S8520, #4695)."""
+
+    @staticmethod
+    def _manifest() -> ExpectedArtifactManifest:
+        return ExpectedArtifactManifest(
+            mission_type="software-dev",
+            required_always=[_spec("input.spec.main", "spec.md", ArtifactClassEnum.INPUT)],
+            required_by_step={
+                "plan": [_spec("workflow.plan", "plan.md", ArtifactClassEnum.WORKFLOW)],
+                "implement": [
+                    _spec("evidence.run-log", "*.log", ArtifactClassEnum.EVIDENCE),
+                    _spec("output.shadowed", "*.log", ArtifactClassEnum.OUTPUT),
+                ],
+            },
+            optional_always=[_spec("policy.notes", "*.log", ArtifactClassEnum.POLICY)],
+        )
+
+    def test_manifest_specs_yields_every_spec_in_priority_order(self):
+        keys = [spec.artifact_key for spec in _manifest_specs(self._manifest())]
+        assert keys == ["input.spec.main", "workflow.plan", "evidence.run-log", "output.shadowed", "policy.notes"]
+
+    def test_manifest_specs_of_empty_manifest_is_empty(self):
+        assert list(_manifest_specs(ExpectedArtifactManifest(mission_type="software-dev"))) == []
+
+    def test_classify_uses_step_scoped_spec_before_optional(self, tmp_path):
+        indexer = Indexer(ManifestRegistry())
+        assert indexer._classify_artifact(tmp_path / "run.log", self._manifest()) == "evidence"
+
+    def test_derive_key_uses_first_matching_step_scoped_spec(self, tmp_path):
+        indexer = Indexer(ManifestRegistry())
+        with patch.object(indexer.manifest_registry, "load_manifest", return_value=self._manifest()):
+            assert indexer._derive_artifact_key(tmp_path / "run.log", "software-dev") == "evidence.run-log"
+            assert indexer._derive_artifact_key(tmp_path / "plan.md", "software-dev") == "workflow.plan"
 
 
 class TestMissingArtifactDetection:

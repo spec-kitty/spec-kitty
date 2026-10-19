@@ -15,6 +15,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 """
 
 import fnmatch
+import itertools
 import logging
 import re
 import uuid
@@ -22,7 +23,7 @@ from pathlib import Path
 from collections.abc import Iterator
 
 from kernel.clock import now_utc
-from charter.missions import ExpectedArtifactManifest
+from charter.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
 from specify_cli.dossier.hasher import hash_file_with_validation, hash_wp_static_projection
 from specify_cli.dossier.manifest import ManifestRegistry
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
@@ -73,6 +74,15 @@ def _hash_wp_projection(file_path: Path) -> tuple[str | None, str | None]:
         logger.debug("WP projection unavailable for %s (%s); using stable raw-byte hash", file_path, exc)
         return hash_file_with_validation(file_path)
     return hash_wp_static_projection(meta), None
+
+
+def _manifest_specs(manifest: ExpectedArtifactManifest) -> Iterator[ExpectedArtifactSpec]:
+    """Every spec of *manifest* in match-priority order.
+
+    Required-always first, then each step's required specs in step order, then
+    optional-always: the first matching spec wins in the classifiers below.
+    """
+    return itertools.chain(manifest.required_always, *manifest.required_by_step.values(), manifest.optional_always)
 
 
 class Indexer:
@@ -283,7 +293,7 @@ class Indexer:
         """
         # Strategy 1: Check manifest definitions (if manifest exists)
         if manifest:
-            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
+            for specs in _manifest_specs(manifest):
                 if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                     return specs.artifact_class.value
 
@@ -417,7 +427,7 @@ class Indexer:
         manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         if manifest:
-            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
+            for specs in _manifest_specs(manifest):
                 if self._matches_pattern(file_path, specs.path_pattern):
                     return specs.artifact_key
 

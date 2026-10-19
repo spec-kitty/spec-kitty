@@ -70,6 +70,31 @@ class TestSeverity:
         assert not (Severity.INFO <= Severity.ERROR)
         assert not (Severity.INFO <= Severity.WARNING)
 
+    def test_gt_ge_follow_severity_rank_not_str_order(self) -> None:
+        # ``str`` order would say "warning" > "info"; the rank says a warning
+        # is MORE severe than info, so it sorts before it (S8500, #4695).
+        assert not (Severity.WARNING > Severity.INFO)
+        assert not (Severity.WARNING >= Severity.INFO)
+        assert Severity.INFO > Severity.WARNING
+        assert Severity.INFO >= Severity.WARNING
+        assert Severity.WARNING > Severity.ERROR
+        assert Severity.INFO > Severity.ERROR
+        assert Severity.ERROR >= Severity.ERROR
+        assert not (Severity.ERROR > Severity.ERROR)
+
+    def test_rank_orders_most_severe_first(self) -> None:
+        assert [s.rank for s in (Severity.ERROR, Severity.WARNING, Severity.INFO)] == [0, 1, 2]
+
+    @pytest.mark.parametrize("op", ["__lt__", "__le__", "__gt__", "__ge__"])
+    def test_non_severity_operand_is_not_implemented(self, op: str) -> None:
+        assert getattr(Severity.ERROR, op)("info") is NotImplemented
+
+    def test_all_four_operators_agree_with_sorting(self) -> None:
+        members = sorted([Severity.INFO, Severity.ERROR, Severity.WARNING])
+        assert members == [Severity.ERROR, Severity.WARNING, Severity.INFO]
+        assert max(Severity) is Severity.INFO
+        assert min(Severity) is Severity.ERROR
+
     def test_is_str(self) -> None:
         assert isinstance(Severity.ERROR, str)
 
