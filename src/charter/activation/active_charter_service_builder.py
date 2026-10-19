@@ -78,6 +78,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from charter.activation.identity_index import IdentityIndex
     from charter.activation.resolver import ActiveCharterService
     import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
@@ -203,6 +204,7 @@ def _build_active_charter_service(
     agent_profile_overlay_dir: Path | None = None,
     interview: CharterInterview | None = None,
     prefer_interview: bool = False,
+    identity: IdentityIndex | None = None,
 ) -> ActiveCharterService:
     """Build an *activation-aware* charter service for ``--include`` fetches.
 
@@ -233,6 +235,9 @@ def _build_active_charter_service(
     ``charter.activation.context``'s ``--org-root``-driven single-path list, or
     ``charter.activation.profile_resolution``'s pre-resolved list) is still honoured
     verbatim — this only closes the "caller passed nothing" gap.
+
+    *identity* is the caller's per-invocation :class:`IdentityIndex`; when given, the
+    service reuses it instead of lazily building a second index (NFR-003).
     """
     from charter.activation.context import _build_offering_service  # noqa: PLC0415
     from charter.activation.pack_context import PackContext
@@ -261,7 +266,7 @@ def _build_active_charter_service(
     else:
         inner = _build_offering_service(repo_root, org_roots=resolved_org_roots, **language_kwargs)
     pack_context = PackContext.from_config(repo_root)
-    return ActiveCharterService(inner, pack_context=pack_context)
+    return ActiveCharterService(inner, pack_context=pack_context, identity=identity)
 
 
 def build_active_charter_service(

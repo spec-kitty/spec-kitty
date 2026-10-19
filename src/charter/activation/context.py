@@ -453,7 +453,7 @@ def build_charter_context_include(
         ArtifactKind.GLOSSARY_PACK.value,
     ):
         gated_service = _build_active_charter_service(
-            repo_root, org_roots=org_roots
+            repo_root, org_roots=org_roots, identity=identity
         )
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
             return _render_agent_profile_include_selector(
