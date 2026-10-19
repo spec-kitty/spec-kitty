@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
 from scripts.ci.gate_selection import (  # noqa: E402 — needs the sys.path bootstrap above
     DEFAULT_REGISTRY_PATH,
     GROUP_MODULE_FANOUT,
+    PACK_PIN_GLOB,
     Router,
     _modules_for_test_paths,
     _registry_module_names,
@@ -47,14 +48,13 @@ __all__ = [
 # The pack-edit types #6174 recorded: where the census-derived fan-out differs from
 # the hand fan-out. Real recent PR diffs rarely touch these (so the measured delta
 # over recent commits is ~0), so the per-edit-type table is the honest view of what
-# full value-derivation would cost (FR-009).
+# full value-derivation would cost (FR-009). Since #6451 packs/built-in is untracked, so
+# every pack content change reaches a PR as one edit type: a pin-lockfile bump, which
+# triggers every pack fan-out group at once (#6480).
 REPRESENTATIVE_EDITS: tuple[tuple[str, list[str]], ...] = (
-    ("mission-steps/*/prompt.md", ["packs/built-in/missions/mission-steps/software-dev/research/prompt.md"]),
-    ("*/expected-artifacts.yaml", ["packs/built-in/missions/software-dev/expected-artifacts.yaml"]),
-    ("mission_types/*.yaml", ["packs/built-in/missions/mission_types/plan.yaml"]),
-    ("*/mission.yaml", ["packs/built-in/missions/software-dev/mission.yaml"]),
+    ("built-in pin bump", [PACK_PIN_GLOB]),
     ("cli/commands/lifecycle.py", ["src/specify_cli/cli/commands/lifecycle.py"]),
-    ("pack README.md (control)", ["packs/built-in/missions/README.md"]),
+    ("untracked pack README.md (control; never in a PR diff since #6451)", ["packs/built-in/missions/README.md"]),
 )
 
 

@@ -63,7 +63,7 @@ from charter.offering.artifact_kinds import ArtifactKind
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from charter.repository_protocol import ArtifactRepository
+    from charter.activation.progressive_disclosure import ArtifactRepository
     from charter.activation.schemas import GovernanceCharterConfig
 
 # The 5 ``_SELECTED_*_HEADER`` constants, ``_collect_org_source_map``,

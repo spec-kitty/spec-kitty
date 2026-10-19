@@ -3,7 +3,7 @@ title: 'ADR: org packs ship their own built-in override sanction'
 description: 'An org pack lists the built-ins it replaces in a pack-root replaceable-builtins.yaml; doctor doctrine honours it for that pack only, and the consumer can revoke it.'
 status: Accepted
 date: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-19'
 ---
 
 **Status:** Accepted
@@ -91,3 +91,22 @@ Delegated governance in [#2594](https://github.com/spec-kitty/spec-kitty/issues/
 - Make `OrgCharterPolicy` tolerant of unknown keys when the schema version is newer, as groundwork for #2594.
 - Edges that a losing org pack contributes at a built-in URN, and edge-form `overrides` and `enhances` relations that target a built-in, are not adjudicated. Tracked in [#5769](https://github.com/spec-kitty/spec-kitty/issues/5769) and [#5770](https://github.com/spec-kitty/spec-kitty/issues/5770).
 - Updating the external org packs to move their template to the pack root is outside this repository.
+
+## Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-19. Requested by `spec-kitty-charter`
+[ADR-0012](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0012-pack-mutability-policy.md) (the owning pack declares a mutability level per artifact: `open`, `extendable` or
+`locked`), recorded in [spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88).
+The record above is unchanged; this note bounds it.
+
+> Amendment 2026-10-19: superseded for the decision of whether an override is permitted by
+> spec-kitty-charter ADR-0012. The owning pack's mutability level decides;
+> `replaceable-builtins.yaml` is read for one release as a deprecated input and then ignored.
+> The built-in pack ships a policy file whose kind defaults are `extendable` and which lists
+> as `open` every URN sanctioned today.
+
+**Migration, confirmed by the operator on 2026-10-19:** the built-in pack ships its own policy
+file whose kind defaults are `extendable`, and every URN that a released
+`replaceable-builtins.yaml` sanctions today is listed in it as `open`. Until the policy
+enforcement lands (`spec-kitty-charter` #58, after the org-precedence defect
+`spec-kitty-charter` #87 is fixed), current behavior is unchanged.

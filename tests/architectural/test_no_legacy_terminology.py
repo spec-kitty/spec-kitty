@@ -352,7 +352,7 @@ _LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
     {
         "docs/changelog/CHANGELOG.md",
         "docs/development/docs-retrieval-index.yaml",
-        "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
+        "docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
         "docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
         "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
         "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",

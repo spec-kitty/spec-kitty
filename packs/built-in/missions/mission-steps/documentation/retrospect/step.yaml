@@ -1,9 +1,0 @@
-id: retrospect
-display_name: "Retrospective"
-step_type: agent
-prompt_template: prompt.md
-agent_profile: null
-guidance: null
-delegates_to: []
-depends_on: []
-in_action_sequence: false

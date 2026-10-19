@@ -146,7 +146,11 @@ class OrgDRGConflict:
     * ``built_in_wins`` — silent precedence (the built-in value is retained).
     * ``project_wins`` — silent precedence (the project value is retained).
     * ``org_override`` — a SAME-KIND org node permissibly substitutes a built-in
-      node in place (the org value wins, with a WARNING for operator visibility).
+      node, or a node an earlier-declared org pack contributed, in place (the
+      later org value wins, with a WARNING for operator visibility;
+      ``conflicting_layers`` lists the overridden layer first;
+      ``built_in_value`` is ``None`` when the overridden node came from an
+      org pack rather than the built-in layer).
       Non-fatal: the merge does NOT raise. Whether a given repo *tolerates* this
       override is a per-repo governance TEST (see
       ``tests/architectural/test_builtin_override_policy.py``), not a merge-time
@@ -178,9 +182,11 @@ class OrgDRGConflict:
 #: remediation hands the operator a label and no way to act on it (the gate is
 #: ``test_every_conflict_class_carries_a_remediation_line``).
 _OVERRIDE_REMEDIATION = (
-    "Remediation (override): remove the override from the org pack, OR "
-    "escalate the built-in invariant change via a spec-kitty governance "
-    "proposal."
+    "Remediation (override): remove the override from the org pack (or, when "
+    "it replaces another org pack's node, reorder charter_packs.org.packs so "
+    "the pack that should win is declared last), OR, when it replaces a "
+    "built-in node, escalate the built-in invariant change via a spec-kitty "
+    "governance proposal."
 )
 
 _CONFLICT_REMEDIATIONS: dict[str, str] = {
@@ -349,7 +355,7 @@ class DuplicateURNError(Exception):
     author ambiguity and fails loud with a distinct, structured, testable
     ``code`` — ``duplicate_asset_id`` or ``duplicate_template_id`` — instead
     of being silently resolved by the layered-override machinery the other 9
-    kinds rely on (org-vs-org first-wins in :func:`_merge_org_fragment`,
+    kinds rely on (org-vs-org later-declared-wins in :func:`_place_org_node`,
     built-in-vs-org override in :func:`_resolve_builtin_collision`, and the
     project-vs-any override in :func:`merge_three_layers`). That machinery is
     untouched for the other 9 kinds — this scan is scoped strictly by URN
@@ -692,8 +698,12 @@ class _OrgEdgeCollector:
     An edge IS its ``(source, target, relation)`` triple — that is already the
     graph's own identity notion (:func:`charter.offering.drg.validator.validate_graph`
     calls a repeated triple an error), so the same relationship declared twice
-    must contribute one edge, with the first declaring pack keeping provenance
-    exactly as org-vs-org node collisions do.
+    must contribute one edge. Across packs the LATER-declared pack keeps
+    provenance and its authored ``reason`` — the same later-declared-wins rule
+    org-vs-org node collisions follow (spec-kitty-charter #87, ADR-0012).
+    Within one pack (a field projection plus an explicit declaration, or a bare
+    plus a qualified spelling) there is no pack order to apply, so the first
+    restatement stays.
 
     This used to be attempted in ``org_pack_loader.load_org_pack``, which
     reconciled the field-projection edges against the fragment-authored ones.
@@ -708,10 +718,8 @@ class _OrgEdgeCollector:
     authority rather than a partial one upstream that looked complete. Keying a
     second dedup on raw strings as well would just recreate the drift.
 
-    The collapse keeps the FIRST contribution and drops the rest, so the loser's
-    authored ``reason:`` is not the contribution of record — the merged
-    :class:`DRGEdge` carries the endpoints and the relation, not either
-    declaration's prose. That is silent for the routine
+    The collapse keeps one contribution and drops the rest, so the loser's
+    authored ``reason:`` is not the contribution of record. That is silent for the routine
     restatements (see :func:`_warn_discarded_edge_rationale`) and loud for the
     one case where it destroys something an author wrote.
     """
@@ -720,21 +728,33 @@ class _OrgEdgeCollector:
         self._contributions: list[_OrgEdgeContribution] = []
         self._kept: dict[tuple[str, str, str], _OrgEdgeContribution] = {}
 
-    def add(self, minted: DRGEdge, authored: Any, source_marker: str) -> bool:
-        """Record *minted* unless its triple was already contributed.
+    def add(
+        self, minted: DRGEdge, authored: Any, source_marker: str
+    ) -> tuple[bool, DRGEdge | None]:
+        """Record *minted*, applying later-declared-pack-wins to a restatement.
 
-        Returns ``True`` when the caller should append the edge to the merged
-        graph, ``False`` when it is a restatement of one already there.
+        Returns ``(added, replaced)``:
+
+        * ``(True, None)`` — a new triple; the caller appends *minted*.
+        * ``(False, None)`` — a restatement by the pack already holding the
+          triple; the first restatement stays and *minted* is dropped.
+        * ``(False, old)`` — a restatement by a LATER pack; *minted* takes the
+          triple over and the caller swaps ``old`` for it in the merged graph.
         """
         key = (minted.source, minted.target, minted.relation.value)
-        kept = self._kept.get(key)
-        if kept is not None:
-            _warn_discarded_edge_rationale(kept, authored, source_marker)
-            return False
         contribution = _OrgEdgeContribution(minted, authored, source_marker)
+        kept = self._kept.get(key)
+        if kept is None:
+            self._kept[key] = contribution
+            self._contributions.append(contribution)
+            return True, None
+        if kept.source_marker == source_marker:
+            _warn_discarded_edge_rationale(kept, contribution)
+            return False, None
+        _warn_discarded_edge_rationale(contribution, kept)
         self._kept[key] = contribution
-        self._contributions.append(contribution)
-        return True
+        self._contributions[self._contributions.index(kept)] = contribution
+        return False, kept.minted
 
     @property
     def contributions(self) -> list[_OrgEdgeContribution]:
@@ -744,8 +764,7 @@ class _OrgEdgeCollector:
 
 def _warn_discarded_edge_rationale(
     kept: _OrgEdgeContribution,
-    authored: Any,
-    source_marker: str,
+    discarded: _OrgEdgeContribution,
 ) -> None:
     """WARN when collapsing a restated edge would discard a distinct rationale.
 
@@ -758,8 +777,9 @@ def _warn_discarded_edge_rationale(
     What is not routine is a restatement that carries its OWN authored
     ``reason:``, different from the survivor's. Then the collapse is not
     deduplication, it is information loss: two governance authors documented the
-    same relationship for different stated reasons and only the first survives
-    as the contribution of record. An earlier revision defended that silence by
+    same relationship for different stated reasons and only one survives as
+    the contribution of record: the later-declared pack's across packs, the
+    first restatement within one pack. An earlier revision defended that silence by
     pointing at org-vs-org *node* collisions, which are equally quiet. But that
     argues the node path is also wrong, not that this one is right — and a
     silent difference is the defect class this bridge exists to close.
@@ -784,20 +804,20 @@ def _warn_discarded_edge_rationale(
     Visible, not fatal — the merged edge is correct either way; only the
     operator's record of *why* is incomplete, and that is theirs to reconcile.
     """
-    discarded_reason = getattr(authored, "reason", None)
+    discarded_reason = getattr(discarded.authored, "reason", None)
     surviving_reason = getattr(kept.authored, "reason", None)
     if not discarded_reason or not surviving_reason:
         return
     if discarded_reason == surviving_reason:
         return
     edge = kept.minted
-    if source_marker == kept.source_marker:
+    if discarded.source_marker == kept.source_marker:
         _logger.warning(
             "Org doctrine %r declares the edge (%s --%s--> %s) twice with "
             "different reasons, so it is collapsed to one edge and only the "
             "first rationale survives. Discarded: %r (kept: %r). Keep one "
             "declaration and fold both rationales into it.",
-            source_marker,
+            kept.source_marker,
             edge.source,
             edge.relation.value,
             edge.target,
@@ -806,16 +826,17 @@ def _warn_discarded_edge_rationale(
         )
         return
     _logger.warning(
-        "Org doctrine %r restates the edge (%s --%s--> %s) already contributed "
-        "by %r, so it is collapsed to one edge and only the first rationale "
-        "survives. Discarded reason from %r: %r (kept: %r). Reconcile the two "
-        "packs onto a single rationale — the triple can only carry one edge.",
-        source_marker,
+        "Org doctrine %r restates the edge (%s --%s--> %s) also contributed "
+        "by %r, so it is collapsed to one edge and only the later-declared "
+        "pack's rationale survives. Discarded reason from %r: %r (kept: %r). "
+        "Reconcile the two packs onto a single rationale — the triple can only "
+        "carry one edge.",
+        kept.source_marker,
         edge.source,
         edge.relation.value,
         edge.target,
-        kept.source_marker,
-        source_marker,
+        discarded.source_marker,
+        discarded.source_marker,
         discarded_reason,
         surviving_reason,
     )
@@ -942,25 +963,37 @@ def _resolve_builtin_collision(
     merged_nodes: dict[str, DRGNode],
     conflicts: list[OrgDRGConflict],
     source_marker: str,
+    *,
+    built_in_node: DRGNode | None = None,
 ) -> None:
     """Resolve an org node whose URN collides with a built-in node.
 
     Kind-drift (the org node's kind DIFFERS from the built-in node's kind) is a
     ``hard_fail``: an override may replace a built-in's content, never its kind.
-    A SAME-KIND collision is PERMITTED — the org node substitutes the built-in
-    in place (``merged_nodes[urn] = drg_node``), a ``node_override`` conflict
-    with ``resolution_applied = "org_override"`` is recorded, and a WARNING is
+    A SAME-KIND collision is PERMITTED — the org node substitutes the node in
+    place (``merged_nodes[urn] = drg_node``), a ``node_override`` conflict with
+    ``resolution_applied = "org_override"`` is recorded, and a WARNING is
     emitted. In-place URN substitution preserves the built-in's inbound and
     outbound edges (no rehoming), mirroring the project-layer override path.
+
+    The later-declared org pack wins (spec-kitty-charter #87, ADR-0012): when an
+    earlier org pack already overrode this built-in, this pack replaces that
+    pack's node, and ``conflicting_layers`` names the overridden layer first —
+    ``[org:<earlier>, org:<this>]`` rather than ``[built-in, org:<this>]``.
+    ``built_in_value`` always carries the built-in node itself; it is read from
+    *built_in_node* when given, else from *merged_nodes* (which still holds the
+    built-in only while no org pack has overridden it).
     """
-    built_in_node = merged_nodes[urn]
-    if drg_node.kind != built_in_node.kind:
+    previous = merged_nodes[urn]
+    built_in = built_in_node if built_in_node is not None else previous
+    overridden_layer = previous.provenance or BUILT_IN
+    if drg_node.kind != built_in.kind:
         conflicts.append(
             OrgDRGConflict(
                 kind="node_override",
-                conflicting_layers=[BUILT_IN, source_marker],
+                conflicting_layers=[overridden_layer, source_marker],
                 target_id=urn,
-                built_in_value=built_in_node.model_dump(),
+                built_in_value=built_in.model_dump(),
                 org_value=org_node.model_dump(),
                 project_value=None,
                 resolution_applied="hard_fail",
@@ -971,15 +1004,80 @@ def _resolve_builtin_collision(
     conflicts.append(
         OrgDRGConflict(
             kind="node_override",
-            conflicting_layers=[BUILT_IN, source_marker],
+            conflicting_layers=[overridden_layer, source_marker],
             target_id=urn,
-            built_in_value=built_in_node.model_dump(),
+            built_in_value=built_in.model_dump(),
             org_value=org_node.model_dump(),
             project_value=None,
             resolution_applied="org_override",
         )
     )
-    _warn_builtin_override(urn, source_marker)
+    if overridden_layer == BUILT_IN:
+        _warn_builtin_override(urn, source_marker)
+    else:
+        _warn_org_override(urn, overridden_layer, source_marker)
+
+
+def _place_org_node(
+    urn: str,
+    org_node: Any,
+    drg_node: DRGNode,
+    merged_nodes: dict[str, DRGNode],
+    built_in_nodes: Mapping[str, DRGNode],
+    conflicts: list[OrgDRGConflict],
+    source_marker: str,
+) -> None:
+    """Place one minted org node: the later-declared org pack wins, for every URN.
+
+    One precedence rule holds whether or not the URN is built-in
+    (spec-kitty-charter #87; ADR-0012 states pack mutability over this merge
+    order). Org packs merge in their declaration order
+    (``.kittify/config.yaml`` ``charter_packs.org.packs``), so a pack declared
+    later replaces the node an earlier pack contributed for the same URN.
+
+    * A built-in URN goes through :func:`_resolve_builtin_collision` (kind-drift
+      still hard-fails).
+    * A URN only an earlier org pack declared is replaced in place — inbound and
+      outbound edges stay on the URN — and a ``node_override`` conflict with
+      ``conflicting_layers = [org:<earlier>, org:<later>]`` and
+      ``resolution_applied = "org_override"`` is recorded, with a WARNING. This
+      collision used to keep the FIRST pack's node with no record at all.
+    * A URN the same pack already declared keeps its first declaration (no pack
+      order applies inside one pack), mirroring same-pack edge restatements.
+    """
+    previous = merged_nodes.get(urn)
+    if previous is not None and previous.provenance == source_marker:
+        # A pack declaring one URN twice has no pack order to apply: the first
+        # declaration stays, as the first restatement of an edge does. Checked
+        # before the built-in branch so a built-in URN gets the same rule.
+        return
+    if urn in built_in_nodes:
+        _resolve_builtin_collision(
+            urn,
+            org_node,
+            drg_node,
+            merged_nodes,
+            conflicts,
+            source_marker,
+            built_in_node=built_in_nodes[urn],
+        )
+        return
+    merged_nodes[urn] = drg_node
+    if previous is None:
+        return
+    overridden_layer = previous.provenance or "unknown"
+    conflicts.append(
+        OrgDRGConflict(
+            kind="node_override",
+            conflicting_layers=[overridden_layer, source_marker],
+            target_id=urn,
+            built_in_value=None,
+            org_value=org_node.model_dump(),
+            project_value=None,
+            resolution_applied="org_override",
+        )
+    )
+    _warn_org_override(urn, overridden_layer, source_marker)
 
 
 def _filter_surviving_org_nodes(
@@ -1017,7 +1115,7 @@ def _merge_org_fragment(
     fragment: OrgDRGFragment,
     merged_nodes: dict[str, DRGNode],
     merged_edges: list[DRGEdge],
-    invariant_urns: frozenset[str],
+    built_in_nodes: Mapping[str, DRGNode],
     conflicts: list[OrgDRGConflict],
     collector: _OrgEdgeCollector,
 ) -> None:
@@ -1026,12 +1124,13 @@ def _merge_org_fragment(
     Extracted from :func:`merge_three_layers` to keep its cyclomatic
     complexity within the ruff C901 limit (15).
 
-    A built-in URN collision is delegated to :func:`_resolve_builtin_collision`:
-    a SAME-KIND org node permissibly overrides the built-in in place (a
-    ``node_override`` conflict with ``resolution_applied = "org_override"`` plus
-    a WARNING); a kind-drift collision still hard-fails. Whether the repo
-    tolerates a permitted override is a per-repo governance test, not a merge
-    prohibition.
+    Node placement is :func:`_place_org_node`: the later-declared org pack wins
+    for every URN. A built-in URN collision is delegated to
+    :func:`_resolve_builtin_collision`: a SAME-KIND org node permissibly
+    overrides the built-in in place (a ``node_override`` conflict with
+    ``resolution_applied = "org_override"`` plus a WARNING); a kind-drift
+    collision still hard-fails. Whether the repo tolerates a permitted override
+    is a per-repo governance test, not a merge prohibition.
     """
     source_marker = f"org:{fragment.pack_name}"
     surviving_nodes = _filter_surviving_org_nodes(fragment, conflicts, source_marker)
@@ -1042,18 +1141,15 @@ def _merge_org_fragment(
             conflicts.append(minted)
             continue
         urn, drg_node = minted
-        if urn in invariant_urns:
-            _resolve_builtin_collision(
-                urn, node, drg_node, merged_nodes, conflicts, source_marker
-            )
-            continue
-        if urn not in merged_nodes:
-            merged_nodes[urn] = drg_node
+        _place_org_node(
+            urn, node, drg_node, merged_nodes, built_in_nodes, conflicts, source_marker
+        )
 
     # Endpoints resolve against this fragment's own nodes plus the BUILT-IN
     # layer — never the running merge state. ``invariant_urns`` is exactly the
     # built-in URN set, so the result does not depend on where this pack sits
     # in the operator's declaration order.
+    invariant_urns = frozenset(built_in_nodes)
     node_id_to_urn = org_local_endpoint_map(fragment)
     for edge in fragment.edges:
         drg_edge, conflict = bridge_org_edge_to_drg_edge(
@@ -1064,9 +1160,32 @@ def _merge_org_fragment(
             continue
         # ``collector.add`` is the single authority on org edge identity: a
         # relationship restated in another spelling (or by another pack)
-        # contributes once.
-        if drg_edge is not None and collector.add(drg_edge, edge, source_marker):
+        # contributes once. A restatement by a LATER pack takes the edge over
+        # (provenance and reason), so the earlier pack's edge is swapped out.
+        if drg_edge is None:
+            continue
+        added, replaced = collector.add(drg_edge, edge, source_marker)
+        if replaced is not None:
+            _replace_edge(merged_edges, replaced, drg_edge)
+        elif added:
             merged_edges.append(drg_edge)
+
+
+def _replace_edge(edges: list[DRGEdge], old: DRGEdge, new: DRGEdge) -> None:
+    """Swap *old* (by identity) for *new* in place, keeping its position.
+
+    *old* is always an edge the collector told the caller to append, so not
+    finding it means the collector and the merged edge list drifted apart;
+    that fails loudly rather than dropping the later pack's edge.
+    """
+    for index, candidate in enumerate(edges):
+        if candidate is old:
+            edges[index] = new
+            return
+    raise RuntimeError(
+        f"org edge ({old.source} --{old.relation.value}--> {old.target}) "
+        "recorded by the edge collector is missing from the merged edges"
+    )
 
 
 def _warn_builtin_override(urn: str, source_marker: str) -> None:
@@ -1083,6 +1202,24 @@ def _warn_builtin_override(urn: str, source_marker: str) -> None:
         "override is sanctioned.",
         source_marker,
         urn,
+    )
+
+
+def _warn_org_override(urn: str, overridden_layer: str, source_marker: str) -> None:
+    """Emit a WARNING when a later-declared org pack replaces an earlier one's node.
+
+    Org packs merge in declaration order and the later pack wins for every URN
+    (spec-kitty-charter #87, ADR-0012). The replacement is permitted but made
+    visible, naming both packs, so an operator relying on the earlier pack's
+    node can see that it no longer takes effect.
+    """
+    _logger.warning(
+        "Org doctrine %r overrides node %r contributed by %r (later-declared "
+        "org pack wins). Reorder charter_packs.org.packs in .kittify/config.yaml "
+        "if the earlier pack's node should take effect.",
+        source_marker,
+        urn,
+        overridden_layer,
     )
 
 
@@ -1119,7 +1256,7 @@ def _check_node_urn_unique(prefix: str, nodes: Iterable[DRGNode]) -> None:
     :func:`_merge_org_fragment`, which is already at the ruff C901
     complexity ceiling — and scoped strictly by *prefix*. Callers must never
     widen this check to another kind's prefix: the other 9 kinds' layered
-    override tolerance (org-vs-org first-wins, built-in-vs-org override,
+    override tolerance (org-vs-org later-declared-wins, built-in-vs-org override,
     project-vs-any override) depends on same-URN collisions being resolved,
     not rejected, and ``drg/models.py`` enforces URN-prefix == kind so this
     scan can never observe a cross-kind collision.
@@ -1247,10 +1384,15 @@ def merge_three_layers(
     built_in:
         The built-in DRG. Treated as the source of truth for invariants.
     org_fragments:
-        Loaded org-tier fragments in declaration order. For a same-kind
-        collision at a built-in URN the org node substitutes in place, and the
-        last org pack that declares it wins (``_resolve_builtin_collision``).
-        A kind-drift collision with a built-in node is a hard failure.
+        Loaded org-tier fragments in declaration order. The later-declared
+        org pack wins for EVERY URN (spec-kitty-charter #87, ADR-0012): a
+        node a later pack declares replaces the node an earlier pack declared
+        for the same URN, built-in or not (``_place_org_node``), and a
+        relationship both packs declare keeps the later pack's provenance and
+        reason (``_OrgEdgeCollector``). Each org-vs-org replacement is recorded
+        as a ``node_override`` / ``org_override`` conflict naming the overridden
+        pack first. A kind-drift collision with a built-in node is a hard
+        failure.
     project:
         Optional project-tier DRG (``.kittify/charter-packs/graph.yaml`` loaded and
         merged elsewhere). When ``None``, the merge collapses to the
@@ -1290,13 +1432,14 @@ def merge_three_layers(
     ]
 
     invariant_urns = _built_in_invariant_ids(built_in)
+    built_in_nodes = {urn: merged_nodes[urn] for urn in invariant_urns}
 
     for fragment in org_fragments:
         _merge_org_fragment(
             fragment,
             merged_nodes,
             merged_edges,
-            invariant_urns,
+            built_in_nodes,
             conflicts,
             collector,
         )

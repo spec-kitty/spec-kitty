@@ -1,0 +1,35 @@
+{
+  "accept_commit": "af0a96467e659abd8aa240d45aa61866fcc74c4a",
+  "acceptance_history": [
+    {
+      "accept_commit": "af0a96467e659abd8aa240d45aa61866fcc74c4a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-19T14:31:51.283674+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b87eecd5aba3e5afac28ad8637322bfffb802154"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-19T14:31:51.283674+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "b87eecd5aba3e5afac28ad8637322bfffb802154",
+  "baseline_merge_commit": "8e7decc16616759f22314ec467a59ceaf14d1242",
+  "created_at": "2026-10-19T10:26:03.514021+00:00",
+  "flattened": true,
+  "friendly_name": "Built-in pack sourced from open-packs",
+  "merged_at": "2026-10-19T14:34:10.417055+00:00",
+  "merged_commit": "a9bc397eb4d1454ce9da560e8382fb7d4c0e41e6",
+  "mid8": "01M59V4T",
+  "mission_id": "01M59V4T0F8TN91GA4CKC3RP5D",
+  "mission_number": 237,
+  "mission_slug": "built-in-pack-from-open-packs-01M59V4T",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Core's vendored packs/built-in copy keeps drifting from open-packs and forces fixes to be ported back. This mission deletes the committed tree and fetches the pinned open-packs ref for dev, tests, CI and wheel builds, so consumers still get the same built-in pack at the same location.",
+  "purpose_tldr": "Make spec-kitty-open-packs the only source of the built-in pack; core keeps just a pin.",
+  "slug": "built-in-pack-from-open-packs-01M59V4T",
+  "status_phase": "1",
+  "target_branch": "feat/6451-built-in-from-open-packs",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-19T12:14:32.340109+00:00"
+}

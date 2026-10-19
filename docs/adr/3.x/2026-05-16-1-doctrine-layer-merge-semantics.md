@@ -179,3 +179,21 @@ The decision rests on five facts:
 
 All verification is local to the doctrine package and its tests; no cross-repo
 or downstream-mission impact.
+
+## Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-19. Requested by `spec-kitty-charter`
+[ADR-0012](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0012-pack-mutability-policy.md) (the owning pack declares a mutability level per artifact: `open`, `extendable` or
+`locked`), recorded in [spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88).
+The record above is unchanged; this note bounds it.
+
+> Amendment 2026-10-19: a field-level merge (2026-05-16-1) or a declared `overrides` /
+> `enhances` relation (2026-05-24-2) applies only where the owning pack's level permits the
+> operation (spec-kitty-charter ADR-0012); otherwise the merge refuses with
+> `governance_policy_violation`.
+
+**Migration, confirmed by the operator on 2026-10-19:** the built-in pack ships its own policy
+file whose kind defaults are `extendable`, and every URN that a released
+`replaceable-builtins.yaml` sanctions today is listed in it as `open`. Until the policy
+enforcement lands (`spec-kitty-charter` #58, after the org-precedence defect
+`spec-kitty-charter` #87 is fixed), current behavior is unchanged.

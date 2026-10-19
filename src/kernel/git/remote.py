@@ -16,10 +16,11 @@ an empty result, so a caller cannot mistake "could not ask" for "asked, absent".
 from __future__ import annotations
 
 import os
+import re
 import shlex
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PurePosixPath
 
 from kernel.git.runner import GitCommandError, GitResult, run_git
 
@@ -28,12 +29,14 @@ __all__ = [
     "FETCH_TIMEOUT",
     "LS_REMOTE_TIMEOUT",
     "AheadBehind",
+    "CommitUnresolvable",
     "RemoteUnreachable",
     "clone_repository",
     "configured_remotes",
     "describe_remote_head",
     "divergence",
     "fetch_branches",
+    "fetch_commit_subtree",
     "fetch_tags",
     "no_prompt_env",
     "remote_heads",
@@ -328,3 +331,74 @@ def fetch_tags(cwd: Path, remote: str, *, timeout: float = FETCH_TIMEOUT, env: M
     source runs today; a timeout raises :class:`GitCommandError` despite ``check`` being off.
     """
     return run_git(cwd, "fetch", "--tags", remote, env=no_prompt_env(env, cwd=cwd), timeout=timeout, check=False)
+
+
+# Each git step of a subtree fetch is bounded by this many seconds unless the caller says otherwise.
+SUBTREE_FETCH_TIMEOUT: float = 120.0
+
+_SHA_RE = re.compile(r"[0-9a-f]{40}")
+_ALLOWED_URL_SCHEMES = ("https://", "file://")
+_UNRESOLVABLE_MARKERS = ("not our ref", "couldn't find remote ref", "unadvertised object", "did not match any")
+_ORIGIN = "origin"
+
+
+class CommitUnresolvable(RemoteUnreachable):
+    """The remote answered, but does not serve the requested commit (``not our ref`` and kin)."""
+
+
+def _validate_subtree_fetch(url: str, sha: str, subtree: str) -> None:
+    if not url.startswith(_ALLOWED_URL_SCHEMES):
+        raise ValueError(f"url must be https:// or file://; got {url!r}")
+    if not _SHA_RE.fullmatch(sha):
+        raise ValueError(f"sha must be a 40-hex lowercase commit id; got {sha!r}")
+    posix = PurePosixPath(subtree)
+    if not subtree or subtree.startswith("-") or "\\" in subtree or posix.is_absolute() or ".." in posix.parts:
+        raise ValueError(f"subtree must be a relative POSIX path without '..' or a leading '-'; got {subtree!r}")
+
+
+def _contact_subtree(dest: Path, url: str, timeout: float, *args: str) -> GitResult:
+    """Run one contacting step of a subtree fetch, classifying 'the remote lacks this commit'."""
+    try:
+        return run_git(dest, *args, env=no_prompt_env(cwd=dest), timeout=timeout)
+    except GitCommandError as exc:
+        if any(marker in exc.stderr for marker in _UNRESOLVABLE_MARKERS):
+            raise CommitUnresolvable(url, exc) from exc
+        raise RemoteUnreachable(url, exc) from exc
+
+
+def fetch_commit_subtree(url: str, sha: str, subtree: str, dest: Path, *, timeout: float = SUBTREE_FETCH_TIMEOUT) -> Path:
+    """Materialise ``<subtree>`` of commit *sha* from *url* under a fresh *dest* and return ``dest / subtree``.
+
+    ``git init``, a depth-1 blob-less fetch of exactly *sha*, a cone sparse
+    checkout of *subtree*. When the server refuses ``--filter`` the fetch is
+    repeated as a plain depth-1 fetch. *url* must be ``https://`` or ``file://``
+    and *sha* a 40-hex id; both follow ``--`` so neither can be read as an option.
+    *dest* must not exist yet.
+
+    Raises:
+        ValueError: *url*, *sha* or *subtree* is unsafe, or *dest* exists.
+        CommitUnresolvable: the remote does not serve *sha*.
+        RemoteUnreachable: any other failed or timed-out contact.
+    """
+    _validate_subtree_fetch(url, sha, subtree)
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=False)
+    run_git(dest, "init", "-q")
+    # Check out the commit's exact bytes: a user's or runner's core.autocrlf would
+    # rewrite line endings and break the pinned full-tree (raw-byte) digest.
+    run_git(dest, "config", "core.autocrlf", "false")
+    run_git(dest, "remote", "add", "--", _ORIGIN, url)
+    fetch = ("fetch", "-q", "--depth", "1", "--no-tags", "--no-recurse-submodules", "--no-auto-gc")
+    try:
+        _contact_subtree(dest, url, timeout, *fetch, "--filter=blob:none", "--", _ORIGIN, sha)
+    except CommitUnresolvable:
+        raise
+    except RemoteUnreachable as exc:
+        if "filter" not in exc.stderr.lower():
+            raise
+        _contact_subtree(dest, url, timeout, *fetch, "--", _ORIGIN, sha)
+    run_git(dest, "sparse-checkout", "set", "--cone", "--", subtree)
+    # A one-way read-tree populates the sparse cone of this fresh scratch repo; it
+    # lazily fetches missing blobs, so it goes through the contact wrapper too.
+    _contact_subtree(dest, url, timeout, "read-tree", "-m", "-u", "FETCH_HEAD")
+    return dest / subtree

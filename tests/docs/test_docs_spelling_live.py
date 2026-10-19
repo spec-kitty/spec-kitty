@@ -24,7 +24,7 @@ CHANGELOG: Final[Path] = REPO_ROOT / cs.DEFAULT_CHANGELOG
 
 # Skip trees that [tool.codespell] excludes; the oracle below re-derives the scanned set from disk
 # without going through `_is_skipped`, so a wrong or over-broad skip glob shows up as a mismatch.
-_TYPO_ROOTS: Final[tuple[str, ...]] = ("docs", "packs/built-in")
+_TYPO_ROOTS: Final[tuple[str, ...]] = ("docs",)
 _US_ROOTS: Final[tuple[str, ...]] = ("docs/guides", "docs/context")
 _SKIPPED_TREES: Final[tuple[str, ...]] = ("docs/archive", "docs/reports", "docs/plans")
 _SKIPPED_FILES: Final[tuple[str, ...]] = ("docs/api/cli-commands.md",)

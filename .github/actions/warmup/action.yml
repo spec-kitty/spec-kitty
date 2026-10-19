@@ -134,6 +134,14 @@ runs:
           uv sync --frozen --all-extras
         fi
 
+    # #6451: packs/built-in and packs/internal are fetched from the pinned open-packs
+    # commits, never checked in; every shard that reads a pack needs them placed.
+    # Runs on a cache hit too (the placed trees are not part of the .venv cache).
+    - name: Sync packs
+      uses: ./.github/actions/sync-packs
+      with:
+        python: .venv/bin/python
+
     - name: Expose the built environment for downstream reuse
       id: expose-env
       shell: bash

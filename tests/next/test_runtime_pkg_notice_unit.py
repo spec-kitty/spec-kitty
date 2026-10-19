@@ -119,3 +119,22 @@ def test_marker_path_uses_xdg_state_home_when_set(
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     p = notice_mod._marker_path()
     assert p == tmp_path / "spec-kitty" / ".spec-kitty-runtime-cutover-notice-shown"
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "windows"])
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ({"XDG_STATE_HOME": "state", "XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "state"),
+        ({"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "home/.cache"),
+        ({}, "home/.cache"),
+    ],
+)
+def test_marker_path_pinned_per_platform(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str
+) -> None:
+    """#6481: moving onto ``kernel.user_dirs.user_state_dir`` changed no location."""
+    from tests.kernel._user_dirs_pins import fake_platform
+
+    fake_platform(monkeypatch, tmp_path, platform, env)
+    assert notice_mod._marker_path() == tmp_path / expected / "spec-kitty" / ".spec-kitty-runtime-cutover-notice-shown"

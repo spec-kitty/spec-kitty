@@ -1726,6 +1726,7 @@ pages:
     - {slug: "migration-story", text: "Migration story", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "verification", text: "Verification", level: 2}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md"
     title: "ADR-8: Monorepo charter scope via `CharterScope` abstraction"
     divio_type: "none"
@@ -1819,6 +1820,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "forward-chain", text: "Forward chain", level: 3}
     - {slug: "compliance", text: "Compliance", level: 2}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md"
     title: "ADR: `shipped` → `built-in` Vocabulary Cutover for Doctrine Layer Label"
     divio_type: "none"
@@ -2905,19 +2907,22 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "delivery-status-this-slice", text: "Delivery status (this slice)", level: 2}
   - path: "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md"
-    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release"
+    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It (amended)"
     divio_type: "none"
-    abstract: "Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change."
+    abstract: "Built-in doctrine is authored in spec-kitty-open-packs; core pins it by commit and fetches the verified tree, so consumers see no change (amended 2026-10-19; was a CI re-vendor)."
     anchors:
     - {slug: "amendment-2026-10-11-pre-spec-grounding-for-3504", text: "Amendment (2026-10-11 — pre-spec grounding for #3504)", level: 2}
     - {slug: "why-it-was-needed", text: "Why it was needed", level: 3}
     - {slug: "amended-decisions", text: "Amended decisions", level: 3}
     - {slug: "sequence", text: "Sequence", level: 3}
+    - {slug: "amendment-2026-10-19-pin-and-fetch-replace-committed-trees-6451", text: "Amendment (2026-10-19 — pin and fetch replace committed trees, #6451)", level: 2}
+    - {slug: "decision", text: "Decision", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
-    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "consequences-2", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
     - {slug: "a-status-quo-built-in-in-core", text: "A — Status quo (built-in in core)", level: 3}
@@ -2940,6 +2945,7 @@ pages:
     - {slug: "b-one-public-org-pack-not-force-shipped", text: "B — One public org pack, not force-shipped", level: 3}
     - {slug: "c-ship-it-like-built-in", text: "C — Ship it like built-in", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-cross-reference-6451", text: "Amendment (2026-10-19 — cross-reference, #6451)", level: 2}
   - path: "docs/adr/3.x/2026-08-16-4-rc-release-channel.md"
     title: "Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE"
     divio_type: "none"
@@ -3445,6 +3451,10 @@ pages:
     - {slug: "option-4-one-step-replacement", text: "Option 4: one-step replacement", level: 3}
     - {slug: "deferred-decisions", text: "Deferred Decisions", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-accepted-seam-routing-only-one-switch-over-and-a-cli-started-per-worktree-daemon", text: "Amendment 2026-10-19 (Accepted): seam routing only, one switch-over, and a CLI-started per-worktree daemon", level: 2}
+    - {slug: "scope-of-this-record-spec-kitty-charter-adr-0010", text: "Scope of this record (spec-kitty-charter ADR-0010)", level: 3}
+    - {slug: "service-boundary-spec-kitty-charter-adr-0011", text: "Service boundary (spec-kitty-charter ADR-0011)", level: 3}
+    - {slug: "why-a-cli-started-daemon-when-the-dashboard-daemon-was-rejected", text: "Why a CLI-started daemon, when the dashboard daemon was rejected", level: 3}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
     divio_type: "none"
@@ -3555,6 +3565,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "absorption-by-2594", text: "Absorption by #2594", level: 3}
     - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md"
     title: "ADR: the Team Kitty surfaces are hidden unless hosted drain is on"
     divio_type: "none"
@@ -3802,6 +3813,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-p4-is-replaced-the-offering-is-replaced-in-place-not-extracted", text: "Amendment 2026-10-19: P4 is replaced; the offering is replaced in place, not extracted", level: 2}
   - path: "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md"
     title: "ADR: the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run"
     divio_type: "none"
@@ -5572,18 +5584,10 @@ pages:
     - {slug: "how-to-guides", text: "How-To Guides", level: 2}
     - {slug: "reference", text: "Reference", level: 2}
   - path: "docs/architecture/launch-readiness-future.md"
-    title: "Launch-Readiness Behavior (Coming Soon)"
-    divio_type: "explanation"
-    abstract: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
-    anchors:
-    - {slug: "why-this-doc-exists", text: "Why this doc exists", level: 2}
-    - {slug: "what-changes-at-launch", text: "What changes at launch", level: 2}
-    - {slug: "dev-staging-overrides-still-apply-after-launch", text: "Dev / staging overrides still apply after launch", level: 2}
-    - {slug: "launch-day-remediation-commands", text: "Launch-day remediation commands", level: 2}
-    - {slug: "upgrade-readiness-ux", text: "Upgrade readiness UX", level: 2}
-    - {slug: "operator-playbook-for-the-launch-flip", text: "Operator playbook for the launch flip", level: 2}
-    - {slug: "what-this-doc-deliberately-does-not-specify", text: "What this doc deliberately does not specify", level: 2}
-    - {slug: "related", text: "Related", level: 2}
+    title: "Launch-Readiness Behavior (Archived)"
+    divio_type: "none"
+    abstract: "Redirect stub: the superseded launch-readiness plan moved to the docs archive; this page remains so that old links resolve."
+    anchors: []
   - path: "docs/architecture/mission-gates.md"
     title: "Mission transition gates — declarative, asset-backed, trust-gated"
     divio_type: "explanation"
@@ -6099,6 +6103,19 @@ pages:
     - {slug: "5-ownership-of-tracker-telemetry-objects", text: "5. Ownership of tracker telemetry objects", level: 3}
     - {slug: "fastest-practical-path", text: "Fastest Practical Path", level: 2}
     - {slug: "bottom-line", text: "Bottom Line", level: 2}
+  - path: "docs/archive/architecture/launch-readiness-future.md"
+    title: "Launch-Readiness Behavior (Coming Soon)"
+    divio_type: "explanation"
+    abstract: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
+    anchors:
+    - {slug: "why-this-doc-exists", text: "Why this doc exists", level: 2}
+    - {slug: "what-changes-at-launch", text: "What changes at launch", level: 2}
+    - {slug: "dev-staging-overrides-still-apply-after-launch", text: "Dev / staging overrides still apply after launch", level: 2}
+    - {slug: "launch-day-remediation-commands", text: "Launch-day remediation commands", level: 2}
+    - {slug: "upgrade-readiness-ux", text: "Upgrade readiness UX", level: 2}
+    - {slug: "operator-playbook-for-the-launch-flip", text: "Operator playbook for the launch flip", level: 2}
+    - {slug: "what-this-doc-deliberately-does-not-specify", text: "What this doc deliberately does not specify", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/archive/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
     divio_type: "reference"
@@ -7551,6 +7568,22 @@ pages:
     - {slug: "categories-drives-wp03-wp04-wp18", text: "Categories (drives WP03/WP04/WP18)", level: 2}
     - {slug: "the-3-production-call-sites-for-wp18", text: "The 3 production call-sites (for WP18)", level: 2}
     - {slug: "ordering-constraint-why-wp18-exists", text: "Ordering constraint (why WP18 exists)", level: 2}
+  - path: "docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md"
+    title: "Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)"
+    divio_type: "none"
+    abstract: "Capstone overview (3.2.1) of the naming/identity SSOT strangler: Architect Alphonso's aggregation of the research squad's findings, read-only at 3.2.0."
+    anchors:
+    - {slug: "1-executive-summary-the-one-screen-takeaway", text: "1. Executive summary (the one-screen takeaway)", level: 2}
+    - {slug: "2-the-issue-surface-status-concern-disposition", text: "2. The issue surface (status · concern · disposition)", level: 2}
+    - {slug: "3-the-intended-design-five-canonical-ssots-target-architecture", text: "3. The intended design — five canonical SSOTs (target architecture)", level: 2}
+    - {slug: "4-impact-of-the-discrepancies-the-cost-of-not-consolidating", text: "4. Impact of the discrepancies (the cost of NOT consolidating)", level: 2}
+    - {slug: "5-reconciling-the-squad-s-divergences-architect-s-binding-verdicts", text: "5. Reconciling the squad's divergences (architect's binding verdicts)", level: 2}
+    - {slug: "6-recommended-3-2-1-mission-shape", text: "6. Recommended 3.2.1 mission shape", level: 2}
+    - {slug: "wp-decomposition-dependency-order", text: "WP decomposition (dependency order)", level: 3}
+    - {slug: "what-stays-out-explicit-non-goals", text: "What stays OUT (explicit non-goals)", level: 3}
+    - {slug: "byte-identical-no-shadow-path-traps-to-honour-pedro-s-two-load-bearing-traps-riders", text: "Byte-identical / no-shadow-path traps to honour (Pedro's two load-bearing traps + riders)", level: 3}
+    - {slug: "new-guards-ratchets-to-add-paula-s-enforcement-deliverable", text: "New guards / ratchets to add (Paula's enforcement deliverable)", level: 3}
+    - {slug: "tie-to-the-epics-one-coherent-step", text: "Tie to the epics (one coherent step)", level: 3}
   - path: "docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/architect-alphonso-intended-design.md"
     title: "Naming / Identity SSOT Strangler — Intended (Target) Architecture"
     divio_type: "none"
@@ -7851,6 +7884,20 @@ pages:
     - {slug: "4-invariants-the-to-be-design-must-satisfy-acceptance-lens", text: "4. Invariants the to-be design must satisfy (acceptance lens)", level: 2}
     - {slug: "5-what-is-already-true-and-must-be-preserved-don-t-break-these", text: "5. What is already true and must be *preserved* (don't break these)", level: 2}
     - {slug: "6-the-shape-of-the-answer-without-yet-choosing-it", text: "6. The shape of the answer (without yet choosing it)", level: 2}
+  - path: "docs/archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md"
+    title: "06 — Domains & Splits: Technical Concretization"
+    divio_type: "none"
+    abstract: "Technical concretization of the consolidated domain model for the runtime and state overhaul: the proposed domains and splits, grounded in package fan-out findings."
+    anchors:
+    - {slug: "1-module-map-model-element-package-home-api-entry-point-status", text: "1. Module map — model element → package home → API entry point → status", level: 2}
+    - {slug: "2-the-communication-artefact-contract-consolidate-3-projections", text: "2. The communication-artefact contract (consolidate 3 projections)", level: 2}
+    - {slug: "3-the-effector-type-net-new-unify-the-fragmented-actor", text: "3. The `Effector` type (net-new) — unify the fragmented Actor", level: 2}
+    - {slug: "4-package-placement-under-the-layer-meta-guard", text: "4. Package placement under the layer meta-guard", level: 2}
+    - {slug: "5-the-executioncontext-owner-shape-options-carried-forward", text: "5. The ExecutionContext owner shape (options carried forward)", level: 2}
+    - {slug: "6-strangler-sequencing-the-migration-order", text: "6. Strangler sequencing (the migration order)", level: 2}
+    - {slug: "7-open-questions-now-technical-keepers", text: "7. Open questions (now technical) + keepers", level: 2}
+    - {slug: "background-q3-resolved-q4-background-retained", text: "Background (Q3 resolved, Q4 background retained)", level: 3}
+    - {slug: "8-path-to-a-decided-design", text: "8. Path to a decided design", level: 2}
   - path: "docs/archive/plans/engineering-notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction.md"
     title: "07 — Existing Infra Pattern + MissionStatus / MissionFlow Extraction Assessment"
     divio_type: "none"
@@ -8350,6 +8397,32 @@ pages:
     - {slug: "provider-support-matrix-known", text: "Provider support matrix (known)", level: 3}
     - {slug: "design-rule", text: "Design rule", level: 3}
     - {slug: "related-artifacts", text: "Related Artifacts", level: 2}
+  - path: "docs/archive/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md"
+    title: "Initiative: Mission Nomenclature Reconciliation"
+    divio_type: "none"
+    abstract: "Initiative operationalizing the ADR on Mission Type / Mission / Mission Run terminology, reconciling nomenclature across the codebase and docs."
+    anchors:
+    - {slug: "success-criteria", text: "Success Criteria", level: 2}
+    - {slug: "canonical-target-vocabulary", text: "Canonical Target Vocabulary", level: 2}
+    - {slug: "scope-by-property", text: "Scope by Property", level: 2}
+    - {slug: "workstreams", text: "Workstreams", level: 2}
+    - {slug: "1-policy-and-glossary-lock", text: "1. Policy and Glossary Lock", level: 3}
+    - {slug: "2-core-cli-taxonomy", text: "2. Core CLI Taxonomy", level: 3}
+    - {slug: "3-runtime-events-and-api-contracts", text: "3. Runtime, Events, and API Contracts", level: 3}
+    - {slug: "4-dashboard-and-product-ui-surfaces", text: "4. Dashboard and Product UI Surfaces", level: 3}
+    - {slug: "5-docs-skills-prompt-templates-and-tutorials", text: "5. Docs, Skills, Prompt Templates, and Tutorials", level: 3}
+    - {slug: "6-public-website-and-marketing-language", text: "6. Public Website and Marketing Language", level: 3}
+    - {slug: "7-sister-repo-reconciliation", text: "7. Sister Repo Reconciliation", level: 3}
+    - {slug: "8-compatibility-deprecation-and-release-management", text: "8. Compatibility, Deprecation, and Release Management", level: 3}
+    - {slug: "rollout-sequence", text: "Rollout Sequence", level: 2}
+    - {slug: "phase-0-freeze-the-lexicon", text: "Phase 0: Freeze the Lexicon", level: 3}
+    - {slug: "phase-1-canonical-docs-and-glossary", text: "Phase 1: Canonical Docs and Glossary", level: 3}
+    - {slug: "phase-2-core-cli-and-runtime-contracts", text: "Phase 2: Core CLI and Runtime Contracts", level: 3}
+    - {slug: "phase-3-ui-and-dashboard-surfaces", text: "Phase 3: UI and Dashboard Surfaces", level: 3}
+    - {slug: "phase-4-external-properties-and-public-website", text: "Phase 4: External Properties and Public Website", level: 3}
+    - {slug: "phase-5-deprecation-burn-down", text: "Phase 5: Deprecation Burn-Down", level: 3}
+    - {slug: "search-and-audit-checklist", text: "Search and Audit Checklist", level: 2}
+    - {slug: "done-definition", text: "Done Definition", level: 2}
   - path: "docs/archive/plans/initiatives/2026-04-tracker-binding-context-discovery/README.md"
     title: "Initiative: Tracker Binding Context Discovery"
     divio_type: "none"
@@ -11360,6 +11433,16 @@ pages:
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
     - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/sync-packs.md"
+    title: "How to sync and bump the built-in and internal packs"
+    divio_type: "how-to"
+    abstract: "Fetch the pinned built-in and internal pack trees into a checkout, work offline from the cache, and bump a pin after changing pack content upstream."
+    anchors:
+    - {slug: "fetch-the-trees", text: "Fetch the trees", level: 2}
+    - {slug: "work-offline", text: "Work offline", level: 2}
+    - {slug: "change-pack-content", text: "Change pack content", level: 2}
+    - {slug: "error-codes", text: "Error codes", level: 2}
+    - {slug: "what-does-not-change", text: "What does not change", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
     divio_type: "none"
@@ -11915,6 +11998,13 @@ pages:
     divio_type: "explanation"
     abstract: "Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions."
     anchors: []
+  - path: "docs/guides/how-to/governance/init-and-project-charter.md"
+    title: "How to Initialize a Project and Author Its Charter"
+    divio_type: "how-to"
+    abstract: "How spec-kitty init sets up a project and how you author your project charter afterward with the charter commands; charter.yaml is the authoritative governance file."
+    anchors:
+    - {slug: "what-spec-kitty-init-does", text: "What `spec-kitty init` does", level: 2}
+    - {slug: "authoring-your-project-charter", text: "Authoring your project charter", level: 2}
   - path: "docs/guides/how-to/governance/manage-glossary.md"
     title: "How to Manage the Glossary"
     divio_type: "how-to"
@@ -14458,22 +14548,6 @@ pages:
     - {slug: "architecture-audits-may-2026-3-2-x-cycle", text: "Architecture audits (May 2026, 3.2.x cycle)", level: 3}
     - {slug: "retired-clusters", text: "Retired clusters", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md"
-    title: "Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)"
-    divio_type: "none"
-    abstract: "Capstone overview (3.2.1) of the naming/identity SSOT strangler: Architect Alphonso's aggregation of the research squad's findings, read-only at 3.2.0."
-    anchors:
-    - {slug: "1-executive-summary-the-one-screen-takeaway", text: "1. Executive summary (the one-screen takeaway)", level: 2}
-    - {slug: "2-the-issue-surface-status-concern-disposition", text: "2. The issue surface (status · concern · disposition)", level: 2}
-    - {slug: "3-the-intended-design-five-canonical-ssots-target-architecture", text: "3. The intended design — five canonical SSOTs (target architecture)", level: 2}
-    - {slug: "4-impact-of-the-discrepancies-the-cost-of-not-consolidating", text: "4. Impact of the discrepancies (the cost of NOT consolidating)", level: 2}
-    - {slug: "5-reconciling-the-squad-s-divergences-architect-s-binding-verdicts", text: "5. Reconciling the squad's divergences (architect's binding verdicts)", level: 2}
-    - {slug: "6-recommended-3-2-1-mission-shape", text: "6. Recommended 3.2.1 mission shape", level: 2}
-    - {slug: "wp-decomposition-dependency-order", text: "WP decomposition (dependency order)", level: 3}
-    - {slug: "what-stays-out-explicit-non-goals", text: "What stays OUT (explicit non-goals)", level: 3}
-    - {slug: "byte-identical-no-shadow-path-traps-to-honour-pedro-s-two-load-bearing-traps-riders", text: "Byte-identical / no-shadow-path traps to honour (Pedro's two load-bearing traps + riders)", level: 3}
-    - {slug: "new-guards-ratchets-to-add-paula-s-enforcement-deliverable", text: "New guards / ratchets to add (Paula's enforcement deliverable)", level: 3}
-    - {slug: "tie-to-the-epics-one-coherent-step", text: "Tie to the epics (one coherent step)", level: 3}
   - path: "docs/plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md"
     title: "DRG profile routing not applied on first tasks generation"
     divio_type: "none"
@@ -14494,19 +14568,10 @@ pages:
     - {slug: "file-format", text: "File format", level: 2}
     - {slug: "index", text: "Index", level: 2}
   - path: "docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md"
-    title: "06 — Domains & Splits: Technical Concretization"
+    title: "06 — Domains & Splits (Archived)"
     divio_type: "none"
-    abstract: "Technical concretization of the consolidated domain model for the runtime and state overhaul: the proposed domains and splits, grounded in package fan-out findings."
-    anchors:
-    - {slug: "1-module-map-model-element-package-home-api-entry-point-status", text: "1. Module map — model element → package home → API entry point → status", level: 2}
-    - {slug: "2-the-communication-artefact-contract-consolidate-3-projections", text: "2. The communication-artefact contract (consolidate 3 projections)", level: 2}
-    - {slug: "3-the-effector-type-net-new-unify-the-fragmented-actor", text: "3. The `Effector` type (net-new) — unify the fragmented Actor", level: 2}
-    - {slug: "4-package-placement-under-the-layer-meta-guard", text: "4. Package placement under the layer meta-guard", level: 2}
-    - {slug: "5-the-executioncontext-owner-shape-options-carried-forward", text: "5. The ExecutionContext owner shape (options carried forward)", level: 2}
-    - {slug: "6-strangler-sequencing-the-migration-order", text: "6. Strangler sequencing (the migration order)", level: 2}
-    - {slug: "7-open-questions-now-technical-keepers", text: "7. Open questions (now technical) + keepers", level: 2}
-    - {slug: "background-q3-resolved-q4-background-retained", text: "Background (Q3 resolved, Q4 background retained)", level: 3}
-    - {slug: "8-path-to-a-decided-design", text: "8. Path to a decided design", level: 2}
+    abstract: "Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve."
+    anchors: []
   - path: "docs/plans/glossary-doctrine-overhaul-program.md"
     title: "Glossary Doctrine Overhaul — Program Plan"
     divio_type: "none"
@@ -14531,32 +14596,6 @@ pages:
     - {slug: "prior-cycle-3-2-x-historical", text: "Prior cycle (3.2.x) — historical", level: 3}
     - {slug: "programmes-and-status-notes", text: "Programmes and status notes", level: 2}
     - {slug: "working-collections-by-area", text: "Working collections (by area)", level: 2}
-  - path: "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md"
-    title: "Initiative: Mission Nomenclature Reconciliation"
-    divio_type: "none"
-    abstract: "Initiative operationalizing the ADR on Mission Type / Mission / Mission Run terminology, reconciling nomenclature across the codebase and docs."
-    anchors:
-    - {slug: "success-criteria", text: "Success Criteria", level: 2}
-    - {slug: "canonical-target-vocabulary", text: "Canonical Target Vocabulary", level: 2}
-    - {slug: "scope-by-property", text: "Scope by Property", level: 2}
-    - {slug: "workstreams", text: "Workstreams", level: 2}
-    - {slug: "1-policy-and-glossary-lock", text: "1. Policy and Glossary Lock", level: 3}
-    - {slug: "2-core-cli-taxonomy", text: "2. Core CLI Taxonomy", level: 3}
-    - {slug: "3-runtime-events-and-api-contracts", text: "3. Runtime, Events, and API Contracts", level: 3}
-    - {slug: "4-dashboard-and-product-ui-surfaces", text: "4. Dashboard and Product UI Surfaces", level: 3}
-    - {slug: "5-docs-skills-prompt-templates-and-tutorials", text: "5. Docs, Skills, Prompt Templates, and Tutorials", level: 3}
-    - {slug: "6-public-website-and-marketing-language", text: "6. Public Website and Marketing Language", level: 3}
-    - {slug: "7-sister-repo-reconciliation", text: "7. Sister Repo Reconciliation", level: 3}
-    - {slug: "8-compatibility-deprecation-and-release-management", text: "8. Compatibility, Deprecation, and Release Management", level: 3}
-    - {slug: "rollout-sequence", text: "Rollout Sequence", level: 2}
-    - {slug: "phase-0-freeze-the-lexicon", text: "Phase 0: Freeze the Lexicon", level: 3}
-    - {slug: "phase-1-canonical-docs-and-glossary", text: "Phase 1: Canonical Docs and Glossary", level: 3}
-    - {slug: "phase-2-core-cli-and-runtime-contracts", text: "Phase 2: Core CLI and Runtime Contracts", level: 3}
-    - {slug: "phase-3-ui-and-dashboard-surfaces", text: "Phase 3: UI and Dashboard Surfaces", level: 3}
-    - {slug: "phase-4-external-properties-and-public-website", text: "Phase 4: External Properties and Public Website", level: 3}
-    - {slug: "phase-5-deprecation-burn-down", text: "Phase 5: Deprecation Burn-Down", level: 3}
-    - {slug: "search-and-audit-checklist", text: "Search and Audit Checklist", level: 2}
-    - {slug: "done-definition", text: "Done Definition", level: 2}
   - path: "docs/plans/investigations/2026-08-consumer-repo-layout-portability.md"
     title: "Consumer-repo layout portability: disposition and sequencing"
     divio_type: "none"
@@ -14822,13 +14861,6 @@ pages:
     - {slug: "historical-2-x-era-vision-snapshots", text: "Historical (2.x-era vision snapshots)", level: 2}
     - {slug: "relationship-to-other-architecture-artifacts", text: "Relationship to Other Architecture Artifacts", level: 2}
     - {slug: "evaluation", text: "Evaluation", level: 2}
-  - path: "docs/plans/user_journey/init-doctrine-flow.md"
-    title: "Init and Project Charter — User Journey"
-    divio_type: "none"
-    abstract: "How spec-kitty init sets up a project and how you author your project charter afterward with the charter commands; charter.yaml is the authoritative governance file."
-    anchors:
-    - {slug: "what-spec-kitty-init-does", text: "What `spec-kitty init` does", level: 2}
-    - {slug: "authoring-your-project-charter", text: "Authoring your project charter", level: 2}
   - path: "docs/plans/zeitgeist-client-wp01-remaining.md"
     title: "zeitgeist_client WP01 — remaining scope"
     divio_type: "none"

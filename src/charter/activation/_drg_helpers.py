@@ -297,8 +297,10 @@ def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
     edge-identity or canonicalisation notion (C-002 — endpoint resolution and
     org-edge identity stay owned by ``merge_three_layers``; this only removes an
     exact restatement the *layered composition* produced). Keeping the first
-    occurrence preserves built-in/root-graph provenance, matching the collector's
-    own "first contribution wins" rule. It runs ONLY on the fragment
+    occurrence preserves built-in/root-graph provenance: the restated triple is
+    already in the base layer, so the base edge stands (the collector's
+    later-declared-pack-wins rule orders org fragments against each other, not
+    against the base). It runs ONLY on the fragment
     (``merge_three_layers``) path, so the diagnostic ``merge_three_layers``
     callers and the no-fragment ``merge_layers`` path are untouched (NFR-001 /
     FR-003).

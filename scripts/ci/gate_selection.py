@@ -39,11 +39,15 @@ __all__ = [
     "CLI_COMMAND_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
+    "PACK_CONTENT_SCOPES",
+    "PACK_PIN_GLOB",
     "PROBE_GROUPS",
     "GateSelection",
     "Router",
     "derive_group_module_fanout",
+    "fanout_group_globs",
     "load_router",
+    "pack_content_groups",
     "select_gates",
     "select_modules",
 ]
@@ -149,6 +153,46 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
 # DEPENDENCY_MODULE_FANOUT together, so iterate both when you need every fan-out.
 FANOUT_GROUPS: frozenset[str] = frozenset(GROUP_MODULE_FANOUT)
 
+# The built-in pack pin lockfile (#6451). packs/built-in is fetched from the open-packs commit
+# pinned here and is not tracked in core, so a pin bump is the ONLY in-repo change that alters
+# pack content: every pack fan-out group's router filter carries this glob as its trigger (#6480).
+PACK_PIN_GLOB = "packs/built-in.source.yaml"
+
+# Census-only content scope of each pack fan-out group (#6480): which consumed pack sub-trees a
+# group answers for. These were the group's router globs until #6451 untracked packs/built-in;
+# no PR diff can contain such a path any more, so they no longer route anything and live here,
+# where the consumer census (surface scoping, domain recording, the unrouted-consumer gate) and
+# derive_group_module_fanout attribute a consumed path to its group. The router triggers each
+# group on PACK_PIN_GLOB alone (pinned by tests/architectural/test_consumer_census_routing.py).
+# Sub-tree-specific, never a blanket packs/built-in/missions/**: the pack READMEs are left out
+# because no module test reads them.
+PACK_CONTENT_SCOPES: dict[str, tuple[str, ...]] = {
+    "mission_manifest": ("packs/built-in/missions/**/expected-artifacts.yaml",),
+    "mission_pack_content": (
+        "packs/built-in/missions/mission-steps/**",
+        "packs/built-in/missions/*/templates/**",
+        "packs/built-in/missions/*/mission.yaml",
+        "packs/built-in/missions/*/mission-runtime.yaml",
+        "packs/built-in/missions/*/actions/**",
+        "packs/built-in/missions/*/governance-profile.yaml",
+        "packs/built-in/missions/built_in_step_contracts/**",
+    ),
+    "mission_type_definitions": ("packs/built-in/missions/mission_types/**",),
+}
+
+
+def fanout_group_globs(router: Router) -> dict[str, tuple[str, ...]]:
+    """Each FANOUT_GROUPS group's census-attribution globs: its router filter globs (the
+    live src triggers, e.g. ``cli_lifecycle``) plus its pack content scope."""
+    return {group: (*router.filters.get(group, ()), *PACK_CONTENT_SCOPES.get(group, ())) for group in FANOUT_GROUPS}
+
+
+def pack_content_groups(path: str) -> frozenset[str]:
+    """The pack fan-out groups whose content scope covers ``path`` (empty for a path
+    outside every scope, e.g. a pack README)."""
+    return frozenset(group for group, globs in PACK_CONTENT_SCOPES.items() if any(fnmatch.fnmatch(path, g) for g in globs))
+
+
 # Modules the census derives for a fan-out group but the hand set deliberately does NOT
 # route, each with the reason it is not a real consumer. A census-derived module missing
 # from both GROUP_MODULE_FANOUT and this allowlist reds
@@ -188,13 +232,14 @@ def derive_group_module_fanout(
     registry_path: Path | None = None,
 ) -> dict[str, frozenset[str]]:
     """The census's OWN answer for each fan-out group: the modules it records as
-    consuming a path matching that group's router globs (and that are registry
-    modules). This is the derived-vs-hand analysis input and the basis for the
+    consuming a path matching that group's fan-out globs (``fanout_group_globs``), and that are registry
+    modules. This is the derived-vs-hand analysis input and the basis for the
     derived-vs-hand comparison; it does NOT drive live routing today (see the
     GROUP_MODULE_FANOUT comment on real-pack-vs-temp precision).
 
-    The router globs are the independent path->group authority, so the derivation is
-    not self-referential: a census path matching no group's globs lands in no set.
+    The group globs (``fanout_group_globs``: the router filters plus the pack content
+    scopes) are the independent path->group authority, so the derivation is not
+    self-referential: a census path matching no group's globs lands in no set.
     A census file that does not exist yields an empty set per group (so importing this
     module never depends on the artifact existing yet); one that exists but is
     unreadable or malformed RAISES ``ValueError`` -- a corrupt census must red, not
@@ -212,7 +257,7 @@ def derive_group_module_fanout(
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError(f"consumer census {path_to_read} is unreadable or malformed: {exc!r}") from exc
 
-    group_globs = {group: tuple(router.filters.get(group, ())) for group in FANOUT_GROUPS}
+    group_globs = fanout_group_globs(router)
     for module, data in census_modules.items():
         if module not in modules or not isinstance(data, dict):
             continue

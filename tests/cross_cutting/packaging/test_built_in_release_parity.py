@@ -2,8 +2,8 @@
 
 Mission ``builtin-revendor-pin-gate-01M55MX7`` (#3504), FR-009 / SC-003 / NFR-003.
 The committed pin (``packs/built-in.source.yaml``) records the clean-tree digest of
-``packs/built-in/``. This test extracts that tree from the real built wheel and
-asserts the same digest, so a release cannot ship a tree that differs from the pin.
+the open-packs ``built-in`` subtree the wheel hook fetched and force-included. This test
+extracts that tree from the real built wheel and asserts the same digest, so a release cannot ship a tree that differs from the pin.
 
 A positive control proves the assertion is live: a mutated copy of the extracted
 tree must NOT match the pin.
@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.offering.packs.built_in_pin import load_built_in_pin
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
+from charter.offering.packs.pack_pin import load_pack_pin, verify_pack_pin
 from kernel.pack_tiers import BUILT_IN
 
 pytestmark = [pytest.mark.distribution, pytest.mark.integration]
@@ -47,16 +47,17 @@ def wheel_pack_root(build_artifacts: dict[str, Path], tmp_path_factory: pytest.T
 
 
 def test_built_wheel_built_in_digest_equals_pin(wheel_pack_root: Path) -> None:
-    pin = load_built_in_pin(PIN_PATH)
-    actual = clean_tree_digest(wheel_pack_root, level=BUILT_IN)
-    assert actual == pin.tree_digest.value, f"built wheel packs/built-in digest {actual} != committed pin {pin.tree_digest.value}"
+    pin = load_pack_pin(PIN_PATH)
+    actual = clean_tree_digest(wheel_pack_root, level=pin.tree_digest.level)
+    assert verify_pack_pin(pin, wheel_pack_root), f"built wheel packs/built-in digest {actual} != committed pin {pin.tree_digest.value}"
 
 
 def test_mutated_wheel_tree_does_not_match_pin(wheel_pack_root: Path, tmp_path: Path) -> None:
     """Positive control: a drifted tree reds the digest comparison (non-vacuity)."""
-    pin = load_built_in_pin(PIN_PATH)
+    pin = load_pack_pin(PIN_PATH)
     mutated = tmp_path / "mutated"
     shutil.copytree(wheel_pack_root, mutated)
     descriptor = mutated / "pack.yaml"
     descriptor.write_bytes(descriptor.read_bytes() + b"\n# drift\n")
+    assert not verify_pack_pin(pin, mutated)
     assert clean_tree_digest(mutated, level=BUILT_IN) != pin.tree_digest.value

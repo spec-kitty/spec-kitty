@@ -35,12 +35,14 @@ A JDK 25 must be on `PATH` (CI uses `actions/setup-java` with `temurin` and
 
 ### Cloud sessions
 
-A Claude Code cloud session ships an older JDK, and its egress policy blocks JDK
-downloads, so the Java 25 toolchain must be installed at **environment-provisioning**
-time (the same layer that installs other session tools), where egress can reach
-Adoptium — not inside the running session. Add this to the environment's setup script
-(the cloud-environment menu in the session title bar → Edit); it is idempotent and
-installs the current Temurin 25 GA, verified against Adoptium's published checksum:
+A Claude Code cloud session ships an older JDK (21) and an older Gradle (8.14.3, which
+cannot run on Java 25). Install the Java 25 toolchain at **environment-provisioning** time
+(the same layer that installs other session tools), so every new session has it without a
+per-session download. Add this to the environment's setup script (the cloud-environment
+menu in the session title bar → Edit); it is idempotent and installs the current
+Temurin 25 GA, verified against Adoptium's published checksum. The same block also works
+inside a running session when the session's network policy reaches Adoptium and
+`github.com` release assets:
 
 ```bash
 # Temurin JDK 25 for the acceptance-jvm (Cucumber) suite. Provisioning-time only.
@@ -57,9 +59,12 @@ export JAVA_HOME=/usr/lib/jvm/temurin-25
 export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
-Once a Java 25 is present, `scripts/dev/cloud-session-setup.sh` auto-detects it and
-exports `JAVA_HOME` for the session, so Gradle's toolchain resolves with no per-run
-config. A session without a Java 25 still runs every Python check and the per-PR scenario
+Once a Java 25 is present, `scripts/dev/cloud-session-setup.sh` auto-detects it,
+exports `JAVA_HOME` for the session and puts the pinned Gradle from
+[`tools/pins.json`](tools/pins.json) (installed checksum-verified by
+`contracts/tools/install_tools.py`, as CI does, and cached under
+`${XDG_CACHE_HOME:-~/.cache}/spec-kitty/acceptance-jvm-tools/`) first on `PATH`, so
+`gradle` resolves the toolchain with no per-run config. A session without a Java 25 still runs every Python check and the per-PR scenario
 contract (`tests/architectural/test_scenario_contract.py`) — neither needs a JDK — and
 only the local Cucumber-JVM run is unavailable; the nightly `acceptance-bdd` lane runs it
 cross-OS regardless.

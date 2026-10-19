@@ -4,7 +4,7 @@ description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA,
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-12'
+updated: '2026-10-19'
 related:
 - docs/changelog/4.0.0.md
 - docs/changelog/index.md
@@ -79,6 +79,7 @@ below (which still holds where this one is silent); where the two differ, this o
    extraction itself is recorded in ADR
    [2026-10-12-2](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); the
    extraction mechanics ride with a dedicated epic (to be filed).
+   **Superseded 2026-10-19 (operator ruling): the Python charter stays in core until it is retired and nothing Python moves to `spec-kitty-charter`; offering reads cut over to the `spec-kitty-charter` service through `charter.offering.api`, and the GA leg is a frozen seam plus a green conformance corpus, not an extraction. ADR 2026-10-12-2 is superseded by `spec-kitty-charter` ADR-0008 and ADR-0010; see ADR [2026-10-16-1](../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md), Amendment 2026-10-19.**
 4. **The mission-status read API is the open-core producer surface** (internally "Build
    Kitty"), not a Team Kitty surface. Its Java implementation (`services/mission-status-api/`,
    epic #5528) is to **start in-repo as a modular component** and be **extracted as needed as
@@ -96,7 +97,7 @@ below (which still holds where this one is silent); where the two differ, this o
    asks ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
    Amendment 2026-10-12).
 6. **The packs source home moves to `spec-kitty-open-packs`.** `packs/internal/` and
-   `packs/built-in/` here are the vendored copy; the source is authored in
+   `packs/built-in/` here are fetched, pinned copies (pins in `packs/<pack>.source.yaml`, placed by `make sync-packs`); the source is authored in
    `spec-kitty-open-packs`. This is a source-location move only: the no-bundle invariant is
    unchanged and ADR [2026-08-16-3](../adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) is not reversed.
 
@@ -130,6 +131,8 @@ auth or Zeitgeist as release-gating. Four rules follow for the rest of the 4.x l
    stable API (#645) before the charter can be packaged separately. **As of the 2026-10-12
    update, #645 is GA-gating and the charter becomes an independently-released external
    contract package in its own repository** (not just "shippable alone").
+   **Superseded 2026-10-19:** the charter does not ship from its own repository as a Python
+   package; see the note under direction item 3 above.
 
 Theme 4's hosted *backend* lane is frozen; its **consumer side was re-scoped on 2026-10-12**
 (Team Kitty = "Multiplayer Mode," above). The Stability and Maturity themes apply to the
@@ -227,9 +230,9 @@ Never design against or "re-enable" the old sync path; see
      │    green nightly (#5419, 1 of 57 jobs red) · landing+create residuals (#5638 #5704 #5726)
      │    agent integration (#702) · docs (#5428) · structural hygiene (#2560-2 #3732 #4836 #5538 ...)
      │    UNDECIDED: pushed-rejection P0s (#5780 #5758), orchestrator-api gate+rollback (#5722 #5603)
-     ├ CHARTER MODULAR EXTRACTION (offering leg only — ADR 2026-10-16-1)
-     │    #6188 imports onto charter.offering.api (DONE) ──▶ #6099 extract charter.offering (4 phases)
-     │    ──▶ charter.offering ships as its own external contract package, in its own repository
+     ├ CHARTER SEAM (offering reads — ADR 2026-10-16-1, Amendment 2026-10-19)
+     │    #6188 imports onto charter.offering.api (DONE) ──▶ #6099 frozen seam + green conformance corpus
+     │    ──▶ offering stays in core, replaced in place by the spec-kitty-charter service (no extraction)
      └ MISSION-STATUS API BACKEND + READ SURFACE (open-core producer surface, "Build Kitty")
           #5528 Mission Status Read API (contract `1.0.0-SNAPSHOT` in-repo, unreleased; services/mission-status-api/ in-repo, read service substantially built)
           ──▶ #957 mission detail (GA) ; #5532 readers re-point / #5533 routes rehome (OFF-GATE, CLI 4.x stable)
@@ -397,9 +400,11 @@ record false-positive rulings.
 4. **No new shadow path.** Every landing routes onto an existing authority. No re-introduction
    of the retired sync transport, and no module other than the adapter seam talks to an
    external system.
-5. **Charter modular extraction — offering leg (GA-gating; ADR 2026-10-16-1).** The import move
-   (#6188) is done and #645 is closed `not_planned`; the GA leg is extracting **`charter.offering`**
-   (epic #6099, four phases) as its own external contract package in its own repository. The
+5. **Charter seam — offering leg (GA-gating; ADR 2026-10-16-1, Amendment 2026-10-19).** The
+   import move (#6188) is done and #645 is closed `not_planned`. The GA leg is a **frozen
+   `charter.offering.api` seam and a green conformance corpus** (epic #6099, re-scoped), not an
+   extraction: the Python offering stays in core and is replaced in place by the
+   `spec-kitty-charter` service (`spec-kitty-charter` ADR-0008, ADR-0010). The
    `charter.activation` drain/rework is **post-GA** (CLI 4.x stable).
 6. **Mission-status API backend + read surface (GA-gating; ADR 2026-10-01-2, 2026-10-16-1).**
    The open-core producer surface ships its backend (contract canonical beside the Python reducer,

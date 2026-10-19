@@ -19,7 +19,7 @@ WP10 and held near-flat).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from kernel.pack_tiers import BUILT_IN, PACK_TIERS
 
@@ -27,8 +27,32 @@ from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
-    from charter.repository_protocol import ArtifactRepository
     from charter.offering.drg.models import DRGEdge, DRGGraph
+
+# Covariant: T only ever appears in return position (``get`` produces a T,
+# never consumes one), so a repository of a more specific artifact type is
+# assignable wherever a repository of a more general one is expected.
+T = TypeVar("T", covariant=True)
+
+
+class ArtifactRepository(Protocol[T]):
+    """Structural contract every charter offering artifact repository satisfies.
+
+    Names the two methods the activation renderers call on a repository
+    (``DirectiveRepository``, ``TacticRepository``, ...), so mypy verifies those
+    calls without ``# type: ignore[attr-defined]``.
+    :class:`charter.offering.base.BaseArtifactRepository` satisfies it
+    structurally. Widen this Protocol rather than adding a second one.
+    """
+
+    def get(self, artifact_id: str) -> T | None:  # pragma: no cover -- Protocol stub, never executed
+        """Return the artifact for *artifact_id*, or ``None`` if absent."""
+        ...
+
+    def get_provenance(self, artifact_id: str) -> str | None:  # pragma: no cover -- Protocol stub, never executed
+        """Return the source layer (``"built-in"``/``"org"``/``"project"``) for *artifact_id*, or ``None``."""
+        ...
+
 
 #: Valid artifact provenance sources, derived from the single kernel authority
 #: (#6048) so the serialized ``source`` field cannot drift from the tier tuple.

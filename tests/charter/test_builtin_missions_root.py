@@ -23,7 +23,6 @@ from __future__ import annotations
 import pytest
 
 from charter.activation.mission_type_profile_repository import builtin_missions_root
-from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.unit]
 
@@ -32,15 +31,3 @@ def test_builtin_missions_root_ends_with_built_in_missions() -> None:
     root = builtin_missions_root()
 
     assert root.parts[-2:] == ("built-in", "missions")
-
-
-def test_builtin_missions_root_matches_module_relative_resolution() -> None:
-    """The accessor is a thin delegate onto the one promoted authority.
-
-    Not a second, independently-computed resolution -- see
-    ``tests/charter/test_missions_root_authority.py`` for the full
-    convergence regression this mirrors.
-    """
-    expected = MissionTemplateRepository.default_missions_root()
-
-    assert builtin_missions_root() == expected

@@ -129,8 +129,7 @@ jobs:
         with:
           filters: |
             built_in:
-              - 'packs/built-in/**'
-              # The pin lockfile: a lockfile-only edit must re-run the vendor drift gate (#3504).
+              # The pin lockfile: a lockfile-only edit must re-run the pin gate (#6451).
               - 'packs/built-in.source.yaml'
               - 'tests/charter_offering/**'
               - 'tests/architectural/test_pack_manifest_no_author_edit.py'
@@ -143,7 +142,8 @@ jobs:
               - 'src/charter/offering/schemas/**'
               - 'src/charter/offering/drg/**'
             internal:
-              - 'packs/internal/**'
+              # The pin lockfile: a pin bump re-runs the internal lane against the freshly fetched tree (#6451).
+              - 'packs/internal.source.yaml'
       - name: Install PyYAML (corpus selection only, no editable install)
         if: steps.green.outputs.skip != 'true'
         shell: bash
@@ -205,6 +205,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen spec-kitty regen --check
       - name: Surface remediation command on drift
         if: failure()
@@ -224,14 +225,15 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen spec-kitty charter pack regenerate-graph --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
           echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty charter pack regenerate-graph (then commit the diff)."
 
-  built-in-vendor-check:
-    name: built-in / vendor --check (pin drift gate)
+  built-in-pin-check:
+    name: built-in / pin gate (sync_packs --check)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
@@ -241,14 +243,18 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      # Offline (NFR-004): compares the committed tree to packs/built-in.source.yaml; no network, no token.
-      - run: |
-          uv sync --frozen --all-extras
-          uv run --frozen spec-kitty charter pack vendor --check
+      - name: Install the locked Python environment
+        run: uv sync --frozen --all-extras
+      # Fails closed (exit 1, stable PACK_* code) when a pin is unresolvable, a placeholder, or its tree digest
+      # does not match; the sync itself verifies the digest, the --check pass re-verifies the placed tree.
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      - name: Verify the placed trees equal their pins
+        run: uv run --frozen --no-sync python scripts/sync_packs.py --pack all --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
-          echo "::error::packs/built-in drifted from the pin. Do not hand-edit it. Bump the pin upstream in spec-kitty-open-packs, then run: spec-kitty charter pack vendor (then commit)."
+          echo "::error::A pack pin is unresolvable, still a placeholder, or its tree digest does not match. Do not hand-edit packs/. Bump the pin in packs/<pack>.source.yaml to a real spec-kitty-open-packs commit (commit + tree_digest), then run: make sync-packs (see docs for the bump procedure)."
 
   built-in-pack-manifest:
     name: built-in / pack-manifest freshness + authored-only guard
@@ -265,6 +271,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen pytest tests/architectural/test_pack_manifest_no_author_edit.py -q
 
   built-in-corpus-suite:
@@ -293,6 +300,7 @@ jobs:
           find . -depth -type d -name '__pycache__' -exec rm -rf {} +
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           # corpus exit-5 floor (#3008): "no tests collected" is a failure,
           # never a silent pass — do not swallow the exit code. Run parallel
           # (--dist loadfile, per-worker HOME isolation via conftest): ~1400
@@ -325,6 +333,7 @@ jobs:
       - name: Build plugin bundle + claude plugin validate --strict
         run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           if ! uv run --frozen spec-kitty plugin build --target claude-code 2>build.log; then
             echo "::error::spec-kitty plugin build (claude plugin validate --strict) failed."
             cat build.log >&2
@@ -352,6 +361,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen spec-kitty charter org validate packs/internal
 
   internal-packaging-safety:
@@ -367,6 +377,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen pytest tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages -q
 
   # ---------------------------------------------------------------------------
@@ -382,7 +393,7 @@ jobs:
       - changes
       - built-in-regen-check
       - built-in-drg-check
-      - built-in-vendor-check
+      - built-in-pin-check
       - built-in-pack-manifest
       - built-in-plugin-validate
       - internal-org-validate

@@ -2,7 +2,7 @@
 title: Understanding the Org Layer of the Charter Offering
 description: How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/charter-synthesis-drg.md
@@ -102,6 +102,17 @@ charter_packs:
 ```
 
 If both packs define `acme-001-secret-handling`, the `security` pack's version wins.
+
+The same rule holds for every dependency-graph (DRG) node an org pack declares in
+`drg/fragment.yaml`, whether or not the node also exists in the built-in pack: the
+later-declared pack's node replaces the earlier pack's. A relationship (edge) both
+packs declare is kept once, with the later pack's provenance and `reason`. Each
+replacement is logged as a warning naming both packs. When the merge also refuses
+the packs for another reason, the replacement is listed among the reported conflicts
+as a `node_override` whose `conflicting_layers` names the overridden pack first.
+Edges are additive: replacing a node does not remove the edges an earlier pack
+declared from it. (Before 4.0.0rc8 the first-declared pack's node won for a node the
+built-in pack does not ship; see the changelog.)
 
 ### Across layers
 

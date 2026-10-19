@@ -302,13 +302,14 @@ def test_ignore_words_list_keeps_a_legitimate_word_green_beside_a_real_typo(tmp_
     assert words == ["reding"]
 
 
-def test_packs_only_markdown_is_scanned(tmp_path: Path) -> None:
+def test_pack_content_is_not_scanned(tmp_path: Path) -> None:
+    # Pack content is authored in spec-kitty-open-packs, which owns its spelling (#6451).
     make_repo(
         tmp_path,
-        {"packs/built-in/x/prompt.md": TYPO_LINE, "packs/built-in/x/tool.py": "# the reding tests\n"},
+        {"packs/built-in/x/prompt.md": TYPO_LINE, "docs/guide.md": TYPO_LINE},
     )
     _, lines = run_main(tmp_path, "--pass", "typo")
-    assert [line.split(":")[0] for line in finding_lines(lines)] == ["packs/built-in/x/prompt.md"]
+    assert [line.split(":")[0] for line in finding_lines(lines)] == ["docs/guide.md"]
 
 
 def test_readme_is_scanned(tmp_path: Path) -> None:
@@ -348,15 +349,14 @@ def test_typo_scanned_count_is_the_in_scope_files_only(tmp_path: Path) -> None:
             "docs/plans/p.md": TYPO_LINE,
             "README.md": TYPO_LINE,
             "packs/built-in/x/prompt.md": TYPO_LINE,
-            "packs/built-in/x/tool.py": "# the reding tests\n",
             "docs/changelog/CHANGELOG.md": "# Changelog\n",
         },
     )
     (tmp_path / "docs" / "alias.md").symlink_to(tmp_path / "docs" / "changelog" / "CHANGELOG.md")
     result = cs.run_pass("typo", tmp_path, tmp_path / cs.DEFAULT_CHANGELOG)
-    # guide.md, README.md, prompt.md, CHANGELOG.md: skipped trees, the symlink and the .py are out.
-    assert result.scanned == 4
-    assert {finding.path for finding in result.findings} == {"docs/guide.md", "README.md", "packs/built-in/x/prompt.md"}
+    # guide.md, README.md, CHANGELOG.md: skipped trees, the symlink and packs/ are out.
+    assert result.scanned == 3
+    assert {finding.path for finding in result.findings} == {"docs/guide.md", "README.md"}
 
 
 # ---------------------------------------------------------------------------

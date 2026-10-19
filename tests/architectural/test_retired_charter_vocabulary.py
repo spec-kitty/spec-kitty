@@ -243,7 +243,11 @@ _C004_NAMES: tuple[str, ...] = ("doctrine-daphne", "DIRECTIVE_039")
 #: #6164 removed the frozen hosted/sync/drain surfaces (src packages + their test
 #: suites tests/auth, tests/zeitgeist_client, tests/live_work, …); re-floored to the
 #: new measured living-surface count.
-_FILE_FLOOR = 2368
+#: #6451 moved the authored source of ``packs/built-in/`` and ``packs/internal/`` to
+#: ``spec-kitty-open-packs``: the trees are synced at a pinned commit and no longer
+#: tracked here, so they leave this tracked-file scope; their vocabulary is the authoring
+#: repository's concern. Re-floored to the measured count on the #6451 branch (1825).
+_FILE_FLOOR = 1825
 
 
 @dataclass(frozen=True)

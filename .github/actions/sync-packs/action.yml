@@ -1,0 +1,52 @@
+name: "Sync packs"
+description: >-
+  Fetches and verifies the packs/built-in and packs/internal trees from the
+  spec-kitty-open-packs commits pinned in packs/*.source.yaml (#6451). Every
+  job that runs pytest, builds a distribution, or drives a pack command uses
+  this step (or the warmup action, which wraps it) after its dependencies are
+  installed. Fails closed: an unresolvable pin, a digest mismatch or a
+  placeholder pin exits 1 with a stable PACK_* code. The open-packs clone cache
+  is restored keyed on the pin files, so only a pin bump pays a cold fetch.
+  Guarded by tests/ci/test_workflows_sync_packs.py.
+
+inputs:
+  python:
+    description: >-
+      Command that runs a Python interpreter with the project's dependencies
+      installed (word-split, so it may carry arguments). Defaults to the uv
+      project environment; the Windows job passes its pipx venv interpreter.
+    required: false
+    default: "uv run --frozen --no-sync python"
+  python-exe:
+    description: >-
+      Path to a single Python interpreter, used verbatim and quoted (so it may
+      contain spaces, e.g. a Windows "C:\\Program Files" venv). Takes
+      precedence over `python` when set.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Restore the open-packs clone cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/spec-kitty/open-packs
+        key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
+
+    - name: Sync packs from the pinned open-packs commits
+      shell: bash
+      env:
+        SYNC_PYTHON: ${{ inputs.python }}
+        SYNC_PYTHON_EXE: ${{ inputs.python-exe }}
+      run: |
+        set -euo pipefail
+        # PYTHONPATH lets the script import charter/kernel before (or without) an
+        # editable project install, e.g. in a no-install-project environment.
+        if [ -n "${SYNC_PYTHON_EXE}" ]; then
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" "${SYNC_PYTHON_EXE}" scripts/sync_packs.py --pack all
+        else
+          # $SYNC_PYTHON is deliberately unquoted: it is a command plus arguments.
+          # shellcheck disable=SC2086
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" $SYNC_PYTHON scripts/sync_packs.py --pack all
+        fi

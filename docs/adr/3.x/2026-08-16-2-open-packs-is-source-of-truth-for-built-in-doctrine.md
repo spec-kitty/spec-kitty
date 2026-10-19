@@ -1,6 +1,6 @@
 ---
-title: 'ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release'
-description: 'Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change.'
+title: 'ADR: Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It (amended)'
+description: 'Built-in doctrine is authored in spec-kitty-open-packs; core pins it by commit and fetches the verified tree, so consumers see no change (amended 2026-10-19; was a CI re-vendor).'
 status: Accepted
 date: '2026-08-16'
 related:
@@ -10,7 +10,11 @@ related:
 - docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md
 ---
 
-# Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release
+# Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It
+
+**Original title (2026-08-16):** Open-packs Is the Source of Truth for Built-in Doctrine; CI
+Re-vendors It Into the Core Release. Retitled for the 2026-10-19 amendment (#6482); the
+decision text below is unchanged.
 
 **Filename:** `2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md`
 
@@ -81,6 +85,42 @@ found that the original text left the deciding questions open and had gone stale
 open-packs#31 (seed the content, map the layout, first tag, `requires_core`) → amend core
 (this ADR) → #3504 (lockfile, `spec-kitty charter pack vendor`, drift gate, release
 re-verification) → the authoring flip → Option C (#3022), unchanged as the north star.
+
+## Amendment (2026-10-19 — pin and fetch replace committed trees, #6451)
+
+**This amendment refines the 2026-10-11 amendment. It does not replace the decision text.**
+Where they disagree, this amendment binds.
+
+### Decision
+
+* The committed `packs/built-in/` and `packs/internal/` trees are no longer tracked in
+  this repository. Each tier is held as a pin lockfile, `packs/built-in.source.yaml` and
+  `packs/internal.source.yaml` (repository, commit SHA, subtree, clean-tree digest,
+  `requires_core`). Direction is open-packs to core.
+* The trees are fetched from the pinned commit by `make sync-packs`
+  (`scripts/sync_packs.py`, over `charter.offering.packs.pack_fetch`). The fetch is
+  cached under `${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs/<sha>/<subtree>`,
+  digest-verified on every cache read and every placement, and placed into the working
+  tree. No `[tool.uv.sources]` entry is involved: the subtree comes from the pin.
+* Upstream layout is `packs/built-in` and `packs/internal` in `spec-kitty-open-packs`
+  (open-packs#50). Pack content is authored there. Core then bumps the pin with
+  `spec-kitty charter pack vendor --pack <built-in|internal> --ref <sha>`, which resolves
+  the ref to a SHA, enforces `requires_core` and rewrites only the lockfile.
+  `vendor --check` verifies the placed tree against the pin offline.
+* A source checkout whose built-in tree was never fetched fails closed with
+  `BuiltInPackMissing`, which names `make sync-packs`. An installed wheel is unaffected.
+
+### Consequences
+
+* Editing a file under `packs/built-in/` in a core checkout is no longer a change: the
+  tree is regenerated from the pin. Author upstream, then bump.
+* Every lane or coordination worktree runs `make sync-packs` once; the shared cache makes
+  later runs cheap and offline-capable (`--offline`).
+* Fetch failures carry stable codes: `PACK_PIN_INVALID`, `PACK_COMMIT_UNRESOLVABLE`,
+  `PACK_SYNC_UNAVAILABLE`, `PACK_DIGEST_MISMATCH`, `PACK_TREE_STALE`.
+* The packaging invariant is unchanged. Consumers still receive byte-identical built-in
+  content in the wheel, and `packs/internal/` is still excluded from the wheel and sdist
+  (see ADR `2026-08-16-3`). Procedure: `docs/development/how-to/sync-packs.md`.
 
 ## Context and Problem Statement
 

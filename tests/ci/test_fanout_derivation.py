@@ -2,7 +2,7 @@
 
 ``gate_selection.derive_group_module_fanout()`` is the census's OWN answer for each
 fan-out group (the modules the committed census records consuming a path matching
-that group's router globs). These tests pin that the derivation:
+that group's fan-out globs, ``fanout_group_globs``). These tests pin that the derivation:
 
 * is non-vacuous — every group derives modules, and a malformed census raises;
 * leaves no census-derived module unrouted: each is in the hand fan-out or carries a

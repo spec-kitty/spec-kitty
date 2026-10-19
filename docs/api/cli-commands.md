@@ -970,8 +970,8 @@ _Charter pack management commands._
 │                   distributable.                                             │
 │ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
 │                   (FR-009).                                                  │
-│ vendor            Re-vendor ``packs/built-in/`` from the pinned              │
-│                   spec-kitty-open-packs commit, or verify it.                │
+│ vendor            Bump (or verify) a pack pin; the pack tree itself is       │
+│                   fetched by ``make sync-packs``.                            │
 │ asset             Resolve shipped and overlay charter pack assets (no        │
 │                   install — C-002).                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1167,15 +1167,21 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 ```
  Usage: spec-kitty charter pack vendor [OPTIONS]
 
- Re-vendor ``packs/built-in/`` from the pinned spec-kitty-open-packs commit, or
- verify it.
+ Bump (or verify) a pack pin; the pack tree itself is fetched by ``make
+ sync-packs``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check                 Verify only (offline): compare packs/built-in/ with  │
-│                         the pin lockfile; exit 1 on drift. Mutates nothing.  │
-│ --ref            <str>  Bump the pin to this open-packs tag or SHA (resolved │
-│                         to a SHA; a tag is never persisted).                 │
-│ --help   -h             Show this message and exit.                          │
+│ --check                   Verify only (offline): compare packs/<pack>/ with  │
+│                           its pin lockfile; exit 1 on drift. Mutates         │
+│                           nothing.                                           │
+│ --ref              <str>  Bump the pin to this open-packs commit SHA or      │
+│                           branch (resolved to a SHA; only the SHA is         │
+│                           persisted).                                        │
+│ --pack             <str>  Pack whose packs/<pack>.source.yaml pin to use.    │
+│                           [default: built-in]                                │
+│ --subtree          <str>  Override the pin's subtree (the pack's path inside │
+│                           the open-packs repository).                        │
+│ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

@@ -2,7 +2,7 @@
 title: System Context (living)
 description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
@@ -105,9 +105,13 @@ with Team Kitty as its **consumer**. Spec Kitty Core (the open-core CLI) owns th
 and the Lamport reducer and *publishes* the **Mission Status Read API** — the open-core
 producer surface (ADR [2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 Accepted). **Team Kitty — "Multiplayer Mode"** (mission-ui, the pack composer) is the **consumer**: it reads that API across its public contract boundary and is drawn
-here as a single opaque box, its internals not part of this repository's model. The charter is
-on its way to becoming its own external contract package / repository (ADR
-[2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)).
+here as a single opaque box, its internals not part of this repository's model. The Python
+charter stays in core until it is retired; its offering reads cut over to the
+`spec-kitty-charter` service through `charter.offering.api` (ADR
+[2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md),
+Amendment 2026-10-19; ADR
+[2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md), the
+earlier extraction direction, is superseded).
 
 *Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
 `contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.

@@ -234,14 +234,18 @@ jobs:
             dossier:
               - 'src/specify_cli/dossier/**'
             # issue #6125: mission-manifest group, NON-src (not in the unmatched loop, so a
-            # data-only manifest path can never mask an unmapped src/** change). File-specific
-            # (never broad packs/built-in/missions/**). Not a module: select_modules fans it out
+            # pin bump can never mask an unmapped src/** change). Census scope: the
+            # expected-artifacts.yaml manifests. Not a module: select_modules fans it out
             # to charter + dossier + specify_cli_runtime (gate_selection.GROUP_MODULE_FANOUT).
             # Gates no router job BY DESIGN; the module matrix is its per-PR executor.
             mission_manifest:
-              - 'packs/built-in/missions/**/expected-artifacts.yaml'
-            # Mission-pack-content group (#6166): NON-src (not in the unmatched loop, so a data-only
-            # pack path can never mask an unmapped src/** change, FR-004). Covers the CONSUMED mission
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
+              - 'packs/built-in.source.yaml'
+            # Mission-pack-content group (#6166): NON-src (not in the unmatched loop, so a pin bump
+            # can never mask an unmapped src/** change, FR-004). Census scope: the CONSUMED mission
             # pack content beyond expected-artifacts.yaml (which mission_manifest above owns) and
             # mission_types/** (which mission_type_definitions below owns): the mission-step
             # prompt/step contracts, the per-type templates, mission.yaml, mission-runtime.yaml,
@@ -250,25 +254,26 @@ jobs:
             # `corpus` group and selected zero modules. Not a module: select_modules fans it out to the
             # modules whose tests read that content (charter, next, missions, dossier,
             # specify_cli_runtime, execution_context -- gate_selection.GROUP_MODULE_FANOUT). Gates no
-            # router job BY DESIGN; the module matrix is its per-PR executor. Sub-tree-specific globs
-            # (not a blanket packs/built-in/missions/**): the files left out are the READMEs, which no
-            # module test reads (the always-on architectural battery still scans them), so they keep
-            # selecting zero modules (the corpus zero-module golden is preserved).
+            # router job BY DESIGN; the module matrix is its per-PR executor. The scope is
+            # sub-tree-specific (not a blanket packs/built-in/missions/**): it leaves out the READMEs,
+            # which no module test reads.
             mission_pack_content:
-              - 'packs/built-in/missions/mission-steps/**'
-              - 'packs/built-in/missions/*/templates/**'
-              - 'packs/built-in/missions/*/mission.yaml'
-              - 'packs/built-in/missions/*/mission-runtime.yaml'
-              - 'packs/built-in/missions/*/actions/**'
-              - 'packs/built-in/missions/*/governance-profile.yaml'
-              - 'packs/built-in/missions/built_in_step_contracts/**'
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
+              - 'packs/built-in.source.yaml'
             # Mission-type-definitions group (#6166 landing review): NON-src, like mission_pack_content
             # above. The built-in mission-type YAMLs have a wider consumer set than the rest of the pack
             # (core_misc + upgrade read them; next/missions/dossier do not), so they get their own group
             # instead of widening every prompt.md edit by 9 shards. Fanned out to charter, core_misc and
             # upgrade by gate_selection.GROUP_MODULE_FANOUT; gates no router job BY DESIGN.
             mission_type_definitions:
-              - 'packs/built-in/missions/mission_types/**'
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
+              - 'packs/built-in.source.yaml'
             # Reducer-lock group (#6238): NON-src, so it can never mask an unmapped src/** change. A
             # uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet
             # selected neither the upgrade nor the status shard. Fanned out by
@@ -833,6 +838,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen spec-kitty regen --check
 
   # ---------------------------------------------------------------------------
@@ -853,6 +859,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q
 
   # Docs prose lint (#5426): codespell (typos + scoped US spelling) and the
@@ -886,6 +893,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen pytest tests/architectural/test_layer_rules.py tests/architectural/test_pyproject_shape.py -q
 
   # FAST always-on archive freeze (NFR-002 / #4365): the heavy battery below is
@@ -911,6 +919,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen pytest tests/architectural/test_archive_root_byte_identical.py -q
 
   # FAST always-on architectural gates (FR-003, #5510): the registry-held roster
@@ -940,6 +949,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           uv run --frozen python -m pytest tests/architectural \
             -m "not performance and not stress and not timing" \
             -n 4 --dist loadfile \
@@ -1045,6 +1055,8 @@ jobs:
           python-version: '3.12'
       - name: Sync dev environment
         run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       # Shared test-universe collection (mission shared-collection-and-shard-recapture,
       # FR-008/FR-009). A leg that holds a test requesting the universe, and the `ci`
       # module shard, collect once HERE, before pytest, and the tests reuse the stored
@@ -1167,6 +1179,8 @@ jobs:
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
       - name: Install dependencies
         run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Run tests
         run: |
           uv run --frozen pytest tests/docs -q
@@ -1192,6 +1206,8 @@ jobs:
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
       - name: Install dependencies
         run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Run tests
         run: |
           uv run --frozen pytest tests/e2e -q
@@ -1242,6 +1258,8 @@ jobs:
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
       - name: Install dependencies
         run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Run tests
         run: |
           uv run --frozen pytest -rs -m "corpus and not windows_ci" \
@@ -1284,6 +1302,16 @@ jobs:
           python-version: '3.12'
       - name: Install the locked Python environment
         run: uv sync --frozen --no-install-project
+      # tests/contract imports charter, which reads packs/built-in (#6451). Inline (not the
+      # sync-packs composite action): tests/ci/test_contracts_workflows.py allows only
+      # SHA-pinned external actions in this job. Same cache key as .github/actions/sync-packs.
+      - name: Restore the open-packs clone cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/spec-kitty/open-packs
+          key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
+      - name: Sync packs from the pinned open-packs commits
+        run: PYTHONPATH="${GITHUB_WORKSPACE}/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
       - name: Run the contract tool unit tests
         run: |
           uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \
@@ -1321,6 +1349,8 @@ jobs:
           python-version: '3.12'
       - name: Install the locked Python environment
         run: uv sync --frozen
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Audit every Mission's state
         id: audit
         run: |

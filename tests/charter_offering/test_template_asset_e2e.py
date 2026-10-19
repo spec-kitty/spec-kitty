@@ -245,14 +245,14 @@ class TestNoRegressionForExistingKinds:
     asset/template uniqueness hard-fail (the scan is prefix-scoped by
     construction, D-04 revised)."""
 
-    def test_duplicate_directive_id_across_org_packs_still_silently_overrides(
+    def test_duplicate_directive_id_across_org_packs_still_overrides(
         self,
     ) -> None:
-        """Two org packs shipping the same `directive:` id is UNCHANGED
-        behavior: first-wins, no `DuplicateURNError` (that hard-fail is
-        scoped strictly to `asset:`/`template:` by
+        """Two org packs shipping the same `directive:` id still override, with
+        no `DuplicateURNError` (that hard-fail is scoped strictly to
+        `asset:`/`template:` by
         :func:`charter.offering.drg.merge._check_node_urn_unique`'s prefix
-        argument)."""
+        argument). The later-declared pack wins (spec-kitty-charter #87)."""
         pack_a = OrgDRGFragment.model_validate(
             {
                 "pack_name": "regnology-pack-a",
@@ -286,15 +286,15 @@ class TestNoRegressionForExistingKinds:
             }
         )
 
-        # Must NOT raise — this is the pre-existing, unchanged behavior.
+        # Must NOT raise — a directive collision is an override, not an error.
         merged = merge_three_layers(
             built_in=_built_in_graph(), org_fragments=[pack_a, pack_b], project=None
         )
 
         directive_node = merged.get_node("directive:referenced-policy")
         assert directive_node is not None
-        # First-wins: pack_a's node survives (declared first in org_fragments).
-        assert directive_node.label == "Pack A's Referenced Policy"
+        # Later-declared wins: pack_b's node survives (declared last).
+        assert directive_node.label == "Pack B's Referenced Policy"
 
     def test_builtin_graph_references_the_first_shipped_asset(
         self,

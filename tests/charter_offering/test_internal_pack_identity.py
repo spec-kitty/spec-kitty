@@ -1,4 +1,4 @@
-"""Identity + org-pack-load contract for ``packs/internal/pack.yaml`` (WP04, T020).
+"""Identity + org-pack-load contract for ``packs/internal/pack.yaml`` (WP04, T020; WP07).
 
 FR-012: the in-house maintainer pack (``packs/internal/``) is an ORG-tier
 Charter Pack that now carries an authored ``pack.yaml`` descriptor. This module
@@ -25,18 +25,23 @@ corpus only -- see
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
-from charter.offering.packs.pack_descriptor import load_pack_descriptor
+from charter.offering.packs.pack_descriptor import PackDescriptor, load_pack_descriptor
+from charter.offering.packs.pack_fetch import PackTreeStatus, check_pack
+from charter.offering.packs.pack_pin import PackPin, load_pack_pin
 from kernel.pack_tiers import ORG
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INTERNAL_ROOT = _REPO_ROOT / "packs" / "internal"
+_INTERNAL_PIN = _REPO_ROOT / "packs" / "internal.source.yaml"
+_PLACEHOLDER_SHA = "0" * 40
 
 # The pinned, minted ULID identity of the internal org pack. Immutable: changing
 # it re-identifies the pack. If this ever needs to change, it is a deliberate,
@@ -71,7 +76,37 @@ def test_internal_pack_loads_as_an_org_pack_with_declared_pointers() -> None:
     assert fragment.pack_name == "spec-kitty-internal"
 
 
-def test_internal_pack_declares_no_pack_version() -> None:
-    """An org pack need not author ``pack_version`` (FR-005); internal omits it."""
-    descriptor = load_pack_descriptor(_INTERNAL_ROOT / "pack.yaml")
-    assert descriptor.pack_version is None
+def _synced_internal_descriptor(pin: PackPin) -> PackDescriptor:
+    """Return the descriptor of the synced internal tree, proven to be the pinned one without network.
+
+    ``check_pack`` re-hashes ``packs/internal`` against the pin's clean-tree digest, so a
+    passing check means the tree on disk is byte-for-byte the pinned open-packs tree.
+    Absence or staleness fails loudly (no skip): the fast tier never contacts the network.
+    """
+    if pin.commit == _PLACEHOLDER_SHA:
+        pytest.fail(
+            "packs/internal.source.yaml still pins the placeholder commit: the open-packs PR carrying "
+            "pack_version and pack_level: org for packs/internal is pending (#6451, WP01); "
+            "set the merged SHA and digest, then run `make sync-packs`."
+        )
+    status = check_pack(pin, _INTERNAL_ROOT)
+    if status is not PackTreeStatus.OK:
+        pytest.fail(f"packs/internal is {status.value} against packs/internal.source.yaml (tree absent or not the pinned digest); run `make sync-packs`")
+    return load_pack_descriptor(_INTERNAL_ROOT / "pack.yaml")
+
+
+def test_internal_pack_version_equals_open_packs_pinned_value() -> None:
+    """The synced internal pack is the digest-verified pinned tree and declares ``pack_version`` and ``org`` level.
+
+    Never None-tolerant and never networked: a missing version fails, an unsynced tree fails.
+    """
+    descriptor = _synced_internal_descriptor(load_pack_pin(_INTERNAL_PIN))
+
+    assert descriptor.pack_version is not None, "open-packs pinned internal pack.yaml must declare pack_version"
+    assert descriptor.pack_level == ORG, "open-packs pinned internal pack must stay pack_level: org"
+
+
+def test_unsynced_internal_tree_fails_loudly_naming_make_sync_packs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys.modules[__name__], "_INTERNAL_ROOT", tmp_path / "absent")
+    with pytest.raises(pytest.fail.Exception, match="make sync-packs"):
+        _synced_internal_descriptor(load_pack_pin(_INTERNAL_PIN))

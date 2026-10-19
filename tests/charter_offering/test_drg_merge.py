@@ -764,7 +764,7 @@ class TestGlobalURNUniquenessScan:
     any duplicate ``asset:`` or ``template:`` URN — replacing the org-vs-org
     silent first-wins for these two kinds and additionally covering the
     built-in-vs-org and project-vs-any collision surfaces. The other 9 kinds'
-    layered-override tolerance (org-vs-org first-wins, built-in-vs-org
+    layered-override tolerance (org-vs-org later-declared-wins, built-in-vs-org
     override, project-vs-any override) is untouched by construction."""
 
     def test_two_org_packs_shipping_duplicate_asset_id_hard_fails(self) -> None:

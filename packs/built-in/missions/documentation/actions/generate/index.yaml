@@ -1,9 +1,0 @@
-action: generate
-directives:
-  - 010-specification-fidelity-requirement
-  - 037-living-documentation-sync
-tactics:
-  - requirements-validation-workflow
-styleguides: []
-toolguides: []
-procedures: []

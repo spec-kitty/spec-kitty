@@ -57,7 +57,8 @@ _QUOTED_RE = re.compile(r'"([\w-]+)"')
 #
 # ``test_vestigial_glob_rows_stay_earned`` keeps this honest: a row whose glob
 # has left the workflow, or which has become live, reds until it is deleted —
-# the ledger cannot outlive its subject.
+# the ledger cannot outlive its subject. (#6480 emptied it: the pack content globs
+# #6451 left dead moved to gate_selection.PACK_CONTENT_SCOPES.)
 VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {}
 
 # NFR-007 fault-injection pair: a make target whose NAME shares nothing with

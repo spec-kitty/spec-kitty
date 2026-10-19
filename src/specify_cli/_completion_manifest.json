@@ -519,7 +519,7 @@
        "deprecated": false
       },
       "vendor": {
-       "help": "Re-vendor ``packs/built-in/`` from the pinned spec-kitty-open-packs commit, or verify it.",
+       "help": "Bump (or verify) a pack pin; the pack tree itself is fetched by ``make sync-packs``.",
        "hidden": false,
        "deprecated": false
       },

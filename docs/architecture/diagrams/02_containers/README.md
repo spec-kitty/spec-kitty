@@ -2,7 +2,7 @@
 title: Containers (living)
 description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -252,7 +252,10 @@ Lamport reducer; the **Mission Status Read API** (a Java service that is to star
 modular component and be extracted when its contract freezes — ADR
 [2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 Accepted) reads that ledger as a read model and **conforms to** the contract beside the Python
-reducer. The **charter** is extracting into its own external contract package / repository (ADR
+reducer. The **charter** stays in core until it is retired; its offering reads cut over to the
+`spec-kitty-charter` service through `charter.offering.api` (ADR
+[2026-10-03-1](../../../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md),
+Amendment 2026-10-19, superseding the repository extraction of ADR
 [2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)); the
 pack source home is `spec-kitty-open-packs`. **Team Kitty ("Multiplayer Mode")** consumes the
 API across its contract boundary and is a single opaque container here.
@@ -262,7 +265,7 @@ API across its contract boundary and is a single opaque container here.
 
 Alt-text: an open-core boundary containing the CLI, the event ledger, the Lamport reducer, the
 Mission-Status Read API (Java, planned, to start in-repo), the extracting charter and the
-vendored packs; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
+fetched packs; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
 units; and the API contract seam as the one boundary to the opaque Team Kitty consumer.
 
 ```mermaid
@@ -282,7 +285,7 @@ flowchart TB
       reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
       statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
       charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
-      packsrc["<b>Vendored packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (vendored from open-packs)</i>"]
+      packsrc["<b>Fetched packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (pinned, fetched from open-packs)</i>"]
     end
     events["spec-kitty-events<br/><i>pkg (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>pkg (wheel) · exists</i>"]
@@ -300,7 +303,7 @@ flowchart TB
     cli -->|resolves doctrine| packsrc
     events -->|consumed| cli
     tracker -->|consumed| cli
-    openpacks -->|vendored at release| packsrc
+    openpacks -->|pinned and fetched| packsrc
     statusapi -->|conforms to| seam
     statusapi -. extract to own open-core repo .-> apiRepoFuture
     seam -->|consumed across contract| teamkitty

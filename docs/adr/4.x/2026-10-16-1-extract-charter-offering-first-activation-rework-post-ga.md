@@ -3,7 +3,7 @@ title: 'ADR: extract the charter offering layer first as the GA gate leg; the ac
 description: 'Charter extraction splits by seam: offering extracts first as the 4.0.0 GA gate leg; the activation drain/rework moves off-gate to CLI 4.x stable. Amends 2026-10-12-2.'
 status: Accepted
 date: '2026-10-16'
-updated: '2026-10-16'
+updated: '2026-10-19'
 ---
 
 **Status:** Accepted (2026-10-16).
@@ -96,7 +96,7 @@ the activation rework rides the post-GA CLI 4.x stable line.**
   | P1 | #6285 | enumerate + freeze the offering public contract surface (reconcile `charter.offering.api` + the `charter.*` facades; annotate ADR-0004 DTO-forward) | M | — |
   | P2 | #6286 | red-first offering contract-conformance acceptance suite against the frozen surface (the "a seam-pinned consumer survives the split" net) | M | **yes** |
   | P3 | #6287 | enforce `charter` as an external contract package at the boundary/layer gates (importing up the chain fails dependency resolution) | L | — |
-  | P4 | #6288 | extract `src/charter/offering/` to `spec-kitty-charter`, consume version-locked first | L | — |
+  | P4 | #6288 | ~~extract `src/charter/offering/` to `spec-kitty-charter`, consume version-locked first~~ **(replaced by Amendment 2026-10-19):** the offering stays in core behind `charter.offering.api` and is replaced in place by the spec-kitty-charter service (spec-kitty-charter ADR-0008). The 4.0.0 leg is a frozen seam and a green conformance corpus, not an extraction. | L | — |
 
   #6218 (align `api.py` C-003 with `spec-kitty-charter` ADR-0004) is a **P1 prerequisite**, not a
   phase — it is docs/ADR only. The single first ticket is **#6285 (P1)**.
@@ -160,3 +160,37 @@ the activation rework rides the post-GA CLI 4.x stable line.**
 - [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md) — the GA gate legs.
 - `spec-kitty-charter` ADR-0004 (the public API returns generated OpenAPI DTOs), tracked in
   core by #6218.
+
+## Amendment 2026-10-19: P4 is replaced; the offering is replaced in place, not extracted
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-19. Requested by
+[`spec-kitty-charter` ADR-0010](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0010-cutover-scope-and-seam-boundary.md)
+("Requests to core"), building on `spec-kitty-charter`
+[ADR-0008](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0008-rewrite-and-replace-against-bdd-and-openapi-contracts.md)
+(rewrite and replace). Recorded in
+[spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88).
+
+D-3, phase P4 (#6288, "extract `src/charter/offering/` to `spec-kitty-charter`") is replaced
+with:
+
+> The offering stays in core behind `charter.offering.api` and is replaced in place by the
+> spec-kitty-charter service (spec-kitty-charter ADR-0008). The 4.0.0 leg is a frozen seam and
+> a green conformance corpus, not an extraction.
+
+What this changes in the record above:
+
+- **D-1 is read through this amendment.** "Extract `charter.offering` first" no longer means a
+  repository move. Nothing Python moves to `spec-kitty-charter`; the Python charter stays in
+  core until its reads are retired by the cutover that ADR
+  [2026-10-03-1](2026-10-03-1-charter-read-write-service-strangler.md) (Amendment 2026-10-19)
+  governs. The GA leg is the frozen seam (P1, #6285) and the green conformance corpus (P2,
+  #6286).
+- **D-2 stands.** `charter.activation` stays in core until its post-GA rework.
+- **ADR [2026-10-12-2](2026-10-12-2-charter-extraction-to-its-own-repository.md) is
+  superseded** by `spec-kitty-charter` ADR-0008 and ADR-0010 (operator ruling, 2026-10-19).
+- **P3 (#6287) is premised on the extraction** (`charter` as an external contract package at
+  the boundary gates). It is not re-scoped by this amendment; the operator decides its fate
+  separately.
+- The *Confirmation* bullet "an architectural test pins `charter.offering` as an external
+  contract package once the extraction lands" no longer applies: no extraction lands. The
+  phase-2 conformance corpus remains the net.

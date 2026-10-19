@@ -2,7 +2,7 @@
 title: 'Context: Spec Kitty Inc. Product Lines'
 description: 'Glossary context for the Spec Kitty Inc. product lines (Build Kitty, Brain Kitty, Team Kitty) and how they differ from the Spec Kitty toolkit and CLI.'
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -35,7 +35,7 @@ Brain Kitty) and Team Kitty as the **consumer** side.
 
 | | |
 |---|---|
-| **Definition** | The open-core governance and doctrine line: the charter, a producer-side open-core unit that is being extracted into its own repository so open-core consumers can depend on it without the whole CLI. |
+| **Definition** | The open-core governance and doctrine line: the charter, a producer-side open-core unit. The Python charter stays in core until it is retired; its offering reads cut over to the `spec-kitty-charter` service through `charter.offering.api` (the repository extraction of ADR 2026-10-12-2 is superseded, 2026-10-19). |
 | **Context** | Product lines |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |

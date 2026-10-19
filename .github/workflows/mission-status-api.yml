@@ -504,6 +504,10 @@ jobs:
           python-version: '3.12'
       - name: Install the fully synced environment (the oracle module imports the test extras)
         run: uv sync --frozen --all-extras
+      # Inline rather than the composite action: this workflow's pin table
+      # (tests/ci/test_mission_status_api_build.py) admits only SHA-pinned external actions.
+      - name: Sync packs from the pinned open-packs commits
+        run: PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
       - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
         with:

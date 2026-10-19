@@ -44,8 +44,8 @@ below, a throughline does not retire when a milestone closes.
   [Charter-Resolution Program](charter-resolution/README.md).
 - **Packs extraction** — [Packs Extraction — Domain Plan](domains/packs-extraction-domain-plan.md):
   re-extracting the doctrine layer from `src/charter/offering/` and `packs/built-in/`
-  into separately released units: the wheel split (#3101), open-packs re-vendoring
-  (#3504) and verified distribution (#2539). None of it is 4.0.0 scope.
+  into separately released units: the wheel split (#3101), open-packs pinning and fetch
+  (#3504, #6451) and verified distribution (#2539). None of it is 4.0.0 scope.
 - **API & dashboard** — [API & Dashboard — Domain Plan](domains/api-dashboard-domain-plan.md):
   the stable application/mission-data API surface (#645) and the dashboard/UX consumers
   (#650), including retiring the Feature-labelled UI drift.
@@ -118,11 +118,13 @@ record: each folder's own `index.md` says what in it is live and what is retired
   matrices, and RFC/endpoint research.
 - **[Engineering notes](engineering-notes/index.md)** — the live remainder: architecture
   audits & reviews, mission notes, DRG/doctrine analyses, and maintenance/field-report
-  briefs. (The runtime/state-overhaul, surface-resolution-cluster, and triage-log
-  sub-clusters have been distilled and retired to `deprecated`; they remain on disk as
-  archived provenance only.)
-- **[User journeys](user_journey/index.md)** — the 2.x-era vision journeys (historical) plus
-  the live init/doctrine flow walkthrough.
+  briefs. (The runtime/state-overhaul, surface-resolution-cluster, naming/identity
+  SSOT strangler, and triage-log sub-clusters have been distilled, retired to
+  `deprecated`, and moved to `docs/archive/plans/engineering-notes/` as archived
+  provenance; one stub at the old runtime/state-overhaul path keeps ADR links resolving.)
+- **[User journeys](user_journey/index.md)** — the 2.x-era vision journeys (historical); the
+  init/charter walkthrough moved to the
+  [guides](../guides/how-to/governance/init-and-project-charter.md).
 - **[Research](research/index.md)** — research deliverables (era spikes/explorations).
 
 Retired collections (distilled and closed out; their `index.md` is `deprecated`, kept

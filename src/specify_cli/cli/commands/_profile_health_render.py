@@ -404,7 +404,7 @@ def _render_org_conflicts(console: Console, exc: OrgDRGConflictError) -> None:
         )
         _render_conflict_bullets(console, fatal, style="red")
     if advisory:
-        console.print(f"  collisions: {len(advisory)} built-in invariant override(s)")
+        console.print(f"  collisions: {len(advisory)} override(s) resolved by precedence")
         _render_conflict_bullets(console, advisory, style="yellow")
     elif not fatal:  # pragma: no cover — the merge only raises when one exists
         console.print("  collisions: none")

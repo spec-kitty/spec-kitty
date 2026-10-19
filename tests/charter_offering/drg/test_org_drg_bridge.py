@@ -774,9 +774,10 @@ class TestOneRelationshipYieldsOneEdge:
         """Edge identity is the ``(source, target, relation)`` triple.
 
         The DRG validator already calls a repeated triple an error, so two packs
-        that happen to declare the same relationship must collapse (first pack
-        keeps provenance, mirroring org-vs-org node precedence) rather than
-        produce a graph that fails its own integrity check.
+        that happen to declare the same relationship must collapse (the
+        later-declared pack keeps provenance, mirroring org-vs-org node
+        precedence, spec-kitty-charter #87) rather than produce a graph that
+        fails its own integrity check.
         """
         def _pack(name: str) -> OrgDRGFragment:
             return _fragment(
@@ -799,8 +800,8 @@ class TestOneRelationshipYieldsOneEdge:
         ]
         assert _duplicate_edge_errors(merged) == []
         contributed = [e for e in merged.edges if str(e.provenance).startswith("org:")]
-        assert [e.provenance for e in contributed] == ["org:first"], (
-            "the first declaring pack keeps provenance, as it does for nodes"
+        assert [e.provenance for e in contributed] == ["org:second"], (
+            "the later-declared pack keeps provenance, as it does for nodes"
         )
 
     def test_a_discarded_distinct_rationale_is_not_lost_in_silence(
@@ -841,12 +842,16 @@ class TestOneRelationshipYieldsOneEdge:
         assert _org_edges(merged, built_in) == [
             ("directive:shared-node", "directive:builtin-alpha", "requires")
         ], "the collapse itself is still correct"
-        assert "GDPR Art. 30" in caplog.text, (
+        # Later-declared pack wins (spec-kitty-charter #87): the first pack's
+        # rationale is the one discarded.
+        assert "SOX 404 evidence" in caplog.text, (
             f"the discarded rationale must be named; got {caplog.text!r}"
         )
-        assert "org:second" in caplog.text, (
+        assert "Discarded reason from 'org:first'" in caplog.text, (
             f"the warning must name the pack whose reason was dropped; got {caplog.text!r}"
         )
+        [kept] = [e for e in merged.edges if str(e.provenance).startswith("org:")]
+        assert kept.reason == "GDPR Art. 30"
 
     def test_one_pack_disagreeing_with_itself_is_named_once(
         self, caplog: pytest.LogCaptureFixture

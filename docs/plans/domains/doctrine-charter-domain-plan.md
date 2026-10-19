@@ -2,7 +2,7 @@
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -90,6 +90,15 @@ state.
 [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) "Direction update (2026-10-12)")
 changes the release-scoped "what ships when" for this domain. The **invariants below are
 unchanged**; only the gating and the extraction target move.*
+
+> **Superseded 2026-10-19 (operator ruling).** The charter does not move to its own
+> repository. The Python charter stays in core until it is retired, and nothing Python moves
+> to `spec-kitty-charter`; offering reads cut over to the `spec-kitty-charter` service through
+> `charter.offering.api`, and `charter.activation` stays in core until its post-GA rework. The
+> GA leg is a frozen seam and a green conformance corpus (epic #6099, re-scoped), not an
+> extraction. ADR 2026-10-12-2 is superseded by `spec-kitty-charter` ADR-0008 and ADR-0010; see
+> ADR [2026-10-16-1](../../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md),
+> Amendment 2026-10-19.
 
 - **Charter modular extraction is a GA gate leg.** The charter (`src/charter/offering/`, or all
   of `src/charter/`) becomes an **independently-released external contract package in its own

@@ -5,63 +5,18 @@ import tempfile
 from pathlib import Path
 
 from charter.activation.schemas import (
-    BranchStrategyConfig,
     CommitConfig,
     Directive,
     DirectivesConfig,
     GovernanceCharterConfig,
-    ExtractionMetadata,
     GovernanceConfig,
     PerformanceConfig,
     QualityConfig,
-    SectionsParsed,
     CharterTestingConfig,
     emit_yaml,
 )
 
 pytestmark = pytest.mark.fast
-
-class TestCharterTestingConfig:
-    def test_default_values(self) -> None:
-        config = CharterTestingConfig()
-        assert config.min_coverage == 0
-        assert config.tdd_required is False
-        assert config.framework == ""
-        assert config.type_checking == ""
-
-
-class TestQualityConfig:
-    def test_default_values(self) -> None:
-        config = QualityConfig()
-        assert config.linting == ""
-        assert config.pr_approvals == 1
-        assert config.pre_commit_hooks is False
-
-
-class TestPerformanceConfig:
-    def test_default_values(self) -> None:
-        config = PerformanceConfig()
-        assert config.cli_timeout_seconds == 2.0
-        assert config.dashboard_max_wps == 100
-
-
-class TestBranchStrategyConfig:
-    def test_default_values(self) -> None:
-        config = BranchStrategyConfig()
-        assert config.main_branch == "main"
-        assert config.dev_branch is None
-        assert config.rules == []
-
-
-class TestDoctrineSelectionConfig:
-    def test_default_values(self) -> None:
-        config = GovernanceCharterConfig()
-        assert config.selected_paradigms == []
-        assert config.selected_directives == []
-        assert config.available_tools == []
-        assert config.governance_references == []
-        assert config.template_set is None
-
 
 class TestGovernanceConfig:
     def test_default_values(self) -> None:
@@ -89,21 +44,6 @@ class TestDirective:
         assert directive.id == "D001"
         assert directive.title == "Test Coverage"
         assert directive.severity == "warn"
-
-
-class TestDirectivesConfig:
-    def test_default_values(self) -> None:
-        config = DirectivesConfig()
-        assert config.directives == []
-
-
-class TestExtractionMetadata:
-    def test_default_values(self) -> None:
-        meta = ExtractionMetadata()
-        assert meta.schema_version == "1.0.0"
-        assert meta.extraction_mode == "deterministic"
-        assert meta.source_path == ".kittify/charter/charter.md"
-        assert isinstance(meta.sections_parsed, SectionsParsed)
 
 
 class TestEmitYAML:

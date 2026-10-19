@@ -21,6 +21,7 @@ import pytest
 import yaml
 
 from tests._support.import_origin import assert_checkout_source
+from tests._support.pack_tree_guard import assert_pack_tree_current
 
 from kernel.clock import now_epoch
 from kernel.locks import LockAcquireTimeout, machine_file_lock
@@ -224,6 +225,8 @@ def pytest_configure(config: pytest.Config) -> None:
     import specify_cli
 
     assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+    # #6451: a pin bump pulled without `make sync-packs` must not run against the old tree.
+    assert_pack_tree_current(Path(__file__).resolve().parents[1])
 
     # TEST-M2-03 (xdist-order-sensitive families): promote a silently-scattered
     # bare `-n <N>` to `--dist loadfile`. See

@@ -256,6 +256,8 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Set up environment
         run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Run length-agreement + battery-timings + pinning-inventory freshness gates under strict mode
         env:
           SPEC_KITTY_STRICT_SHARD_TIMINGS: "1"

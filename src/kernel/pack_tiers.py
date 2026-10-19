@@ -42,6 +42,7 @@ __all__ = [
     "PACK_TIERS",
     "PROJECT",
     "PackTier",
+    "pin_filename",
 ]
 
 #: The single canonical spelling of the built-in tier token. Matches the
@@ -68,3 +69,19 @@ PACK_TIERS: Final[tuple[str, str, str]] = (BUILT_IN, ORG, PROJECT)
 #: authority gate (``tests/architectural/test_pack_tier_token_single_authority.py``)
 #: permits a hand-authored tier-token literal.
 PackTier = Literal["built-in", "org", "project"]
+
+
+_PIN_SUFFIX: Final = ".source.yaml"
+
+
+def pin_filename(pack: str) -> str:
+    """Return the pin lockfile name for *pack* (``built-in`` -> ``built-in.source.yaml``).
+
+    The one place the ``<pack>.source.yaml`` naming lives for importable code
+    (``scripts/sync_packs.py``, ``charter.offering.pack_paths``, ``charter pack
+    vendor``). It sits here, at the cycle-free floor, because
+    ``charter.offering.pack_paths`` cannot import ``pack_pin`` (pack_pin ->
+    clean digest -> presets -> pack_paths). ``hatch_build.py`` keeps its own
+    literal: it runs before ``src/`` is on ``sys.path``.
+    """
+    return f"{pack}{_PIN_SUFFIX}"

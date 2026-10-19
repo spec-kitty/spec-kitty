@@ -227,6 +227,13 @@ jobs:
             --output-file .cutover-requirements.lock.txt
           python -m pip install -r .cutover-requirements.lock.txt
 
+      - name: Sync packs from the pinned open-packs commits
+        # packs/built-in is not tracked (#6451); the guard imports charter, which reads it.
+        # The guard environment is pip-installed (no uv project env), so use the pip interpreter.
+        uses: ./.github/actions/sync-packs
+        with:
+          python: python
+
       - name: Hydrate base-ref remote-tracking branch if missing
         run: |
           if ! git show-ref --verify --quiet "refs/remotes/origin/${{ github.base_ref }}"; then

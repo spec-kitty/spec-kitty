@@ -103,15 +103,37 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
 
 
 def test_wheel_config_only_includes_built_in_pack_skills() -> None:
-    """Config-level twin (no build): the wheel include/force-include is scoped to ``packs/built-in``."""
+    """Config-level twin (no build): the built-in tree ships via the build hook, never ``packs/internal``."""
     import tomllib
 
-    pyproject = tomllib.loads((Path(__file__).resolve().parents[3] / "pyproject.toml").read_text(encoding="utf-8"))
-    wheel = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]
-    packs_entries = [entry for entry in (*wheel.get("force-include", {}), *wheel.get("include", [])) if "packs/" in entry]
-    assert packs_entries, "expected the packs/built-in include to be declared"
+    root = Path(__file__).resolve().parents[3]
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    build = pyproject["tool"]["hatch"]["build"]
+    wheel, sdist = build["targets"]["wheel"], build["targets"]["sdist"]
+    assert "custom" in build["hooks"], "the pinned-tree build hook must be registered"
+    assert "packs/built-in" not in wheel.get("force-include", {}), "force-include now lives in the hook (applied only after verification)"
+    assert "packs/built-in/**" in sdist["artifacts"], "VCS-ignored built-in tree must still reach the sdist"
+    declared = [*wheel.get("force-include", {}), *wheel.get("include", []), *sdist.get("include", []), *sdist.get("artifacts", [])]
+    packs_entries = [entry for entry in declared if "packs/" in entry]
+    assert packs_entries
     assert all(entry.startswith("packs/built-in") for entry in packs_entries), packs_entries
     assert not any("internal" in entry for entry in packs_entries)
+
+
+@pytest.mark.slow
+def test_wheel_and_sdist_contain_built_in_files_and_no_internal(build_artifacts: dict[str, Path]) -> None:
+    """FR-007 / C-002: both archives ship ``packs/built-in`` (with the pin) and nothing of ``packs/internal``."""
+    with zipfile.ZipFile(build_artifacts["wheel"]) as zf:
+        wheel_files = zf.namelist()
+    with tarfile.open(build_artifacts["sdist"], "r:gz") as tar:
+        sdist_files = [name.split("/", 1)[1] for name in tar.getnames() if "/" in name]
+
+    assert any(name.startswith("packs/built-in/") and name.endswith("pack.yaml") for name in wheel_files)
+    assert any(name.startswith("packs/built-in/") and name.endswith("pack.yaml") for name in sdist_files)
+    assert "packs/built-in.source.yaml" in sdist_files, "the sdist must carry the pin so the hook can verify offline"
+    for label, names in (("wheel", wheel_files), ("sdist", sdist_files)):
+        leaked = [name for name in names if name.startswith(("packs/internal", "packs/internal.source"))]
+        assert not leaked, f"{label} leaked packs/internal: {leaked[:5]}"
 
 
 @pytest.mark.slow
@@ -217,3 +239,15 @@ def test_sdist_excludes_the_mission_status_service_and_the_contract_tree(build_a
     assert not leaked, f"Source dist contains the service or contract tree: {leaked[:10]}"
     assert any(path.startswith("src/specify_cli/") for path in rooted), "Source dist is missing the specify_cli package (positive control failed)"
     assert "pyproject.toml" in rooted, "Source dist root has no pyproject.toml (the anchoring assumption failed)"
+
+
+@pytest.mark.slow
+def test_sdist_member_list_has_the_source_packages_and_the_built_in_tree(build_artifacts: dict[str, Path]) -> None:
+    """T047: the sdist carries ``src/kernel``, ``src/charter`` and ``packs/built-in/**`` and zero ``packs/internal/*``."""
+    with tarfile.open(build_artifacts["sdist"], "r:gz") as tar:
+        rooted = [name.split("/", 1)[1] for name in tar.getnames() if "/" in name]
+
+    for required in ("src/kernel/", "src/charter/", "packs/built-in/"):
+        assert any(path.startswith(required) for path in rooted), f"sdist has no member under {required}"
+    assert "hatch_build.py" in rooted, "the build hook must ship in the sdist or an sdist build silently skips verification"
+    assert not [path for path in rooted if path.startswith("packs/internal/")]
