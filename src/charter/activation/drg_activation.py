@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from charter.offering.api import ArtifactKind
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
@@ -50,6 +51,9 @@ from .kind_vocabulary import (
     resolve_artifact_urn,
 )
 from .pack_context import PackContext
+
+if TYPE_CHECKING:
+    from .identity_index import IdentityIndex
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +298,7 @@ def _resolve_activated_urns_for_kind(
     offering_root: Path,
     org_roots: list[Path],
     layer_roots: dict[str, Path] | None = None,
+    identity: IdentityIndex | None = None,
 ) -> frozenset[str] | None:
     """Resolve one kind's config-stem activation set to canonical URNs.
 
@@ -328,6 +333,12 @@ def _resolve_activated_urns_for_kind(
 
     urns: set[str] = set()
     for stem in activated_ids:
+        # Identity index first (stem or declared id, #6406); the filesystem
+        # resolver stays as the fallback for anything the index misses.
+        declared = identity.declared_id(kind_enum, stem) if identity is not None else None
+        if declared is not None:
+            urns.add(f"{kind_enum.value}:{declared}")
+            continue
         try:
             urns.add(resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
@@ -337,6 +348,7 @@ def _resolve_activated_urns_for_kind(
 
 def _resolve_activated_urns_by_kind(
     pack_context: PackContext,
+    identity: IdentityIndex | None = None,
 ) -> dict[str, frozenset[str] | None]:
     """Batch-resolve every per-kind activation set to canonical URNs, once.
 
@@ -356,6 +368,7 @@ def _resolve_activated_urns_by_kind(
             offering_root=offering_root,
             org_roots=org_roots,
             layer_roots={"project": project_pack_root(pack_context.repo_root)},
+            identity=identity,
         )
         for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
     }
@@ -433,6 +446,8 @@ def _node_is_activated(
 def filter_graph_by_activation(
     graph: DRGGraph,
     pack_context: PackContext,
+    *,
+    identity: IdentityIndex | None = None,
 ) -> DRGGraph:
     """Return a copy of *graph* limited to artifacts activated in *pack_context*.
 
@@ -452,6 +467,10 @@ def filter_graph_by_activation(
       the same graph; downstream traversal code does not need to special-
       case dangling edges.
 
+    *identity*, when supplied, is the caller's per-invocation
+    :class:`~charter.activation.identity_index.IdentityIndex`; activation tokens
+    (stem or declared id) resolve through it before the filesystem fallback.
+
     The function never mutates *graph*; it builds a fresh :class:`DRGGraph`.
 
     See module docstring for the FR-006 / FR-018 binding and the WP11 T069
@@ -459,7 +478,7 @@ def filter_graph_by_activation(
     Direct doctrine-API callers (``ActiveCharterService.<repo>.get(...)``,
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
-    resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)
+    resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context, identity)
     surviving_nodes = [n for n in graph.nodes if _node_is_activated(*_split_urn(n.urn), pack_context, resolved_urns_by_kind)]
     surviving_urns = {n.urn for n in surviving_nodes}
     surviving_edges = [e for e in graph.edges if e.source in surviving_urns and e.target in surviving_urns]
