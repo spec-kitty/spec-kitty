@@ -48,6 +48,7 @@ from typing import Any, Literal
 
 from charter.activation.language_scope import extract_declared_languages, is_placeholder_language_answer
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.shared.language_catalog import is_language_family
 
 __all__ = [
     "canonicalize_interview_section_label",
@@ -272,14 +273,18 @@ def _normalize_language_scope_section(normalized: dict[str, Any]) -> None:
 
 
 def _real_languages(values: tuple[str, ...]) -> tuple[str, ...]:
-    """Drop placeholder/``unknown`` members so they never become a styleguide target."""
-    return tuple(value for value in values if not is_placeholder_language_answer(value))
+    """Drop placeholder/``unknown`` and family members so they never become a styleguide target.
+
+    A family token (``jvm``, from a declared "Gradle") is a match-time scope, not a
+    language: it synthesizes no ``jvm-style-guide`` (FR-013).
+    """
+    return tuple(value for value in values if not is_placeholder_language_answer(value) and not is_language_family(value))
 
 
 def _extract_languages_from_alias(raw_alias: object) -> tuple[str, ...]:
     """Extract declared languages from the ``languages_frameworks`` alias value."""
     if isinstance(raw_alias, str):
-        return tuple(extract_declared_languages(raw_alias))
+        return _real_languages(tuple(extract_declared_languages(raw_alias)))
     return _real_languages(_iter_clean_strings(raw_alias))
 
 
