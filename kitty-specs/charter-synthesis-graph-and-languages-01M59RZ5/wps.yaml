@@ -210,7 +210,7 @@ work_packages:
     title: "JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog"
     dependencies:
       - WP01
-      - WP05
+      - WP07
     owned_files:
       - "tests/charter/test_jvm_toolguide_scoping.py"
       - "packs/built-in/toolguides/java-supply-chain.toolguide.yaml"
@@ -238,3 +238,30 @@ work_packages:
       - T027
       - T028
       - T029
+
+  - id: WP07
+    title: "Configured project languages: detect at interview, store in config.yaml, adhere"
+    dependencies:
+      - WP05
+    owned_files:
+      - "src/charter/activation/language_authority.py"
+      - "src/charter/activation/language_scope.py"
+      - "src/charter/activation/evidence/code_reader.py"
+      - "src/charter/activation/interview.py"
+      - "src/specify_cli/cli/commands/charter/interview.py"
+      - "tests/charter/test_configured_languages.py"
+      - "tests/charter/test_language_authority.py"
+      - "tests/charter/test_language_scope.py"
+      - "tests/specify_cli/cli/commands/charter/test_interview_languages.py"
+      - "docs/api/charter-commands.md"
+    requirement_refs:
+      - FR-020
+      - FR-009
+      - SC-006
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T030
+      - T031
+      - T032
+      - T033

@@ -29,7 +29,9 @@
         "WP02",
         "WP03",
         "WP04",
-        "WP05"
+        "WP05",
+        "WP07",
+        "WP06"
       ],
       "write_scope": [
         ".kittify/charter-packs/directive/**",
@@ -42,10 +44,18 @@
         "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md",
         "docs/adr/3.x/2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md",
         "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md",
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "packs/built-in.source.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/toolguide.graph.yaml",
+        "packs/built-in/toolguides/java-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/maven-review-checks.toolguide.yaml",
         "src/charter/activation/action_governance_bundle.py",
         "src/charter/activation/api.py",
         "src/charter/activation/compiler.py",
         "src/charter/activation/evidence/code_reader.py",
+        "src/charter/activation/interview.py",
         "src/charter/activation/language_authority.py",
         "src/charter/activation/language_scope.py",
         "src/charter/activation/synthesizer/evidence.py",
@@ -61,6 +71,7 @@
         "src/charter/offering/shared/language_catalog.py",
         "src/charter/offering/shared/scoping.py",
         "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
         "src/specify_cli/cli/commands/charter/resynthesize.py",
         "src/specify_cli/cli/commands/charter/status.py",
         "src/specify_cli/cli/commands/charter/synthesize.py",
@@ -73,6 +84,7 @@
         "tests/architectural/test_no_op_stable_writes.py",
         "tests/architectural/test_single_language_vocabulary.py",
         "tests/charter/evidence/test_code_reader.py",
+        "tests/charter/fixtures/synthesized_in_force_snapshot.json",
         "tests/charter/fixtures/synthesizer/directive/**",
         "tests/charter/fixtures/synthesizer/styleguide/**",
         "tests/charter/synthesizer/test_context_reflects_synthesis.py",
@@ -97,9 +109,12 @@
         "tests/charter/synthesizer/test_synthesize_path_parity.py",
         "tests/charter/synthesizer/test_synthesize_reconcile.py",
         "tests/charter/synthesizer/test_write_pipeline.py",
+        "tests/charter/test_configured_languages.py",
+        "tests/charter/test_jvm_toolguide_scoping.py",
         "tests/charter/test_language_authority.py",
         "tests/charter/test_language_scope.py",
         "tests/charter/test_synthesis_provenance_paths.py",
+        "tests/charter/test_synthesized_in_force_snapshot.py",
         "tests/charter_offering/shared/test_language_catalog.py",
         "tests/charter_offering/shared/test_scoping.py",
         "tests/charter_offering/shared/test_scoping_any_all.py",
@@ -108,6 +123,7 @@
         "tests/specify_cli/charter_freshness/test_computer.py",
         "tests/specify_cli/charter_runtime/test_boundary_heal.py",
         "tests/specify_cli/cli/commands/charter/test_activate_preserve.py",
+        "tests/specify_cli/cli/commands/charter/test_interview_languages.py",
         "tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py",
         "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_project_intent_directive_rename.py"
       ],
@@ -116,42 +132,16 @@
         "artifact-rendering",
         "legacy-cleanup"
       ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-c",
-      "wp_ids": [
-        "WP06"
-      ],
-      "write_scope": [
-        "docs/api/charter-commands.md",
-        "docs/changelog/CHANGELOG.md",
-        "packs/built-in.source.yaml",
-        "packs/built-in/pack-manifest.yaml",
-        "packs/built-in/toolguide.graph.yaml",
-        "packs/built-in/toolguides/java-supply-chain.toolguide.yaml",
-        "packs/built-in/toolguides/maven-review-checks.toolguide.yaml",
-        "tests/charter/fixtures/synthesized_in_force_snapshot.json",
-        "tests/charter/test_jvm_toolguide_scoping.py",
-        "tests/charter/test_synthesized_in_force_snapshot.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup"
-      ],
       "depends_on_lanes": [
-        "lane-a",
-        "lane-b"
+        "lane-a"
       ],
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-10-19T10:24:31.700276+00:00",
+  "computed_at": "2026-10-19T17:10:26.150597+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "7cd9ee7e14fe4a3c366bdf22ed35d66fca4af345",
+  "planning_commit_sha": "899811e312c2f0bc9275fa9353579f30fd393115",
   "collapse_report": {
     "events": [
       {
@@ -171,12 +161,24 @@
         "wp_b": "WP05",
         "rule": "write_scope_overlap",
         "evidence": "overlapping globs: 'src/specify_cli/cli/commands/charter/synthesize.py' vs 'src/specify_cli/cli/commands/charter/synthesize.py', 'docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md' vs 'docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/charter/activation/language_authority.py' vs 'src/charter/activation/language_authority.py', 'src/charter/activation/language_scope.py' vs 'src/charter/activation/language_scope.py', 'src/charter/activation/evidence/code_reader.py' vs 'src/charter/activation/evidence/code_reader.py', 'tests/charter/test_language_authority.py' vs 'tests/charter/test_language_authority.py', 'tests/charter/test_language_scope.py' vs 'tests/charter/test_language_scope.py'"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'docs/api/charter-commands.md' vs 'docs/api/charter-commands.md'; WP06 depends on WP07"
       }
     ],
-    "total_merges": 3,
+    "total_merges": 5,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "write_scope_overlap": 3
+      "write_scope_overlap": 5
     }
   }
 }

@@ -3,7 +3,7 @@ work_package_id: WP06
 title: JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog
 dependencies:
 - WP01
-- WP05
+- WP07
 requirement_refs:
 - FR-018
 - NFR-001
