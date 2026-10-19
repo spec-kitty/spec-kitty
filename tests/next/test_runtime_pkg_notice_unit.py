@@ -134,7 +134,7 @@ def test_marker_path_pinned_per_platform(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str
 ) -> None:
     """#6481: moving onto ``kernel.user_dirs.user_state_dir`` changed no location."""
-    from tests.kernel.user_dirs_pins import fake_platform
+    from tests.kernel._user_dirs_pins import fake_platform
 
     fake_platform(monkeypatch, tmp_path, platform, env)
     assert notice_mod._marker_path() == tmp_path / expected / "spec-kitty" / ".spec-kitty-runtime-cutover-notice-shown"

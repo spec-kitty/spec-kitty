@@ -69,7 +69,7 @@ def _default_cache_path() -> Path:
     POSIX: ``~/.cache/spec-kitty/upgrade-check.json``
     Windows: ``%LOCALAPPDATA%\\spec-kitty\\upgrade-check.json``
 
-    Both honour ``XDG_CACHE_HOME`` on POSIX when set.
+    POSIX honours ``XDG_CACHE_HOME`` when set (:func:`kernel.user_dirs.user_cache_dir`).
     """
     return user_cache_dir() / _CACHE_PARENT / _CACHE_FILENAME
 

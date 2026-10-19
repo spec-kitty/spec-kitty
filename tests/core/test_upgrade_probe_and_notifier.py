@@ -551,7 +551,7 @@ class TestCachePath:
     def test_location_pinned_per_platform(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str) -> None:
         """#6481: moving onto ``kernel.user_dirs.user_cache_dir`` changed no location."""
         from specify_cli.core.upgrade_notifier import _default_cache_path
-        from tests.kernel.user_dirs_pins import fake_platform
+        from tests.kernel._user_dirs_pins import fake_platform
 
         fake_platform(monkeypatch, tmp_path, platform, env)
         assert _default_cache_path() == tmp_path / expected / "spec-kitty" / "upgrade-check.json"

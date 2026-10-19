@@ -1,8 +1,10 @@
 """Per-user base directories for cache and state files (#6481).
 
-The one place spec-kitty turns ``XDG_CACHE_HOME`` / ``XDG_STATE_HOME`` /
+Shared resolution of ``XDG_CACHE_HOME`` / ``XDG_STATE_HOME`` /
 ``LOCALAPPDATA`` into a directory. Both helpers return the *base* directory;
-callers append their own ``spec-kitty/...`` subpath.
+callers append their own ``spec-kitty/...`` subpath. Known exception:
+``specify_cli.compat.cache`` resolves its cache through ``platformdirs`` under
+different rules (#6488).
 
 The helpers reproduce, byte for byte, the locations the callers used before
 this module existed, so no file moved when they switched over:
@@ -16,8 +18,9 @@ this module existed, so no file moved when they switched over:
   ``XDG_CACHE_HOME`` and is not the XDG-spec ``~/.local/state``.
 
 An empty environment variable counts as unset. Relative values are used as
-given. Stdlib only: the kernel takes no third-party dependency, so this does
-not use ``platformdirs``.
+given. This does not use ``platformdirs``: it resolves other locations
+(``~/Library/Caches`` on macOS, an extra ``Cache`` level on Windows), so it
+would move the files these callers already wrote.
 """
 
 from __future__ import annotations

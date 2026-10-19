@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-PLATFORMS = ("linux", "darwin", "windows")
 _SYS_PLATFORM = {"linux": "linux", "darwin": "darwin", "windows": "win32"}
 _ENV_VARS = ("XDG_CACHE_HOME", "XDG_STATE_HOME", "LOCALAPPDATA")
 

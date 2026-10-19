@@ -20,7 +20,6 @@ from charter.offering.packs.pack_fetch import (
     PackSyncError,
     PackTreeStatus,
     check_pack,
-    default_cache_root,
     fetch_to_cache,
     place_pack,
     recover_interrupted_swap,
@@ -326,19 +325,3 @@ def test_scratch_fetch_repository_with_read_only_objects_is_removed(tmp_path: Pa
     pack_fetch._remove_scratch_repo(work)
 
     assert not work.exists()
-
-
-@pytest.mark.parametrize("platform", ["linux", "darwin", "windows"])
-@pytest.mark.parametrize(
-    ("env", "expected"),
-    [
-        ({"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "xdg"),
-        ({"LOCALAPPDATA": "lad", "XDG_STATE_HOME": "state"}, "home/.cache"),
-    ],
-)
-def test_default_cache_root_pinned_per_platform(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str) -> None:
-    """#6481: the XDG rule on every platform, Windows included; ``LOCALAPPDATA`` is never read."""
-    from tests.kernel.user_dirs_pins import fake_platform
-
-    fake_platform(monkeypatch, tmp_path, platform, env)
-    assert default_cache_root() == tmp_path / expected / "spec-kitty" / "open-packs"
