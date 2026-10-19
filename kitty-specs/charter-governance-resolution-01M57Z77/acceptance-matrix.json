@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP05 approved: tests/charter/synthesizer/test_synthesize_activation_append.py (explicit list append + restamp, absent key untouched)",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:07:37.850447+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
