@@ -537,6 +537,25 @@ class TestCachePath:
         assert path.name == "upgrade-check.json"
         assert "spec-kitty" in str(path)
 
+    @pytest.mark.parametrize(
+        ("platform", "env", "expected"),
+        [
+            ("linux", {"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "xdg"),
+            ("linux", {"XDG_STATE_HOME": "state"}, "home/.cache"),
+            ("darwin", {"XDG_CACHE_HOME": "xdg"}, "xdg"),
+            ("darwin", {}, "home/.cache"),
+            ("windows", {"LOCALAPPDATA": "lad", "XDG_CACHE_HOME": "xdg"}, "lad"),
+            ("windows", {"XDG_CACHE_HOME": "xdg"}, "home/AppData/Local"),
+        ],
+    )
+    def test_location_pinned_per_platform(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str) -> None:
+        """#6481: moving onto ``kernel.user_dirs.user_cache_dir`` changed no location."""
+        from specify_cli.core.upgrade_notifier import _default_cache_path
+        from tests.kernel.user_dirs_pins import fake_platform
+
+        fake_platform(monkeypatch, tmp_path, platform, env)
+        assert _default_cache_path() == tmp_path / expected / "spec-kitty" / "upgrade-check.json"
+
 
 # ---------------------------------------------------------------------------
 # Probe result serialization round-trip (covers cache deserializer paths)

@@ -22,6 +22,7 @@ from pathlib import Path
 
 from charter.offering.packs.pack_pin import TREE_DIGEST_ALGORITHM, PackPin, verify_pack_pin
 from kernel.tree_removal import remove_tool_owned_tree
+from kernel.user_dirs import user_cache_dir
 from kernel.git.remote import CommitUnresolvable, RemoteUnreachable, fetch_commit_subtree
 
 __all__ = [
@@ -68,9 +69,8 @@ class PackTreeStatus(Enum):
 
 
 def default_cache_root() -> Path:
-    """``${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs``."""
-    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "spec-kitty" / "open-packs"
+    """``${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs``, on Windows too (no ``LOCALAPPDATA`` branch)."""
+    return user_cache_dir(windows_local_appdata=False) / "spec-kitty" / "open-packs"
 
 
 def _require_subtree(pin: PackPin) -> str:

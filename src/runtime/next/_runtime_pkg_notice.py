@@ -25,6 +25,8 @@ import os
 import sys
 from pathlib import Path
 
+from kernel.user_dirs import user_state_dir
+
 __all__ = ["maybe_emit_runtime_pkg_notice"]
 
 
@@ -43,14 +45,11 @@ _NOTICE_TEXT = (
 def _marker_path() -> Path:
     """Location of the one-time-notice marker file.
 
-    Uses the platformdirs convention via XDG_STATE_HOME (Linux) /
-    LOCALAPPDATA (Windows) / ~/Library/Application Support (macOS) when
-    available, falling back to ``~/.cache/spec-kitty/`` so the marker
+    ``$XDG_STATE_HOME/spec-kitty/`` when set, else ``~/.cache/spec-kitty/``,
+    on every platform (:func:`kernel.user_dirs.user_state_dir`), so the marker
     survives across CLI invocations but never lands in the repo tree.
     """
-    state_home = os.environ.get("XDG_STATE_HOME")
-    base = Path(state_home) if state_home else Path.home() / ".cache"
-    return base / "spec-kitty" / _MARKER_FILENAME
+    return user_state_dir() / "spec-kitty" / _MARKER_FILENAME
 
 
 def _runtime_package_installed() -> bool:
