@@ -169,14 +169,26 @@ def test_reach_only_tactic_delivered_via_directive_edge(tmp_path: Path) -> None:
     assert _CONTROL in delivered  # control: the fixture delivers tactics at all
 
 
-def test_edge_is_the_only_delivery_route(tmp_path: Path) -> None:
-    """Same fixture, same activation: dropping the edge from the merged graph drops the tactic."""
+def test_reach_only_tactic_is_dropped_when_the_merged_graph_loses_its_edge(tmp_path: Path) -> None:
+    """The merged graph's edge is what delivers a reach-only tactic: remove it there and the tactic is not delivered.
+
+    This proves delivery follows the edge, not that no other route exists; the
+    edgeless counterpart is ``test_overlay_without_edge_tactic_is_an_edgeless_root_and_is_delivered``.
+    """
     with_edge = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS)
     without_edge = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS, merged_has_edge=False)
 
     assert _REACH_ONLY in with_edge
     assert _REACH_ONLY not in without_edge
     assert _CONTROL in without_edge
+
+
+def test_overlay_without_edge_tactic_is_an_edgeless_root_and_is_delivered(tmp_path: Path) -> None:
+    """Overlay carries no edge: the synthesized tactic is an ordinary root, delivered even with its directive off."""
+    delivered = _delivered_tactics(tmp_path, with_edge=False, directives=frozenset(), tactics=_EXPLICIT_TACTICS)
+
+    assert _REACH_ONLY in delivered
+    assert _CONTROL in delivered
 
 
 def test_deactivated_directive_removes_tactic_but_not_unrelated_activated_tactic(tmp_path: Path) -> None:
