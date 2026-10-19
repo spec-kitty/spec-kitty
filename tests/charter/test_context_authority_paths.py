@@ -47,11 +47,13 @@ class TestDefaultAuthorityPaths:
     def test_default_adr_path_surfaces_when_directory_present(
         self, tmp_path: Path
     ) -> None:
-        _make_dir(tmp_path, "docs/adr/3.x")
+        _make_dir(tmp_path, "docs/adr/4.x")
         result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert AUTHORITY_PATHS_HEADER in result
-        assert "docs/adr/3.x/" in result
-        assert DEFAULT_AUTHORITY_PATHS["docs/adr/3.x/"] in result
+        assert "docs/adr/" in result
+        assert DEFAULT_AUTHORITY_PATHS["docs/adr/"] in result
+        # The default names the era-neutral home, never a closed era (#5428).
+        assert "docs/adr/3.x/" not in result
 
     def test_default_path_skipped_when_directory_missing(self, tmp_path: Path) -> None:
         # No docs/context in tmp_path — render must not list it.

@@ -19,7 +19,7 @@ false-green: every case drives the production reader (``render_authority_paths``
 
 The six reads (``occurrence_map.yaml`` → ``status.runtime_critical_reads``):
 
-1. ``authority_paths.py`` ADR default       → ``docs/adr/3.x/``
+1. ``authority_paths.py`` ADR default       → ``docs/adr/`` (era-neutral since #5428)
 2. ``authority_paths.py`` glossary default  → ``docs/context/``
 3. ``compat/doctor.py`` ``check_shim_registry`` → ``docs/migrations/shim-registry.yaml``
 4. ``compat/registry.py`` ``load_registry``     → ``docs/migrations/shim-registry.yaml``
@@ -61,7 +61,7 @@ pytestmark = pytest.mark.fast
 
 
 # New (post-move) homes the six reads must resolve to.
-NEW_ADR_DIR = "docs/adr/3.x"
+NEW_ADR_DIR = "docs/adr"
 NEW_CONTEXT_DIR = "docs/context"
 NEW_SHIM_REGISTRY = ("docs", "migrations", "shim-registry.yaml")
 # Legacy (pre-move) homes that must keep resolving until WP08 drops them.
@@ -99,7 +99,7 @@ def _write_registry(root: Path, parts: tuple[str, ...]) -> Path:
 
 
 class TestAuthorityPathDefaultsResolveNewHomes:
-    def test_adr_default_resolves_docs_adr_3x(self, tmp_path: Path) -> None:
+    def test_adr_default_resolves_docs_adr(self, tmp_path: Path) -> None:
         """Read 1: only the NEW ADR home exists → renderer surfaces it."""
         _mkdir(tmp_path, NEW_ADR_DIR)
         result = render_authority_paths(tmp_path, GovernanceCharterConfig())
@@ -267,8 +267,9 @@ class TestGovernanceAuthorityPathsRepointed:
         tree where only the NEW homes exist; the renderer must surface them.
         """
         _mkdir(tmp_path, NEW_CONTEXT_DIR)
-        _mkdir(tmp_path, NEW_ADR_DIR)
+        _mkdir(tmp_path, "docs/adr/3.x")
         selection = GovernanceCharterConfig(authority_paths=_charter_authority_paths())
         result = render_authority_paths(tmp_path, selection)
         assert f"{NEW_CONTEXT_DIR}/" in result
-        assert f"{NEW_ADR_DIR}/" in result
+        # Charter-declared era home, not the era-neutral default (#5428).
+        assert "docs/adr/3.x/" in result

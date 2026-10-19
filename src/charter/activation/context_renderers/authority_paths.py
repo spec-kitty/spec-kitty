@@ -12,10 +12,9 @@ Design notes
 
 * **Default authority paths** are hard-coded here so every project gets the
   same convention without having to declare them in the charter
-  (``docs/context/`` for terminology canon, ``docs/adr/3.x/`` for
-  architectural intent — the canonical homes after the Common Docs structural
-  fold).  Each default carries a project-agnostic "When you ..., ..."
-  conditional.
+  (``docs/context/`` for terminology canon, ``docs/adr/`` for
+  architectural intent, filed by era beneath it).  Each default carries a
+  project-agnostic "When you ..., ..." conditional.
 * **Charter-declared paths** come from
   :attr:`charter.activation.schemas.GovernanceCharterConfig.authority_paths` and are
   appended in declaration order, deduped against the defaults.  Their
@@ -52,13 +51,13 @@ _TERMINOLOGY_WHEN: str = (
 )
 _ADR_WHEN: str = (
     "architectural intent — when you change a structural boundary, "
-    "read the relevant ADR"
+    "read the relevant ADR (filed by era, for example docs/adr/4.x/)"
 )
 
 
 DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
     "docs/context/": _TERMINOLOGY_WHEN,
-    "docs/adr/3.x/": _ADR_WHEN,
+    "docs/adr/": _ADR_WHEN,
 }
 """Mapping of default authority directory to its when-doing copy.
 
@@ -72,6 +71,10 @@ new homes while the move was in flight; now that the tree has landed
 (WP03/WP06) the legacy branches are dropped — only the canonical new homes
 remain.  Rendering stays existence-gated, so a home surfaces only when its
 directory is present.
+
+The ADR default names the era-neutral ``docs/adr/`` (#5428): ``docs/adr/3.x/``
+is closed to new records, so pointing at it sent agents past every current
+decision.  A project's charter can still declare a specific era directory.
 """
 
 
