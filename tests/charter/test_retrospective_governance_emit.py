@@ -190,18 +190,8 @@ class TestAuthoredRetrospectiveIsEmitted:
         assert emitted["enabled"] is False
         assert emitted["failure_policy"] == "block"
         assert emitted["permissions"]["apply_low_risk_changes"] is True
-
-    def test_emitted_block_omits_unauthored_keys(
-        self, tmp_path: Path, compiled: CompiledCharter
-    ) -> None:
-        """A partial authored block round-trips as a partial emitted block."""
-        _write_authored_charter_yaml(
-            tmp_path, {"retrospective": dict(_AUTHORED_RETROSPECTIVE)}
-        )
-
-        document = _bootstrap_into(tmp_path, compiled)
-
-        emitted = document["governance"]["retrospective"]
+        # A partial authored block round-trips as a partial emitted block
+        # (folded in from its own test: both ran the same ~3 s bootstrap).
         assert set(emitted) == {"enabled", "failure_policy", "permissions"}
         assert set(emitted["permissions"]) == {"apply_low_risk_changes"}
 

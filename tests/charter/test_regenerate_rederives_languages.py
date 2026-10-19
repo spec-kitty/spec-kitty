@@ -110,11 +110,12 @@ def _reference_ids(repo: Path) -> list[str]:
 @pytest.mark.parametrize(
     ("seed", "answer", "expected"),
     [
-        (["python"], "Zig with the zig build system", ["unknown"]),
         (["python"], "Rust with cargo", ["rust"]),
         (["rust"], "Python and Zig", ["python"]),
     ],
-    ids=["zig-is-unknown", "rust-recognised", "python-and-zig-keeps-python"],
+    # The python -> Zig -> ["unknown"] case is pinned by
+    # test_zig_regenerate_resolves_references_under_rederived_languages (same seed, answer and command).
+    ids=["rust-recognised", "python-and-zig-keeps-python"],
 )
 def test_from_interview_rederives_languages_from_the_answer(tmp_path: Path, seed: list[str], answer: str, expected: list[str]) -> None:
     """RED (pins the fix): a stale compiled list never survives ``generate --from-interview``."""
@@ -259,7 +260,6 @@ def test_activate_preserves_recorded_languages(tmp_path: Path) -> None:
         f"activated_directives:\n- {_BASELINE_DIRECTIVE_STEM}\nactivated_kinds:\n- directives\nmission_type_activations:\n- research\n",
         encoding="utf-8",
     )
-    _generate(tmp_path, "--no-from-interview")
     _seed_charter_yaml(tmp_path, ["python"])
     _write_answers(tmp_path, language_answer="Zig with the zig build system")
 

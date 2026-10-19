@@ -15,8 +15,11 @@ data-model.md`` (Landmine 3, INV-9), ``contracts/charter-yaml-schema.md``
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from functools import cache
 from pathlib import Path
 import os
+import subprocess
 
 import pytest
 from ruamel.yaml import YAML
@@ -415,9 +418,24 @@ metadata:
 """
 
 
+def _tree_snapshot(root: Path) -> dict[str, bytes]:
+    """Every file path and its bytes under ``root`` (proves a shared tree stayed read-only)."""
+    return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+
+@cache
 def _compiled() -> CompiledCharter:
+    """Compile once per process: ``compile_charter`` is ~3 s and every caller only reads the result."""
     interview = default_interview(mission="software-dev", profile="minimal")
     return compile_charter(mission="software-dev", interview=interview)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _shared_compiled_is_read_only() -> Iterator[None]:
+    """Prove the shared ``CompiledCharter`` is not mutated by the writers under test."""
+    before = repr(_compiled())
+    yield
+    assert repr(_compiled()) == before, "write_compiled_charter mutated the shared CompiledCharter"
 
 
 class TestBootstrapCreate:
@@ -476,64 +494,51 @@ class TestPartialMergeRefresh:
         charter_yaml_path.write_text(_AUTHORED_FIXTURE, encoding="utf-8")
         return charter_yaml_path
 
-    def test_authored_governance_survives_refresh(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
+    @pytest.fixture(scope="class")
+    def refreshed(self, tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+        """One seeded directory refreshed once with ``force=True``; the read-only tests below share it.
 
-        write_compiled_charter(tmp_path, compiled, force=True)
+        Each of these tests used to repeat the same seed + ``write_compiled_charter``
+        (~3 s apiece) and assert a different facet of the one result. The tree is
+        ``git init``-ed like a per-test ``tmp_path`` and its contents are asserted
+        unchanged at teardown, proving the tests only read it.
+        """
+        root = tmp_path_factory.mktemp("refreshed")
+        subprocess.run(["git", "init", "--quiet", str(root)], check=False, capture_output=True)
+        self._seed(root)
+        write_compiled_charter(root, _compiled(), force=True)
+        before = _tree_snapshot(root)
+        yield root
+        assert _tree_snapshot(root) == before, "a read-only test mutated the shared refreshed tree"
 
-        surviving = (tmp_path / "charter.yaml").read_text(encoding="utf-8")
+    def test_authored_governance_survives_refresh(self, refreshed: Path) -> None:
+        surviving = (refreshed / "charter.yaml").read_text(encoding="utf-8")
         assert "AUTHORED-GOVERNANCE-SENTINEL" in surviving
         assert "min_coverage: 87" in surviving
 
-    def test_authored_directives_survive_refresh(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
-        surviving = (tmp_path / "charter.yaml").read_text(encoding="utf-8")
+    def test_authored_directives_survive_refresh(self, refreshed: Path) -> None:
+        surviving = (refreshed / "charter.yaml").read_text(encoding="utf-8")
         assert "AUTHORED-DIRECTIVE-SENTINEL" in surviving
 
-    def test_authored_activation_survives_refresh(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
-        surviving = (tmp_path / "charter.yaml").read_text(encoding="utf-8")
+    def test_authored_activation_survives_refresh(self, refreshed: Path) -> None:
+        surviving = (refreshed / "charter.yaml").read_text(encoding="utf-8")
         assert "AUTHORED-ACTIVATION-SENTINEL" in surviving
         assert "001-architectural-integrity-standard" in surviving
 
-    def test_authored_overrides_survive_refresh(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
-        surviving = (tmp_path / "charter.yaml").read_text(encoding="utf-8")
+    def test_authored_overrides_survive_refresh(self, refreshed: Path) -> None:
+        surviving = (refreshed / "charter.yaml").read_text(encoding="utf-8")
         assert "authored-override-sentinel" in surviving
 
-    def test_catalog_is_refreshed_from_compiled_state(self, tmp_path: Path) -> None:
+    def test_catalog_is_refreshed_from_compiled_state(self, refreshed: Path) -> None:
         """The DERIVED section is the one thing that IS expected to change."""
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
         yaml = YAML()
-        document = yaml.load((tmp_path / "charter.yaml").read_text(encoding="utf-8"))
-        assert document["catalog"]["mission"] == compiled.mission
+        document = yaml.load((refreshed / "charter.yaml").read_text(encoding="utf-8"))
+        assert document["catalog"]["mission"] == _compiled().mission
         assert document["catalog"]["mission"] != "stale-mission"
 
-    def test_metadata_generated_at_is_refreshed(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
+    def test_metadata_generated_at_is_refreshed(self, refreshed: Path) -> None:
         yaml = YAML()
-        document = yaml.load((tmp_path / "charter.yaml").read_text(encoding="utf-8"))
+        document = yaml.load((refreshed / "charter.yaml").read_text(encoding="utf-8"))
         assert document["metadata"]["generated_at"] != "2020-01-01T00:00:00Z"
         assert document["metadata"]["bundle_schema_version"] == 2
 
@@ -567,14 +572,9 @@ class TestPartialMergeRefresh:
         document = yaml.load((tmp_path / "charter.yaml").read_text(encoding="utf-8"))
         assert document["metadata"]["generated_at"] == "2026-11-02T14:15:16Z"
 
-    def test_refresh_never_writes_charter_md_or_references_yaml(self, tmp_path: Path) -> None:
-        self._seed(tmp_path)
-        compiled = _compiled()
-
-        write_compiled_charter(tmp_path, compiled, force=True)
-
-        assert not (tmp_path / "charter.md").exists()
-        assert not (tmp_path / "references.yaml").exists()
+    def test_refresh_never_writes_charter_md_or_references_yaml(self, refreshed: Path) -> None:
+        assert not (refreshed / "charter.md").exists()
+        assert not (refreshed / "references.yaml").exists()
 
     def test_survives_refresh_without_force(self, tmp_path: Path) -> None:
         """force no longer gates anything destructive -- a merge refresh is

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -116,10 +117,14 @@ def _project_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _json_payload(tmp_path: Path, *, include_all: bool = False) -> dict[str, object]:
+def _tree_snapshot(root: Path) -> dict[str, bytes]:
+    """Every file path and its bytes under ``root`` (proves a shared tree stayed read-only)."""
+    return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+
+def _json_payload(repo: Path, *, include_all: bool = False) -> dict[str, object]:
     from charter.activation.context import build_charter_context, build_charter_context_json
 
-    repo = _project_root(tmp_path)
     # depth is state-driven; force the bootstrap depth without mutating state.
     result = build_charter_context(
         repo, action="implement", mark_loaded=False, mission_type="software-dev"
@@ -131,6 +136,30 @@ def _json_payload(tmp_path: Path, *, include_all: bool = False) -> dict[str, obj
         mission_type="software-dev",
         include_all=include_all,
     )
+
+
+@pytest.fixture(scope="module")
+def shared_project(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """One provisioned project (copy + ``git init``) shared by every payload test.
+
+    The payload builders run with ``mark_loaded=False`` and only read, so the
+    project is shared instead of re-copied and re-resolved per test; the tree
+    snapshot taken up front is asserted unchanged at teardown to prove it.
+    """
+    repo = _project_root(tmp_path_factory.mktemp("progressive"))
+    before = _tree_snapshot(repo)
+    yield repo
+    assert _tree_snapshot(repo) == before, "a payload test mutated the shared project"
+
+
+@pytest.fixture(scope="module")
+def progressive_payload(shared_project: Path) -> dict[str, object]:
+    return _json_payload(shared_project)
+
+
+@pytest.fixture(scope="module")
+def include_all_payload(shared_project: Path) -> dict[str, object]:
+    return _json_payload(shared_project, include_all=True)
 
 
 def _entries(payload: dict[str, object]) -> list[dict[str, object]]:
@@ -193,8 +222,8 @@ class TestReferencesOnDto:
         edge = _edge("directive:D1", "directive:D2", Relation.REQUIRES, when=None)
         assert pd.edge_to_reference(edge)["when"] is None
 
-    def test_payload_dto_carries_references(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path)
+    def test_payload_dto_carries_references(self, progressive_payload: dict[str, object]) -> None:
+        payload = progressive_payload
         entries = _entries(payload)
         assert entries, "expected a populated implement-grain payload"
         for entry in entries:
@@ -202,8 +231,8 @@ class TestReferencesOnDto:
             for ref in entry["references"]:  # type: ignore[union-attr]
                 assert set(ref) == {"id", "relation", "when", "reason"}
 
-    def test_payload_uncovered_suggests_reference_is_never_blank(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path)
+    def test_payload_uncovered_suggests_reference_is_never_blank(self, progressive_payload: dict[str, object]) -> None:
+        payload = progressive_payload
         suggests_refs = [
             ref
             for entry in _entries(payload)
@@ -246,8 +275,8 @@ class TestDefaultCadence:
         assert inline == {"directive:A"}
         assert link == {"tactic:S"}
 
-    def test_payload_marks_delivery_and_has_links(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path)
+    def test_payload_marks_delivery_and_has_links(self, progressive_payload: dict[str, object]) -> None:
+        payload = progressive_payload
         entries = _entries(payload)
         for entry in entries:
             assert entry.get("delivery") in {pd.DELIVERY_INLINE, pd.DELIVERY_LINK}
@@ -255,8 +284,8 @@ class TestDefaultCadence:
         # render must contain at least one linked (lazy) artefact.
         assert any(e.get("delivery") == pd.DELIVERY_LINK for e in entries)
 
-    def test_payload_top_level_link_set_present(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path)
+    def test_payload_top_level_link_set_present(self, progressive_payload: dict[str, object]) -> None:
+        payload = progressive_payload
         assert isinstance(payload.get("references"), list)
         assert payload["references"], "the link set names the reachable-but-not-inlined artefacts"
 
@@ -294,15 +323,17 @@ class TestIncludeAllHatch:
         assert allof[0]["delivery"] == pd.DELIVERY_INLINE
         assert inline  # guard: the fixture stays meaningful
 
-    def test_include_all_marks_every_entry_inline(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path, include_all=True)
+    def test_include_all_marks_every_entry_inline(self, include_all_payload: dict[str, object]) -> None:
+        payload = include_all_payload
         entries = _entries(payload)
         assert entries
         assert all(e.get("delivery") == pd.DELIVERY_INLINE for e in entries)
 
-    def test_include_all_inlined_ids_superset_of_progressive(self, tmp_path: Path) -> None:
-        progressive = _json_payload(tmp_path / "progressive", include_all=False)
-        allof = _json_payload(tmp_path / "allof", include_all=True)
+    def test_include_all_inlined_ids_superset_of_progressive(
+        self, progressive_payload: dict[str, object], include_all_payload: dict[str, object]
+    ) -> None:
+        progressive = progressive_payload
+        allof = include_all_payload
         prog_inlined = _inlined_ids(progressive)
         all_inlined = _inlined_ids(allof)
         assert prog_inlined <= all_inlined
@@ -355,15 +386,17 @@ class TestCompletenessByNaming:
         # cardinality check would be a strictly weaker, redundant duplicate.
         assert referenced == {pd.bare_id(u) for u in leaves}
 
-    def test_payload_union_equals_delivered(self, tmp_path: Path) -> None:
-        payload = _json_payload(tmp_path)
+    def test_payload_union_equals_delivered(self, progressive_payload: dict[str, object]) -> None:
+        payload = progressive_payload
         delivered = _delivered_ids(payload)
         assert _inlined_ids(payload) | _referenced_ids(payload) >= delivered
 
-    def test_linked_artifact_retrievable_via_include(self, tmp_path: Path) -> None:
+    def test_linked_artifact_retrievable_via_include(
+        self, shared_project: Path, progressive_payload: dict[str, object]
+    ) -> None:
         from charter.activation.context import build_charter_context_include
 
-        payload = _json_payload(tmp_path)
+        payload = progressive_payload
         linked: tuple[str, str] | None = None
         for array, kind in _KIND_BY_ARRAY.items():
             for entry in payload.get(array, []):  # type: ignore[union-attr]
@@ -374,9 +407,8 @@ class TestCompletenessByNaming:
                 break
         assert linked is not None, "expected at least one linked artefact"
         kind, artefact_id = linked
-        # Reuses the SAME tmp project ``_json_payload`` already provisioned at
-        # ``tmp_path`` (rather than the checkout's own real repo root) so the
-        # include lookup resolves against the identical provisioned copy the
-        # payload was rendered from.
-        text = build_charter_context_include(tmp_path, f"{kind}:{artefact_id}")
+        # Reuses the SAME provisioned project the payload was rendered from
+        # (rather than the checkout's own real repo root) so the include
+        # lookup resolves against the identical copy.
+        text = build_charter_context_include(shared_project, f"{kind}:{artefact_id}")
         assert artefact_id in text

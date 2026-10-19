@@ -95,10 +95,10 @@ def _summary_for(references: list[dict], reference_id: str) -> str | None:
 def test_charter_generate_is_idempotent_for_language_agnostic_default_interview(
     tmp_path: Path,
 ) -> None:
-    """Two back-to-back ``charter generate --no-from-interview`` runs on an
+    """Three back-to-back ``charter generate --no-from-interview`` runs on an
     untouched repo must produce byte-identical (modulo timestamps) catalog
     content -- specifically, the SAME ``languages`` value and the SAME,
-    real (non-placeholder) language-scoped reference content both times.
+    real (non-placeholder) language-scoped reference content every time.
 
     Confirmed RED against the pre-fix code (manual revert-and-rerun, not
     committed here): run 1 resolved ``python-conventions`` with its real
@@ -108,45 +108,12 @@ def test_charter_generate_is_idempotent_for_language_agnostic_default_interview(
     ``python-conventions`` (and 3 other language-scoped artifacts) to the
     ``"Definition unavailable in bundled doctrine."`` placeholder, dropping
     the reference count to 249.
+
+    The third run guards against a fix that merely delays the degradation by
+    one generation rather than closing the feedback loop. One test drives all
+    three runs (each ``charter generate`` costs ~4-5 s), so the two-run repro
+    and the three-run extension share the same generations.
     """
-    _git_init(tmp_path)
-    _write_curated_charter_md(tmp_path)
-
-    first = _invoke_generate(tmp_path, "--no-from-interview", "--json")
-    assert first.exit_code == 0, f"first generate failed: {first.stdout!r}"
-    catalog_1 = _read_catalog(tmp_path)
-
-    second = _invoke_generate(tmp_path, "--no-from-interview", "--json", "--force")
-    assert second.exit_code == 0, f"second generate failed: {second.stdout!r}"
-    catalog_2 = _read_catalog(tmp_path)
-
-    # (a) byte-identical catalog, modulo the metadata timestamp: languages
-    # and the full reference set must be stable across regenerate.
-    assert catalog_1.get("languages") == catalog_2.get("languages")
-    assert catalog_1["references"] == catalog_2["references"]
-    assert len(catalog_1["references"]) == len(catalog_2["references"])
-
-    # (b) no placeholder content on the second run.
-    placeholder_count = sum(1 for reference in catalog_2["references"] if reference["summary"] == _PLACEHOLDER_SUMMARY)
-    assert placeholder_count == 0, (
-        f"{placeholder_count} language-scoped reference(s) degraded to the bundled-doctrine placeholder on the second `charter generate` run"
-    )
-
-    # (c) a real, language-scoped styleguide keeps its genuine title/summary
-    # on BOTH runs -- not just "some non-empty summary", the actual content.
-    summary_1 = _summary_for(catalog_1["references"], _PYTHON_STYLEGUIDE_ID)
-    summary_2 = _summary_for(catalog_2["references"], _PYTHON_STYLEGUIDE_ID)
-    assert summary_1 is not None, "python-conventions styleguide missing on first run"
-    assert summary_2 is not None, "python-conventions styleguide missing on second run"
-    assert summary_1 == summary_2
-    assert summary_1 != _PLACEHOLDER_SUMMARY
-    assert "guard clauses" in summary_1.lower()
-
-
-def test_charter_generate_is_idempotent_across_three_runs(tmp_path: Path) -> None:
-    """Extends the two-run repro to three runs -- guards against a fix that
-    merely delays the degradation by one generation rather than closing the
-    feedback loop."""
     _git_init(tmp_path)
     _write_curated_charter_md(tmp_path)
 
@@ -156,10 +123,29 @@ def test_charter_generate_is_idempotent_across_three_runs(tmp_path: Path) -> Non
         result = _invoke_generate(tmp_path, *args)
         assert result.exit_code == 0, f"generate run {index} failed: {result.stdout!r}"
         catalogs.append(_read_catalog(tmp_path))
+    catalog_1 = catalogs[0]
 
+    # (a) byte-identical catalog, modulo the metadata timestamp: languages
+    # and the full reference set must be stable across every regenerate.
     for catalog in catalogs[1:]:
-        assert catalog.get("languages") == catalogs[0].get("languages")
-        assert catalog["references"] == catalogs[0]["references"]
+        assert catalog.get("languages") == catalog_1.get("languages")
+        assert catalog["references"] == catalog_1["references"]
+
+    # (b) no placeholder content on any later run.
+    for catalog in catalogs[1:]:
+        placeholder_count = sum(1 for reference in catalog["references"] if reference["summary"] == _PLACEHOLDER_SUMMARY)
+        assert placeholder_count == 0, (
+            f"{placeholder_count} language-scoped reference(s) degraded to the bundled-doctrine placeholder on a repeated `charter generate` run"
+        )
+
+    # (c) a real, language-scoped styleguide keeps its genuine title/summary
+    # on EVERY run -- not just "some non-empty summary", the actual content.
+    summaries = [_summary_for(catalog["references"], _PYTHON_STYLEGUIDE_ID) for catalog in catalogs]
+    for index, summary in enumerate(summaries):
+        assert summary is not None, f"python-conventions styleguide missing on run {index}"
+        assert summary == summaries[0]
+    assert summaries[0] != _PLACEHOLDER_SUMMARY
+    assert "guard clauses" in summaries[0].lower()
 
 
 # ---------------------------------------------------------------------------

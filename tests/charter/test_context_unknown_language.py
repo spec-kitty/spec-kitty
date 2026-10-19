@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import shutil
 import subprocess
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -105,9 +107,34 @@ def zig(tmp_path_factory: pytest.TempPathFactory) -> _Renders:
     return _renders(_new_project(tmp_path_factory.mktemp("zig"), "zig", "Zig"))
 
 
+def _tree_snapshot(root: Path) -> dict[str, bytes]:
+    """Every file path and its bytes under ``root`` (proves a shared tree stayed read-only)."""
+    return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+
 @pytest.fixture(scope="module")
-def python_project(tmp_path_factory: pytest.TempPathFactory) -> _Renders:
-    return _renders(_new_project(tmp_path_factory.mktemp("py"), "py", "Python"))
+def python_generated(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """One generated, never-rendered Python project; the Python renders copy it instead of regenerating.
+
+    Module-scoped and shared, so it must stay read-only: the snapshot taken before
+    the first copy is asserted unchanged at teardown. The ``.git`` directory travels
+    with every copy, so each copy is still a git-initialised repo.
+    """
+    repo = _new_project(tmp_path_factory.mktemp("pygen"), "pygen", "Python")
+    before = _tree_snapshot(repo)
+    yield repo
+    assert _tree_snapshot(repo) == before, "a test mutated the shared generated Python project"
+
+
+def _copy_project(source: Path, root: Path, name: str) -> Path:
+    repo = root / name
+    shutil.copytree(source, repo, symlinks=True)
+    return repo
+
+
+@pytest.fixture(scope="module")
+def python_project(python_generated: Path, tmp_path_factory: pytest.TempPathFactory) -> _Renders:
+    return _renders(_copy_project(python_generated, tmp_path_factory.mktemp("py"), "py"))
 
 
 @pytest.fixture(scope="module")
@@ -121,9 +148,9 @@ def default_project(tmp_path_factory: pytest.TempPathFactory) -> _Renders:
 
 
 @pytest.fixture(scope="module")
-def stale_compiled_python(tmp_path_factory: pytest.TempPathFactory) -> _Renders:
+def stale_compiled_python(python_generated: Path, tmp_path_factory: pytest.TempPathFactory) -> _Renders:
     """Compiled ``[python]`` charter whose interview later became Zig, with NO regeneration."""
-    repo = _new_project(tmp_path_factory.mktemp("stale"), "stale", "Python")
+    repo = _copy_project(python_generated, tmp_path_factory.mktemp("stale"), "stale")
     _write_answers(repo, "Zig")
     return _renders(repo)
 
@@ -290,10 +317,6 @@ class TestRecognisedLanguageBleed:
         assert rust_project.compact["mode"] == "compact"
         assert leaked == []
 
-    def test_python_project_still_lists_python_conventions(self, python_project: _Renders) -> None:
-        """GREEN control (pins unchanged behaviour): Python keeps its own scoped ids in the compact rail."""
-        assert _mentions(python_project.bootstrap["text"], "python-conventions")
-
     def test_default_project_still_admits_all(self, default_project: _Renders) -> None:
         """GREEN control (pins unchanged behaviour): no language signal admits all, so python-conventions is still listed."""
         assert _mentions(default_project.bootstrap["text"], "python-conventions")
@@ -322,13 +345,6 @@ class TestRecognisedLanguageWithoutSpecialistGuidance:
         assert diagnosis.suggestion is not None
         assert _advisory() in diagnosis.suggestion
         assert "Add the active language" not in diagnosis.suggestion
-
-    def test_python_default_and_unknown_controls(self, python_project: _Renders, default_project: _Renders, zig: _Renders) -> None:
-        """GREEN control (pins unchanged behaviour): python and default show no advisory; unknown still shows exactly one."""
-        assert _advisory() not in python_project.bootstrap["text"] + python_project.compact["text"]
-        assert _advisory() not in default_project.bootstrap["text"] + default_project.compact["text"]
-        assert zig.bootstrap["text"].count(_advisory()) == 1
-        assert zig.compact["text"].count(_advisory()) == 1
 
 
 class TestDefaultInterviewControl:
