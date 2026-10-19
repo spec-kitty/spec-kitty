@@ -1,7 +1,7 @@
 {
-  "event_count": 55,
-  "last_event_id": "01M5AFMFBY2M3N3ESERJFQ8EXT",
-  "materialized_at": "2026-10-19T16:24:08.318380+00:00",
+  "event_count": 56,
+  "last_event_id": "01M5AGB60KDFY28XKZNAQS5ENP",
+  "materialized_at": "2026-10-19T16:36:32.403313+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -160,16 +160,22 @@
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "implement-command",
-      "lane": "in_review",
-      "last_event_id": "01M5AFMFBY2M3N3ESERJFQ8EXT",
-      "last_transition_at": "2026-10-19T16:24:08.318380+00:00",
+      "lane": "planned",
+      "last_event_id": "01M5AGB60KDFY28XKZNAQS5ENP",
+      "last_transition_at": "2026-10-19T16:36:32.403313+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-19T16:14:42Z – implement-command – shell_pid=28807 – Red-first: test_multi_language_evidence.py 20 failed/3 passed on pre-change src (3 pass by design: pinned single-language hash literal 57586695...ab7a... equal on lane head and origin/main; two no-extra-walk guards); 23 passed after. Suites: synthesizer+evidence+test_language_authority+CLI status/synthesize+json_contract+no_dead_symbols+single_language_vocabulary 858 passed/13 skipped; final gate/perf rerun 291 passed/7 skipped. Threshold 20% (_LANGUAGE_SHARE_THRESHOLD, private to satisfy dead-symbol gate). Changed expectations: none in test_evidence/test_request/test_write_pipeline. Deviations: observe_languages(repo_root,...) replaced by resolve_languages(observation,count_sources) to keep ONE walk; resolve_primary_language removed (dead-symbol gate), 2 lines of tests/charter/test_language_authority.py updated to resolve_languages(...).primary. Unowned edits: src/charter/activation/evidence/orchestrator.py (corpus-by-primary comment only), tests/charter/test_language_authority.py."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/charter-synthesis-graph-and-languages-01M59RZ5-coord/kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP05-multi-language-evidence/review-cycle-1.md",
+        "reference": "review-cycle://charter-synthesis-graph-and-languages-01M59RZ5/WP05-multi-language-evidence/review-cycle-1.md",
+        "reviewer": "claude",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 17079,
       "shell_pid_created_at": "1792427040.79",
