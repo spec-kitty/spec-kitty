@@ -143,3 +143,19 @@ def test_git_reads_the_crlf_fixture_as_unset_text_so_checkout_keeps_its_bytes() 
 
     assert out.strip().endswith("text: unset"), out
     assert b"\r\n" in (ROOT / CRLF_FIXTURE).read_bytes()
+
+
+ARTIFACT_GOLDENS_GLOB = "services/mission-status-api/src/test/resources/artifact-conformance/**"
+ARTIFACT_GOLDEN_ONLY_PATH = "services/mission-status-api/src/test/resources/artifact-conformance/golden.json"
+
+
+def test_an_artifact_golden_only_diff_also_runs_the_golden_honesty_test() -> None:
+    """A hand-edit of the artifact goldens must select ``contract_tools``, where the reference-honesty test lives."""
+    router = load_router()
+
+    assert router.filters[GROUP].count(ARTIFACT_GOLDENS_GLOB) == 1
+    assert [group for group, globs in router.filters.items() if ARTIFACT_GOLDENS_GLOB in globs] == [GROUP]
+    selection = select_gates([ARTIFACT_GOLDEN_ONLY_PATH], router=router)
+    assert selection.matched_groups == {GROUP, "ci"}
+    assert selection.selected_code_shards == frozenset()
+    assert (ROOT / ARTIFACT_GOLDEN_ONLY_PATH).is_file()

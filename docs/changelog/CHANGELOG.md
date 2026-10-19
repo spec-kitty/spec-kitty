@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-17'
+updated: '2026-10-18'
 ---
 # Changelog
 
@@ -22,7 +22,7 @@ this section at publish._
 
 ### Added
 
-- **`charter context --json` reports resolution diagnostics** (#6407, `context_schema_version` 1.4.0). **Before:** a selected directive id found in no layer was dropped silently on the JSON, doctor and prompt surfaces. **After:** the payload carries an always-present top-level `diagnostics` list (and `directives_source` is passed through the CLI); `spec-kitty doctor` warns naming the dropped ids. The change is additive.
+- **The Mission Status service now serves a Mission's planning artifacts, and every removed dashboard route has a recorded home** (#957, #5533). **Before:** after the dashboard removal (#5530) nothing served a Mission's spec, plan, research, contracts or checklists, and the local service answered the artifact operations with 404. **After:** `GET /api/v1/missions/{missionId}/artifacts` lists a Mission's files and `.../artifacts/content?path=` returns one file's redacted text; oversized, binary and credential-holding files are refused and links are never followed, as the unchanged `mission-status` contract states. The route inventory, including the routes dropped with the dashboard, is in `kitty-specs/mission-status-artifact-reads-01M57KY3/route-inventory.md`; divergences are in `services/mission-status-api/README.md`.
 - **The vendored built-in pack is now pinned and drift-gated** (#3504). **Before:** `packs/built-in/` could silently diverge from its `spec-kitty-open-packs` source, and nothing caught it. **After:** `packs/built-in.source.yaml` pins the tree to an open-packs commit SHA and content digest; `spec-kitty charter pack vendor [--check]` re-vendors or verifies it. A per-PR CI gate and a release-time re-verify fail on drift. **What to do:** when the gate reds, bump the pin with `vendor` instead of hand-editing `packs/built-in/` (ADR `2026-08-16-2`, Option B).
 - **`spec-kitty migrate ledger` reports which project setup steps have run** (#6387, #2933, #5230). Spec Kitty now keeps an explicit migration ledger that records exactly which setup steps a project has applied and in what order, so re-running `spec-kitty upgrade` is safe and repeatable — it replays nothing already recorded. Repository-wide steps travel with the repository; per-clone git setup is recorded per clone, so a teammate's fresh clone still gets it applied. Run `spec-kitty migrate ledger` to see, for every setup step, whether it is already in place, not yet applied, recorded elsewhere but absent here, or changed since it ran; `--json` emits the same report. A fresh `spec-kitty init` seeds the ledger so the first `spec-kitty upgrade` on a new project does no redundant work. **What to do:** nothing; the first `spec-kitty upgrade` adopts your existing history. An older CLI run on an upgraded project no longer sees which steps were applied.
 

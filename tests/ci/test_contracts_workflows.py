@@ -59,6 +59,10 @@ ROUTER_ONLY_EXTRA_GLOBS: tuple[tuple[str, str], ...] = (
         "services/mission-status-api/src/test/resources/conformance/**",
         "the Mission Status API conformance goldens: a golden-only diff must run the golden-honesty test of `tests (contract tools)`",
     ),
+    (
+        "services/mission-status-api/src/test/resources/artifact-conformance/**",
+        "the artifact-route goldens: a golden-only diff must run their reference-honesty test of `tests (contract tools)`",
+    ),
 )
 # The contract tool unit tests run in a router job (a required check through router-gate), not in contracts.yml, which runs no
 # pytest at all. The router's corpus job runs only the modules that read committed Missions, to stay within its time budget.

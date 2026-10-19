@@ -20,15 +20,20 @@ class AllowlistReadmeParityTest {
 
   /** The lines of the one fenced block under the "Read allowlist" heading. */
   static List<String> fencedAllowlist(String readme) {
+    return fencedAllowlist(readme, "## Read allowlist");
+  }
+
+  /** The lines of the one fenced block under {@code headingLine}. */
+  static List<String> fencedAllowlist(String readme, String headingLine) {
     List<String> lines = readme.lines().toList();
     int heading = -1;
     for (int i = 0; i < lines.size(); i++) {
-      if (lines.get(i).strip().equalsIgnoreCase("## Read allowlist")) {
+      if (lines.get(i).strip().equalsIgnoreCase(headingLine)) {
         heading = i;
         break;
       }
     }
-    assertThat(heading).as("the README has a '## Read allowlist' heading").isGreaterThanOrEqualTo(0);
+    assertThat(heading).as("the README has a '" + headingLine + "' heading").isGreaterThanOrEqualTo(0);
     List<String> entries = new ArrayList<>();
     boolean inside = false;
     int fences = 0;

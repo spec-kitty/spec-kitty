@@ -1,7 +1,7 @@
 {
   "stages": {
     "base": {
-      "requestCountFloor": 37
+      "requestCountFloor": 41
     },
     "hostOrigin": {
       "requestCountFloor": 12
@@ -109,6 +109,38 @@
           "headers": {
             "Accept": "text/event-stream"
           }
+        },
+        {
+          "id": "artifact-content-meta",
+          "method": "GET",
+          "path": "/api/v1/missions/01J01000000000000000000001/artifacts/content?path=meta.json",
+          "expectedStatus": 200,
+          "expectedGolden": "smoke:artifact-content-meta.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "artifact-status-record",
+          "method": "GET",
+          "path": "/api/v1/missions/01J01000000000000000000001/artifacts/content?path=status.events.jsonl",
+          "expectedStatus": 404,
+          "expectedProblemCode": "not_found",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "artifact-invalid-path",
+          "method": "GET",
+          "path": "/api/v1/missions/01J01000000000000000000001/artifacts/content?path=..%2Fmeta.json",
+          "expectedStatus": 400,
+          "expectedProblemCode": "invalid_artifact_path",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "artifact-unknown-mission",
+          "method": "GET",
+          "path": "/api/v1/missions/01J01000000000000000000009/artifacts",
+          "expectedStatus": 404,
+          "expectedProblemCode": "not_found",
+          "expectedContentType": "application/problem+json"
         }
       ]
     },

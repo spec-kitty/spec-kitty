@@ -11,6 +11,8 @@
 #   provides and the charter puts in force is resolved from the org roots / org DRG fragments by
 #   ActiveCharterService (pack_context.org_roots), so the coherence check confirms it sound the
 #   same way it does a built-in artifact (epic #6286 charter-offering catfooding).
+# - PR-CHARTER-GOVERNANCE-002 is @wip @defect:6417 (#6369): it landed gating without ever running
+#   and was red on the 2026-10-18 nightly; `charter list` does not show the org-required rule.
 # - Promises mapped to FR/ADR in tests/scenarios/charter/PROMISES.md.
 
 Feature: The governance in force is what I chose
@@ -30,7 +32,7 @@ Feature: The governance in force is what I chose
     When the author asks what governs the work
     Then the governance in force is only what the charter puts in force
 
-  @promise:PR-CHARTER-GOVERNANCE-002
+  @promise:PR-CHARTER-GOVERNANCE-002 @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6417
   Scenario: A team's org-wide requirement is honoured on top of the project's own choices
     Given the team pack requires a rule the project did not select
     And the charter has been synthesized

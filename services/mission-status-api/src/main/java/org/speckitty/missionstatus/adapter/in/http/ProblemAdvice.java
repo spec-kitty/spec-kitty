@@ -6,9 +6,11 @@ import java.util.List;
 import org.apache.tomcat.util.http.InvalidParameterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.speckitty.missionstatus.application.query.port.in.exceptions.ArtifactRefused;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionStatusUnavailable;
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamCursorText;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
+import org.speckitty.missionstatus.domain.readmodel.artifact.ArtifactRefusalCode;
 import org.speckitty.missionstatus.domain.readmodel.cursor.InvalidPageCursor;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,11 @@ class ProblemAdvice {
   @ExceptionHandler(MissionStatusUnavailable.class)
   ResponseEntity<ProblemBody> unavailable(MissionStatusUnavailable refusal) {
     return ProblemMapper.unavailable(refusal);
+  }
+
+  @ExceptionHandler(ArtifactRefused.class)
+  ResponseEntity<ProblemBody> artifact(ArtifactRefused refusal) {
+    return ProblemMapper.artifact(refusal);
   }
 
   @ExceptionHandler(InvalidPageCursor.class)
@@ -61,7 +68,7 @@ class ProblemAdvice {
   /**
    * A malformed percent-encoding in the query string (pre-merge fold F4, landing fold A2): a client error, answered with the 400 the route
    * declares, so the body is valid against the contract: {@code invalid_page_cursor} on the Mission listing, {@code misaligned} with a fixed
-   * detail on the event stream. The route is read from the path only (the query is the part that cannot be parsed), and nothing of the
+   * detail on the event stream, {@code invalid_artifact_path} on the artifact content read. The route is read from the path only (the query is the part that cannot be parsed), and nothing of the
    * request is echoed. Any other path has no declared 400 and gets the plain shared Problem.
    */
   @ExceptionHandler(InvalidParameterException.class)
@@ -72,6 +79,9 @@ class ProblemAdvice {
     }
     if (EVENTS_PATH.equals(path)) {
       return ProblemMapper.stream(new StreamRefused(StreamRefused.Kind.MISALIGNED), MALFORMED_QUERY_DETAIL);
+    }
+    if (ArtifactsController.isContentPath(path)) {
+      return ProblemMapper.artifact(new ArtifactRefused(ArtifactRefusalCode.INVALID_ARTIFACT_PATH));
     }
     return ProblemMapper.status(HttpStatus.BAD_REQUEST);
   }

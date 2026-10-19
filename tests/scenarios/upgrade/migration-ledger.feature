@@ -41,6 +41,7 @@ Feature: Upgrade runs exactly the setup work a project still needs
   So that re-running is safe, a teammate's fresh clone gains its own local setup, and I can
   see and trust what has been done
 
+  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6416
   Scenario: Upgrading a project that is already current changes nothing
     Given an existing git repository with commit history
     And a project already set up with Spec Kitty for the agents "claude"
@@ -54,6 +55,7 @@ Feature: Upgrade runs exactly the setup work a project still needs
     And the folder ".claude/skills" is unchanged
     And the folder ".claude/skills" is not empty
 
+  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6416
   Scenario: A tracked refresh that already arrived with the pull is not redone
     Given an existing git repository with commit history
     And a project already set up with Spec Kitty for the agents "claude"
@@ -115,7 +117,12 @@ Feature: Upgrade runs exactly the setup work a project still needs
     Then the command succeeds
     And the report flags a setup step whose content changed since it ran
 
-# The acceptance-jvm steps these scenarios bind (all nine gate the nightly):
+# - The first two scenarios are @wip @defect:6416 (#6369): they landed gating without ever
+#   running and were red on the 2026-10-18 nightly. A just-initialized project's first upgrade
+#   commits a .gitattributes merge-driver line init never wrote. "A tracked refresh ..." also
+#   never records the repository state before it acts, so "the repository has no new commits"
+#   cannot pass as written; fix that Arrange too before dropping @wip.
+# The acceptance-jvm steps these scenarios bind (seven gate the nightly; two are @wip, above):
 #   Arrange (Given):
 #     - "a setup step the project declares but has not recorded as run"
 #     - "a freshly pulled clone whose shared records show its local git setup ran
