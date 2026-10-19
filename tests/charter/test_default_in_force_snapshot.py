@@ -4,7 +4,12 @@ The golden (``fixtures/default_in_force_snapshot.json``) freezes what a bare
 project (no activation keys, no org packs, no synthesized artifacts) delivers
 per built-in software-dev action at depths 1 and 2, plus the project-level
 governance resolution. Later work in the charter-governance-resolution Mission
-must not change it. Regenerate only deliberately: ``UPDATE_SNAPSHOT=1``.
+must not change it.
+
+This is a permanent guard of the default in-force set, not a one-off check for
+that Mission. A deliberate change to the built-in packs changes the default set;
+regenerate the golden in that change with ``UPDATE_SNAPSHOT=1`` and review the
+diff. Never regenerate it to make an unrelated failure pass.
 """
 
 from __future__ import annotations

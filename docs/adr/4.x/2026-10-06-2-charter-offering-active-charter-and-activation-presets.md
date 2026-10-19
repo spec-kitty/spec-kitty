@@ -146,3 +146,11 @@ The #3732 mission specification (`kitty-specs/charter-pack-cutover-01M491G6/spec
 10. **The cutover ships as one mission and one pull request**, because a cutover without compatibility layers cannot ship half.
 
 The "Neutral" consequence above ("the `src/specify_cli/doctrine/` module path ... renamed as internal refactors") is superseded by ruling 9.
+
+## Amendment 2026-10-19: synthesized tactics and activation lists
+
+The charter-governance-resolution Mission (#6404-#6408) settled three points about how activation lists treat synthesized tactics. They refine the activation model above without changing the absent-key default.
+
+1. **Synthesized "how we apply" tactics are reach-only (operator decision 2026-10-18, #6404).** A tactic that synthesis created and linked from its directive with `directive --suggests--> tactic` is never a traversal root. It is delivered only while its directive is active, even when it appears in an explicit `activated_tactics` list. Hand-authored tactics and org-required tactics stay roots.
+2. **Synthesis appends, and never creates the key.** `charter synthesize` and `charter resynthesize` append the tactic ids a run creates to a present `activated_tactics` list. They never create the key, so absent-key semantics are unchanged.
+3. **Narrowing is opt-in.** `charter activate --only` and `charter interview --narrow-activation` (#6408) set a kind's list to the selection plus org-required ids. The absent-key default and the preserve-don't-narrow rule are unchanged.
