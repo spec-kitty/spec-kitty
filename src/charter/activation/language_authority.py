@@ -36,7 +36,9 @@ __all__ = [
     "EXCLUDED_DIRS",
     "declared_languages",
     "expand_language_families",
-    "observe_primary_language",
+    "count_sources_uncapped",
+    "resolve_primary_language",
+    "TreeObservation",
 ]
 
 EXCLUDED_DIRS: frozenset[str] = frozenset(
@@ -161,22 +163,6 @@ def resolve_primary_language(
     return _best_by_count(languages, counts)
 
 
-def observe_primary_language(repo_root: Path, max_depth: int = 3) -> str:
-    """Walk *repo_root* (to *max_depth*) and return its primary language, or ``unknown``."""
-    observation = TreeObservation()
-    root_str = str(repo_root)
-    for dirpath, dirnames, filenames in os.walk(root_str):
-        rel = os.path.relpath(dirpath, root_str)
-        depth = 0 if rel == "." else rel.count(os.sep) + 1
-        if depth > max_depth:
-            dirnames.clear()
-            continue
-        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
-        for filename in filenames:
-            observation.observe(filename, depth)
-    return resolve_primary_language(observation, lambda: count_sources_uncapped(repo_root))
-
-
 # ---------------------------------------------------------------------------
 # Declared
 # ---------------------------------------------------------------------------
@@ -186,10 +172,12 @@ def _compile(patterns: tuple[str, ...]) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(COMPOUND_PREFIX_GUARD + pattern) for pattern in patterns)
 
 
-_DECLARED_LANGUAGE_PATTERNS: tuple[tuple[str, tuple[str, ...], tuple[re.Pattern[str], ...]], ...] = tuple(
-    (spec.token, spec.families, _compile(spec.declared_patterns)) for spec in LANGUAGES if spec.declared_patterns
+_DECLARED_LANGUAGE_PATTERNS: tuple[tuple[int, str, tuple[str, ...], tuple[re.Pattern[str], ...]], ...] = tuple(
+    (spec.declared_rank, spec.token, spec.families, _compile(spec.declared_patterns)) for spec in LANGUAGES if spec.declared_patterns
 )
-_DECLARED_TOOL_PATTERNS: tuple[tuple[str, tuple[re.Pattern[str], ...]], ...] = tuple((tool.family, _compile(tool.declared_patterns)) for tool in BUILD_TOOLS)
+_DECLARED_TOOL_PATTERNS: tuple[tuple[int, str, tuple[re.Pattern[str], ...]], ...] = tuple(
+    (tool.declared_rank, tool.family, _compile(tool.declared_patterns)) for tool in BUILD_TOOLS
+)
 
 
 def _matches(patterns: tuple[re.Pattern[str], ...], haystack: str) -> bool:
@@ -199,19 +187,22 @@ def _matches(patterns: tuple[re.Pattern[str], ...], haystack: str) -> bool:
 def declared_languages(text: str) -> list[str]:
     """Return the canonical language identifiers a free-form declaration names.
 
+    Output follows ``declared_rank`` (the pre-catalog pattern order), because the
+    unsorted fallback path persists it into ``catalog.languages``.
+
     Build-token rule (FR-013): a declared build or test tool (gradle, maven, junit) adds
     its family (``jvm``) only when no language of that family is declared, so
     "Gradle" alone is ``["jvm"]`` while "Kotlin, Gradle" is ``["kotlin"]``.
     """
     haystack = text.lower()
-    matches: list[str] = []
+    matches: list[tuple[int, str]] = []
     families: set[str] = set()
-    for token, token_families, patterns in _DECLARED_LANGUAGE_PATTERNS:
+    for rank, token, token_families, patterns in _DECLARED_LANGUAGE_PATTERNS:
         if _matches(patterns, haystack):
-            matches.append(token)
+            matches.append((rank, token))
             families.update(token_families)
-    for family, patterns in _DECLARED_TOOL_PATTERNS:
+    for rank, family, patterns in _DECLARED_TOOL_PATTERNS:
         if family not in families and _matches(patterns, haystack):
-            matches.append(family)
+            matches.append((rank, family))
             families.add(family)
-    return list(normalize_languages(matches))
+    return list(normalize_languages(token for _rank, token in sorted(matches)))
