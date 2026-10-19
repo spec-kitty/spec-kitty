@@ -79,7 +79,9 @@ class TestNoFabricationForFreeTextSections:
         drg_snapshot: dict = {"nodes": [], "edges": [], "schema_version": "1.0"}
 
         sections = resolve_sections(interview_snapshot)
-        targets = build_targets(interview_snapshot, sections, drg_snapshot)
+        # An empty shipped universe isolates the answer text: the fixed #6442 table edge
+        # (sourced from the shipped graph, not the answer) is covered in test_styleguide_reach_only.
+        targets = build_targets(interview_snapshot, sections, drg_snapshot, shipped_urns=frozenset())
 
         matching = [t for t in targets if t.source_section == section]
         assert matching, f"expected at least one target for section {section!r}"
@@ -101,7 +103,9 @@ class TestNoFabricationForFreeTextSections:
         drg_snapshot: dict = {"nodes": [], "edges": [], "schema_version": "1.0"}
 
         sections = resolve_sections(interview_snapshot)
-        targets = build_targets(interview_snapshot, sections, drg_snapshot)
+        # An empty shipped universe isolates the answer text: the fixed #6442 table edge
+        # (sourced from the shipped graph, not the answer) is covered in test_styleguide_reach_only.
+        targets = build_targets(interview_snapshot, sections, drg_snapshot, shipped_urns=frozenset())
 
         overlay = emit_project_layer(
             targets, spec_kitty_version="test", built_in_drg=_empty_built_in_drg()

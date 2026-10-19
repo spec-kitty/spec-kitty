@@ -48,7 +48,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from charter.offering.drg.loader import DRGLoadError, load_graph_or_dir, merge_layers
+from charter.offering.drg.loader import DRGLoadError, load_built_in_graph, load_graph_or_dir, merge_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.validator import validate_graph
 
@@ -138,6 +138,36 @@ def _graph_excluding_preserved_conflicts(
 # ---------------------------------------------------------------------------
 
 
+def below_project_base(built_in_drg: DRGGraph, overlay: DRGGraph, org_drg: DRGGraph | None = None) -> DRGGraph:
+    """Return the layer below the project *overlay* that conflicts and validation read.
+
+    *org_drg* already folds the shipped built-in graph, so it substitutes for
+    (not unions with) *built_in_drg* (#4121, MAJOR 2). Without it the base is the
+    request's built-in snapshot, which holds the selected directives only, while
+    a reach-only styleguide is linked FROM its table directive whether or not it
+    is selected (``targets._present_source_urns`` checked it against the shipped
+    graph, #6442): the shipped nodes the overlay's edges name are folded in.
+    Only endpoints the shipped graph holds are added, so a URN that exists
+    nowhere still dangles. ``reconcile._classify_conflicts`` reads the same
+    base, keeping its conflict detection identical to this gate's.
+    """
+    if org_drg is not None:
+        return org_drg
+    return _with_shipped_endpoints(built_in_drg, overlay)
+
+
+def _with_shipped_endpoints(base: DRGGraph, overlay: DRGGraph) -> DRGGraph:
+    """Add to *base* the shipped DRG nodes the *overlay*'s edges reference and *base* lacks."""
+    known = {node.urn for node in base.nodes} | {node.urn for node in overlay.nodes}
+    wanted = {urn for edge in overlay.edges for urn in (edge.source, edge.target)} - known
+    if not wanted:
+        return base
+    shipped = [node for node in load_built_in_graph().nodes if node.urn in wanted]
+    if not shipped:
+        return base
+    return base.model_copy(update={"nodes": [*base.nodes, *shipped]})
+
+
 def validate(
     staging_dir: Path,
     built_in_drg: DRGGraph,
@@ -209,8 +239,9 @@ def validate(
 
     # --- Step 2: Merge layers (additive) -----------------------------------
     # org_drg already folds the built-in layer, so it substitutes for (not
-    # unions with) built_in_drg as the lower layer (#4121, MAJOR 2).
-    base_layer = org_drg if org_drg is not None else built_in_drg
+    # unions with) built_in_drg as the lower layer (#4121, MAJOR 2); without it,
+    # the shipped endpoints the overlay names are folded in (#6442).
+    base_layer = below_project_base(built_in_drg, project_overlay, org_drg)
     merged = merge_layers(base_layer, project_overlay)
 
     # --- Step 3: Suppress preserved-content conflicts (T009) ---------------
@@ -238,4 +269,4 @@ def validate(
     )
 
 
-__all__ = ["validate"]
+__all__ = ["below_project_base", "validate"]

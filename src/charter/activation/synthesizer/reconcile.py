@@ -46,6 +46,8 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, Relation
 from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_root
 
+from .validation_gate import below_project_base
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
     from pathlib import Path
@@ -686,9 +688,10 @@ def _classify_conflicts(
     as returned by ``charter.activation._drg_helpers.org_chain_graph``); when supplied
     it substitutes for ``built_in_drg`` as the merge's lower layer, exactly
     as ``validation_gate.validate`` does, so an overlay edge referencing an
-    org-pack artifact is not classified as a dangling endpoint here either.
+    org-pack artifact is not classified as a dangling endpoint here either,
+    and folds in the shipped endpoints a table edge names (#6442) the same way.
     """
-    base_layer = org_drg if org_drg is not None else built_in_drg
+    base_layer = below_project_base(built_in_drg, merged_overlay, org_drg)
     full_graph = merge_layers(base_layer, merged_overlay)
     target_urns = {n.urn for n in fresh_overlay.nodes}
     overlay_urns = {n.urn for n in merged_overlay.nodes}

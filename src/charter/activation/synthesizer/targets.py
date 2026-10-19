@@ -23,6 +23,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from charter.offering.drg.loader import load_built_in_graph
+
 from .errors import DuplicateTargetError, ProjectDRGValidationError
 from .request import SynthesisTarget
 
@@ -187,17 +189,30 @@ def _validate_source_urns(
         )
 
 
+def _shipped_drg_urns() -> frozenset[str]:
+    """Return the node URNs of the shipped built-in DRG (#6442).
+
+    The universe a table-declared styleguide source is checked against: the
+    doctrine every project resolves, independent of which directives the run
+    selected. The request's DRG snapshot holds only the selected directives, so
+    it cannot decide whether a reach-only styleguide's source edge exists.
+    """
+    return frozenset(node.urn for node in load_built_in_graph().nodes)
+
+
 def _present_source_urns(
     source_urns: tuple[str, ...],
-    drg_snapshot: dict[str, Any],
+    shipped_urns: frozenset[str],
 ) -> tuple[str, ...]:
-    """Keep the table-declared *source_urns* the run's own DRG snapshot holds (#6442).
+    """Keep the table-declared *source_urns* the shipped DRG holds (#6442).
 
-    A presence check, not validation: a snapshot without the directive omits the
-    edge instead of raising ``ProjectDRGValidationError``, so no URN ever dangles.
+    A presence check, not validation: a directive absent from the shipped graph
+    omits the edge instead of raising ``ProjectDRGValidationError``, so no URN
+    ever dangles. Deliberately not checked against the run's snapshot (the
+    directive selection): the edge exists whether or not the directive is
+    selected or active.
     """
-    known = _known_drg_urns(drg_snapshot)
-    return tuple(urn for urn in source_urns if urn in known)
+    return tuple(urn for urn in source_urns if urn in shipped_urns)
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +224,8 @@ def build_targets(
     interview_snapshot: dict[str, Any],
     mappings: list[tuple[str, dict[str, Any]]],
     drg_snapshot: dict[str, Any],
+    *,
+    shipped_urns: frozenset[str] | None = None,
 ) -> list[SynthesisTarget]:
     """Build ``SynthesisTarget`` objects from resolved interview sections.
 
@@ -223,6 +240,12 @@ def build_targets(
         Each element is ``(section_label, answer_context)``.
     drg_snapshot:
         Frozen built-in-only DRG snapshot for source-URN validation (EC-2).
+        Explicit ``source_urns`` are validated against it, fail-closed.
+    shipped_urns:
+        Node URNs of the shipped DRG the table-declared per-kind sources
+        (``source_urns_by_kind``, #6442) are checked against, never against
+        ``drg_snapshot``. ``None`` (production) loads them through
+        :func:`_shipped_drg_urns`, once, and only when a section declares one.
 
     Returns
     -------
@@ -268,12 +291,12 @@ def build_targets(
                 artifact_id = slug
 
             # A per-kind source (#6442) is added for that kind only, after a
-            # presence check against this run's DRG snapshot. The project-intent
-            # directive carries no mission-type source (#6443).
-            kind_urns = _present_source_urns(
-                tuple(answer_context.get("source_urns_by_kind", {}).get(kind, ())),
-                drg_snapshot,
-            )
+            # presence check against the shipped DRG (not the selection). The
+            # project-intent directive carries no mission-type source (#6443).
+            table_urns = tuple(answer_context.get("source_urns_by_kind", {}).get(kind, ()))
+            if table_urns and shipped_urns is None:
+                shipped_urns = _shipped_drg_urns()
+            kind_urns = _present_source_urns(table_urns, shipped_urns or frozenset())
             all_source_urns = tuple(dict.fromkeys((*explicit_source_urns, *kind_urns)))
 
             target = SynthesisTarget(

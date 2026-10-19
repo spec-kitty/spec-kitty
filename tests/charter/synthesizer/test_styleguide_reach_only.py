@@ -66,7 +66,9 @@ def _drg_snapshot(directives: tuple[str, ...]) -> dict[str, object]:
 
 
 def _targets(directives: tuple[str, ...]) -> list[SynthesisTarget]:
-    return build_targets(_SNAPSHOT, resolve_sections(_SNAPSHOT), _drg_snapshot(directives))
+    """Targets with *directives* standing in for the shipped graph (the selection snapshot is empty)."""
+    shipped = frozenset(f"directive:{d}" for d in directives)
+    return build_targets(_SNAPSHOT, resolve_sections(_SNAPSHOT), _drg_snapshot(()), shipped_urns=shipped)
 
 
 def _overlay(directives: tuple[str, ...] = tuple(d for d, _ in _SOURCE_BY_SECTION.values())) -> DRGGraph:
@@ -170,12 +172,50 @@ def test_language_scope_styleguide_has_no_source_edge() -> None:
     assert [e for e in overlay.edges if e.source == f"styleguide:{_LANGUAGE_STYLEGUIDE}"] == []
 
 
-def test_snapshot_without_the_table_directive_omits_the_edge_and_does_not_raise() -> None:
-    overlay = _overlay(directives=("DIRECTIVE_030", "DIRECTIVE_037"))  # DIRECTIVE_034 absent
+def test_shipped_graph_without_the_table_directive_omits_the_edge_and_does_not_raise() -> None:
+    overlay = _overlay(directives=("DIRECTIVE_030", "DIRECTIVE_037"))  # DIRECTIVE_034 not shipped
 
     assert f"styleguide:{_TESTING_STYLEGUIDE}" in {n.urn for n in overlay.nodes}
     assert _edges_into(overlay, f"styleguide:{_TESTING_STYLEGUIDE}") == []
     assert _edges_into(overlay, "styleguide:quality-gates-style-guide") != []  # control: present directives still link
+
+
+def test_table_edge_is_sourced_from_the_real_shipped_graph_not_the_selection() -> None:
+    """No directive selected (empty snapshot): the real shipped DRG still sources every table edge."""
+    targets = build_targets(_SNAPSHOT, resolve_sections(_SNAPSHOT), _drg_snapshot(()))
+
+    sources = {t.slug: t.source_urns for t in targets if t.kind == "styleguide"}
+    for directive, slug in _SOURCE_BY_SECTION.values():
+        assert sources[slug] == (f"directive:{directive}",)
+    assert sources[_LANGUAGE_STYLEGUIDE] == ()  # control: unsourced section stays unsourced
+
+
+def test_selected_directive_alone_does_not_source_a_table_edge() -> None:
+    """A directive in the selection snapshot but absent from the shipped graph yields no edge (no dangling URN)."""
+    snapshot = _drg_snapshot(("DIRECTIVE_034",))
+    targets = build_targets(_SNAPSHOT, resolve_sections(_SNAPSHOT), snapshot, shipped_urns=frozenset())
+
+    assert all(t.source_urns == () for t in targets if t.kind == "styleguide")
+
+
+def test_validation_gate_resolves_a_table_edge_against_the_shipped_graph(tmp_path: Path) -> None:
+    """The gate's snapshot base omits an unselected directive; the shipped node is folded in, nothing more."""
+    from charter.activation.synthesizer.errors import ProjectDRGValidationError
+    from charter.activation.synthesizer.validation_gate import validate
+    from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME
+
+    overlay = _overlay()  # carries directive:DIRECTIVE_034/030/037 --suggests--> styleguide edges
+    pack = tmp_path / PROJECT_PACK_DIRNAME
+    pack.mkdir(parents=True)
+    (pack / "graph.yaml").write_text(yaml.safe_dump(overlay.model_dump(mode="json", exclude_none=True)), encoding="utf-8")
+
+    validate(tmp_path, _shipped_graph(()))  # empty selection: does not raise
+
+    dangling = DRGEdge(source="directive:NOT_SHIPPED_999", target=f"styleguide:{_TESTING_STYLEGUIDE}", relation=Relation.SUGGESTS)
+    broken = overlay.model_copy(update={"edges": [*overlay.edges, dangling]})
+    (pack / "graph.yaml").write_text(yaml.safe_dump(broken.model_dump(mode="json", exclude_none=True)), encoding="utf-8")
+    with pytest.raises(ProjectDRGValidationError, match="NOT_SHIPPED_999"):
+        validate(tmp_path, _shipped_graph(()))
 
 
 # --------------------------------------------------------------------------
