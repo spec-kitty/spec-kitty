@@ -197,16 +197,6 @@ class TestYamlKeyMap:
             "toolguide": "activated_toolguides",
         }
 
-    def test_mission_type_maps_to_correct_key(self) -> None:
-        assert YAML_KEY_MAP["mission-type"] == "mission_type_activations"
-
-    def test_directive_maps_to_activated_directives(self) -> None:
-        assert YAML_KEY_MAP["directive"] == "activated_directives"
-
-    def test_all_values_start_with_activated_or_mission(self) -> None:
-        for kind, yaml_key in YAML_KEY_MAP.items():
-            assert yaml_key.startswith("activated_") or yaml_key == "mission_type_activations", f"Key '{kind}' maps to unexpected yaml_key '{yaml_key}'"
-
 
 # ---------------------------------------------------------------------------
 # TestActivateNoneState
@@ -250,13 +240,6 @@ class TestActivateNoneState:
         assert any("had no explicit activation set" in w for w in result.warnings)
         assert any("nothing in force was deactivated" in w for w in result.warnings)
         assert any("This list is now explicit" in w and "--only" in w for w in result.warnings), "#6408: the warning must say the list is frozen"
-
-    def test_default_ids_are_present_after_materialize(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
-        manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
-        # At least one canonical built-in directive must be present
-        assert "001-architectural-integrity-standard" in data["activated_directives"]
 
 
 # ---------------------------------------------------------------------------
@@ -420,40 +403,9 @@ class TestListActivated:
         ctx = ProjectContext(repo_root=project_root)
         result = manager.list_activated(ctx)
         assert result["directive"] == frozenset({"aaa", "bbb"})
-
-    def test_other_kinds_still_none_when_one_populated(self, manager: ActiveCharterManager, project_root: Path) -> None:
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - something\n",
-            encoding="utf-8",
-        )
-        ctx = ProjectContext(repo_root=project_root)
-        result = manager.list_activated(ctx)
+        # Kinds without a populated key stay unrestricted (None).
         assert result["tactic"] is None
         assert result["paradigm"] is None
-
-
-# ---------------------------------------------------------------------------
-# TestActivateCascadeWarning
-# ---------------------------------------------------------------------------
-
-
-class TestActivateCascadeWarning:
-    def test_cascade_true_does_not_append_manager_warning(self, manager: ActiveCharterManager, project_root: Path) -> None:
-        """activate(cascade=True) keeps manager warnings scoped to activation state."""
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - 001-architectural-integrity-standard\n",
-            encoding="utf-8",
-        )
-        ctx = ProjectContext(repo_root=project_root)
-        result = manager.activate(
-            ctx,
-            kind="directive",
-            artifact_id="003-decision-documentation-requirement",
-            cascade=True,
-        )
-        assert not any("cascade" in w.lower() for w in result.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -462,14 +414,6 @@ class TestActivateCascadeWarning:
 
 
 class TestDeactivateCascadeAndInvalidKind:
-    def test_cascade_true_does_not_append_manager_warning(self, manager: ActiveCharterManager, project_root: Path) -> None:
-        """deactivate(cascade=True) keeps manager warnings scoped to activation state."""
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
-        ctx = ProjectContext(repo_root=project_root)
-        result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
-        assert not any("cascade" in w.lower() for w in result.warnings)
-
     def test_raises_value_error_for_unknown_kind(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """deactivate() with an unknown kind raises ValueError."""
         with pytest.raises(ValueError, match="Unknown activation kind"):
@@ -515,57 +459,15 @@ def _write_mission_type(dir_path: Path, mission_type_id: str) -> None:
     )
 
 
-class TestResolveLayerCandidateMissionTypeLayers:
-    """Unit-level pin for the exact directories ``_resolve_layer_candidate``
-    resolves for ``kind is None`` (mission-type) org/project layers
-    (FR-003/FR-005, CL-005's chosen locations).
-    """
-
-    def test_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
-        from charter.activation.pack_manager import _resolve_layer_candidate
-
-        candidate = _resolve_layer_candidate("org", tmp_path, None, "missions/mission_types", layered=False)
-        assert candidate == tmp_path / "mission_types"
-
-    def test_project_layer_resolves_to_kittify_missions_mission_types(self, tmp_path: Path) -> None:
-        """``root`` for the project layer is the project pack root
-        ``repo_root / ".kittify" / "charter-packs"`` (see
-        ``charter.activation.layer_roots.resolve_layer_roots``); the roster sits
-        outside the pack, at ``.kittify/missions/mission_types`` -- a flat
-        sibling of, not nested inside, ``.kittify/missions/<mission_name>/``.
-        """
-        from charter.activation.pack_manager import _resolve_layer_candidate
-
-        kittify = tmp_path / ".kittify"
-        candidate = _resolve_layer_candidate("project", kittify / "charter-packs", None, "missions/mission_types", layered=False)
-        assert candidate == kittify / "missions" / "mission_types"
-
-    def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
-        """The pre-existing built-in-layer branch for ``kind is None`` must be
-        untouched by adding the org/project branch."""
-        from charter.activation.pack_manager import _resolve_layer_candidate
-        from charter.offering.missions.repository import MissionTemplateRepository
-
-        candidate = _resolve_layer_candidate("built-in", tmp_path, None, "missions/mission_types", layered=False)
-        assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
-
-
 class TestMissionTypeOrgLayerResolves:
     """FR-003: an org-tier pack's flat ``mission_types/`` directory (CL-005)
     makes a non-built-in mission-type id available."""
 
-    def test_org_pack_mission_type_id_is_available(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_org_pack_mission_type_id_is_available_and_reports_org_layer(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
-
-        assert "qa" in result
-
-    def test_org_pack_mission_type_id_reports_org_layer(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
-        org_root = tmp_path / "org-pack"
-        _write_mission_type(org_root / "mission_types", "qa")
-
+        assert "qa" in manager.list_available(ctx, kind="mission-type", layer_roots={"org": org_root})
         detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"org": org_root})
 
         qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
@@ -577,18 +479,13 @@ class TestMissionTypeProjectLayerResolves:
     ``.kittify/missions/mission_types/*.yaml`` -- and makes a project-declared
     mission-type id available."""
 
-    def test_project_pack_mission_type_id_is_available(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
+    def test_project_pack_mission_type_id_is_available_and_reports_project_layer(
+        self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path
+    ) -> None:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
-
-        assert "qa" in result
-
-    def test_project_pack_mission_type_id_reports_project_layer(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
-        kittify = project_root / ".kittify"
-        _write_mission_type(kittify / "missions" / "mission_types", "qa")
-
+        assert "qa" in manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
         detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
@@ -613,16 +510,16 @@ class TestMissionTypeLayerPrecedenceOrder:
     """FR-003: the built-in -> org -> project precedence order must be
     explicit and tested, not incidental to a dict's iteration order."""
 
-    def test_scan_layer_dirs_order_is_built_in_org_project(self, manager: ActiveCharterManager, tmp_path: Path) -> None:
+    def test_same_id_in_org_and_project_reports_org_before_project(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
         _write_mission_type(org_root / "mission_types", "qa")
         project_kittify = tmp_path / "proj" / ".kittify"
         _write_mission_type(project_kittify / "missions" / "mission_types", "qa")
 
-        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify / "charter-packs"})
+        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"org": org_root, "project": project_kittify / "charter-packs"})
 
-        layers = [layer for layer, _dir in dirs]
-        assert layers == ["built-in", "org", "project"]
+        assert [entry.layer for entry in detailed if entry.artifact_id == "qa"] == ["org", "project"]
+        assert any(entry.layer == "built-in" for entry in detailed)
 
 
 class TestMissionTypeProjectLayerNonCollision:

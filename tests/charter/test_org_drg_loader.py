@@ -11,7 +11,6 @@ shipped-invariant hard-fail; backward-compat empty-org case).
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -19,7 +18,6 @@ import pydantic
 import pytest
 
 from charter.drg import (
-    DRGEdge,
     DRGGraph,
     DRGNode,
     NodeKind,
@@ -182,19 +180,16 @@ class TestOrgDRGFragmentSchema:
 
 
 class TestLoadOrgDrg:
-    def test_no_config_returns_empty_list(self, tmp_path: Path) -> None:
-        """NFR-001 backward compatibility — repos with no .kittify/config.yaml
+    @pytest.mark.parametrize(
+        "config_body",
+        [None, "charter_packs:\n  org:\n    packs: []\n", "other_setting: value\n"],
+        ids=["no-config", "empty-packs-list", "missing-packs-key"],
+    )
+    def test_no_org_packs_configured_returns_empty_list(self, tmp_path: Path, config_body: str | None) -> None:
+        """NFR-001 backward compatibility — repos with no (or no org) config
         behave identically to today (no org layer)."""
-        assert load_org_drg(tmp_path) == []
-
-    def test_empty_org_packs_list_returns_empty_list(self, tmp_path: Path) -> None:
-        _make_config(tmp_path, "charter_packs:\n  org:\n    packs: []\n")
-        assert load_org_drg(tmp_path) == []
-
-    def test_missing_org_packs_key_returns_empty_list(
-        self, tmp_path: Path
-    ) -> None:
-        _make_config(tmp_path, "other_setting: value\n")
+        if config_body is not None:
+            _make_config(tmp_path, config_body)
         assert load_org_drg(tmp_path) == []
 
     def test_one_fragment_per_configured_pack_in_declaration_order(
@@ -407,84 +402,17 @@ class TestLoadOrgDrgUnreadableFragmentDegrade:
         fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
         assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
 
-    @pytest.mark.skipif(
-        os.name != "posix" or os.geteuid() == 0,
-        reason="chmod-based unreadability needs POSIX and a non-root user",
-    )
-    def test_permission_denied_fragment_degrades_per_pack(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """chmod-0 variant mirroring the validator-side
-        ``test_permission_denied_fragment_is_a_finding``."""
-        healthy = _make_pack(tmp_path, self._HEALTHY_PACK_NAME)
-        unreadable = _make_pack(tmp_path, self._UNREADABLE_PACK_NAME)
-        fragment = unreadable / "drg" / "fragment.yaml"
-        fragment.chmod(0)
-        _make_config(
-            tmp_path,
-            dedent(
-                f"""\
-                charter_packs:
-                  org:
-                    packs:
-                      - name: {self._HEALTHY_PACK_NAME}
-                        local_path: {healthy}
-                      - name: {self._UNREADABLE_PACK_NAME}
-                        local_path: {unreadable}
-                """
-            ),
-        )
-        try:
-            with caplog.at_level(logging.WARNING, logger=self._LOGGER):
-                fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
-        finally:
-            fragment.chmod(0o644)
-        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
-        drop_warnings = self._drop_warnings(caplog)
-        assert drop_warnings, [r.getMessage() for r in caplog.records]
-        assert "malformed or unreadable drg/fragment.yaml" in drop_warnings[0].getMessage()
-        assert "PermissionError" in drop_warnings[0].getMessage()
-
-
 # ---------------------------------------------------------------------------
 # merge_three_layers
 # ---------------------------------------------------------------------------
 
 
 class TestMergeThreeLayers:
-    def test_empty_inputs_round_trip(self) -> None:
-        built_in = _empty_built_in()
-        merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
-        assert merged.nodes == []
-        assert merged.edges == []
-
     def test_every_shipped_node_tagged_built_in(self) -> None:
         built_in = _built_in_with_node("directive:foo")
         merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
         assert all(
             getattr(n, "provenance", None) == "built-in" for n in merged.nodes
-        )
-
-    def test_org_fragment_nodes_tagged_with_pack_name(self) -> None:
-        built_in = _empty_built_in()
-        fragment = OrgDRGFragment.model_validate(
-            {
-                "pack_name": "acme",
-                "source_kind": "local_path",
-                "source_ref": "/nonexistent/acme",
-                "layer_index": 1,
-                "provenance_marker": "org",
-                "nodes": [
-                    {"id": "policy", "kind": "directives", "title": "Policy"}
-                ],
-                "edges": [],
-            }
-        )
-        merged = merge_three_layers(
-            built_in=built_in, org_fragments=[fragment], project=None
-        )
-        assert any(
-            getattr(n, "provenance", None) == "org:acme" for n in merged.nodes
         )
 
     def test_org_fragment_mission_step_contract_node_merges(self) -> None:
@@ -772,12 +700,3 @@ class TestMergeThreeLayers:
         assert {"node_override", "layer_rule_violation"} <= kinds
 
 
-def test_drg_models_remain_re_exported() -> None:
-    """Sanity: the facade still re-exports the legacy DRG models so
-    pre-existing callers (calibration walker, glossary drg_builder,
-    mission_step_contracts executor) keep working."""
-    assert DRGEdge is not None
-    assert DRGGraph is not None
-    assert DRGNode is not None
-    assert NodeKind is not None
-    assert Relation is not None

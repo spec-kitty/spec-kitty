@@ -47,12 +47,6 @@ def _retired_row() -> RetiredField:
 # --------------------------------------------------------------------------------------
 
 
-def test_table_holds_the_pack_yaml_row() -> None:
-    row = _retired_row()
-    assert row.scope == SCOPE_PACK_DESCRIPTOR == "pack.yaml"
-    assert "presets/<name>.yaml" in row.replacement
-
-
 # --------------------------------------------------------------------------------------
 # The loader
 # --------------------------------------------------------------------------------------

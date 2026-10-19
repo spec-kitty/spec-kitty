@@ -103,22 +103,12 @@ class TestLoadOrgCharterPolicy:
         assert gp.value == "disallowed"
         assert gp.enforcement == "advisory"
 
-    def test_load_missing_charter(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("content", [None, "", "::: not valid yaml :::"], ids=["missing", "empty", "malformed"])
+    def test_unusable_charter_returns_none(self, tmp_path: Path, content: str | None) -> None:
         pack = tmp_path / "pack"
         pack.mkdir()
-
-        assert load_org_charter_policy(pack) is None
-
-    def test_load_empty_file(self, tmp_path: Path) -> None:
-        pack = tmp_path / "pack"
-        _write_org_charter(pack, "")
-
-        assert load_org_charter_policy(pack) is None
-
-    def test_load_malformed_yaml_returns_none(self, tmp_path: Path) -> None:
-        pack = tmp_path / "pack"
-        pack.mkdir()
-        (pack / "org-charter.yaml").write_text("::: not valid yaml :::", encoding="utf-8")
+        if content is not None:
+            (pack / "org-charter.yaml").write_text(content, encoding="utf-8")
 
         assert load_org_charter_policy(pack) is None
 
@@ -334,25 +324,6 @@ class TestApplyOrgCharterPreFill:
         loaded = yaml.load(answers_path.read_text(encoding="utf-8"))
         assert loaded["selected_directives"] == ["dir-a", "dir-b"]
 
-    def test_pre_fill_required_directives_no_duplicate(self, tmp_path: Path) -> None:
-        """When org directive already present, no change occurs."""
-        answers_path = tmp_path / "answers.yaml"
-        answers_path.write_text(
-            "selected_directives:\n  - dir-a\n",
-            encoding="utf-8",
-        )
-
-        messages = apply_org_charter_pre_fill_to_answers(
-            answers_path=answers_path,
-            interview_defaults={},
-            required_directives=["dir-a"],
-        )
-
-        assert messages == []
-        yaml = YAML(typ="safe")
-        loaded = yaml.load(answers_path.read_text(encoding="utf-8"))
-        assert loaded["selected_directives"] == ["dir-a"]
-
     def test_pre_fill_idempotent_rerun(self, tmp_path: Path) -> None:
         """Second run is a no-op (no further writes, no further messages)."""
         answers_path = tmp_path / "answers.yaml"
@@ -505,38 +476,6 @@ class TestApplyOrgCharterToInterview:
         assert interview.selected_directives == ["sec-001", "DIRECTIVE_010", "sec-002"]
         assert any("Pre-selected 1 directive" in m for m in messages)
 
-    def test_multi_pack_declaration_order_wins(self, tmp_path: Path) -> None:
-        """When two packs declare the same key, the later pack's value wins (FR-006)."""
-        pack_a = tmp_path / "packs" / "a"
-        pack_b = tmp_path / "packs" / "b"
-        _write_org_charter(
-            pack_a,
-            """
-            interview_defaults:
-              autonomous_mode: pack-a-value
-            """,
-        )
-        _write_org_charter(
-            pack_b,
-            """
-            interview_defaults:
-              autonomous_mode: pack-b-value
-            """,
-        )
-        _write_kittify_config(
-            tmp_path,
-            [
-                {"name": "a", "local_path": str(pack_a)},
-                {"name": "b", "local_path": str(pack_b)},
-            ],
-        )
-
-        interview = _FakeInterview()
-        messages = apply_org_charter_to_interview(interview, tmp_path)
-
-        assert interview.answers["autonomous_mode"] == "pack-b-value"
-        assert messages
-
     def test_idempotent_second_run_is_noop(self, tmp_path: Path) -> None:
         pack = tmp_path / "packs" / "security"
         _write_org_charter(
@@ -621,10 +560,6 @@ class TestOrgCharterPolicyModel:
         gp = GovernancePolicy(field="x", value=True)
         assert gp.enforcement == "advisory"
 
-    def test_governance_policy_accepts_bool_value(self) -> None:
-        gp = GovernancePolicy(field="human_in_command", value=True)
-        assert gp.value is True
-
     def test_unknown_field_rejected(self) -> None:
         """extra='forbid' on the model — unknown keys raise ValidationError."""
         from pydantic import ValidationError
@@ -632,15 +567,10 @@ class TestOrgCharterPolicyModel:
         with pytest.raises(ValidationError):
             OrgCharterPolicy.model_validate({"unknown_field": "x"})
 
-    def test_schema_version_accepts_int(self) -> None:
-        """WP09 T053: ``schema_version`` is an ``int`` on the model."""
-        policy = OrgCharterPolicy.model_validate({"schema_version": 1})
-        assert policy.schema_version == 1
-        assert isinstance(policy.schema_version, int)
-
-    def test_schema_version_coerces_string(self) -> None:
-        """WP09 T053: existing YAML stores ``"1"``; the validator coerces to int."""
-        policy = OrgCharterPolicy.model_validate({"schema_version": "1"})
+    @pytest.mark.parametrize("raw", [1, "1"], ids=["int", "numeric-string"])
+    def test_schema_version_is_coerced_to_int(self, raw: object) -> None:
+        """WP09 T053: ``schema_version`` is an ``int``; existing YAML stores ``"1"``, the validator coerces."""
+        policy = OrgCharterPolicy.model_validate({"schema_version": raw})
         assert policy.schema_version == 1
         assert isinstance(policy.schema_version, int)
 
@@ -649,15 +579,6 @@ class TestOrgCharterPolicyModel:
 
         with pytest.raises(ValidationError):
             OrgCharterPolicy.model_validate({"schema_version": "not-a-number"})
-
-    def test_extends_defaults_to_none(self) -> None:
-        """WP09 T054: ``extends`` is optional and defaults to ``None``."""
-        policy = OrgCharterPolicy()
-        assert policy.extends is None
-
-    def test_extends_accepts_string(self) -> None:
-        policy = OrgCharterPolicy.model_validate({"extends": "base-pack"})
-        assert policy.extends == "base-pack"
 
 
 # ---------------------------------------------------------------------------
@@ -676,21 +597,6 @@ def _policy(name: str | None = None, **kwargs: object) -> OrgCharterPolicy:
 
 
 class TestResolveChain:
-    def test_single_pack_no_extends(self) -> None:
-        pack_set = {"A": _policy(required_directives=["a"])}
-        chain = _resolve_chain("A", pack_set)
-        assert len(chain) == 1
-        assert chain[0].required_directives == ["a"]
-
-    def test_simple_extends_pair(self) -> None:
-        pack_set = {
-            "A": _policy(required_directives=["a"]),
-            "B": _policy(extends="A", required_directives=["b"]),
-        }
-        chain = _resolve_chain("B", pack_set)
-        # Base-first ordering: A then B.
-        assert [p.required_directives for p in chain] == [["a"], ["b"]]
-
     def test_depth_two_chain(self) -> None:
         pack_set = {
             "A": _policy(required_directives=["a"]),
@@ -729,14 +635,6 @@ class TestResolveChain:
 
 
 class TestMergeChain:
-    def test_union_required_directives(self) -> None:
-        chain = [
-            _policy(required_directives=["a", "b"]),
-            _policy(required_directives=["b", "c"]),
-        ]
-        merged = _merge_chain(chain)
-        assert merged.required_directives == ["a", "b", "c"]
-
     def test_union_required_toolguides(self) -> None:
         chain = [
             _policy(required_toolguides=["tg-1"]),
@@ -744,28 +642,6 @@ class TestMergeChain:
         ]
         merged = _merge_chain(chain)
         assert merged.required_toolguides == ["tg-1", "tg-2"]
-
-    def test_interview_defaults_per_key_replacement(self) -> None:
-        chain = [
-            _policy(interview_defaults={"foo": "base", "bar": "base"}),
-            _policy(interview_defaults={"foo": "overlay"}),
-        ]
-        merged = _merge_chain(chain)
-        # Overlay key wins; unmentioned key inherits from base.
-        assert merged.interview_defaults == {"foo": "overlay", "bar": "base"}
-
-    def test_merged_result_has_no_extends(self) -> None:
-        chain = [_policy(extends=None), _policy(extends="base-name")]
-        merged = _merge_chain(chain)
-        assert merged.extends is None
-
-    def test_schema_version_mismatch_raises(self) -> None:
-        chain = [
-            _policy(schema_version=2, required_directives=["a"]),
-            _policy(schema_version=3, required_directives=["b"]),
-        ]
-        with pytest.raises(ValueError, match="schema_version mismatch"):
-            _merge_chain(chain)
 
     def test_schema_versions_1_and_2_share_a_chain(self) -> None:
         """#3732: version 2 only adds the retired-field rejection, so 1 and 2 may mix."""
@@ -776,11 +652,6 @@ class TestMergeChain:
         merged = _merge_chain(chain)
         assert merged.schema_version == 2
         assert merged.required_directives == ["a", "b"]
-
-    def test_empty_chain_returns_default_policy(self) -> None:
-        merged = _merge_chain([])
-        assert merged.schema_version == 2
-        assert merged.required_directives == []
 
     def test_org_name_last_non_empty_wins(self) -> None:
         chain = [

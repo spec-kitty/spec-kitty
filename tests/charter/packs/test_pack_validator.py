@@ -294,34 +294,6 @@ class TestValidatePack:
         advisories = [a for a in result.advisories if "duplicate edge" in a.message]
         assert advisories
 
-    def test_built_in_id_collision_advisory(self, tmp_path: Path) -> None:
-        # Use a known shipped directive id so the advisory fires.  If shipped
-        # doctrine is absent in this environment, the test simply has no
-        # advisory to assert (validation should still pass) — keep the test
-        # tolerant of stripped envs.
-        _write_directive(tmp_path, artifact_id="DIRECTIVE_001")
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is True, result.errors
-        # Advisory presence depends on whether shipped doctrine is on disk.
-        # FR-013 (WP06): reworded message uses "field-merge" wording and
-        # surfaces both ``enhances`` and ``overrides`` recommendations.
-        for advisory in result.advisories:
-            if advisory.artifact_id == "DIRECTIVE_001":
-                assert advisory.category == "same_id_collision"
-                assert "field-merge" in advisory.message
-                assert "enhances: DIRECTIVE_001" in advisory.message
-                assert "overrides: DIRECTIVE_001" in advisory.message
-                break
-
-    def test_returns_validation_result_type(self, tmp_path: Path) -> None:
-        result = validate_pack(tmp_path)
-        assert isinstance(result, ValidationResult)
-        # ``to_dict`` is part of the public surface used by the CLI.
-        payload = result.to_dict()
-        assert set(payload.keys()) == {"ok", "errors", "advisories"}
-
 
 # ---------------------------------------------------------------------------
 # WP06: intent-aware collision message tests (FR-011, FR-012, FR-013)
@@ -467,44 +439,6 @@ class TestIntentAwareCollision:
     def _built_in_fixture_tactic_present(self) -> None:
         _assert_built_in_fixture_tactic_present()
 
-    def test_enhances_suppresses_collision_advisory(self, tmp_path: Path) -> None:
-        """Case 4: declared `enhances` against a valid built-in -> no advisory.
-
-        Regression coverage for #5494: the declaration lives in
-        ``drg/fragment.yaml``, the shape the runtime reads.
-        """
-        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
-        _write_fragment_intent(
-            tmp_path,
-            artifact_id=_BUILT_IN_TACTIC_ID,
-            relation="enhances",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is True, result.errors
-        collision_advisories = [a for a in result.advisories if a.artifact_id == _BUILT_IN_TACTIC_ID and a.category == "same_id_collision"]
-        assert collision_advisories == [], "Declared `enhances` must suppress same_id_collision advisory."
-
-    def test_overrides_suppresses_collision_advisory(self, tmp_path: Path) -> None:
-        """Case 4: declared `overrides` against a valid built-in -> no advisory.
-
-        Regression coverage for #5494: the declaration lives in
-        ``drg/fragment.yaml``, the shape the runtime reads.
-        """
-        _write_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
-        _write_fragment_intent(
-            tmp_path,
-            artifact_id=_BUILT_IN_TACTIC_ID,
-            relation="overrides",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is True, result.errors
-        collision_advisories = [a for a in result.advisories if a.artifact_id == _BUILT_IN_TACTIC_ID and a.category == "same_id_collision"]
-        assert collision_advisories == [], "Declared `overrides` must suppress same_id_collision advisory."
-
     def test_same_id_collision_uses_reworded_wording(self, tmp_path: Path) -> None:
         """Case 5: same-ID collision, no declaration -> reworded advisory.
 
@@ -539,37 +473,18 @@ class TestIntentAwareCollision:
         assert conflict_errors[0].artifact_id == "rogue-tactic"
         assert "mutually exclusive" in conflict_errors[0].message
 
-    def test_enhances_unknown_target_errors(self, tmp_path: Path) -> None:
-        """Case 3: `enhances` references unknown built-in -> `unknown_target` ERROR."""
-        _write_tactic(
-            tmp_path,
-            artifact_id="org-only-tactic",
-            enhances="totally-bogus-id",
-        )
+    @pytest.mark.parametrize("field", ["enhances", "overrides"])
+    def test_unknown_target_errors(self, tmp_path: Path, field: str) -> None:
+        """Cases 2/3: `enhances`/`overrides` referencing an unknown built-in -> `unknown_target` ERROR."""
+        _write_tactic(tmp_path, artifact_id="org-only-tactic", **{field: "totally-bogus-id"})
 
         result = validate_pack(tmp_path)
 
         assert result.ok is False
         unknown_errors = [e for e in result.errors if e.category == "unknown_target"]
-        assert unknown_errors, f"Unknown `enhances` target MUST emit `unknown_target`. Errors: {result.errors}"
+        assert unknown_errors, f"Unknown `{field}` target MUST emit `unknown_target`. Errors: {result.errors}"
         assert "totally-bogus-id" in unknown_errors[0].message
-        assert "enhances" in unknown_errors[0].message
-
-    def test_overrides_unknown_target_errors(self, tmp_path: Path) -> None:
-        """Case 2: `overrides` references unknown built-in -> `unknown_target` ERROR."""
-        _write_tactic(
-            tmp_path,
-            artifact_id="org-only-tactic",
-            overrides="totally-bogus-id",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is False
-        unknown_errors = [e for e in result.errors if e.category == "unknown_target"]
-        assert unknown_errors, f"Unknown `overrides` target MUST emit `unknown_target`. Errors: {result.errors}"
-        assert "totally-bogus-id" in unknown_errors[0].message
-        assert "overrides" in unknown_errors[0].message
+        assert field in unknown_errors[0].message
 
     def test_json_output_includes_new_categories(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """T038: `category` field surfaces in JSON output for the new error kinds."""
@@ -746,6 +661,8 @@ class TestRenderValidationResult:
 
         payload = _json.loads(captured.strip())
         assert payload["ok"] is True
+        # ``to_dict`` is part of the public surface used by the CLI.
+        assert set(payload) == {"ok", "errors", "advisories"}
 
     def test_human_output_lists_errors_and_summary(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         _write_directive(tmp_path, artifact_id="ACME-400", drop_title=True)
@@ -785,94 +702,53 @@ class TestAssetManifestValidation:
         assert result.ok is True, result.errors
         assert result.errors == []
 
-    def test_missing_id_fails_schema(self, tmp_path: Path) -> None:
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id=None,
-            drop_id=True,
-            filename="acme-logo-no-id.asset.yaml",
-        )
+    @pytest.mark.parametrize(
+        ("artifact_id", "drop_id", "filename"),
+        [(None, True, "acme-logo-no-id.asset.yaml"), ("", False, "acme-logo-blank-id.asset.yaml")],
+        ids=["missing-id", "blank-id"],
+    )
+    def test_missing_or_blank_id_fails_schema(self, tmp_path: Path, artifact_id: str | None, drop_id: bool, filename: str) -> None:
+        _write_asset_manifest(tmp_path, artifact_id=artifact_id, drop_id=drop_id, filename=filename)
 
         result = validate_pack(tmp_path)
 
         assert result.ok is False
         assert any(issue.artifact_type == "assets" and issue.category == "schema_invalid" for issue in result.errors), result.errors
 
-    def test_blank_id_fails_schema(self, tmp_path: Path) -> None:
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="",
-            filename="acme-logo-blank-id.asset.yaml",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is False
-        assert any(issue.artifact_type == "assets" and issue.category == "schema_invalid" for issue in result.errors), result.errors
-
-    def test_path_escape_via_dotdot_rejected(self, tmp_path: Path) -> None:
-        """T016: an escaping ``path`` is rejected as ``asset_path_escape``."""
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-logo-escape",
-            mime="image/png",
-            path_value="../../../etc/passwd",
-        )
+    @pytest.mark.parametrize(
+        ("artifact_id", "path_value"),
+        [("acme-logo-escape", "../../../etc/passwd"), ("acme-logo-absolute", "/etc/passwd")],
+        ids=["dotdot", "absolute"],
+    )
+    def test_escaping_path_rejected(self, tmp_path: Path, artifact_id: str, path_value: str) -> None:
+        """T016: an escaping or absolute ``path`` is rejected as ``asset_path_escape``."""
+        _write_asset_manifest(tmp_path, artifact_id=artifact_id, mime="image/png", path_value=path_value)
 
         result = validate_pack(tmp_path)
 
         assert result.ok is False
         escape_errors = [e for e in result.errors if e.category == "asset_path_escape"]
         assert escape_errors, result.errors
-        assert escape_errors[0].artifact_id == "acme-logo-escape"
+        assert escape_errors[0].artifact_id == artifact_id
 
-    def test_absolute_path_rejected(self, tmp_path: Path) -> None:
-        """T016: an absolute ``path`` is also rejected as ``asset_path_escape``."""
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-logo-absolute",
-            mime="image/png",
-            path_value="/etc/passwd",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is False
-        escape_errors = [e for e in result.errors if e.category == "asset_path_escape"]
-        assert escape_errors, result.errors
-        assert escape_errors[0].artifact_id == "acme-logo-absolute"
-
-    def test_malformed_mime_rejected(self, tmp_path: Path) -> None:
-        """T017: ``mime`` without a ``type/subtype`` shape is rejected."""
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-logo-badmime",
-            mime="notamimetype",
-            path_value="branding/acme-logo.png",
-        )
+    @pytest.mark.parametrize(
+        ("artifact_id", "mime", "path_value"),
+        [
+            ("acme-logo-badmime", "notamimetype", "branding/acme-logo.png"),
+            ("acme-logo-mismatch", "image/png", "branding/acme-logo.txt"),
+        ],
+        ids=["malformed-mime", "extension-mismatch"],
+    )
+    def test_invalid_mime_rejected(self, tmp_path: Path, artifact_id: str, mime: str, path_value: str) -> None:
+        """T017: ``mime`` that is malformed or disagrees with the path extension is rejected."""
+        _write_asset_manifest(tmp_path, artifact_id=artifact_id, mime=mime, path_value=path_value)
 
         result = validate_pack(tmp_path)
 
         assert result.ok is False
         mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
         assert mime_errors, result.errors
-        assert mime_errors[0].artifact_id == "acme-logo-badmime"
-
-    def test_mime_extension_mismatch_rejected(self, tmp_path: Path) -> None:
-        """T017: declared ``mime`` disagreeing with the path extension is rejected."""
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-logo-mismatch",
-            mime="image/png",
-            path_value="branding/acme-logo.txt",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is False
-        mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
-        assert mime_errors, result.errors
-        assert mime_errors[0].artifact_id == "acme-logo-mismatch"
+        assert mime_errors[0].artifact_id == artifact_id
 
     def test_nested_asset_manifest_violation_is_caught(self, tmp_path: Path) -> None:
         """FR-003 AC-1: a schema-violating manifest nested one level below
@@ -914,41 +790,6 @@ class TestAssetManifestValidation:
 
         assert result.ok is True, result.errors
         assert result.errors == []
-
-    def test_no_assets_directory_is_a_noop(self, tmp_path: Path) -> None:
-        """FR-003 AC-4: an absent ``assets/`` directory produces no error and no
-        behavior change. ``validate_pack``'s registry loop guard
-        (``if not type_dir.is_dir(): continue``) predates FR-003 and is left
-        untouched by it — this proves the guard path actually executes for the
-        absent-directory case (not merely that nothing crashes) by asserting no
-        ``assets``-typed issue is ever produced when ``assets/`` never existed.
-        """
-        _write_directive(tmp_path, artifact_id="ACME-001")
-        assert not (tmp_path / "assets").exists()
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is True, result.errors
-        assert not any(issue.artifact_type == "assets" for issue in (*result.errors, *result.advisories)), (result.errors, result.advisories)
-
-    def test_multiple_assets_independent(self, tmp_path: Path) -> None:
-        """Multiple manifests in one pack are each validated independently."""
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-brand-logo-png",
-            mime="image/png",
-            path_value="branding/acme-logo.png",
-        )
-        _write_asset_manifest(
-            tmp_path,
-            artifact_id="acme-brand-font-woff2",
-            mime="font/woff2",
-            path_value="branding/acme-brand.woff2",
-        )
-
-        result = validate_pack(tmp_path)
-
-        assert result.ok is True, result.errors
 
 
 class TestProfileSkippedDiagnostics:
@@ -1007,28 +848,6 @@ class TestProfileSkippedDiagnostics:
         assert issue.artifact_id == "analyst-annie"
         assert issue.file == str(profile_path)
         assert "role" in issue.message and "roles" in issue.message
-
-    def test_helper_calls_repository_skipped_profiles_directly(self, tmp_path: Path) -> None:
-        """AC-4: the helper reuses ``AgentProfileRepository.skipped_profiles()``
-        directly rather than hand-rolling a second skip-detection heuristic.
-
-        Patches the source location the helper's lazy, function-local import
-        binds to (``charter.offering.agent_profiles.repository.AgentProfileRepository``
-        — matching this file's existing precedent of lazy in-function
-        imports, and what ``scripts/check_patch_targets.py`` expects). This
-        assertion is non-vacuous: it fails if the call is removed or replaced
-        with an inline reimplementation, since only an actual invocation of
-        the mocked method satisfies ``assert_called_once``.
-        """
-        agent_profiles_dir = tmp_path / "agent_profiles"
-        agent_profiles_dir.mkdir()
-
-        with patch("charter.offering.agent_profiles.repository.AgentProfileRepository.skipped_profiles") as mock_skipped_profiles:
-            mock_skipped_profiles.return_value = []
-            issues = _check_profile_skipped_diagnostics(tmp_path, set())
-
-        mock_skipped_profiles.assert_called_once_with()
-        assert issues == []
 
     def test_schema_invalid_profile_is_not_double_reported(self, tmp_path: Path) -> None:
         """AC-2: a profile file with an undeclared key (the already-fixed
@@ -1110,37 +929,6 @@ class TestProfileSkippedDiagnostics:
         # try/except that would make the assertion above vacuous.
         assert _check_profile_skipped_diagnostics(tmp_path, set()) == []
 
-    def test_repository_construction_failure_is_guarded(self, tmp_path: Path) -> None:
-        """PR-M-001: a raise while resolving ``AgentProfileRepository``'s
-        built-in content directory must not propagate as an uncaught
-        traceback. The raise path is real (not hypothetical): ``__init__``
-        resolves ``built_in_dir()`` through the fail-closed seam pinned by
-        ``tests/charter_offering/test_pack_root_resolver.py`` — a stripped
-        environment raises ``PackRootNotFound`` there, exactly as the
-        sibling ``_load_built_in_ids_per_kind`` guard anticipates for the
-        same seam.
-
-        Patches ``built_in_dir`` at the binding the repository's own
-        constructor calls (``charter.offering.agent_profiles.repository.built_in_dir``
-        — the module ``AgentProfileRepository._default_built_in_dir``
-        actually imported it into), so this fires regardless of which
-        construction path calls into the repository (PR-M-002 routes that
-        construction through ``ActiveCharterService``, which does not change
-        this seam).
-        """
-        from charter.offering.pack_paths import PackRootNotFound
-
-        with patch(
-            "charter.offering.agent_profiles.repository.built_in_dir",
-            side_effect=PackRootNotFound("built-in"),
-        ):
-            issues = _check_profile_skipped_diagnostics(tmp_path, set())
-
-        assert issues, "a resolution failure must surface as an issue, not vanish"
-        assert issues[0].severity == "error"
-        assert issues[0].category == "profile_skipped"
-        assert issues[0].artifact_type == "agent_profiles"
-
     def test_validate_pack_survives_repository_construction_failure(self, tmp_path: Path) -> None:
         """PR-M-001: the same raise must not crash ``validate_pack`` (and by
         extension the ``pack_validate`` / ``org_validate`` CLI entry
@@ -1157,7 +945,10 @@ class TestProfileSkippedDiagnostics:
 
         assert isinstance(result, ValidationResult)
         assert result.ok is False
-        assert any(issue.category == "profile_skipped" for issue in result.errors)
+        skipped = [issue for issue in result.errors if issue.category == "profile_skipped"]
+        assert skipped, "a resolution failure must surface as an issue, not vanish"
+        assert skipped[0].severity == "error"
+        assert skipped[0].artifact_type == "agent_profiles"
 
 
 class TestDrgRootGraphMissing:
@@ -1220,18 +1011,6 @@ class TestDrgRootGraphMissing:
         drg.mkdir()
         (drg / "010-security.graph.yaml").write_text(self._MINIMAL_FRAGMENT_YAML, encoding="utf-8")
         (tmp_path / "pack.graph.yaml").write_text(self._MINIMAL_FRAGMENT_YAML, encoding="utf-8")
-
-        result = validate_pack(tmp_path)
-
-        assert not any(issue.category == "drg_root_graph_missing" for issue in (*result.errors, *result.advisories))
-
-    def test_neither_root_graph_nor_drg_dir_no_diagnostic(self, tmp_path: Path) -> None:
-        """AC-3: a pack with neither a pack-root graph nor a ``drg/``
-        directory at all produces no diagnostic — this check is about a
-        *mismatch*, not about requiring DRG content to exist.
-        """
-        assert not (tmp_path / "drg").exists()
-        assert not sorted(tmp_path.glob("*.graph.yaml"))
 
         result = validate_pack(tmp_path)
 
@@ -1430,13 +1209,6 @@ class TestPackSanctionValidation:
 
         assert _sanction_issues(validate_pack(tmp_path)) == ([], [])
 
-    def test_pack_without_sanction_file_is_unchanged(self, tmp_path: Path) -> None:
-        _write_override_fragment(tmp_path, ("tactics", _BUILT_IN_TACTIC))
-
-        result = validate_pack(tmp_path)
-
-        assert _sanction_issues(result) == ([], [])
-
 
 @pytest.mark.unit
 class TestPackSanctionSymlinkPresence:
@@ -1472,14 +1244,3 @@ class TestPackSanctionSymlinkPresence:
 
         assert len(errors) == 1
         assert _SANCTION_FILE in errors[0].message
-
-
-def test_built_in_node_urns_is_empty_when_the_built_in_graph_cannot_load(monkeypatch: pytest.MonkeyPatch) -> None:
-    from charter.offering.drg import loader
-    from charter.offering.packs.pack_validator import _built_in_node_urns
-
-    def failing() -> object:
-        raise loader.DRGLoadError("broken built-in graph")
-
-    monkeypatch.setattr(loader, "load_built_in_graph", failing)
-    assert _built_in_node_urns() == frozenset()

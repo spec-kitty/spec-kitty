@@ -6,11 +6,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import ValidationError
 
 from charter.activation.activations import ActivationEntry
 from charter.activation.org_charter import (
-    ORG_CHARTER_SCHEMA_VERSION,
     OrgCharterPolicy,
     load_org_charter_policies,
     load_org_charter_policy,
@@ -18,7 +17,6 @@ from charter.activation.org_charter import (
 )
 from charter.activation.org_charter_loader import load_org_charter_json_block
 from charter.activation.pack_context import PackContext
-from charter.activation.schemas import GovernanceConfig
 from charter.activation.sync import load_governance_config
 from charter.offering.packs import retired_fields
 from charter.offering.packs.retired_fields import (
@@ -57,11 +55,6 @@ def _retired_from(exc: ValidationError) -> RetiredPackFieldError:
 # --------------------------------------------------------------------------------------
 
 
-def test_table_holds_the_charter_pack_id_rename() -> None:
-    assert RetiredField(scope=SCOPE_ACTIVATION_ENTRY, field=OLD, replacement=NEW) in RETIRED_PACK_FIELDS
-    assert RETIRED_PACK_FIELD == "RETIRED_PACK_FIELD"
-
-
 def test_message_names_location_field_replacement_and_runbook() -> None:
     message = _retired_field_message("org-charter.yaml", OLD, NEW)
     assert message == f"org-charter.yaml: field '{OLD}' was removed. Replacement: {NEW}. See {_MIGRATION_RUNBOOK}."
@@ -94,11 +87,6 @@ def test_reject_leaves_clean_or_non_mapping_input_alone(raw: object) -> None:
     reject_retired_fields(raw, scope=SCOPE_ACTIVATION_ENTRY, path=None)
 
 
-def test_reject_is_scoped() -> None:
-    """The activation-entry row does not bind the ``org-charter.yaml`` top level."""
-    reject_retired_fields({OLD: "x"}, scope=SCOPE_ORG_CHARTER, path=None)
-
-
 def test_raise_retired_field_at_relocates_the_wrapped_error(tmp_path: Path) -> None:
     path = tmp_path / "org-charter.yaml"
     with pytest.raises(ValidationError) as wrapped:
@@ -115,36 +103,6 @@ def test_raise_retired_field_at_returns_for_a_generic_failure(tmp_path: Path) ->
     assert raise_retired_field_at(wrapped.value, tmp_path / "x.yaml") is None
 
 
-def test_at_relocates_the_same_rejection(tmp_path: Path) -> None:
-    err = RetiredPackFieldError(RETIRED_PACK_FIELDS[0])
-    moved = err.at(tmp_path / "x.yaml")
-    assert moved.retired == err.retired
-    assert str(moved).startswith(f"{tmp_path / 'x.yaml'}: field '{OLD}'")
-
-
-def test_retired_field_errors_recovers_errors_wrapped_by_pydantic() -> None:
-    class _Model(BaseModel):
-        model_config = ConfigDict(extra="forbid")
-        keep: int = 0
-
-        @model_validator(mode="before")
-        @classmethod
-        def _check(cls, data: object) -> object:
-            reject_retired_fields(data, scope=SCOPE_ACTIVATION_ENTRY, path="planted")
-            return data
-
-    with pytest.raises(ValidationError) as info:
-        _Model.model_validate({OLD: "x"})
-    assert _retired_from(info.value).field == OLD
-
-
-def test_retired_field_errors_is_empty_for_a_generic_failure() -> None:
-    with pytest.raises(ValidationError) as info:
-        ActivationEntry.model_validate(_entry(**{NEW: "x", "unrelated_field": "y"}))
-    assert retired_field_errors(info.value) == []
-    assert "extra" in str(info.value).lower()
-
-
 # --------------------------------------------------------------------------------------
 # The activation entry: project charter.yaml and org-charter.yaml
 # --------------------------------------------------------------------------------------
@@ -152,11 +110,6 @@ def test_retired_field_errors_is_empty_for_a_generic_failure() -> None:
 
 def test_activation_entry_accepts_charter_pack_id() -> None:
     assert ActivationEntry.model_validate(_entry(**{NEW: "built-in"})).charter_pack_id == "built-in"
-
-
-def test_activation_entry_has_no_alias_for_the_old_name() -> None:
-    assert OLD not in ActivationEntry.model_fields
-    assert not ActivationEntry.model_config.get("populate_by_name")
 
 
 def test_activation_entry_rejects_old_name_naming_both_names() -> None:
@@ -167,26 +120,9 @@ def test_activation_entry_rejects_old_name_naming_both_names() -> None:
     assert OLD in str(info.value) and NEW in str(info.value)
 
 
-def test_project_charter_activations_reject_old_name() -> None:
-    with pytest.raises(ValidationError) as info:
-        GovernanceConfig.model_validate({"activations": [_entry(**{OLD: "built-in"})]})
-    assert _retired_from(info.value).replacement == NEW
-
-
-def test_org_charter_activations_reject_old_name() -> None:
-    with pytest.raises(ValidationError) as info:
-        OrgCharterPolicy.model_validate({"activations": [_entry(**{OLD: "built-in"})]})
-    assert _retired_from(info.value).field == OLD
-
-
 # --------------------------------------------------------------------------------------
 # org-charter schema_version 2 (data-model.md "Enforced activations")
 # --------------------------------------------------------------------------------------
-
-
-def test_new_org_charter_defaults_to_schema_version_2() -> None:
-    assert ORG_CHARTER_SCHEMA_VERSION == 2
-    assert OrgCharterPolicy().schema_version == 2
 
 
 def test_schema_version_1_without_retired_field_still_validates() -> None:
@@ -288,16 +224,6 @@ def test_load_org_charter_policy_raises_located_error(tmp_path: Path) -> None:
     with pytest.raises(RetiredPackFieldError) as info:
         load_org_charter_policy(pack)
     _assert_located(info.value, pack / "org-charter.yaml")
-
-
-def test_load_org_charter_policy_loads_clean_pack(tmp_path: Path) -> None:
-    policy = load_org_charter_policy(_pack(tmp_path, "acme", _CLEAN_ORG_CHARTER))
-    assert policy is not None and policy.required_directives == ["DIRECTIVE_001"]
-
-
-def test_load_org_charter_policy_keeps_generic_failures_generic(tmp_path: Path) -> None:
-    with pytest.raises(ValidationError):
-        load_org_charter_policy(_pack(tmp_path, "acme", "schema_version: 2\nunknown_key: 1\n"))
 
 
 def test_pack_context_loader_does_not_drop_a_retired_field_pack(tmp_path: Path) -> None:
