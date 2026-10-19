@@ -78,6 +78,11 @@ _OUT_OF_SCOPE_WARNINGS: dict[str, str] = {
         "v1.0.0 manifest scope (runtime state written by "
         "build_charter_context); leaving untouched."
     ),
+    ".kittify/charter/synthesized-artifacts.yaml": (
+        "File '.kittify/charter/synthesized-artifacts.yaml' is present but out of "
+        "v1.0.0 manifest scope (the record of artifact ids written by charter synthesis, "
+        "so a removed artifact stays removed); leaving untouched."
+    ),
 }
 
 

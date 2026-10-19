@@ -729,3 +729,16 @@ def test_validate_fails_on_manifest_self_hash_mismatch(compliant_repo: Path) -> 
     assert ss["passed"] is False
     assert any("manifest" in e.lower() for e in ss["errors"]), ss["errors"]
     assert any("synthesis_state:" in e for e in payload["errors"]), payload["errors"]
+
+
+def test_validate_gives_the_synthesized_artifacts_record_its_own_warning(compliant_repo: Path) -> None:
+    record = ".kittify/charter/synthesized-artifacts.yaml"
+    (compliant_repo / record).write_text("created_tactics: []\n", encoding="utf-8")
+
+    result = _invoke_validate_json()
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert record in payload["out_of_scope_files"]
+    specific = [w for w in payload["warnings"] if record in w and "written by charter synthesis" in w]
+    assert len(specific) == 1, payload["warnings"]
