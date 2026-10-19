@@ -16,9 +16,8 @@
   "baseline_merge_commit": "982198a8730ceb4a9fd9d7e7b562a6c67146261b",
   "contracts": "none",
   "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md.",
-  "coordination_branch": "kitty/mission-charter-governance-resolution-01M57Z77",
   "created_at": "2026-10-18T16:58:49.327153+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Charter governance resolution",
   "merged_at": "2026-10-19T03:24:20.739074+00:00",
   "merged_commit": "912fb5938b4644885de5725efbb7f14a7affbcb6",
@@ -33,7 +32,6 @@
   "slug": "charter-governance-resolution-01M57Z77",
   "status_phase": "1",
   "target_branch": "issue-6404-charter-governance-resolution-work",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-18T17:42:29.756399+00:00"
 }
