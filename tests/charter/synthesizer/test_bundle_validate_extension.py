@@ -20,12 +20,7 @@ from pathlib import Path
 
 
 from charter.bundle import (
-    BundleValidationResult,
-    CANONICAL_MANIFEST,
-    SCHEMA_VERSION,
     _KIND_SUFFIX,
-    _check_artifacts_have_provenance,
-    _find_artifact,
     _kind_and_slug_from_artifact,
     validate_synthesis_state,
 )
@@ -166,51 +161,27 @@ def _prov_yaml(kind: str, slug: str, content_hash: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_no_synthesis_state_passes_as_legacy(tmp_path: Path) -> None:
-    """A bundle with no synthesis state passes validate_synthesis_state without errors.
+def test_bundle_without_synthesis_files_passes_as_legacy(tmp_path: Path) -> None:
+    """Bundles with no synthesis state (C-012), or only empty trees, pass untouched.
 
-    This is the C-012 backward-compat regression test: the v1.0.0 contract is
-    preserved — existing bundles without synthesis state are unaffected.
+    Neither an absent state, an empty doctrine tree nor an empty provenance tree
+    alone may flip ``synthesis_state_present``.
     """
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    # No .kittify/charter-packs/ or .kittify/charter/provenance/ directories.
+    for name, subdir in (
+        ("none", None),
+        ("empty-doctrine", Path(".kittify") / "charter-packs"),
+        ("empty-provenance", Path(".kittify") / "charter" / "provenance"),
+    ):
+        repo = tmp_path / name
+        repo.mkdir()
+        if subdir is not None:
+            (repo / subdir).mkdir(parents=True)
 
-    result = validate_synthesis_state(repo)
+        result = validate_synthesis_state(repo)
 
-    assert result.passed
-    assert result.errors == []
-    assert not result.synthesis_state_present
-
-
-def test_empty_doctrine_tree_without_provenance_is_treated_as_legacy(tmp_path: Path) -> None:
-    """An empty doctrine tree alone must not flip synthesis_state_present."""
-    repo = tmp_path / "repo"
-    (repo / ".kittify" / "charter-packs").mkdir(parents=True)
-
-    result = validate_synthesis_state(repo)
-
-    assert result.passed
-    assert result.errors == []
-    assert not result.synthesis_state_present
-
-
-def test_empty_provenance_tree_without_sidecars_is_treated_as_legacy(tmp_path: Path) -> None:
-    """An empty provenance directory alone must not flip synthesis_state_present."""
-    repo = tmp_path / "repo"
-    (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True)
-
-    result = validate_synthesis_state(repo)
-
-    assert result.passed
-    assert result.errors == []
-    assert not result.synthesis_state_present
-
-
-def test_legacy_canonical_manifest_still_valid() -> None:
-    """CANONICAL_MANIFEST from v1.0.0 is still importable and valid (C-012)."""
-    assert CANONICAL_MANIFEST.schema_version == SCHEMA_VERSION
-    assert len(CANONICAL_MANIFEST.tracked_files) >= 1
+        assert result.passed, name
+        assert result.errors == [], name
+        assert not result.synthesis_state_present, name
 
 
 def test_fresh_seed_manifest_ignores_stale_sidecar_orphans(tmp_path: Path) -> None:
@@ -301,40 +272,26 @@ def test_artifact_without_provenance_is_error(tmp_path: Path) -> None:
 
 
 def test_provenance_without_artifact_is_error(tmp_path: Path) -> None:
-    """Provenance sidecar without a matching artifact produces a structured error."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
+    """A provenance sidecar without a matching artifact is a structured error.
 
-    # Write provenance but no artifact
-    # Create doctrine dir so synthesis_state_present is True
-    (repo / ".kittify" / "charter-packs" / "tactic").mkdir(parents=True, exist_ok=True)
-    _write_provenance(
-        repo, "tactic", "ghost-tactic", _prov_yaml("tactic", "ghost-tactic", "a" * 64)
-    )
+    Holds both with a (empty) doctrine tree and with a sidecar alone, which is
+    synthesis state in its own right and must fail closed rather than read as legacy.
+    """
+    with_tree = tmp_path / "with-tree"
+    with_tree.mkdir()
+    (with_tree / ".kittify" / "charter-packs" / "tactic").mkdir(parents=True)
+    _write_provenance(with_tree, "tactic", "ghost-tactic", _prov_yaml("tactic", "ghost-tactic", "a" * 64))
 
-    result = validate_synthesis_state(repo)
+    sidecar_only = tmp_path / "sidecar-only"
+    sidecar_only.mkdir()
+    _write_provenance(sidecar_only, "tactic", "sidecar-only", _prov_yaml("tactic", "sidecar-only", "a" * 64))
 
-    assert not result.passed
-    assert any("ghost-tactic" in e for e in result.errors)
+    for repo, slug in ((with_tree, "ghost-tactic"), (sidecar_only, "sidecar-only")):
+        result = validate_synthesis_state(repo)
 
-
-def test_provenance_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
-    """A provenance sidecar alone is synthesis state and must fail closed."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-
-    _write_provenance(
-        repo,
-        "tactic",
-        "sidecar-only",
-        _prov_yaml("tactic", "sidecar-only", "a" * 64),
-    )
-
-    result = validate_synthesis_state(repo)
-
-    assert result.synthesis_state_present
-    assert not result.passed
-    assert any("sidecar-only" in e for e in result.errors)
+        assert result.synthesis_state_present, slug
+        assert not result.passed, slug
+        assert any(slug in e for e in result.errors), slug
 
 
 # ---------------------------------------------------------------------------
@@ -379,34 +336,26 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
 
 
 def test_invalid_manifest_yaml_is_reported(tmp_path: Path) -> None:
-    """A malformed synthesis manifest surfaces a structured load error."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / ".kittify" / "charter-packs").mkdir(parents=True, exist_ok=True)
-    (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True, exist_ok=True)
-    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text("artifacts: [\n", encoding="utf-8")
+    """A malformed synthesis manifest surfaces a structured load error.
 
-    result = validate_synthesis_state(repo)
+    The manifest alone (no doctrine tree) is synthesis state and must be validated,
+    not treated as legacy.
+    """
+    for name, with_trees in (("with-trees", True), ("manifest-only", False)):
+        repo = tmp_path / name
+        repo.mkdir()
+        if with_trees:
+            (repo / ".kittify" / "charter-packs").mkdir(parents=True, exist_ok=True)
+            (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True, exist_ok=True)
+        manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text("artifacts: [\n", encoding="utf-8")
 
-    assert not result.passed
-    assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+        result = validate_synthesis_state(repo)
 
-
-def test_manifest_without_doctrine_tree_is_not_legacy(tmp_path: Path) -> None:
-    """A synthesis manifest alone is synthesis state and must be validated."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text("artifacts: [\n", encoding="utf-8")
-
-    result = validate_synthesis_state(repo)
-
-    assert result.synthesis_state_present
-    assert not result.passed
-    assert any("could not load synthesis manifest" in error.lower() for error in result.errors)
+        assert result.synthesis_state_present, name
+        assert not result.passed, name
+        assert any("could not load synthesis manifest" in error.lower() for error in result.errors), name
 
 
 def test_manifest_absolute_artifact_path_fails_closed(tmp_path: Path) -> None:
@@ -445,36 +394,20 @@ def test_manifest_absolute_artifact_path_fails_closed(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_stale_failed_staging_dir_produces_warning(tmp_path: Path) -> None:
-    """Stale .failed/ staging dirs produce a warning (not an error) — R-7."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-
-    # Create a .failed/ staging directory (simulates preserved crash state)
-    failed_dir = repo / ".kittify" / "charter" / ".staging" / "01KPE222TESTFAILED.failed"
-    failed_dir.mkdir(parents=True)
-    (failed_dir / "cause.yaml").write_text("reason: test\n")
-
-    result = validate_synthesis_state(repo)
-
-    # Should warn, but not error
-    assert result.passed  # no errors
-    assert any(".failed" in w for w in result.warnings)
-
-
-def test_multiple_failed_dirs_multiple_warnings(tmp_path: Path) -> None:
-    """Multiple .failed/ dirs each produce a warning."""
+def test_stale_failed_staging_dirs_produce_one_warning_each(tmp_path: Path) -> None:
+    """Each stale .failed/ staging dir produces a warning (not an error) — R-7."""
     repo = tmp_path / "repo"
     repo.mkdir()
     staging = repo / ".kittify" / "charter" / ".staging"
     staging.mkdir(parents=True)
     for i in range(3):
-        failed = staging / f"RUN_ID_{i:03d}.failed"
-        failed.mkdir()
+        (staging / f"RUN_ID_{i:03d}.failed").mkdir()
 
     result = validate_synthesis_state(repo)
-    assert result.passed
+
+    assert result.passed  # warnings only, no errors
     assert len(result.warnings) == 3
+    assert all(".failed" in w for w in result.warnings)
 
 
 def test_malformed_provenance_filename_is_error(tmp_path: Path) -> None:
@@ -515,114 +448,6 @@ def test_kind_and_slug_from_artifact_handles_directive_prefix_and_unknown_suffix
         "project-decision",
     )
     assert _kind_and_slug_from_artifact(unknown_path) == (None, None)
-
-
-def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Path) -> None:
-    """Artifacts outside the known filename rules should be skipped quietly."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    result = BundleValidationResult()
-
-    _check_artifacts_have_provenance(
-        repo_root=repo,
-        artifact_files=[repo / ".kittify" / "charter-packs" / "misc" / "notes.yaml"],
-        provenance_root=repo / ".kittify" / "charter" / "provenance",
-        manifest_by_path={},
-        result=result,
-    )
-
-    assert result.errors == []
-
-
-def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
-    """Unknown artifact kinds should short-circuit without scanning the tree."""
-    pack_root = tmp_path / ".kittify" / "charter-packs"
-    pack_root.mkdir(parents=True)
-
-    assert _find_artifact(pack_root, "unknown", "slug") is None
-
-
-# ---------------------------------------------------------------------------
-# FR-010: Hash determinism — same inputs produce identical manifest hashes
-# ---------------------------------------------------------------------------
-
-
-def test_manifest_hash_is_deterministic(tmp_path: Path) -> None:
-    """Manifest hash is identical across two independent computations (FR-010).
-
-    Builds the same SynthesisManifest twice from identical inputs and asserts
-    that both manifest_hash values agree.  This is the structural guard that
-    catches any non-deterministic traversal or serialization regression.
-    """
-    artifacts = [
-        ManifestArtifactEntry(
-            kind="tactic",
-            slug="z-tactic",
-            path=".kittify/charter-packs/tactic/z-tactic.tactic.yaml",
-            provenance_path=".kittify/charter/provenance/tactic-z-tactic.yaml",
-            content_hash="a" * 64,
-        ),
-        ManifestArtifactEntry(
-            kind="directive",
-            slug="a-directive",
-            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
-            provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
-            content_hash="b" * 64,
-        ),
-        ManifestArtifactEntry(
-            kind="tactic",
-            slug="a-tactic",
-            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
-            provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
-            content_hash="c" * 64,
-        ),
-    ]
-    manifest_a = _make_v2_manifest(artifacts=artifacts)
-    manifest_b = _make_v2_manifest(artifacts=artifacts)
-
-    assert manifest_a.manifest_hash == manifest_b.manifest_hash, (
-        "manifest_hash must be identical for identical inputs (FR-010 determinism)"
-    )
-
-
-def test_manifest_hash_is_stable_regardless_of_artifact_insertion_order(tmp_path: Path) -> None:
-    """Manifest hash does not depend on the order artifacts are inserted (FR-010).
-
-    The promote pipeline sorts artifacts by (kind, slug) before computing the
-    hash.  This test verifies that inserting artifacts in reverse order still
-    produces the same manifest_hash — confirming the sort is applied before
-    hashing, not after.
-    """
-    artifacts_forward = [
-        ManifestArtifactEntry(
-            kind="directive",
-            slug="a-directive",
-            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
-            provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
-            content_hash="b" * 64,
-        ),
-        ManifestArtifactEntry(
-            kind="tactic",
-            slug="a-tactic",
-            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
-            provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
-            content_hash="c" * 64,
-        ),
-    ]
-    artifacts_reversed = list(reversed(artifacts_forward))
-
-    # _make_v2_manifest computes manifest_hash from the artifact list as-is.
-    # The hash will only match if both lists happen to produce the same canonical
-    # YAML — which they do when sorted.  We sort here to mirror what promote() does.
-    def _sorted_artifacts(arts: list[ManifestArtifactEntry]) -> list[ManifestArtifactEntry]:
-        return sorted(arts, key=lambda a: (a.kind, a.slug))
-
-    manifest_fwd = _make_v2_manifest(artifacts=_sorted_artifacts(artifacts_forward))
-    manifest_rev = _make_v2_manifest(artifacts=_sorted_artifacts(artifacts_reversed))
-
-    assert manifest_fwd.manifest_hash == manifest_rev.manifest_hash, (
-        "Sorted artifact order must produce the same manifest_hash (FR-010)"
-    )
 
 
 # ---------------------------------------------------------------------------

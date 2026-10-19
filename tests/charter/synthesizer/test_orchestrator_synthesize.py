@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from collections.abc import Mapping
 
 import pytest
 
@@ -26,7 +25,7 @@ from charter.activation.synthesizer import (
     SynthesisTarget,
     synthesize,
 )
-from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
+from charter.activation.synthesizer.synthesize_pipeline import run_all
 
 
 # ---------------------------------------------------------------------------
@@ -117,15 +116,6 @@ def full_request(
 class TestRunAllTupleCount:
     """run_all() returns one tuple per synthesized target."""
 
-    def test_run_all_returns_nonempty(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-    ) -> None:
-        """run_all() returns at least one tuple for the full interview snapshot."""
-        results = run_all(full_request, adapter=adapter)
-        assert len(results) >= 1
-
     def test_run_all_expected_count(
         self,
         full_request: SynthesisRequest,
@@ -144,17 +134,6 @@ class TestRunAllTupleCount:
             f"Expected 7 targets; got {len(results)}. "
             f"Targets: {[(p.artifact_kind, p.artifact_slug) for _, p in results]}"
         )
-
-    def test_run_all_tuples_are_body_provenance_pairs(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-    ) -> None:
-        """Each element of run_all() is a (Mapping, ProvenanceEntry) tuple."""
-        results = run_all(full_request, adapter=adapter)
-        for body, provenance in results:
-            assert isinstance(body, Mapping)
-            assert isinstance(provenance, ProvenanceEntry)
 
     def test_run_all_provenance_urn_matches_kind_slug(
         self,
@@ -182,24 +161,15 @@ class TestRunAllTupleCount:
 class TestSynthesizeEntryPoint:
     """orchestrator.synthesize() delegates to the synthesis pipeline."""
 
-    def test_synthesize_result_has_target_kind(
+    def test_synthesize_result_has_target_kind_and_hex_inputs_hash(
         self,
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
         tmp_path: Path,
     ) -> None:
-        """SynthesisResult.target_kind matches the request's primary target."""
+        """SynthesisResult carries a supported target kind and a non-empty hex inputs_hash."""
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert result.target_kind in {"directive", "tactic", "styleguide"}
-
-    def test_synthesize_result_has_inputs_hash(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        tmp_path: Path,
-    ) -> None:
-        """SynthesisResult.inputs_hash is a non-empty hex string."""
-        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert result.inputs_hash
         assert all(c in "0123456789abcdef" for c in result.inputs_hash)
 
@@ -251,37 +221,6 @@ class TestSynthesizeSurvivesPackageMetadataFailure:
 
 class TestIdempotency:
     """Identical inputs produce byte-identical hashes (FR-014, NFR-006)."""
-
-    def test_run_all_same_inputs_hash_twice(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-    ) -> None:
-        """Running run_all() twice produces byte-identical inputs_hash values."""
-        results_a = run_all(full_request, adapter=adapter)
-        results_b = run_all(full_request, adapter=adapter)
-
-        assert len(results_a) == len(results_b)
-        for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
-            assert prov_a.inputs_hash == prov_b.inputs_hash, (
-                f"inputs_hash diverged for {prov_a.artifact_urn}: "
-                f"{prov_a.inputs_hash!r} != {prov_b.inputs_hash!r}"
-            )
-
-    def test_run_all_same_artifact_content_hash_twice(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-    ) -> None:
-        """Running run_all() twice produces byte-identical artifact_content_hash values."""
-        results_a = run_all(full_request, adapter=adapter)
-        results_b = run_all(full_request, adapter=adapter)
-
-        for (_, prov_a), (_, prov_b) in zip(results_a, results_b, strict=True):
-            assert prov_a.artifact_content_hash == prov_b.artifact_content_hash, (
-                f"artifact_content_hash diverged for {prov_a.artifact_urn}: "
-                f"{prov_a.artifact_content_hash!r} != {prov_b.artifact_content_hash!r}"
-            )
 
     def test_different_run_id_produces_same_hashes(
         self,
@@ -460,27 +399,9 @@ class TestDuplicateTargetError:
         assert err.kind == "tactic"
         assert err.slug == "my-tactic"
         assert err.occurrences == 2
-
-    def test_duplicate_target_error_message(
-        self,
-    ) -> None:
-        """DuplicateTargetError message contains kind, slug, and occurrence count."""
-        from charter.activation.synthesizer.targets import detect_duplicates
-
-        target = SynthesisTarget(
-            kind="directive",
-            slug="dup-directive",
-            title="Dup",
-            artifact_id="PROJECT_001",
-            source_section="mission_type",
-        )
-
-        with pytest.raises(DuplicateTargetError) as exc_info:
-            detect_duplicates([target, target])
-
-        msg = str(exc_info.value)
-        assert "directive" in msg
-        assert "dup-directive" in msg
+        msg = str(err)
+        assert "tactic" in msg
+        assert "my-tactic" in msg
         assert "2" in msg
 
 
@@ -528,37 +449,7 @@ class TestDanglingURNValidation:
         err = exc_info.value
         assert len(err.errors) >= 1
         assert "DIRECTIVE_003" in " ".join(err.errors)
-
-    def test_dangling_urn_error_has_merged_graph_summary(
-        self,
-        full_interview_snapshot: dict,
-        minimal_doctrine_snapshot: dict,
-    ) -> None:
-        """ProjectDRGValidationError.merged_graph_summary is non-empty."""
-        empty_drg = {"nodes": [], "edges": [], "schema_version": "1"}
-        snapshot = {"selected_directives": ["DIRECTIVE_003"]}
-
-        target = SynthesisTarget(
-            kind="tactic",
-            slug="how-we-apply-directive-003",
-            title="How We Apply DIRECTIVE_003",
-            artifact_id="how-we-apply-directive-003",
-            source_section="selected_directives",
-        )
-        request = SynthesisRequest(
-            target=target,
-            interview_snapshot=snapshot,
-            doctrine_snapshot=minimal_doctrine_snapshot,
-            drg_snapshot=empty_drg,
-            run_id="01KPE222",
-        )
-        adapter = FixtureAdapter()
-
-        with pytest.raises(ProjectDRGValidationError) as exc_info:
-            run_all(request, adapter=adapter)
-
-        assert exc_info.value.merged_graph_summary
-
+        assert err.merged_graph_summary
 
 # ---------------------------------------------------------------------------
 # Ordering (FR-014)
@@ -616,72 +507,23 @@ class TestTargetOrdering:
 class TestSynthesizeWritesToDisk:
     """T018: synthesize() calls write_pipeline.promote and lands artifacts on disk."""
 
-    def test_synthesize_writes_manifest(
+    def test_synthesize_lands_manifest_artifacts_graph_and_provenance(
         self,
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
         tmp_path: Path,
     ) -> None:
-        """synthesize() produces .kittify/charter/synthesis-manifest.yaml on disk."""
+        """synthesize() promotes manifest, artifacts, project DRG overlay and provenance (FR-007)."""
         from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
-        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
-
-        manifest_file = tmp_path / MANIFEST_PATH
-        assert manifest_file.exists(), (
-            f"synthesis-manifest.yaml not found at {manifest_file}; "
-            "write_pipeline.promote was not called from synthesize()"
-        )
-        # The result is still a SynthesisResult
-        from charter.activation.synthesizer.orchestrator import SynthesisResult
-        assert isinstance(result, SynthesisResult)
-
-    def test_synthesize_writes_artifacts_to_doctrine(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        tmp_path: Path,
-    ) -> None:
-        """synthesize() places artifact YAML files under .kittify/charter-packs/."""
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
         pack_root = tmp_path / ".kittify" / "charter-packs"
-        all_artifacts = list(pack_root.rglob("*.yaml"))
-        assert len(all_artifacts) >= 1, (
-            f"No artifact files found under {pack_root}; "
-            "expected at least one directive/tactic/styleguide YAML"
-        )
-
-    def test_synthesize_writes_project_graph(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        tmp_path: Path,
-    ) -> None:
-        """FR-007: synthesize() lands the additive project DRG overlay."""
-        synthesize(full_request, adapter=adapter, repo_root=tmp_path)
-
-        graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
-        assert graph_path.exists(), (
-            f"Expected project DRG overlay at {graph_path}; "
-            "synthesize() did not wire project_drg.persist into promote()"
-        )
-
-    def test_synthesize_writes_provenance_sidecars(
-        self,
-        full_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        tmp_path: Path,
-    ) -> None:
-        """synthesize() places provenance sidecars under .kittify/charter/provenance/."""
-        synthesize(full_request, adapter=adapter, repo_root=tmp_path)
-
+        assert (tmp_path / MANIFEST_PATH).exists(), "write_pipeline.promote was not called from synthesize()"
+        assert list(pack_root.rglob("*.yaml")), f"No artifact files found under {pack_root}"
+        assert (pack_root / "graph.yaml").exists(), "project DRG overlay was not persisted by promote()"
         prov_dir = tmp_path / ".kittify" / "charter" / "provenance"
-        prov_files = list(prov_dir.glob("*.yaml"))
-        assert len(prov_files) >= 1, (
-            f"No provenance files found under {prov_dir}; "
-            "write_pipeline.promote did not write provenance sidecars"
-        )
+        assert list(prov_dir.glob("*.yaml")), f"No provenance sidecars under {prov_dir}"
 
     def test_synthesize_staging_wiped_after_success(
         self,

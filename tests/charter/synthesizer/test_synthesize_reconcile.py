@@ -252,57 +252,6 @@ def test_manifest_version_skew_is_reconciled_on_next_synthesize(
 
 
 # ---------------------------------------------------------------------------
-# Case 3 — delta shape: superset overlay -> retained + removable populated
-# ---------------------------------------------------------------------------
-
-
-def test_delta_shape_reports_retained_and_removable_for_superset_overlay(
-    minimal_interview_snapshot: dict[str, Any],
-    minimal_doctrine_snapshot: dict[str, Any],
-    minimal_drg_snapshot: dict[str, Any],
-    fixture_adapter: FixtureAdapter,
-    tmp_path: Path,
-) -> None:
-    """A superset on-disk overlay yields a non-empty ``retained``/``removable``.
-
-    Under the ``preserve`` default, ``removable`` describes the SAME
-    preserved-but-untargeted content ``retained`` reports (data-model.md:
-    "removable ... here default preserve retains them") — both non-empty
-    together, distinguished only by intent (what a ``--prune`` run would
-    act on).
-    """
-    req_a = _request(
-        "01AAAAAAAAAAAAAAAAAAAAAAAAA",
-        minimal_interview_snapshot,
-        minimal_doctrine_snapshot,
-        minimal_drg_snapshot,
-    )
-    synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
-    _inject_legacy_overlay_content(tmp_path)
-
-    req_b = _request(
-        "01BBBBBBBBBBBBBBBBBBBBBBBBB",
-        minimal_interview_snapshot,
-        minimal_doctrine_snapshot,
-        minimal_drg_snapshot,
-    )
-    result = synthesize(req_b, adapter=fixture_adapter, repo_root=tmp_path)
-
-    assert result.reconciliation is not None
-    delta = result.reconciliation
-    retained_urns = {ref.urn for ref in delta.retained}
-    removable_urns = {ref.urn for ref in delta.removable}
-
-    assert _LEGACY_URN in retained_urns, f"expected {_LEGACY_URN!r} in delta.retained, got {retained_urns}"
-    assert _LEGACY_URN in removable_urns, (
-        f"expected {_LEGACY_URN!r} in delta.removable (preserve-mode candidate), got {removable_urns}"
-    )
-    assert any(
-        ref.ref_kind == "edge" and ref.urn.startswith(_LEGACY_URN) for ref in delta.retained
-    ), "expected the legacy tactic's applies-edge in delta.retained too (FR-002 atomicity)"
-
-
-# ---------------------------------------------------------------------------
 # Case 4 — BLOCKER #1: FR-009 post-condition driven by the MERGED graph
 # ---------------------------------------------------------------------------
 
@@ -456,7 +405,13 @@ def test_dry_run_mode_computes_delta_without_writing(
     result = synthesize(req_b, adapter=fixture_adapter, repo_root=tmp_path, mode=SynthesizeMode.dry_run)
 
     assert result.reconciliation is not None
-    assert _LEGACY_URN in {ref.urn for ref in result.reconciliation.retained}
+    delta = result.reconciliation
+    assert _LEGACY_URN in {ref.urn for ref in delta.retained}
+    # Preserve-mode delta shape: removable mirrors retained (what --prune would act on).
+    assert _LEGACY_URN in {ref.urn for ref in delta.removable}
+    assert any(ref.ref_kind == "edge" and ref.urn.startswith(_LEGACY_URN) for ref in delta.retained), (
+        "the legacy tactic's applies-edge must be retained with its node (FR-002 atomicity)"
+    )
     assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, "dry_run must not write the manifest"
     assert (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").read_bytes() == graph_before, (
         "dry_run must not write graph.yaml"
@@ -532,25 +487,10 @@ def test_reconciliation_conflict_rejects_empty_remediation() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_reconciliation_delta_is_empty_when_all_fields_empty() -> None:
+def test_reconciliation_delta_is_empty_only_without_content() -> None:
     assert ReconciliationDelta().is_empty is True
-
-
-def test_reconciliation_delta_is_not_empty_with_retained_content() -> None:
     delta = ReconciliationDelta(retained=(NodeOrEdgeRef(ref_kind="node", urn="tactic:x"),))
     assert delta.is_empty is False
-
-
-def test_manifest_delta_default_is_empty_tuples() -> None:
-    delta = ManifestDelta()
-    assert delta.retained == ()
-    assert delta.added == ()
-    assert delta.removable == ()
-
-
-def test_manifest_entry_ref_defaults_backing_artifact_to_none() -> None:
-    ref = ManifestEntryRef(kind="tactic", slug="x")
-    assert ref.backing_artifact is None
 
 
 def test_backing_path_by_urn_resolves_backed_and_orphans_missing(

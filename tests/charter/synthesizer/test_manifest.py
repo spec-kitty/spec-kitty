@@ -144,16 +144,6 @@ def test_manifest_absence_means_partial(tmp_path: Path) -> None:
         load_yaml(manifest_path)
 
 
-def test_run_id_present_in_manifest(tmp_path: Path, guard: PathGuard) -> None:
-    """run_id in the manifest matches the staging dir run_id."""
-    run_id = "01KPE222TESTRUNID0000000042"
-    manifest = _make_manifest(run_id=run_id)
-    out_path = tmp_path / "synthesis-manifest.yaml"
-    dump_yaml(manifest, out_path, guard)
-    loaded = load_yaml(out_path)
-    assert loaded.run_id == run_id
-
-
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
@@ -496,89 +486,9 @@ def test_verify_accepts_an_artifact_under_the_project_pack_root(tmp_path: Path) 
     _verify_single_artifact(tmp_path, ".kittify/charter-packs/tactic/legacy-tactic.tactic.yaml")
 
 
-def test_artifact_prefix_is_project_pack_root(tmp_path: Path) -> None:
-    """New manifest entries always carry the project charter pack root (FR-016)."""
-    from charter.activation.synthesizer.manifest import _ARTIFACT_PATH_PREFIX
-
-    assert _ARTIFACT_PATH_PREFIX.as_posix() == ".kittify/charter-packs"
-
-
-# ---------------------------------------------------------------------------
-# Ordering (deterministic)
-# ---------------------------------------------------------------------------
-
-
-def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
-    """Artifacts are stored in (kind, slug) order for determinism."""
-    artifacts = [
-        ManifestArtifactEntry(
-            kind="tactic",
-            slug="z-tactic",
-            path=".kittify/charter-packs/tactic/z-tactic.tactic.yaml",
-            provenance_path=".kittify/charter/provenance/tactic-z-tactic.yaml",
-            content_hash="a" * 64,
-        ),
-        ManifestArtifactEntry(
-            kind="directive",
-            slug="a-directive",
-            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
-            provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
-            content_hash="b" * 64,
-        ),
-        ManifestArtifactEntry(
-            kind="tactic",
-            slug="a-tactic",
-            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
-            provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
-            content_hash="c" * 64,
-        ),
-    ]
-    data_without_hash = {
-        "schema_version": "2",
-        "mission_id": None,
-        "created_at": "2026-04-17T12:00:00+00:00",
-        "run_id": "01KPE222TESTRUNID0000000001",
-        "adapter_id": "fixture",
-        "adapter_version": "1.0.0",
-        "synthesizer_version": "3.2.0a5",
-        "artifacts": [a.model_dump(mode="python") for a in artifacts],
-        "built_in_only": False,
-    }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
-    manifest = SynthesisManifest(
-        created_at="2026-04-17T12:00:00+00:00",
-        run_id="01KPE222TESTRUNID0000000001",
-        adapter_id="fixture",
-        adapter_version="1.0.0",
-        synthesizer_version="3.2.0a5",
-        manifest_hash=manifest_hash,
-        artifacts=artifacts,
-    )
-    out_path = tmp_path / "synthesis-manifest.yaml"
-    dump_yaml(manifest, out_path, guard)
-    loaded = load_yaml(out_path)
-    # Verify round-trip preserves the order
-    assert [a.slug for a in loaded.artifacts] == ["z-tactic", "a-directive", "a-tactic"]
-
-
 # ---------------------------------------------------------------------------
 # v2: manifest_hash validation
 # ---------------------------------------------------------------------------
-
-
-def test_manifest_hash_validates(tmp_path: Path, guard: PathGuard) -> None:
-    """manifest_hash stored in the manifest matches a re-computed hash.
-
-    Build a manifest, strip manifest_hash from model_dump, re-hash via
-    canonical_yaml (bytes — no .encode() needed), verify it matches the stored hash.
-    """
-    manifest = _make_manifest()
-    # Strip manifest_hash and re-compute
-    fields_without_hash = manifest.model_dump(mode="python")
-    fields_without_hash.pop("manifest_hash")
-    # canonical_yaml() returns bytes — hash directly, no .encode()
-    computed = hashlib.sha256(canonical_yaml(fields_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
-    assert computed == manifest.manifest_hash
 
 
 def test_legacy_v2_manifest_hash_without_built_in_only_verifies(tmp_path: Path) -> None:

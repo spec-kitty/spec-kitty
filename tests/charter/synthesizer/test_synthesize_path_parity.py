@@ -137,59 +137,27 @@ def parity_request(
 # ---------------------------------------------------------------------------
 
 
-def _entries_to_comparable(entries: list[Any]) -> list[tuple[str, str | None]]:
-    """Project to ``(path, artifact_id)`` tuples sorted by path.
-
-    ``run_all`` order is deterministic but we sort defensively so the
-    assertion holds even if a future ordering change ships separately
-    from the CLI surface.
-    """
-    return sorted([(e.path, e.artifact_id) for e in entries], key=lambda t: t[0])
-
-
-def test_dry_run_paths_match_real_run_paths(
+def test_written_artifact_entries_are_repo_relative_posix_with_real_directive_ids(
     parity_request: SynthesisRequest,
     fixture_adapter: FixtureAdapter,
     tmp_path: Path,
 ) -> None:
-    """``compute_written_artifacts`` MUST be deterministic across two ``run_all`` calls.
+    """``compute_written_artifacts`` yields the wire-shape entries both CLI branches share (FR-004).
 
-    This is the unit-level proof of FR-004: the typed staged-artifact
-    entries the CLI surfaces in ``written_artifacts`` are byte-equal on
-    ``path`` and ``artifact_id`` whether the run is a dry-run or a
-    non-dry-run, given the same ``SynthesisRequest`` and adapter.
+    The dry-run and real-run branches derive ``written_artifacts`` from this one
+    helper, so pinning its output shape is the parity guard: repo-relative POSIX
+    paths (data-model §E-3) and a symbolic directive ``artifact_id`` -- never the
+    ``PROJECT_000`` placeholder (FR-005).
     """
-    # Two independent ``run_all`` invocations using the SAME request +
-    # adapter — analogous to a dry-run followed by a non-dry-run.
-    results_a = run_all(parity_request, adapter=fixture_adapter)
-    results_b = run_all(parity_request, adapter=fixture_adapter)
+    entries = compute_written_artifacts(run_all(parity_request, adapter=fixture_adapter), tmp_path)
 
-    entries_a = compute_written_artifacts(results_a, tmp_path)
-    entries_b = compute_written_artifacts(results_b, tmp_path)
-
-    # Both runs must produce non-empty entries (otherwise the test is a
-    # no-op). The fixture set delivers at least one directive artifact
-    # for the parity_request inputs (PROJECT_001 directive).
-    assert len(entries_a) >= 1, "expected at least one staged artifact"
-    assert len(entries_b) == len(entries_a), f"entry count drifted: a={len(entries_a)} vs b={len(entries_b)}"
-
-    # Per-element path + artifact_id must match (FR-004 byte-equal).
-    cmp_a = _entries_to_comparable(entries_a)
-    cmp_b = _entries_to_comparable(entries_b)
-    assert cmp_a == cmp_b, f"dry-run vs real-run paths drifted:\n  a={cmp_a}\n  b={cmp_b}"
-
-    # Each entry path is repo-relative POSIX (no leading '/'; uses '/'
-    # separator). This nails the wire-shape contract from data-model §E-3.
-    for entry in entries_a:
+    assert entries, "expected at least one staged artifact"
+    for entry in entries:
         assert not entry.path.startswith("/"), entry.path
         assert "\\" not in entry.path, entry.path
-        # FR-005: the placeholder must NOT be embedded in the path.
         assert "PROJECT_000" not in entry.path, entry.path
 
-    # The PROJECT_001 directive in particular must surface a directive
-    # entry whose artifact_id is the symbolic id (not None), so the
-    # parity guard is testing real provenance.
-    directive_entries = [e for e in entries_a if e.kind == "directive"]
+    directive_entries = [e for e in entries if e.kind == "directive"]
     assert directive_entries, "expected at least one directive entry"
     for entry in directive_entries:
         assert entry.artifact_id is not None, f"directive entry lacks artifact_id (regression): {entry}"

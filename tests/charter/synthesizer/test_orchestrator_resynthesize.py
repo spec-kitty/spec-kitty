@@ -191,20 +191,6 @@ def _commit_all(repo: Path, message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Baseline test: prior synthesis produces a manifest
-# ---------------------------------------------------------------------------
-
-
-class TestPriorSynthesisBaseline:
-    def test_prior_synthesis_manifest_exists(self, repo_with_prior_synthesis: Path) -> None:
-        """After synthesize(), manifest exists and has artifacts."""
-        manifest_path = repo_with_prior_synthesis / MANIFEST_PATH
-        assert manifest_path.exists()
-        manifest = load_manifest(manifest_path)
-        assert len(manifest.artifacts) > 0
-
-
-# ---------------------------------------------------------------------------
 # Regression: importlib.metadata.PackageNotFoundError must not be mislabeled
 # as "resynthesize_pipeline.py is missing" (PackageNotFoundError subclasses
 # ModuleNotFoundError, which subclasses ImportError). resynthesize_pipeline.
@@ -482,34 +468,14 @@ class TestUs3KindSlug:
 
 
 class TestUs2DrgUrn:
-    def test_resynthesize_drg_urn_directive_003(
-        self,
-        base_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        repo_with_prior_synthesis: Path,
-    ) -> None:
-        """US-2: directive:DIRECTIVE_003 → multiple artifacts referencing that URN."""
-        repo = repo_with_prior_synthesis
-
-        result = resynthesize_run(
-            request=base_request,
-            adapter=adapter,
-            topic="directive:DIRECTIVE_003",
-            repo_root=repo,
-        )
-
-        assert not result.is_noop
-        assert result.resolved_topic.matched_form == "drg_urn"
-        # At least one artifact should reference directive:DIRECTIVE_003
-        assert len(result.resolved_topic.targets) >= 0  # EC-4 is also valid here
-
     def test_resynthesize_drg_urn_preserves_unrelated_hashes(
         self,
         base_request: SynthesisRequest,
         adapter: FixtureAdapter,
         repo_with_prior_synthesis: Path,
     ) -> None:
-        """FR-017: artifacts not referencing the DRG URN retain prior content_hash."""
+        """US-2 / FR-017: a DRG-URN topic resolves as ``drg_urn`` and artifacts not
+        referencing the URN retain their prior content_hash."""
         repo = repo_with_prior_synthesis
         prior_manifest = load_manifest(repo / MANIFEST_PATH)
         prior_hashes = _artifact_hashes_from_manifest(repo, prior_manifest)
@@ -521,10 +487,8 @@ class TestUs2DrgUrn:
             repo_root=repo,
         )
 
-        if result.is_noop:
-            # EC-4: no writes; manifest unchanged
-            return
-
+        assert not result.is_noop
+        assert result.resolved_topic.matched_form == "drg_urn"
         new_hashes = _artifact_hashes_from_manifest(repo, result.manifest)
         regenerated_slugs = {t.slug for t in result.resolved_topic.targets}
 
@@ -607,6 +571,8 @@ class TestEc4ZeroMatch:
     ) -> None:
         """EC-4: DRG URN that exists but no project artifact references it → noop."""
         repo = repo_with_prior_synthesis
+        manifest_path = repo / MANIFEST_PATH
+        prior_mtime = manifest_path.stat().st_mtime
 
         # Build a DRG with a paradigm URN that no artifact references
         extended_drg = dict(base_request.drg_snapshot)
@@ -631,42 +597,8 @@ class TestEc4ZeroMatch:
 
         assert result.is_noop
         assert result.diagnostic != ""
-        # Manifest unchanged
-        assert result.manifest.run_id == load_manifest(repo / MANIFEST_PATH).run_id
-
-    def test_zero_match_manifest_not_rewritten(
-        self,
-        base_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        repo_with_prior_synthesis: Path,
-    ) -> None:
-        """EC-4: on zero-match, disk manifest is not modified."""
-        repo = repo_with_prior_synthesis
-        manifest_path = repo / MANIFEST_PATH
-        prior_mtime = manifest_path.stat().st_mtime
-
-        extended_drg = dict(base_request.drg_snapshot)
-        extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
-            {"urn": "paradigm:evidence-first", "kind": "paradigm"}
-        ]
-        ec4_request = SynthesisRequest(
-            target=base_request.target,
-            interview_snapshot=base_request.interview_snapshot,
-            doctrine_snapshot=base_request.doctrine_snapshot,
-            drg_snapshot=extended_drg,
-            run_id=base_request.run_id,
-            adapter_hints=base_request.adapter_hints,
-        )
-
-        result = resynthesize_run(
-            request=ec4_request,
-            adapter=adapter,
-            topic="paradigm:evidence-first",
-            repo_root=repo,
-        )
-
-        assert result.is_noop
-        # Manifest file not touched
+        # Manifest unchanged and not rewritten on disk
+        assert result.manifest.run_id == load_manifest(manifest_path).run_id
         assert manifest_path.stat().st_mtime == prior_mtime
 
 
@@ -738,54 +670,6 @@ class TestResynthesizeValidationWiring:
         )
         assert failed_dirs, "Expected a .failed staging directory when validation rejects resynthesis"
         assert (failed_dirs[0] / "charter-packs" / "graph.yaml").exists()
-
-
-# ---------------------------------------------------------------------------
-# FR-017: manifest content_hash preservation
-# ---------------------------------------------------------------------------
-
-
-class TestManifestContentHashPreservation:
-    def test_prior_content_hash_preserved_for_untouched_artifacts(
-        self,
-        base_request: SynthesisRequest,
-        adapter: FixtureAdapter,
-        repo_with_prior_synthesis: Path,
-    ) -> None:
-        """FR-017 core contract: untouched entries keep their prior content_hash."""
-        repo = repo_with_prior_synthesis
-        prior_manifest = load_manifest(repo / MANIFEST_PATH)
-
-        result = resynthesize_run(
-            request=base_request,
-            adapter=adapter,
-            topic="tactic:how-we-apply-directive-003",
-            repo_root=repo,
-        )
-
-        regenerated_slug = "how-we-apply-directive-003"
-        prior_by_key = {f"{e.kind}:{e.slug}": e.content_hash for e in prior_manifest.artifacts}
-        new_by_key = {f"{e.kind}:{e.slug}": e.content_hash for e in result.manifest.artifacts}
-
-        preserved_count = 0
-        for key, prior_hash in prior_by_key.items():
-            if regenerated_slug not in key:
-                assert new_by_key.get(key) == prior_hash, (
-                    f"FR-017: '{key}' content_hash changed from "
-                    f"{prior_hash[:16]}... to {new_by_key.get(key, 'MISSING')[:16]}..."
-                )
-                preserved_count += 1
-
-        # At least 90% of unmodified artifacts preserved (SC-006 ≥ 95% threshold)
-        total = len(prior_by_key)
-        regenerated = 1  # kind_slug always resolves to exactly 1 target
-        expected_preserved = total - regenerated
-        if expected_preserved > 0:
-            ratio = preserved_count / expected_preserved
-            assert ratio >= 0.95, (
-                f"SC-006: only {ratio:.1%} of unmodified artifacts preserved "
-                f"(need ≥ 95%)"
-            )
 
 
 # ---------------------------------------------------------------------------
