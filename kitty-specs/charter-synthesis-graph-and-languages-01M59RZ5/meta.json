@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "No new external API; additive JSON keys (evidence languages, interview languages/languages_source/languages_notice) and the config.yaml languages key are documented in docs/api/charter-commands.md and the CHANGELOG.",
   "coordination_branch": "kitty/mission-charter-synthesis-graph-and-languages-01M59RZ5",
   "created_at": "2026-10-19T09:48:03.057339+00:00",
   "flattened": false,
