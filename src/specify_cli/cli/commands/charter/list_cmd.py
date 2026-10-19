@@ -11,9 +11,10 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
+from charter.activation.api import IdentityIndex
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
+from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS, ArtifactKind
 from charter.activation.pack_manager import AvailableArtifact, ActiveCharterManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
@@ -138,20 +139,63 @@ def _available_over_chain(
     return entries
 
 
-def _render_available(entries: list[AvailableArtifact], activated: frozenset[str]) -> str:
+class _KindIdentity:
+    """Stem <-> declared-id view of one kind, so ``stem (declared_id)`` and activation agree (FR-007).
+
+    A config activation list may spell an artifact by its file stem or its
+    declared id; the ``AvailableArtifact`` rows carry the stem. ``mission-type``
+    is not an artifact kind, so it has no index and every lookup is the identity.
+    """
+
+    def __init__(self, index: IdentityIndex, kind: str) -> None:
+        try:
+            self._kind: ArtifactKind | None = ArtifactKind.from_operator_token(kind)
+        except ValueError:  # ``mission-type`` is not an addressable artifact kind
+            self._kind = None
+        self._index = index
+
+    def declared_id(self, stem: str, layer: str | None = None) -> str | None:
+        """Declared id of *stem* (or of a declared-id token); ``None`` when unknown.
+
+        With *layer* the id comes from that layer's own file, so a shadowed row never
+        borrows the id of a higher layer that reuses its stem; a layer without such a
+        file falls back to the cross-layer lookup.
+        """
+        if self._kind is None:
+            return None
+        if layer is not None:
+            own = self._index.declared_id_in_layer(self._kind, stem, layer)
+            if own is not None:
+                return own
+        return self._index.declared_id(self._kind, stem)
+
+    def is_activated(self, stem: str, activated: frozenset[str], layer: str | None = None) -> bool:
+        """Whether *stem* is activated under either of its spellings."""
+        declared = self.declared_id(stem, layer)
+        return stem in activated or (declared is not None and declared in activated)
+
+    def label(self, token: str, layer: str | None = None) -> str:
+        """``stem (declared_id)`` when a token's stem and declared id differ, else the token."""
+        declared = self.declared_id(token, layer)
+        stem = (self._index.stem(self._kind, token) if self._kind is not None else None) or token
+        return f"{stem} ({declared})" if declared is not None and declared != stem else stem
+
+
+def _render_available(entries: list[AvailableArtifact], activated: frozenset[str], identity: _KindIdentity) -> str:
     """Render available-but-not-activated artifacts annotated by source layer.
 
-    Each entry is shown as ``<id> [<layer>]``. Artifacts already activated are
+    Each entry is shown as ``<id> [<layer>]``, or ``<stem> (<declared id>) [<layer>]``
+    when the two differ. Artifacts already activated (under either spelling) are
     dropped (an activated ID is no longer "available but not activated"). The
     output is sorted by ``(id, layer)`` for determinism.
     """
     not_activated = sorted(
-        ((e.artifact_id, e.layer) for e in entries if e.artifact_id not in activated),
+        ((e.artifact_id, e.layer) for e in entries if not identity.is_activated(e.artifact_id, activated, e.layer)),
         key=lambda pair: (pair[0], pair[1]),
     )
     if not not_activated:
         return "[dim]—[/dim]"
-    return ", ".join(f"{aid} [dim]({layer})[/dim]" for aid, layer in not_activated)
+    return ", ".join(f"{identity.label(aid, layer)} [dim]({layer})[/dim]" for aid, layer in not_activated)
 
 
 def _render_templates(refs: list[TemplateRef]) -> str:
@@ -223,6 +267,7 @@ def list_cmd(
         ctx = ProjectContext.from_repo(repo_root)
         manager = ActiveCharterManager()
         activated_map = manager.list_activated(ctx)
+        identity_index = IdentityIndex.build(repo_root)
 
         # Resolve org/project roots once when we need the layer-aware view (C-008).
         layer_roots = resolve_layer_roots(repo_root) if all_layers else None
@@ -241,12 +286,13 @@ def list_cmd(
 
         for kind in _KIND_ORDER:
             value = activated_map.get(kind)
+            identity = _KindIdentity(identity_index, kind)
             if value is None:
                 activated_str = "[dim](All built-ins — no explicit activation)[/dim]"
             elif len(value) == 0:
                 activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
             else:
-                activated_str = ", ".join(sorted(value))
+                activated_str = ", ".join(identity.label(token) for token in sorted(value))
 
             json_row: dict[str, Any] = {
                 "kind": kind,
@@ -279,24 +325,29 @@ def list_cmd(
                     except ValueError as exc:
                         _emit_error(console, json_output=json_output, message=str(exc))
                         raise typer.Exit(1) from exc
-                    available_str = _render_available(entries, activated_set)
+                    available_str = _render_available(entries, activated_set, identity)
                     not_activated_entries = sorted(
                         (
                             (e.artifact_id, e.layer)
                             for e in entries
-                            if e.artifact_id not in activated_set
+                            if not identity.is_activated(e.artifact_id, activated_set, e.layer)
                         ),
                         key=lambda pair: (pair[0], pair[1]),
                     )
+                    # FR-007 / #6406: ``declared_id`` rides beside the stem-keyed ``artifact_id``.
                     json_row["available"] = [
-                        {"artifact_id": aid, "layer": layer}
+                        {
+                            "artifact_id": aid,
+                            "layer": layer,
+                            "declared_id": identity.declared_id(aid, layer) or aid,
+                        }
                         for aid, layer in not_activated_entries
                     ]
                 else:
                     available = manager.list_available(ctx, kind)
-                    not_activated = sorted(available - activated_set) if available else []
+                    not_activated = sorted(s for s in available if not identity.is_activated(s, activated_set)) if available else []
                     available_str = (
-                        ", ".join(not_activated) if not_activated else "[dim]—[/dim]"
+                        ", ".join(identity.label(s) for s in not_activated) if not_activated else "[dim]—[/dim]"
                     )
                     json_row["available"] = not_activated
                 table.add_row(kind, activated_str, available_str)

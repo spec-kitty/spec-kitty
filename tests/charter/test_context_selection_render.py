@@ -933,3 +933,57 @@ class TestCombinedSelectionBlock:
         assert _SELECTED_PROCEDURES_HEADER not in block
         assert _SELECTED_AGENT_PROFILES_HEADER not in block
         assert _SELECTED_MISSION_STEP_CONTRACTS_HEADER not in block
+
+
+# ---------------------------------------------------------------------------
+# #6406 / FR-017: org attribution by declared id (stem and id spell one artifact)
+# ---------------------------------------------------------------------------
+
+
+class TestSelectionIdentity:
+    @pytest.mark.parametrize("token", ["qa-003-no-fake-green", "QA_003"])
+    def test_org_directive_attributed_for_stem_and_declared_id(self, tmp_path: Path, token: str) -> None:
+        from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+        write_identity_org_pack(tmp_path)
+        directive = _DummyDirective(title="No fake green", intent="Never fake it.")
+        service = _StubService(
+            directives=_StubRepo(items={"QA_003": directive}, provenance={"QA_003": "org"}),
+        )
+        selection = GovernanceCharterConfig(selected_directives=[token])
+
+        block = _render_selection_block(selection, service, repo_root=tmp_path)
+
+        assert f"  - {token} (source: org)" in block
+        assert "Never fake it." in block
+        assert "catalog entry not found" not in block
+
+    def test_built_in_directive_stays_unattributed(self, tmp_path: Path) -> None:
+        from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+        write_identity_org_pack(tmp_path)
+        directive = _DummyDirective(title="Other", intent="Other intent.")
+        service = _StubService(
+            directives=_StubRepo(items={"DIRECTIVE_001": directive}, provenance={"DIRECTIVE_001": "built-in"}),
+        )
+        selection = GovernanceCharterConfig(selected_directives=["DIRECTIVE_001"])
+
+        block = _render_selection_block(selection, service, repo_root=tmp_path)
+
+        assert "DIRECTIVE_001" in block and "source: org" not in block
+
+    @pytest.mark.parametrize("token", ["qa-tactic-seven", "qa-seven"])
+    def test_org_required_tactic_attributed_across_spellings(self, tmp_path: Path, token: str) -> None:
+        from tests.charter.org_pack_identity_support import ORG_PACK_NAME, write_identity_org_pack
+
+        pack = write_identity_org_pack(tmp_path)
+        (pack / "org-charter.yaml").write_text(
+            f'schema_version: "2"\norg_name: {ORG_PACK_NAME}\nrequired_tactics:\n  - qa-seven\n', encoding="utf-8"
+        )
+        tactic = _DummyTactic(name="Seven", purpose="Seven purpose.", steps=[_DummyStep(title="s")])
+        service = _StubService(tactics=_StubRepo(items={"qa-seven": tactic}))
+        selection = GovernanceCharterConfig(selected_tactics=[token])
+
+        block = _render_selection_block(selection, service, repo_root=tmp_path)
+
+        assert f"  - {token} (source: org)" in block

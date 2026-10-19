@@ -6,9 +6,9 @@ that file). Resolves DRG-backed action doctrine artifacts for a given
 — the payload both the bootstrap-text renderer and the ``--json`` entrypoint
 consume.
 
-Cycle note: ``_build_offering_service`` and ``_normalize_directive_id`` are
-imported function-locally / from their sibling homes respectively; the
-former stays routed through ``charter.activation.context`` (the single test-patchable
+Cycle note: ``_build_offering_service`` is
+imported function-locally from its sibling home; it
+stays routed through ``charter.activation.context`` (the single test-patchable
 seam every other builder-consuming module already uses — see
 ``context_renderers/compact_governance.py``'s cycle note for the
 established precedent) rather than importing
@@ -20,12 +20,13 @@ caller, moved or not.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from charter.activation.catalog import OfferingCatalog
     from charter.activation.pack_context import PackContext
     from charter.offering.drg.models import DRGGraph
     import charter.offering.service as _offering_service_module
@@ -33,7 +34,9 @@ if TYPE_CHECKING:
 from charter.activation.catalog import load_offering_catalog
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.org_pack_discovery import _read_org_required_selections
-from charter.activation.profile_resolution import _normalize_directive_id
+from charter.activation.identity_index import IdentityIndex
+from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.models import NodeKind
 
 __all__ = [
@@ -64,7 +67,7 @@ def _catalog_default_or_activated(
     case: this is the one state that stays empty (explicit "exclude
     everything"), and it is only ever reachable when a real ``PackContext``
     is supplied with that field explicitly set. Directive-specific
-    stem-to-canonical normalization (``_normalize_directive_id``) is each
+    stem-to-canonical mapping (``IdentityIndex.activation_id``) is each
     caller's own job, applied on top of this helper's result -- not every
     kind needs it (tactics/paradigms have no stem-vs-canonical distinction;
     see the WP's Union/Exclusion Boundary Audit).
@@ -152,6 +155,50 @@ class _ActionGovernanceBundle:
     # reconciler, carried verbatim from
     # ``ResolvedContext.unarbitrated_tensions``.
     unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
+    # WP03 (#6406): the per-invocation identity index the bundle was resolved
+    # with, so later consumers map tokens without rescanning the layers.
+    identity: IdentityIndex | None = None
+
+
+def _activation_ids(
+    identity: IdentityIndex,
+    kind: ArtifactKind,
+    tokens: Iterable[str],
+    warnings: list[str],
+) -> set[str]:
+    """Map activation/org-required *tokens* to declared ids through the identity index."""
+    return {identity.activation_id(kind, token, warnings) for token in tokens}
+
+
+def _seed_sets(
+    merged: DRGGraph,
+    catalog: OfferingCatalog,
+    pack_context: PackContext | None,
+    org_required: Mapping[str, Iterable[str]],
+    identity: IdentityIndex,
+    warnings: list[str],
+) -> tuple[set[str], set[str], set[str]]:
+    """Directive/tactic/paradigm seed sets as declared ids (WP02 Decision Record 2, #6406).
+
+    Activated and org-required tokens (stem or declared id) map through
+    ``identity.activation_id``; an absent activation key keeps the catalog-default
+    behaviour (C-007), whose ids are already graph ids. The org-required union
+    applies even when the project side is an explicit empty list.
+    """
+    seeds: list[set[str]] = []
+    for kind, node_kind, defaults, field_name, required_key in (
+        (ArtifactKind.DIRECTIVE, NodeKind.DIRECTIVE, catalog.directives, "activated_directives", "directives"),
+        (ArtifactKind.TACTIC, NodeKind.TACTIC, catalog.tactics, "activated_tactics", "tactics"),
+        (ArtifactKind.PARADIGM, NodeKind.PARADIGM, catalog.paradigms, "activated_paradigms", "paradigms"),
+    ):
+        activated = getattr(pack_context, field_name) if pack_context is not None else None
+        base = _catalog_default_or_activated(activated, _graph_and_catalog_default_ids(merged, node_kind, defaults))
+        mapped = base if activated is None else _activation_ids(identity, kind, base, warnings)
+        mapped |= _activation_ids(identity, kind, org_required[required_key], warnings)
+        seeds.append(mapped)
+    for message in warnings:
+        _LOGGER.warning("%s", message)
+    return seeds[0], seeds[1], seeds[2]
 
 
 #: Bundle slots whose artifacts can carry ``applies_to_languages`` (directives cannot).
@@ -188,6 +235,7 @@ def _resolve_action_bundle(
     org_root: Path | None,
     mission_type: str | None,
     feature_dir: Path | None,
+    identity: IdentityIndex | None = None,
 ) -> _ActionGovernanceBundle:
     """Resolve the action governance bundle with the WP06 org-root fallback
     (extracted WP11/T060 so every-load delivery computes it once, before the
@@ -220,6 +268,7 @@ def _resolve_action_bundle(
         pack_context=_PackContext.from_config(repo_root),
         mission_type=mission_type,
         feature_dir=feature_dir,
+        identity=identity,
     )
 
 
@@ -257,6 +306,7 @@ def _load_action_governance_bundle(
     pack_context: PackContext | None = None,
     mission_type: str | None = None,
     feature_dir: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> _ActionGovernanceBundle:
     """Load DRG-backed action doctrine artifacts for bootstrap rendering.
 
@@ -275,6 +325,9 @@ def _load_action_governance_bundle(
     declaration-ordered org-pack chain and is threaded straight through to
     :func:`charter.activation._drg_helpers.load_validated_graph` AND to the
     ``ActiveCharterService`` built below — both halves see every configured pack.
+
+    *identity* is the caller's per-invocation :class:`IdentityIndex` (NFR-003); when
+    omitted one is built once here and carried on the returned bundle.
     """
     from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
     from charter.activation.context import _build_offering_service  # noqa: PLC0415
@@ -289,6 +342,9 @@ def _load_action_governance_bundle(
         org_roots=org_roots or None,
     )
     resolved_type = resolve_mission_type_key(mission_type=mission_type, feature_dir=feature_dir)
+    if identity is None:
+        identity = IdentityIndex.build(repo_root, org_roots=org_roots)
+    identity_warnings: list[str] = []
 
     # The DRG load honours the built-in + org + project three-layer overlay
     # (WP07 T034; charter-internal callers pass org_root=None for two layers).
@@ -313,7 +369,7 @@ def _load_action_governance_bundle(
             )
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
-                merged = filter_graph_by_activation(merged, pack_context)
+                merged = filter_graph_by_activation(merged, pack_context, identity=identity)
 
             # WP02 (Decision Record 2, FR-006/007/008/014): project_directives /
             # selected_tactics / selected_paradigms are re-derived from
@@ -336,47 +392,13 @@ def _load_action_governance_bundle(
             # mission branch below never loads a graph and never consumes
             # these three names, so nothing needs them precomputed earlier.
             catalog = load_offering_catalog()
-            activated_directives_arg = pack_context.activated_directives if pack_context is not None else None
-            project_directives = {
-                _normalize_directive_id(d)
-                for d in _catalog_default_or_activated(
-                    activated_directives_arg,
-                    _graph_and_catalog_default_ids(merged, NodeKind.DIRECTIVE, catalog.directives),
-                )
-            }
-            activated_tactics_arg = pack_context.activated_tactics if pack_context is not None else None
-            selected_tactics = _catalog_default_or_activated(
-                activated_tactics_arg,
-                _graph_and_catalog_default_ids(merged, NodeKind.TACTIC, catalog.tactics),
+            project_directives, selected_tactics, selected_paradigms = _seed_sets(
+                merged, catalog, pack_context, _read_org_required_selections(repo_root), identity, identity_warnings
             )
-            activated_paradigms_arg = pack_context.activated_paradigms if pack_context is not None else None
-            selected_paradigms = _catalog_default_or_activated(
-                activated_paradigms_arg,
-                _graph_and_catalog_default_ids(merged, NodeKind.PARADIGM, catalog.paradigms),
-            )
-
-            # Preserve the org-pack required_<kind> union (Decision Record 2's
-            # confirmed-legitimate, separate concept) onto the activated_*-derived
-            # set above -- never onto the retired selected_* set. Applies even when
-            # the project side is an EXPLICIT empty activated_directives (spec Edge
-            # Cases): "explicitly empty" means the project contributes nothing, not
-            # that the union step itself is skipped.
-            org_required = _read_org_required_selections(repo_root)
-            # MANDATORY (TASKS-FRESH2-001, severity 4): normalize each org-required
-            # directive entry before it joins project_directives -- required_directives:
-            # is legitimately authored in either stem or canonical form (verified live,
-            # tests/charter/test_answers_inert_and_org_union.py::
-            # TestOrgRequiredIdFormNormalizedBeforePromotion), while the DRG's
-            # artifact_id and load_offering_catalog().directives are canonical-only.
-            # Skipping this would reproduce Decision Record 2's own silent-exclusion
-            # mechanism via the org-required path.
-            project_directives |= {_normalize_directive_id(d) for d in org_required["directives"]}
-            # Tactics/paradigms have no stem-vs-canonical distinction anywhere in this
-            # repo's authoring convention (verified live -- no _normalize_tactic_id/
-            # _normalize_paradigm_id exists in src/) -- the raw org-required entry IS
-            # already canonical; see the Union/Exclusion Boundary Audit (boundary 4).
-            selected_tactics |= set(org_required["tactics"])
-            selected_paradigms |= set(org_required["paradigms"])
+            # #6404: a synthesized tactic reached by a directive's suggests edge is
+            # never a root; it is delivered only through that edge. Computed from
+            # the overlay, so a deactivated directive does not turn it into a root.
+            selected_tactics -= reach_only_tactic_ids(repo_root)
 
             # Explicitly activated project directives govern the project even
             # without an action edge. The filtered graph is the activation
@@ -454,4 +476,5 @@ def _load_action_governance_bundle(
         bridge_urns=bridge_urns,
         tension_arbiters=tension_arbiters,
         unarbitrated_tensions=unarbitrated_tensions,
+        identity=identity,
     )

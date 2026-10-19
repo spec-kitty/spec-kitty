@@ -49,7 +49,7 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_toolguide_body,
 )
 from charter.activation.context_renderers.section_bodies import render_critical_section_include
-from charter.offering.drg.migration.id_normalizer import normalize_directive_id
+from charter.activation.identity_index import IdentityIndex
 
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
@@ -125,7 +125,24 @@ def _default_missions_root() -> Path:
     return MissionTemplateRepository.default_missions_root()
 
 
-def _render_directive_include(directives: ArtifactRepository[Any], identifier: str, selector: str) -> str:
+def _include_lookup_id(identity: IdentityIndex | None, kind: ArtifactKind, identifier: str) -> str:
+    """Repository key for an ``--include`` token (stem or declared id).
+
+    Repositories are keyed by declared id, so the index turns either spelling of
+    an artifact into the key the repository holds (FR-017, #6406); an unknown
+    token falls back to :meth:`IdentityIndex.unindexed_key`.
+    """
+    if identity is None:
+        return IdentityIndex.unindexed_key(kind, identifier)
+    return identity.lookup_key(kind, identifier)
+
+
+def _render_directive_include(
+    directives: ArtifactRepository[Any],
+    identifier: str,
+    selector: str,
+    identity: IdentityIndex | None = None,
+) -> str:
     """Render a directive selector for ``--include``.
 
     Takes the ``directives`` repository directly (not the whole service) —
@@ -136,7 +153,11 @@ def _render_directive_include(directives: ArtifactRepository[Any], identifier: s
     slug, numeric, and canonical selector forms at parity (#3816).
     """
 
-    directive_id = normalize_directive_id(identifier)
+    from charter.offering.artifact_kinds import ArtifactKind
+
+    # The index resolves a declared id or a stem; the id normaliser stays as the
+    # documented fallback for a directive the index does not know (#3816).
+    directive_id = _include_lookup_id(identity, ArtifactKind.DIRECTIVE, identifier)
     directive = directives.get(directive_id)
     if directive is None:
         raise ValueError(f"No directive found for selector '{selector}'.")
@@ -151,20 +172,27 @@ def _render_directive_include(directives: ArtifactRepository[Any], identifier: s
     )
 
 
-def _render_tactic_include(tactics: ArtifactRepository[Any], identifier: str, selector: str) -> str:
+def _render_tactic_include(
+    tactics: ArtifactRepository[Any],
+    identifier: str,
+    selector: str,
+    identity: IdentityIndex | None = None,
+) -> str:
     """Render a tactic selector for ``--include``.
 
     Takes the ``tactics`` repository directly (not the whole service) — that
     is the only attribute this renderer needs (WP04 typing pass).
     """
+    from charter.offering.artifact_kinds import ArtifactKind
 
-    tactic = tactics.get(identifier)
+    tactic_id = _include_lookup_id(identity, ArtifactKind.TACTIC, identifier)
+    tactic = tactics.get(tactic_id)
     if tactic is None:
         raise ValueError(f"No tactic found for selector '{selector}'.")
-    name = getattr(tactic, "name", identifier)
+    name = getattr(tactic, "name", tactic_id)
     return "\n".join(
         [
-            f"Tactic {identifier}: {name}",
+            f"Tactic {tactic_id}: {name}",
             *_format_inline_tactic_body(tactic),
             *_format_full_artifact_payload_body(tactic),
         ]
@@ -230,8 +258,13 @@ def _render_offering_artifact_include(
     service: object,
     kind: str,
     identifier: str,
+    identity: IdentityIndex | None = None,
 ) -> str | None:
-    """Render non-directive/tactic doctrine artifacts addressed by ``--include``."""
+    """Render non-directive/tactic doctrine artifacts addressed by ``--include``.
+
+    *identity* lets a file stem and a declared id name the same artifact
+    (FR-017); without it the identifier is looked up verbatim.
+    """
     from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS
 
     renderers = {
@@ -299,15 +332,18 @@ def _render_offering_artifact_include(
             raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
         return None
 
+    from charter.offering.artifact_kinds import ArtifactKind
+
     repo_attr, label, title_attr, body_formatter = renderer
     repo = getattr(service, repo_attr, None)
-    artifact = repo.get(identifier) if repo is not None else None
+    lookup_id = _include_lookup_id(identity, ArtifactKind(kind), identifier)
+    artifact = repo.get(lookup_id) if repo is not None else None
     if artifact is None:
         raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
-    title = getattr(artifact, title_attr, identifier)
+    title = getattr(artifact, title_attr, lookup_id)
     return "\n".join(
         [
-            f"{label} {identifier}: {title}",
+            f"{label} {lookup_id}: {title}",
             *body_formatter(artifact),
             *_format_full_artifact_payload_body(artifact),
         ]
@@ -361,6 +397,7 @@ def _render_agent_profile_include_selector(
     canonical_kind: str,
     identifier: str,
     selector: str,
+    identity: IdentityIndex | None = None,
 ) -> str:
     """Render an ``agent-profile:<id>`` selector via the activation-aware service.
 
@@ -377,7 +414,7 @@ def _render_agent_profile_include_selector(
     # raises ("No agent_profile found ...") for a gated/missing one — it
     # never returns None here, so a direct return is sufficient (no dead
     # fall-through branch to guard).
-    artifact_result = _render_offering_artifact_include(gated_service, canonical_kind, identifier)
+    artifact_result = _render_offering_artifact_include(gated_service, canonical_kind, identifier, identity)
     if artifact_result is None:
         raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
     return artifact_result
@@ -388,6 +425,7 @@ def _render_catalog_kind_include_selector(
     canonical_kind: str,
     identifier: str,
     selector: str,
+    identity: IdentityIndex | None = None,
 ) -> str | None:
     """Render a directive/tactic/generic-artifact selector on the unwrapped service.
 
@@ -403,7 +441,7 @@ def _render_catalog_kind_include_selector(
     from charter.offering.artifact_kinds import ArtifactKind
 
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
-        return _render_directive_include(service.directives, identifier, selector)
+        return _render_directive_include(service.directives, identifier, selector, identity)
     if canonical_kind == ArtifactKind.TACTIC.value:
-        return _render_tactic_include(service.tactics, identifier, selector)
-    return _render_offering_artifact_include(service, canonical_kind, identifier)
+        return _render_tactic_include(service.tactics, identifier, selector, identity)
+    return _render_offering_artifact_include(service, canonical_kind, identifier, identity)

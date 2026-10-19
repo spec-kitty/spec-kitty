@@ -10,11 +10,14 @@ import charter.activation.catalog as catalog_module
 from charter.activation.interview import default_interview
 from charter.activation.resolver import (
     ActiveCharterService,
+    UNKNOWN_SELECTION_DIAGNOSTIC,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
     resolve_project_governance,
 )
+
+from tests.charter.org_pack_identity_support import real_pack_context, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
@@ -145,7 +148,7 @@ directives:
     assert result.metadata["template_set_source"] == "charter"
 
 
-def test_resolve_governance_missing_paradigm_hard_fails(tmp_path: Path) -> None:
+def test_resolve_governance_missing_paradigm_dropped_with_diagnostic(tmp_path: Path) -> None:
     _write_charter_files(
         tmp_path,
         governance="""
@@ -154,13 +157,13 @@ charter:
 """,
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(tmp_path)
+    resolution = resolve_project_governance(tmp_path)
 
-    assert "missing-paradigm" in str(exc.value)
+    assert "missing-paradigm" not in resolution.paradigms
+    assert any("missing-paradigm" in d and "Unknown selected paradigm" in d for d in resolution.diagnostics)
 
 
-def test_resolve_governance_missing_directive_hard_fails(tmp_path: Path) -> None:
+def test_resolve_governance_missing_directive_dropped_with_diagnostic(tmp_path: Path) -> None:
     _write_charter_files(
         tmp_path,
         governance="""
@@ -169,10 +172,10 @@ charter:
 """,
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(tmp_path)
+    resolution = resolve_project_governance(tmp_path)
 
-    assert "NOT_A_DIRECTIVE" in str(exc.value)
+    assert "NOT_A_DIRECTIVE" not in resolution.directives
+    assert any("NOT_A_DIRECTIVE" in d and "Unknown selected directive" in d for d in resolution.diagnostics)
 
 
 def test_resolve_governance_charter_declares_tool_outside_registry_is_unioned(tmp_path: Path) -> None:
@@ -687,7 +690,7 @@ def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> 
 
 
 def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
-    """Error message names the exact paradigm ID that was not in the shipped catalog."""
+    """Diagnostic names the exact paradigm ID that was not found (dropped, not raised)."""
     offering_root = _make_doctrine_root(tmp_path)
     monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
@@ -697,11 +700,10 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
         governance="charter:\n  selected_paradigms: [my-bad-paradigm]\n",
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(repo_root)
+    resolution = resolve_project_governance(repo_root)
 
-    error_text = str(exc.value)
-    assert "my-bad-paradigm" in error_text
+    assert "my-bad-paradigm" not in resolution.paradigms
+    assert any("my-bad-paradigm" in d for d in resolution.diagnostics)
 
 
 def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkeypatch) -> None:
@@ -730,7 +732,7 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
 
 
 def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
-    """Error message names the exact directive ID that was not found."""
+    """Diagnostic names the exact directive ID that was not found (dropped, not raised)."""
     offering_root = _make_doctrine_root(tmp_path)
     monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
 
@@ -740,10 +742,10 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
         governance="charter:\n  selected_directives: [GHOST_DIRECTIVE]\n",
     )
 
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(repo_root)
+    resolution = resolve_project_governance(repo_root)
 
-    assert "GHOST_DIRECTIVE" in str(exc.value)
+    assert "GHOST_DIRECTIVE" not in resolution.directives
+    assert any("GHOST_DIRECTIVE" in d for d in resolution.diagnostics)
 
 
 def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
@@ -832,10 +834,9 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_active_charter_service_paradigms_filtered_by_pack_context() -> None:
+def test_active_charter_service_paradigms_filtered_by_pack_context(tmp_path: Path) -> None:
     """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
-    from charter.activation.pack_context import PackContext
 
     paradigm_a = MagicMock()
     paradigm_a.id = "test-first"
@@ -845,8 +846,7 @@ def test_active_charter_service_paradigms_filtered_by_pack_context() -> None:
     inner = MagicMock()
     inner.paradigms.list_all.return_value = [paradigm_a, paradigm_b]
 
-    pack_ctx = MagicMock(spec=PackContext)
-    pack_ctx.activated_paradigms = frozenset({"test-first"})
+    pack_ctx = real_pack_context(tmp_path, activated_paradigms=frozenset({"test-first"}))
 
     service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.paradigms
@@ -870,10 +870,9 @@ def test_active_charter_service_paradigms_unfiltered_when_pack_context_none() ->
     assert "test-first" in result
 
 
-def test_active_charter_service_procedures_filtered_by_pack_context() -> None:
+def test_active_charter_service_procedures_filtered_by_pack_context(tmp_path: Path) -> None:
     """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
-    from charter.activation.pack_context import PackContext
 
     proc_a = MagicMock()
     proc_a.id = "tdd"
@@ -883,8 +882,7 @@ def test_active_charter_service_procedures_filtered_by_pack_context() -> None:
     inner = MagicMock()
     inner.procedures.list_all.return_value = [proc_a, proc_b]
 
-    pack_ctx = MagicMock(spec=PackContext)
-    pack_ctx.activated_procedures = frozenset({"tdd"})
+    pack_ctx = real_pack_context(tmp_path, activated_procedures=frozenset({"tdd"}))
 
     service = ActiveCharterService(inner, pack_context=pack_ctx)
     result = service.procedures
@@ -923,3 +921,101 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
             charter_service=service,
             interview=interview,
         )
+
+
+# ---------------------------------------------------------------------------
+# #6406 / #6407: declared ids, layer-aware selections, drop-with-diagnostic
+# ---------------------------------------------------------------------------
+
+def _identity_project(tmp_path: Path, *, selected: str = "[]", paradigms: str = "[]", **config_keys: object) -> Path:
+    repo = tmp_path / "repo"
+    _write_charter_files(
+        repo,
+        governance=f"charter:\n  selected_directives: {selected}\n  selected_paradigms: {paradigms}\n",
+    )
+    write_identity_org_pack(repo, **config_keys)
+    return repo
+
+
+def test_directive_base_lists_declared_id_not_normalized_stem(tmp_path: Path) -> None:
+    repo = _identity_project(tmp_path, activated_directives=["qa-003-no-fake-green", "001-architectural-integrity-standard"])
+
+    resolution = resolve_project_governance(repo)
+
+    assert "QA_003" in resolution.directives
+    assert "QA_003_NO_FAKE_GREEN" not in resolution.directives
+    assert "DIRECTIVE_001" in resolution.directives  # positive control: built-in unchanged
+
+
+@pytest.mark.parametrize("spelling", ["QA_003", "qa-003-no-fake-green"])
+def test_org_directive_selection_resolves_in_either_spelling(tmp_path: Path, spelling: str) -> None:
+    repo = _identity_project(tmp_path, selected=f"[{spelling}]", activated_directives=[])
+
+    resolution = resolve_project_governance(repo)
+
+    assert resolution.directives == ["QA_003"]
+    assert not any("Unknown selected" in d for d in resolution.diagnostics)
+
+
+def test_unknown_selected_directive_is_dropped_with_diagnostic(tmp_path: Path) -> None:
+    repo = _identity_project(
+        tmp_path,
+        selected="[QA_003, NOPE_999]",
+        activated_directives=["001-architectural-integrity-standard"],
+    )
+
+    resolution = resolve_project_governance(repo)
+
+    assert "QA_003" in resolution.directives
+    assert "DIRECTIVE_001" in resolution.directives
+    assert "NOPE_999" not in resolution.directives
+    expected = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
+    assert expected in resolution.diagnostics
+    assert ".kittify/charter-packs" in expected
+    assert "packs/built-in/" not in expected
+
+
+def test_org_paradigm_selection_accepted_and_unknown_dropped(tmp_path: Path) -> None:
+    repo = _identity_project(tmp_path, paradigms="[qa-nine, ghost-paradigm]", activated_paradigms=[])
+
+    resolution = resolve_project_governance(repo)
+
+    assert "qa-nine" in resolution.paradigms
+    assert "ghost-paradigm" not in resolution.paradigms
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="paradigm", token="ghost-paradigm") in resolution.diagnostics
+
+
+def test_all_unknown_charter_selections_add_no_misleading_diagnostics_or_source_suffix(tmp_path: Path) -> None:
+    repo = _identity_project(
+        tmp_path,
+        selected="[NOPE_999]",
+        paradigms="[ghost-paradigm]",
+        activated_directives=["001-architectural-integrity-standard"],
+        activated_paradigms=[],
+    )
+
+    resolution = resolve_project_governance(repo)
+
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in resolution.diagnostics
+    assert not any("none added" in d or "beyond the" in d for d in resolution.diagnostics)
+    assert resolution.metadata["directives_source"] == "activation"
+
+
+def test_resolved_charter_selection_keeps_charter_source_suffix(tmp_path: Path) -> None:
+    repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=["001-architectural-integrity-standard"])
+
+    resolution = resolve_project_governance(repo)
+
+    assert resolution.metadata["directives_source"] == "activation+charter"
+
+
+def test_template_set_error_names_more_than_built_in_missions(tmp_path: Path) -> None:
+    _write_charter_files(tmp_path, governance="charter:\n  template_set: ghost-template-set\n")
+
+    with pytest.raises(GovernanceResolutionError) as exc:
+        resolve_project_governance(tmp_path)
+
+    text = str(exc.value)
+    assert "ghost-template-set" in text
+    assert "packs/built-in" not in text
+    assert "built-in missions" not in text

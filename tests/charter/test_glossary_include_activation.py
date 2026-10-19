@@ -214,9 +214,9 @@ class TestGlossaryRoutesActivationAwareService:
         built: list[Path] = []
         real_builder = context_module._build_active_charter_service
 
-        def _record(repo_root: Path, *, org_roots: Any = None) -> Any:
+        def _record(repo_root: Path, *, org_roots: Any = None, identity: Any = None) -> Any:
             built.append(repo_root)
-            return real_builder(repo_root, org_roots=org_roots)
+            return real_builder(repo_root, org_roots=org_roots, identity=identity)
 
         monkeypatch.setattr(context_module, "_build_active_charter_service", _record)
 

@@ -6,9 +6,8 @@ consumed by the DRG migration pipeline, by ``DirectiveRepository`` id resolution
 #3816), and by the activation-gate membership test in
 ``charter.activation.resolver.ActiveCharterService.directives``.
 
-One lock-step copy is intentionally retained: ``charter.activation.
-profile_resolution._normalize_directive_id`` keeps a private duplicate of this
-algorithm for a documented import-cycle reason. ``charter.activation.
+This is the single normaliser: the private duplicate formerly kept in
+``charter.activation.profile_resolution`` has been removed. ``charter.activation.
 context_renderers.artifact_bodies._format_profile_directive_code`` is a related
 but distinct helper — a numeric-only *display* formatter for profile directive
 refs whose input domain never includes slugs — and is deliberately not folded in.

@@ -31,7 +31,6 @@ physically defines them.
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 
 from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
@@ -49,7 +48,6 @@ __all__ = [
     "_default_agent_profile_repository",
     "_existing_org_roots",
     "_load_agent_profile",
-    "_normalize_directive_id",
 ]
 
 
@@ -232,23 +230,3 @@ def _load_agent_profile(profile_id: str, repo_root: Path | None = None) -> Agent
             profile_id,
         )
     return record
-
-
-def _normalize_directive_id(raw: str) -> str:
-    """Normalise a directive slug like '024-locality-of-change' -> 'DIRECTIVE_024'.
-
-    If the raw value already looks like DIRECTIVE_NNN, return as-is.
-
-    Kept in lock-step with ``charter.offering.drg.migration.id_normalizer.normalize_directive_id``
-    (a separate copy for a documented import-cycle reason): the fallback folds
-    hyphens to underscores so slug-named hub directives
-    (``use-c4-model-techniques`` -> ``USE_C4_MODEL_TECHNIQUES``) resolve to their
-    canonical node id rather than a dangling hyphenated form (#3009).
-    """
-    if re.match(r"^DIRECTIVE_\d+$", raw):
-        return raw
-    match = re.match(r"^(\d+)", raw)
-    if match:
-        number = match.group(1).zfill(3)
-        return f"DIRECTIVE_{number}"
-    return raw.upper().replace("-", "_")

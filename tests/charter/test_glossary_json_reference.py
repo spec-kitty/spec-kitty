@@ -20,7 +20,7 @@ This module pins that contract two ways:
 * over the live ``build_charter_context_json`` payload — a delivered glossary
   pack must NOT introduce a typed ``glossary``/``glossary_packs``/``assets``
   array, and ``context_schema_version`` must stay pinned to the tracked
-  contract version (``1.3.0`` after the procedures and directives-source
+  contract version (``1.4.0`` after the procedures, directives-source and diagnostics
   additions).
 
 Red-first: on the base (glossary absent from ``extra_delivered``) the first
@@ -163,8 +163,8 @@ def test_live_payload_has_no_typed_glossary_array_and_pinned_version(
     # combined procedures + directives-source contract.
     assert "references" in payload
     assert "references" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
-    assert CONTEXT_SCHEMA_VERSION == "1.3.0"
-    assert payload["context_schema_version"] == "1.3.0"
+    assert CONTEXT_SCHEMA_VERSION == "1.4.0"
+    assert payload["context_schema_version"] == "1.4.0"
 
     # No undeclared top-level key escaped the ledger after the glossary fold.
     assert set(payload) <= CONTEXT_CONTRACT_TOP_LEVEL_KEYS

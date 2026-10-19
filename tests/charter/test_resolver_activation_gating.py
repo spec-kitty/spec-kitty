@@ -22,6 +22,7 @@ import pytest
 
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import ActiveCharterService
+from tests.charter.org_pack_identity_support import IDENTITY_ARTIFACTS, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
@@ -110,3 +111,60 @@ def test_explicit_activation_still_filters(tmp_path: Path, prop: str, activated_
 
     assert "alpha" in result
     assert "beta" not in result
+
+
+# ---------------------------------------------------------------------------
+# #6406 sibling defect: stem != declared id must still be delivered by every getter
+# ---------------------------------------------------------------------------
+
+_STEM_PROPS = [
+    pytest.param(plural, stem, declared, id=plural)
+    for plural, stem, declared in IDENTITY_ARTIFACTS
+]
+
+
+@pytest.mark.parametrize("spelling", ["stem", "declared"])
+@pytest.mark.parametrize("plural, stem, declared", _STEM_PROPS)
+def test_getter_delivers_stem_not_equal_id_artifact(tmp_path: Path, plural: str, stem: str, declared: str, spelling: str) -> None:
+    inner = MagicMock()
+    wanted, other = _mock_item(declared), _mock_item("unrelated-item")
+    getattr(inner, plural).list_all.return_value = [wanted, other]
+    token = stem if spelling == "stem" else declared
+    write_identity_org_pack(tmp_path)
+    pack_ctx = replace(PackContext.from_config(tmp_path), **{f"activated_{plural}": frozenset({token})})
+
+    result = getattr(ActiveCharterService(inner, pack_context=pack_ctx), plural)
+
+    assert declared in result
+    assert "unrelated-item" not in result  # non-vacuity: the filter still filters
+
+
+#: The two getter kinds whose files are not in the shared fixture pack: (plural, file suffix,
+#: id field, gated item attribute holding the declared id, stem, declared id).
+_EXTRA_STEM_KINDS = [
+    pytest.param("agent_profiles", "agent", "profile-id", "profile_id", "qa-profile-file", "qa-profile", id="agent_profiles"),
+    pytest.param("skills", "skill", "id", "id", "qa-skill-file", "qa-skill", id="skills"),
+]
+
+
+@pytest.mark.parametrize("spelling", ["stem", "declared"])
+@pytest.mark.parametrize("plural, suffix, id_field, item_attr, stem, declared", _EXTRA_STEM_KINDS)
+def test_getter_delivers_stem_not_equal_id_for_profiles_and_skills(
+    tmp_path: Path, plural: str, suffix: str, id_field: str, item_attr: str, stem: str, declared: str, spelling: str
+) -> None:
+    pack = write_identity_org_pack(tmp_path)
+    directory = pack / plural
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{stem}.{suffix}.yaml").write_text(f'schema_version: "1.0"\n{id_field}: {declared}\n', encoding="utf-8")
+    inner = MagicMock()
+    wanted, other = MagicMock(), MagicMock()
+    setattr(wanted, item_attr, declared)
+    setattr(other, item_attr, "unrelated-item")
+    getattr(inner, plural).list_all.return_value = [wanted, other]
+    token = stem if spelling == "stem" else declared
+    pack_ctx = replace(PackContext.from_config(tmp_path), **{f"activated_{plural}": frozenset({token})})
+
+    result = getattr(ActiveCharterService(inner, pack_context=pack_ctx), plural)
+
+    assert declared in result
+    assert "unrelated-item" not in result

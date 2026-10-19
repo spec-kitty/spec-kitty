@@ -57,7 +57,7 @@ activatable check as the positional path. The preset name is never persisted.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
@@ -66,6 +66,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.charter_yaml_io import apply_yaml_write
 from charter.activation.catalog import resolve_offering_root
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
@@ -73,7 +74,6 @@ from charter.activation.org_charter import REQUIRED_KIND_FIELDS, load_org_charte
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.pack_manager import ActiveCharterManager, prepare_activation_write, resolve_activation_write_target
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
-from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.drg.loader import DRGLoadError
 from charter.offering.drg.models import DRGGraphSchemaError, NodeKind
 from charter.offering.drg.validator import DRGValidationError
@@ -283,8 +283,20 @@ def load_pack_preset(pack: OfferingPack, preset_name: str) -> ActivationPreset:
 # ---------------------------------------------------------------------------
 
 
-def _id_key(yaml_key: str, artifact_id: str) -> str:
-    return normalize_directive_id(artifact_id) if yaml_key == _DIRECTIVES_KEY else artifact_id
+_KIND_BY_KEY: dict[str, ArtifactKind] = {preset_activation_key(kind): kind for kind in ArtifactKind}
+
+
+def _id_key(yaml_key: str, artifact_id: str, identity: IdentityIndex | None = None) -> str:
+    """Comparison key of a listed id: its declared id (stem and id spell one artifact, FR-017, #6406).
+
+    Uses the default (stem-first) precedence of :meth:`IdentityIndex.lookup_key`; an
+    id the index does not know keeps the spelling-insensitive key of
+    :meth:`IdentityIndex.unindexed_key`.
+    """
+    kind = _KIND_BY_KEY.get(yaml_key)
+    if identity is None:
+        return IdentityIndex.unindexed_key(kind, artifact_id)
+    return identity.lookup_key(kind, artifact_id)
 
 
 def _missing(yaml_key: str, listed: Iterable[str], available: Iterable[str]) -> list[str]:
@@ -322,9 +334,9 @@ class _Roots:
     resolution_pass: ResolutionPass
 
     @classmethod
-    def of(cls, repo_root: Path, org_roots: Sequence[Path]) -> _Roots:
+    def of(cls, repo_root: Path, org_roots: Sequence[Path], resolution_pass: ResolutionPass | None = None) -> _Roots:
         layer_roots = {layer: root for layer, root in resolve_layer_roots(repo_root).items() if layer != "org"}
-        return cls(resolve_offering_root(), list(org_roots), layer_roots, ResolutionPass())
+        return cls(resolve_offering_root(), list(org_roots), layer_roots, resolution_pass or ResolutionPass())
 
 
 def _artifact_id_resolves(kind: ArtifactKind, raw_id: str, roots: _Roots) -> bool:
@@ -359,16 +371,17 @@ def _check_anti_patterns(repo_root: Path, ids: Sequence[str], unresolved: dict[s
     unresolved[key] = _missing(key, ids, known)
 
 
-def _check_artifact_ids(repo_root: Path, preset: ActivationPreset, org_roots: Sequence[Path], unresolved: dict[str, list[str]], reasons: dict[str, str]) -> None:
+def _check_artifact_ids(
+    roots_of: Callable[[], _Roots], repo_root: Path, preset: ActivationPreset, unresolved: dict[str, list[str]], reasons: dict[str, str]
+) -> None:
     """Resolve every listed per-kind id, one targeted lookup per id (only listed kinds are read)."""
-    roots: _Roots | None = None
     for kind in preset.listed_kinds():
         key = preset_activation_key(kind)
         ids = preset.activations[key]
         if kind is ArtifactKind.ANTI_PATTERN:
             _check_anti_patterns(repo_root, ids, unresolved, reasons)
             continue
-        roots = roots or _Roots.of(repo_root, org_roots)
+        roots = roots_of()
         unresolved[key] = [item for item in ids if not _artifact_id_resolves(kind, item, roots)]
 
 
@@ -415,21 +428,23 @@ def _org_roots_or_refuse(repo_root: Path, preset: ActivationPreset) -> list[Path
     if not _lists_ids(preset):
         return list(resolve_pack_chain(repo_root, strict=False))
     try:
-        return resolve_pack_chain(repo_root, strict=True)
+        return list(resolve_pack_chain(repo_root, strict=True))
     except ValueError as exc:
         raise PresetIdUnresolvedError(preset.source, {}, {_ORG_PACKS_KEY: str(exc)}) from exc
 
 
-def _resolve_preset_ids(repo_root: Path, preset: ActivationPreset) -> None:
-    """Raise :class:`PresetIdUnresolvedError` unless every listed id resolves."""
+def _resolve_preset_ids(repo_root: Path, preset: ActivationPreset) -> _Roots:
+    """Raise :class:`PresetIdUnresolvedError` unless every listed id resolves; return the roots it resolved against."""
     org_roots = _org_roots_or_refuse(repo_root, preset)
+    shared = _Roots.of(repo_root, org_roots)
     unresolved: dict[str, list[str]] = {}
     reasons: dict[str, str] = {}
-    _check_artifact_ids(repo_root, preset, org_roots, unresolved, reasons)
+    _check_artifact_ids(lambda: shared, repo_root, preset, unresolved, reasons)
     _check_mission_types(repo_root, preset, org_roots, unresolved, reasons)
     unresolved = {key: ids for key, ids in unresolved.items() if ids}
     if unresolved or reasons:
         raise PresetIdUnresolvedError(preset.source, unresolved, reasons)
+    return shared
 
 
 # ---------------------------------------------------------------------------
@@ -453,23 +468,23 @@ def _org_required(repo_root: Path, preset: ActivationPreset) -> dict[str, list[s
     return required
 
 
-def _union(yaml_key: str, listed: Iterable[str], extra: Iterable[str]) -> list[str]:
+def _union(yaml_key: str, listed: Iterable[str], extra: Iterable[str], identity: IdentityIndex | None = None) -> list[str]:
     result = list(listed)
-    seen = {_id_key(yaml_key, item) for item in result}
+    seen = {_id_key(yaml_key, item, identity) for item in result}
     for item in extra:
-        key = _id_key(yaml_key, item)
+        key = _id_key(yaml_key, item, identity)
         if key not in seen:
             seen.add(key)
             result.append(item)
     return result
 
 
-def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]]) -> dict[str, _Value]:
+def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]], identity: IdentityIndex | None = None) -> dict[str, _Value]:
     """The value every key this preset governs takes (``None`` = absent)."""
     target: dict[str, _Value] = {}
     for key in preset_activation_keys():
         listed = preset.activations.get(key)
-        target[key] = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()))
+        target[key] = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()), identity)
     gate = preset.activated_kinds
     target[ACTIVATED_KINDS_KEY] = None if gate is None else _union(ACTIVATED_KINDS_KEY, gate, required)
     if preset.mission_type_activations is not None:
@@ -544,8 +559,9 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
     """
     pack = find_offering_pack(repo_root, pack_name)
     preset = load_pack_preset(pack, preset_name)
-    _resolve_preset_ids(repo_root, preset)
-    target = _target_state(preset, _org_required(repo_root, preset))
+    roots = _resolve_preset_ids(repo_root, preset)
+    identity = IdentityIndex.build(repo_root, org_roots=roots.org_roots, resolution_pass=roots.resolution_pass) if _lists_ids(preset) else None
+    target = _target_state(preset, _org_required(repo_root, preset), identity)
     target_file, document = _read_target(repo_root)
     defaults = _default_values()
     written: dict[str, list[str]] = {}

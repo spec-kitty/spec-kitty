@@ -29,6 +29,7 @@ from charter.activation.action_governance_bundle import (
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
 from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION as CONTEXT_SCHEMA_VERSION
 from charter.activation.context_json import (
@@ -37,6 +38,7 @@ from charter.activation.context_json import (
     _project_charter_json_block as _project_charter_json_block,
     _project_directive_entries as _project_directive_entries,
     _project_directive_entries_with_source as _project_directive_entries_with_source,
+    _project_directive_resolution as _project_directive_resolution,
 )
 from charter.activation.context_renderers.artifact_bodies import (
     _jsonable_artifact_value as _jsonable_artifact_value,
@@ -146,6 +148,15 @@ def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     return bundle.merged is not None and (
         f"action:{bundle.mission}/{action}" in bundle.merged.node_urns()
     )
+
+
+def _invocation_identity(repo_root: Path, org_root: Path | None) -> IdentityIndex:
+    """The per-invocation identity index; an explicit *org_root* replaces the configured chain.
+
+    ``_resolve_action_bundle`` honours an explicit ``org_root`` verbatim (no widening),
+    so the index must scan that same root, not the configured pack chain.
+    """
+    return IdentityIndex.build(repo_root, org_roots=None if org_root is None else [org_root])
 
 
 def build_charter_context(
@@ -293,6 +304,8 @@ def build_charter_context(
     # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
     # org/project doctrine), so it is safe to resolve ahead of the
     # charter-presence gate below.
+    # NFR-003: ONE identity index per invocation, carried on the bundle to the renderers.
+    identity = _invocation_identity(repo_root, org_root)
     governance_bundle = _resolve_action_bundle(
         repo_root,
         action=normalized,
@@ -300,6 +313,7 @@ def build_charter_context(
         org_root=org_root,
         mission_type=mission_type,
         feature_dir=feature_dir,
+        identity=identity,
     )
 
     # FR-001/FR-002: the 4-token fast path always renders bootstrap without
@@ -409,6 +423,8 @@ def build_charter_context_include(
         return _render_template_include(repo_root, identifier, selector)
 
     canonical_kind = resolved_kind.value
+    # NFR-003: one identity index for this include invocation.
+    identity = IdentityIndex.build(repo_root, org_roots=org_roots)
 
     # FR-016: the agent-profile fetch path — and, as of M4, the glossary-pack
     # fetch path — inherit the charter activation gate, so they (and only they)
@@ -437,11 +453,15 @@ def build_charter_context_include(
         ArtifactKind.GLOSSARY_PACK.value,
     ):
         gated_service = _build_active_charter_service(
-            repo_root, org_roots=org_roots
+            repo_root, org_roots=org_roots, identity=identity
         )
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
             return _render_agent_profile_include_selector(
-                gated_service, canonical_kind, identifier, selector
+                gated_service,
+                canonical_kind,
+                identifier,
+                selector,
+                identity,
             )
 
     # Shared catalog render/return. ``service`` is the gated service for the
@@ -456,8 +476,13 @@ def build_charter_context_include(
         if gated_service is not None
         else _build_offering_service(repo_root, org_roots=org_roots)
     )
+    # NFR-003: hand the per-entry-point identity index to the include renderer.
     result = _render_catalog_kind_include_selector(
-        service, canonical_kind, identifier, selector
+        service,
+        canonical_kind,
+        identifier,
+        selector,
+        identity,
     )
     if result is not None:
         return result
@@ -516,7 +541,10 @@ def build_charter_context_json(
     # Single governance resolution: both ``all_directives`` and the resolution-
     # level ``directives_source`` provenance come from one
     # ``resolve_project_governance`` call (no double-resolve per payload).
-    all_directives, directives_source = _project_directive_entries_with_source(repo_root)
+    # NFR-003: the identity index is built once for this entry point and handed
+    # to the resolver rather than rebuilt inside it.
+    identity = _invocation_identity(repo_root, org_root)
+    all_directives, directives_source, diagnostics = _project_directive_resolution(repo_root, identity)
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
@@ -530,6 +558,10 @@ def build_charter_context_json(
         # or ``null`` when the resolver raised. Distinct from the per-entry
         # ``all_directives[].source`` artifact-origin field.
         "directives_source": directives_source,
+        # NEW (#6407, FR-010, schema 1.4.0): resolution diagnostics (for example
+        # a selected id that exists in no layer and was dropped). Always present;
+        # ``[]`` when the resolution has nothing to report.
+        "diagnostics": diagnostics,
         "references": [],
         "project_charter": _project_charter_json_block(repo_root),
         "org_charter": (
@@ -571,6 +603,7 @@ def build_charter_context_json(
         org_root=org_root,
         mission_type=mission_type,
         feature_dir=feature_dir,
+        identity=identity,
     )
 
     # FR-001/FR-002: the 4-token fast path always delivers bootstrap without

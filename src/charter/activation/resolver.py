@@ -40,12 +40,12 @@ import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
-from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog
+from charter.activation.identity_index import IdentityIndex
+from charter.activation.kind_vocabulary import ArtifactKind
 from charter.activation.reference_resolver import resolve_references_transitively
-from kernel.charter_pack_paths import project_pack_root
 from charter.activation.schemas import DirectivesConfig, GovernanceCharterConfig
 from charter.activation.sync import (
     load_directives_config,
@@ -69,6 +69,7 @@ __all__ = [
     "DEFAULT_TOOL_REGISTRY",
     "ActiveCharterService",
     "GovernanceResolution",
+    "UNKNOWN_SELECTION_DIAGNOSTIC",
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
     "resolve_governance_for_profile",
@@ -95,7 +96,22 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+_T = TypeVar("_T")
+
 DEFAULT_TEMPLATE_SET = "software-dev-default"
+
+#: Fixed Mission-wide wording for a selected id no layer knows (#6407). Selections are
+#: dropped with this diagnostic instead of erasing the whole governance resolution.
+UNKNOWN_SELECTION_DIAGNOSTIC = (
+    "Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs)"
+    + " or .kittify/charter-packs/; see 'spec-kitty charter list'."
+)
+
+#: Shared remediation sentence for an unavailable template set (Sonar S1192).
+_TEMPLATE_SET_REMEDIATION = (
+    "Update charter template_set to one of the available template sets, or provide it through a project override"
+    + " (see 'spec-kitty charter list --show-available')."
+)
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
 #: The nine gated-property kinds :meth:`ActiveCharterService.raw_repository`
@@ -141,29 +157,6 @@ def _mission_template_repository(missions_root: str) -> MissionTemplateRepositor
     return MissionTemplateRepository(Path(missions_root))
 
 
-def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Directive]) -> str:
-    """Resolve an ``activated_directives`` token that failed URN resolution.
-
-    A token already present in *all_directives* names a known catalog id
-    verbatim (a legacy exact-id alias) and is returned as-is -- no signal
-    needed, this is a resolvable identity. Anything else is the
-    **fully-unresolvable** path: the token is neither URN-resolvable nor a
-    known catalog id, so it is best-effort normalized (#4240) and a WARNING
-    names both the raw token and the normalized form, since this can
-    silently co-activate an unrelated directive (or activate nothing) with
-    no other signal to the operator.
-    """
-    if token in all_directives:
-        return token
-    normalized: str = normalize_directive_id(token)
-    _LOGGER.warning(
-        "unresolved directive activation token %r; best-effort normalized to %r",
-        token,
-        normalized,
-    )
-    return normalized
-
-
 # ---------------------------------------------------------------------------
 # Activation-aware ActiveCharterService wrapper (Pattern B + C wiring)
 # ---------------------------------------------------------------------------
@@ -200,11 +193,59 @@ class ActiveCharterService:
         self,
         _inner: _offering_service_module.CharterOfferingService,
         pack_context: PackContext | None = None,
+        identity: IdentityIndex | None = None,
     ) -> None:
         # Use object.__setattr__ to bypass any potential descriptor magic.
         object.__setattr__(self, "_inner", _inner)
         object.__setattr__(self, "_pack_context", pack_context)
-        self._resolved_directive_activation_ids: frozenset[str] | None = None
+        object.__setattr__(self, "_identity", identity)
+        object.__setattr__(self, "_activated_id_cache", {})
+
+    # ------------------------------------------------------------------
+    # Identity: activation tokens may be file stems or declared ids (#6406).
+    # ------------------------------------------------------------------
+
+    def _identity_index(self, pack_ctx: PackContext) -> IdentityIndex:
+        """Return the per-service identity index, building it from *pack_ctx* on first use."""
+        identity: IdentityIndex | None = object.__getattribute__(self, "_identity")
+        if identity is None:
+            identity = IdentityIndex.from_pack_context(pack_ctx, repo_root=pack_ctx.repo_root)
+            object.__setattr__(self, "_identity", identity)
+        return identity
+
+    def _gated(self, kind: ArtifactKind, all_items: dict[str, _T], activated: frozenset[str] | None) -> dict[str, _T]:
+        """Filter *all_items* (keyed by declared id) by activation tokens, in either spelling.
+
+        ``None`` admits everything (key absent). Tokens resolve to declared ids once per
+        kind per service; a token no layer knows but that names a delivered item is kept
+        verbatim, and any other unknown token is logged (#4240) and kept best-effort.
+        """
+        if activated is None:
+            return all_items
+        cache: dict[ArtifactKind, frozenset[str]] = object.__getattribute__(self, "_activated_id_cache")
+        ids = cache.get(kind)
+        if ids is None:
+            pack_ctx: PackContext = object.__getattribute__(self, "_pack_context")
+            identity = self._identity_index(pack_ctx)
+            resolved: set[str] = set()
+            warnings: list[str] = []
+            for token in activated:
+                if token in all_items and not identity.knows(kind, token):
+                    resolved.add(token)
+                else:
+                    resolved.add(identity.activation_id(kind, token, warnings))
+            for warning in warnings:
+                _LOGGER.warning("%s", warning)
+            ids = frozenset(resolved)
+            cache[kind] = ids
+        return {key: item for key, item in all_items.items() if key in ids}
+
+    def _activation_for(self, field_name: str) -> frozenset[str] | None:
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is None:
+            return None
+        value: frozenset[str] | None = getattr(pack_ctx, field_name)
+        return value
 
     # ------------------------------------------------------------------
     # Pattern B: flat catalog activation filter (paradigms, procedures)
@@ -214,19 +255,13 @@ class ActiveCharterService:
     def paradigms(self) -> dict[str, Paradigm]:
         """Return paradigms dict, filtered by ``activated_paradigms`` when set."""
         all_paradigms: dict[str, Paradigm] = {item.id: item for item in self._inner.paradigms.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_paradigms is not None:
-            return {k: v for k, v in all_paradigms.items() if k in pack_ctx.activated_paradigms}
-        return all_paradigms
+        return self._gated(ArtifactKind.PARADIGM, all_paradigms, self._activation_for("activated_paradigms"))
 
     @property
     def procedures(self) -> dict[str, Procedure]:
         """Return procedures dict, filtered by ``activated_procedures`` when set."""
         all_procedures: dict[str, Procedure] = {item.id: item for item in self._inner.procedures.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_procedures is not None:
-            return {k: v for k, v in all_procedures.items() if k in pack_ctx.activated_procedures}
-        return all_procedures
+        return self._gated(ArtifactKind.PROCEDURE, all_procedures, self._activation_for("activated_procedures"))
 
     # ------------------------------------------------------------------
     # Pattern C: direct repository activation filter (agent_profiles)
@@ -236,10 +271,7 @@ class ActiveCharterService:
     def agent_profiles(self) -> dict[str, AgentProfile]:
         """Return agent profiles dict, filtered by ``activated_agent_profiles`` when set."""
         all_profiles: dict[str, AgentProfile] = {p.profile_id: p for p in self._inner.agent_profiles.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_agent_profiles is not None:
-            return {k: v for k, v in all_profiles.items() if k in pack_ctx.activated_agent_profiles}
-        return all_profiles
+        return self._gated(ArtifactKind.AGENT_PROFILE, all_profiles, self._activation_for("activated_agent_profiles"))
 
     # ------------------------------------------------------------------
     # FR-005: six more mechanical Pattern B properties (identical filtering
@@ -259,86 +291,43 @@ class ActiveCharterService:
         become co-activated merely because their normalized spellings collide.
         """
         all_directives: dict[str, Directive] = {item.id: item for item in self._inner.directives.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is None or pack_ctx.activated_directives is None:
-            return all_directives
-        if not pack_ctx.activated_directives:
-            return {}
-
-        # PackContext and the inner repositories are snapshots. Resolve once
-        # for this service; a newly built service observes changed files/config.
-        if self._resolved_directive_activation_ids is None:
-            offering_root = resolve_offering_root()
-            activated: set[str] = set()
-            for token in pack_ctx.activated_directives:
-                try:
-                    urn = resolve_artifact_urn(
-                        ArtifactKind.DIRECTIVE,
-                        token,
-                        offering_root=offering_root,
-                        org_roots=list(pack_ctx.org_roots),
-                        layer_roots={"project": project_pack_root(pack_ctx.repo_root)},
-                    )
-                    activated.add(urn.split(":", 1)[1])
-                except UnknownArtifactIdError:
-                    activated.add(_resolve_unmatched_directive_token(token, all_directives))
-            self._resolved_directive_activation_ids = frozenset(activated)
-        activated_ids = self._resolved_directive_activation_ids
-        return {key: item for key, item in all_directives.items() if key in activated_ids}
+        return self._gated(ArtifactKind.DIRECTIVE, all_directives, self._activation_for("activated_directives"))
 
     @property
     def tactics(self) -> dict[str, Tactic]:
         """Return tactics dict, filtered by ``activated_tactics`` when set."""
         all_tactics: dict[str, Tactic] = {item.id: item for item in self._inner.tactics.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_tactics is not None:
-            return {k: v for k, v in all_tactics.items() if k in pack_ctx.activated_tactics}
-        return all_tactics
+        return self._gated(ArtifactKind.TACTIC, all_tactics, self._activation_for("activated_tactics"))
 
     @property
     def styleguides(self) -> dict[str, Styleguide]:
         """Return styleguides dict, filtered by ``activated_styleguides`` when set."""
         all_styleguides: dict[str, Styleguide] = {item.id: item for item in self._inner.styleguides.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_styleguides is not None:
-            return {k: v for k, v in all_styleguides.items() if k in pack_ctx.activated_styleguides}
-        return all_styleguides
+        return self._gated(ArtifactKind.STYLEGUIDE, all_styleguides, self._activation_for("activated_styleguides"))
 
     @property
     def toolguides(self) -> dict[str, Toolguide]:
         """Return toolguides dict, filtered by ``activated_toolguides`` when set."""
         all_toolguides: dict[str, Toolguide] = {item.id: item for item in self._inner.toolguides.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_toolguides is not None:
-            return {k: v for k, v in all_toolguides.items() if k in pack_ctx.activated_toolguides}
-        return all_toolguides
+        return self._gated(ArtifactKind.TOOLGUIDE, all_toolguides, self._activation_for("activated_toolguides"))
 
     @property
     def mission_step_contracts(self) -> dict[str, MissionStepContract]:
         """Return mission step contracts dict, filtered by ``activated_mission_step_contracts`` when set."""
         all_contracts: dict[str, MissionStepContract] = {item.id: item for item in self._inner.mission_step_contracts.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_mission_step_contracts is not None:
-            return {k: v for k, v in all_contracts.items() if k in pack_ctx.activated_mission_step_contracts}
-        return all_contracts
+        return self._gated(ArtifactKind.MISSION_STEP_CONTRACT, all_contracts, self._activation_for("activated_mission_step_contracts"))
 
     @property
     def glossary_packs(self) -> dict[str, GlossaryPack]:
         """Return glossary packs dict, filtered by ``activated_glossary_packs`` when set."""
         all_glossary_packs: dict[str, GlossaryPack] = {item.id: item for item in self._inner.glossary_packs.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_glossary_packs is not None:
-            return {k: v for k, v in all_glossary_packs.items() if k in pack_ctx.activated_glossary_packs}
-        return all_glossary_packs
+        return self._gated(ArtifactKind.GLOSSARY_PACK, all_glossary_packs, self._activation_for("activated_glossary_packs"))
 
     @property
     def skills(self) -> dict[str, PackSkill]:
         """Return pack skills dict, filtered by ``activated_skills`` when set."""
         all_skills: dict[str, PackSkill] = {item.id: item for item in self._inner.skills.list_all()}
-        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_skills is not None:
-            return {k: v for k, v in all_skills.items() if k in pack_ctx.activated_skills}
-        return all_skills
+        return self._gated(ArtifactKind.SKILL, all_skills, self._activation_for("activated_skills"))
 
     # ------------------------------------------------------------------
     # FR-001: pinned lineage/mutation accessor (NOT a gated property --
@@ -653,63 +642,71 @@ class GovernanceResolution:
     diagnostics: list[str] = field(default_factory=list)
 
 
-def _validate_paradigm_selection(
+def _drop_unknown(kind: str, token: str, diagnostics: list[str]) -> None:
+    """Record that *token* was dropped because no layer knows it (#6407)."""
+    diagnostics.append(UNKNOWN_SELECTION_DIAGNOSTIC.format(kind=kind, token=token))
+
+
+def _resolve_selected_paradigms(
     selected_paradigms: list[str],
     offering_catalog: OfferingCatalog,
-) -> None:
-    """Raise GovernanceResolutionError if any selected paradigm is not in the built-in catalog."""
-    if not selected_paradigms or "paradigms" not in offering_catalog.domains_present:
-        return
-    missing = sorted(p for p in selected_paradigms if p not in offering_catalog.paradigms)
-    if missing:
-        raise GovernanceResolutionError(
-            [
-                "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available built-in paradigms: " + (", ".join(sorted(offering_catalog.paradigms)) or "(none)"),
-                "Update charter selected_paradigms to values present in packs/built-in/paradigms/.",
-            ]
-        )
+    identity: IdentityIndex,
+    diagnostics: list[str],
+) -> list[str]:
+    """Map each selected paradigm to its declared id; drop (with a diagnostic) unknown ones.
+
+    Known means: any layer of the identity index (built-in, org packs, project) or the
+    loaded offering catalog. When the catalog carries no paradigms domain at all, an
+    index-unknown token passes through unvalidated (nothing to validate it against).
+    """
+    resolved: list[str] = []
+    validate = "paradigms" in offering_catalog.domains_present
+    for token in selected_paradigms:
+        declared = identity.selection_id(ArtifactKind.PARADIGM, token)
+        if declared is None and (token in offering_catalog.paradigms or not validate):
+            declared = token
+        if declared is None:
+            _drop_unknown("paradigm", token, diagnostics)
+        elif declared not in resolved:
+            resolved.append(declared)
+    return resolved
 
 
 def _resolve_paradigm_base(
     offering_catalog: OfferingCatalog,
-    repo_root: Path,
+    pack_ctx: PackContext,
+    identity: IdentityIndex,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
     """Resolve the *base* paradigm set and its provenance label (FR-013),
     mirroring :func:`_resolve_directive_base`'s three-state guard for
-    ``PackContext.activated_paradigms``. There was NO ``activated_*`` read
-    for paradigms anywhere in this module before this fix.
-
-    Unlike directives, paradigm ids have no stem-vs-canonical distinction in
-    this repo's authoring convention — every built-in paradigm file's ``id:``
-    field IS the filename-stem slug — so no normalizer call is needed or
-    added here (Union/Exclusion Boundary Audit boundary 3; out of scope,
-    vacuously satisfied).
+    ``PackContext.activated_paradigms``.
 
     * ``activated_paradigms is None`` (key absent from config; e.g. a bare,
-      unconfigured project) → the built-in catalog default
+      unconfigured project) -> the built-in catalog default
       (``sorted(offering_catalog.paradigms)``), source ``"catalog_fallback"``,
       with a diagnostic naming the fallback and its size.
-    * ``activated_paradigms == frozenset()`` (explicit opt-out) → ``[]``,
+    * ``activated_paradigms == frozenset()`` (explicit opt-out) -> ``[]``,
       source ``"activation"``.
-    * ``activated_paradigms == {ids}`` → ``sorted(ids)``, source
-      ``"activation"``.
+    * ``activated_paradigms == {tokens}`` -> each token mapped to its declared id
+      (an activation list may hold a file stem or a declared id), sorted,
+      source ``"activation"``.
 
     The ``is None`` check is deliberate and MUST NOT be collapsed to a
-    truthiness check, mirroring :func:`_resolve_directive_base`'s identical
-    guard for directives — ``frozenset()`` is falsy, so a truthiness collapse
-    would silently re-route the explicit opt-out case back to the catalog
-    default it exists to suppress.
+    truthiness check: ``frozenset()`` is falsy, so a truthiness collapse would
+    silently re-route the explicit opt-out case back to the catalog default it
+    exists to suppress.
     """
-    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
-
-    activated_paradigms = PackContext.from_config(repo_root).activated_paradigms
+    activated_paradigms = pack_ctx.activated_paradigms
     if activated_paradigms is None:
         base = sorted(offering_catalog.paradigms)
         diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
         return base, "catalog_fallback"
-    return sorted(activated_paradigms), "activation"
+    warnings: list[str] = []
+    ids = {identity.activation_id(ArtifactKind.PARADIGM, token, warnings) for token in activated_paradigms}
+    for warning in warnings:
+        _LOGGER.warning("%s", warning)
+    return sorted(ids), "activation"
 
 
 def _resolve_tools_selection(
@@ -749,114 +746,117 @@ def _resolve_tools_selection(
     return sorted(available_tools), "registry_only"
 
 
+def _resolve_selected_directives(
+    selected: list[str],
+    local_ids: set[str],
+    catalog_ids: set[str],
+    identity: IdentityIndex,
+    diagnostics: list[str],
+) -> list[str]:
+    """Map each selected directive to its declared id; drop (with a diagnostic) unknown ones.
+
+    The identity index resolves a stem or declared id in any layer. Charter-local
+    ``directives:`` ids and the loaded offering catalog stay valid through the id
+    normaliser, the legacy spelling bridge (``001-...`` <-> ``DIRECTIVE_001``).
+    """
+    resolved: list[str] = []
+    for token in selected:
+        declared = identity.selection_id(ArtifactKind.DIRECTIVE, token)
+        if declared is None:
+            legacy = normalize_directive_id(token)
+            declared = legacy if legacy in local_ids or legacy in catalog_ids else None
+        if declared is None:
+            _drop_unknown("directive", token, diagnostics)
+        elif declared not in resolved:
+            resolved.append(declared)
+    return resolved
+
+
+def _report_charter_selection(noun: str, resolved: list[str], base: list[str], base_source: str, diagnostics: list[str]) -> None:
+    """Append the "beyond the base" / "none added" diagnostic for a resolved charter selection.
+
+    Silent when nothing resolved (every entry was unknown): the unknown-selection
+    diagnostics already say so, and "All 0 ... none added" would be misleading.
+    """
+    if not resolved:
+        return
+    base_set = set(base)
+    added = [item for item in resolved if item not in base_set]
+    if added:
+        diagnostics.append(f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + ".")
+    else:
+        diagnostics.append(f"All {len(resolved)} charter-selected {noun}(s) already present in the {base_source} base; none added: " + ", ".join(resolved) + ".")
+
+
 def _resolve_directive_base(
     charter_config: GovernanceCharterConfig,
     directives_cfg: DirectivesConfig,
     offering_catalog: OfferingCatalog,
-    repo_root: Path,
+    pack_ctx: PackContext,
+    identity: IdentityIndex,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
     """Resolve the *base* directive set and its provenance label, before the
     additive project-local layer (see :func:`_resolve_directives_selection`).
 
-    Base authority order (INVERTED from the pre-FR-012 priority): the
-    ``activated_*``-derived value is ALWAYS computed first as the base, and
-    ``charter_config.selected_directives`` — the charter-authored selection — is
-    then UNIONED onto that base when non-empty. It never substitutes for the
-    base (mirrors :func:`_resolve_directives_selection`'s existing
-    base-plus-project-local union shape). Previously, a non-empty
-    ``charter_config.selected_directives`` short-circuited and returned verbatim,
-    silently overriding ``activated_directives`` any time a project had ever
-    made an explicit charter selection (FR-012).
+    Base authority order: the ``activated_*``-derived value is ALWAYS computed
+    first as the base, and ``charter_config.selected_directives`` is then UNIONED
+    onto that base when non-empty. It never substitutes for the base (FR-012).
 
     Three-state guard (``pack_context.py:144``), preserved verbatim:
 
-    * ``activated_directives is None`` (key absent from config; e.g. a bare,
-      unconfigured project) → the built-in catalog default
-      (``sorted(offering_catalog.directives)``), source ``"catalog_fallback"``,
-      with a diagnostic naming the fallback and its size.
-    * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
+    * ``activated_directives is None`` (key absent from config) -> the built-in
+      catalog default (``sorted(offering_catalog.directives)``, spelled as the
+      catalog spells it), source ``"catalog_fallback"``, with a diagnostic naming
+      the fallback and its size (C-007: membership unchanged).
+    * ``activated_directives == frozenset()`` (explicit opt-out) -> ``[]``,
       source ``"activation"``.
-    * ``activated_directives == {ids}`` → each id normalized via
-      :func:`~charter.activation.profile_resolution._normalize_directive_id`
-      (``PackContext.activated_directives`` legitimately stores STEM-form ids
-      — proven live by
-      ``test_answers_inert_and_org_union.py::TestOrgRequiredIdFormNormalizedBeforePromotion``
-      — and a stem-form id must never leak into the resolved base
-      un-normalized; Union/Exclusion Boundary Audit boundary 1), then sorted,
-      source ``"activation"``.
+    * ``activated_directives == {tokens}`` -> each token resolved through the
+      identity index to its DECLARED id (``qa-003-no-fake-green`` -> ``QA_003``;
+      a legacy token that no layer knows falls back to the normaliser with a
+      warning), sorted, source ``"activation"``.
 
-    The ``is None`` check is deliberate and MUST NOT be collapsed to a
-    truthiness check (``activated_directives or frozenset()`` /
-    ``if activated_directives:``): ``frozenset()`` is falsy, so a truthiness
-    collapse would silently re-route the explicit opt-out case back to the
-    catalog default it exists to suppress.
+    The ``is None`` check MUST NOT be collapsed to a truthiness check:
+    ``frozenset()`` is falsy and would re-route the explicit opt-out case back
+    to the catalog default it exists to suppress.
 
-    ``charter_config.selected_directives`` is validated against the local + built-in
-    catalog BEFORE the union runs — an entry not in ``valid_ids`` raises
-    ``GovernanceResolutionError`` rather than silently dropping (boundary 2,
-    unchanged, already "fails loud").
+    ``charter_config.selected_directives`` resolves through the identity index
+    (every layer). An entry no layer knows is dropped and reported through
+    ``diagnostics`` (:data:`UNKNOWN_SELECTION_DIAGNOSTIC`) instead of raising: one
+    mistyped id must not erase the whole governance resolution (#6407).
     """
-    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
-    from charter.activation.profile_resolution import _normalize_directive_id  # noqa: PLC0415 — lazy; avoids circular import
+    local_ids = {normalize_directive_id(d.id) for d in directives_cfg.directives}
+    catalog_ids = {normalize_directive_id(d) for d in offering_catalog.directives}
 
-    # #3908: compare in ONE id form. ``charter.yaml`` authors selections as
-    # file stems (``001-architectural-integrity-standard``) — the form
-    # ``tests/charter/test_config_stem_parity.py`` pins as the activation
-    # vocabulary — while the built-in catalog carries canonical config ids
-    # (``DIRECTIVE_001``). Comparing the two raw made every stem-authored
-    # selection read as unavailable, so ``resolve_project_governance`` raised,
-    # compact context degraded to "(none)" for every kind, and the command
-    # still exited ``success: true``. ``_normalize_directive_id`` is the same
-    # normalizer this function already applies to the base below.
-    local_ids = {_normalize_directive_id(d.id) for d in directives_cfg.directives}
-    valid_ids = set(local_ids)
-    if offering_catalog.directives:
-        valid_ids.update(_normalize_directive_id(d) for d in offering_catalog.directives)
-    selected_directives = list(dict.fromkeys(_normalize_directive_id(d) for d in charter_config.selected_directives))
-
-    activated_directives = PackContext.from_config(repo_root).activated_directives
+    activated_directives = pack_ctx.activated_directives
     if activated_directives is None:
-        base = sorted({_normalize_directive_id(d) for d in offering_catalog.directives})
+        base = sorted(catalog_ids)
         diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
         base_source = "catalog_fallback"
     else:
-        base = sorted({_normalize_directive_id(d) for d in activated_directives})
+        warnings: list[str] = []
+        base = sorted({identity.activation_id(ArtifactKind.DIRECTIVE, token, warnings) for token in activated_directives})
+        for warning in warnings:
+            _LOGGER.warning("%s", warning)
         base_source = "activation"
 
     if not charter_config.selected_directives:
         return base, base_source
 
-    # Report the authored spelling in the error, match on the normalized one.
-    missing = sorted(raw for raw in charter_config.selected_directives if _normalize_directive_id(raw) not in valid_ids)
-    if missing:
-        raise GovernanceResolutionError(
-            [
-                "Charter selected unavailable directive(s): " + ", ".join(missing),
-                "Declare these IDs in the charter.yaml 'directives:' section or add them to packs/built-in/directives/.",
-            ]
-        )
+    selected_directives = _resolve_selected_directives(list(charter_config.selected_directives), local_ids, catalog_ids, identity, diagnostics)
 
-    base_set = set(base)
-    added = [d for d in selected_directives if d not in base_set]
-    if added:
-        diagnostics.append(f"Charter selected {len(added)} directive(s) beyond the {base_source} base: " + ", ".join(added) + ".")
-    else:
-        diagnostics.append(
-            f"All {len(selected_directives)} charter-selected directive(s) already present in "
-            f"the {base_source} base; none added: " + ", ".join(selected_directives) + "."
-        )
-    # Normalized on both sides, so a stem-authored selection that is already in
-    # the base no longer appears twice under two spellings.
-    unioned = list(dict.fromkeys([*base, *selected_directives]))
-    return unioned, f"{base_source}+charter"
+    _report_charter_selection("directive", selected_directives, base, base_source, diagnostics)
+    if not selected_directives:
+        return base, base_source
+    return list(dict.fromkeys([*base, *selected_directives])), f"{base_source}+charter"
 
 
 def _resolve_directives_selection(
     charter_config: GovernanceCharterConfig,
     directives_cfg: DirectivesConfig,
     offering_catalog: OfferingCatalog,
-    repo_root: Path,
+    pack_ctx: PackContext,
+    identity: IdentityIndex,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
     """Resolve the effective directive list as the base set **plus** an additive
@@ -876,7 +876,7 @@ def _resolve_directives_selection(
       directives merged and onto which base. Base order is preserved and no base
       id is ever dropped (INV-1/INV-2/INV-3/INV-5).
     """
-    base, base_source = _resolve_directive_base(charter_config, directives_cfg, offering_catalog, repo_root, diagnostics)
+    base, base_source = _resolve_directive_base(charter_config, directives_cfg, offering_catalog, pack_ctx, identity, diagnostics)
 
     local_ids = [d.id for d in directives_cfg.directives]
     if not local_ids:
@@ -905,7 +905,7 @@ def _resolve_template_set_selection(
                 [
                     f"Charter selected unavailable template_set: '{charter_config.template_set}'",
                     "Available template sets: " + (", ".join(sorted(offering_catalog.template_sets)) or "(none)"),
-                    "Update charter template_set to a value available in the built-in missions.",
+                    _TEMPLATE_SET_REMEDIATION,
                 ]
             )
         return charter_config.template_set, "charter"
@@ -919,6 +919,7 @@ def resolve_project_governance(
     *,
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
+    identity: IdentityIndex | None = None,
 ) -> GovernanceResolution:
     """Resolve active governance from project + org charter selection data.
 
@@ -951,26 +952,20 @@ def resolve_project_governance(
     # (validated exactly as before, unchanged — boundary 4, already "fails
     # loud") unions onto it, never substitutes for it. Previously this was an
     # unconditional passthrough with no activated_* read at all.
-    selected_paradigms_raw = list(charter_config.selected_paradigms)
-    _validate_paradigm_selection(selected_paradigms_raw, offering_catalog)
-    paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, repo_root, diagnostics)
-    if selected_paradigms_raw:
-        paradigm_base_set = set(paradigm_base)
-        added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
-        if added_paradigms:
-            diagnostics.append(f"Charter selected {len(added_paradigms)} paradigm(s) beyond the {paradigm_base_source} base: " + ", ".join(added_paradigms) + ".")
-        else:
-            diagnostics.append(
-                f"All {len(selected_paradigms_raw)} charter-selected paradigm(s) already present in the "
-                f"{paradigm_base_source} base; none added: " + ", ".join(selected_paradigms_raw) + "."
-            )
-        selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
-    else:
-        selected_paradigms = paradigm_base
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
+
+    pack_ctx = PackContext.from_config(repo_root)
+    if identity is None:
+        identity = IdentityIndex.from_pack_context(pack_ctx, repo_root=repo_root)
+
+    selected_paradigms_raw = _resolve_selected_paradigms(list(charter_config.selected_paradigms), offering_catalog, identity, diagnostics)
+    paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, pack_ctx, identity, diagnostics)
+    _report_charter_selection("paradigm", selected_paradigms_raw, paradigm_base, paradigm_base_source, diagnostics)
+    selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(charter_config, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(charter_config, directives_cfg, offering_catalog, repo_root, diagnostics)
+    resolved_directives, directives_source = _resolve_directives_selection(charter_config, directives_cfg, offering_catalog, pack_ctx, identity, diagnostics)
     template_set, template_set_source = _resolve_template_set_selection(charter_config, offering_catalog, fallback_template_set, diagnostics)
 
     return GovernanceResolution(

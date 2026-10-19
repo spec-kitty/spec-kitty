@@ -369,7 +369,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
 ) -> None:
     """Pins TASKS-FRESH2-001 (severity 4): each
     ``_read_org_required_selections()["directives"]`` entry must be normalized
-    via ``_normalize_directive_id`` before it joins the ``project_directives``
+    via ``normalize_directive_id`` before it joins the ``project_directives``
     union. ``activated_directives`` is left absent/None on the project side,
     so ``project_directives``'s only content comes from this org-required
     union.
@@ -378,7 +378,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     ``org_pack_discovery._load_governance_charter_config`` live shows it ALREADY
     unions raw org-required stems into ``selected_directives`` internally,
     and ``_load_action_governance_bundle``'s existing single
-    ``_normalize_directive_id`` comprehension over the merged
+    ``normalize_directive_id`` comprehension over the merged
     ``selected_directives`` set normalizes them "for free" today -- so this
     exact fixture, run through the current unmodified pipeline, is observed
     GREEN, not red (see this WP's final report for the live-run evidence).
@@ -421,7 +421,7 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
     1), no org-pack involved -- distinct from case 5 above, which only
     exercises stem-form normalization via the SEPARATE org-required-union
     path (boundary 3). A T009 step 1 implementation that dropped
-    ``_normalize_directive_id(d)`` from the comprehension -- assigning
+    ``normalize_directive_id(d)`` from the comprehension -- assigning
     ``directives_arg`` straight into ``project_directives`` unnormalized --
     would pass every other case in this file untouched, because none of them
     puts a stem-form id on this specific direct-assignment boundary.
@@ -736,3 +736,79 @@ def test_graph_reachable_but_unactivated_directive_is_not_delivered(
         "graph side is no longer activation-filtered; delivered directives "
         f"were: {sorted(bundle.directive_ids)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# 9. #6406 / FR-007, FR-008 -- identity: activated, org-required and selected
+#    tokens resolve through the identity index (stem OR declared id).
+# ---------------------------------------------------------------------------
+
+
+def _identity_bundle(
+    repo_root: Path,
+    *,
+    org_charter: dict[str, object] | None = None,
+    **activation: object,
+):
+    """Deliver ``implement`` for a repo holding the WP02 identity org pack, wired to the implement action."""
+    from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+    pack = write_identity_org_pack(repo_root, **activation)
+    (pack / "drg").mkdir(parents=True, exist_ok=True)
+    (pack / "drg" / "fragment.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "nodes": [],
+                "edges": [
+                    {"source": "action:software-dev/implement", "target": "tactic:qa-seven", "relation": "scope"},
+                    {"source": "action:software-dev/implement", "target": "directive:QA_003", "relation": "scope"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    if org_charter is not None:
+        (pack / "org-charter.yaml").write_text(yaml.safe_dump({"schema_version": "1", "org_name": "identity-org", **org_charter}), encoding="utf-8")
+    return _load_action_governance_bundle(
+        repo_root=repo_root,
+        action="implement",
+        effective_depth=2,
+        mission_type="software-dev",
+        pack_context=PackContext.from_config(repo_root),
+    )
+
+
+@pytest.mark.parametrize(
+    ("tactic_token", "directive_token"),
+    [("qa-tactic-seven", "qa-003-no-fake-green"), ("qa-seven", "QA_003")],
+    ids=["stem-tokens", "declared-id-tokens"],
+)
+def test_activated_org_tokens_deliver_in_either_spelling(tmp_path: Path, tactic_token: str, directive_token: str) -> None:
+    """RED for the stem spelling: raw stem tokens were compared against declared-id graph ids (the declared-id spelling already matched)."""
+    bundle = _identity_bundle(tmp_path, activated_tactics=[tactic_token], activated_directives=[directive_token])
+
+    assert "qa-seven" in bundle.tactic_ids
+    assert "QA_003" in bundle.directive_ids
+
+
+@pytest.mark.parametrize("token", ["QA_003", "qa-003-no-fake-green"], ids=["declared-id", "stem"])
+def test_org_required_directive_is_delivered_in_either_spelling(tmp_path: Path, token: str) -> None:
+    bundle = _identity_bundle(tmp_path, org_charter={"required_directives": [token]})
+
+    assert "QA_003" in bundle.directive_ids
+
+
+def test_org_required_tactic_stem_seeds_the_declared_id_root(tmp_path: Path) -> None:
+    """RED: a stem-form org-required tactic seeds ``tactic:<stem>``, a node that does not exist."""
+    bundle = _identity_bundle(tmp_path, org_charter={"required_tactics": ["qa-tactic-seven"]})
+
+    assert "tactic:qa-seven" in bundle.roots
+    assert "tactic:qa-tactic-seven" not in bundle.roots
+
+
+def test_built_in_positive_control_still_delivers(tmp_path: Path) -> None:
+    """Positive control: built-in doctrine is delivered on the same fixture, so absences above are not vacuous."""
+    bundle = _identity_bundle(tmp_path, activated_tactics=["qa-seven"])
+
+    assert any(directive.startswith("DIRECTIVE_") for directive in bundle.directive_ids)
+    assert bundle.identity is not None

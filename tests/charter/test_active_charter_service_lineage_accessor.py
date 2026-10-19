@@ -13,14 +13,15 @@ contract.md "Lineage/mutation accessor semantics"):
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from charter.activation.pack_context import PackContext
 from charter.activation.resolver import ActiveCharterService
 from charter.offering.agent_profiles import AgentProfileRepository
 from charter.offering.service import CharterOfferingService
+from tests.charter.org_pack_identity_support import real_pack_context
 
 pytestmark = pytest.mark.fast
 
@@ -47,12 +48,9 @@ class TestRegisterOverlayDoesNotBypassActivationFilter:
     """T001 pinned semantics #1: a mutation via the accessor never leaks past
     the gated ``agent_profiles`` property's three-state activation filter."""
 
-    def test_overlaid_non_activated_profile_stays_gated_out(self) -> None:
+    def test_overlaid_non_activated_profile_stays_gated_out(self, tmp_path: Path) -> None:
         inner = CharterOfferingService()
-        pack_ctx = MagicMock(spec=PackContext)
-        # Explicit activation set that excludes the profile we are about to
-        # overlay -- proves the filter, not a bare-project "admit all" no-op.
-        pack_ctx.activated_agent_profiles = frozenset({"reviewer-renata"})
+        pack_ctx = real_pack_context(tmp_path, activated_agent_profiles=frozenset({"reviewer-renata"}))
 
         wrapped = ActiveCharterService(inner, pack_context=pack_ctx)
 
@@ -68,15 +66,14 @@ class TestRegisterOverlayDoesNotBypassActivationFilter:
         # and activation filtering are orthogonal (T001 pinned semantics).
         assert "shadow-sam" not in wrapped.agent_profiles
 
-    def test_overlaid_activated_profile_becomes_visible(self) -> None:
+    def test_overlaid_activated_profile_becomes_visible(self, tmp_path: Path) -> None:
         """Sanity control: an ACTIVATED overlay id does pass the filter.
 
         Without this, the previous test could pass vacuously if the filter
         excluded everything regardless of the overlay.
         """
         inner = CharterOfferingService()
-        pack_ctx = MagicMock(spec=PackContext)
-        pack_ctx.activated_agent_profiles = frozenset({"shadow-sam"})
+        pack_ctx = real_pack_context(tmp_path, activated_agent_profiles=frozenset({"shadow-sam"}))
 
         wrapped = ActiveCharterService(inner, pack_context=pack_ctx)
 

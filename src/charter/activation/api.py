@@ -67,6 +67,15 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
+# Reach-only tactic activation — the synthesis-run helpers the ``charter
+# synthesize`` / ``resynthesize`` CLI commands consume (#6404) to append the
+# tactics a run created to an explicit ``activated_tactics`` list. Public per
+# charter.activation.synthesizer.reach_only.__all__.
+from charter.activation.synthesizer.reach_only import (
+    append_synthesized_tactic_activations as append_synthesized_tactic_activations,
+    created_tactic_slugs as created_tactic_slugs,
+)
+
 # Activation write-target resolution — the ``(path, data, save)`` triple a
 # consumer (the rc35 mission-type activation migration's post-fold short-circuit)
 # reads to decide whether ``mission_type_activations`` already lives in the
@@ -76,14 +85,26 @@ from charter.activation.pack_manager import (
     resolve_activation_write_target as resolve_activation_write_target,
 )
 
+# Identity index — the per-invocation, layer-aware token <-> declared id <-> stem
+# map every activation/selection consumer resolves through. Public per
+# charter.activation.identity_index.__all__.
+from charter.activation.identity_index import (
+    IdentityEntry as IdentityEntry,
+    IdentityIndex as IdentityIndex,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
 #: ``tests/architectural/test_charter_activation_api_reexport.py``.
 __all__ = [
     "MANIFEST_PATH",
+    "IdentityEntry",
+    "IdentityIndex",
+    "append_synthesized_tactic_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
+    "created_tactic_slugs",
     "finalize_manifest",
     "load_yaml",
     "read_mission_type",
