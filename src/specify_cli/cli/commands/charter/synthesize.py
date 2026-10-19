@@ -217,7 +217,7 @@ def charter_synthesize(  # noqa: C901
         # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything
         # writes, so a run can never leave two files declaring the same PROJECT_00N id. The
         # shared helper refuses (a SynthesisError, nothing changed) on a target collision.
-        _converge_legacy_project_intent_directive(repo_root, dry_run=dry_run, console=console, json_output=json_output)
+        _converge_legacy_project_intent_directive(repo_root, dry_run=dry_run or dry_run_evidence, console=console, json_output=json_output)
 
         # T032 (#839 fresh-project): When the operator runs synthesize on a
         # fresh project (post `charter generate` but before the LLM harness
