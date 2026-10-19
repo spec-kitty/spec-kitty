@@ -1317,7 +1317,7 @@ constituents:
   kind: toolguide
   path: toolguides/github-tracker.toolguide.yaml
   provenance_path:
-- content_hash: 7d1c2f2866acd91edad878e5e524b6d016525a2ac2577c8547ff0ff1d9475e10
+- content_hash: 98fd3059b090a3cf12e4870689c2f7393160d8a277810ef4e2482c3a1253fb26
   id: java-supply-chain
   kind: toolguide
   path: toolguides/java-supply-chain.toolguide.yaml
@@ -1327,7 +1327,7 @@ constituents:
   kind: toolguide
   path: toolguides/javascript-supply-chain.toolguide.yaml
   provenance_path:
-- content_hash: 65c4455b338f49349c3cdb09e66844cfd7a406104e9d50ed345560efd965903f
+- content_hash: 7506f1f3d233d110bd2e79152ae1c29da9fa0387efae4caaace7ba2ce4a04d3e
   id: maven-review-checks
   kind: toolguide
   path: toolguides/maven-review-checks.toolguide.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty charter pack regenerate-graph
-manifest_hash: 7c322627b1cf0bd9d799280e7013babdbc232ddb4c3068bcec0b388a73558b4d
+manifest_hash: ea0d4ba7612794de91253467b013eca4c72d77e54a24959db0d387095e9b1c5a
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default
