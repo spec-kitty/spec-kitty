@@ -197,6 +197,15 @@ def charter_resynthesize(  # noqa: C901
 
         regenerated = [f"{t.kind}:{t.slug}" for t in result.resolved_topic.targets]
 
+        # #6404: regenerated tactics join an explicit ``activated_tactics`` list.
+        from charter.activation.synthesizer.reach_only import append_synthesized_tactic_activations
+
+        activation_warnings = append_synthesized_tactic_activations(repo_root, [t.slug for t in result.resolved_topic.targets if t.kind == "tactic"])
+        warnings_collected.extend(activation_warnings)
+        if not json_output:
+            for warning in activation_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
+
         if json_output:
             print(
                 json.dumps(

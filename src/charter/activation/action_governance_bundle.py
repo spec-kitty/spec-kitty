@@ -35,6 +35,7 @@ from charter.activation.catalog import load_offering_catalog
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.org_pack_discovery import _read_org_required_selections
 from charter.activation.identity_index import IdentityIndex
+from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.models import NodeKind
 
@@ -394,6 +395,10 @@ def _load_action_governance_bundle(
             project_directives, selected_tactics, selected_paradigms = _seed_sets(
                 merged, catalog, pack_context, _read_org_required_selections(repo_root), identity, identity_warnings
             )
+            # #6404: a synthesized tactic reached by a directive's suggests edge is
+            # never a root; it is delivered only through that edge. Computed from
+            # the overlay, so a deactivated directive does not turn it into a root.
+            selected_tactics -= reach_only_tactic_ids(repo_root)
 
             # Explicitly activated project directives govern the project even
             # without an action edge. The filtered graph is the activation
