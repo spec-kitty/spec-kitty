@@ -210,17 +210,46 @@ def test_refused_orphan_run_does_not_append(tmp_path: Path, charter_cwd_isolatio
     assert _TACTIC not in _activated(charter_yaml)
 
 
-def test_resynthesize_topic_appends_regenerated_tactic(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
-    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
-    synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=FixtureAdapter(), repo_root=tmp_path)
-    assert _TACTIC not in _activated(charter_yaml)  # library synthesize alone does not append
-
-    result = _invoke(
-        charter_cwd_isolation,
+def _resynthesize_tactic_cli(isolate: Callable[..., Path]) -> Any:
+    return _invoke(
+        isolate,
         ["resynthesize", "--adapter", "fixture", "--json", "--topic", f"tactic:{_TACTIC}"],
         _request("01CCCCCCCCCCCCCCCCCCCCCCCCC"),
     )
 
+
+def test_resynthesize_does_not_readd_a_tactic_the_operator_removed(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """Resynthesize appends only manifest-new tactics: a regenerated, operator-removed one stays removed (#6404)."""
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=FixtureAdapter(), repo_root=tmp_path)
+    assert _TACTIC in [e.slug for e in load_yaml(tmp_path / MANIFEST_PATH).artifacts]  # control: tactic is in the manifest
+    assert _TACTIC not in _activated(charter_yaml)  # operator never activated / removed it
+
+    result = _resynthesize_tactic_cli(charter_cwd_isolation)
+
     assert result.exit_code == 0, result.output
-    assert _TACTIC in _activated(charter_yaml)
+    assert _TACTIC not in _activated(charter_yaml)
     assert _EXISTING in _activated(charter_yaml)
+
+
+def test_resynthesize_with_nothing_new_does_not_rewrite_config_or_restamp(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING, _TACTIC])
+    synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=FixtureAdapter(), repo_root=tmp_path)
+    before = charter_yaml.read_bytes()
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash") as restamp:
+        result = _resynthesize_tactic_cli(charter_cwd_isolation)
+
+    assert result.exit_code == 0, result.output
+    assert charter_yaml.read_bytes() == before
+    restamp.assert_not_called()
+
+
+def test_append_skips_slugs_already_activated(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import append_synthesized_tactic_activations
+
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    before = charter_yaml.read_bytes()
+
+    assert append_synthesized_tactic_activations(tmp_path, [_EXISTING]) == []
+    assert charter_yaml.read_bytes() == before

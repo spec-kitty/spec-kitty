@@ -82,8 +82,12 @@ def append_synthesized_tactic_activations(repo_root: Path, tactic_slugs: Iterabl
     if not slugs:
         return []
     target_path, data, save = resolve_activation_write_target(repo_root)
-    if data.get(_ACTIVATED_TACTICS_KEY) is None:
+    current = data.get(_ACTIVATED_TACTICS_KEY)
+    if current is None:
         return []
+    slugs = [slug for slug in slugs if slug not in current]
+    if not slugs:
+        return []  # nothing new: no config rewrite, no restamp
     outcome = promote_activations(
         {_ACTIVATED_TACTICS_KEY: slugs},
         config_path=target_path,

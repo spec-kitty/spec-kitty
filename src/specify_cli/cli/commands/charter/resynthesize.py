@@ -197,10 +197,11 @@ def charter_resynthesize(  # noqa: C901
 
         regenerated = [f"{t.kind}:{t.slug}" for t in result.resolved_topic.targets]
 
-        # #6404: regenerated tactics join an explicit ``activated_tactics`` list.
+        # #6404: only tactics NEW to the manifest join an explicit ``activated_tactics``
+        # list (a regenerated one an operator removed stays removed).
         from charter.activation.api import append_synthesized_tactic_activations
 
-        activation_warnings = append_synthesized_tactic_activations(repo_root, [t.slug for t in result.resolved_topic.targets if t.kind == "tactic"])
+        activation_warnings = append_synthesized_tactic_activations(repo_root, getattr(result, "created_tactic_slugs", ()))
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:

@@ -130,6 +130,10 @@ class ResynthesisResult:
     """Unresolved project-profile reference warnings from this run's overlay
     re-emission (#4121, MAJOR 2) — the same strings ``emit_project_layer``
     logs, carried so the CLI can surface them."""
+    created_tactic_slugs: tuple[str, ...] = ()
+    """Tactic slugs this run added to the synthesis manifest (manifest delta, #6404).
+    A regenerated tactic already in the manifest is not listed, so an operator who
+    removed it from ``activated_tactics`` is not overridden."""
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +353,7 @@ def run(
     # manifest.
     # ------------------------------------------------------------------
     new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id, _repo_root)
+    existing_tactic_slugs = frozenset(e.slug for e in existing_manifest.artifacts if e.kind == "tactic")
 
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
@@ -409,6 +414,11 @@ def run(
         is_noop=False,
         diagnostic="",
         reference_warnings=tuple(reference_warnings),
+        created_tactic_slugs=tuple(
+            e.slug
+            for e in written_manifest.artifacts
+            if e.kind == "tactic" and e.slug not in existing_tactic_slugs
+        ),
     )
 
 
