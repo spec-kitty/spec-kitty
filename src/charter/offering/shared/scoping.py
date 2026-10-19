@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from charter.offering.shared.language_catalog import expand_language_families
+
 __all__ = [
     "RESERVED_LANGUAGE_TOKENS",
     "SENTINEL_LANGUAGE_TOKENS",
@@ -76,7 +78,10 @@ def applies_to_languages_match(
     - Unscoped artifacts always load.
     - When no active language filter is provided, scoped artifacts still load.
     - When active languages are explicitly empty/unknown, scoped artifacts do not load.
-    - Otherwise any overlap between artifact and active languages is sufficient.
+    - Otherwise any overlap between artifact and active languages is sufficient,
+      after the active side is expanded through its families (``kotlin`` and
+      ``java`` both imply ``jvm``, so a ``jvm``-tagged artifact matches either; a
+      ``java``-tagged artifact does not match ``kotlin``).
     - Reserved tokens (``unknown``) are stripped from BOTH sides first: an
       artifact scoped only to ``unknown`` never loads (invalid scope), an
       active set that is only ``unknown`` admits no scoped artifact, and
@@ -110,4 +115,4 @@ def applies_to_languages_match(
     if not active_scope:
         return False
 
-    return bool(artifact_scope & active_scope)
+    return bool(artifact_scope & set(expand_language_families(active_scope)))
