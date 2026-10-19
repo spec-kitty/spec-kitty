@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M59V3JWRAMZW9RENZP3A0S3E",
-  "materialized_at": "2026-10-19T10:25:23.187411+00:00",
+  "event_count": 10,
+  "last_event_id": "01M59V4E6X9F0ZB774A5VD5N9P",
+  "materialized_at": "2026-10-19T10:25:51.174664+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -30,11 +30,15 @@
       "shell_pid_created_at": "1792405494.28"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
+      "agent": "implement-command",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M59V1BM7ARHP0NJAX1XANVRQ",
-      "last_transition_at": "2026-10-19T10:24:10.375800+00:00"
+      "implementer_of_record": "implement-command",
+      "lane": "in_progress",
+      "last_event_id": "01M59V4E6X9F0ZB774A5VD5N9P",
+      "last_transition_at": "2026-10-19T10:25:51.174664+00:00",
+      "shell_pid": 16634,
+      "shell_pid_created_at": "1792405494.28"
     },
     "WP03": {
       "actor": "finalize-tasks",
