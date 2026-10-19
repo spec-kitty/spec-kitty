@@ -9,6 +9,7 @@ interview -> request derivation and evidence collection are patched (same conven
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -121,6 +122,54 @@ def test_synthesize_second_run_does_not_duplicate(tmp_path: Path, charter_cwd_is
     assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
 
     assert _activated(charter_yaml).count(_TACTIC) == 1
+
+
+def test_synthesize_does_not_readd_a_tactic_the_operator_removed(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """Full synthesize appends only tactics THIS run created, not every manifest tactic (#6404)."""
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+    assert _TACTIC in _activated(charter_yaml)  # control: the first run created and appended it
+
+    charter_yaml.write_text(charter_yaml.read_text(encoding="utf-8").replace(_TACTIC, "operator-kept-other"), encoding="utf-8")
+    assert _TACTIC not in _activated(charter_yaml)
+
+    assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+
+    assert _TACTIC not in _activated(charter_yaml)  # the manifest still lists it, but this run did not create it
+    assert "operator-kept-other" in _activated(charter_yaml)
+
+
+def test_synthesize_appends_a_tactic_created_by_the_rerun(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """Control for the test above: when the rerun creates the tactic afresh, it is appended."""
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+    charter_yaml.write_text(charter_yaml.read_text(encoding="utf-8").replace(_TACTIC, "operator-kept-other"), encoding="utf-8")
+    (tmp_path / MANIFEST_PATH).unlink()
+    shutil.rmtree(tmp_path / ".kittify" / "charter-packs")
+
+    result = _synthesize_cli(charter_cwd_isolation)
+
+    assert result.exit_code == 0, result.output
+    assert _TACTIC in _activated(charter_yaml)  # new to the manifest this run -> appended
+
+
+def test_created_tactic_slugs_takes_only_added_tactic_entries() -> None:
+    from charter.activation.synthesizer.reach_only import created_tactic_slugs
+    from charter.activation.synthesizer.reconcile import ManifestDelta, ManifestEntryRef, ReconciliationDelta
+
+    delta = ReconciliationDelta(
+        manifest_delta=ManifestDelta(
+            retained=(ManifestEntryRef(kind="tactic", slug="kept-old", backing_artifact="p"),),
+            added=(
+                ManifestEntryRef(kind="tactic", slug="brand-new", backing_artifact="p"),
+                ManifestEntryRef(kind="directive", slug="new-directive", backing_artifact="p"),
+            ),
+        )
+    )
+
+    assert created_tactic_slugs(delta) == ["brand-new"]
+    assert created_tactic_slugs(None) == []
+    assert created_tactic_slugs(SimpleNamespace(manifest_delta=delta.manifest_delta)) == []
 
 
 def test_synthesize_leaves_absent_key_absent(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:

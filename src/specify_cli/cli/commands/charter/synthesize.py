@@ -524,15 +524,16 @@ def charter_synthesize(  # noqa: C901
                 orphaned=orphaned,
             )
 
-        # #6404: append the tactics this run created to an explicit
+        # #6404: append only the tactics THIS run created (never every manifest
+        # tactic: that would re-add one an operator removed) to an explicit
         # ``activated_tactics`` list (absent key stays absent). Reached only
         # after the dry-run return and the orphan refusal above.
         from charter.activation.synthesizer.reach_only import (
             append_synthesized_tactic_activations,
-            manifest_tactic_slugs,
+            created_tactic_slugs,
         )
 
-        activation_warnings = append_synthesized_tactic_activations(repo_root, manifest_tactic_slugs(repo_root))
+        activation_warnings = append_synthesized_tactic_activations(repo_root, created_tactic_slugs(getattr(result, "reconciliation", None)))
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:

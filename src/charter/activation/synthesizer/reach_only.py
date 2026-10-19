@@ -17,7 +17,7 @@ from charter.offering.drg.loader import DRGLoadError, has_graph_files, load_grap
 from charter.offering.drg.models import NodeKind, Relation
 from kernel.charter_pack_paths import project_pack_root
 
-__all__ = ["append_synthesized_tactic_activations", "manifest_tactic_slugs", "reach_only_tactic_ids"]
+__all__ = ["append_synthesized_tactic_activations", "created_tactic_slugs", "reach_only_tactic_ids"]
 
 _ACTIVATED_TACTICS_KEY = "activated_tactics"
 
@@ -71,11 +71,14 @@ def append_synthesized_tactic_activations(repo_root: Path, tactic_slugs: Iterabl
     return [warning for plan in outcome.committed for warning in plan.warnings]
 
 
-def manifest_tactic_slugs(repo_root: Path) -> list[str]:
-    """Tactic slugs recorded in the synthesis manifest (empty when there is none)."""
-    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml  # noqa: PLC0415
+def created_tactic_slugs(reconciliation: object) -> list[str]:
+    """Tactic slugs this run added to the synthesis manifest (empty for a missing/foreign delta).
 
-    manifest_path = repo_root / MANIFEST_PATH
-    if not manifest_path.is_file():
+    Only entries new to the manifest count: a tactic an operator removed from
+    ``activated_tactics`` stays in the manifest and is not re-added by a later run.
+    """
+    from charter.activation.synthesizer.reconcile import ReconciliationDelta  # noqa: PLC0415
+
+    if not isinstance(reconciliation, ReconciliationDelta):
         return []
-    return [entry.slug for entry in load_yaml(manifest_path).artifacts if entry.kind == "tactic"]
+    return [ref.slug for ref in reconciliation.manifest_delta.added if ref.kind == "tactic"]
