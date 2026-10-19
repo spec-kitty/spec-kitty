@@ -265,9 +265,9 @@ def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
       its own explicit check.
     """
     if is_synthesized_tactic_edge(edge) and edge.target in overlay_urns:
-        return edge.target
+        return str(edge.target)
     if edge.source in overlay_urns:
-        return edge.source
+        return str(edge.source)
     return None
 
 
