@@ -423,6 +423,8 @@ def build_charter_context_include(
         return _render_template_include(repo_root, identifier, selector)
 
     canonical_kind = resolved_kind.value
+    # NFR-003: one identity index for this include invocation.
+    identity = IdentityIndex.build(repo_root, org_roots=org_roots)
 
     # FR-016: the agent-profile fetch path — and, as of M4, the glossary-pack
     # fetch path — inherit the charter activation gate, so they (and only they)
@@ -459,7 +461,7 @@ def build_charter_context_include(
                 canonical_kind,
                 identifier,
                 selector,
-                IdentityIndex.build(repo_root, org_roots=org_roots),
+                identity,
             )
 
     # Shared catalog render/return. ``service`` is the gated service for the
@@ -480,7 +482,7 @@ def build_charter_context_include(
         canonical_kind,
         identifier,
         selector,
-        IdentityIndex.build(repo_root, org_roots=org_roots),
+        identity,
     )
     if result is not None:
         return result

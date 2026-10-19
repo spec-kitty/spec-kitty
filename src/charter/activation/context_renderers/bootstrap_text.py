@@ -309,7 +309,7 @@ def _render_bootstrap_text(
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
     # surfaces every ``GovernanceCharterConfig.selected_<kind>`` (with org provenance).
-    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root)
+    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root, identity=governance_bundle.identity)
     _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
