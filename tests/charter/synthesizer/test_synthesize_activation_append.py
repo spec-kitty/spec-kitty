@@ -297,3 +297,27 @@ def test_append_records_every_slug_and_appends_only_first_time_ones(tmp_path: Pa
     assert _activated(charter_yaml) == [_EXISTING, "brand-new"]
     recorded = yaml.safe_load((tmp_path / CREATED_TACTICS_PATH).read_text(encoding="utf-8"))["created_tactics"]
     assert recorded == ["brand-new", "removed-earlier"]
+
+
+def test_failed_config_write_leaves_tactic_unrecorded_and_a_rerun_appends_it(tmp_path: Path) -> None:
+    """#6404: the record follows the config write, so a failed promote does not strand the tactic."""
+    from charter.activation.synthesizer.reach_only import append_synthesized_tactic_activations
+
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+
+    with (
+        patch("charter.activation.activation_engine.promote_activations", side_effect=RuntimeError("config write failed")),
+        pytest.raises(RuntimeError, match="config write failed"),
+    ):
+        append_synthesized_tactic_activations(tmp_path, ["brand-new"])
+
+    record = tmp_path / CREATED_TACTICS_PATH
+    recorded = yaml.safe_load(record.read_text(encoding="utf-8")).get("created_tactics") or [] if record.exists() else []
+    assert "brand-new" not in recorded
+    assert _activated(charter_yaml) == [_EXISTING]
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_synthesized_tactic_activations(tmp_path, ["brand-new"])
+
+    assert _activated(charter_yaml) == [_EXISTING, "brand-new"]
+    assert "brand-new" in yaml.safe_load(record.read_text(encoding="utf-8"))["created_tactics"]

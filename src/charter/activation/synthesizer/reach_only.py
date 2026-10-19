@@ -117,7 +117,8 @@ def append_synthesized_tactic_activations(repo_root: Path, tactic_slugs: Iterabl
 
     A slug counts only when synthesis has never created it before: neither in the
     created-tactics record nor in the synthesis manifest from before this run. Every
-    slug is then recorded, also when the key is absent, so a later removal sticks.
+    slug is then recorded, also when the key is absent, so a later removal sticks;
+    when a config write is needed the record follows it, so a failed write retries.
     An absent key is left absent (C-001). An unreadable record appends nothing and
     warns. The synthesis manifest's bundle hash is restamped after a config write.
     """
@@ -135,16 +136,23 @@ def append_synthesized_tactic_activations(repo_root: Path, tactic_slugs: Iterabl
     # Tactics already in the manifest before this run were created by an earlier one.
     earlier = {urn[len(_TACTIC_PREFIX) :] for urn in _manifest_tactic_urns(repo_root)} - set(slugs)
     first_time = [slug for slug in slugs if slug not in recorded | earlier]
-    if not (set(slugs) | earlier) <= recorded:
-        _write_created_tactics(repo_root, recorded | earlier | set(slugs))
+    updated_record = recorded | earlier | set(slugs)
+
+    def _record() -> None:
+        if updated_record != recorded:
+            _write_created_tactics(repo_root, updated_record)
+
     if not first_time:
+        _record()
         return []
     target_path, data, save = resolve_activation_write_target(repo_root)
     current = data.get(_ACTIVATED_TACTICS_KEY)
     if current is None:
+        _record()
         return []
     first_time = [slug for slug in first_time if slug not in current]
     if not first_time:
+        _record()
         return []  # nothing new: no config rewrite, no restamp
     outcome = promote_activations(
         {_ACTIVATED_TACTICS_KEY: first_time},
@@ -153,6 +161,9 @@ def append_synthesized_tactic_activations(repo_root: Path, tactic_slugs: Iterabl
         save=save,
         effective_sets={},
     )
+    # Record only once the config write succeeded: a failed promote must leave the
+    # tactic unrecorded so a later run still appends it.
+    _record()
     restamp_bundle_hash(repo_root)
     return [warning for plan in outcome.committed for warning in plan.warnings]
 
