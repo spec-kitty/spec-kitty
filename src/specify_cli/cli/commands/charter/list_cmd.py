@@ -16,7 +16,7 @@ from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
 from charter.activation.pack_manager import AvailableArtifact, ActiveCharterManager
-from charter.offering.api import ArtifactKind
+from charter.drg import ArtifactKind
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 from kernel.errors import KittyInternalConsistencyError

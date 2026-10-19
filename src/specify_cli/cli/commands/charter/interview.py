@@ -42,7 +42,7 @@ import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
     from charter.activation.api import EffectiveSet
-    from charter.offering.api import ArtifactKind
+    from charter.drg import ArtifactKind
 
 __all__ = ["interview"]
 
