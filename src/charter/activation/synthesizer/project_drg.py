@@ -38,6 +38,7 @@ from kernel.clock import now_utc_seconds
 from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME, project_pack_root
 
 from .errors import ProjectDRGValidationError
+from .reconcile import synthesized_tactic_reason
 from .path_guard import PathGuard
 from .request import SynthesisTarget
 
@@ -224,7 +225,7 @@ def _derived_edge(target: SynthesisTarget, urn: str, source_urn: str) -> DRGEdge
             source=source_urn,
             target=urn,
             relation=Relation.SUGGESTS,
-            reason=f"Synthesized tactic {target.slug!r} is how this project applies the directive",
+            reason=synthesized_tactic_reason(target.slug),
         )
     return DRGEdge(
         source=urn,

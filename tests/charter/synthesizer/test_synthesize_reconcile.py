@@ -592,8 +592,8 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
     keep_edge = DRGEdge(source="tactic:keep", target="directive:DIRECTIVE_003", relation=Relation.APPLIES)
     prune_edge = DRGEdge(source="tactic:prune-me", target="directive:DIRECTIVE_003", relation=Relation.APPLIES)
     # #6404: the synthesized shape -- a built-in directive points at the tactic.
-    inbound_edge = DRGEdge(source="directive:DIRECTIVE_003", target="tactic:prune-me", relation=Relation.SUGGESTS)
-    keep_inbound = DRGEdge(source="directive:DIRECTIVE_003", target="tactic:keep", relation=Relation.SUGGESTS)
+    inbound_edge = _derived_edge_fixture("directive:DIRECTIVE_003", "tactic:prune-me")
+    keep_inbound = _derived_edge_fixture("directive:DIRECTIVE_003", "tactic:keep")
     overlay = DRGGraph(
         schema_version="1.0",
         generated_at="STATIC",
@@ -729,6 +729,14 @@ _SYNTH_TACTIC = "tactic:how-we-apply-directive-003"
 _SUGGESTS_TRIPLE = ("directive:DIRECTIVE_003", _SYNTH_TACTIC, "suggests")
 
 
+def _derived_edge_fixture(source: str, target: str) -> Any:
+    """A directive ``suggests`` edge carrying the synthesis fingerprint (#6404)."""
+    from charter.activation.synthesizer.reconcile import synthesized_tactic_reason
+    from charter.offering.drg.models import DRGEdge, Relation
+
+    return DRGEdge(source=source, target=target, relation=Relation.SUGGESTS, reason=synthesized_tactic_reason(target.split(":", 1)[1]))
+
+
 def _edge_triples(graph_path: Path) -> list[tuple[str, str, str]]:
     return [(e["source"], e["target"], e["relation"]) for e in _load_graph(graph_path).get("edges", [])]
 
@@ -806,7 +814,7 @@ def test_edge_owner_assigns_synthesized_edge_to_its_tactic_and_profile_edge_to_p
     from charter.offering.drg.models import DRGEdge, Relation
 
     overlay_urns = {_SYNTH_TACTIC, "agent_profile:rhonda", "directive:PROJECT_001"}
-    synthesized = DRGEdge(source="directive:DIRECTIVE_003", target=_SYNTH_TACTIC, relation=Relation.SUGGESTS)
+    synthesized = _derived_edge_fixture("directive:DIRECTIVE_003", _SYNTH_TACTIC)
     profile_edge = DRGEdge(source="agent_profile:rhonda", target=_SYNTH_TACTIC, relation=Relation.REQUIRES)
     inbound_only = DRGEdge(source="directive:DIRECTIVE_003", target="directive:PROJECT_001", relation=Relation.REQUIRES)
     foreign = DRGEdge(source="directive:DIRECTIVE_003", target="directive:DIRECTIVE_010", relation=Relation.REQUIRES)
@@ -821,7 +829,7 @@ def test_edge_ref_of_directive_sourced_edge_resolves_backing_artifact_through_ow
     from charter.activation.synthesizer.reconcile import _edge_ref
     from charter.offering.drg.models import DRGEdge, Relation
 
-    edge = DRGEdge(source="directive:DIRECTIVE_003", target=_SYNTH_TACTIC, relation=Relation.SUGGESTS)
+    edge = _derived_edge_fixture("directive:DIRECTIVE_003", _SYNTH_TACTIC)
     path = ".kittify/charter-packs/tactic/how-we-apply-directive-003.tactic.yaml"
     ref = _edge_ref(edge, {_SYNTH_TACTIC: path}, {_SYNTH_TACTIC})
     assert ref.backing_artifact == path
@@ -837,7 +845,7 @@ def test_merge_does_not_duplicate_or_prune_edge_of_untargeted_tactic() -> None:
         return DRGNode(urn=f"tactic:{slug}", kind=NodeKind.TACTIC, label=slug)
 
     def _edge(slug: str) -> DRGEdge:
-        return DRGEdge(source="directive:DIRECTIVE_003", target=f"tactic:{slug}", relation=Relation.SUGGESTS)
+        return _derived_edge_fixture("directive:DIRECTIVE_003", f"tactic:{slug}")
 
     def _graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
         return DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=nodes, edges=edges)
@@ -849,3 +857,43 @@ def test_merge_does_not_duplicate_or_prune_edge_of_untargeted_tactic() -> None:
 
     targets = sorted(e.target for e in merged.edges)
     assert targets == ["tactic:a", "tactic:b"], targets
+
+
+def test_edge_owner_keeps_hand_authored_directive_suggests_edge_off_the_tactic() -> None:
+    """#6404: only the exact synthesized shape belongs to the tactic."""
+    from charter.activation.synthesizer.reconcile import edge_owner
+    from charter.offering.drg.models import DRGEdge, Relation
+
+    hand = DRGEdge(source="directive:DIRECTIVE_010", target=_SYNTH_TACTIC, relation=Relation.SUGGESTS, reason="mine")
+    derived = _derived_edge_fixture("directive:DIRECTIVE_010", _SYNTH_TACTIC)
+
+    assert edge_owner(hand, {_SYNTH_TACTIC}) is None  # source is not an overlay node: preserved untouched
+    assert edge_owner(derived, {_SYNTH_TACTIC}) == _SYNTH_TACTIC
+    # Source is itself an overlay node: the directive owns its hand-authored edge, so
+    # regenerating the directive (not the tactic) replaces it.
+    assert edge_owner(hand, {_SYNTH_TACTIC, "directive:DIRECTIVE_010"}) == "directive:DIRECTIVE_010"
+
+
+def test_hand_authored_directive_suggests_edge_survives_tactic_regeneration(
+    minimal_interview_snapshot: dict[str, Any],
+    minimal_doctrine_snapshot: dict[str, Any],
+    minimal_drg_snapshot: dict[str, Any],
+    fixture_adapter: FixtureAdapter,
+    tmp_path: Path,
+) -> None:
+    """#6404: a second hand-authored directive edge to a regenerated tactic is kept and reported retained."""
+    args = (minimal_interview_snapshot, minimal_doctrine_snapshot, minimal_drg_snapshot, fixture_adapter, tmp_path)
+    _synth("01AAAAAAAAAAAAAAAAAAAAAAAAA", *args)
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
+    hand_triple = ("directive:DIRECTIVE_010", _SYNTH_TACTIC, "suggests")
+    graph = _load_graph(graph_path)
+    graph["edges"].append({"source": hand_triple[0], "target": hand_triple[1], "relation": "suggests", "reason": "hand-authored"})
+    _dump_graph(graph_path, graph)
+
+    result = _synth("01BBBBBBBBBBBBBBBBBBBBBBBBB", *args)
+
+    triples = _edge_triples(graph_path)
+    assert hand_triple in triples, "hand-authored edge must survive regeneration of its target tactic"
+    assert triples.count(_SUGGESTS_TRIPLE) == 1
+    assert result.reconciliation is not None
+    assert f"{hand_triple[0]}--suggests-->{hand_triple[1]}" in {r.urn for r in result.reconciliation.retained}

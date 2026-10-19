@@ -61,6 +61,7 @@ __all__ = [
     "SynthesizeMode",
     "apply_prune",
     "edge_owner",
+    "is_synthesized_tactic_edge",
     "legacy_strip_notice",
     "merge_project_overlay",
     "reconcile_synthesis",
@@ -224,28 +225,55 @@ _DIRECTIVE_URN_PREFIX = "directive:"
 _TACTIC_URN_PREFIX = "tactic:"
 
 
+def synthesized_tactic_reason(slug: str) -> str:
+    """The ``reason`` text synthesis stamps on a tactic's derived ``suggests`` edge (#6404)."""
+    return f"Synthesized tactic {slug!r} is how this project applies the directive"
+
+
+def is_synthesized_tactic_edge(edge: DRGEdge) -> bool:
+    """True for the exact shape synthesis derives for a tactic (#6404).
+
+    The single "synthesis shape" predicate shared by reconcile ownership and the
+    reach-only reader: ``directive:<id> --suggests--> tactic:<slug>`` carrying the
+    reason :func:`synthesized_tactic_reason` stamps (see
+    ``project_drg._derived_edge``). A hand-authored edge of the same relation and
+    endpoints has a different reason and is therefore NOT a synthesized one.
+    """
+    return (
+        edge.relation is Relation.SUGGESTS
+        and edge.source.startswith(_DIRECTIVE_URN_PREFIX)
+        and edge.target.startswith(_TACTIC_URN_PREFIX)
+        and edge.reason == synthesized_tactic_reason(edge.target[len(_TACTIC_URN_PREFIX) :])
+    )
+
+
 def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
     """Return the overlay node that owns *edge*, or ``None`` when it has none (#6404).
 
     The single ownership authority for every reconcile call site: an edge
     follows its owner through merge, delta, conflict classification and prune.
 
-    * The synthesis shape ``directive:<id> --suggests--> tactic:<slug>`` is
-      owned by its tactic *target* (the node synthesis derived it for); its
-      source is a built-in or org directive the overlay does not own.
+    * A synthesized tactic edge (:func:`is_synthesized_tactic_edge`) is owned by
+      its tactic *target* (the node synthesis derived it for); its source is a
+      built-in or org directive the overlay does not own.
+    * Any other ``directive:* --suggests--> tactic:*`` edge is hand-authored: it is
+      owned by its source when that is an overlay node (so regenerating the
+      *directive* replaces it, never regenerating the tactic) and otherwise has no
+      owner, so it is preserved untouched.
     * Any other edge is owned by its source when that is an overlay node (a
       hand-authored ``agent_profile --requires--> tactic:...`` stays with the
       profile), else by its target when that is an overlay node.
     """
+    if is_synthesized_tactic_edge(edge) and edge.target in overlay_urns:
+        return edge.target
+    if edge.source in overlay_urns:
+        return edge.source
     if (
         edge.relation is Relation.SUGGESTS
         and edge.source.startswith(_DIRECTIVE_URN_PREFIX)
         and edge.target.startswith(_TACTIC_URN_PREFIX)
-        and edge.target in overlay_urns
     ):
-        return edge.target
-    if edge.source in overlay_urns:
-        return edge.source
+        return None
     if edge.target in overlay_urns:
         return edge.target
     return None
