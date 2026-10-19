@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02 REACH_ONLY_KINDS single implementation; test_reach_only_delivery.py; api re-export gate",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:34:48.746282+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
