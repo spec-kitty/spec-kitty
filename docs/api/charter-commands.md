@@ -197,12 +197,11 @@ The always-synthesized directive is named `project-intent-directive`; synthesis 
 `mission-type-scope-directive` first, and `spec-kitty upgrade` does the same through the
 `4.0.0rc8_project_intent_directive_rename` migration.
 
-The code evidence carries `languages`, the primary language first, next to `primary_language`. A
-language joins the list when it has a manifest at the shallowest manifest depth, or when it holds at
-least 20% of the counted sources; a manifest alone only nominates a secondary language, which then
-needs that share. The key is additive in the `--json` evidence of `charter status` and
-`charter synthesize --dry-run`. It enters the evidence hash only when the list holds more than one
-language. A configured `languages:` list (see `charter interview`) replaces the observed list.
+The code evidence carries `languages`, the primary language first, next to `primary_language`. The
+primary language is always listed; another language is listed only when it holds at least 20% of the
+counted sources, and a manifest alone only nominates a candidate. The key is additive in the `--json`
+evidence of `charter status` and `charter synthesize --dry-run`. It enters the evidence hash only when
+the list holds more than one language. A configured `languages:` list (see `charter interview`) replaces the observed list.
 
 | Flag | Description | Default |
 | --- | --- | --- |
