@@ -316,3 +316,50 @@ def test_malformed_list_fails_closed(tmp_path: Path) -> None:
             available_ids=_AVAILABLE,
             config_data=data,
         )
+
+
+# ---------------------------------------------------------------------------
+# #6408 — opt-in narrow activation
+# ---------------------------------------------------------------------------
+
+
+def test_plan_activation_narrow_base_replaces_the_list_and_reports_what_dropped(config_path: Path) -> None:
+    data, _ = _load(config_path)
+    plan = plan_activation(
+        "directive",
+        "003-baz",
+        yaml_key="activated_directives",
+        available_ids=_AVAILABLE,
+        config_data=data,
+        narrow_base=["002-bar", "002-bar"],
+        previous_ids=["001-foo", "002-bar"],
+    )
+    assert plan.new_list == ["002-bar", "003-baz"]
+    assert plan.deactivated == ["001-foo"]
+    assert plan.activated == ["003-baz"]
+    assert plan.warnings == []
+
+
+def test_plan_activation_narrow_base_ignores_the_absent_key_materialisation() -> None:
+    plan = plan_activation(
+        "directive",
+        "001-foo",
+        yaml_key="activated_directives",
+        available_ids=_AVAILABLE,
+        config_data={},
+        effective_ids=_AVAILABLE,
+        narrow_base=[],
+        previous_ids=_AVAILABLE,
+    )
+    assert plan.new_list == ["001-foo"]
+    assert plan.deactivated == ["002-bar", "003-baz"]
+    # positive control: without narrow_base the same inputs materialise everything
+    wide = plan_activation("directive", "001-foo", yaml_key="activated_directives", available_ids=_AVAILABLE, config_data={}, effective_ids=_AVAILABLE)
+    assert wide.new_list == _AVAILABLE and wide.deactivated == []
+    assert "'spec-kitty charter activate <kind> <id> --only'" in wide.warnings[0]
+
+
+def test_plan_activation_narrow_base_still_validates_the_id_first(config_path: Path) -> None:
+    data, _ = _load(config_path)
+    with pytest.raises(UnknownActivationIdError):
+        plan_activation("directive", "nope", yaml_key="activated_directives", available_ids=_AVAILABLE, config_data=data, narrow_base=["001-foo"])

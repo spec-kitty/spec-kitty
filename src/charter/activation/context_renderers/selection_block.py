@@ -48,6 +48,7 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_tactic_body,
     _format_inline_toolguide_body,
 )
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
 from charter.activation.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
@@ -57,6 +58,7 @@ from charter.activation.context_renderers.token_budget import (
     _PROFILE_INLINE_BODY_LIMIT_CHARS,
     _budget_estimate,
 )
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
@@ -119,6 +121,24 @@ def _provenance_suffix(
     return " (source: org)"
 
 
+def _selection_id(
+    identity: IdentityIndex | None,
+    kind: ArtifactKind | None,
+    token: str,
+    normalize_id: Callable[[str], str] | None = None,
+) -> str:
+    """The repository key for a selected *token* (declared id or file stem).
+
+    Repositories are keyed by declared id, so the identity index turns either
+    spelling into that key (FR-017, #6406). *normalize_id* is the fallback for a
+    token the index does not know (directives: the id normaliser, #3816).
+    """
+    declared: str | None = identity.selection_id(kind, token) if identity is not None and kind is not None else None
+    if declared is not None:
+        return declared
+    return normalize_id(token) if normalize_id else token
+
+
 def _render_selected_artifacts(
     selected_ids: list[str],
     repository: ArtifactRepository[Any] | None,
@@ -130,6 +150,7 @@ def _render_selected_artifacts(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     normalize_id: Callable[[str], str] | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
 
@@ -147,6 +168,7 @@ def _render_selected_artifacts(
 
     lines: list[str] = [header]
     seen: set[str] = set()
+    kind = ArtifactKind(selector_kind)
     for artifact_id in selected_ids:
         # Deduplicate while preserving authoring order (R-4 mitigation).
         if artifact_id in seen:
@@ -160,7 +182,7 @@ def _render_selected_artifacts(
         artifact = None
         if repository is not None:
             try:
-                lookup_id = normalize_id(artifact_id) if normalize_id else artifact_id
+                lookup_id = _selection_id(identity, kind, artifact_id, normalize_id)
                 artifact = repository.get(lookup_id)
             except Exception:  # noqa: BLE001 — best-effort catalog lookup
                 artifact = None
@@ -218,6 +240,7 @@ def _render_selected_paradigms(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected paradigms into prompt lines."""
     repo = getattr(service, "paradigms", None)
@@ -230,6 +253,7 @@ def _render_selected_paradigms(
         body_formatter=_format_inline_paradigm_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -239,6 +263,7 @@ def _render_selected_directives(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected directives into prompt lines."""
     repo = getattr(service, "directives", None)
@@ -252,6 +277,7 @@ def _render_selected_directives(
         org_source_map=org_source_map,
         repo_root=repo_root,
         normalize_id=normalize_directive_id,
+        identity=identity,
     )
 
 
@@ -261,6 +287,7 @@ def _render_selected_tactics(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected tactics into prompt lines."""
     repo = getattr(service, "tactics", None)
@@ -273,6 +300,7 @@ def _render_selected_tactics(
         body_formatter=_format_inline_tactic_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -282,6 +310,7 @@ def _render_selected_styleguides(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected styleguides into prompt lines (T017).
 
@@ -299,6 +328,7 @@ def _render_selected_styleguides(
         body_formatter=_format_inline_styleguide_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -308,6 +338,7 @@ def _render_selected_toolguides(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected toolguides into prompt lines (T018)."""
     repo = getattr(service, "toolguides", None)
@@ -320,6 +351,7 @@ def _render_selected_toolguides(
         body_formatter=_format_inline_toolguide_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -329,6 +361,7 @@ def _render_selected_procedures(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected procedures into prompt lines (T018)."""
     repo = getattr(service, "procedures", None)
@@ -341,6 +374,7 @@ def _render_selected_procedures(
         body_formatter=_format_inline_procedure_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -350,6 +384,7 @@ def _render_selected_agent_profiles(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected agent profiles into prompt lines (T018)."""
     repo = getattr(service, "agent_profiles", None)
@@ -362,6 +397,7 @@ def _render_selected_agent_profiles(
         body_formatter=_format_inline_agent_profile_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
@@ -371,6 +407,7 @@ def _render_selected_mission_step_contracts(
     *,
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Render globally-selected mission step contracts (T018)."""
     repo = getattr(service, "mission_step_contracts", None)
@@ -383,12 +420,16 @@ def _render_selected_mission_step_contracts(
         body_formatter=_format_inline_step_contract_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
+        identity=identity,
     )
 
 
 def _collect_org_source_map(
     repository: ArtifactRepository[Any] | None,
     artifact_ids: list[str],
+    *,
+    kind: ArtifactKind | None = None,
+    identity: IdentityIndex | None = None,
 ) -> dict[str, str]:
     """Map ``artifact_id → "org"`` (placeholder pack name) for org-sourced IDs.
 
@@ -402,6 +443,10 @@ def _collect_org_source_map(
     that lands, the value here will gain pack-name semantics — for now
     we use an empty-string sentinel so the suffix collapses to
     ``(source: org)`` per :func:`_provenance_suffix`.
+
+    Repositories are keyed by declared id, so with *kind* and *identity* a
+    selected file stem is looked up by its declared id (FR-017, #6406); the
+    returned map stays keyed by the spelling the charter selected.
     """
     if repository is None or not artifact_ids:
         return {}
@@ -409,7 +454,7 @@ def _collect_org_source_map(
     org_map: dict[str, str] = {}
     for artifact_id in artifact_ids:
         try:
-            source = repository.get_provenance(artifact_id)
+            source = repository.get_provenance(_selection_id(identity, kind, artifact_id))
         except (AttributeError, KeyError):
             source = None
         if source == "org":
@@ -417,11 +462,49 @@ def _collect_org_source_map(
     return org_map
 
 
+#: (service attribute, ``selected_<plural>`` config field, kind) per selection section, in render order.
+_SELECTION_SECTIONS: tuple[tuple[str, str, ArtifactKind], ...] = (
+    ("paradigms", "selected_paradigms", ArtifactKind.PARADIGM),
+    ("directives", "selected_directives", ArtifactKind.DIRECTIVE),
+    ("tactics", "selected_tactics", ArtifactKind.TACTIC),
+    ("styleguides", "selected_styleguides", ArtifactKind.STYLEGUIDE),
+    ("toolguides", "selected_toolguides", ArtifactKind.TOOLGUIDE),
+    ("procedures", "selected_procedures", ArtifactKind.PROCEDURE),
+    ("agent_profiles", "selected_agent_profiles", ArtifactKind.AGENT_PROFILE),
+    ("mission_step_contracts", "selected_mission_step_contracts", ArtifactKind.MISSION_STEP_CONTRACT),
+)
+
+
+def _merge_org_required(
+    catalog_map: dict[str, str],
+    selected_ids: list[str],
+    required_ids: list[str],
+    kind: ArtifactKind,
+    identity: IdentityIndex | None,
+) -> dict[str, str]:
+    """Add org-pack-required ids to *catalog_map*, comparing declared ids.
+
+    A selected token and a required token name one artifact when they resolve
+    to the same declared id, whichever of stem or id each one spells (#6406).
+    The catalog-derived map wins when both are present.
+    """
+    merged = dict(catalog_map)
+    required = {_selection_id(identity, kind, rid) for rid in required_ids}
+    for sid in selected_ids:
+        if sid not in merged and _selection_id(identity, kind, sid) in required:
+            # Sentinel value matches ``_collect_org_source_map``: empty
+            # string collapses to a bare ``(source: org)`` suffix per
+            # :func:`_provenance_suffix`.
+            merged[sid] = ""
+    return merged
+
+
 def _render_selection_block(
     charter_config: GovernanceCharterConfig | None,
     service: object,
     *,
     repo_root: Path | None = None,
+    identity: IdentityIndex | None = None,
 ) -> str:
     """Render the combined 8-kind selection section block.
 
@@ -438,9 +521,16 @@ def _render_selection_block(
     org provenance in the prompt.  The catalog-derived map wins when
     both are present — that path retains the per-artifact provenance the
     ActiveCharterService computed.
+
+    *identity* (FR-017, #6406) resolves a selected file stem or declared id to
+    the repository key; when omitted and *repo_root* is known, an index is built
+    for this call.
     """
     if charter_config is None or service is None:
         return ""
+
+    if identity is None and repo_root is not None:
+        identity = IdentityIndex.build(repo_root)
 
     # WP04 T020: compute the provenance source map ONCE per build, then
     # pass it down to each renderer — avoids the N×repo-walk regression
@@ -456,88 +546,33 @@ def _render_selection_block(
 
     org_required: dict[str, list[str]] = _read_org_required_selections(repo_root) if repo_root is not None else {}
 
-    def _merge(
-        catalog_map: dict[str, str],
-        kind: str,
-        selected_ids: list[str],
-    ) -> dict[str, str]:
-        merged = dict(catalog_map)
-        for sid in selected_ids:
-            if sid in merged:
-                continue
-            if sid in (org_required.get(kind) or []):
-                # Sentinel value matches ``_collect_org_source_map``: empty
-                # string collapses to a bare ``(source: org)`` suffix per
-                # :func:`_provenance_suffix`.
-                merged[sid] = ""
-        return merged
-
-    paradigm_org = _merge(
-        _collect_org_source_map(getattr(service, "paradigms", None), charter_config.selected_paradigms),
-        "paradigms",
-        charter_config.selected_paradigms,
-    )
-    directive_org = _merge(
-        _collect_org_source_map(getattr(service, "directives", None), charter_config.selected_directives),
-        "directives",
-        charter_config.selected_directives,
-    )
-    tactic_org = _merge(
-        _collect_org_source_map(getattr(service, "tactics", None), charter_config.selected_tactics),
-        "tactics",
-        charter_config.selected_tactics,
-    )
-    styleguide_org = _merge(
-        _collect_org_source_map(getattr(service, "styleguides", None), charter_config.selected_styleguides),
-        "styleguides",
-        charter_config.selected_styleguides,
-    )
-    toolguide_org = _merge(
-        _collect_org_source_map(getattr(service, "toolguides", None), charter_config.selected_toolguides),
-        "toolguides",
-        charter_config.selected_toolguides,
-    )
-    procedure_org = _merge(
-        _collect_org_source_map(getattr(service, "procedures", None), charter_config.selected_procedures),
-        "procedures",
-        charter_config.selected_procedures,
-    )
-    agent_profile_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "agent_profiles", None),
-            charter_config.selected_agent_profiles,
-        ),
-        "agent_profiles",
-        charter_config.selected_agent_profiles,
-    )
-    step_contract_org = _merge(
-        _collect_org_source_map(
-            getattr(service, "mission_step_contracts", None),
-            charter_config.selected_mission_step_contracts,
-        ),
-        "mission_step_contracts",
-        charter_config.selected_mission_step_contracts,
-    )
+    org_maps: dict[str, dict[str, str]] = {}
+    for attr, field_name, kind in _SELECTION_SECTIONS:
+        selected: list[str] = getattr(charter_config, field_name)
+        catalog_map = _collect_org_source_map(getattr(service, attr, None), selected, kind=kind, identity=identity)
+        org_maps[attr] = _merge_org_required(catalog_map, selected, org_required.get(attr) or [], kind, identity)
 
     blocks: list[str] = []
     sections = (
-        _render_selected_paradigms(charter_config.selected_paradigms, service, org_source_map=paradigm_org, repo_root=repo_root),
-        _render_selected_directives(charter_config.selected_directives, service, org_source_map=directive_org, repo_root=repo_root),
-        _render_selected_tactics(charter_config.selected_tactics, service, org_source_map=tactic_org, repo_root=repo_root),
-        _render_selected_styleguides(charter_config.selected_styleguides, service, org_source_map=styleguide_org, repo_root=repo_root),
-        _render_selected_toolguides(charter_config.selected_toolguides, service, org_source_map=toolguide_org, repo_root=repo_root),
-        _render_selected_procedures(charter_config.selected_procedures, service, org_source_map=procedure_org, repo_root=repo_root),
+        _render_selected_paradigms(charter_config.selected_paradigms, service, org_source_map=org_maps["paradigms"], repo_root=repo_root, identity=identity),
+        _render_selected_directives(charter_config.selected_directives, service, org_source_map=org_maps["directives"], repo_root=repo_root, identity=identity),
+        _render_selected_tactics(charter_config.selected_tactics, service, org_source_map=org_maps["tactics"], repo_root=repo_root, identity=identity),
+        _render_selected_styleguides(charter_config.selected_styleguides, service, org_source_map=org_maps["styleguides"], repo_root=repo_root, identity=identity),
+        _render_selected_toolguides(charter_config.selected_toolguides, service, org_source_map=org_maps["toolguides"], repo_root=repo_root, identity=identity),
+        _render_selected_procedures(charter_config.selected_procedures, service, org_source_map=org_maps["procedures"], repo_root=repo_root, identity=identity),
         _render_selected_agent_profiles(
             charter_config.selected_agent_profiles,
             service,
-            org_source_map=agent_profile_org,
+            org_source_map=org_maps["agent_profiles"],
             repo_root=repo_root,
+            identity=identity,
         ),
         _render_selected_mission_step_contracts(
             charter_config.selected_mission_step_contracts,
             service,
-            org_source_map=step_contract_org,
+            org_source_map=org_maps["mission_step_contracts"],
             repo_root=repo_root,
+            identity=identity,
         ),
     )
     for section_lines in sections:

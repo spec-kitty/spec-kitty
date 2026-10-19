@@ -375,7 +375,7 @@ def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path, monke
 
     from specify_cli.runtime import doctor
 
-    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"})
+    resolution = SimpleNamespace(template_set="software-dev-default", metadata={"template_set_source": "fallback"}, diagnostics=[])
     monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
 
     check = doctor.check_governance_resolution(tmp_path)
@@ -383,3 +383,36 @@ def test_template_fallback_hint_names_the_real_charter_key(tmp_path: Path, monke
     assert check.passed
     assert "Set governance.charter.template_set in .kittify/charter/charter.yaml" in check.message
     assert "charter.offering" not in check.message
+
+
+def test_governance_check_warns_on_unknown_selection_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6407: a typo'd selection is a warning naming the id, never a green 'Resolved governance'."""
+    from types import SimpleNamespace
+
+    from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
+    from specify_cli.runtime import doctor
+
+    diagnostic = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
+    resolution = SimpleNamespace(
+        template_set="software-dev-default",
+        metadata={},
+        paradigms=[],
+        directives=["QA_003"],
+        tools=[],
+        diagnostics=[diagnostic, "Charter declared additional tool(s) beyond the runtime registry: ruff."],
+    )
+    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
+
+    check = doctor.check_governance_resolution(tmp_path)
+
+    assert check.severity == "warning"
+    assert "NOPE_999" in check.message
+    assert "ruff." not in check.message  # only unknown-selection entries are listed
+
+    clean = SimpleNamespace(**{**vars(resolution), "diagnostics": []})
+    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: clean)
+    control = doctor.check_governance_resolution(tmp_path)
+    assert control.severity == "info"
+    assert control.message.startswith("Resolved governance")

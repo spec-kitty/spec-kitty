@@ -119,8 +119,9 @@ def test_org_stem_and_literal_id_do_not_conflate_aliases(tmp_path: Path, activat
 
 
 def test_populated_activation_resolves_once_per_service_and_new_service_refreshes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from charter.activation import resolver
     from charter.activation.active_charter_service_builder import build_active_charter_service
+    from charter.activation.identity_index import IdentityEntry, IdentityIndex
+    from charter.offering.artifact_kinds import ArtifactKind
 
     (tmp_path / ".kittify").mkdir()
     pack = tmp_path / "org"
@@ -131,14 +132,14 @@ def test_populated_activation_resolves_once_per_service_and_new_service_refreshe
         f"charter_packs:\n  org:\n    packs:\n      - name: org\n        local_path: '{pack}'\nactivated_directives: [policy]\n"
     )
     calls = 0
-    original = resolver.resolve_artifact_urn
+    original = IdentityIndex._scan
 
-    def counted_resolution(*args: object, **kwargs: object) -> str:
+    def counted_scan(self: IdentityIndex, kind: ArtifactKind) -> list[IdentityEntry]:
         nonlocal calls
         calls += 1
-        return original(*args, **kwargs)
+        return original(self, kind)
 
-    monkeypatch.setattr(resolver, "resolve_artifact_urn", counted_resolution)
+    monkeypatch.setattr(IdentityIndex, "_scan", counted_scan)
     service = build_active_charter_service(tmp_path)
     assert set(service.directives) == {"FIRST-POLICY"}
     first_calls = calls

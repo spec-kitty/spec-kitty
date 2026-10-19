@@ -50,7 +50,7 @@ from charter.activation.kind_vocabulary import (
     resolve_artifact_urn,
 )
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
+from charter.activation.pack_manager import YAML_KEY_MAP, ActivationResult, ActiveCharterManager
 from charter.activation.preset_application import (
     PresetApplicationError,
     PresetPlan,
@@ -59,6 +59,7 @@ from charter.activation.preset_application import (
 )
 from charter.packs import PresetFormatError
 from charter.activation.project_registration import (
+    ProjectRegistrationPlan,
     commit_project_registration,
     plan_project_registration,
 )
@@ -765,7 +766,7 @@ _PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force
 _DEFAULT_SOURCE = "DEFAULT"
 
 
-def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: bool, cascade: str | None) -> None:
+def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: bool, cascade: str | None, only: bool = False) -> None:
     """Enforce the ``--preset`` flag rules through Click's usage path (exit 2, before any I/O).
 
     Refusals go through ``ctx.fail``, which raises the ``UsageError`` of the click
@@ -777,6 +778,8 @@ def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: b
             ctx.fail("--preset cannot be combined with a positional KIND ARTIFACT_ID.")
         if cascade is not None:
             ctx.fail("--cascade cannot be combined with --preset (presets do not cascade).")
+        if only:
+            ctx.fail("--only cannot be combined with --preset (a preset already replaces every key it governs).")
         return
     given = [flag for name, flag in _PRESET_ONLY_OPTIONS if parameter_source_name(ctx, name) != _DEFAULT_SOURCE]
     if given:
@@ -849,6 +852,16 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     console.emit_json(_preset_payload(plan))
 
 
+def _render_activation_result(result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool) -> None:
+    """Print what ``manager.activate`` did: activated ids, warnings and, for ``--only``, what dropped."""
+    for msg in result.activated:
+        console.print(f"[green]Activated[/green]: {msg}")
+    for warn in (*registration.warnings, *result.warnings):
+        console.print(f"[yellow]Warning[/yellow]: {warn}")
+    if only:
+        console.print(f"[yellow]No longer in force ({len(result.deactivated)})[/yellow]: {escape(', '.join(result.deactivated)) or '(none)'}")
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -888,6 +901,11 @@ def activate_cmd(
         help="Apply the preset even when it changes a customised activation key. Only with --preset.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output the applied preset as JSON. Only with --preset."),
+    only: bool = typer.Option(
+        False,
+        "--only",
+        help="Replace this kind's activation list with this id plus org-required ids (prints what stops being in force).",
+    ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.
@@ -904,7 +922,7 @@ def activate_cmd(
     """
     if ctx.invoked_subcommand is not None:
         return
-    _check_preset_flags(ctx, preset=preset, positional=kind is not None or artifact_id is not None, cascade=cascade)
+    _check_preset_flags(ctx, preset=preset, positional=kind is not None or artifact_id is not None, cascade=cascade, only=only)
     if preset is not None:
         _activate_preset(repo_root, pack, preset, force=force, json_output=json_output, compile_catalog=compile_catalog, resynthesize=resynthesize)
         return
@@ -987,16 +1005,14 @@ def activate_cmd(
             cascade=scope is not None,
             layer_roots=layer_roots,
             org_root_chain=resolve_pack_chain(repo_root, strict=True),
+            only=only,
         )
     except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
     commit_project_registration(registration)
-    for msg in result.activated:
-        console.print(f"[green]Activated[/green]: {msg}")
-    for warn in (*registration.warnings, *result.warnings):
-        console.print(f"[yellow]Warning[/yellow]: {warn}")
+    _render_activation_result(result, registration, only=only)
 
     # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
     # tension-finding.md). Rendered right after the activation-result

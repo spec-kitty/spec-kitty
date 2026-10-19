@@ -524,6 +524,20 @@ def charter_synthesize(  # noqa: C901
                 orphaned=orphaned,
             )
 
+        # #6404: append the tactics this run created to an explicit
+        # ``activated_tactics`` list (absent key stays absent). Reached only
+        # after the dry-run return and the orphan refusal above.
+        from charter.activation.synthesizer.reach_only import (
+            append_synthesized_tactic_activations,
+            manifest_tactic_slugs,
+        )
+
+        activation_warnings = append_synthesized_tactic_activations(repo_root, manifest_tactic_slugs(repo_root))
+        warnings_collected.extend(activation_warnings)
+        if not json_output:
+            for warning in activation_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
+
         # FR-003: ``written_artifacts`` is sourced from the on-disk
         # synthesis manifest the write pipeline wrote last (KD-2 commit
         # marker). Each entry's ``artifact_id`` is read from the matching

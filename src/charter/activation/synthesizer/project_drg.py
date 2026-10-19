@@ -213,7 +213,25 @@ def _registered_project_artifacts(project_root: Path) -> tuple[ProjectArtifact, 
         if (project_root / entry.provenance_path).exists()
         and load_provenance(project_root / entry.provenance_path).adapter_id == "project-direct-write"
     )
-    return scan_project_artifacts(project_root, paths=paths)
+    scanned: tuple[ProjectArtifact, ...] = tuple(scan_project_artifacts(project_root, paths=paths))
+    return scanned
+
+
+def _derived_edge(target: SynthesisTarget, urn: str, source_urn: str) -> DRGEdge:
+    """Return the DRG edge linking synthesized *target* (``urn``) to *source_urn* (#6404)."""
+    if target.kind == "tactic":
+        return DRGEdge(
+            source=source_urn,
+            target=urn,
+            relation=Relation.SUGGESTS,
+            reason=f"Synthesized tactic {target.slug!r} is how this project applies the directive",
+        )
+    return DRGEdge(
+        source=urn,
+        target=source_urn,
+        relation=Relation.REQUIRES,
+        reason=f"Derived from synthesis target {target.slug!r}",
+    )
 
 
 def emit_project_layer(
@@ -346,34 +364,27 @@ def emit_project_layer(
         )
         nodes.append(node)
 
-        # Derive edges from source_urns: project node *derived_from* (or
-        # *requires* for directives) the upstream built-in/project URN.
+        # Derive edges from source_urns (#6404).  A directive target points at
+        # its upstream (``requires``).  A how-we-apply tactic is linked FROM the
+        # directive it applies: ``directive --suggests--> tactic``, a relation
+        # context resolution and the charter cascade actually follow (the old
+        # ``tactic --applies--> directive`` edge was traversed by nothing).
         for source_urn in target.source_urns:
-            relation = (
-                Relation.REQUIRES if target.kind == "directive"
-                else Relation.APPLIES
-            )
-            triple = (urn, source_urn, relation.value)
+            edge = _derived_edge(target, urn, source_urn)
+            triple = (edge.source, edge.target, edge.relation.value)
 
             # FR-020: reject edges whose triple already exists in built-in.
             if triple in built_in_edge_triples:
                 raise ProjectDRGValidationError(
                     errors=(
                         f"Duplicate edge (FR-020 / EC-6): triple "
-                        f"({urn!r} --{relation.value}--> {source_urn!r}) "
+                        f"({edge.source!r} --{edge.relation.value}--> {edge.target!r}) "
                         f"already exists in the built-in DRG layer.",
                     ),
                     merged_graph_summary=(
-                        f"colliding_edge=({urn} --{relation.value}--> {source_urn})"
+                        f"colliding_edge=({edge.source} --{edge.relation.value}--> {edge.target})"
                     ),
                 )
-
-            edge = DRGEdge(
-                source=urn,
-                target=source_urn,
-                relation=relation,
-                reason=f"Derived from synthesis target {target.slug!r}",
-            )
             edges.append(edge)
 
     # M6 (#3038): compose hand-authored project agent_profile nodes. These are
