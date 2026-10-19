@@ -424,3 +424,47 @@ def test_legacy_styleguide_applies_edge_is_stripped_and_reported() -> None:
     assert scoped.edges == [legacy]  # control: a topic-scoped run leaves an untargeted node's edge alone
     assert legacy_applies_edges(existing, synthesized) == (legacy,)
     assert legacy_applies_edges(existing, set()) == ()  # control: an unsynthesized styleguide keeps it
+
+
+# --------------------------------------------------------------------------
+# Edge-less styleguides keep today's activation semantics (scenario 6, review cycle 1)
+# --------------------------------------------------------------------------
+
+
+def test_only_reach_only_styleguides_are_appended_to_an_explicit_list(tmp_path: Path) -> None:
+    """The language_scope styleguide has no source edge: it is never appended (it would become a root)."""
+    charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
+    _install_overlay(tmp_path, _overlay())
+
+    _append(tmp_path, styleguide=[_TESTING_STYLEGUIDE, _LANGUAGE_STYLEGUIDE])
+
+    assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, _TESTING_STYLEGUIDE]
+    assert _LANGUAGE_STYLEGUIDE not in _record(tmp_path)["created_styleguides"]
+
+
+def test_table_styleguide_without_its_directive_is_not_appended(tmp_path: Path) -> None:
+    """DIRECTIVE_034 absent from the snapshot: no edge, so the testing styleguide is not reach-only."""
+    charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
+    _install_overlay(tmp_path, _overlay(directives=("DIRECTIVE_030", "DIRECTIVE_037")))
+
+    _append(tmp_path, styleguide=[_TESTING_STYLEGUIDE, "quality-gates-style-guide"])
+
+    assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, "quality-gates-style-guide"]
+
+
+def test_created_slugs_by_kind_names_every_reach_only_kind() -> None:
+    from charter.activation.synthesizer.reach_only import created_slugs_by_kind
+    from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ManifestDelta, ManifestEntryRef, ReconciliationDelta
+
+    delta = ReconciliationDelta(
+        manifest_delta=ManifestDelta(
+            retained=(),
+            added=(
+                ManifestEntryRef(kind="styleguide", slug="s1", backing_artifact="p"),
+                ManifestEntryRef(kind="tactic", slug="t1", backing_artifact="p"),
+            ),
+        )
+    )
+
+    assert created_slugs_by_kind(delta) == {"tactic": ["t1"], "styleguide": ["s1"]}
+    assert set(created_slugs_by_kind(None)) == set(REACH_ONLY_KINDS)
