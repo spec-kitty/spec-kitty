@@ -2,6 +2,11 @@
 
 > Created: 2026-01-27
 > Version: 1.5.0
+> Updated: 2026-10-19 — the autonomous agent fleet (SkyKitty) is switched off (#6503):
+> Collaboration Strategy, Standing Order #7, Governance by Workflow Action (Merge), Agent
+> Push Authorization and PR Requirements no longer say fleet agents or a programme merge
+> agent own CI, review or merge. Current practice: draft PR first, the lean modular CI and
+> in-session reviewers (human or agent) own review, the operator merges.
 > Updated: 2026-10-12 — 4.x October direction (operator ruling): 4.0.0 GA is
 > done-when-done, no longer date-gated (RCs keep shipping to early adopters off
 > `main`; red-CI-no-release per RC, Standing Order #9); the GA gate expands from
@@ -128,7 +133,7 @@ the cheapest point in the lifecycle.
    improvise or copy an older mission; chase unification, not parity; a missing
    command is a gap to file upstream; guard the terminology canon. → `DIRECTIVE_044`,
    `canonical-source-unification`, `terminology-guard`.
-7. **Git & workflow discipline.** PRs only, the programme merge agent merges;
+7. **Git & workflow discipline.** PRs only, the operator merges;
    read intent before any high-risk op; isolate PR-touching agents in a worktree;
    no version numbers in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
 8. **Mission hygiene.** Reviewer and implementer are distinct roles; every addressed
@@ -219,9 +224,10 @@ How agents and orchestrators should work so quality and context survive long mis
 
 ## Collaboration Strategy
 
-How missions are executed between the operator (human-in-command) and the agent fleet
-(**SkyKitty** — see [The SkyKitty agent fleet](../../docs/development/agent-fleet.md) for the
-roles and the `ready-for-squad` handshake).
+How missions are executed between the operator (human-in-command) and the governed
+agents working in session. The autonomous agent fleet (**SkyKitty**) is switched off; see
+[The SkyKitty agent fleet](../../docs/development/agent-fleet.md) for its former roles.
+`ready-for-squad` remains only as a human workflow-state label.
 
 - **Dispatch a governed profile to run the mission.** The operator delegates mission
   execution to a governed orchestrator; planning and tracker work runs under
@@ -231,9 +237,10 @@ roles and the `ready-for-squad` handshake).
   **runs** the implement→review loop to completion.
 - **Issue branch first.** Completed mission work is opened from an
   `issue-<n>-<slug>` branch as a pull request targeting `main`, with compact history.
-- **Ready for squad only when complete.** The implementer runs the required tests and
-  self-review, then labels the PR `ready-for-squad`; fleet agents own CI and review.
-- **The merge agent merges.** Implementers never merge. → git/workflow discipline
+- **Draft PR first.** The implementer runs the required tests and self-review, then
+  opens the PR as a draft; the lean modular CI and in-session reviewers (human or agent)
+  own review. No autonomous fleet picks the PR up.
+- **The operator merges.** Implementers never merge. → git/workflow discipline
   (`DIRECTIVE_045`), Agent Operating Discipline above.
 
 ## Governance by Workflow Action
@@ -255,7 +262,7 @@ context for the detail).
   work (`NO_FULL_HEAVY_SUITES_IN_MISSION`); verify no duplicate authority, no
   dead code, and live evidence; apply tiered rigour; grant ownership-map
   leeway (no-overlap is the real guard).
-- **Merge** — PRs only, the programme merge agent merges; isolated PR-review
+- **Merge** — PRs only, the operator merges; isolated PR-review
   agents; post-merge full arch-gate sweep with a cross-base pre-existing check;
   issue-matrix + tracker hygiene.
 
@@ -484,7 +491,7 @@ Agents are **not allowed** to push directly to `origin/main` under any circumsta
 2. Create the ticket branch: `git checkout -b issue-<n>-<slug>`
 3. Push it: `git push origin issue-<n>-<slug>`
 4. Open a PR targeting `main`: `gh pr create --title "..." --body "..."`
-5. Do **not** merge it; the programme merge agent owns that step.
+5. Do **not** merge it; the operator owns that step.
 
 **Required workflow for all other changes (hotfixes, docs, config):**
 1. Start work on a named branch, never on `main` directly.
@@ -507,8 +514,9 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 ### Pull Request Requirements
 
 - Use the exact PR body sections from programme `PROGRAM.md` §5.
-- Run the implementer tests from §6 and label complete work `ready-for-squad`.
-- Implementers never merge; the fleet owns CI, squad review, and merge.
+- Run the implementer tests from §6 and open complete work as a draft PR.
+- Implementers never merge; the lean modular CI and in-session reviewers (human or
+  agent) own review, and the operator merges.
 
 **Readable and consistent PRs are binding** (directive `046-readable-consistent-prs`, active). Every mission branch / PR an agent hands the operator must be:
 
