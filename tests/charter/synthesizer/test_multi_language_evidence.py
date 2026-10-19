@@ -147,6 +147,31 @@ def test_residue_below_the_threshold_is_not_listed(tmp_path: Path) -> None:
     assert signals.languages == ("python",)
 
 
+def test_tooling_only_manifest_does_not_add_a_language(tmp_path: Path) -> None:
+    """DM-01M5ASPC: a manifest alone only nominates; a root ``package.json`` plus a couple of ``.js`` config files is no JavaScript."""
+    _python_only(tmp_path)
+    for index in range(8):
+        _write(tmp_path, f"src/m{index}.py")
+    _write(tmp_path, "package.json", "{}")
+    _write(tmp_path, "karma.conf.js")
+    _write(tmp_path, "scripts/build.js")
+    signals = CodeReadingCollector(tmp_path).collect()
+    assert signals.primary_language == "python"
+    assert signals.languages == ("python",)
+
+
+def test_a_manifest_language_at_the_threshold_share_is_still_listed(tmp_path: Path) -> None:
+    """The 20% line is inclusive: 2 of 10 counted sources lists the secondary language."""
+    _python_only(tmp_path)  # 3 python sources
+    for index in range(5):
+        _write(tmp_path, f"src/m{index}.py")  # 8 python in total
+    _write(tmp_path, "package.json", "{}")
+    _write(tmp_path, "a.js")
+    _write(tmp_path, "b.js")
+    signals = CodeReadingCollector(tmp_path).collect()
+    assert signals.languages == ("python", "javascript")
+
+
 def test_single_language_repository_lists_one_entry(tmp_path: Path) -> None:
     signals = CodeReadingCollector(_python_only(tmp_path)).collect()
     assert signals.languages == ("python",)

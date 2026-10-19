@@ -71,7 +71,7 @@ copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
 | `--available-tools TEXT` | Comma-separated tool IDs override | — |
 | `--narrow-activation` | Replace (not append to) activated directives, tactics and paradigms with the selection plus org-required ids; kinds with no selection are untouched | — |
 | `--mission-slug TEXT` | Mission slug for decision moment paper trail (optional) | — |
-| `--json` | Output JSON (adds `languages` and `languages_source`: `stored`, `confirmed`, `detected` or `none`) | — |
+| `--json` | Output JSON (adds `languages`, `languages_source`: `stored`, `confirmed`, `detected` or `none`, and `languages_notice`: a human-readable notice when the list was detected and stored, else `null`) | — |
 
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
@@ -98,8 +98,23 @@ The key is a plain top-level `languages` list because `charter:` (the charter.ya
   if valid entries remain they alone are used, and if none remain (or the list is empty or not a
   list) the key reads as absent and detection applies. Answer `none` to leave the key unset.
 - **Re-running.** A later interactive interview shows the stored list as the default.
-- **`--defaults` and non-interactive runs** (`SPEC_KITTY_NON_INTERACTIVE=1`, no TTY) never prompt:
-  they store the detected list only when the key is absent and never overwrite a stored list.
+- **Detection rule (20%).** A manifest alone only nominates a candidate for the primary language;
+  it never lists a language by itself (a tooling-only `package.json` in a Python repository does not
+  add `javascript`). The primary language is always listed; a secondary language is detected only
+  when it holds at least 20% of the counted source files. One rule applies everywhere detection
+  runs: the interview proposal, synthesis evidence and `infer_repo_languages`.
+- **The language step never prompts under `--defaults` or `SPEC_KITTY_NON_INTERACTIVE=1` (or no TTY).**
+  Only the language step is non-interactive: without `--defaults`, the remaining interview
+  questions still prompt. When the key is absent, that step stores the detected list. It never
+  overwrites a stored list. The stored list is detected, not confirmed, so the interview says so:
+  text output prints a `Notice` naming the stored list, that it was detected and how to change it
+  (edit `languages:` in `.kittify/config.yaml`, or re-run `spec-kitty charter interview`
+  interactively); `--json` carries `languages`, `languages_source: "detected"` and
+  `languages_notice`.
+- **Typos.** An interactive answer that is not a catalog list is asked again (up to three
+  attempts), then the interview fails without writing.
+- **Compiled catalog.** When the key is set, the compiled `catalog.languages` stamp, and therefore
+  the bundle hash, follows it.
 
 **Examples**:
 ```bash
