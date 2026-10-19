@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: issue-6442-charter-synthesis-graph-work
 merge_target_branch: issue-6442-charter-synthesis-graph-work
 branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-synthesis-graph-and-languages-01M59RZ5
+base_commit: 08f617b050721dc3140f62e8ab1604458fb175a7
+created_at: '2026-10-19T10:25:48.938649+00:00'
 subtasks:
 - T005
 - T006
