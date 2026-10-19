@@ -154,18 +154,29 @@ class _KindIdentity:
             self._kind = None
         self._index = index
 
-    def declared_id(self, stem: str) -> str | None:
-        """Declared id of *stem* (or of a declared-id token); ``None`` when unknown."""
-        return self._index.declared_id(self._kind, stem) if self._kind is not None else None
+    def declared_id(self, stem: str, layer: str | None = None) -> str | None:
+        """Declared id of *stem* (or of a declared-id token); ``None`` when unknown.
 
-    def is_activated(self, stem: str, activated: frozenset[str]) -> bool:
+        With *layer* the id comes from that layer's own file, so a shadowed row never
+        borrows the id of a higher layer that reuses its stem; a layer without such a
+        file falls back to the cross-layer lookup.
+        """
+        if self._kind is None:
+            return None
+        if layer is not None:
+            own = self._index.declared_id_in_layer(self._kind, stem, layer)
+            if own is not None:
+                return own
+        return self._index.declared_id(self._kind, stem)
+
+    def is_activated(self, stem: str, activated: frozenset[str], layer: str | None = None) -> bool:
         """Whether *stem* is activated under either of its spellings."""
-        declared = self.declared_id(stem)
+        declared = self.declared_id(stem, layer)
         return stem in activated or (declared is not None and declared in activated)
 
-    def label(self, token: str) -> str:
+    def label(self, token: str, layer: str | None = None) -> str:
         """``stem (declared_id)`` when a token's stem and declared id differ, else the token."""
-        declared = self.declared_id(token)
+        declared = self.declared_id(token, layer)
         stem = (self._index.stem(self._kind, token) if self._kind is not None else None) or token
         return f"{stem} ({declared})" if declared is not None and declared != stem else stem
 
@@ -179,12 +190,12 @@ def _render_available(entries: list[AvailableArtifact], activated: frozenset[str
     output is sorted by ``(id, layer)`` for determinism.
     """
     not_activated = sorted(
-        ((e.artifact_id, e.layer) for e in entries if not identity.is_activated(e.artifact_id, activated)),
+        ((e.artifact_id, e.layer) for e in entries if not identity.is_activated(e.artifact_id, activated, e.layer)),
         key=lambda pair: (pair[0], pair[1]),
     )
     if not not_activated:
         return "[dim]—[/dim]"
-    return ", ".join(f"{identity.label(aid)} [dim]({layer})[/dim]" for aid, layer in not_activated)
+    return ", ".join(f"{identity.label(aid, layer)} [dim]({layer})[/dim]" for aid, layer in not_activated)
 
 
 def _render_templates(refs: list[TemplateRef]) -> str:
@@ -319,7 +330,7 @@ def list_cmd(
                         (
                             (e.artifact_id, e.layer)
                             for e in entries
-                            if not identity.is_activated(e.artifact_id, activated_set)
+                            if not identity.is_activated(e.artifact_id, activated_set, e.layer)
                         ),
                         key=lambda pair: (pair[0], pair[1]),
                     )
@@ -328,7 +339,7 @@ def list_cmd(
                         {
                             "artifact_id": aid,
                             "layer": layer,
-                            "declared_id": identity.declared_id(aid) or aid,
+                            "declared_id": identity.declared_id(aid, layer) or aid,
                         }
                         for aid, layer in not_activated_entries
                     ]

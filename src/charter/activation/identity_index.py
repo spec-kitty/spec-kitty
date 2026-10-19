@@ -254,6 +254,17 @@ class IdentityIndex:
         entry = self._lookup(kind, token)
         return entry.declared_id if entry is not None else None
 
+    def declared_id_in_layer(self, kind: ArtifactKind, stem: str, layer: str) -> str | None:
+        """Declared id of the file *stem* in exactly *layer*; ``None`` when that layer has no such file.
+
+        Unlike :meth:`declared_id` (first match across layers), this never lets a
+        higher layer that reuses the stem answer for a shadowed lower-layer row.
+        """
+        for entry in self._table(kind).entries:
+            if entry.stem == stem and entry.layer == layer:
+                return entry.declared_id
+        return None
+
     def knows(self, kind: ArtifactKind, token: str) -> bool:
         """Whether *token* names a known artifact of *kind*."""
         return self._lookup(kind, token) is not None
