@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02/WP09 approved: tests/charter/test_resolver.py unknown dropped + tests/specify_cli/cli/commands/test_charter_org_directive_identity.py JSON diagnostics exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:08:32.357616+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
