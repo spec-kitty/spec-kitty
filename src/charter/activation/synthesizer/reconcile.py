@@ -220,8 +220,11 @@ class ReconciliationOutcome:
 
 
 LEGACY_APPLIES_REASON = "legacy applies edge replaced by suggests"
+DEAD_MISSION_TYPE_EDGE_REASON = "dead mission-type requires edge removed (#6443)"
 
 _DIRECTIVE_URN_PREFIX = "directive:"
+_SYNTHESIZED_DIRECTIVE_URN_PREFIX = "directive:PROJECT_"
+_MISSION_TYPE_URN_PREFIX = "mission_type:"
 
 #: Kinds a synthesis run links FROM their source directive (``directive --suggests--> <kind>``)
 #: so they reach action context only through that edge (#6404 tactics, #6442 styleguides).
@@ -286,18 +289,37 @@ def synthesized_node_urns(manifest: SynthesisManifest) -> frozenset[str]:
     return frozenset(f"{e.kind}:{e.slug}" for e in manifest.artifacts if e.kind != "directive")
 
 
+def _is_dead_mission_type_edge(edge: DRGEdge, regenerated_urns: Collection[str] | None = None) -> bool:
+    """A ``directive:PROJECT_* --requires--> mission_type:*`` edge the project-intent directive no longer carries (#6443).
+
+    Synthesis stopped emitting it: no traversal reads it and the directive is not scoped to a
+    mission type. Only an edge whose source is a synthesized (``PROJECT_*``) directive qualifies;
+    a hand-authored edge between other nodes is left alone. With *regenerated_urns* given (a
+    topic-scoped run) only a source regenerated in this run qualifies.
+    """
+    return (
+        edge.relation is Relation.REQUIRES
+        and edge.source.startswith(_SYNTHESIZED_DIRECTIVE_URN_PREFIX)
+        and edge.target.startswith(_MISSION_TYPE_URN_PREFIX)
+        and (regenerated_urns is None or edge.source in regenerated_urns)
+    )
+
+
 def _is_legacy_applies(
     edge: DRGEdge,
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
 ) -> bool:
-    """A legacy ``<kind> --applies--> ...`` edge on a synthesized reach-only artifact (#6404, #6442).
+    """A legacy edge a run strips: ``<kind> --applies--> ...`` on a synthesized reach-only artifact
+    (#6404, #6442) or the dead project-intent ``requires --> mission_type:*`` edge (#6443).
 
-    Only sources of a kind in :data:`REACH_ONLY_KINDS` qualify: the current shape
-    links FROM the directive, so a source-side ``applies`` edge is legacy. With
-    *regenerated_urns* given (a topic-scoped run) only an
-    owner regenerated in this run qualifies; an untargeted node is left untouched.
+    Only sources of a kind in :data:`REACH_ONLY_KINDS` qualify for the ``applies`` case: the current
+    shape links FROM the directive, so a source-side ``applies`` edge is legacy. With
+    *regenerated_urns* given (a topic-scoped run) only an owner regenerated in this run qualifies;
+    an untargeted node is left untouched.
     """
+    if _is_dead_mission_type_edge(edge, regenerated_urns):
+        return True
     return (
         edge.relation is Relation.APPLIES
         and edge.source.startswith(_REACH_ONLY_URN_PREFIXES)
@@ -306,8 +328,14 @@ def _is_legacy_applies(
     )
 
 
+def _strip_reason(edge: DRGEdge) -> str:
+    return DEAD_MISSION_TYPE_EDGE_REASON if _is_dead_mission_type_edge(edge) else LEGACY_APPLIES_REASON
+
+
 def legacy_strip_notice(edge: DRGEdge) -> str:
-    """Operator-facing line naming one stripped legacy ``applies`` edge (#6404)."""
+    """Operator-facing line naming one stripped legacy edge (#6404, #6443)."""
+    if _is_dead_mission_type_edge(edge):
+        return f"{DEAD_MISSION_TYPE_EDGE_REASON}: {edge.source} --requires--> {edge.target}"
     return f"{LEGACY_APPLIES_REASON}: {edge.source} --applies--> {edge.target}"
 
 
@@ -592,7 +620,7 @@ def _graph_delta(
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns
     ) + tuple(_edge_ref(e, urn_to_path, overlay_urns) for e in fresh_overlay.edges if not _owner_in(e, existing_node_urns))
-    stripped_refs = tuple(_edge_ref(e, urn_to_path, overlay_urns, reason=LEGACY_APPLIES_REASON) for e in legacy)
+    stripped_refs = tuple(_edge_ref(e, urn_to_path, overlay_urns, reason=_strip_reason(e)) for e in legacy)
     return preserved_refs, added_refs, preserved_refs + stripped_refs
 
 

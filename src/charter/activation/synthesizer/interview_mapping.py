@@ -51,7 +51,6 @@ from charter.offering.missions.mission_type_repository import builtin_mission_ty
 
 __all__ = [
     "canonicalize_interview_section_label",
-    "mission_type_urn_candidate",
     "normalize_interview_snapshot",
     "resolve_sections",
 ]
@@ -173,20 +172,6 @@ _MISSION_IDENTIFIER_ANSWERS: frozenset[str] = frozenset(
         for mission_type_id in builtin_mission_type_ids()
     }
 )
-
-# #3052 edge wiring (FR-012/NFR-007): underscore-normalized mission-type
-# identifier -> its ``mission_type:<id>`` DRG URN (built-in NodeKind.MISSION_TYPE,
-# see charter/offering/drg/models.py). Derived from the SAME canonical
-# ``builtin_mission_type_ids()`` read as ``_MISSION_IDENTIFIER_ANSWERS`` above
-# (single source of truth, #2669 IC-1a) so the two tables can never drift.
-# This is the ONLY additional evidence source wired by WP07: when the
-# ``mission_type`` answer IS (up to hyphen/underscore normalization) a shipped
-# mission-type id, that identity *is* the declared upstream URN -- not an
-# inferred relationship (NFR-007 no-fabrication).
-_MISSION_TYPE_URN_BY_NORMALIZED_ID: dict[str, str] = {
-    mission_type_id.replace("-", "_"): f"mission_type:{mission_type_id}"
-    for mission_type_id in builtin_mission_type_ids()
-}
 
 # Gated sections without a direct producer key. These remain accepted for
 # legacy/synthetic synthesis snapshots and are documented so contract tests do
@@ -322,28 +307,6 @@ def _section_answer_with_source(
             if answer:
                 return answer, key
     return "", section_label
-
-
-def mission_type_urn_candidate(answer: str) -> str | None:
-    """Return the ``mission_type:<id>`` URN *answer* would declare, or ``None``.
-
-    #3052 edge wiring (FR-012/NFR-007): ``answer`` is genuine evidence exactly
-    when it (up to hyphen/underscore normalization, mirroring
-    ``_MISSION_IDENTIFIER_ANSWERS``) names a shipped mission-type id -- the
-    built-in DRG carries a ``mission_type:<id>`` node for each one
-    (``charter.offering.drg.models.NodeKind.MISSION_TYPE``). A free-text answer that
-    does not name a shipped id carries no such evidence, so ``None`` is
-    returned -- never inferred, never fabricated.
-
-    This function only answers "does the answer name a shipped mission-type
-    id" -- it does NOT confirm the URN is present in any particular run's DRG
-    snapshot. Callers (``targets.build_targets``, R-9 forbids DRG access
-    here) are responsible for that presence check before wiring the URN as a
-    ``source_urns`` entry, so an incomplete DRG snapshot never turns into a
-    dangling-URN validation failure.
-    """
-    normalized = _normalize_section_selector(answer)
-    return _MISSION_TYPE_URN_BY_NORMALIZED_ID.get(normalized)
 
 
 def _append_table_driven_results(

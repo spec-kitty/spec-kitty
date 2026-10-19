@@ -179,7 +179,7 @@ class TestSynthesizeHappyPath:
 
         mock_result = MagicMock()
         mock_result.target_kind = "directive"
-        mock_result.target_slug = "mission-type-scope-directive"
+        mock_result.target_slug = "project-intent-directive"
         mock_result.inputs_hash = "abc123def456"
         mock_result.effective_adapter_id = "fixture"
         mock_result.effective_adapter_version = "1.0.0"
@@ -239,7 +239,7 @@ class TestSynthesizeHappyPath:
 
         mock_result = MagicMock()
         mock_result.target_kind = "directive"
-        mock_result.target_slug = "mission-type-scope-directive"
+        mock_result.target_slug = "project-intent-directive"
         mock_result.inputs_hash = "abc123def456"
         mock_result.effective_adapter_id = "fixture"
         mock_result.effective_adapter_version = "1.0.0"

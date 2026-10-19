@@ -1,6 +1,6 @@
 id: PROJECT_001
 schema_version: '1.0'
-title: Mission Type Directive
+title: Project Intent Directive
 intent: >
   Define the primary mission scope and core user outcome that this project
   optimizes for, establishing a clear boundary for all development activity.

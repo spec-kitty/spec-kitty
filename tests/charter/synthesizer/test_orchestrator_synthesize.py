@@ -93,8 +93,8 @@ def full_request(
     """A SynthesisRequest with a direct target (for orchestrator.synthesize())."""
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )
@@ -232,8 +232,8 @@ class TestIdempotency:
         """Different run_ids with identical semantic inputs produce identical hashes."""
         target = SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
-            title="Mission Type Scope Directive",
+            slug="project-intent-directive",
+            title="Project Intent Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )
@@ -282,8 +282,8 @@ class TestNoOpStableSynthesis:
     ) -> SynthesisRequest:
         target = SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
-            title="Mission Type Scope Directive",
+            slug="project-intent-directive",
+            title="Project Intent Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )
@@ -429,8 +429,8 @@ class TestDanglingURNValidation:
 
         target = SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
-            title="Mission Type Scope Directive",
+            slug="project-intent-directive",
+            title="Project Intent Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )

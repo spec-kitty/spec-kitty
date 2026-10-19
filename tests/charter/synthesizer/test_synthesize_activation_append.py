@@ -38,8 +38,8 @@ _CHARTER_YAML = "schema_version: '2.0.0'\ngovernance: {}\ndirectives: {}\nmetada
 def _request(run_id: str) -> SynthesisRequest:
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )

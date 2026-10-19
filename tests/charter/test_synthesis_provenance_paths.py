@@ -196,8 +196,8 @@ class TestFullSynthesisProducesNoDoubledPaths:
         adapter = FixtureAdapter(fixture_root=_fixture_root)
         target = SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
-            title="Mission Type Scope Directive",
+            slug="project-intent-directive",
+            title="Project Intent Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )

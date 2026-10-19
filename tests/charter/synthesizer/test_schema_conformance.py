@@ -363,11 +363,11 @@ class TestRunAllSchemaConformance:
         """
         request = _make_direct_request(
             kind="directive",
-            slug="mission-type-scope-directive",
+            slug="project-intent-directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )
-        # The empty interview will still produce mission-type-scope-directive
+        # The empty interview will still produce project-intent-directive
         # (mission_type is requires_nonempty=False). Inject invalid body for directive.
         adapter = KindRouterAdapter({"directive": INVALID_DIRECTIVE_BODY})
 
@@ -447,7 +447,7 @@ class TestRunAllSchemaConformance:
         """run_all() with all-valid bodies returns (body, ProvenanceEntry) tuples."""
         request = _make_direct_request(
             kind="directive",
-            slug="mission-type-scope-directive",
+            slug="project-intent-directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )
@@ -517,7 +517,7 @@ class TestProvenanceEntryFields:
         """Request whose empty interview falls back to request.target (directive)."""
         return _make_direct_request(
             kind="directive",
-            slug="mission-type-scope-directive",
+            slug="project-intent-directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         )

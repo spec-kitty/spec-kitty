@@ -34,8 +34,8 @@ VALID_DIRECTIVE_BODY = {
 def _directive_request(evidence: EvidenceBundle | None = None) -> SynthesisRequest:
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )
@@ -56,7 +56,7 @@ def _generated_directive_path(repo_root: Path) -> Path:
         / "charter"
         / "generated"
         / "directives"
-        / "001-mission-type-scope-directive.directive.yaml"
+        / "001-project-intent-directive.directive.yaml"
     )
 
 
@@ -83,7 +83,7 @@ def test_generated_adapter_missing_file_raises(tmp_path: Path) -> None:
     with pytest.raises(GeneratedArtifactMissingError) as exc_info:
         adapter.generate(request)
 
-    assert "001-mission-type-scope-directive.directive.yaml" in exc_info.value.expected_path
+    assert "001-project-intent-directive.directive.yaml" in exc_info.value.expected_path
     assert exc_info.value.expected_id == "PROJECT_001"
     assert "PROJECT_001" in str(exc_info.value)
 
@@ -144,7 +144,7 @@ def test_evidence_hash_survives_synthesize_and_resynthesize_roundtrip(tmp_path: 
         / ".kittify"
         / "charter"
         / "provenance"
-        / "directive-mission-type-scope-directive.yaml"
+        / "directive-project-intent-directive.yaml"
     )
     first_prov = load_provenance(prov_path)
     assert first_prov.artifact_urn == "directive:PROJECT_001"
