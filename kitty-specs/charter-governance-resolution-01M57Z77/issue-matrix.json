@@ -85,7 +85,7 @@
       "wp": null
     },
     "#6404": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission charter-governance-resolution-01M57Z77, all WPs approved",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP04"
+      "verdict": "fixed",
+      "wp": "WP05"
     },
     "#6405": {
       "evidence_ref": "<link or commit>",
