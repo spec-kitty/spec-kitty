@@ -6,8 +6,9 @@
 src/charter/offering/skills/** text eol=lf
 # packs/built-in/** is no longer tracked (#6451): sync-packs writes the tree itself,
 # so a git attribute cannot apply to it. The former
-# `packs/built-in/missions/mission-steps/** text eol=lf` rule was removed; LF is
-# guaranteed by the pinned clean-tree digest instead.
+# `packs/built-in/missions/mission-steps/** text eol=lf` rule was removed. The
+# clean-tree digest LF-normalises its input, so it does not guarantee LF; the
+# full-tree `snapshot_sha256` hashes raw bytes and pins exactly what was fetched.
 
 kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log
 kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log

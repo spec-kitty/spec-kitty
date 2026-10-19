@@ -72,7 +72,7 @@ _RULE_FOR_PASS: Final[dict[str, str]] = {
 
 # Scope roots (Markdown only, recursive) and single files for each pass. The skip list itself is
 # owned by [tool.codespell] in pyproject.toml, not re-implemented here.
-TYPO_ROOTS: Final[tuple[str, ...]] = ("docs", "packs/built-in")
+TYPO_ROOTS: Final[tuple[str, ...]] = ("docs",)
 TYPO_FILES: Final[tuple[str, ...]] = ("README.md",)
 
 US_ROOTS: Final[tuple[str, ...]] = ("docs/guides", "docs/context")
