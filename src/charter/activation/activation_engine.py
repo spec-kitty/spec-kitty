@@ -63,7 +63,7 @@ list.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -73,6 +73,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 __all__ = [
+    "NARROW_UNRESOLVED_WARNING",
     "ActivationPlan",
     "EffectiveSet",
     "NoActivationRestrictionsError",
@@ -80,6 +81,7 @@ __all__ = [
     "commit_plan",
     "plan_activation",
     "plan_deactivation",
+    "plan_narrowed_list",
     "promote_activations",
 ]
 
@@ -196,6 +198,13 @@ class ActivationPlan:
 # ---------------------------------------------------------------------------
 
 
+#: Appended to the warnings that materialise an absent key into an explicit list (#6408).
+FROZEN_LIST_NOTE = (
+    " This list is now explicit: artifacts shipped later are not activated automatically;"
+    " use 'spec-kitty charter activate <kind> <id> --only' to keep activation narrow."
+)
+
+
 def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | None:
     """Return the current activation list for *yaml_key*, or ``None`` if absent.
 
@@ -217,6 +226,29 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
 # ---------------------------------------------------------------------------
 
 
+#: Warning shared by every narrowing caller when what was in force cannot be listed.
+NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
+
+
+def plan_narrowed_list(yaml_key: str, selection: Iterable[str], base: Iterable[str], previous: Iterable[str]) -> ActivationPlan:
+    """The one narrow post-state: *base* plus *selection*; what stops being in force is reported (#6408).
+
+    Every id must already be in activation-stem spelling (callers map the effective
+    set's declared ids through the identity index first). ``activated`` is the
+    selection ids that were not already in *previous*; ``deactivated`` is every
+    *previous* id that is not in the new list.
+    """
+    chosen = list(dict.fromkeys(selection))
+    in_force = list(dict.fromkeys(previous))
+    new_list = list(dict.fromkeys([*base, *chosen]))
+    return ActivationPlan(
+        yaml_key=yaml_key,
+        new_list=new_list,
+        activated=[item for item in chosen if item not in in_force],
+        deactivated=[item for item in in_force if item not in new_list],
+    )
+
+
 def plan_activation(
     kind: str,
     artifact_id: str,
@@ -228,6 +260,8 @@ def plan_activation(
     effective_when_absent: str = "all",
     effective_ids_in_force: bool = True,
     cascade_scope: Any = None,  # noqa: ANN401
+    narrow_base: Iterable[str] | None = None,
+    previous_ids: Iterable[str] = (),
 ) -> ActivationPlan:
     """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
 
@@ -285,6 +319,15 @@ def plan_activation(
     cascade_scope:
         Reserved for the WP11 cascade engine; threaded but not consumed here
         (never collapsed to a bool — Contract C3.3).
+    narrow_base:
+        Opt-in narrow activation (#6408, ``charter activate --only``). When not
+        ``None`` the kind's list becomes *narrow_base* (de-duplicated) plus
+        *artifact_id*, replacing any present list and skipping absent-key
+        materialisation. ``None`` (default) keeps the append behaviour.
+    previous_ids:
+        What was in force before a narrowing, in the same spelling as
+        *narrow_base*. ``deactivated`` reports every one that is not in the new
+        list. Ignored unless *narrow_base* is given.
 
     Returns
     -------
@@ -306,6 +349,9 @@ def plan_activation(
     # FR-011/012/NFR-003: validate BEFORE computing any post-state.
     if artifact_id not in set(available_ids):
         raise UnknownActivationIdError(kind, artifact_id)
+
+    if narrow_base is not None:
+        return plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids)
 
     warnings: list[str] = []
     current = _current_list(config_data, yaml_key)
@@ -338,7 +384,7 @@ def plan_activation(
             warnings.append(
                 f"Kind {kind!r} had no explicit activation set. "
                 f"Initialized from the {len(materialized)} artifact(s) already effective, "
-                "so nothing in force was deactivated."
+                "so nothing in force was deactivated." + FROZEN_LIST_NOTE
             )
         new_list = list(materialized)
     else:
@@ -553,6 +599,7 @@ def _plan_promotion(
     *,
     config_data: Mapping[str, Any],
     effective: EffectiveSet | None,
+    narrow_base: Sequence[str] | None = None,
 ) -> ActivationPlan | str:
     """Compute the append-only post-state for promoting *ids* into *yaml_key*.
 
@@ -573,11 +620,21 @@ def _plan_promotion(
     current = _current_list(config_data, yaml_key)
     warnings: list[str] = []
 
+    if narrow_base is not None:
+        resolved = effective is not None and effective.resolved
+        previous = current if current is not None else sorted(effective.ids) if effective is not None and resolved else []
+        plan = plan_narrowed_list(yaml_key, ids, narrow_base, previous)
+        if current is None and not resolved:
+            plan.warnings.append(NARROW_UNRESOLVED_WARNING)
+        return plan
+
     if current is None:
         if effective is None or not effective.resolved:
             return (effective.reason if effective is not None else None) or _NO_EFFECTIVE_SET
         new_list = sorted(effective.ids)
-        warnings.append(f"Key {yaml_key!r} had no explicit activation set. Preserved {len(new_list)} effective entries before promotion (absent-key parity).")
+        warnings.append(
+            f"Key {yaml_key!r} had no explicit activation set. Preserved {len(new_list)} effective entries before promotion (absent-key parity)." + FROZEN_LIST_NOTE
+        )
     else:
         new_list = list(current)
 
@@ -604,6 +661,7 @@ def promote_activations(
     config_data: dict[str, Any],
     save: Callable[[Path, dict[str, Any]], None],
     effective_sets: Mapping[str, EffectiveSet],
+    narrow_bases: Mapping[str, Sequence[str]] | None = None,
 ) -> PromotionOutcome:
     """Promote an arbitrary ``{yaml_key: [config-stem ids]}`` set, append-only.
 
@@ -645,6 +703,11 @@ def promote_activations(
     effective_sets:
         ``yaml_key`` -> :class:`EffectiveSet`, resolved by the caller (as data,
         C-008) for the keys that are absent. Keys that are present need no entry.
+    narrow_bases:
+        Opt-in narrowing (#6408): ``yaml_key`` -> base ids. A key listed here is
+        written as that base plus its promoted ids (replacing any present list,
+        never reading its effective set); the plan's ``deactivated`` names what
+        stopped being in force. ``None`` (default) keeps append-only behaviour.
 
     Returns
     -------
@@ -658,6 +721,7 @@ def promote_activations(
             ids,
             config_data=config_data,
             effective=effective_sets.get(yaml_key),
+            narrow_base=narrow_bases.get(yaml_key) if narrow_bases is not None else None,
         )
         if isinstance(plan, str):
             outcome.left_absent[yaml_key] = plan

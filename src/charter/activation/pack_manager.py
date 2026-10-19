@@ -74,6 +74,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.activation_engine import (
+    NARROW_UNRESOLVED_WARNING,
     NoActivationRestrictionsError,
     UnknownActivationIdError,
     commit_plan,
@@ -477,6 +478,57 @@ def _preservation_set(
 
 
 @dataclass(frozen=True)
+class _NarrowInputs:
+    """What ``activate(only=True)`` hands the engine (#6408)."""
+
+    base: list[str]
+    previous: list[str]
+    artifact_id: str
+    warnings: list[str]
+
+
+def _narrow_inputs(
+    repo_root: Path,
+    kind: ArtifactKind | None,
+    artifact_id: str,
+    yaml_key: str,
+    data: Mapping[str, Any],
+    preserved: list[str],
+    in_force: bool,
+) -> _NarrowInputs:
+    """Org-required base, previous in-force ids and written id, all in activation-stem spelling.
+
+    The effective set lists org non-directive artifacts by declared id while a
+    present activation list holds stems, so *previous* and *artifact_id* are mapped
+    through the identity index first: a stem != id artifact that is kept is then
+    never reported as dropped.
+
+    *previous* only ever holds ids that were in force: the present list, or *preserved*
+    when it is the in-force set. When the effective set could not be resolved,
+    *preserved* is a stand-in (ids available across the chain), so *previous* is
+    empty and a warning says the dropped list cannot be computed.
+    """
+    from charter.activation.identity_index import IdentityIndex
+    from charter.activation.org_charter import org_required_stems
+
+    warnings: list[str] = []
+    present = data.get(yaml_key)
+    if present is not None:
+        previous = [str(item) for item in present]
+    elif in_force:
+        previous = list(preserved)
+    else:
+        previous = []
+        warnings.append(NARROW_UNRESOLVED_WARNING)
+    if kind is None:  # mission-type: no ArtifactKind, no org-required base
+        return _NarrowInputs([], previous, artifact_id, warnings)
+    index = IdentityIndex.build(repo_root)
+    base = org_required_stems(repo_root, kind.plural, warnings)
+    stems = [index.stem(kind, item) or item for item in previous]
+    return _NarrowInputs(base, list(dict.fromkeys(stems)), index.stem(kind, artifact_id) or artifact_id, warnings)
+
+
+@dataclass(frozen=True)
 class AvailableArtifact:
     """A single available artifact, annotated by its source layer (FR-026).
 
@@ -691,6 +743,7 @@ class ActiveCharterManager:
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
         layer_roots: dict[str, Path] | None = None,
         org_root_chain: list[Path] | None = None,
+        only: bool = False,
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -727,6 +780,10 @@ class ActiveCharterManager:
             availability is validated in one scan across every chain root
             (last-declared first) instead of the single ``layer_roots["org"]``
             slot; when ``None`` the single-slot behaviour is unchanged.
+        only:
+            Opt-in narrowing (#6408): the kind's list becomes *artifact_id* plus
+            the org-required ids (as stems), replacing any present list;
+            :attr:`ActivationResult.deactivated` names what stopped being in force.
 
         Returns
         -------
@@ -751,6 +808,14 @@ class ActiveCharterManager:
         when_absent = self._effective_when_absent(kind)
         preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent)
 
+        narrow: _NarrowInputs | None = None
+        available_ids: Iterable[str] = available
+        if only and artifact_id in available:
+            narrow = _narrow_inputs(repo_root, self._require_kind(kind), artifact_id, yaml_key, data, preserved, in_force)
+            available_ids = {*available, narrow.artifact_id}
+            artifact_id = narrow.artifact_id
+            preservation_warnings = [*preservation_warnings, *narrow.warnings]
+
         # plan_activation validates BEFORE computing any post-state (NFR-003);
         # on an unknown ID it raises UnknownActivationIdError and no write
         # happens.
@@ -758,14 +823,20 @@ class ActiveCharterManager:
             kind,
             artifact_id,
             yaml_key=yaml_key,
-            available_ids=available,
+            available_ids=available_ids,
             config_data=data,
             effective_ids=preserved,
             effective_when_absent=when_absent,
             effective_ids_in_force=in_force,
+            narrow_base=narrow.base if narrow is not None else None,
+            previous_ids=narrow.previous if narrow is not None else (),
         )
 
-        result = ActivationResult(activated=list(plan.activated), warnings=preservation_warnings + list(plan.warnings))
+        result = ActivationResult(
+            activated=list(plan.activated),
+            deactivated=list(plan.deactivated),
+            warnings=preservation_warnings + list(plan.warnings),
+        )
 
         commit_plan(target_path, data, plan, save=save)
         restamp_bundle_hash(repo_root)

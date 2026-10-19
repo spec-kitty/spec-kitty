@@ -299,6 +299,7 @@ def _normalize_required_ids(
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     warnings: list[str] | None = None,
+    warn_unresolved: bool = False,
 ) -> list[str]:
     """Normalize every id in *raw_ids* (a ``required_<kind_plural>`` list) to stem form.
 
@@ -312,7 +313,8 @@ def _normalize_required_ids(
     stems. An unavailable *offering_root* or unknown ID preserves the raw
     input for existing downstream validation. A known identity whose filenames
     select another directive raises instead; promotion callers may collect
-    warnings and skip only that ambiguous identity.
+    warnings and skip only that ambiguous identity. With *warn_unresolved* (and
+    *warnings*), an id that resolves in no readable layer is also named in *warnings*.
     """
     if offering_root is None:
         return list(raw_ids)
@@ -332,8 +334,49 @@ def _normalize_required_ids(
                 raise
             warnings.append(f"Could not promote org-required directive {raw_id!r}; skipped. {exc}")
             continue
+        if stem is None and warn_unresolved and warnings is not None:
+            warnings.append(f"Org-required {kind.operator_token} {raw_id!r} was not found in any readable layer; kept as written.")
         normalized.append(stem if stem is not None else raw_id)
     return normalized
+
+
+def _best_effort_offering_root() -> Path | None:
+    """The offering root, or ``None`` when it cannot be resolved (normalization is best-effort)."""
+    from charter.activation.catalog import resolve_offering_root
+
+    try:
+        root: Path | None = resolve_offering_root()
+    except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
+        return None
+    return root
+
+
+def org_required_stems(repo_root: Path, kind_plural: str, warnings: list[str]) -> list[str]:
+    """The org-required ids of *kind_plural* as activation stems (#6408, ``--only``).
+
+    ``required_<kind>`` lists hold declared ids; activation lists hold stems, so
+    each id is mapped through the same resolver the promotion path uses. An id
+    that resolves nowhere is kept raw (existing downstream validation owns it)
+    and named in *warnings*; a directive identity with no safe stem is skipped
+    with a warning. Kinds outside :data:`REQUIRED_KIND_FIELDS` yield ``[]``.
+    """
+    if kind_plural not in REQUIRED_KIND_FIELDS:
+        return []
+    raw_ids: list[str] = list(getattr(load_org_charter_policies(repo_root), f"required_{kind_plural}", ()))
+    if not raw_ids:
+        return []
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
+
+    stems = _normalize_required_ids(
+        kind_plural,
+        raw_ids,
+        offering_root=_best_effort_offering_root(),
+        org_roots=resolve_pack_chain(repo_root, strict=False),
+        layer_roots=resolve_layer_roots(repo_root),
+        warnings=warnings,
+        warn_unresolved=True,
+    )
+    return list(dict.fromkeys(stems))
 
 
 def _effective_sets_for_absent_keys(repo_root: Path, promotions: Mapping[str, list[str]], config_data: Mapping[str, Any]) -> dict[str, EffectiveSet]:
@@ -396,7 +439,6 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     it; a bare restrictive list is never written.
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_offering_root
     from charter.activation.pack_manager import resolve_activation_write_target
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
@@ -408,10 +450,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     if not required_by_kind:
         return []
 
-    try:
-        offering_root: Path | None = resolve_offering_root()
-    except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
-        offering_root = None
+    offering_root = _best_effort_offering_root()
 
     from charter.activation.layer_roots import (
         resolve_layer_roots,

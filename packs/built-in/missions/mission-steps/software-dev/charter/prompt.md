@@ -81,6 +81,12 @@ If no built-in paradigm or directive cleanly fits the user's needs:
 
 - Do **not** force a near-match just to populate selections.
 - Keep `selected_paradigms` and `selected_directives` narrow and truthful.
+- Selections are additive: without `--narrow-activation`, the interview adds
+  them to what is already in force and never removes anything. The first explicit activation list is frozen, except that synthesis appends
+  the tactics it creates, so built-ins added later are not activated automatically. To stay narrow, use
+  `spec-kitty charter activate <kind> <id> --only`,
+  `spec-kitty charter interview --narrow-activation`, or
+  `spec-kitty charter activate --preset minimal`.
 - Encode the missing policy as project-specific charter policy in the interview
   answers and generated charter.
 - Say clearly that this is a doctrine gap, not an existing doctrine match.
@@ -305,3 +311,11 @@ available_tools:
 Select paradigms, directives, and tools deliberately from repo evidence plus user
 answers. Do not silently accept the full catalog unless the user explicitly asks
 for defaults.
+
+Selections are additive, and the first explicit activation list is frozen, except that synthesis appends the tactics it creates: later
+built-ins are not activated automatically. Add `--narrow-activation` to
+`spec-kitty charter interview` to replace the activated directives, tactics and
+paradigms with your selection plus org-required ids (kinds with no selection are
+untouched). The shipped `--defaults` select no paradigms, so paradigms are
+narrowed only when you pass `--selected-paradigms`. Other narrow paths: `spec-kitty charter activate <kind> <id> --only` and
+`spec-kitty charter activate --preset minimal`.

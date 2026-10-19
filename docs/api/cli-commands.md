@@ -482,6 +482,11 @@ _Charter management commands_
 │                                                 --preset.                    │
 │ --json                                          Output the applied preset as │
 │                                                 JSON. Only with --preset.    │
+│ --only                                          Replace this kind's          │
+│                                                 activation list with this id │
+│                                                 plus org-required ids        │
+│                                                 (prints what stops being in  │
+│                                                 force).                      │
 │ --help          -h                              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -729,6 +734,9 @@ _Charter bundle validation commands._
 │ --selected-paradigms           <str>  Comma-separated paradigm IDs override  │
 │ --selected-directives          <str>  Comma-separated directive IDs override │
 │ --available-tools              <str>  Comma-separated tool IDs override      │
+│ --narrow-activation                   Replace (not append to) activated      │
+│                                       directives, tactics and paradigms with │
+│                                       the selection plus org-required ids    │
 │ --json                                Output JSON                            │
 │ --mission-slug                 <str>  Mission slug for Decision Moment paper │
 │                                       trail (optional)                       │

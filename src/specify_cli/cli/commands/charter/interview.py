@@ -9,11 +9,13 @@ local interview loop remains.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
+from rich.markup import escape
 
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
@@ -38,10 +40,45 @@ from specify_cli.cli.commands.charter._widen import (
 # preserves that contract through the WP06 split.
 import specify_cli.cli.commands.charter as _charter_pkg
 
+if TYPE_CHECKING:
+    from charter.activation.activation_engine import EffectiveSet
+    from charter.drg import ArtifactKind
+
 __all__ = ["interview"]
 
 
-def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[str]:
+def _narrow_bases(repo_root: Path, promotions: dict[str, list[str]], warnings: list[str]) -> dict[str, list[str]]:
+    """Per promoted key, the narrow base: the selection stems plus the org-required ids (#6408)."""
+    from charter.activation.org_charter import org_required_stems
+
+    bases: dict[str, list[str]] = {}
+    for yaml_key, stems in promotions.items():
+        plural = yaml_key.removeprefix("activated_")
+        bases[yaml_key] = list(dict.fromkeys([*stems, *org_required_stems(repo_root, plural, warnings)]))
+    return bases
+
+
+def _stem_spelled_effective(repo_root: Path, effective: dict[str, EffectiveSet], kinds: dict[str, ArtifactKind]) -> dict[str, EffectiveSet]:
+    """*effective* with every id spelled as an activation stem.
+
+    The effective set lists org non-directive artifacts by declared id while
+    activation lists hold stems, so a kept artifact whose stem differs from its id
+    would otherwise be reported as no longer in force (#6408).
+    """
+    from charter.activation.api import IdentityIndex
+
+    index = IdentityIndex.build(repo_root)
+    mapped: dict[str, EffectiveSet] = {}
+    for yaml_key, found in effective.items():
+        kind = kinds.get(yaml_key)
+        if kind is None or not found.resolved:
+            mapped[yaml_key] = found
+            continue
+        mapped[yaml_key] = dataclasses.replace(found, ids=frozenset(index.stem(kind, item) or item for item in found.ids))
+    return mapped
+
+
+def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narrow: bool = False) -> tuple[list[str], dict[str, list[str]]]:
     """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
 
     Only the three roots :class:`~charter.activation.interview.CharterInterview` actually
@@ -67,6 +104,12 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     migrated project (``config.yaml`` carries a ``charter:`` pointer)
     promotes into ``charter.yaml``; a legacy/un-migrated project promotes
     into ``config.yaml`` directly (unchanged pre-relocation behavior).
+
+    With ``narrow=True`` (#6408) each promoted key is *replaced* by its selection
+    plus the org-required ids instead of appended to; a kind with an empty
+    selection is never narrowed. Returns ``(warnings, narrowed)`` where
+    ``narrowed`` maps each key to the ids that stopped being in force (``{}``
+    when narrowing is off).
     """
     from charter.activation.activation_engine import promote_activations
     from charter.activation.catalog import resolve_offering_root
@@ -113,21 +156,26 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
             promotions[f"activated_{kind.plural}"] = stems
 
     if not promotions:
-        return warnings
+        return warnings, {}
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
 
     absent = [key for key in promotions if config_data.get(key) is None]
+    effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
+    if narrow:
+        effective_sets = _stem_spelled_effective(repo_root, effective_sets, {f"activated_{kind.plural}": kind for kind in kind_to_selection})
     outcome = promote_activations(
         promotions,
         config_path=target_path,
         config_data=config_data,
         save=save,
-        effective_sets=resolve_effective_sets(repo_root, absent) if absent else {},
+        effective_sets=effective_sets,
+        narrow_bases=_narrow_bases(repo_root, promotions, warnings) if narrow else None,
     )
     warnings.extend(warning for plan in outcome.committed for warning in plan.warnings)
     warnings.extend(outcome.left_absent_messages())
-    return warnings
+    narrowed = {plan.yaml_key: list(plan.deactivated) for plan in outcome.committed if narrow and plan.deactivated}
+    return warnings, narrowed
 
 
 @charter_app.command()
@@ -154,6 +202,11 @@ def interview(  # noqa: C901
         None,
         "--available-tools",
         help="Comma-separated tool IDs override",
+    ),
+    narrow_activation: bool = typer.Option(
+        False,
+        "--narrow-activation",
+        help="Replace (not append to) activated directives, tactics and paradigms with the selection plus org-required ids",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
     mission_slug: str | None = typer.Option(
@@ -328,8 +381,9 @@ def interview(  # noqa: C901
         # via the WP06 primitive. Best-effort / non-fatal: a promotion failure
         # must never block the interview answers already written to disk.
         promotion_warnings: list[str] = []
+        narrowed: dict[str, list[str]] = {}
         try:
-            promotion_warnings = _promote_interview_selections(repo_root, interview_data)
+            promotion_warnings, narrowed = _promote_interview_selections(repo_root, interview_data, narrow=narrow_activation)
         except Exception as exc:  # noqa: BLE001 — promotion is best-effort, never blocks the interview
             promotion_warnings = [f"Selection promotion skipped: {exc}"]
             if not json_output:
@@ -350,6 +404,7 @@ def interview(  # noqa: C901
                         "org_prefill_messages": org_prefill_messages,
                         "org_prefill_warning": org_prefill_warning,
                         "promotion_warnings": promotion_warnings,
+                        "narrowed": narrowed,
                     },
                     indent=2,
                 )
@@ -362,6 +417,8 @@ def interview(  # noqa: C901
         console.print(f"Profile: {interview_data.profile}")
         for msg in promotion_warnings:
             console.print(f"[yellow]Selection promotion:[/yellow] {msg}")
+        for yaml_key, dropped in narrowed.items():
+            console.print(f"[yellow]No longer in force ({len(dropped)}) for {yaml_key}:[/yellow] {escape(', '.join(dropped))}")
 
     except (TaskCliError, ValueError) as e:
         _emit_error(console, json_output=json_output, message=str(e))
