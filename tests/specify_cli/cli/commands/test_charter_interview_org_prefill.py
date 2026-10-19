@@ -187,3 +187,36 @@ def test_interview_user_answer_survives_org_default(
     answers = _read_answers(project_with_org_pack)
     # autonomous_mode (only set by org charter) must be present
     assert answers["answers"]["autonomous_mode"] == "disallowed"
+
+
+def test_interview_narrow_activation_keeps_org_required_directive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6408: narrow mode replaces the list but an org-required directive stays in force."""
+    import json
+
+    _git_init(tmp_path)
+    pack_dir = tmp_path / "packs" / "acme-security"
+    _write_org_pack_with_charter(
+        pack_dir,
+        """
+        org_name: "Acme Security"
+        required_directives:
+          - DIRECTIVE_010
+        """,
+    )
+    _write_kittify_config_with_packs(tmp_path, [{"name": "acme-security", "local_path": str(pack_dir)}])
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--json",
+         "--selected-directives", "DIRECTIVE_001", "--narrow-activation"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    config = YAML(typ="safe").load((tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
+    committed = config["activated_directives"]
+    assert set(committed) == {"001-architectural-integrity-standard", "010-specification-fidelity-requirement"}
+    assert "010-specification-fidelity-requirement" not in payload["narrowed"]["activated_directives"]
+    assert payload["narrowed"]["activated_directives"]  # positive control: something was dropped
