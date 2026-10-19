@@ -7,9 +7,12 @@ NOT its declared id, so any surface that compares the two spellings raw fails.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 from ruamel.yaml import YAML
+
+from charter.activation.pack_context import PackContext
 
 ORG_PACK_NAME = "identity-org"
 
@@ -64,3 +67,13 @@ def write_identity_org_pack(repo_root: Path, **config_keys: object) -> Path:
     with config_path.open("w", encoding="utf-8") as stream:
         yaml.dump(config, stream)
     return pack
+
+
+def real_pack_context(repo_root: Path, **fields: object) -> PackContext:
+    """A real ``PackContext`` rooted at *repo_root* with the given per-kind activation fields."""
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    config_path = kittify / "config.yaml"
+    if not config_path.exists():
+        config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
+    return dataclasses.replace(PackContext.from_config(repo_root), **fields)

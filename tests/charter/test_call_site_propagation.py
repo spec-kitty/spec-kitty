@@ -28,7 +28,7 @@ Pattern C ATDD (T042)
 * ``pack_context.activated_agent_profiles == frozenset()`` → empty dict (explicit opt-out)
 * ``pack_context.activated_agent_profiles = {ids}`` → only those IDs returned
 
-These tests use lightweight ``types.SimpleNamespace`` objects as mock pack
+These tests use real ``PackContext`` objects as pack
 contexts because ``PackContext``'s per-kind three-state fields are added by
 WP02 (approved dependency) and may not yet be available in the merged tree.
 The ``ActiveCharterService`` wrapper only requires duck-typing on the per-kind
@@ -37,7 +37,6 @@ fields, so ``SimpleNamespace`` is the simplest correct fixture.
 
 from __future__ import annotations
 
-import types
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -45,6 +44,7 @@ import pytest
 
 from charter.activation._io import CharterEncodingError
 from kernel.errors import KittyInternalConsistencyError
+from tests.charter.org_pack_identity_support import real_pack_context
 
 
 pytestmark = [pytest.mark.unit]
@@ -232,7 +232,7 @@ def test_active_charter_service_agent_profiles_no_pack_context_returns_all() -> 
     assert set(result.keys()) == {"alpha", "beta"}
 
 
-def test_active_charter_service_agent_profiles_none_field_returns_all() -> None:
+def test_active_charter_service_agent_profiles_none_field_returns_all(tmp_path: Path) -> None:
     """``pack_context.activated_agent_profiles=None`` → full unfiltered dict.
 
     The ``None`` sentinel means "key absent from config.yaml" → all built-in
@@ -243,16 +243,14 @@ def test_active_charter_service_agent_profiles_none_field_returns_all() -> None:
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
 
-    pack_ctx = types.SimpleNamespace(
-        activated_agent_profiles=None,
-    )
+    pack_ctx = real_pack_context(tmp_path, activated_agent_profiles=None)
     wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
     assert set(result.keys()) == {"alpha", "beta"}
 
 
-def test_active_charter_service_agent_profiles_empty_frozenset_returns_empty() -> None:
+def test_active_charter_service_agent_profiles_empty_frozenset_returns_empty(tmp_path: Path) -> None:
     """``pack_context.activated_agent_profiles=frozenset()`` → empty dict.
 
     The empty frozenset sentinel means "key present but empty list in
@@ -264,9 +262,7 @@ def test_active_charter_service_agent_profiles_empty_frozenset_returns_empty() -
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
 
-    pack_ctx = types.SimpleNamespace(
-        activated_agent_profiles=frozenset(),
-    )
+    pack_ctx = real_pack_context(tmp_path, activated_agent_profiles=frozenset())
     wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
@@ -276,7 +272,7 @@ def test_active_charter_service_agent_profiles_empty_frozenset_returns_empty() -
     )
 
 
-def test_active_charter_service_agent_profiles_specific_ids_returns_subset() -> None:
+def test_active_charter_service_agent_profiles_specific_ids_returns_subset(tmp_path: Path) -> None:
     """``pack_context.activated_agent_profiles={ids}`` → only those IDs returned.
 
     Profiles whose ID is NOT in the activated set must be excluded.
@@ -286,9 +282,7 @@ def test_active_charter_service_agent_profiles_specific_ids_returns_subset() -> 
     profiles = {"alpha": MagicMock(), "beta": MagicMock(), "gamma": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
 
-    pack_ctx = types.SimpleNamespace(
-        activated_agent_profiles=frozenset({"alpha", "gamma"}),
-    )
+    pack_ctx = real_pack_context(tmp_path, activated_agent_profiles=frozenset({"alpha", "gamma"}))
     wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
