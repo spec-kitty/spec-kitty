@@ -133,7 +133,7 @@
       "wp": "WP02"
     },
     "#6443": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP03 project-intent rename",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,8 +141,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#6444": {
       "evidence_ref": "<link or commit>",
