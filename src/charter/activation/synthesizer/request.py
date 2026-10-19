@@ -203,6 +203,10 @@ def _evidence_to_jsonable(e: EvidenceBundle) -> dict[str, Any]:
             "test_frameworks": sorted(cs.test_frameworks),
             # detected_at excluded from hash
         }
+        # FR-012: ``languages`` joins the identity only for polyglot repositories, so the
+        # hash of every single-language repository (and a stored provenance) is unchanged.
+        if len(cs.languages) > 1:
+            result["code_signals"]["languages"] = list(cs.languages)
 
     if e.url_list:
         result["url_list"] = sorted(e.url_list)

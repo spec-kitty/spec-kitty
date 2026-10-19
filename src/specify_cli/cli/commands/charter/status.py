@@ -190,7 +190,7 @@ def status(  # noqa: C901
             console.print(
                 "Evidence: "
                 f"stack={code['stack_id']} "
-                f"(lang={code['primary_language']}, "
+                f"(lang={'+'.join(code['languages']) if len(code.get('languages', ())) > 1 else code['primary_language']}, "
                 f"frameworks={len(code['frameworks'])}, "
                 f"test_frameworks={len(code['test_frameworks'])})"
             )

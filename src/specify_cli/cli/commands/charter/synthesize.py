@@ -419,6 +419,7 @@ def charter_synthesize(  # noqa: C901
                                     {
                                         "stack_id": bundle.code_signals.stack_id,
                                         "primary_language": bundle.code_signals.primary_language,
+                                        "languages": list(bundle.code_signals.languages),
                                         "representative_files_count": len(bundle.code_signals.representative_files),
                                     }
                                     if bundle.code_signals
@@ -445,7 +446,7 @@ def charter_synthesize(  # noqa: C901
             console.print("[bold]Evidence dry-run summary:[/bold]")
             if bundle.code_signals:
                 cs = bundle.code_signals
-                console.print(f"  Code signals: stack={cs.stack_id}, lang={cs.primary_language}")
+                console.print(f"  Code signals: stack={cs.stack_id}, lang={'+'.join(cs.languages) if len(cs.languages) > 1 else cs.primary_language}")
                 console.print(f"  Representative files: {len(cs.representative_files)} found")
             else:
                 console.print("  Code signals: none (skipped or not detected)")

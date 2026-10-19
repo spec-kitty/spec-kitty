@@ -36,6 +36,7 @@ class CodeSignals:
     Invariants enforced in ``__post_init__``:
 
     - ``scope_tag`` must equal ``primary_language`` (used by neutrality gate).
+    - ``languages``, when non-empty, starts with ``primary_language`` (FR-010).
     - ``stack_id`` must match ``^[a-z][a-z0-9+]*$``.
     - Every path in ``representative_files`` must be a non-empty repo-relative
       forward-slash path (no leading ``/``).
@@ -51,12 +52,20 @@ class CodeSignals:
     scope_tag: str  # equals primary_language; used by neutrality gate
     representative_files: tuple[str, ...]  # repo-relative forward-slash paths
     detected_at: str  # ISO 8601 UTC — excluded from hash
+    #: Every observed language, primary first. Empty when none was observed. It enters
+    #: the evidence hash only when it holds more than one language (FR-012).
+    languages: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.scope_tag != self.primary_language:
             raise ValueError(
                 f"scope_tag must equal primary_language, "
                 f"got {self.scope_tag!r} != {self.primary_language!r}"
+            )
+        if self.languages and self.languages[0] != self.primary_language:
+            raise ValueError(
+                f"languages must start with primary_language, "
+                f"got {self.languages!r} for {self.primary_language!r}"
             )
         if not _STACK_ID_RE.match(self.stack_id):
             raise ValueError(f"Invalid stack_id format: {self.stack_id!r}")

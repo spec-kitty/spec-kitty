@@ -16,8 +16,9 @@ from pathlib import Path
 from charter.activation.language_authority import (
     EXCLUDED_DIRS,
     TreeObservation,
+    ObservedLanguages,
     count_sources_uncapped,
-    resolve_primary_language,
+    resolve_languages,
 )
 from charter.activation.synthesizer.evidence import CodeSignals
 from kernel.clock import now_utc_iso
@@ -167,7 +168,8 @@ class CodeReadingCollector:
     def _detect(self) -> CodeSignals:
         scan = self._scan_tree()
 
-        language = self._detect_language(scan)
+        observed = self._detect_languages(scan)
+        language = observed.primary
         frameworks = self._detect_frameworks(scan.indicator_files)
         test_fws = self._detect_test_frameworks(
             scan.indicator_files, scan.test_files, language
@@ -185,6 +187,7 @@ class CodeReadingCollector:
             scope_tag=language,
             representative_files=tuple(representative),
             detected_at=now_utc_iso(),
+            languages=observed.languages,
         )
 
     def _scan_tree(self) -> _TreeScan:
@@ -270,9 +273,9 @@ class CodeReadingCollector:
 
         return "+".join(parts_stack)
 
-    def _detect_language(self, scan: _TreeScan) -> str:
-        """Return the primary language, as decided by the language authority (one walk, NFR-005)."""
-        return resolve_primary_language(scan.observation, lambda: count_sources_uncapped(self._repo_root))
+    def _detect_languages(self, scan: _TreeScan) -> ObservedLanguages:
+        """Return the observed languages, as decided by the language authority (one walk, NFR-005)."""
+        return resolve_languages(scan.observation, lambda: count_sources_uncapped(self._repo_root))
 
     @staticmethod
     def _unknown_signals() -> CodeSignals:
