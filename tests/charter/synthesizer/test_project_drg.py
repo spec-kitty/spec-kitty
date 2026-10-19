@@ -260,6 +260,20 @@ class TestEdgeDerivedFromSourceUrns:
         }
         assert not [e for e in graph.edges if e.relation == Relation.APPLIES]
 
+    def test_styleguide_source_urn_keeps_applies_edge(self) -> None:
+        """#6404 scope: synthesized styleguide edges stay ``styleguide --applies--> source``."""
+        shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
+        target = _make_target(
+            kind="styleguide",
+            slug="python-testing-style",
+            artifact_id="python-testing-style",
+            source_urns=("directive:DIRECTIVE_003",),
+        )
+        graph = emit_project_layer([target], "0.1.0", shipped)
+        assert {(e.source, e.target, e.relation) for e in graph.edges} == {
+            ("styleguide:python-testing-style", "directive:DIRECTIVE_003", Relation.APPLIES)
+        }
+
     def test_multiple_source_urns_produce_multiple_edges(self) -> None:
         shipped = _make_shipped_graph(
             nodes=[

@@ -380,7 +380,7 @@ def run(
             # #6404: legacy ``applies`` edges are stripped on partial runs too;
             # surface each one so a preserving run never drops silently.
             reference_warnings.extend(
-                _legacy_strip_notice(e) for e in _legacy_applies_edges(existing_overlay, synthesized_urns)
+                _legacy_strip_notice(e) for e in _legacy_applies_edges(existing_overlay, synthesized_urns, {n.urn for n in updated_overlay.nodes})
             )
             project_graph = _merge_project_overlay(
                 existing_overlay=existing_overlay,

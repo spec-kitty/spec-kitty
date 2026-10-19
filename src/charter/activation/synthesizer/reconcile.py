@@ -288,8 +288,23 @@ def synthesized_node_urns(manifest: SynthesisManifest) -> frozenset[str]:
     return frozenset(f"{e.kind}:{e.slug}" for e in manifest.artifacts if e.kind != "directive")
 
 
-def _is_legacy_applies(edge: DRGEdge, synthesized_urns: Collection[str]) -> bool:
-    return edge.relation is Relation.APPLIES and edge.source in synthesized_urns
+def _is_legacy_applies(
+    edge: DRGEdge,
+    synthesized_urns: Collection[str],
+    regenerated_urns: Collection[str] | None = None,
+) -> bool:
+    """A legacy ``tactic --applies--> ...`` edge on a synthesized tactic (#6404).
+
+    Only ``tactic:`` sources qualify (a styleguide's ``applies`` edge is current
+    shape, not legacy). With *regenerated_urns* given (a topic-scoped run) only an
+    owner regenerated in this run qualifies; an untargeted node is left untouched.
+    """
+    return (
+        edge.relation is Relation.APPLIES
+        and edge.source.startswith(_TACTIC_URN_PREFIX)
+        and edge.source in synthesized_urns
+        and (regenerated_urns is None or edge.source in regenerated_urns)
+    )
 
 
 def legacy_strip_notice(edge: DRGEdge) -> str:
@@ -297,9 +312,13 @@ def legacy_strip_notice(edge: DRGEdge) -> str:
     return f"{LEGACY_APPLIES_REASON}: {edge.source} --applies--> {edge.target}"
 
 
-def legacy_applies_edges(existing_overlay: DRGGraph, synthesized_urns: Collection[str]) -> tuple[DRGEdge, ...]:
-    """Existing ``applies`` edges whose source is a synthesis-provenance node (#6404)."""
-    return tuple(e for e in existing_overlay.edges if _is_legacy_applies(e, synthesized_urns))
+def legacy_applies_edges(
+    existing_overlay: DRGGraph,
+    synthesized_urns: Collection[str],
+    regenerated_urns: Collection[str] | None = None,
+) -> tuple[DRGEdge, ...]:
+    """Existing legacy ``applies`` edges a run strips (see :func:`_is_legacy_applies`) (#6404)."""
+    return tuple(e for e in existing_overlay.edges if _is_legacy_applies(e, synthesized_urns, regenerated_urns))
 
 
 def merge_project_overlay(
@@ -316,8 +335,8 @@ def merge_project_overlay(
     a regenerated owner's prior edges are dropped in favor of its fresh set;
     every other owner's edges are preserved untouched.
 
-    Legacy ``applies`` edges sourced at a node in *synthesized_urns* are
-    dropped on every run (#6404); callers report them via
+    Legacy ``applies`` edges sourced at a regenerated ``tactic:`` node in
+    *synthesized_urns* are dropped (#6404); callers report them via
     :func:`legacy_applies_edges`.
     """
     updated_urns = {node.urn for node in updated_overlay.nodes}
@@ -340,7 +359,7 @@ def merge_project_overlay(
     merged_edges: list[DRGEdge] = []
     inserted_owners: set[str] = set()
     for edge in existing_overlay.edges:
-        if _is_legacy_applies(edge, synthesized_urns):
+        if _is_legacy_applies(edge, synthesized_urns, updated_urns):
             continue
         owner = _owner(edge)
         if owner not in updated_urns:
@@ -557,7 +576,7 @@ def _graph_delta(
 
     existing_node_urns = {n.urn for n in existing_overlay.nodes}
     overlay_urns = fresh_node_urns | existing_node_urns
-    legacy = legacy_applies_edges(existing_overlay, synthesized_urns)
+    legacy = legacy_applies_edges(existing_overlay, synthesized_urns, fresh_node_urns)
 
     def _owner_in(edge: DRGEdge, urns: set[str]) -> bool:
         return edge_owner(edge, overlay_urns) in urns
@@ -567,7 +586,7 @@ def _graph_delta(
     ) + tuple(
         _edge_ref(e, urn_to_path, overlay_urns)
         for e in existing_overlay.edges
-        if not _owner_in(e, fresh_node_urns) and not _is_legacy_applies(e, synthesized_urns)
+        if not _owner_in(e, fresh_node_urns) and not _is_legacy_applies(e, synthesized_urns, fresh_node_urns)
     )
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns

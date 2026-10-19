@@ -897,3 +897,29 @@ def test_hand_authored_directive_suggests_edge_survives_tactic_regeneration(
     assert triples.count(_SUGGESTS_TRIPLE) == 1
     assert result.reconciliation is not None
     assert f"{hand_triple[0]}--suggests-->{hand_triple[1]}" in {r.urn for r in result.reconciliation.retained}
+
+
+def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None:
+    """#6404: a styleguide's ``applies`` edge and an untargeted tactic's legacy edge are untouched."""
+    from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    def _graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
+        return DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=nodes, edges=edges)
+
+    target = "directive:DIRECTIVE_003"
+    regenerated = DRGNode(urn="tactic:regen", kind=NodeKind.TACTIC, label="regen")
+    untargeted = DRGNode(urn="tactic:untargeted", kind=NodeKind.TACTIC, label="untargeted")
+    style = DRGNode(urn="styleguide:style", kind=NodeKind.STYLEGUIDE, label="style")
+    def legacy(src: str) -> DRGEdge:
+        return DRGEdge(source=src, target=target, relation=Relation.APPLIES)
+
+    existing = _graph([regenerated, untargeted, style], [legacy("tactic:regen"), legacy("tactic:untargeted"), legacy("styleguide:style")])
+    updated = _graph([regenerated], [])
+    synthesized = {"tactic:regen", "tactic:untargeted", "styleguide:style"}
+
+    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
+
+    assert {e.source for e in merged.edges} == {"tactic:untargeted", "styleguide:style"}
+    stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
+    assert [e.source for e in stripped] == ["tactic:regen"]

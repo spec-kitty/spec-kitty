@@ -230,7 +230,7 @@ def _derived_edge(target: SynthesisTarget, urn: str, source_urn: str) -> DRGEdge
     return DRGEdge(
         source=urn,
         target=source_urn,
-        relation=Relation.REQUIRES,
+        relation=Relation.REQUIRES if target.kind == "directive" else Relation.APPLIES,
         reason=f"Derived from synthesis target {target.slug!r}",
     )
 
