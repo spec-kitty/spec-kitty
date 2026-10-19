@@ -17,7 +17,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner, Result
 
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import ActiveCharterManager
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration]
@@ -146,6 +146,15 @@ def test_only_with_cascade_narrows_only_the_named_kind(tmp_path: Path) -> None:
     cascaded = listed[1:]
     assert cascaded, "cascade=all must have appended at least one referenced directive"
     assert "Cascade-activated" in result.output
+    # cascaded entries of OTHER kinds were appended to their (previously absent) lists, never narrowed:
+    # each such list is the kind's whole effective set plus the cascaded id.
+    other = [(kind, item) for kind, item in re.findall(r"Cascade-activated.*?: (\S+?)/(\S+)", result.output) if kind != "directive"]
+    assert other, "fixture invalid: the cascade must reach at least one other kind"
+    for kind, item in other:
+        listed_other = data[YAML_KEY_MAP[kind]]
+        available_other = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), kind))
+        assert item in listed_other
+        assert available_other - {_ORG_ID} <= set(listed_other), f"{kind} was narrowed instead of appended"
 
 
 def test_only_with_an_unresolvable_effective_set_keeps_the_warnings_and_names_no_stand_in_dropped_ids(tmp_path: Path) -> None:
