@@ -548,6 +548,22 @@ class TestGovernanceContext:
         assert "Directives: TEST_FIRST" in text
 
     @patch("runtime.next.prompt_builder.resolve_project_governance")
+    def test_governance_context_shows_unknown_selection_diagnostic(self, mock_resolve, feature_dir: Path) -> None:
+        from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
+
+        diagnostic = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
+        mock_resolve.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=[],
+            directives=["QA_003"],
+            tools=[],
+            diagnostics=[diagnostic],
+        )
+        text = _governance_context(feature_dir.parent.parent)
+        assert f"Diagnostics: {diagnostic}" in text
+        assert "Directives: QA_003" in text
+
+    @patch("runtime.next.prompt_builder.resolve_project_governance")
     def test_governance_context_handles_failures(self, mock_resolve, feature_dir: Path) -> None:
         mock_resolve.side_effect = RuntimeError("boom")
         text = _governance_context(feature_dir.parent.parent)

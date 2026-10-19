@@ -106,6 +106,17 @@ class TestContextSchemaVersionStamped:
         _assert_stamped_and_declared(payload)
 
 
+class TestContextSchemaVersionDiagnosticsEntry:
+    """1.4.0 ledger entry (#6407): ``diagnostics`` is declared and always present."""
+
+    def test_version_is_1_4_0_and_diagnostics_is_declared(self, project: Path) -> None:
+        assert CONTEXT_SCHEMA_VERSION == "1.4.0"
+        assert "diagnostics" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
+        for action in ("implement", "tasks"):
+            payload = build_charter_context_json(project, action=action, mission_type="software-dev")
+            assert isinstance(payload["diagnostics"], list)
+
+
 class TestContextSchemaVersionLedgerBites:
     """Prove the superset guard actually reds on drift (not just a no-op).
 

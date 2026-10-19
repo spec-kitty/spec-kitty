@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
+    from charter.activation.identity_index import IdentityIndex
 
 from ruamel.yaml.error import YAMLError
 
@@ -37,6 +38,7 @@ from charter.activation import progressive_disclosure as _pd
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.activation.context_state import KITTIFY_DIRNAME
 from charter.activation.schemas import DirectivesConfig
+from charter.offering.artifact_kinds import ArtifactKind
 
 # ``_load_project_directives`` / ``_relative_json_path`` de-exported after the
 # context.py re-export shim retirement (doctrine-built-in-seam-consolidation
@@ -48,6 +50,7 @@ __all__ = [
     "_project_charter_json_block",
     "_project_directive_entries",
     "_project_directive_entries_with_source",
+    "_project_directive_resolution",
 ]
 
 
@@ -128,10 +131,11 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     return block
 
 
-def _load_project_directives_with_source(
+def _load_project_directives_with_diagnostics(
     repo_root: Path,
     load_directives_config: Callable[[Path], DirectivesConfig],
-) -> tuple[dict[str, object], list[str], str | None]:
+    identity: IdentityIndex | None = None,
+) -> tuple[dict[str, object], list[str], str | None, list[str]]:
     """Resolve project directive IDs **and** the resolution-level
     ``directives_source`` provenance from a *single* governance resolution.
 
@@ -142,6 +146,10 @@ def _load_project_directives_with_source(
     two answer different questions. Returns ``None`` for the source on any
     resolver failure — provenance-unavailable is itself an operator signal, and
     the broad-except degrade sites stay out of scope here (C-002).
+
+    The fourth element is the resolution's ``diagnostics`` (for example the
+    unknown-selection lines, #6407); ``[]`` on a resolver failure. *identity* is
+    the caller's per-entry-point :class:`IdentityIndex` (NFR-003).
     """
     try:
         directives_cfg = load_directives_config(repo_root)
@@ -155,19 +163,30 @@ def _load_project_directives_with_source(
     try:
         from charter.activation.resolver import resolve_project_governance
 
-        resolution = resolve_project_governance(repo_root)
+        resolution = resolve_project_governance(repo_root, identity=identity)
     except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
-        return local_by_id, list(dict.fromkeys(directive_ids)), None
+        return local_by_id, list(dict.fromkeys(directive_ids)), None, []
     # ``metadata`` is always present on a real ``GovernanceResolution``; the
     # ``getattr``/``isinstance`` guard only tolerates duck-typed resolver stubs
     # in existing seam tests that omit it.
     metadata = getattr(resolution, "metadata", None)
     directives_source = metadata.get("directives_source") if isinstance(metadata, dict) else None
+    diagnostics = getattr(resolution, "diagnostics", None)
     return (
         local_by_id,
         list(dict.fromkeys(list(resolution.directives) + directive_ids)),
         directives_source,
+        list(diagnostics) if isinstance(diagnostics, (list, tuple)) else [],
     )
+
+
+def _load_project_directives_with_source(
+    repo_root: Path,
+    load_directives_config: Callable[[Path], DirectivesConfig],
+) -> tuple[dict[str, object], list[str], str | None]:
+    """3-tuple view of :func:`_load_project_directives_with_diagnostics` (no diagnostics)."""
+    local_by_id, directive_ids, directives_source, _ = _load_project_directives_with_diagnostics(repo_root, load_directives_config)
+    return local_by_id, directive_ids, directives_source
 
 
 def _load_project_directives(
@@ -185,11 +204,14 @@ def _load_project_directives(
     return local_by_id, directive_ids
 
 
-def _maybe_build_offering_service(repo_root: Path) -> _offering_service_module.CharterOfferingService | None:
+def _maybe_build_offering_service(
+    repo_root: Path,
+    org_roots: list[Path] | None = None,
+) -> _offering_service_module.CharterOfferingService | None:
     try:
         from charter.activation.context import _build_offering_service  # noqa: PLC0415
 
-        return _build_offering_service(repo_root)
+        return _build_offering_service(repo_root, org_roots=org_roots)
     except Exception:  # noqa: BLE001 - local directive IDs are still useful
         return None
 
@@ -208,10 +230,30 @@ def _local_directive_entry(directive_id: str, local: object) -> dict[str, object
 _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
 
 
+def _with_identity_layer(
+    entries: list[dict[str, object]],
+    directive_id: str,
+    identity: IdentityIndex | None,
+) -> list[dict[str, object]]:
+    """Replace a ``built-in`` fallback source with the layer the identity index found.
+
+    A directive the repository cannot load (so provenance is unknown) still
+    resolved through an org or project layer; reporting ``built-in`` for it
+    would misstate where it came from (#6407).
+    """
+    if identity is None:
+        return entries
+    layer = identity.source_layer(ArtifactKind.DIRECTIVE, directive_id)
+    if layer is None or layer == BUILT_IN:
+        return entries
+    return [{**entry, "source": layer} if entry.get("source") == BUILT_IN else entry for entry in entries]
+
+
 def _assemble_directive_entries(
     directive_ids: list[str],
     local_by_id: dict[str, object],
     service: _offering_service_module.CharterOfferingService | None,
+    identity: IdentityIndex | None = None,
 ) -> list[dict[str, object]]:
     """Build the per-directive ``all_directives`` entries from resolved IDs."""
     entries: list[dict[str, object]] = []
@@ -221,17 +263,20 @@ def _assemble_directive_entries(
             entries.append(_local_directive_entry(directive_id, local))
             continue
         if service is None:
-            entries.append({"id": directive_id, "source": BUILT_IN})
-            continue
-        entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))
+            found: list[dict[str, object]] = [{"id": directive_id, "source": BUILT_IN}]
+        else:
+            found = _pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive")
+        entries.extend(_with_identity_layer(found, directive_id, identity))
     return entries
 
 
-def _project_directive_entries_with_source(
+def _project_directive_resolution(
     repo_root: Path,
-) -> tuple[list[dict[str, object]], str | None]:
-    """Return the project directive entries **and** the resolution-level
-    ``directives_source`` provenance from a single governance resolution.
+    identity: IdentityIndex | None = None,
+) -> tuple[list[dict[str, object]], str | None, list[str]]:
+    """Return the project directive entries, the resolution-level
+    ``directives_source`` provenance **and** the resolution ``diagnostics``
+    from a single governance resolution.
 
     The JSON payload builder (``build_charter_context_json``) consumes this so
     both ``all_directives`` and the top-level ``directives_source`` key come from
@@ -239,9 +284,20 @@ def _project_directive_entries_with_source(
     """
     from charter.activation.sync import load_directives_config
 
-    local_by_id, directive_ids, directives_source = _load_project_directives_with_source(repo_root, load_directives_config)
-    service = _maybe_build_offering_service(repo_root)
-    return _assemble_directive_entries(directive_ids, local_by_id, service), directives_source
+    local_by_id, directive_ids, directives_source, diagnostics = _load_project_directives_with_diagnostics(repo_root, load_directives_config, identity)
+    # An org directive resolved through the identity index must carry its org
+    # provenance, so the offering service sees the same org roots (#6407).
+    org_roots = list(identity.org_roots) if identity is not None else None
+    service = _maybe_build_offering_service(repo_root, org_roots)
+    return _assemble_directive_entries(directive_ids, local_by_id, service, identity), directives_source, diagnostics
+
+
+def _project_directive_entries_with_source(
+    repo_root: Path,
+) -> tuple[list[dict[str, object]], str | None]:
+    """2-tuple view of :func:`_project_directive_resolution` (entries + ``directives_source``)."""
+    entries, directives_source, _ = _project_directive_resolution(repo_root)
+    return entries, directives_source
 
 
 def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
