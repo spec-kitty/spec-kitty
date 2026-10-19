@@ -23,7 +23,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     resolve_charter_write_root,
 )
 from specify_cli.cli.commands.charter._common import _emit_error
-from specify_cli.cli.commands.charter.synthesize import _converge_legacy_project_intent_directive
+from specify_cli.cli.commands.charter._synthesis import _converge_legacy_project_intent_directive
 
 # See ``synthesize.py`` for the package-module pattern: patches of
 # ``specify_cli.cli.commands.charter.<name>`` must be visible here too. We route
