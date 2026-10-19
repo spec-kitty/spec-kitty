@@ -1399,6 +1399,8 @@ pages:
     - {slug: "conformance-contract", text: "Conformance Contract", level: 2}
     - {slug: "related-decisions", text: "Related Decisions", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-styleguide-source-urns-enter-the-request-hash-6442", text: "Amendment 2026-10-19: styleguide source URNs enter the request hash (#6442)", level: 2}
+    - {slug: "amendment-2026-10-19-observed-languages-enter-the-evidence-hash-only-for-polyglot-repositories-6444", text: "Amendment 2026-10-19: observed `languages` enter the evidence hash only for polyglot repositories (#6444)", level: 2}
   - path: "docs/adr/3.x/2026-04-17-2-charter-synthesizer-atomicity.md"
     title: "Charter Synthesizer — Atomicity via Stage + Ordered Promote + Manifest-Last Commit"
     divio_type: "none"
@@ -1480,6 +1482,7 @@ pages:
     - {slug: "positive", text: "Positive", level: 3}
     - {slug: "negative", text: "Negative", level: 3}
     - {slug: "more-information", text: "More information", level: 2}
+    - {slug: "amendment-2026-10-19-the-always-synthesized-directive-is-renamed", text: "Amendment 2026-10-19: the always-synthesized directive is renamed", level: 2}
   - path: "docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md"
     title: "Mutation Testing as a Local-Only Quality Gate"
     divio_type: "none"
