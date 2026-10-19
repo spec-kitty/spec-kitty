@@ -48,6 +48,9 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("requires_substantive_spec_for", "charter.activation.mission_type_profiles"),
     ("resolve_activation_write_target", "charter.activation.pack_manager"),
     ("verify", "charter.activation.synthesizer.manifest"),
+    ("LegacyRenameRefusedError", "charter.activation.synthesizer.legacy_rename"),
+    ("RenameReport", "charter.activation.synthesizer.legacy_rename"),
+    ("rename_legacy_project_intent_directive", "charter.activation.synthesizer.legacy_rename"),
 ]
 
 

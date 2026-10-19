@@ -23,6 +23,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     resolve_charter_write_root,
 )
 from specify_cli.cli.commands.charter._common import _emit_error
+from specify_cli.cli.commands.charter.synthesize import _converge_legacy_project_intent_directive
 
 # See ``synthesize.py`` for the package-module pattern: patches of
 # ``specify_cli.cli.commands.charter.<name>`` must be visible here too. We route
@@ -103,6 +104,8 @@ def charter_resynthesize(  # noqa: C901
         resolve_charter_write_root(Path.cwd())
 
         repo_root = _charter_pkg.find_repo_root()
+        # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything writes.
+        _converge_legacy_project_intent_directive(repo_root, dry_run=list_topics, console=console, json_output=json_output)
         charter_dir = repo_root / ".kittify" / "charter"
         # consolidate-charter-bundle (#2773): gate on the authoritative
         # charter.yaml, not the retired metadata.yaml (deleted by the fold
