@@ -97,7 +97,7 @@
       "wp": null
     },
     "#6437": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "eb37e3924 runner guard + orphan ceiling + nag-test hermeticity",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,8 +105,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6440": {
       "evidence_ref": "<auto-classified: no action required>",
