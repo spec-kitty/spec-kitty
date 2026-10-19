@@ -17,7 +17,8 @@ _JVM_TOOLGUIDES = frozenset({"java-supply-chain", "maven-review-checks"})
 
 
 def _toolguides_for(answer: str) -> frozenset[str]:
-    return load_offering_catalog(active_languages=declared_languages(answer)).toolguides
+    toolguides: frozenset[str] = load_offering_catalog(active_languages=declared_languages(answer)).toolguides
+    return toolguides
 
 
 @pytest.mark.parametrize("answer", ["Kotlin, Gradle", "Java", "Gradle"])
