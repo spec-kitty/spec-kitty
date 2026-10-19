@@ -1,0 +1,267 @@
+work_packages:
+  - id: WP01
+    title: "Local-only reds: upgrade outside git, orphan ceiling, nag-test hermeticity"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/upgrade/runner.py"
+      - "tests/specify_cli/upgrade/test_runner_not_a_git_repository.py"
+      - "tests/specify_cli/cli/commands/test_upgrade_command.py"
+      - "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py"
+      - "docs/development/testing/testing-flakiness.md"
+    requirement_refs:
+      - FR-015
+      - FR-016
+      - FR-017
+      - C-006
+      - SC-005
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+
+  - id: WP02
+    title: "Reach-only by kind: synthesized styleguides follow their directive"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/action_governance_bundle.py"
+      - "src/charter/activation/synthesizer/reach_only.py"
+      - "src/charter/activation/synthesizer/reconcile.py"
+      - "src/charter/activation/synthesizer/project_drg.py"
+      - "src/charter/activation/synthesizer/interview_mapping.py"
+      - "src/charter/activation/synthesizer/targets.py"
+      - "src/charter/activation/synthesizer/resynthesize_pipeline.py"
+      - "src/charter/activation/compiler.py"
+      - "src/charter/activation/api.py"
+      - "src/specify_cli/cli/commands/charter/synthesize.py"
+      - "src/specify_cli/cli/commands/charter/resynthesize.py"
+      - "tests/charter/synthesizer/test_styleguide_reach_only.py"
+      - "tests/charter/synthesizer/test_reach_only_delivery.py"
+      - "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      - "tests/charter/synthesizer/test_project_drg.py"
+      - "tests/charter/synthesizer/test_synthesize_reconcile.py"
+      - "tests/charter/synthesizer/test_edge_wiring.py"
+      - "tests/architectural/test_charter_activation_api_reexport.py"
+      - "tests/charter/fixtures/synthesizer/styleguide/**"
+      - "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md"
+      - "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-019
+      - C-001
+      - C-002
+      - C-003
+      - SC-001
+      - SC-002
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+
+  - id: WP03
+    title: "Project-intent directive: rename, dead edge, migration"
+    dependencies:
+      - WP02
+    owned_files:
+      - "tests/charter/synthesizer/test_context_reflects_synthesis.py"
+      - "tests/charter/synthesizer/test_edge_wiring.py"
+      - "tests/charter/synthesizer/test_generated_artifact_adapter.py"
+      - "tests/charter/synthesizer/test_orchestrator_resynthesize.py"
+      - "tests/charter/synthesizer/test_orchestrator_synthesize.py"
+      - "tests/charter/synthesizer/test_performance_envelopes.py"
+      - "tests/charter/synthesizer/test_schema_conformance.py"
+      - "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      - "tests/charter/synthesizer/test_synthesize_conflict_routing.py"
+      - "tests/charter/synthesizer/test_synthesize_node_preservation.py"
+      - "tests/charter/synthesizer/test_synthesize_path_parity.py"
+      - "tests/charter/synthesizer/test_synthesize_reconcile.py"
+      - "tests/charter/synthesizer/test_write_pipeline.py"
+      - "tests/charter/test_synthesis_provenance_paths.py"
+      - "tests/architectural/test_no_op_stable_writes.py"
+      - "tests/architectural/test_charter_activation_api_reexport.py"
+      - "tests/agent/cli/commands/test_charter_status_cli.py"
+      - "tests/agent/cli/commands/test_charter_synthesize_cli.py"
+      - "tests/specify_cli/charter/test_bundle_validate_fresh_seed.py"
+      - "tests/specify_cli/charter_freshness/test_computer.py"
+      - "tests/specify_cli/charter_runtime/test_boundary_heal.py"
+      - "tests/specify_cli/cli/commands/charter/test_activate_preserve.py"
+      - "tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py"
+      - "tests/acceptance/charter_pack_cutover/**"
+      - "tests/fixtures/charter_pack_cutover/static/synthesized/**"
+      - ".kittify/charter-packs/directive/**"
+      - ".kittify/charter/provenance/**"
+      - ".kittify/charter/synthesis-manifest.yaml"
+      - ".kittify/charter-packs/graph.yaml"
+      - ".kittify/charter/generated/**"
+      - ".kittify/config.yaml"
+      - ".kittify/charter/charter.yaml"
+      - "src/charter/activation/synthesizer/targets.py"
+      - "src/charter/activation/synthesizer/interview_mapping.py"
+      - "src/charter/activation/synthesizer/reconcile.py"
+      - "src/charter/activation/synthesizer/legacy_rename.py"
+      - "src/charter/activation/api.py"
+      - "src/specify_cli/cli/commands/charter/synthesize.py"
+      - "src/specify_cli/cli/commands/charter/resynthesize.py"
+      - "src/specify_cli/upgrade/migrations/m_4_0_0rc8_project_intent_directive_rename.py"
+      - "src/specify_cli/upgrade/migrations/order_manifest.txt"
+      - "tests/charter/synthesizer/test_legacy_rename.py"
+      - "tests/charter/synthesizer/test_project_intent_directive.py"
+      - "tests/charter/synthesizer/test_interview_mapping.py"
+      - "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_project_intent_directive_rename.py"
+      - "tests/charter/fixtures/synthesizer/directive/**"
+      - "docs/adr/3.x/2026-04-19-6-*.md"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-019
+      - SC-003
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T011
+      - T012
+      - T013
+      - T014
+      - T015
+
+  - id: WP04
+    title: "One language catalog and authority, kotlin token and jvm family"
+    dependencies:
+      - WP03
+    owned_files:
+      - "tests/charter/synthesizer/test_interview_mapping.py"
+      - "src/charter/activation/synthesizer/interview_mapping.py"
+      - "tests/charter_offering/shared/test_scoping_any_all.py"
+      - "src/charter/offering/shared/language_catalog.py"
+      - "src/charter/offering/shared/scoping.py"
+      - "src/charter/activation/language_authority.py"
+      - "src/charter/activation/language_scope.py"
+      - "src/charter/activation/evidence/code_reader.py"
+      - "tests/charter_offering/shared/test_language_catalog.py"
+      - "tests/charter/test_language_authority.py"
+      - "tests/charter/evidence/test_code_reader.py"
+      - "tests/charter/test_language_scope.py"
+      - "tests/charter_offering/shared/test_scoping.py"
+      - "tests/architectural/test_single_language_vocabulary.py"
+    requirement_refs:
+      - FR-009
+      - FR-013
+      - C-005
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+
+  - id: WP05
+    title: "Multi-language evidence, neutrality gate, stable hash, JSON"
+    dependencies:
+      - WP04
+      - WP03
+    owned_files:
+      - "tests/agent/cli/commands/test_charter_status_cli.py"
+      - "tests/agent/cli/commands/test_charter_synthesize_cli.py"
+      - "src/charter/activation/language_authority.py"
+      - "src/charter/activation/evidence/code_reader.py"
+      - "src/charter/activation/synthesizer/evidence.py"
+      - "src/charter/activation/synthesizer/request.py"
+      - "src/charter/activation/synthesizer/write_pipeline.py"
+      - "src/specify_cli/cli/commands/charter/_status_collectors.py"
+      - "src/specify_cli/cli/commands/charter/status.py"
+      - "src/specify_cli/cli/commands/charter/synthesize.py"
+      - "tests/charter/synthesizer/test_multi_language_evidence.py"
+      - "tests/charter/synthesizer/test_request.py"
+      - "tests/charter/synthesizer/test_write_pipeline.py"
+      - "tests/charter/synthesizer/test_evidence.py"
+      - "docs/adr/3.x/2026-04-17-1-*.md"
+    requirement_refs:
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-014
+      - FR-019
+      - NFR-005
+      - SC-004
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T021
+      - T022
+      - T023
+      - T024
+      - T025
+
+  - id: WP06
+    title: "JVM doctrine retag, open-packs re-seed and pin, synthesized golden, changelog"
+    dependencies:
+      - WP01
+      - WP07
+    owned_files:
+      - "tests/charter/test_jvm_toolguide_scoping.py"
+      - "packs/built-in/toolguides/java-supply-chain.toolguide.yaml"
+      - "packs/built-in/toolguides/maven-review-checks.toolguide.yaml"
+      - "packs/built-in/toolguide.graph.yaml"
+      - "packs/built-in/pack-manifest.yaml"
+      - "packs/built-in.source.yaml"
+      - "tests/charter/test_synthesized_in_force_snapshot.py"
+      - "tests/charter/fixtures/synthesized_in_force_snapshot.json"
+      - "docs/changelog/CHANGELOG.md"
+      - "docs/api/charter-commands.md"
+    requirement_refs:
+      - FR-018
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - C-004
+      - C-007
+      - SC-004
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T026
+      - T027
+      - T028
+      - T029
+
+  - id: WP07
+    title: "Configured project languages: detect at interview, store in config.yaml, adhere"
+    dependencies:
+      - WP05
+    owned_files:
+      - "src/charter/activation/language_authority.py"
+      - "src/charter/activation/language_scope.py"
+      - "src/charter/activation/evidence/code_reader.py"
+      - "src/charter/activation/interview.py"
+      - "src/specify_cli/cli/commands/charter/interview.py"
+      - "tests/charter/test_configured_languages.py"
+      - "tests/charter/test_language_authority.py"
+      - "tests/charter/test_language_scope.py"
+      - "tests/specify_cli/cli/commands/charter/test_interview_languages.py"
+      - "docs/api/charter-commands.md"
+    requirement_refs:
+      - FR-020
+      - FR-009
+      - SC-006
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T030
+      - T031
+      - T032
+      - T033

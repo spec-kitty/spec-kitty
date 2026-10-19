@@ -1,0 +1,133 @@
+{
+  "event_count": 89,
+  "last_event_id": "01M5AY8PSD0J9SHBY17G1N0GAF",
+  "materialized_at": "2026-10-19T20:39:51.341580+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7MPMXSQ9H1YF7966EPD1",
+      "last_transition_at": "2026-10-19T20:39:16.436692+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261019",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 16634,
+      "shell_pid_created_at": "1792405494.28"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7T26BVDKM6QBTS041KT0",
+      "last_transition_at": "2026-10-19T20:39:21.926304+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261019",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 27231,
+      "shell_pid_created_at": "1792411012.39"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY7ZQMVQ1ST96XREJWGH5Z",
+      "last_transition_at": "2026-10-19T20:39:27.732817+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 5309,
+      "shell_pid_created_at": "1792419523.11"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY85JD3FVRW1PREENEE0P6",
+      "last_transition_at": "2026-10-19T20:39:33.709683+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 5002,
+      "shell_pid_created_at": "1792423236.11"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8BWBGR4M5M279TP6388N",
+      "last_transition_at": "2026-10-19T20:39:40.171426+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 2297,
+      "shell_pid_created_at": "1792429857.1"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8PSD0J9SHBY17G1N0GAF",
+      "last_transition_at": "2026-10-19T20:39:51.341580+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 7470,
+      "shell_pid_created_at": "1792441543.35"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M5AY8HE7K67JBJJGHYZSF3PV",
+      "last_transition_at": "2026-10-19T20:39:45.863905+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 563,
+      "shell_pid_created_at": "1792437613.59"
+    }
+  }
+}
