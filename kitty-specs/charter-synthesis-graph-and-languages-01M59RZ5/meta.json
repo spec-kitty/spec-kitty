@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-19T20:37:25.578839+00:00",
+      "accepted_by": "claude-code/opus",
+      "accepted_from_commit": "e87a218dc2011e4c5da74da627cf850bae1ce18d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-19T20:37:25.578839+00:00",
+  "accepted_by": "claude-code/opus",
+  "accepted_from_commit": "e87a218dc2011e4c5da74da627cf850bae1ce18d",
   "contracts": "none",
   "contracts_rationale": "No new external API; additive JSON keys (evidence languages, interview languages/languages_source/languages_notice) and the config.yaml languages key are documented in docs/api/charter-commands.md and the CHANGELOG.",
   "coordination_branch": "kitty/mission-charter-synthesis-graph-and-languages-01M59RZ5",
