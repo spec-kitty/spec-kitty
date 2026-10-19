@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "mission_slug": "built-in-pack-from-open-packs-01M59V4T",
+  "mission_id": "01M59V4T0F8TN91GA4CKC3RP5D",
+  "mission_branch": "kitty/mission-built-in-pack-from-open-packs-01M59V4T",
+  "target_branch": "feat/6451-built-in-from-open-packs",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/built_in_pin.py",
+        "src/charter/offering/packs/pack_pin.py",
+        "src/charter/packs.py",
+        "tests/architectural/test_charter_facades_reexport_offering.py",
+        "tests/charter_offering/test_built_in_pin.py",
+        "tests/charter_offering/test_pack_pin.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/pack_fetch.py",
+        "src/kernel/git/remote.py",
+        "tests/charter_offering/conftest_pack_remote.py",
+        "tests/charter_offering/test_pack_fetch.py",
+        "tests/kernel/git/test_remote_fetch_commit_subtree.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "Makefile",
+        "scripts/sync_packs.py",
+        "src/charter/offering/pack_paths.py",
+        "tests/charter_offering/conftest.py",
+        "tests/charter_offering/test_built_in_pack_missing.py",
+        "tests/scripts/test_sync_packs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "hatch_build.py",
+        "pyproject.toml",
+        "tests/cross_cutting/packaging/test_installed_built_in_digest.py",
+        "tests/cross_cutting/packaging/test_packaging_safety.py",
+        "tests/cross_cutting/packaging/test_sdist_offline_wheel.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/pack_vendor.py",
+        "tests/charter_offering/test_pack_vendor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/actions/warmup/action.yml",
+        ".github/workflows/ci-aggregate.yml",
+        ".github/workflows/ci-modules.yml",
+        ".github/workflows/ci-nightly.yml",
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/ci-shard-recapture.yml",
+        ".github/workflows/ci-windows.yml",
+        ".github/workflows/contracts-release.yml",
+        ".github/workflows/contracts.yml",
+        ".github/workflows/mission-status-api.yml",
+        ".github/workflows/module-tests.yml",
+        ".github/workflows/packs.yml",
+        ".github/workflows/release-readiness.yml",
+        ".github/workflows/release.yml",
+        "tests/ci/test_workflows_sync_packs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/architectural/test_built_in_drift_gate.py",
+        "tests/architectural/test_no_pack_presence_skipif.py",
+        "tests/architectural/test_pack_trees_untracked.py",
+        "tests/charter_offering/test_internal_pack_identity.py",
+        "tests/cross_cutting/packaging/test_built_in_release_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        ".gitattributes",
+        "CLAUDE.md",
+        "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md",
+        "docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md",
+        "docs/development/how-to/sync-packs.md",
+        "packs/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "packs/built-in/**",
+        "packs/internal/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-10-19T12:13:29.285721+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f2687bdd1f4211bf33f4b5f5dfd631f581884061"
+}

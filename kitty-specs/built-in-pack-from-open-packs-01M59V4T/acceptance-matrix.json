@@ -1,0 +1,159 @@
+{
+  "mission_slug": "built-in-pack-from-open-packs-01M59V4T",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_pack_trees_untracked.py (git ls-files, xfail removed WP09); fresh clone check T042",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:02.849733+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_pack_pin.py; packs/*.source.yaml at open-packs 3fb9a7f0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:05.771873+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_pack_fetch.py (real file:// remote, cache hit); fresh clone cold sync ok",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:08.659550+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_pack_fetch.py + tests/kernel/git/test_remote_fetch_commit_subtree.py (digest mismatch, unresolvable, unavailable)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:11.550835+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_built_in_pack_missing.py (BuiltInPackMissing names make sync-packs)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:14.528394+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Makefile dev-setup->sync-packs; tests/ci/test_workflows_sync_packs.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:17.512437+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_installed_built_in_digest.py (real wheel build, pin digest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:20.404719+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_sdist_offline_wheel.py (git shim never called)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:23.302668+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py (0 packs/internal members in wheel and sdist)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:26.277175+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_pack_vendor.py (real fetch bump, no tree copied)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:29.216886+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_pack_pin.py C-005 layout test; pins use subtree packs/built-in after open-packs#50",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:32.123466+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "packs.yml built-in-pin-check (sync_packs --check); tests/ci/test_workflows_sync_packs.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:35.070642+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_built_in_drift_gate.py removed with named replacements (WP07)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:37.972112+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/3.x/2026-08-16-2 amendment; AGENTS.md/CLAUDE.md; docs/development/how-to/sync-packs.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:40.961322+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_installed_built_in_digest.py incl. editable install",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T14:31:44.034594+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

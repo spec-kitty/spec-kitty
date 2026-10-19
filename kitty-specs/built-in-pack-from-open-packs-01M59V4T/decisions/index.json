@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-19T10:26:15.654051Z",
+      "decision_id": "01M59V55Z62T4BM8Z8KRNFKQ63",
+      "final_answer": "Fail loudly with run-X message; reuse a local cache dir if pinned SHA already fetched",
+      "input_key": "offline_dev_fallback",
+      "mission_id": "01M59V4T0F8TN91GA4CKC3RP5D",
+      "mission_slug": "built-in-pack-from-open-packs-01M59V4T",
+      "opened_by": "cli",
+      "options": [
+        "Fail loudly with run-X message; reuse a local cache dir if pinned SHA already fetched",
+        "Fail loudly, no cache",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a git-checkout contributor or CI has no network and no fetched pack, what should happen?",
+      "rationale": null,
+      "resolved_at": "2026-10-19T10:29:28.904868Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.offline-dev",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-19T11:27:38.899613Z",
+      "decision_id": "01M59YNJWKKHG6KJVBGF56K0PQ",
+      "final_answer": "PR to open-packs restoring core fields (keep pack_version; relax core test)",
+      "input_key": "internal_descriptor_reconcile",
+      "mission_id": "01M59V4T0F8TN91GA4CKC3RP5D",
+      "mission_slug": "built-in-pack-from-open-packs-01M59V4T",
+      "opened_by": "cli",
+      "options": [
+        "PR to open-packs restoring core fields (keep pack_version; relax core test)",
+        "Relax core descriptor to infer org level by convention",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "open-packs packs/internal/pack.yaml lacks pack_level/active_charter/pack_drg (core schema requires pack_level) and adds pack_version 1.0.0. How to reconcile?",
+      "rationale": null,
+      "resolved_at": "2026-10-19T11:34:14.292055Z",
+      "resolved_by": null,
+      "slot_key": "plan.internal.descriptor-reconcile",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M59V4T0F8TN91GA4CKC3RP5D",
+  "version": 1
+}

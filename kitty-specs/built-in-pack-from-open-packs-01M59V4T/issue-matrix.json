@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#2661": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3022": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3504": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4822": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6166": {
+      "evidence_ref": "Closed in-mission by WP04 of built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP04"
+    },
+    "#6364": {
+      "evidence_ref": "Closed in-mission by WP06 of built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    },
+    "#6395": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6420": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6421": {
+      "evidence_ref": "Closed in-mission by WP07 of built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP07"
+    },
+    "#6436": {
+      "evidence_ref": "Context-only citation; no work owed by mission built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6451": {
+      "evidence_ref": "Closed in-mission by WP09 of built-in-pack-from-open-packs-01M59V4T",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP09"
+    }
+  },
+  "schema_version": 1
+}
