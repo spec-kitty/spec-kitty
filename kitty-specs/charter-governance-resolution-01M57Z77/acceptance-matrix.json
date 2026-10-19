@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP04 approved (reviewer-renata, red-first verified): tests/charter/synthesizer/test_project_drg.py suggests-edge test",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:07:22.076727+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
