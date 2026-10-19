@@ -59,6 +59,19 @@ def test_fetches_only_the_requested_subtree(tmp_path: Path) -> None:
     assert not (dest / "other" / "b.txt").exists()
 
 
+def test_user_autocrlf_does_not_rewrite_fetched_bytes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Windows runners set core.autocrlf=true globally; the pinned full-tree digest
+    # hashes raw bytes, so the fetch must check out exactly what the commit holds.
+    url, sha = _make_remote(tmp_path)
+    global_config = tmp_path / "gitconfig"
+    global_config.write_text("[core]\n\tautocrlf = true\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    dest = tmp_path / "dest"
+    fetch_commit_subtree(url, sha, _SUBTREE, dest, timeout=60)
+    assert (dest / _SUBTREE / "a.txt").read_bytes() == b"alpha\n"
+
+
 def test_falls_back_when_the_server_refuses_filter(tmp_path: Path) -> None:
     url, sha = _make_remote(tmp_path, allow_filter=False)
     dest = tmp_path / "dest"

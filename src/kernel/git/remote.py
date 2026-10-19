@@ -384,6 +384,9 @@ def fetch_commit_subtree(url: str, sha: str, subtree: str, dest: Path, *, timeou
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=False)
     run_git(dest, "init", "-q")
+    # Check out the commit's exact bytes: a user's or runner's core.autocrlf would
+    # rewrite line endings and break the pinned full-tree (raw-byte) digest.
+    run_git(dest, "config", "core.autocrlf", "false")
     run_git(dest, "remote", "add", "--", _ORIGIN, url)
     fetch = ("fetch", "-q", "--depth", "1", "--no-tags", "--no-recurse-submodules", "--no-auto-gc")
     try:
