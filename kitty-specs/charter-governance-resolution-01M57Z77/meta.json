@@ -1,0 +1,37 @@
+{
+  "accept_commit": "089863856e776cbc56e5dd1e11f63ad79de91dfc",
+  "acceptance_history": [
+    {
+      "accept_commit": "089863856e776cbc56e5dd1e11f63ad79de91dfc",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-19T03:09:53.669253+00:00",
+      "accepted_by": "claude-code/opus",
+      "accepted_from_commit": "83acda8a8fdcd4d2a3b65c1ff1f0083117589db9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-19T03:09:53.669253+00:00",
+  "accepted_by": "claude-code/opus",
+  "accepted_from_commit": "83acda8a8fdcd4d2a3b65c1ff1f0083117589db9",
+  "baseline_merge_commit": "982198a8730ceb4a9fd9d7e7b562a6c67146261b",
+  "contracts": "none",
+  "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md.",
+  "created_at": "2026-10-18T16:58:49.327153+00:00",
+  "flattened": true,
+  "friendly_name": "Charter governance resolution",
+  "merged_at": "2026-10-19T03:24:20.739074+00:00",
+  "merged_commit": "912fb5938b4644885de5725efbb7f14a7affbcb6",
+  "mid8": "01M57Z77",
+  "mission_id": "01M57Z77ADHQ56YJHZ1MCHP3X1",
+  "mission_number": 236,
+  "mission_slug": "charter-governance-resolution-01M57Z77",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Five defects found using Spec Kitty in the charter repo (#6404-#6408): synthesized how-we-apply tactics never reach action context, org directive ids are shown as guessed stems, one org id in selected_directives wipes all governance, the first activation freezes the whole catalog, and the code reader calls a Gradle repo typescript. This Mission fixes them at their shared roots in the charter activation layer.",
+  "purpose_tldr": "Make charter governance deliver what the operator activated and selected: synthesized tactics, declared ids, org-pack selections, narrow activation and a correct stack signal.",
+  "slug": "charter-governance-resolution-01M57Z77",
+  "status_phase": "1",
+  "target_branch": "issue-6404-charter-governance-resolution-work",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-18T17:42:29.756399+00:00"
+}
