@@ -8,7 +8,6 @@ reads. The ``synthesize`` / ``resynthesize`` pre-step is pinned in
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +44,8 @@ _GRAPH = Path(".kittify") / "charter-packs" / "graph.yaml"
 _CHARTER_YAML = Path(".kittify") / "charter" / "charter.yaml"
 _CONFIG = Path(".kittify") / "config.yaml"
 _BODY = "id: PROJECT_001\ntitle: Mission Type Scope Directive\nintent: keep the scope\nschema_version: '1.0'\n"
+#: SHA-256 of ``_BODY`` (the manifest records the raw artifact digest; ``verify`` re-checks it).
+_BODY_SHA256 = "2efdbf7523ae2273e2bcc2f9780de41a7a3e23a56b7e6d4adbc99fb175f2a8d0"
 _OLD_PATH = f".kittify/charter-packs/directive/{_LEGACY}"
 _NEW_PATH = f".kittify/charter-packs/directive/{_NEW}"
 
@@ -87,7 +88,7 @@ def _legacy_project(root: Path, *, shape: str = "direct-write", pointer: bool = 
         slug=slug,
         path=_OLD_PATH,
         provenance_path=f".kittify/charter/provenance/{prov_name}",
-        content_hash=hashlib.sha256(_BODY.encode()).hexdigest(),  # noqa: TID251 - test computes the manifest's raw artifact digest
+        content_hash=_BODY_SHA256,
     )
     (root / _CHARTER_YAML).write_text(f"activated_directives:\n- {_LEGACY_STEM}\n- DIRECTIVE_003\n" if pointer else "x: 1\n", encoding="utf-8")
     manifest = finalize_manifest(

@@ -36,7 +36,8 @@ class ProjectIntentDirectiveRenameMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         try:
-            return rename_legacy_project_intent_directive(project_path, dry_run=True).pending
+            pending: bool = rename_legacy_project_intent_directive(project_path, dry_run=True).pending
+            return pending
         except LegacyRenameRefusedError:
             # A refusal is not "nothing to do": route it through apply() so the runner records the reason.
             return True

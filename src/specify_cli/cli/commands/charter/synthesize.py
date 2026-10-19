@@ -36,6 +36,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
 # ``_run_synthesis_dry_run_with_artifacts``) are routed via ``_charter_pkg``
 # below.
 from specify_cli.cli.commands.charter._synthesis import (
+    _converge_legacy_project_intent_directive,
     _catalog_is_established,
     _emit_dry_run_report,
     _emit_orphan_refusal,
@@ -59,28 +60,6 @@ from specify_cli.cli.commands.charter._synthesis import (
 import specify_cli.cli.commands.charter as _charter_pkg
 
 __all__ = ["charter_synthesize"]
-
-
-def _converge_legacy_project_intent_directive(repo_root: Path, *, dry_run: bool, console: Any, json_output: bool) -> None:
-    """Run the shared FR-008 rename helper before a synthesis write (#6443).
-
-    A refusal is a ``SynthesisError`` the command's own handler renders. The notice goes to stderr
-    under ``--json`` so stdout stays one JSON document.
-    """
-    from charter.activation.api import rename_legacy_project_intent_directive  # noqa: PLC0415
-
-    report = rename_legacy_project_intent_directive(repo_root, dry_run=dry_run)
-    if not report.pending:
-        return
-    sink = err_console if json_output else console
-    heading = (
-        "Legacy project-intent directive found (dry run, nothing changed)"
-        if dry_run
-        else "Renamed the legacy mission-type-scope-directive to project-intent-directive"
-    )
-    sink.print(f"[yellow]{heading}:[/yellow]")
-    for action in report.actions:
-        sink.print(f"  - {action}")
 
 
 def _coerce_cli_bool(value: bool) -> bool:

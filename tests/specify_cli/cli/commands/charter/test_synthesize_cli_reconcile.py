@@ -477,3 +477,48 @@ def test_coerce_cli_bool_coerces_non_bool_sentinel_to_false() -> None:
 
 def test_synthesize_mode_import_is_the_canonical_enum() -> None:
     assert {m.value for m in SynthesizeMode} == {"preserve", "prune", "dry_run"}
+
+
+# ---------------------------------------------------------------------------
+# #6443: the stripped dead mission-type edge is reported under its own wording
+# ---------------------------------------------------------------------------
+
+_DEAD_REASON = "dead mission-type requires edge removed (#6443)"
+
+
+def _stripped_refs() -> tuple[Any, ...]:
+    from charter.activation.synthesizer.reconcile import NodeOrEdgeRef
+
+    dead = NodeOrEdgeRef(
+        ref_kind="edge",
+        urn="directive:PROJECT_001--requires-->mission_type:software-dev",
+        backing_artifact=None,
+        reason=_DEAD_REASON,
+    )
+    applied = NodeOrEdgeRef(
+        ref_kind="edge",
+        urn="tactic:t--applies-->directive:DIRECTIVE_003",
+        backing_artifact=None,
+        reason="legacy applies edge replaced by suggests",
+    )
+    return (dead, applied)
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_dead_mission_type_edge_is_reported_with_its_own_wording(monkeypatch: pytest.MonkeyPatch, dry_run: bool) -> None:
+    from specify_cli.cli.commands.charter import _synthesis
+
+    printed: list[str] = []
+    monkeypatch.setattr(_synthesis.console, "print", lambda msg="", *a, **k: printed.append(str(msg)))
+
+    _synthesis._print_stripped_edges(_stripped_refs(), dry_run=dry_run)
+
+    text = "\n".join(printed)
+    assert "dead mission-type 'requires' edge" in text
+    dead_idx = text.index("dead mission-type 'requires' edge")
+    assert text.index("mission_type:software-dev") > dead_idx
+    # The dead edge is not misreported as an 'applies' -> 'suggests' replacement.
+    replaced_idx = text.index("Replaced")
+    assert text.index("tactic:t--applies-->") < dead_idx
+    assert "mission_type:software-dev" not in text[replaced_idx:dead_idx]

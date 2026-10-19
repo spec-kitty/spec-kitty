@@ -45,7 +45,7 @@ from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path
 
 from .artifact_naming import artifact_filename, pack_kind_subdir
-from .errors import SynthesisError
+from .errors import LegacyRenameRefusedError
 from .manifest import MANIFEST_PATH, finalize_manifest, load_yaml
 from .provenance import provenance_path_for
 from .synthesize_pipeline import canonical_yaml
@@ -68,17 +68,6 @@ _DIRECTIVE_URN_PREFIX = "directive:PROJECT_"
 _MISSION_TYPE_URN_PREFIX = "mission_type:"
 _GENERATED_ROOT = Path(".kittify") / "charter" / "generated"
 _READ_ERRORS = (OSError, YAMLError, ValueError, ValidationError)
-
-
-@dataclass(frozen=True)
-class LegacyRenameRefusedError(SynthesisError):  # type: ignore[misc]  # errors.py is on the mypy ratchet exclude list, so SynthesisError resolves to Any
-    """The legacy directive rename was refused; nothing was changed."""
-
-    reasons: tuple[str, ...]
-
-    def __str__(self) -> str:
-        detail = "; ".join(self.reasons)
-        return f"Refused to rename the legacy '{_LEGACY_SLUG}' directive to '{_NEW_SLUG}': {detail}. Nothing was changed. Resolve the above and re-run."
 
 
 @dataclass(frozen=True)
@@ -384,7 +373,7 @@ def _renamed_tokens(tokens: list[Any]) -> list[Any]:
 
 
 def _legacy_token_keys(data: dict[str, Any]) -> list[str]:
-    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- import cycle: pack_manager imports synthesizer modules
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # deferred: import cycle: pack_manager imports synthesizer modules
 
     keys = []
     for key in ACTIVATION_YAML_KEYS:
@@ -396,7 +385,7 @@ def _legacy_token_keys(data: dict[str, Any]) -> list[str]:
 
 def _check_tokens(repo_root: Path) -> _Finding:
     finding = _Finding()
-    from charter.activation.pack_manager import resolve_activation_write_target  # noqa: PLC0415 -- import cycle
+    from charter.activation.pack_manager import resolve_activation_write_target  # deferred: import cycle
 
     try:
         target_path, data, _save = resolve_activation_write_target(repo_root)
@@ -409,7 +398,7 @@ def _check_tokens(repo_root: Path) -> _Finding:
 
 
 def _apply_tokens(repo_root: Path) -> None:
-    from charter.activation.pack_manager import resolve_activation_write_target  # noqa: PLC0415 -- import cycle
+    from charter.activation.pack_manager import resolve_activation_write_target  # deferred: import cycle
 
     target_path, data, save = resolve_activation_write_target(repo_root)
     keys = _legacy_token_keys(data)
@@ -462,7 +451,7 @@ def rename_legacy_project_intent_directive(repo_root: Path, *, dry_run: bool = F
         return RenameReport(dry_run=dry_run, actions=tuple(actions))
     for step in _STEPS:
         step.apply(repo_root)
-    from charter.activation.bundle_restamp import restamp_bundle_hash  # noqa: PLC0415 -- import cycle
+    from charter.activation.bundle_restamp import restamp_bundle_hash  # deferred: import cycle
 
     restamp_bundle_hash(repo_root)
     return RenameReport(dry_run=False, actions=tuple(actions))
