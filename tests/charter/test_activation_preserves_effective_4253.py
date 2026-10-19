@@ -376,3 +376,11 @@ def test_mission_type_seeding_spans_both_org_packs(tmp_path: Path) -> None:
     assert {"software-dev", "mt-one", "mt-two"} <= set(written), written
     assert any("no mission type was in force" in w and "mission types available across all readable layers" in w for w in warnings), warnings
     assert not any(ALREADY_EFFECTIVE in w for w in warnings)
+
+
+def test_default_activation_warning_says_the_materialised_list_is_frozen(project_without_activation_keys: Path) -> None:
+    result = _activate(project_without_activation_keys, "directive", "001-architectural-integrity-standard")
+    assert result.exit_code == 0, result.output
+    output = " ".join(result.output.split())
+    assert "Initialized from the" in output
+    assert "This list is now explicit" in output and "--only" in output

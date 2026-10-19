@@ -242,7 +242,8 @@ class TestEdgeDerivedFromSourceUrns:
         assert edge.target == "directive:DIRECTIVE_003"
         assert edge.relation == Relation.REQUIRES
 
-    def test_tactic_source_urn_produces_applies_edge(self) -> None:
+    def test_tactic_source_urn_produces_suggests_edge(self) -> None:
+        """#6404: directive --suggests--> how-we-apply tactic, never tactic --applies--> directive."""
         shipped = _make_shipped_graph(
             nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)]
         )
@@ -255,9 +256,9 @@ class TestEdgeDerivedFromSourceUrns:
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
         assert {(e.source, e.target, e.relation) for e in graph.edges} == {
-            ("tactic:how-we-apply-003", "directive:DIRECTIVE_003", Relation.APPLIES)
+            ("directive:DIRECTIVE_003", "tactic:how-we-apply-003", Relation.SUGGESTS)
         }
-        assert graph.edges[0].relation == Relation.APPLIES
+        assert not [e for e in graph.edges if e.relation == Relation.APPLIES]
 
     def test_multiple_source_urns_produce_multiple_edges(self) -> None:
         shipped = _make_shipped_graph(

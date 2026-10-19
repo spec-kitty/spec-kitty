@@ -463,3 +463,26 @@ def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path) -> None:
 
     loaded = load_yaml(tmp_path / MANIFEST_PATH)
     verify_manifest_hash(loaded)
+
+
+def _bundle_with_scope(scope_tag: str):
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
+
+    return EvidenceBundle(
+        code_signals=CodeSignals(
+            stack_id=scope_tag,
+            primary_language=scope_tag,
+            frameworks=(),
+            test_frameworks=(),
+            scope_tag=scope_tag,
+            representative_files=(),
+            detected_at="2026-01-01T00:00:00+00:00",
+        )
+    )
+
+
+def test_is_generic_scoped_matches_slug_components_not_substrings() -> None:
+    """#6405: 'java' must not match inside 'javascript'."""
+    bundle = _bundle_with_scope("java")
+    assert _is_generic_scoped("styleguide", "java-style-guide", bundle) is False
+    assert _is_generic_scoped("styleguide", "javascript-style-guide", bundle) is True

@@ -319,8 +319,8 @@ def _is_generic_scoped(
     Scope determination rules:
     - No evidence / no code_signals → generic (lint it)
     - scope_tag == "unknown" → generic (lint it)
-    - scope_tag IS a substring of slug → language-scoped (skip lint)
-    - scope_tag NOT in slug → generic (lint it)
+    - scope_tag IS one of the slug's hyphen-separated components → language-scoped (skip lint)
+    - scope_tag NOT a slug component (``java`` is not in ``javascript-...``) → generic (lint it)
 
     Example: scope_tag="python", slug="python-style-guide" → language-scoped (False)
     Example: scope_tag="python", slug="testing-philosophy" → generic (True)
@@ -334,7 +334,7 @@ def _is_generic_scoped(
 
     # A language-scoped artifact slug typically contains the scope_tag as a component.
     # e.g. "python-style-guide" contains "python"; "testing-philosophy" does not.
-    return scope_tag not in target_slug
+    return scope_tag not in target_slug.split("-")
 
 
 def _run_neutrality_gate(
