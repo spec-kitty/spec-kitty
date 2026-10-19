@@ -642,9 +642,9 @@ Exceptions discussed case-by-case. Strong justification required.
 
 ## Attribution
 
-**Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
+**Spec Kitty** derives from GitHub's [Spec Kit](https://github.com/github/spec-kit). As the Spec Kit MIT license requires, `LICENSE` keeps GitHub's original copyright notice (`Copyright GitHub, Inc.`) next to Spec Kitty, Inc.'s, and both notices ship with every copy, including the wheel.
 
-**License:** MIT (All Rights Reserved for Priivacy AI code)
+**License:** MIT, for the whole codebase. See [`LICENSE`](../../LICENSE).
 
 ---
 
