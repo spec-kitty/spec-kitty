@@ -78,6 +78,25 @@ def _stem_spelled_effective(repo_root: Path, effective: dict[str, EffectiveSet],
     return mapped
 
 
+def _stem_spelled_config(repo_root: Path, config_data: dict[str, Any], kinds: dict[str, ArtifactKind], promotions: dict[str, list[str]]) -> dict[str, Any]:
+    """*config_data* with each promoted key's PRESENT list spelled as activation stems.
+
+    A list holding a declared id (``DIRECTIVE_003``) would otherwise be compared raw
+    against the stem the interview selected and report the same artifact as dropped (#6408).
+    """
+    from charter.activation.api import IdentityIndex
+
+    index = IdentityIndex.build(repo_root)
+    mapped = dict(config_data)
+    for yaml_key in promotions:
+        kind = kinds.get(yaml_key)
+        current = config_data.get(yaml_key)
+        if kind is None or not isinstance(current, list):
+            continue
+        mapped[yaml_key] = [index.stem(kind, str(item)) or str(item) for item in current]
+    return mapped
+
+
 def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narrow: bool = False) -> tuple[list[str], dict[str, list[str]]]:
     """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
 
@@ -163,6 +182,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     absent = [key for key in promotions if config_data.get(key) is None]
     effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
     if narrow:
+        config_data = _stem_spelled_config(repo_root, config_data, {f"activated_{kind.plural}": kind for kind in kind_to_selection}, promotions)
         effective_sets = _stem_spelled_effective(repo_root, effective_sets, {f"activated_{kind.plural}": kind for kind in kind_to_selection})
     outcome = promote_activations(
         promotions,

@@ -364,3 +364,20 @@ def test_interview_narrow_activation_failure_exits_nonzero(
     # Best-effort path preserved without --narrow-activation.
     best_effort = runner.invoke(charter_app, [*base])
     assert best_effort.exit_code == 0, best_effort.output
+
+
+def test_interview_narrow_activation_compares_a_present_declared_id_list_by_stem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A present list spelled DIRECTIVE_003 narrowed to the same artifact's stem drops nothing (#6408)."""
+    _git_init(tmp_path)
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text("activated_directives:\n- DIRECTIVE_003\n", encoding="utf-8")
+
+    payload = _run_interview_json(
+        tmp_path, monkeypatch, "--selected-directives", "003-decision-documentation-requirement", "--narrow-activation"
+    )
+
+    assert "activated_directives" not in payload["narrowed"], payload["narrowed"]
+    assert _read_config(tmp_path)["activated_directives"] == ["003-decision-documentation-requirement"]
