@@ -94,8 +94,9 @@ _logger = logging.getLogger(__name__)
 #: an authored relation onto it silently turns the edge into a no-op for cascade and
 #: context resolution (the #2079 defect class). An earlier revision of this comment
 #: said "no traversal reads APPLIES", which is false and is what allowed WP09's
-#: defect to ship: ``orphan.py``'s ``directive`` rule reads it and ``project_drg.py``
-#: emits it. Neither saved the retyped edge, whose target is a ``procedure``.
+#: defect to ship: ``orphan.py``'s ``directive`` rule reads it. That did not save
+#: the retyped edge, whose target is a ``procedure``. Project-tier synthesis no
+#: longer emits ``APPLIES`` (#6404): it links directive to tactic with ``SUGGESTS``.
 _RELATION_ALIASES: dict[str, Relation] = {
     "extends": Relation.SPECIALIZES_FROM,
 }

@@ -10,7 +10,8 @@ No external runtime dependencies — stdlib ``pathlib`` and ``os.walk`` only.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from charter.activation.synthesizer.evidence import CodeSignals
@@ -55,11 +56,34 @@ LANGUAGE_INDICATORS: dict[str, str] = {
     "Cargo.toml": "rust",
     "pom.xml": "java",
     "build.gradle": "java",
+    "build.gradle.kts": "java",
+    "settings.gradle": "java",
+    "settings.gradle.kts": "java",
+    "gradlew": "java",
+    "mvnw": "java",
     "Gemfile": "ruby",
     "composer.json": "php",
     # package.json is handled separately (js vs ts disambiguation)
     PACKAGE_JSON: "javascript",
 }
+
+# Source-file extension → language (used to break same-depth manifest ties)
+SOURCE_EXT_LANG: dict[str, str] = {
+    ".py": "python",
+    ".go": "go",
+    ".rs": "rust",
+    ".java": "java",
+    ".kt": "java",
+    ".rb": "ruby",
+    ".php": "php",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".mjs": "javascript",
+}
+
+TSCONFIG_JSON = "tsconfig.json"
 
 FRAMEWORK_INDICATORS: dict[str, str] = {
     "manage.py": "django",
@@ -100,11 +124,17 @@ class CodeReadingError(Exception):
 class _TreeScan:
     """Raw file-system observations gathered by a single ``os.walk`` pass."""
 
-    indicator_files: set[str]
+    indicator_depths: dict[str, int]
     source_files: list[str]
     test_files: list[str]
     ts_files: int
     js_files: int
+    ext_counts: Counter[str] = field(default_factory=Counter)
+
+    @property
+    def indicator_files(self) -> set[str]:
+        """All observed basenames."""
+        return set(self.indicator_depths)
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +157,41 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
     # Directory-based heuristic
     parts = to_posix(rel_path).split("/")
     return "tests" in parts or "__tests__" in parts
+
+
+def _observe(scan: _TreeScan, filename: str, rel_path: str, depth: int) -> None:
+    """Record one file into *scan* (shallowest depth per basename, counts, buckets)."""
+    known = scan.indicator_depths.get(filename)
+    if known is None or depth < known:
+        scan.indicator_depths[filename] = depth
+
+    ext = os.path.splitext(filename)[1]
+    if ext in SOURCE_EXT_LANG:
+        scan.ext_counts[SOURCE_EXT_LANG[ext]] += 1
+    if ext in (".ts", ".tsx"):
+        scan.ts_files += 1
+    elif ext in (".js", ".jsx", ".mjs"):
+        scan.js_files += 1
+
+    if _is_test_file(rel_path, filename):
+        scan.test_files.append(rel_path)
+    else:
+        scan.source_files.append(rel_path)
+
+
+def _js_or_ts(scan: _TreeScan, package_depth: int) -> str:
+    """Pick typescript vs javascript for a ``package.json`` at *package_depth*."""
+    if scan.indicator_depths.get(TSCONFIG_JSON) == package_depth:
+        return "typescript"
+    total = scan.ts_files + scan.js_files
+    if total > 0 and scan.ts_files / total > 0.5:
+        return "typescript"
+    return "javascript"
+
+
+def _break_tie(languages: list[str], ext_counts: Counter[str]) -> str:
+    """Return the language with most source files; ties keep indicator order."""
+    return max(languages, key=lambda lang: (ext_counts[lang], -languages.index(lang)))
 
 
 # ---------------------------------------------------------------------------
@@ -183,9 +248,7 @@ class CodeReadingCollector:
     def _detect(self) -> CodeSignals:
         scan = self._scan_tree()
 
-        language = self._detect_language(
-            scan.indicator_files, scan.ts_files, scan.js_files
-        )
+        language = self._detect_language(scan)
         frameworks = self._detect_frameworks(scan.indicator_files)
         test_fws = self._detect_test_frameworks(
             scan.indicator_files, scan.test_files, language
@@ -212,16 +275,12 @@ class CodeReadingCollector:
         source vs. test file paths, and TS/JS counts (for the TS-vs-JS
         majority heuristic) — all gathered in a single ``os.walk`` pass.
         """
-        indicator_files: set[str] = set()
-        source_files: list[str] = []
-        test_files: list[str] = []
-        ts_files = 0
-        js_files = 0
-
+        scan = _TreeScan(
+            indicator_depths={}, source_files=[], test_files=[], ts_files=0, js_files=0
+        )
         root_str = str(self._repo_root)
 
         for dirpath, dirnames, filenames in os.walk(root_str):
-            # Compute depth relative to root
             rel = os.path.relpath(dirpath, root_str)
             depth = 0 if rel == "." else rel.count(os.sep) + 1
             if depth > self._max_depth:
@@ -229,38 +288,14 @@ class CodeReadingCollector:
                 continue
 
             # Prune excluded directories in-place so os.walk skips them
-            dirnames[:] = [
-                d for d in dirnames if d not in EXCLUDED_DIRS
-            ]
+            dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
 
             for filename in filenames:
                 abs_path = os.path.join(dirpath, filename)
-                rel_path = os.path.relpath(abs_path, root_str).replace(
-                    os.sep, "/"
-                )
+                rel_path = os.path.relpath(abs_path, root_str).replace(os.sep, "/")
+                _observe(scan, filename, rel_path, depth)
 
-                # Track indicator filenames for language/framework detection
-                indicator_files.add(filename)
-
-                # Count TS vs JS files for disambiguation
-                if filename.endswith((".ts", ".tsx")):
-                    ts_files += 1
-                elif filename.endswith((".js", ".jsx", ".mjs")):
-                    js_files += 1
-
-                # Bucket into source vs test
-                if _is_test_file(rel_path, filename):
-                    test_files.append(rel_path)
-                else:
-                    source_files.append(rel_path)
-
-        return _TreeScan(
-            indicator_files=indicator_files,
-            source_files=source_files,
-            test_files=test_files,
-            ts_files=ts_files,
-            js_files=js_files,
-        )
+        return scan
 
     @staticmethod
     def _detect_frameworks(indicator_files: set[str]) -> list[str]:
@@ -316,31 +351,34 @@ class CodeReadingCollector:
 
         return "+".join(parts_stack)
 
-    def _detect_language(
-        self,
-        indicator_files: set[str],
-        ts_files: int,
-        js_files: int,
-    ) -> str:
-        """Return the primary language string."""
-        # TypeScript takes precedence over JavaScript when tsconfig.json present
-        if PACKAGE_JSON in indicator_files:
-            if "tsconfig.json" in indicator_files:
-                return "typescript"
-            # Majority-extension heuristic
-            total_js_ts = ts_files + js_files
-            if total_js_ts > 0 and ts_files / total_js_ts > 0.5:
-                return "typescript"
-            return "javascript"
+    @staticmethod
+    def _detect_language(scan: _TreeScan) -> str:
+        """Return the primary language, preferring the shallowest manifests.
 
-        # Check remaining language indicators in priority order
+        Manifests at the shallowest depth win; several languages at that depth
+        are resolved by source-file counts, then indicator order.
+        """
+        hits = {
+            name: depth
+            for name, depth in scan.indicator_depths.items()
+            if name in LANGUAGE_INDICATORS
+        }
+        if not hits:
+            return "unknown"
+
+        top = min(hits.values())
+        languages: list[str] = []
         for indicator, lang in LANGUAGE_INDICATORS.items():
+            if hits.get(indicator) != top:
+                continue
             if indicator == PACKAGE_JSON:
-                continue  # handled above
-            if indicator in indicator_files:
-                return lang
+                lang = _js_or_ts(scan, top)
+            if lang not in languages:
+                languages.append(lang)
 
-        return "unknown"
+        if len(languages) == 1:
+            return languages[0]
+        return _break_tie(languages, scan.ext_counts)
 
     @staticmethod
     def _unknown_signals() -> CodeSignals:
