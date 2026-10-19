@@ -57,23 +57,9 @@ _QUOTED_RE = re.compile(r'"([\w-]+)"')
 #
 # ``test_vestigial_glob_rows_stay_earned`` keeps this honest: a row whose glob
 # has left the workflow, or which has become live, reds until it is deleted —
-# the ledger cannot outlive its subject.
-# #6451 cutover: packs/built-in is fetched from the pinned open-packs commit and no longer
-# tracked in core, so these content globs match no tracked path. They stay declared because the
-# consumer census and tests/ci fan-out derivation key off them; the pin-lockfile glob in the same
-# groups is the live signal. Delete the rows together with the globs once the census re-keys.
-_UNTRACKED_PACK_TREE = "packs/built-in is untracked (fetched from the pinned open-packs commit); pin glob is the live signal"
-VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {
-    ("ci-router.yml", "mission_manifest", "packs/built-in/missions/**/expected-artifacts.yaml"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/mission-steps/**"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/*/templates/**"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/*/mission.yaml"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/*/mission-runtime.yaml"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/*/actions/**"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/*/governance-profile.yaml"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_pack_content", "packs/built-in/missions/built_in_step_contracts/**"): _UNTRACKED_PACK_TREE,
-    ("ci-router.yml", "mission_type_definitions", "packs/built-in/missions/mission_types/**"): _UNTRACKED_PACK_TREE,
-}
+# the ledger cannot outlive its subject. (#6480 emptied it: the pack content globs
+# #6451 left dead moved to gate_selection.PACK_CONTENT_SCOPES.)
+VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {}
 
 # NFR-007 fault-injection pair: a make target whose NAME shares nothing with
 # the live ``test-fast`` one, so a resolver that matched the literal string

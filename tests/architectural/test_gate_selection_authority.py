@@ -26,10 +26,12 @@ from scripts.ci.gate_selection import (
     DEFAULT_ROUTER_PATH,
     DEPENDENCY_MODULE_FANOUT,
     GROUP_MODULE_FANOUT,
+    PACK_PIN_GLOB,
     GateSelection,
     Router,
     _registry_module_names,
     load_router,
+    pack_content_groups,
     select_gates,
     select_modules,
 )
@@ -37,6 +39,22 @@ from scripts.ci.gate_selection import (
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _pack_edit_selects(router: Router, path: str) -> frozenset[str]:
+    """The modules a change to built-in pack content ``path`` selects (#6480).
+
+    packs/built-in is untracked since #6451, so a content change reaches a PR only as a
+    pin-lockfile bump. The path's content groups (gate_selection.PACK_CONTENT_SCOPES)
+    must all be triggered by the pin; the answer is the pin's module selection narrowed
+    to those groups' fan-out, so a guard still reds when the path's OWN group loses a
+    module that another pack group happens to carry.
+    """
+    assert (_REPO_ROOT / path).is_file(), f"{path} is not on disk (run `make sync-packs`): the pin would be vacuous"
+    groups = pack_content_groups(path)
+    assert groups, f"{path} is in no PACK_CONTENT_SCOPES group"
+    assert groups <= select_gates([PACK_PIN_GLOB], router=router).matched_groups, f"the pin does not trigger {sorted(groups)}"
+    return select_modules([PACK_PIN_GLOB], router=router) & frozenset().union(*(GROUP_MODULE_FANOUT[g] for g in groups))
 
 
 @pytest.fixture(scope="module")
@@ -249,14 +267,14 @@ def test_a_services_only_diff_selects_the_ci_module(router: Router, path: str) -
 
 
 def test_manifest_edit_cannot_mask_an_unmapped_src_change(router: Router) -> None:
-    """#6125 fail-closed: a data-only manifest path never masks unmapped ``src/**``.
+    """#6125 fail-closed: a pack pin bump never masks unmapped ``src/**``.
 
-    The manifest glob rides a NON-src group, so it stays out of the ``unmatched``
-    union: manifest + a ``src/**`` path no named group owns is still run-all, not
-    the manifest's narrow module set.
+    The pin glob rides NON-src groups, so it stays out of the ``unmatched`` union:
+    pin + a ``src/**`` path no named group owns is still run-all, not the pack
+    groups' narrow module set.
     """
     unmapped = "src/specify_cli/__unmapped_probe__/thing.py"
-    manifest = "packs/built-in/missions/software-dev/expected-artifacts.yaml"
+    manifest = PACK_PIN_GLOB
     assert select_gates([unmapped, manifest], router=router).unmatched_src is True
     assert select_modules([unmapped, manifest], router=router) == select_modules([], router=router, mode="full")
 
@@ -270,7 +288,8 @@ def test_manifest_edit_selects_charter_dossier_and_runtime(router: Router, manif
 
     Before, it matched only the non-module ``corpus`` group and selected zero modules.
     """
-    assert frozenset({"charter", "dossier", "specify_cli_runtime"}) <= select_modules([manifest], router=router)
+    assert "mission_manifest" in pack_content_groups(manifest)
+    assert frozenset({"charter", "dossier", "specify_cli_runtime"}) <= _pack_edit_selects(router, manifest)
 
 
 def test_group_module_fanout_is_wired(router: Router) -> None:
@@ -314,7 +333,7 @@ def test_manifest_edit_still_selects_dossier_regression_guard(router: Router) ->
     the exact historical path so a future routing change cannot silently drop it.
     """
     manifest = "packs/built-in/missions/software-dev/expected-artifacts.yaml"
-    assert "dossier" in select_modules([manifest], router=router)
+    assert "dossier" in _pack_edit_selects(router, manifest)
 
 
 def test_mission_step_prompt_edit_selects_next(router: Router) -> None:
@@ -327,7 +346,7 @@ def test_mission_step_prompt_edit_selects_next(router: Router) -> None:
     matched). RED on ``main`` (``select_modules`` == ``frozenset()``); green after task A.
     """
     prompt = "packs/built-in/missions/mission-steps/software-dev/research/prompt.md"
-    assert "next" in select_modules([prompt], router=router)
+    assert "next" in _pack_edit_selects(router, prompt)
 
 
 def test_lifecycle_command_edit_selects_agent(router: Router) -> None:
@@ -377,8 +396,7 @@ _CONSUMED_PACK_SUBTREE_CASES = [
 @pytest.mark.parametrize(("path", "module"), _CONSUMED_PACK_SUBTREE_CASES)
 def test_consumed_pack_subtree_edit_selects_its_consumer(router: Router, path: str, module: str) -> None:
     """#6166 landing review (red-first): each consumed pack sub-tree selects its consumer module."""
-    assert (_REPO_ROOT / path).is_file(), f"{path} is not a tracked pack file: the pin would be vacuous"
-    assert module in select_modules([path], router=router)
+    assert module in _pack_edit_selects(router, path)
 
 
 def test_non_consumed_pack_readme_still_selects_zero_modules(router: Router) -> None:
@@ -389,6 +407,7 @@ def test_non_consumed_pack_readme_still_selects_zero_modules(router: Router) -> 
     """
     readme = "packs/built-in/missions/README.md"
     assert (_REPO_ROOT / readme).is_file()
+    assert pack_content_groups(readme) == frozenset()
     assert select_modules([readme], router=router) == frozenset()
 
 

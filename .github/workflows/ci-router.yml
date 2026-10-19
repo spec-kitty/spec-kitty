@@ -234,17 +234,18 @@ jobs:
             dossier:
               - 'src/specify_cli/dossier/**'
             # issue #6125: mission-manifest group, NON-src (not in the unmatched loop, so a
-            # data-only manifest path can never mask an unmapped src/** change). File-specific
-            # (never broad packs/built-in/missions/**). Not a module: select_modules fans it out
+            # pin bump can never mask an unmapped src/** change). Census scope: the
+            # expected-artifacts.yaml manifests. Not a module: select_modules fans it out
             # to charter + dossier + specify_cli_runtime (gate_selection.GROUP_MODULE_FANOUT).
             # Gates no router job BY DESIGN; the module matrix is its per-PR executor.
             mission_manifest:
-              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here, so a pin bump
-              # is the only in-repo signal that pack content changed and must select what a content edit did.
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
               - 'packs/built-in.source.yaml'
-              - 'packs/built-in/missions/**/expected-artifacts.yaml'
-            # Mission-pack-content group (#6166): NON-src (not in the unmatched loop, so a data-only
-            # pack path can never mask an unmapped src/** change, FR-004). Covers the CONSUMED mission
+            # Mission-pack-content group (#6166): NON-src (not in the unmatched loop, so a pin bump
+            # can never mask an unmapped src/** change, FR-004). Census scope: the CONSUMED mission
             # pack content beyond expected-artifacts.yaml (which mission_manifest above owns) and
             # mission_types/** (which mission_type_definitions below owns): the mission-step
             # prompt/step contracts, the per-type templates, mission.yaml, mission-runtime.yaml,
@@ -253,31 +254,26 @@ jobs:
             # `corpus` group and selected zero modules. Not a module: select_modules fans it out to the
             # modules whose tests read that content (charter, next, missions, dossier,
             # specify_cli_runtime, execution_context -- gate_selection.GROUP_MODULE_FANOUT). Gates no
-            # router job BY DESIGN; the module matrix is its per-PR executor. Sub-tree-specific globs
-            # (not a blanket packs/built-in/missions/**): the files left out are the READMEs, which no
-            # module test reads (the always-on architectural battery still scans them), so they keep
-            # selecting zero modules (the corpus zero-module golden is preserved).
+            # router job BY DESIGN; the module matrix is its per-PR executor. The scope is
+            # sub-tree-specific (not a blanket packs/built-in/missions/**): it leaves out the READMEs,
+            # which no module test reads.
             mission_pack_content:
-              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here, so a pin bump
-              # is the only in-repo signal that pack content changed and must select what a content edit did.
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
               - 'packs/built-in.source.yaml'
-              - 'packs/built-in/missions/mission-steps/**'
-              - 'packs/built-in/missions/*/templates/**'
-              - 'packs/built-in/missions/*/mission.yaml'
-              - 'packs/built-in/missions/*/mission-runtime.yaml'
-              - 'packs/built-in/missions/*/actions/**'
-              - 'packs/built-in/missions/*/governance-profile.yaml'
-              - 'packs/built-in/missions/built_in_step_contracts/**'
             # Mission-type-definitions group (#6166 landing review): NON-src, like mission_pack_content
             # above. The built-in mission-type YAMLs have a wider consumer set than the rest of the pack
             # (core_misc + upgrade read them; next/missions/dossier do not), so they get their own group
             # instead of widening every prompt.md edit by 9 shards. Fanned out to charter, core_misc and
             # upgrade by gate_selection.GROUP_MODULE_FANOUT; gates no router job BY DESIGN.
             mission_type_definitions:
-              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here, so a pin bump
-              # is the only in-repo signal that pack content changed and must select what a content edit did.
+              # Pin lockfile (#6451): packs/built-in is fetched from the commit pinned here and is not
+              # tracked, so a pin bump is the only in-repo signal that pack content changed. The pin is
+              # the group's sole trigger; its content scope (census-only) is
+              # gate_selection.PACK_CONTENT_SCOPES (#6480).
               - 'packs/built-in.source.yaml'
-              - 'packs/built-in/missions/mission_types/**'
             # Reducer-lock group (#6238): NON-src, so it can never mask an unmapped src/** change. A
             # uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet
             # selected neither the upgrade nor the status shard. Fanned out by

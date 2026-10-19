@@ -64,6 +64,7 @@ from scripts.ci.gate_selection import (  # noqa: E402 — needs the sys.path boo
     Router,
     _modules_for_test_paths,
     _registry_module_names,
+    fanout_group_globs,
     load_router,
     select_gates,
 )
@@ -474,8 +475,10 @@ class ConsumedPath:
 # The census build — orchestrated from small, individually-testable phases.
 # ---------------------------------------------------------------------------
 def _group_globs(router: Router, groups: Iterable[str]) -> tuple[str, ...]:
-    """The router filter globs of a set of groups, flattened."""
-    return tuple(pattern for group in groups for pattern in router.filters.get(group, ()))
+    """The census-attribution globs of a set of fan-out groups, flattened (the router
+    filters plus the pack content scopes, ``gate_selection.fanout_group_globs``)."""
+    group_globs = fanout_group_globs(router)
+    return tuple(pattern for group in groups for pattern in group_globs.get(group, ()))
 
 
 def _attribute_test_files(
@@ -659,9 +662,10 @@ def load_census(path: Path = CENSUS_PATH) -> dict[str, object]:
 
 
 def unrouted_pack_consumers(census: dict[str, object], *, router: Router | None = None) -> list[tuple[str, str]]:
-    """Every census ``(module, pack-path)`` whose path matches NO fan-out group glob.
+    """Every census ``(module, pack-path)`` whose path matches NO fan-out group glob
+    (router filter or pack content scope, ``gate_selection.fanout_group_globs``).
 
-    A mission-pack-content path a test consumes but that no FANOUT_GROUPS glob routes
+    A mission-pack-content path a test consumes but that no fan-out group glob (``fanout_group_globs``) routes
     is an UNROUTED consumer: an edit to it selects zero fan-out modules, so the
     consuming module runs in no per-PR shard and the break surfaces on ``main``
     later (the #6166 class). The routing gate asserts this list is empty; a planted
@@ -671,7 +675,7 @@ def unrouted_pack_consumers(census: dict[str, object], *, router: Router | None 
     by base src-group routing, outside this fan-out concern.
     """
     router = router or load_router()
-    fanout_globs = tuple(pattern for group in FANOUT_GROUPS for pattern in router.filters.get(group, ()))
+    fanout_globs = _group_globs(router, FANOUT_GROUPS)
     modules = census.get("modules", {})
     if not isinstance(modules, dict):
         return []

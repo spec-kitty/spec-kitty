@@ -3,7 +3,7 @@
 ``scripts/ci/consumer_census_cost.py`` measures the per-PR selected-shard count
 under the live hand fan-out vs the census-derived one (FR-009). These pin the pure
 library: a diff selects its module's shard cost, the derived fan-out is dearer than the hand
-one on a prompt edit (the recorded trade-off), and a non-consumed pack file costs zero
+one on a built-in pin bump (the recorded trade-off), and a non-consumed pack file costs zero
 under both.
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from scripts.ci import consumer_census_cost as cost
-from scripts.ci.gate_selection import GROUP_MODULE_FANOUT, load_router
+from scripts.ci.gate_selection import GROUP_MODULE_FANOUT, PACK_PIN_GLOB, load_router
 
 pytestmark = pytest.mark.fast
 
@@ -28,10 +28,11 @@ def test_a_src_group_diff_costs_its_module_shards(router) -> None:
     assert c == counts["consolidation"]
 
 
-def test_prompt_edit_shows_a_positive_derivation_delta(router) -> None:
-    """The mission-step prompt edit is strictly more expensive under the derived
-    fan-out (the census finds more real consumers) — a non-vacuous cost signal."""
-    rows = cost.compare_fanouts([["packs/built-in/missions/mission-steps/software-dev/research/prompt.md"]], router=router)
+def test_pin_bump_shows_a_positive_derivation_delta(router) -> None:
+    """A built-in pin bump (the only in-repo pack content change since #6451) is
+    strictly more expensive under the derived fan-out (the census finds more real
+    consumers) — a non-vacuous cost signal."""
+    rows = cost.compare_fanouts([[PACK_PIN_GLOB]], router=router)
     assert rows[0]["hand_shards"] > 0 and rows[0]["delta"] > 0
 
 
