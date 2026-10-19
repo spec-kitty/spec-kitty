@@ -391,6 +391,7 @@ def run(
                 existing_overlay=existing_overlay,
                 updated_overlay=updated_overlay,
                 synthesized_urns=synthesized_urns,
+                topic_scoped=True,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
         _validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)

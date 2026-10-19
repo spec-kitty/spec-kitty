@@ -899,7 +899,8 @@ def test_hand_authored_directive_suggests_edge_survives_tactic_regeneration(
 
 
 def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None:
-    """#6404: a styleguide's ``applies`` edge and an untargeted tactic's legacy edge are untouched."""
+    """#6404: a styleguide's ``applies`` edge is never stripped; a topic-scoped run
+    leaves an untargeted tactic's legacy edge untouched, a full run strips it."""
     from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
     from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
 
@@ -917,8 +918,12 @@ def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None
     updated = _graph([regenerated], [])
     synthesized = {"tactic:regen", "tactic:untargeted", "styleguide:style"}
 
-    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
-
+    merged = merge_project_overlay(
+        existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized, topic_scoped=True
+    )
     assert {e.source for e in merged.edges} == {"tactic:untargeted", "styleguide:style"}
+
+    full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
+    assert {e.source for e in full.edges} == {"styleguide:style"}
     stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
     assert [e.source for e in stripped] == ["tactic:regen"]
