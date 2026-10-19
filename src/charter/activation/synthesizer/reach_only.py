@@ -16,6 +16,7 @@ from pathlib import Path
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.org_pack_discovery import read_org_required_ids
+from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml
 from charter.activation.synthesizer.reconcile import is_synthesized_tactic_edge, synthesized_node_urns
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, has_graph_files, load_graph_or_dir
@@ -30,8 +31,6 @@ _TACTIC_PREFIX = "tactic:"
 
 def _manifest_tactic_urns(repo_root: Path) -> frozenset[str]:
     """``tactic:<slug>`` URNs the synthesis manifest registers; empty when absent or unreadable."""
-    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml  # noqa: PLC0415
-
     manifest_path = repo_root / MANIFEST_PATH
     try:
         manifest = load_yaml(manifest_path)

@@ -827,7 +827,6 @@ def test_edge_owner_assigns_synthesized_edge_to_its_tactic_and_profile_edge_to_p
 
 def test_edge_ref_of_directive_sourced_edge_resolves_backing_artifact_through_owner() -> None:
     from charter.activation.synthesizer.reconcile import _edge_ref
-    from charter.offering.drg.models import DRGEdge, Relation
 
     edge = _derived_edge_fixture("directive:DIRECTIVE_003", _SYNTH_TACTIC)
     path = ".kittify/charter-packs/tactic/how-we-apply-directive-003.tactic.yaml"
@@ -839,7 +838,7 @@ def test_edge_ref_of_directive_sourced_edge_resolves_backing_artifact_through_ow
 def test_merge_does_not_duplicate_or_prune_edge_of_untargeted_tactic() -> None:
     """Partial-run shape: an untouched tactic keeps its edge; a regenerated one is replaced once."""
     from charter.activation.synthesizer.reconcile import merge_project_overlay
-    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind
 
     def _tac(slug: str) -> DRGNode:
         return DRGNode(urn=f"tactic:{slug}", kind=NodeKind.TACTIC, label=slug)
