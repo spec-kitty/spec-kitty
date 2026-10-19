@@ -67,6 +67,15 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
+# Reach-only tactic activation — the synthesis-run helpers the ``charter
+# synthesize`` / ``resynthesize`` CLI commands consume (#6404) to append the
+# tactics a run created to an explicit ``activated_tactics`` list. Public per
+# charter.activation.synthesizer.reach_only.__all__.
+from charter.activation.synthesizer.reach_only import (
+    append_synthesized_tactic_activations as append_synthesized_tactic_activations,
+    created_tactic_slugs as created_tactic_slugs,
+)
+
 # Activation write-target resolution — the ``(path, data, save)`` triple a
 # consumer (the rc35 mission-type activation migration's post-fold short-circuit)
 # reads to decide whether ``mission_type_activations`` already lives in the
@@ -92,8 +101,10 @@ __all__ = [
     "MANIFEST_PATH",
     "IdentityEntry",
     "IdentityIndex",
+    "append_synthesized_tactic_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
+    "created_tactic_slugs",
     "finalize_manifest",
     "load_yaml",
     "read_mission_type",

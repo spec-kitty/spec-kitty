@@ -528,7 +528,7 @@ def charter_synthesize(  # noqa: C901
         # tactic: that would re-add one an operator removed) to an explicit
         # ``activated_tactics`` list (absent key stays absent). Reached only
         # after the dry-run return and the orphan refusal above.
-        from charter.activation.synthesizer.reach_only import (
+        from charter.activation.api import (
             append_synthesized_tactic_activations,
             created_tactic_slugs,
         )
