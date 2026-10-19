@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
     from charter.offering.artifact_kinds import ArtifactKind
 
-    from charter.repository_protocol import ArtifactRepository
+    from charter.activation.progressive_disclosure import ArtifactRepository
 
 __all__ = [
     "_render_agent_profile_include_selector",
