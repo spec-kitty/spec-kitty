@@ -1,7 +1,7 @@
 {
-  "event_count": 65,
-  "last_event_id": "01M5AQD0NVN3C60FR2W55826DD",
-  "materialized_at": "2026-10-19T18:39:52.507589+00:00",
+  "event_count": 66,
+  "last_event_id": "01M5AQF9783WYVZ7P3CF8N6ADN",
+  "materialized_at": "2026-10-19T18:41:06.792516+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -197,18 +197,23 @@
       "last_transition_at": "2026-10-19T10:24:28.800012+00:00"
     },
     "WP07": {
-      "actor": "implement-command",
-      "agent": "implement-command",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "implement-command",
-      "lane": "for_review",
-      "last_event_id": "01M5AQD0NVN3C60FR2W55826DD",
-      "last_transition_at": "2026-10-19T18:39:52.507589+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M5AQF9783WYVZ7P3CF8N6ADN",
+      "last_transition_at": "2026-10-19T18:41:06.792516+00:00",
+      "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-19T18:33:15Z – claude – shell_pid=19346 – WP07 done at 5fd9ae296. KEY: top-level 'languages' list of catalog tokens in .kittify/config.yaml (SC-006 wording); 'charter:' is the charter.yaml pointer and 'charter_packs:' is the pack section, so neither could carry it; written directly to config.yaml (not a pointed charter.yaml) via the shared atomic YAML writer, other keys/comments preserved. PRECEDENCE: config list > compiled catalog.languages > interview free text/detection; evidence uses it (primary = first entry, no source walk); synthesis request injects it as language_scope. Invalid/family entries refused on write (ValueError, interview exit 1), dropped with a warning on read; none valid or empty or non-list reads as absent. Interactive: prompt default = stored list else detected; --defaults/non-interactive (is_interactive false) never prompt, store detected only when absent, never overwrite. RED-FIRST: test_configured_languages.py 15 failed/7 passed against stubs (real assertion failures); test_interview_languages.py 7 failed with the command unwired. TESTS: broad blast radius 1612 passed, 14 skipped, 1 xfailed, 3 failed = 2 known baseline reds (resynthesize_and_hotpath) + test_no_dead_symbols (fixed after: CONFIG_LANGUAGES_KEY/write_configured_languages dropped from __all__); rerun test_no_dead_symbols + api_reexport + configured_languages = 84 passed. ruff/format/mypy --strict clean on new code (interview.py untyped-decorator error pre-existing), 0 new noqa/type-ignore. UNOWNED EDITS: charter/activation/api.py (+configured_languages, settle_project_languages, LanguageSettlement seam exports) and tests/architectural/test_charter_activation_api_reexport.py rows; synthesizer/interview_mapping.py (leftover a: language_scope via declared_languages/is_catalog_language, family dropped, config list used via snapshot) ; specify_cli/.../_synthesis.py (injects configured list as language_scope); tests/charter/synthesizer/test_multi_language_evidence.py (leftover b: go.mod is ESSENTIAL since a single-language repo skips the source count; restored with a clear comment). Docs: docs/api/charter-commands.md. Orchestrator: CHANGELOG entry needed."
       ],
-      "shell_pid": 19346,
-      "shell_pid_created_at": "1792431730.12",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 8959,
+      "shell_pid_created_at": "1792435260.77",
       "subtasks": {
         "T030": "done",
         "T031": "done",
