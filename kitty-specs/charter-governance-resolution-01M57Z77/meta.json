@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-19T03:09:53.669253+00:00",
+      "accepted_by": "claude-code/opus",
+      "accepted_from_commit": "83acda8a8fdcd4d2a3b65c1ff1f0083117589db9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-19T03:09:53.669253+00:00",
+  "accepted_by": "claude-code/opus",
+  "accepted_from_commit": "83acda8a8fdcd4d2a3b65c1ff1f0083117589db9",
   "contracts": "none",
   "contracts_rationale": "No new external API; additive CLI flags and JSON keys are documented in data-model.md and quickstart.md.",
   "coordination_branch": "kitty/mission-charter-governance-resolution-01M57Z77",
