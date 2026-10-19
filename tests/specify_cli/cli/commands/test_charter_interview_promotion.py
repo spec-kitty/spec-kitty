@@ -330,3 +330,37 @@ def test_stem_spelled_effective_maps_declared_ids_to_stems(tmp_path: Path) -> No
 
     assert mapped[key].ids == frozenset({"qa-tactic-seven", "ghost"})
     assert mapped["activated_paradigms"] is effective["activated_paradigms"]
+
+
+def test_interview_narrow_activation_failure_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An explicit --narrow-activation that cannot be applied fails, in JSON and text modes (#6408)."""
+    import json
+
+    import importlib
+
+    interview_mod = importlib.import_module("specify_cli.cli.commands.charter.interview")
+
+    _git_init(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise RuntimeError("narrowing exploded")
+
+    monkeypatch.setattr(interview_mod, "_promote_interview_selections", _boom)
+    base = ["interview", "--defaults", "--profile", "minimal", "--selected-directives", "DIRECTIVE_001"]
+
+    as_json = runner.invoke(charter_app, [*base, "--json", "--narrow-activation"])
+    assert as_json.exit_code != 0
+    payload = json.loads(as_json.stdout)
+    assert payload["success"] is False
+    assert "narrowing exploded" in payload["error"]
+
+    as_text = runner.invoke(charter_app, [*base, "--narrow-activation"])
+    assert as_text.exit_code != 0
+
+    # Best-effort path preserved without --narrow-activation.
+    best_effort = runner.invoke(charter_app, [*base])
+    assert best_effort.exit_code == 0, best_effort.output

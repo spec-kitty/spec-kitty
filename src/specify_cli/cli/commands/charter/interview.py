@@ -385,6 +385,9 @@ def interview(  # noqa: C901
         try:
             promotion_warnings, narrowed = _promote_interview_selections(repo_root, interview_data, narrow=narrow_activation)
         except Exception as exc:  # noqa: BLE001 — promotion is best-effort, never blocks the interview
+            if narrow_activation:
+                # An explicit --narrow-activation that cannot be applied is a failure, not a warning (#6408).
+                raise TaskCliError(f"--narrow-activation could not be applied: {exc}") from exc
             promotion_warnings = [f"Selection promotion skipped: {exc}"]
             if not json_output:
                 console.print(f"[yellow]Selection promotion skipped:[/yellow] {exc}")
