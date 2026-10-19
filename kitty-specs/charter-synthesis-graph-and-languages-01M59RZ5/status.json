@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01M59X7BPH1677PMPZYNCVRTKF",
-  "materialized_at": "2026-10-19T11:02:24.209225+00:00",
+  "event_count": 15,
+  "last_event_id": "01M59XCGJ7HTH6XPNE3CS6XPWY",
+  "materialized_at": "2026-10-19T11:05:13.031136+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
@@ -51,17 +51,22 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "implement-command",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "implement-command",
-      "lane": "for_review",
-      "last_event_id": "01M59X7BPH1677PMPZYNCVRTKF",
-      "last_transition_at": "2026-10-19T11:02:24.209225+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M59XCGJ7HTH6XPNE3CS6XPWY",
+      "last_transition_at": "2026-10-19T11:05:13.031136+00:00",
+      "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-19T10:54:49Z – claude – shell_pid=16634 – Red-first: tests/charter/synthesizer/test_styleguide_reach_only.py (19 tests) was 17 failed / 2 passed on unchanged source (commit d3974499e); the 2 passing are controls (language_scope styleguide unsourced, action bundle seeds no styleguide root). Green after fix: 19 passed. Tests run (-n0, PYTHONPATH=worktree src): tests/charter/synthesizer/ + test_default_in_force_snapshot + charter CLI synth/resynth tests + bundle/activation tests + owner_delivery + arch gates (api_reexport, runtime_charter_activation_boundary, layer_rules, no_dead_symbols, charter_pack_path_authority, charter_path_literal_authority, no_stale_charter_path_literals, no_dead_src_path_literals): 847 passed, 12 skipped, 2 failed; the 2 failures (test_resynthesize_and_hotpath activate/deactivate_without_resynthesize_stays_stale) also fail on the unchanged base (verified by stash). Changed expectations: test_project_drg styleguide source now expects directive--suggests-->styleguide (was styleguide--applies-->directive); test_synthesize_reconcile legacy-applies test now strips synthesized styleguide applies edges (was: never stripped) and keeps hand-authored ones; test_reach_only_delivery/test_synthesize_reconcile use synthesized_edge_reason(kind, slug) (tactic text byte-identical); test_synthesize_activation_append uses CREATED_ARTIFACTS_PATH, new warning text, append_synthesized_activations/created_slugs; test_charter_activation_api_reexport rows renamed; UNOWNED test_interview_mapping::test_answer_context_carries_answer_kinds_and_provenance now expects source_urns_by_kind on testing_philosophy. No fixture re-keying was needed (no checked-in fixture request is sourced). ruff, format, mypy --strict clean on changed files (4 pre-existing mypy errors in compiler.py/synthesize.py/resynthesize.py untouched)."
       ],
-      "shell_pid": 16634,
-      "shell_pid_created_at": "1792405494.28",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 8382,
+      "shell_pid_created_at": "1792407906.2",
       "subtasks": {
         "T005": "done",
         "T006": "done",
