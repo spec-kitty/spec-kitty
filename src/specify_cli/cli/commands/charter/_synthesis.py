@@ -874,7 +874,7 @@ def _orphaned_removals(delta: ReconciliationDelta | None) -> tuple[NodeOrEdgeRef
 
     if not isinstance(delta, _ReconciliationDelta):
         return ()
-    return tuple(ref for ref in delta.removable if ref.backing_artifact is None)
+    return tuple(ref for ref in delta.removable if ref.backing_artifact is None and ref.reason is None)
 
 
 _ORPHAN_REMEDIATION_TEMPLATE = (
@@ -907,7 +907,15 @@ def _conflict_to_line(conflict: ReconciliationConflict) -> str:
 
 
 def _ref_to_dict(ref: NodeOrEdgeRef) -> dict[str, Any]:
-    return {"ref_kind": ref.ref_kind, "urn": ref.urn, "backing_artifact": ref.backing_artifact}
+    payload: dict[str, Any] = {"ref_kind": ref.ref_kind, "urn": ref.urn, "backing_artifact": ref.backing_artifact}
+    if ref.reason is not None:
+        payload["reason"] = ref.reason
+    return payload
+
+
+def _stripped_legacy_edges(delta: ReconciliationDelta) -> tuple[NodeOrEdgeRef, ...]:
+    """Removals the run performed itself (legacy ``applies`` edges, #6404)."""
+    return tuple(ref for ref in delta.removable if ref.reason is not None)
 
 
 def _conflict_to_dict(conflict: ReconciliationConflict) -> dict[str, Any]:
@@ -1080,6 +1088,7 @@ def _emit_real_run_report(
             else:
                 payload["retained"] = [_ref_to_dict(ref) for ref in reconciliation.retained]
                 payload["conflicts"] = [_conflict_to_dict(c) for c in reconciliation.conflicts]
+                payload["stripped_legacy_edges"] = [_ref_to_dict(ref) for ref in _stripped_legacy_edges(reconciliation)]
         print(json.dumps(payload, indent=2, sort_keys=True))
         mark_invocation_succeeded()
         return
@@ -1100,6 +1109,11 @@ def _emit_real_run_report(
                 console.print("[dim]Retained on-disk content (untargeted by this run):[/dim]")
                 for ref in reconciliation.retained:
                     console.print(f"  - {ref.ref_kind}: {ref.urn}")
+            stripped = _stripped_legacy_edges(reconciliation)
+            if stripped:
+                console.print(f"[yellow]Replaced {len(stripped)} legacy 'applies' edge(s) with 'suggests':[/yellow]")
+                for ref in stripped:
+                    console.print(f"  - {ref.urn}")
             for conflict in reconciliation.conflicts:
                 console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
     if written_artifacts_real:
