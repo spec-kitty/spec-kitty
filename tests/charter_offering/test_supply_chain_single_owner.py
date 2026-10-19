@@ -194,7 +194,8 @@ class TestJavaToolguideLoads:
         data = _YAML.load(_read_text(self._JAVA_TOOLGUIDE_YAML))
         assert data["id"] == "java-supply-chain"
         assert data["guide_path"] == "packs/built-in/toolguides/JAVA_SUPPLY_CHAIN.md"
-        assert data["applies_to_languages"] == ["java"]
+        # #6444: tagged with the jvm family so Kotlin projects receive it too.
+        assert data["applies_to_languages"] == ["jvm"]
 
     def test_guide_exists_and_is_non_empty(self) -> None:
         text = _read_text(self._JAVA_TOOLGUIDE_MD)
