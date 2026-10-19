@@ -121,7 +121,16 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: UNCHANGED at 21 — verified empirically, not assumed. The ceiling is already
 #: tight (no leftover slack) both before and after this wiring; it is NOT
 #: ratcheted, because there is nothing to ratchet down to.
-DOCUMENTED_ORPHAN_RESIDUAL = 21
+#:
+#: 2026-10-19 (mission charter-synthesis-graph-and-languages-01M59RZ5, WP01,
+#: #6379 / #6432): the built-in pin bump of PR #6379 vendored the plan mission's
+#: four step contracts, so the shipped graph gained
+#: ``mission_step_contract:plan/{plan,research,review,specify}``. Like every other
+#: step-contract node they are edge-less by construction (resolved by the
+#: ``(mission_type, action)`` join, never by traversal; see
+#: ``_EDGELESS_BY_CONSTRUCTION`` in ``test_extractor_projection.py``), so the
+#: ceiling rises **21 -> 25**. No edge was wired and ``packs/built-in/`` is untouched.
+DOCUMENTED_ORPHAN_RESIDUAL = 25
 
 
 def _count_orphans(graph: DRGGraph) -> int:

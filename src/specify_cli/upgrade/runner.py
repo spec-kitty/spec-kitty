@@ -14,6 +14,7 @@ from typing import Any
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
+from charter.resolution import NotInsideRepositoryError
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
@@ -426,7 +427,10 @@ class MigrationRunner:
         # refusal as a warn-and-continue. Not recorded, so it is re-evaluated when
         # the project state changes. (A genuine inability to complete work is an
         # ``apply()`` failure, which still fails the run.)
-        can_apply, reason = migration.can_apply(self.project_path)
+        try:
+            can_apply, reason = migration.can_apply(self.project_path)
+        except NotInsideRepositoryError:
+            return self._not_inside_repository_skip(migration)
         if not can_apply:
             return (
                 MigrationResult(
@@ -441,6 +445,8 @@ class MigrationRunner:
         # migration failure, not an unhandled crash.
         try:
             result = migration.apply(self.project_path, dry_run=dry_run)
+        except NotInsideRepositoryError:
+            return self._not_inside_repository_skip(migration)
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return (
                 MigrationResult(
@@ -464,6 +470,25 @@ class MigrationRunner:
             )
 
         return result, ("applied" if result.success else "failed")
+
+    @staticmethod
+    def _not_inside_repository_skip(migration: BaseMigration) -> tuple[MigrationResult, str]:
+        """Skip a migration that needs a git repository when the project has none (#6437).
+
+        A migration that resolves the canonical repo root (for example
+        ``3.2.0rc35_unified_bundle``) raises ``NotInsideRepositoryError`` for a
+        project outside any git repository. It is not applicable there: skip it,
+        record nothing, and let a run inside a repository apply it. Only this
+        one exception type is caught, so a migration that wrote state and then
+        failed for any other reason still surfaces as a failure.
+        """
+        return (
+            MigrationResult(
+                success=True,
+                warnings=[f"Migration {migration.migration_id} not applicable here (not inside a git repository); skipping"],
+            ),
+            "skipped",
+        )
 
     def _upgrade_worktrees(
         self,
