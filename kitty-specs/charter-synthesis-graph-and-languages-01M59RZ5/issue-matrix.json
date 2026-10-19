@@ -85,7 +85,7 @@
       "wp": null
     },
     "#6432": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "eb37e3924 same reds on interpreter-3.13-shard-3",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6437": {
       "evidence_ref": "eb37e3924 runner guard + orphan ceiling + nag-test hermeticity",
