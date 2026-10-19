@@ -249,9 +249,13 @@ applies. Three points are easy to miss:
 
 - **Never set `priority:P0` in a pass.** Name the criterion the issue meets and flag
   it; escalation is the operator's decision.
-- **Do not touch `status:*` or `taken-by-human` labels.** They are leases and queue
-  state, set by a human or by contributor tooling (see
-  [Issue workflow-state labels](#issue-workflow-state-labels)). Report one that looks stale.
+- **Leave `status:*` and `taken-by-human` alone, with one exception.** They are leases
+  and queue state, set by a human or by contributor tooling (see
+  [Issue workflow-state labels](#issue-workflow-state-labels)). The exception is
+  `status:triage`: once an issue's triage decisions are applied, remove it, and add no
+  other status label in its place (`triage:*` sub-labels stay). A flagged issue keeps
+  `status:triage` until the operator's ruling is applied. Report any other status label
+  that looks stale.
 - **Check liveness against the canonical remote.** Judge "still exists" or "already
   shipped" against `main` of `spec-kitty/spec-kitty`, fetched now, not a fork's
   `origin/main`, which can lag far behind.
