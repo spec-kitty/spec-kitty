@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP05/WP07 tests/charter/synthesizer/test_multi_language_evidence.py (20% rule)",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:35:37.252988+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
