@@ -179,14 +179,30 @@ full adapter pipeline. The runtime falls back to the built-in Charter Pack until
 completes.
 
 Synthesis links each synthesized "how we apply" tactic from its directive with a
-`directive --suggests--> tactic` edge. Such a tactic is reach-only: it is delivered
-only while its directive is active, even when listed in `activated_tactics`. When
-`activated_tactics` is present, synthesis appends a tactic id the first time it creates
-that tactic; it never creates the key. A tactic you remove from the list stays removed:
-synthesis records every tactic it has created in `.kittify/charter/synthesized-tactics.yaml`
-and never appends one again, even when a later run regenerates it. Bring one back with
-`spec-kitty charter activate tactic <id>`. Re-synthesis replaces legacy `applies` edges on synthesized tactics
-and reports the replacement.
+`directive --suggests--> tactic` edge. It links the styleguide built from a testing, quality-gates or
+documentation answer the same way, from `DIRECTIVE_034`, `DIRECTIVE_030` and `DIRECTIVE_037`
+(only when that directive is in the graph). Such a tactic or styleguide is reach-only: it is delivered
+only while its directive is active, even when listed in `activated_tactics` or `activated_styleguides`
+(for styleguides this includes software-dev `implement` and `review`). `language_scope` styleguides
+have no source directive and keep their existing activation. When the matching `activated_*` list is
+present, synthesis appends an id the first time it creates that artifact; it never creates the key.
+An artifact you remove from the list stays removed: synthesis records every tactic and styleguide it
+has created in `.kittify/charter/synthesized-artifacts.yaml` (`created_tactics`, `created_styleguides`)
+and never appends one again, even when a later run regenerates it. A legacy
+`synthesized-tactics.yaml` is still read and never written. Bring an artifact back with
+`spec-kitty charter activate tactic <id>` or `activate styleguide <id>`. Re-synthesis replaces legacy
+`applies` edges on synthesized tactics and styleguides and reports the replacement.
+
+The always-synthesized directive is named `project-intent-directive`; synthesis converges a legacy
+`mission-type-scope-directive` first, and `spec-kitty upgrade` does the same through the
+`4.0.0rc8_project_intent_directive_rename` migration.
+
+The code evidence carries `languages`, the primary language first, next to `primary_language`. A
+language joins the list when it has a manifest at the shallowest manifest depth, or when it holds at
+least 20% of the counted sources; a manifest alone only nominates a secondary language, which then
+needs that share. The key is additive in the `--json` evidence of `charter status` and
+`charter synthesize --dry-run`. It enters the evidence hash only when the list holds more than one
+language. A configured `languages:` list (see `charter interview`) replaces the observed list.
 
 | Flag | Description | Default |
 | --- | --- | --- |
@@ -225,7 +241,7 @@ Selector forms:
 - `directive:DIRECTIVE_003` — regenerate every artifact whose provenance references the built-in DIRECTIVE_003 URN
 - `testing-philosophy` — regenerate all artifacts from that interview section
 
-Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic ids and replaced legacy `applies` edges.
+Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids and replaced legacy `applies` edges.
 
 | Flag | Description | Default |
 | --- | --- | --- |
