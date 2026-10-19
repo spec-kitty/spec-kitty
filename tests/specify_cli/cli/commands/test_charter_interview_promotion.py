@@ -177,3 +177,125 @@ def test_interview_with_no_selections_leaves_config_untouched(
         data = YAML(typ="safe").load(config_path.read_text(encoding="utf-8")) or {}
         assert "activated_directives" not in data
         assert "activated_paradigms" not in data
+
+
+# --- #6408: opt-in --narrow-activation -------------------------------------
+
+_DIRECTIVE_001_STEM = "001-architectural-integrity-standard"
+
+
+def _run_interview_json(repo: Path, monkeypatch: pytest.MonkeyPatch, *extra: str) -> dict[str, object]:
+    import json
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.chdir(repo)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--json", *extra],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert isinstance(payload, dict)
+    return payload
+
+
+def test_interview_narrow_activation_replaces_directive_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    effective = resolve_effective_sets(tmp_path, ["activated_directives"])["activated_directives"].ids
+    assert len(effective) > 1, "control: narrowing is observable"
+
+    payload = _run_interview_json(
+        tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation"
+    )
+
+    assert _read_config(tmp_path)["activated_directives"] == [_DIRECTIVE_001_STEM]
+    narrowed = payload["narrowed"]
+    assert isinstance(narrowed, dict)
+    assert set(narrowed["activated_directives"]) == set(effective) - {_DIRECTIVE_001_STEM}
+
+
+def test_interview_narrow_activation_narrows_paradigms_to_the_interview_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Paradigms narrow to whatever the interview selected (``--defaults`` fills it from the profile defaults)."""
+    _git_init(tmp_path)
+    effective = resolve_effective_sets(tmp_path, ["activated_paradigms"])["activated_paradigms"].ids
+    assert len(effective) > 1, "control: narrowing is observable"
+
+    payload = _run_interview_json(tmp_path, monkeypatch, "--selected-paradigms", _PARADIGM_DDD, "--narrow-activation")
+
+    assert _read_config(tmp_path)["activated_paradigms"] == [_PARADIGM_DDD]
+    assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - {_PARADIGM_DDD}
+
+
+def test_interview_narrow_activation_with_defaults_leaves_paradigms_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pin: shipped ``--defaults`` select no paradigms, so ``--narrow-activation`` leaves them alone."""
+    _git_init(tmp_path)
+    payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation")
+
+    config = _read_config(tmp_path)
+    assert payload["selected_paradigms"] == []
+    assert "activated_paradigms" not in config
+    assert "activated_paradigms" not in payload["narrowed"]
+    # Positive control: directives were narrowed in the same run.
+    assert "activated_directives" in payload["narrowed"]
+
+
+def test_interview_narrow_activation_with_explicit_paradigms_narrows_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    paradigm = sorted(resolve_effective_sets(tmp_path, ["activated_paradigms"])["activated_paradigms"].ids)[0]
+    payload = _run_interview_json(
+        tmp_path, monkeypatch, "--selected-paradigms", paradigm, "--narrow-activation"
+    )
+
+    assert "activated_paradigms" in payload["narrowed"]
+    assert "activated_paradigms" in _read_config(tmp_path)
+
+
+def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    effective = resolve_effective_sets(tmp_path, ["activated_directives"])["activated_directives"].ids
+
+    payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001")
+
+    assert payload["narrowed"] == {}
+    assert set(_read_config(tmp_path)["activated_directives"]) == set(effective) | {_DIRECTIVE_001_STEM}
+
+
+def test_interview_narrow_activation_leaves_empty_selection_kind_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    payload = _run_interview_json(
+        tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation"
+    )
+
+    assert "activated_directives" in payload["narrowed"]  # positive control: narrowing ran
+    config = _read_config(tmp_path)
+    assert "activated_tactics" not in config  # no tactic selection: key untouched
+    assert "activated_tactics" not in payload["narrowed"]
+
+
+def test_interview_narrow_activation_text_output_lists_dropped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", "DIRECTIVE_001", "--narrow-activation"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert "No longer in force" in result.stdout
+    assert "activated_directives" in result.stdout

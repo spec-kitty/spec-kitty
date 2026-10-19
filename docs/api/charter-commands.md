@@ -69,6 +69,7 @@ copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
 | `--selected-paradigms TEXT` | Comma-separated paradigm IDs override | — |
 | `--selected-directives TEXT` | Comma-separated directive IDs override | — |
 | `--available-tools TEXT` | Comma-separated tool IDs override | — |
+| `--narrow-activation` | Replace (not append to) activated directives, tactics and paradigms with the selection plus org-required ids; kinds with no selection are untouched | — |
 | `--mission-slug TEXT` | Mission slug for decision moment paper trail (optional) | — |
 | `--json` | Output JSON | — |
 

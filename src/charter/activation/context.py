@@ -302,6 +302,7 @@ def build_charter_context(
         org_root=org_root,
         mission_type=mission_type,
         feature_dir=feature_dir,
+        identity=IdentityIndex.build(repo_root),
     )
 
     # FR-001/FR-002: the 4-token fast path always renders bootstrap without
@@ -529,9 +530,8 @@ def build_charter_context_json(
     # ``resolve_project_governance`` call (no double-resolve per payload).
     # NFR-003: the identity index is built once for this entry point and handed
     # to the resolver rather than rebuilt inside it.
-    all_directives, directives_source, diagnostics = _project_directive_resolution(
-        repo_root, IdentityIndex.build(repo_root)
-    )
+    identity = IdentityIndex.build(repo_root)
+    all_directives, directives_source, diagnostics = _project_directive_resolution(repo_root, identity)
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
@@ -590,6 +590,7 @@ def build_charter_context_json(
         org_root=org_root,
         mission_type=mission_type,
         feature_dir=feature_dir,
+        identity=identity,
     )
 
     # FR-001/FR-002: the 4-token fast path always delivers bootstrap without
