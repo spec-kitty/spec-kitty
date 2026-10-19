@@ -1,7 +1,7 @@
 {
-  "event_count": 72,
-  "last_event_id": "01M58VP6G7BY1DPE43PGFQS41P",
-  "materialized_at": "2026-10-19T01:16:18.823653+00:00",
+  "event_count": 73,
+  "last_event_id": "01M58VZ3J1B0AGFCSHJP362CG9",
+  "materialized_at": "2026-10-19T01:21:10.721832+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 0
   },
   "work_packages": {
@@ -151,21 +151,21 @@
     "WP05": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M58VNZ1H9ZZKEB5GZDYDV5VN",
-      "last_transition_at": "2026-10-19T01:16:11.185558+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M58VZ3J1B0AGFCSHJP362CG9",
+      "last_transition_at": "2026-10-19T01:21:10.721832+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP05: reach_only.py (reach_only_tactic_ids, append_synthesized_tactic_activations, manifest_tactic_slugs); subtracted in bundle seeds + compiler direct roots; appended from synthesize/resynthesize (also activate --resynthesize via charter_synthesize). Red-first commit 773f7cade. Gates: ruff check/format 0, C901 0, mypy --strict only pre-existing errors (compiler.py no-any-return, typer untyped-decorator). Suite 4522 passed; 2 fails test_resynthesize_and_hotpath *without_resynthesize_stays_stale also red on base."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 13739,
-      "shell_pid_created_at": "1792369823.76",
+      "role": "reviewer",
+      "shell_pid": 414,
+      "shell_pid_created_at": "1792372857.8",
       "subtasks": {
         "T022": "done",
         "T023": "done",
