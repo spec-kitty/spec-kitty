@@ -148,7 +148,9 @@ class OrgDRGConflict:
     * ``org_override`` — a SAME-KIND org node permissibly substitutes a built-in
       node, or a node an earlier-declared org pack contributed, in place (the
       later org value wins, with a WARNING for operator visibility;
-      ``conflicting_layers`` lists the overridden layer first).
+      ``conflicting_layers`` lists the overridden layer first;
+      ``built_in_value`` is ``None`` when the overridden node came from an
+      org pack rather than the built-in layer).
       Non-fatal: the merge does NOT raise. Whether a given repo *tolerates* this
       override is a per-repo governance TEST (see
       ``tests/architectural/test_builtin_override_policy.py``), not a merge-time
@@ -182,9 +184,9 @@ class OrgDRGConflict:
 _OVERRIDE_REMEDIATION = (
     "Remediation (override): remove the override from the org pack (or, when "
     "it replaces another org pack's node, reorder charter_packs.org.packs so "
-    "the pack that should win is declared last), OR "
-    "escalate the built-in invariant change via a spec-kitty governance "
-    "proposal."
+    "the pack that should win is declared last), OR, when it replaces a "
+    "built-in node, escalate the built-in invariant change via a spec-kitty "
+    "governance proposal."
 )
 
 _CONFLICT_REMEDIATIONS: dict[str, str] = {
@@ -1043,6 +1045,12 @@ def _place_org_node(
     * A URN the same pack already declared keeps its first declaration (no pack
       order applies inside one pack), mirroring same-pack edge restatements.
     """
+    previous = merged_nodes.get(urn)
+    if previous is not None and previous.provenance == source_marker:
+        # A pack declaring one URN twice has no pack order to apply: the first
+        # declaration stays, as the first restatement of an edge does. Checked
+        # before the built-in branch so a built-in URN gets the same rule.
+        return
     if urn in built_in_nodes:
         _resolve_builtin_collision(
             urn,
@@ -1053,11 +1061,6 @@ def _place_org_node(
             source_marker,
             built_in_node=built_in_nodes[urn],
         )
-        return
-    previous = merged_nodes.get(urn)
-    if previous is not None and previous.provenance == source_marker:
-        # A pack declaring one URN twice has no pack order to apply: the first
-        # declaration stays, as the first restatement of an edge does.
         return
     merged_nodes[urn] = drg_node
     if previous is None:

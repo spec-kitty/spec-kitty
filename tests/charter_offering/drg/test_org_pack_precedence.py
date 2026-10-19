@@ -250,12 +250,28 @@ class TestChainAndSamePack:
         ]
         assert records[-1].org_value["title"] == "pack-c label"
 
-    def test_a_pack_declaring_one_urn_twice_keeps_its_first_declaration(self, caplog: pytest.LogCaptureFixture) -> None:
+    @pytest.mark.parametrize(
+        ("node_id", "kind", "urn", "expected_records"),
+        [
+            ("org-only", "directives", "directive:org-only", []),
+            # A built-in URN: the one override of the built-in is recorded, never a
+            # self-override of the pack by its own second declaration.
+            ("shared", "tactics", "tactic:shared", [["built-in", "org:pack-a"]]),
+        ],
+    )
+    def test_a_pack_declaring_one_urn_twice_keeps_its_first_declaration(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        node_id: str,
+        kind: str,
+        urn: str,
+        expected_records: list[list[str]],
+    ) -> None:
         pack = _fragment(
             "pack-a",
             [
-                {"id": "org-only", "kind": "directives", "title": "first"},
-                {"id": "org-only", "kind": "directives", "title": "second"},
+                {"id": node_id, "kind": kind, "title": "first"},
+                {"id": node_id, "kind": kind, "title": "second"},
             ],
         )
         with (
@@ -264,11 +280,12 @@ class TestChainAndSamePack:
         ):
             merge_three_layers(_built_in(), [pack, _layer_rule_breaker()], None)
 
-        assert _node_overrides(exc_info.value.conflicts, "directive:org-only") == []
-        assert "overrides node 'directive:org-only'" not in caplog.text
+        records = [c.conflicting_layers for c in _node_overrides(exc_info.value.conflicts, urn)]
+        assert records == expected_records
+        assert "contributed by 'org:pack-a'" not in caplog.text
 
         merged = merge_three_layers(_built_in(), [pack], None)
-        node = merged.get_node("directive:org-only")
+        node = merged.get_node(urn)
         assert node is not None
         assert node.label == "first"
 
