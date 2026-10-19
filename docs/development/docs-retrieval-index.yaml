@@ -3583,6 +3583,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "execution", text: "Execution", level: 2}
     - {slug: "amendment-2026-10-06-rulings-from-the-mission-specification", text: "Amendment 2026-10-06: rulings from the mission specification", level: 2}
+    - {slug: "amendment-2026-10-19-synthesized-tactics-and-activation-lists", text: "Amendment 2026-10-19: synthesized tactics and activation lists", level: 2}
   - path: "docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md"
     title: "ADR: evidence gates check origin freshness before they trust local evidence"
     divio_type: "none"
