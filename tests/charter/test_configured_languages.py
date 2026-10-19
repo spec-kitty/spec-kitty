@@ -133,20 +133,38 @@ def test_read_drops_invalid_entries_with_a_diagnostic_and_keeps_valid_ones(tmp_p
     _config(tmp_path, "languages: [Python, jvm, cobol, python, '']\n")
 
     with caplog.at_level(logging.WARNING, logger="charter.activation.language_authority"):
-        assert configured_languages(tmp_path) == ("python",)
+        assert configured_languages(tmp_path) == ("python", "jvm")
 
-    text = caplog.text
-    assert "jvm" in text and "cobol" in text
+    assert "cobol" in caplog.text
+    assert "'jvm'" not in caplog.text, "a family declared on its own is accepted, not dropped"
 
 
 def test_read_of_only_invalid_entries_falls_back_to_detection(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    _config(tmp_path, "languages: [jvm]\n")
+    _config(tmp_path, "languages: [cobol]\n")
 
     with caplog.at_level(logging.WARNING, logger="charter.activation.language_authority"):
         assert configured_languages(tmp_path) is None
         assert infer_repo_languages(tmp_path, interview=_interview("TypeScript")) == ["typescript"]
 
-    assert "jvm" in caplog.text
+    assert "cobol" in caplog.text
+
+
+def test_a_family_declared_on_its_own_is_configured_and_scopes_both_jvm_languages(tmp_path: Path) -> None:
+    """Declared "Gradle" resolves to ``[jvm]`` (spec scenario); the configured key accepts the same token."""
+    _config(tmp_path, "languages: [jvm]\n")
+
+    assert configured_languages(tmp_path) == ("jvm",)
+    active = infer_repo_languages(tmp_path)
+    assert active == ["jvm"]
+    assert applies_to_languages_match(["jvm"], active)
+
+
+def test_write_accepts_a_family_declared_on_its_own(tmp_path: Path) -> None:
+    _config(tmp_path, "vcs:\n  type: git\n")
+
+    write_configured_languages(tmp_path, ["jvm"])
+
+    assert configured_languages(tmp_path) == ("jvm",)
 
 
 @pytest.mark.parametrize("text", ["languages: python\n", "languages: []\n", "languages:\n", "languages: [1, {a: b}]\n", "languages: [unclosed\n"])
@@ -156,7 +174,7 @@ def test_unusable_values_read_as_absent(tmp_path: Path, text: str) -> None:
     assert configured_languages(tmp_path) is None
 
 
-@pytest.mark.parametrize("bad", [["jvm"], ["python", "cobol"], [], ["unknown"]])
+@pytest.mark.parametrize("bad", [["python", "cobol"], [], ["unknown"]])
 def test_write_refuses_invalid_lists_and_leaves_the_file_alone(tmp_path: Path, bad: list[str]) -> None:
     _config(tmp_path, "vcs:\n  type: git\n")
     before = (tmp_path / ".kittify" / "config.yaml").read_bytes()
