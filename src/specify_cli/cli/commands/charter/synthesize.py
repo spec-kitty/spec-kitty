@@ -530,9 +530,7 @@ def charter_synthesize(  # noqa: C901
         # after the dry-run return and the orphan refusal above.
         from charter.activation.api import append_synthesized_activations, created_slugs_by_kind
 
-        activation_warnings = append_synthesized_activations(
-            repo_root, created_slugs_by_kind(getattr(result, "reconciliation", None))
-        )
+        activation_warnings = append_synthesized_activations(repo_root, created_slugs_by_kind(getattr(result, "reconciliation", None)))
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:
