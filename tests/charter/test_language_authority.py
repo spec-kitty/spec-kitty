@@ -12,7 +12,9 @@ import pytest
 from charter.activation.evidence.code_reader import CodeReadingCollector
 from charter.activation.interview import CharterInterview, apply_answer_overrides, default_interview
 from charter.activation.language_authority import (
+    EXCLUDED_DIRS,
     TreeObservation,
+    count_sources_uncapped,
     declared_languages,
     expand_language_families,
     resolve_languages,
@@ -245,3 +247,51 @@ def test_unsorted_fallback_keeps_declared_order(answers: dict[str, str], expecte
     interview = apply_answer_overrides(default_interview(mission="software-dev", profile="minimal"), answers=answers)
 
     assert infer_repo_languages(None, interview=interview) == expected
+
+
+_TOOL_DIRS = (
+    ".kittify",
+    ".claude",
+    ".agents",
+    ".codex",
+    ".gemini",
+    ".cursor",
+    ".qwen",
+    ".opencode",
+    ".windsurf",
+    ".kilocode",
+    ".augment",
+    ".amazonq",
+    ".kiro",
+    ".agent",
+    ".llxprt",
+    ".vibe",
+    ".worktrees",
+)
+
+
+def _kotlin_ts_repo(root: Path) -> None:
+    _touch(root / "build.gradle.kts")
+    _touch(root / "package.json")
+    for i in range(3):
+        _touch(root / "src" / "main" / "kotlin" / f"K{i}.kt")
+        _touch(root / "web" / f"c{i}.ts")
+
+
+def test_tool_directories_do_not_make_a_python_repo(tmp_path: Path) -> None:
+    _kotlin_ts_repo(tmp_path)
+    for tool_dir in _TOOL_DIRS:
+        _touch(tmp_path / tool_dir / "missions" / "built_in_step_contracts" / "__init__.py")
+        _touch(tmp_path / tool_dir / "scripts" / "helper.py")
+
+    observed = CodeReadingCollector(tmp_path).collect()
+
+    assert "python" not in observed.languages
+    assert {"kotlin", "typescript"} <= set(observed.languages), "control: the real languages are still listed"
+    assert "python" not in count_sources_uncapped(tmp_path)
+    assert count_sources_uncapped(tmp_path)["kotlin"] == 3, "control: real sources are still counted"
+
+
+@pytest.mark.parametrize("tool_dir", _TOOL_DIRS)
+def test_every_tool_directory_is_excluded(tool_dir: str) -> None:
+    assert tool_dir in EXCLUDED_DIRS
