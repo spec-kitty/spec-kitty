@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "mission_slug": "charter-tests-deep-roi-pass-01M5AN9J",
+  "mission_id": "01M5AN9JSEKKZBRFP8CKFRNQV6",
+  "mission_branch": "kitty/mission-charter-tests-deep-roi-pass-01M5AN9J",
+  "target_branch": "feat/6485-charter-tests-deep-roi-pass",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/charter/activation/test_context_identity_reuse.py",
+        "tests/charter/activation/test_context_org_root_identity.py",
+        "tests/charter/test_context.py",
+        "tests/charter/test_context_leaf_seams.py",
+        "tests/charter/test_context_profile_lineage_parity.py",
+        "tests/charter/test_context_render_seams.py",
+        "tests/charter/test_context_selection_render.py",
+        "tests/charter/test_context_service_seams.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/charter/synthesizer/test_bundle_validate_extension.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_orchestrator_synthesize.py",
+        "tests/charter/synthesizer/test_synthesize_path_parity.py",
+        "tests/charter/synthesizer/test_synthesize_reconcile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/charter/activation/test_org_charter.py",
+        "tests/charter/activation/test_org_charter_merge_parity.py",
+        "tests/charter/packs/test_pack_validator.py",
+        "tests/charter/test_org_drg_loader.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_retired_accompanies_doctrine_pack.py",
+        "tests/charter/test_retired_pack_fields.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/charter/activation/test_effective_set.py",
+        "tests/charter/activation/test_effective_set_chain.py",
+        "tests/charter/test_cascade.py",
+        "tests/charter/test_compiler.py",
+        "tests/charter/test_mission_type_activations_seed_read_parity.py",
+        "tests/charter/test_mission_type_profiles.py",
+        "tests/charter/test_resolver.py",
+        "tests/charter/test_resolver_activation_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/charter/test_charter_cwd_isolation.py",
+        "tests/charter/test_charter_cwd_tripwire.py",
+        "tests/charter/test_charter_generate_scoped_reference_parity.py",
+        "tests/charter/test_check_graph_kind_parity.py",
+        "tests/charter/test_config_stem_parity.py",
+        "tests/charter/test_direct_write_kinds_parity.py",
+        "tests/charter/test_kind_vocabulary_recursion_parity.py",
+        "tests/charter/test_schemas.py",
+        "tests/charter/test_schemas_additive_fields.py",
+        "tests/charter/test_schemas_selection.py",
+        "tests/charter/test_spdd_reasons_activation_parity.py",
+        "tests/charter/test_sync.py",
+        "tests/charter/test_sync_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/charter/test_activation_preserves_effective_4253.py",
+        "tests/charter/test_active_languages_idempotency.py",
+        "tests/charter/test_compiler_charter_yaml.py",
+        "tests/charter/test_context_unknown_language.py",
+        "tests/charter/test_every_load_delivery.py",
+        "tests/charter/test_progressive_disclosure.py",
+        "tests/charter/test_regenerate_rederives_languages.py",
+        "tests/charter/test_retrospective_governance_emit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-19T18:16:59.082427+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7f258b409a1719358d7a2adf2b10a98c0cfd41bd"
+}

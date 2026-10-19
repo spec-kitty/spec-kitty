@@ -1,0 +1,37 @@
+{
+  "accept_commit": "8989771efb727205be77b56c638468fade34e91f",
+  "acceptance_history": [
+    {
+      "accept_commit": "8989771efb727205be77b56c638468fade34e91f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-19T19:36:47.925242+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6f30bb1127172d6d62bb8fd0cf4d44230a386542"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-19T19:36:47.925242+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6f30bb1127172d6d62bb8fd0cf4d44230a386542",
+  "baseline_merge_commit": "74db17224b07b93862435bf105af6f7b5c335a27",
+  "contracts": "none",
+  "contracts_rationale": "Test-suite remediation: the mission defines no interfaces.",
+  "created_at": "2026-10-19T18:03:02.938878+00:00",
+  "flattened": true,
+  "friendly_name": "Deep ROI pass over the large tests/charter suites",
+  "merged_at": "2026-10-19T19:38:52.707971+00:00",
+  "merged_commit": "95490e4f2186c97d5f36b7d4d91150980832dc49",
+  "mid8": "01M5AN9J",
+  "mission_id": "01M5AN9JSEKKZBRFP8CKFRNQV6",
+  "mission_number": 238,
+  "mission_slug": "charter-tests-deep-roi-pass-01M5AN9J",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A first pass over tests/charter (PR #6483) read only about 40 of 279 files. This mission reviews the large suites function by function and deletes change-detectors, tautologies, mock-only, retired-path and duplicate private-helper tests, naming the covering test for each deletion.",
+  "purpose_tldr": "Remove low-value charter tests so the suite guards live contracts at lower cost.",
+  "slug": "charter-tests-deep-roi-pass-01M5AN9J",
+  "status_phase": "1",
+  "target_branch": "feat/6485-charter-tests-deep-roi-pass",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-19T18:18:15.680143+00:00"
+}

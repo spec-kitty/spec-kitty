@@ -1,0 +1,79 @@
+{
+  "mission_slug": "charter-tests-deep-roi-pass-01M5AN9J",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "ledger review + opus WP reviews",
+      "evidence": "kitty-specs/charter-tests-deep-roi-pass-01M5AN9J/roi-ledger/WP01..WP06.md: every collected test accounted for per file (collect-only before/after counts); 6 opus reviews approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:25.235499+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "orchestrator collect-only check of all cited node ids",
+      "evidence": "136 cited covering tests collect on lane tips (positive control: bad id rejected); ledgers name a covering test or 'none - low ROI' per removal",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:28.139068+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "ledger cluster sections",
+      "evidence": "Clusters 1-7 verdicts: 1,2,3,4,5,6 distinct (pruned in place), 7 test_sync_paths.py deleted; see kitty-specs/charter-tests-deep-roi-pass-01M5AN9J/roi-ledger",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:31.060405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "opus review of merged tests",
+      "evidence": "Merges/parametrizations in WP02/WP04/WP06 verified to keep every original assertion",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:33.992659+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "opus review sampling",
+      "evidence": "~80 deletions sampled across 6 reviews; contract tests (C-005 cascade, tier precedence, org merge precedence, retired-field rejection, error codes) kept",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:36.905747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "before/after --cov=src/charter on tests/charter+tests/charter_offering",
+      "evidence": "95.927% -> 95.912% (-0.015 pp, budget 1.0 pp); line losses named in WP02/WP04 ledgers",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:39.876186+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "per-file summed durations, serial",
+      "evidence": "WP06 heavy files 167 s -> 113 s summed; tests/charter summed test time 1451 s -> 1267 s",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-19T19:36:42.783971+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

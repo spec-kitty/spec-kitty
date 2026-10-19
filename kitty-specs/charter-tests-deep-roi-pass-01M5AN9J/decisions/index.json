@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-19T18:03:16.515942Z",
+      "decision_id": "01M5ANA053MTJF373PY0W9CXDV",
+      "final_answer": "Consolidate: delete with a named covering test, and also merge/parametrize near-duplicates into a surviving test; src/charter line coverage must not drop",
+      "input_key": "deletion_bar",
+      "mission_id": "01M5AN9JSEKKZBRFP8CKFRNQV6",
+      "mission_slug": "charter-tests-deep-roi-pass-01M5AN9J",
+      "opened_by": "cli",
+      "options": [
+        "Strict: delete only with a named covering test; coverage of src/charter must not drop",
+        "Consolidate: also merge/parametrize near-duplicates; coverage must not drop",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How strict is the deletion bar: when a test is redundant, may we delete it only if a named test covers the same behaviour (strict), or also merge or parametrize near-duplicates into a surviving test (consolidate)? And must line coverage of src/charter stay unchanged?",
+      "rationale": null,
+      "resolved_at": "2026-10-19T18:04:53.296243Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.deletion-bar",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-19T18:11:48.744881Z",
+      "decision_id": "01M5ANSMC8A3MRAQSFYJ48CHK7",
+      "final_answer": "Add WP06: review the heaviest unlisted files with the same rubric; a test may also be made cheaper while keeping its contract",
+      "input_key": "heavy_tests_scope",
+      "mission_id": "01M5AN9JSEKKZBRFP8CKFRNQV6",
+      "mission_slug": "charter-tests-deep-roi-pass-01M5AN9J",
+      "opened_by": "cli",
+      "options": [
+        "Add WP06",
+        "Keep scope as listed"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Add a work package for the heaviest tests/charter files that #6485 does not list?",
+      "rationale": null,
+      "resolved_at": "2026-10-19T18:11:50.667404Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.heavy-tests",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5AN9JSEKKZBRFP8CKFRNQV6",
+  "version": 1
+}

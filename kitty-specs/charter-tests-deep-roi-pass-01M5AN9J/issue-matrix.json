@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4253": {
+      "evidence_ref": "Cited for context: test_activation_preserves_effective_4253.py pins #4253; the mission only reviews the test's cost",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP06"
+    },
+    "#6483": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6485": {
+      "evidence_ref": "WP01-WP06 approved; ledgers in kitty-specs/charter-tests-deep-roi-pass-01M5AN9J/roi-ledger/; 1182->963 tests across in-scope files",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
