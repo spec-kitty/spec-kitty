@@ -74,6 +74,21 @@ def _overlay(directives: tuple[str, ...] = tuple(d for d, _ in _SOURCE_BY_SECTIO
     return emit_project_layer(_targets(directives), "test", _shipped_graph(directives))
 
 
+def _install_with_sourced(repo_root: Path, slug: str) -> None:
+    """Install the full overlay plus *slug* as one more styleguide sourced from DIRECTIVE_034 (reach-only)."""
+    from charter.activation.synthesizer.reconcile import synthesized_edge_reason
+
+    overlay = _overlay()
+    node = DRGNode(urn=f"styleguide:{slug}", kind=NodeKind.STYLEGUIDE, label=slug)
+    edge = DRGEdge(
+        source=f"directive:{_TESTING_DIRECTIVE}",
+        target=node.urn,
+        relation=Relation.SUGGESTS,
+        reason=synthesized_edge_reason("styleguide", slug),
+    )
+    _install_overlay(repo_root, overlay.model_copy(update={"nodes": [*overlay.nodes, node], "edges": [*overlay.edges, edge]}))
+
+
 def _install_overlay(repo_root: Path, overlay: DRGGraph) -> None:
     """Write *overlay* as the project pack and register its styleguides in the synthesis manifest."""
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, ManifestArtifactEntry, SynthesisManifest, finalize_manifest
@@ -296,16 +311,21 @@ def _append(repo: Path, **created: list[str]) -> list[str]:
 
 def test_first_creation_appends_to_an_explicit_styleguide_list(tmp_path: Path) -> None:
     charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL], activated_tactics=[_CONTROL])
+    _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)
 
     _append(tmp_path, styleguide=[_NEW_STYLEGUIDE], tactic=["new-tactic"])
 
     assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, _NEW_STYLEGUIDE]
     assert _list(charter_yaml, "activated_tactics") == [_CONTROL, "new-tactic"]
-    assert _record(tmp_path) == {"created_styleguides": [_NEW_STYLEGUIDE], "created_tactics": ["new-tactic"]}
+    record = _record(tmp_path)  # also holds the manifest's other sourced styleguides and tactics
+    assert _NEW_STYLEGUIDE in record["created_styleguides"]
+    assert "new-tactic" in record["created_tactics"]
+    assert _LANGUAGE_STYLEGUIDE not in record["created_styleguides"]
 
 
 def test_removed_styleguide_is_not_re_appended(tmp_path: Path) -> None:
     charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
+    _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)
     _append(tmp_path, styleguide=[_NEW_STYLEGUIDE])
     assert _list(charter_yaml, "activated_styleguides") == [_CONTROL, _NEW_STYLEGUIDE]  # control: first creation appended
 
@@ -317,13 +337,14 @@ def test_removed_styleguide_is_not_re_appended(tmp_path: Path) -> None:
 
 def test_absent_keys_stay_absent_but_creation_is_recorded(tmp_path: Path) -> None:
     charter_yaml = _seed_project(tmp_path)
+    _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)
 
     _append(tmp_path, styleguide=[_NEW_STYLEGUIDE], tactic=["new-tactic"])
 
     config = yaml.safe_load(charter_yaml.read_text(encoding="utf-8"))
     assert "activated_styleguides" not in config
     assert "activated_tactics" not in config
-    assert _record(tmp_path)["created_styleguides"] == [_NEW_STYLEGUIDE]
+    assert _NEW_STYLEGUIDE in _record(tmp_path)["created_styleguides"]
 
 
 def test_styleguides_already_in_the_manifest_are_recorded_not_appended(tmp_path: Path) -> None:
@@ -333,7 +354,7 @@ def test_styleguides_already_in_the_manifest_are_recorded_not_appended(tmp_path:
     a later run that regenerates it (after a prune) does not append it either.
     """
     charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL])
-    _install_overlay(tmp_path, _overlay())  # the manifest registers testing-style-guide and its siblings
+    _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)  # the manifest registers testing-style-guide and its siblings
 
     _append(tmp_path, styleguide=[_NEW_STYLEGUIDE])
 
@@ -363,6 +384,7 @@ def test_legacy_tactic_record_is_read_never_written_and_other_keys_are_preserved
     from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
 
     charter_yaml = _seed_project(tmp_path, activated_tactics=[_CONTROL])
+    _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)
     legacy = tmp_path / ".kittify" / "charter" / "synthesized-tactics.yaml"
     legacy.write_text("created_tactics:\n- removed-earlier\n", encoding="utf-8")
     new_record = tmp_path / CREATED_ARTIFACTS_PATH
@@ -375,7 +397,7 @@ def test_legacy_tactic_record_is_read_never_written_and_other_keys_are_preserved
     assert legacy.read_bytes() == legacy_before
     record = yaml.safe_load((tmp_path / CREATED_ARTIFACTS_PATH).read_text(encoding="utf-8"))
     assert record["owner_note"] == "keep-me"
-    assert record["created_styleguides"] == ["brand-new-style-guide", "older-style-guide"]
+    assert {"brand-new-style-guide", "older-style-guide"} <= set(record["created_styleguides"])
 
 
 def test_created_slugs_filters_the_manifest_delta_by_kind() -> None:

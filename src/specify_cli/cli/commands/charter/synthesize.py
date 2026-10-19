@@ -528,13 +528,9 @@ def charter_synthesize(  # noqa: C901
         # every manifest entry: that would re-add one an operator removed) to an explicit
         # ``activated_<kind>s`` list (absent key stays absent). Reached only
         # after the dry-run return and the orphan refusal above.
-        from charter.activation.api import append_synthesized_activations, created_slugs
+        from charter.activation.api import append_synthesized_activations, created_slugs_by_kind
 
-        reconciliation = getattr(result, "reconciliation", None)
-        activation_warnings = append_synthesized_activations(
-            repo_root,
-            {kind: created_slugs(reconciliation, kind) for kind in ("tactic", "styleguide")},
-        )
+        activation_warnings = append_synthesized_activations(repo_root, created_slugs_by_kind(getattr(result, "reconciliation", None)))
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:
