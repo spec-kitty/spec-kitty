@@ -1,7 +1,7 @@
 {
-  "event_count": 64,
-  "last_event_id": "01M58S1EJJCZ7Y0FM0TFWRK378",
-  "materialized_at": "2026-10-19T00:30:01.811058+00:00",
+  "event_count": 66,
+  "last_event_id": "01M58S3ASFT6P45H2EME2NRWRW",
+  "materialized_at": "2026-10-19T00:31:03.285827+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 1,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -98,7 +98,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-18T23:57:44Z – claude – shell_pid=28329 – Out-of-map edit: context.py passes per-invocation IdentityIndex to _resolve_action_bundle (T013 wiring, WP09 owns file)",
-        "Bundle carries identity; activation/org-required mapped via activation_id; filter_graph_by_activation(identity=); context.py wired. ruff/format/mypy --strict/C901 clean; charter+charter_offering 8032 passed, 6 sandbox wheel-build errors; NFR-004 snapshot unchanged"
+        "Bundle carries identity; activation/org-required mapped via activation_id; filter_graph_by_activation(identity=); context.py wired. ruff/format/mypy --strict/C901 clean; charter+charter_offering 8032 passed, 6 sandbox wheel-build errors; NFR-004 snapshot unchanged",
+        "Review passed (reviewer-renata): bundle carries per-invocation IdentityIndex (context.py out-of-map edit minimal, recorded, no conflict with WP10 lane-j); activated/org-required via activation_id; filter_graph_by_activation(identity=) with resolve_artifact_urn fallback; no normalize_directive_id; C-007 absent-key unmapped; snapshot unchanged; red verified for stem tokens + org-required stem tactic; gates clean; tests/charter+charter_offering 8038 passed. Non-blocking: drg gate test green pre-fix and does not pass identity=; 'not-activated-control' absence is vacuous; built-in control accepts QA_003; explicit org_root override not reflected in context.py index build."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -148,11 +149,15 @@
       }
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M581HEPVYQ2BE983PNJDVCYN",
-      "last_transition_at": "2026-10-18T17:39:20.411308+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M58S3ASFT6P45H2EME2NRWRW",
+      "last_transition_at": "2026-10-19T00:31:03.285827+00:00",
+      "shell_pid": 13739,
+      "shell_pid_created_at": "1792369823.76"
     },
     "WP06": {
       "actor": "claude",
