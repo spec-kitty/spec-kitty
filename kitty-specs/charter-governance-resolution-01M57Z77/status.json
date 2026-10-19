@@ -1,7 +1,7 @@
 {
-  "event_count": 61,
-  "last_event_id": "01M58QRSPMHGMSTS0ADCQMJ93Y",
-  "materialized_at": "2026-10-19T00:07:49.716750+00:00",
+  "event_count": 62,
+  "last_event_id": "01M58QT09FY6X0K3HK3AR127TX",
+  "materialized_at": "2026-10-19T00:08:29.232033+00:00",
   "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -88,21 +88,22 @@
     "WP03": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "python-pedro",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M58QRSPMHGMSTS0ADCQMJ93Y",
-      "last_transition_at": "2026-10-19T00:07:49.716750+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M58QT09FY6X0K3HK3AR127TX",
+      "last_transition_at": "2026-10-19T00:08:29.232033+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-18T23:57:44Z – claude – shell_pid=28329 – Out-of-map edit: context.py passes per-invocation IdentityIndex to _resolve_action_bundle (T013 wiring, WP09 owns file)"
+        "- 2026-10-18T23:57:44Z – claude – shell_pid=28329 – Out-of-map edit: context.py passes per-invocation IdentityIndex to _resolve_action_bundle (T013 wiring, WP09 owns file)",
+        "Bundle carries identity; activation/org-required mapped via activation_id; filter_graph_by_activation(identity=); context.py wired. ruff/format/mypy --strict/C901 clean; charter+charter_offering 8032 passed, 6 sandbox wheel-build errors; NFR-004 snapshot unchanged"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 28329,
-      "shell_pid_created_at": "1792366621.73",
+      "role": "reviewer",
+      "shell_pid": 22728,
+      "shell_pid_created_at": "1792368500.48",
       "subtasks": {
         "T012": "done",
         "T013": "done",
