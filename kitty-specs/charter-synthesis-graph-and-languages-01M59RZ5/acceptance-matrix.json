@@ -128,10 +128,10 @@
       "criterion_id": "FR-013",
       "description": "Verify FR-013 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP04 tests/charter/test_language_authority.py, test_language_catalog.py; WP06 test_jvm_toolguide_scoping.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:36:00.715677+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
