@@ -45,6 +45,7 @@ from kernel.charter_pack_paths import (
 )
 
 from charter.activation.language_authority import declared_languages, expand_language_families
+from charter.offering.shared.language_catalog import LANGUAGES as _CATALOG_LANGUAGES
 from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
@@ -315,22 +316,23 @@ def _observed_languages(evidence: EvidenceBundle | None) -> tuple[str, ...]:
         return ()
     return signals.languages or (signals.scope_tag,)
 
+_CATALOG_LANGUAGE_TOKENS: frozenset[str] = frozenset(spec.token for spec in _CATALOG_LANGUAGES)
+
 
 def _declared_scope_languages(interview_snapshot: Mapping[str, Any]) -> tuple[str, ...]:
     """Return the languages the interview declares (FR-011).
 
-    ``language_scope`` is the canonical list; the ``languages_frameworks`` free-form alias is
-    resolved through the language authority, so the gate and doctrine scoping agree.
+    The ``language_scope`` entries, or else the ``languages_frameworks`` alias, are read
+    together by the one language authority, so "Kotlin and Spring" names ``kotlin``, a
+    declared Gradle names the ``jvm`` family (only without a JVM language), and the gate
+    agrees with doctrine scoping. A canonical catalog token (``go``, which free text cannot
+    declare) also stands for itself.
     """
     scoped = interview_snapshot.get("language_scope")
-    if isinstance(scoped, (list, tuple)) and scoped:
-        return tuple(str(item).strip().lower() for item in scoped if str(item).strip())
-    alias = interview_snapshot.get("languages_frameworks")
-    if isinstance(alias, str):
-        return tuple(declared_languages(alias))
-    if isinstance(alias, (list, tuple)):
-        return tuple(declared_languages(", ".join(str(item) for item in alias)))
-    return ()
+    raw = scoped if isinstance(scoped, (list, tuple)) and scoped else interview_snapshot.get("languages_frameworks")
+    entries = [raw] if isinstance(raw, str) else [str(item) for item in raw] if isinstance(raw, (list, tuple)) else []
+    tokens = [entry.strip().lower() for entry in entries if entry.strip().lower() in _CATALOG_LANGUAGE_TOKENS]
+    return tuple(dict.fromkeys([*tokens, *declared_languages(", ".join(entries))]))
 
 
 def _is_generic_scoped(

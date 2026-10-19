@@ -158,10 +158,24 @@ def test_share_rule_adds_a_language_without_a_manifest(tmp_path: Path) -> None:
         _write(tmp_path, f"src/extra{index}.py")
     for index in range(3):
         _write(tmp_path, f"web/t{index}.ts")
-    _write(tmp_path, "go.mod")  # a second candidate makes the uncapped count run
+    _write(tmp_path, "go.mod")
     signals = CodeReadingCollector(tmp_path).collect()
     assert "typescript" in signals.languages
     assert signals.languages[0] == signals.primary_language
+
+
+def test_share_rule_runs_when_a_deeper_manifest_names_another_language(tmp_path: Path) -> None:
+    """Backend at the root, frontend in a subdirectory: the deeper manifest must not hide it."""
+    _write(tmp_path, "pyproject.toml", "[project]\nname='x'\n")
+    for index in range(2):
+        _write(tmp_path, f"src/m{index}.py")
+    _write(tmp_path, "web/package.json", "{}")
+    _write(tmp_path, "web/tsconfig.json", "{}")
+    for index in range(8):
+        _write(tmp_path, f"web/src/t{index}.ts")
+    signals = CodeReadingCollector(tmp_path).collect()
+    assert signals.primary_language == "python"
+    assert signals.languages == ("python", "typescript")
 
 
 def test_unknown_repository_lists_nothing(tmp_path: Path) -> None:
@@ -256,6 +270,15 @@ def test_declared_languages_come_from_language_scope_or_the_alias() -> None:
     assert _declared_scope_languages({"languages_frameworks": "Kotlin and Spring"}) == ("kotlin",)
     assert _declared_scope_languages({"languages_frameworks": ["Kotlin", "Gradle"]}) == ("kotlin",)
     assert _declared_scope_languages({"testing_philosophy": "x"}) == ()
+
+
+def test_language_scope_entries_resolve_through_the_language_authority() -> None:
+    from charter.activation.synthesizer.write_pipeline import _declared_scope_languages
+
+    declared = _declared_scope_languages({"language_scope": ["Kotlin and Spring"]})
+    assert declared == ("kotlin",)
+    assert _is_generic_scoped("tactic", "kotlin-style-guide", None, declared) is False
+    assert _declared_scope_languages({"language_scope": ["Gradle"]}) == ("jvm",)
 
 
 # ---------------------------------------------------------------------------
