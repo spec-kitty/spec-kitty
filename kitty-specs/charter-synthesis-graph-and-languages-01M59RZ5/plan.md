@@ -86,6 +86,10 @@ The gate passes, and there are no violations.
   4. Run `spec-kitty charter pack vendor --ref <merged sha>` in core.
 
   The core PR stays draft until step 4. If the bump also pulls unrelated open-packs commits, they are listed in the PR.
+- **D-11: configured project languages (FR-020, operator decision 2026-10-19).** `.kittify/config.yaml` gains an operator-confirmed language list; the exact key is chosen by WP07 after checking existing config conventions, and documented.
+  - `charter interview` runs observed detection (the language authority over the collector's walk), proposes the result, and writes the confirmed list.
+  - The language authority reads it first. When set, it is the evidence `languages`, with the primary first, and it is the declared set for doctrine scoping (`infer_repo_languages` / `catalog.languages`). Detection and free-text parsing are the fallback only when it is absent.
+  - Families are still expanded at match time and never stored.
 - **D-10: ADR amendments (FR-019).** Each amendment is made in the work package that changes the contract:
   - 2026-04-17-1 (request-hash inputs) → styleguide sources and the slug change
   - 2026-04-19-6 (generated layout and slug) → the rename

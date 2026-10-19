@@ -159,6 +159,26 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-10-19T17:08:36.687649Z",
+      "decision_id": "01M5AJ5X6FQD7CXK0TWARQPBEX",
+      "final_answer": "Detect during the charter interview and store the operator-confirmed list in .kittify/config.yaml; when set, it is the one list for both synthesis evidence and doctrine scoping. File detection and free-text parsing are only the fallback when it is absent.",
+      "input_key": "configured_languages",
+      "mission_id": "01M59RZ597H5999C9E7JJMMWJW",
+      "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Should a secondary language need a minimum source share, or how should the project's language list be settled (#6444)?",
+      "rationale": "Operator write-in 2026-10-19, clarified: one stored list for both.",
+      "resolved_at": "2026-10-19T17:08:41.635253Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.languages.configured-list",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M59RZ597H5999C9E7JJMMWJW",
