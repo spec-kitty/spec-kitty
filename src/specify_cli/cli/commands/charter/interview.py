@@ -9,11 +9,13 @@ local interview loop remains.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
+from rich.markup import escape
 
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
@@ -38,6 +40,10 @@ from specify_cli.cli.commands.charter._widen import (
 # preserves that contract through the WP06 split.
 import specify_cli.cli.commands.charter as _charter_pkg
 
+if TYPE_CHECKING:
+    from charter.activation.activation_engine import EffectiveSet
+    from charter.drg import ArtifactKind
+
 __all__ = ["interview"]
 
 
@@ -50,6 +56,26 @@ def _narrow_bases(repo_root: Path, promotions: dict[str, list[str]], warnings: l
         plural = yaml_key.removeprefix("activated_")
         bases[yaml_key] = list(dict.fromkeys([*stems, *org_required_stems(repo_root, plural, warnings)]))
     return bases
+
+
+def _stem_spelled_effective(repo_root: Path, effective: dict[str, EffectiveSet], kinds: dict[str, ArtifactKind]) -> dict[str, EffectiveSet]:
+    """*effective* with every id spelled as an activation stem.
+
+    The effective set lists org non-directive artifacts by declared id while
+    activation lists hold stems, so a kept artifact whose stem differs from its id
+    would otherwise be reported as no longer in force (#6408).
+    """
+    from charter.activation.identity_index import IdentityIndex
+
+    index = IdentityIndex.build(repo_root)
+    mapped: dict[str, EffectiveSet] = {}
+    for yaml_key, found in effective.items():
+        kind = kinds.get(yaml_key)
+        if kind is None or not found.resolved:
+            mapped[yaml_key] = found
+            continue
+        mapped[yaml_key] = dataclasses.replace(found, ids=frozenset(index.stem(kind, item) or item for item in found.ids))
+    return mapped
 
 
 def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narrow: bool = False) -> tuple[list[str], dict[str, list[str]]]:
@@ -135,12 +161,15 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     target_path, config_data, save = resolve_activation_write_target(repo_root)
 
     absent = [key for key in promotions if config_data.get(key) is None]
+    effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
+    if narrow:
+        effective_sets = _stem_spelled_effective(repo_root, effective_sets, {f"activated_{kind.plural}": kind for kind in kind_to_selection})
     outcome = promote_activations(
         promotions,
         config_path=target_path,
         config_data=config_data,
         save=save,
-        effective_sets=resolve_effective_sets(repo_root, absent) if absent else {},
+        effective_sets=effective_sets,
         narrow_bases=_narrow_bases(repo_root, promotions, warnings) if narrow else None,
     )
     warnings.extend(warning for plan in outcome.committed for warning in plan.warnings)
@@ -389,7 +418,7 @@ def interview(  # noqa: C901
         for msg in promotion_warnings:
             console.print(f"[yellow]Selection promotion:[/yellow] {msg}")
         for yaml_key, dropped in narrowed.items():
-            console.print(f"[yellow]No longer in force ({len(dropped)}) for {yaml_key}:[/yellow] {', '.join(dropped)}")
+            console.print(f"[yellow]No longer in force ({len(dropped)}) for {yaml_key}:[/yellow] {escape(', '.join(dropped))}")
 
     except (TaskCliError, ValueError) as e:
         _emit_error(console, json_output=json_output, message=str(e))

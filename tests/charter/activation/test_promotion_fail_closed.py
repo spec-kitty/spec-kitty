@@ -160,3 +160,28 @@ def test_narrow_bases_default_none_keeps_the_append_behaviour() -> None:
     config: dict[str, Any] = {_KEY: ["old-a"]}
     _promote(config, {_KEY: ["new"]}, {})
     assert config[_KEY] == ["old-a", "new"]
+
+
+def test_narrow_bases_with_unresolved_effective_set_warns_like_activate_only() -> None:
+    from charter.activation.activation_engine import NARROW_UNRESOLVED_WARNING
+
+    effective = {_KEY: EffectiveSet(kind="procedure", yaml_key=_KEY, resolved=False, reason="boom")}
+    config: dict[str, Any] = {}
+
+    outcome, _ = _promote(config, {_KEY: ["new"]}, effective, narrow_bases={_KEY: ["base"]})
+
+    assert config[_KEY] == ["base", "new"]
+    assert outcome.committed[0].warnings == [NARROW_UNRESOLVED_WARNING]
+    assert outcome.committed[0].deactivated == []
+
+
+def test_narrow_bases_absent_key_reports_only_ids_missing_from_the_new_list() -> None:
+    effective = {_KEY: EffectiveSet(kind="procedure", yaml_key=_KEY, ids=frozenset({"kept", "old"}))}
+    config: dict[str, Any] = {}
+
+    outcome, _ = _promote(config, {_KEY: ["kept", "new"]}, effective, narrow_bases={_KEY: ["base"]})
+
+    plan = outcome.committed[0]
+    assert plan.activated == ["new"]
+    assert plan.deactivated == ["old"]
+    assert plan.warnings == []
