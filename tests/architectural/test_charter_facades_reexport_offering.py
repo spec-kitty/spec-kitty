@@ -287,6 +287,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("PackPin", "charter.offering.packs.pack_pin"),
         ("PackPinError", "charter.offering.packs.pack_pin"),
         ("TreeDigest", "charter.offering.packs.pack_pin"),
+        ("full_tree_digest", "charter.offering.packs.pack_pin"),
         ("load_pack_pin", "charter.offering.packs.pack_pin"),
         ("verify_pack_pin", "charter.offering.packs.pack_pin"),
         ("write_pack_pin", "charter.offering.packs.pack_pin"),
