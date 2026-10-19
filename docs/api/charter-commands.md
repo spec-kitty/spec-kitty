@@ -39,10 +39,10 @@ generated [`spec-kitty charter` section of the CLI Command Reference](cli-comman
 | `resynthesize` | Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis) |
 | `lint` | Detect decay in charter artifacts via graph-native checks |
 | `bundle` | Charter bundle validation commands |
-| `activate` | Activate a doctrine artifact by kind and ID (FR-004), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-activate) |
+| `activate` | Activate a doctrine artifact by kind and ID (FR-004), with optional cascade; `--only` replaces the kind's list with the selection plus org-required ids — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-activate) |
 | `deactivate` | Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-deactivate) |
 | `preflight` | Verify charter-derived state before a governed session begins — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-preflight) |
-| `list` | List activated charter artifacts by kind — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
+| `list` | List activated charter artifacts by kind; `--all --json` rows in `available` carry `declared_id` beside the stem-keyed `artifact_id` — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
 | `mission-type` | Mission type commands (activated types only) — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-mission-type) |
 | `pack` | Charter pack management commands — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack) |
 
@@ -135,6 +135,13 @@ materializes the minimal artifact set (directory marker and `PROVENANCE.md`) wit
 full adapter pipeline. The runtime falls back to the built-in Charter Pack until a full synthesis run
 completes.
 
+Synthesis links each synthesized "how we apply" tactic from its directive with a
+`directive --suggests--> tactic` edge. Such a tactic is reach-only: it is delivered
+only while its directive is active, even when listed in `activated_tactics`. When
+`activated_tactics` is present, synthesis appends the tactic ids it creates; it never
+creates the key. Re-synthesis replaces legacy `applies` edges on synthesized tactics
+and reports the replacement.
+
 | Flag | Description | Default |
 | --- | --- | --- |
 | `--adapter TEXT` | Adapter to use: `generated` (validates agent-authored YAML under `.kittify/charter/generated/`) or `fixture` (offline/testing only) | `generated` |
@@ -171,6 +178,8 @@ Selector forms:
 - `tactic:how-we-apply-directive-003` — regenerate one tactic
 - `directive:DIRECTIVE_003` — regenerate every artifact whose provenance references the built-in DIRECTIVE_003 URN
 - `testing-philosophy` — regenerate all artifacts from that interview section
+
+Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic ids and replaced legacy `applies` edges.
 
 | Flag | Description | Default |
 | --- | --- | --- |
@@ -264,6 +273,12 @@ uv run spec-kitty charter context --action implement --json
 # Render without persisting first-load state (for debugging)
 uv run spec-kitty charter context --action specify --no-mark-loaded --json
 ```
+
+> **`--json` `diagnostics` (schema 1.4.0).** `context_schema_version` is `1.4.0`.
+> The payload carries a top-level `diagnostics` list of strings, always present
+> (`[]` when clean). It holds the governance resolution's diagnostics, for example
+> `Unknown selected {kind} '{token}' dropped` for a selected id found in no layer.
+> The key is additive; consumers that ignore unknown keys are unaffected.
 
 > **`--json` `project_charter.present` semantics (authority-of-record).**
 > `project_charter.present` / `project_charter.path` key on the **compiled
