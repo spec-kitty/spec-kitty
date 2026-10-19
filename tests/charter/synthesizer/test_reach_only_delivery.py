@@ -20,7 +20,7 @@ import yaml
 from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
-from charter.activation.synthesizer.reconcile import synthesized_tactic_reason
+from charter.activation.synthesizer.reconcile import synthesized_edge_reason
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast]
@@ -83,7 +83,7 @@ def _write_manifest(repo_root: Path, slugs: tuple[str, ...]) -> None:
 
 def _edge_dict(slug: str, *, derived: bool, directive: str = _DIRECTIVE_ID) -> dict[str, str]:
     edge = {"source": f"directive:{directive}", "target": f"tactic:{slug}", "relation": "suggests"}
-    edge["reason"] = synthesized_tactic_reason(slug) if derived else "hand-authored"
+    edge["reason"] = synthesized_edge_reason("tactic", slug) if derived else "hand-authored"
     return edge
 
 
@@ -222,33 +222,33 @@ def test_edgeless_synthesized_and_hand_authored_tactics_remain_roots(tmp_path: P
     assert _HAND_AUTHORED in delivered
 
 
-def test_reach_only_tactic_ids_lists_only_directive_suggests_targets(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+def test_reach_only_ids_lists_only_directive_suggests_targets(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(tmp_path, with_edge=True)
 
-    ids = reach_only_tactic_ids(tmp_path)
+    ids = reach_only_ids(tmp_path, "tactic")
 
     assert ids == frozenset({_REACH_ONLY})
     assert _EDGELESS_SYNTH not in ids
     assert _HAND_AUTHORED not in ids
 
 
-def test_reach_only_tactic_ids_empty_without_overlay_or_edge(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+def test_reach_only_ids_empty_without_overlay_or_edge(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
-    assert reach_only_tactic_ids(tmp_path) == frozenset()  # no overlay
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()  # no overlay
     _write_overlay(tmp_path, with_edge=False)
-    assert reach_only_tactic_ids(tmp_path) == frozenset()  # overlay, no edge
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()  # overlay, no edge
 
 
-def test_reach_only_tactic_ids_degrades_on_invalid_overlay(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+def test_reach_only_ids_degrades_on_invalid_overlay(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(tmp_path, with_edge=True)
     (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").write_text("nodes: [\n  {urn: broken\n", encoding="utf-8")
 
-    assert reach_only_tactic_ids(tmp_path) == frozenset()
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()
 
 
 def test_classify_delivers_reach_only_tactic_from_a_seeded_directive() -> None:
@@ -292,7 +292,7 @@ def test_compiler_reference_seeds_exclude_reach_only_tactic(tmp_path: Path) -> N
 
 def test_hand_authored_tactic_with_hand_authored_inbound_edge_stays_a_root(tmp_path: Path) -> None:
     """A manifest-less tactic is never reach-only, whatever edges point at it."""
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(
         tmp_path,
@@ -300,31 +300,31 @@ def test_hand_authored_tactic_with_hand_authored_inbound_edge_stays_a_root(tmp_p
         extra_edges=(_edge_dict(_HAND_AUTHORED, derived=False, directive="DIRECTIVE_010"), _edge_dict(_HAND_AUTHORED, derived=True)),
     )
 
-    assert reach_only_tactic_ids(tmp_path) == frozenset({_REACH_ONLY})
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
 
 
 def test_hand_authored_edge_to_a_synthesized_tactic_does_not_make_it_reach_only(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(tmp_path, with_edge=False, extra_edges=(_edge_dict(_EDGELESS_SYNTH, derived=False, directive="DIRECTIVE_010"),))
 
-    assert reach_only_tactic_ids(tmp_path) == frozenset()
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()
 
 
 def test_org_required_synthesized_tactic_stays_a_root(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(tmp_path, with_edge=True)
     with patch("charter.activation.synthesizer.reach_only.read_org_required_ids", return_value=[_REACH_ONLY]):
-        assert reach_only_tactic_ids(tmp_path) == frozenset()
-    assert reach_only_tactic_ids(tmp_path) == frozenset({_REACH_ONLY})  # control: not org-required
+        assert reach_only_ids(tmp_path, "tactic") == frozenset()
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})  # control: not org-required
 
 
-def test_reach_only_tactic_ids_empty_without_a_manifest(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
+def test_reach_only_ids_empty_without_a_manifest(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_overlay(tmp_path, with_edge=True, manifest_slugs=())
-    assert reach_only_tactic_ids(tmp_path) == frozenset()
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()
 
 
 def test_operator_removed_reach_only_tactic_is_not_delivered_through_its_directive(tmp_path: Path) -> None:

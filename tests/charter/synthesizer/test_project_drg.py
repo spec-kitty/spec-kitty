@@ -260,8 +260,8 @@ class TestEdgeDerivedFromSourceUrns:
         }
         assert not [e for e in graph.edges if e.relation == Relation.APPLIES]
 
-    def test_styleguide_source_urn_keeps_applies_edge(self) -> None:
-        """#6404 scope: synthesized styleguide edges stay ``styleguide --applies--> source``."""
+    def test_styleguide_source_urn_emits_suggests_edge_from_the_directive(self) -> None:
+        """#6442: a sourced synthesized styleguide is linked FROM its directive (reach-only)."""
         shipped = _make_shipped_graph(nodes=[("directive:DIRECTIVE_003", NodeKind.DIRECTIVE)])
         target = _make_target(
             kind="styleguide",
@@ -271,7 +271,7 @@ class TestEdgeDerivedFromSourceUrns:
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
         assert {(e.source, e.target, e.relation) for e in graph.edges} == {
-            ("styleguide:python-testing-style", "directive:DIRECTIVE_003", Relation.APPLIES)
+            ("directive:DIRECTIVE_003", "styleguide:python-testing-style", Relation.SUGGESTS)
         }
 
     def test_multiple_source_urns_produce_multiple_edges(self) -> None:

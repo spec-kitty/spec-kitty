@@ -32,7 +32,7 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +45,7 @@ from .manifest import (
     SynthesisManifest,
     load_yaml as load_manifest,
 )
+from .reconcile import REACH_ONLY_KINDS as _REACH_ONLY_KINDS
 from .reconcile import merge_project_overlay as _merge_project_overlay
 from .reconcile import legacy_applies_edges as _legacy_applies_edges
 from .reconcile import legacy_strip_notice as _legacy_strip_notice
@@ -130,10 +131,10 @@ class ResynthesisResult:
     """Unresolved project-profile reference warnings from this run's overlay
     re-emission (#4121, MAJOR 2) — the same strings ``emit_project_layer``
     logs, carried so the CLI can surface them."""
-    created_tactic_slugs: tuple[str, ...] = ()
-    """Tactic slugs this run added to the synthesis manifest (manifest delta, #6404).
-    A regenerated tactic already in the manifest is not listed, so an operator who
-    removed it from ``activated_tactics`` is not overridden."""
+    created_slugs: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    """Slugs this run added to the synthesis manifest, per reach-only kind (manifest delta,
+    #6404, #6442). A regenerated artifact already in the manifest is not listed, so an
+    operator who removed it from its ``activated_<kind>s`` list is not overridden."""
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +354,7 @@ def run(
     # manifest.
     # ------------------------------------------------------------------
     new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id, _repo_root)
-    existing_tactic_slugs = frozenset(e.slug for e in existing_manifest.artifacts if e.kind == "tactic")
+    existing_slugs = frozenset((e.kind, e.slug) for e in existing_manifest.artifacts)
 
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
@@ -415,11 +416,14 @@ def run(
         is_noop=False,
         diagnostic="",
         reference_warnings=tuple(reference_warnings),
-        created_tactic_slugs=tuple(
-            e.slug
-            for e in written_manifest.artifacts
-            if e.kind == "tactic" and e.slug not in existing_tactic_slugs
-        ),
+        created_slugs={
+            kind: tuple(
+                e.slug
+                for e in written_manifest.artifacts
+                if e.kind == kind and (kind, e.slug) not in existing_slugs
+            )
+            for kind in _REACH_ONLY_KINDS
+        },
     )
 
 

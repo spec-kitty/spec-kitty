@@ -451,6 +451,8 @@ class TestResolveFullSnapshot:
             "kinds": ["tactic", "styleguide"],
             "source_section": "testing_philosophy",
             "answer_source": "testing_philosophy",
+            # #6442: the styleguide is sourced from its directive (static table, no DRG read).
+            "source_urns_by_kind": {"styleguide": ("directive:DIRECTIVE_034",)},
         }
 
 

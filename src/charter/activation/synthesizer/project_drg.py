@@ -38,7 +38,7 @@ from kernel.clock import now_utc_seconds
 from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME, project_pack_root
 
 from .errors import ProjectDRGValidationError
-from .reconcile import synthesized_tactic_reason
+from .reconcile import REACH_ONLY_KINDS, synthesized_edge_reason
 from .path_guard import PathGuard
 from .request import SynthesisTarget
 
@@ -219,13 +219,13 @@ def _registered_project_artifacts(project_root: Path) -> tuple[ProjectArtifact, 
 
 
 def _derived_edge(target: SynthesisTarget, urn: str, source_urn: str) -> DRGEdge:
-    """Return the DRG edge linking synthesized *target* (``urn``) to *source_urn* (#6404)."""
-    if target.kind == "tactic":
+    """Return the DRG edge linking synthesized *target* (``urn``) to *source_urn* (#6404, #6442)."""
+    if target.kind in REACH_ONLY_KINDS:
         return DRGEdge(
             source=source_urn,
             target=urn,
             relation=Relation.SUGGESTS,
-            reason=synthesized_tactic_reason(target.slug),
+            reason=synthesized_edge_reason(target.kind, target.slug),
         )
     return DRGEdge(
         source=urn,

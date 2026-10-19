@@ -136,6 +136,17 @@ INTERVIEW_MAPPINGS: tuple[InterviewSectionMapping, ...] = (
     ),
 )
 
+#: Directive each styleguide-producing section's styleguide elaborates (#6442). A
+#: fixed table: the styleguide is linked FROM that directive and reaches context
+#: only while it is in force. ``targets.build_targets`` keeps the entry only when
+#: the run's DRG snapshot holds the directive (no dangling URN); this module never
+#: reads the DRG (R-9). ``language_scope`` styleguides are deliberately unsourced.
+_STYLEGUIDE_SOURCE_DIRECTIVES: dict[str, str] = {
+    "testing_philosophy": "DIRECTIVE_034",
+    "quality_gates": "DIRECTIVE_030",
+    "documentation_policy": "DIRECTIVE_037",
+}
+
 # Real interview producer keys that feed legacy synthesis section labels.
 _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
     "mission_type": ("project_intent",),
@@ -347,17 +358,16 @@ def _append_table_driven_results(
         if mapping.requires_nonempty and not answer:
             continue
 
-        results.append(
-            (
-                label,
-                {
-                    "answer": answer,
-                    "kinds": list(mapping.kinds),
-                    "source_section": label,
-                    "answer_source": source_key,
-                },
-            )
-        )
+        context: dict[str, Any] = {
+            "answer": answer,
+            "kinds": list(mapping.kinds),
+            "source_section": label,
+            "answer_source": source_key,
+        }
+        directive_id = _STYLEGUIDE_SOURCE_DIRECTIVES.get(label)
+        if directive_id is not None and "styleguide" in mapping.kinds:
+            context["source_urns_by_kind"] = {"styleguide": (f"directive:{directive_id}",)}
+        results.append((label, context))
 
 
 def _iter_clean_strings(raw_values: object) -> tuple[str, ...]:
