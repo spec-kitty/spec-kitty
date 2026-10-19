@@ -3,9 +3,11 @@
 An activation token or selection may spell an artifact two ways: its file stem
 (``qa-tactic-seven``) or its declared id (``qa-seven``). :class:`IdentityIndex`
 maps either spelling to the artifact's declared id, and back to a stem, for every
-activatable kind, honouring layer precedence (project, then org packs from last to
-first declaration, then built-in -- the same first-match order as
-:mod:`charter.activation.kind_vocabulary`).
+activatable kind. Entries are ordered by layer precedence (project, then org packs
+from last to first declaration, then built-in). A lookup is stem-first across ALL
+layers, then declared id across all layers, each first-match in that order -- the
+same rule as :func:`charter.activation.kind_vocabulary.resolve_artifact_urn`; a
+higher layer's declared id does not beat a lower layer's matching stem.
 
 The index changes how ids are spelled, never which artifacts a base contains
 (C-007). Each ``(kind, layer set)`` is scanned lazily and at most once per index
@@ -18,7 +20,6 @@ Import rule: this module must not import ``charter.activation.resolver`` or
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -81,11 +82,6 @@ _DOC_MARKER = re.compile(r"^(?:---|\.\.\.)(?:[ \t]|$)", re.MULTILINE)
 _BLANK_OR_COMMENT = re.compile(r"(?:[ \t]*(?:#[^\n]*)?\n)*")
 
 
-def _full_parse(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
-    declared: str | None = kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
-    return declared
-
-
 def _has_foreign_document_marker(text: str) -> bool:
     """Whether *text* has a ``...`` line or a ``---`` other than a leading one (after comments)."""
     markers = list(_DOC_MARKER.finditer(text))
@@ -120,7 +116,13 @@ def _fast_plain_id(text: str, id_field: str) -> str | None:
     return value
 
 
-def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind_vocabulary.ResolutionPass) -> str | None:
+def _declared_id_of(
+    path: Path,
+    id_field: str,
+    yaml: YAML,
+    resolution_pass: kind_vocabulary.ResolutionPass,
+    fast_ids: dict[tuple[Path, str], str] | None = None,
+) -> str | None:
     """Declared id of *path*; a single plain-string top-level ``id:`` line skips the full YAML parse (NFR-003).
 
     The fast path is taken only when the text has exactly one top-level ``<field>:`` key,
@@ -129,20 +131,28 @@ def _declared_id_of(path: Path, id_field: str, yaml: YAML, resolution_pass: kind
     Everything else (numbers, booleans, null, quoted, commented, multi-document,
     duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`.
 
+    Fast-path values are kept in the private *fast_ids* cache only; the shared
+    *resolution_pass* is seeded exclusively by the canonical reader, so other
+    consumers of the pass never see a value the canonical parse did not produce.
+
     Known, accepted limitation: syntax errors elsewhere in the file are not detected
     cheaply, so such a file yields its id here where the full parse yields ``None``. The
     artifact repositories reject that file when they load it, so it is never activatable.
     """
     key = (path, id_field)
-    if key not in resolution_pass.ids:
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            return _full_parse(path, id_field, yaml, resolution_pass)
-        fast = _fast_plain_id(text, id_field)
-        if fast is not None:
-            resolution_pass.ids[key] = fast
-    return _full_parse(path, id_field, yaml, resolution_pass)
+    if key in resolution_pass.ids:
+        return resolution_pass.ids[key]
+    if fast_ids is not None and key in fast_ids:
+        return fast_ids[key]
+    try:
+        fast = _fast_plain_id(path.read_text(encoding="utf-8"), id_field)
+    except OSError:
+        fast = None
+    if fast is None:
+        return kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
+    if fast_ids is not None:
+        fast_ids[key] = fast
+    return fast
 
 
 def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
@@ -163,6 +173,7 @@ class IdentityIndex:
     _offering_root: Path = field(default_factory=resolve_offering_root)
     _tables: dict[ArtifactKind, _KindTable] = field(default_factory=dict, init=False, repr=False)
     _pass: kind_vocabulary.ResolutionPass = field(default_factory=kind_vocabulary.ResolutionPass, init=False, repr=False)
+    _fast_ids: dict[tuple[Path, str], str] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------ builders --
 
@@ -223,7 +234,7 @@ class IdentityIndex:
         ):
             layer = _layer_of(scan_dir, self.project_root, self.org_roots)
             for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
-                declared = _declared_id_of(path, id_field, yaml, self._pass)
+                declared = _declared_id_of(path, id_field, yaml, self._pass, self._fast_ids)
                 if declared:
                     entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer))
         return entries
@@ -287,19 +298,8 @@ class IdentityIndex:
                 return entry.stem
         return None
 
-    def resolve_many(self, kind: ArtifactKind, tokens: Iterable[str]) -> tuple[list[str], list[str]]:
-        """Split *tokens* into ``(declared ids, unknown tokens)``, order-preserving and de-duplicated."""
-        ids: list[str] = []
-        unknown: list[str] = []
-        for token in tokens:
-            declared = self.declared_id(kind, token)
-            bucket, value = (unknown, token) if declared is None else (ids, declared)
-            if value not in bucket:
-                bucket.append(value)
-        return ids, unknown
-
     def activation_id(self, kind: ArtifactKind, token: str, warnings: list[str]) -> str:
-        """Single route for activation-list tokens (WP02/WP03/WP10 must use it).
+        """Single route for activation-list tokens.
 
         A known token yields its declared id. An unknown directive token falls back to
         the id normaliser, other kinds keep the token, and either way one warning is
