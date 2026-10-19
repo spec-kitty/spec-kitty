@@ -1726,6 +1726,7 @@ pages:
     - {slug: "migration-story", text: "Migration story", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "verification", text: "Verification", level: 2}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md"
     title: "ADR-8: Monorepo charter scope via `CharterScope` abstraction"
     divio_type: "none"
@@ -1819,6 +1820,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "forward-chain", text: "Forward chain", level: 3}
     - {slug: "compliance", text: "Compliance", level: 2}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md"
     title: "ADR: `shipped` → `built-in` Vocabulary Cutover for Doctrine Layer Label"
     divio_type: "none"
@@ -3445,6 +3447,10 @@ pages:
     - {slug: "option-4-one-step-replacement", text: "Option 4: one-step replacement", level: 3}
     - {slug: "deferred-decisions", text: "Deferred Decisions", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-accepted-seam-routing-only-one-switch-over-and-a-cli-started-per-worktree-daemon", text: "Amendment 2026-10-19 (Accepted): seam routing only, one switch-over, and a CLI-started per-worktree daemon", level: 2}
+    - {slug: "scope-of-this-record-spec-kitty-charter-adr-0010", text: "Scope of this record (spec-kitty-charter ADR-0010)", level: 3}
+    - {slug: "service-boundary-spec-kitty-charter-adr-0011", text: "Service boundary (spec-kitty-charter ADR-0011)", level: 3}
+    - {slug: "why-a-cli-started-daemon-when-the-dashboard-daemon-was-rejected", text: "Why a CLI-started daemon, when the dashboard daemon was rejected", level: 3}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
     divio_type: "none"
@@ -3555,6 +3561,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "absorption-by-2594", text: "Absorption by #2594", level: 3}
     - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
+    - {slug: "amendment-2026-10-19-owner-declared-mutability-levels-spec-kitty-charter-adr-0012", text: "Amendment 2026-10-19: owner-declared mutability levels (spec-kitty-charter ADR-0012)", level: 2}
   - path: "docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md"
     title: "ADR: the Team Kitty surfaces are hidden unless hosted drain is on"
     divio_type: "none"
@@ -3802,6 +3809,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-p4-is-replaced-the-offering-is-replaced-in-place-not-extracted", text: "Amendment 2026-10-19: P4 is replaced; the offering is replaced in place, not extracted", level: 2}
   - path: "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md"
     title: "ADR: the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run"
     divio_type: "none"

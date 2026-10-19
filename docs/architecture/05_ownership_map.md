@@ -2,7 +2,7 @@
 title: Functional Ownership Map (demoted — narrative only)
 description: 'Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain.'
 doc_status: superseded
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
@@ -49,6 +49,13 @@ relocated into (Convergence #3881); the `src/doctrine.py` deprecation shim was r
 > [`2026-10-12-2`](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md);
 > precondition #645, now GA-gating). The enforced pair stays the authority; this note changes
 > no gate.
+>
+> **Superseded (2026-10-19):** `charter` stays in this in-tree layer chain. The Python charter
+> stays in core until it is retired and nothing Python moves to `spec-kitty-charter`; offering
+> reads cut over to the `spec-kitty-charter` service through `charter.offering.api`
+> (`spec-kitty-charter` ADR-0008 and ADR-0010, which supersede ADR `2026-10-12-2`; ADR
+> [`2026-10-16-1`](../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md),
+> Amendment 2026-10-19).
 
 ## Hosted client packages were removed
 

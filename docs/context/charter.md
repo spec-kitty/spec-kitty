@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-10-11'
+updated: '2026-10-19'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -454,9 +454,9 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A symmetric, non-transitive [Three-layer DRG](#three-layer-drg) relation marking two co-valid, co-activatable artifacts that compete on the same decision. Stored as a single canonical edge (lexicographically-smaller URN as source) and queryable from either endpoint; it does not imply that either side is deprecated, superseded, or wrong — both remain valid rules until an operator deactivates one side or activates a reconciler ([Reconciliation](#reconciliation--reconciles_tension-drg-relation)). Canonical source: `RELATION_DESCRIPTIONS[Relation.IN_TENSION_WITH]` in `src/charter/offering/drg/models.py`; human-readable mirror and worked examples in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). |
+| **Definition** | A symmetric, non-transitive [Three-layer DRG](#three-layer-drg) relation marking two co-valid, co-activatable artifacts that compete on the same decision. Stored as a single canonical edge (lexicographically-smaller URN as source) and queryable from either endpoint; it does not imply that either side is deprecated, superseded, or wrong — both remain valid rules until an operator deactivates one side or activates a reconciler ([Reconciliation](#reconciliation--reconciles_tension-drg-relation)). Canonical source: `RELATION_DESCRIPTIONS[Relation.IN_TENSION_WITH]` in `src/charter/offering/drg/models.py`; human-readable mirror and worked examples in `docs/architecture/doctrine-relationships.md` ("Tension vocabulary"). **Retired from the external contract (2026-10-19):** the `spec-kitty-charter` contract 1.0 `Relation` enum carries `impacts` and drops `in_tension_with`; use `impacts` (a signed, authored relation; tension is `impacts < 0`, [ADR 2026-07-26-3](../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)). Core's seam maps an `in_tension_with` edge to a negative `impacts` until core's edge migration (B2) removes the relation from the DRG (`spec-kitty-charter` ADR-0009 and ADR-0014). |
 | **Context** | Doctrine |
-| **Status** | canonical |
+| **Status** | deprecated |
 | **Applicable to** | `3.x` |
 | **Related terms** | [Reconciliation](#reconciliation--reconciles_tension-drg-relation), [Rejection](#rejection--rejects-drg-relation), [Three-layer DRG](#three-layer-drg) |
 

@@ -2,7 +2,7 @@
 title: System Landscape (living)
 description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/system-architect.md
 ---
 # System Landscape (living)
@@ -55,7 +55,12 @@ implementation detail — the contracts between them remain stable regardless.
 > external contract package **in its own repository**, consumed through
 > `charter.offering.api` alongside `spec-kitty-events` / `spec-kitty-tracker` (ADR
 > [`2026-10-12-2`](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md);
-> precondition #645, now GA-gating). (b) The **Mission Status Read API** is the open-core
+> precondition #645, now GA-gating); **superseded 2026-10-19**: the Python charter stays in
+> core until it is retired, nothing Python moves to `spec-kitty-charter`, and offering reads
+> cut over to the `spec-kitty-charter` service through `charter.offering.api`
+> (`spec-kitty-charter` ADR-0008 and ADR-0010; ADR
+> [`2026-10-16-1`](../../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md),
+> Amendment 2026-10-19). (b) The **Mission Status Read API** is the open-core
 > **producer** surface (ADR
 > [`2026-10-01-2`](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 > Accepted); **Team Kitty = "Multiplayer Mode"** (mission-ui, pack composer) is the opaque **consumer** across that contract. (c) Both pack tiers' source home is

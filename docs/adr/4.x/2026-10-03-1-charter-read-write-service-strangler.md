@@ -1,12 +1,20 @@
 ---
 title: 'ADR: replace charter reads and writes through a staged Java service strangler'
 description: 'Define the staged transition from the Python charter implementation to a per-worktree Java read service and, later, Java write adapters.'
-status: Proposed
+status: Accepted
 date: '2026-10-03'
+updated: '2026-10-19'
 ---
 # Replace charter reads and writes through a staged Java service strangler
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-19), with Amendment 2026-10-19 (below). Proposed 2026-10-03.
+
+> **Read the Amendment 2026-10-19 first.** It narrows this record to the seam routing, ships
+> stages 3 and 4 together with no Python read fallback and no observation period, makes the
+> conformance corpus the only gate, and decides the service launcher. Where the body below
+> says otherwise (the "Java authoritative; loud, observable Python fallback" stage, the
+> observation period, "refusal or loud fallback", the deferred daemon launcher, #645 as the
+> seam), the amendment wins.
 
 **Date:** 2026-10-03
 
@@ -364,3 +372,90 @@ behavior improves.
 - [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md)
 - [Architecture vision](../../architecture/vision/README.md)
 - [Living architecture diagrams](../../architecture/diagrams/README.md)
+
+## Amendment 2026-10-19 (Accepted): seam routing only, one switch-over, and a CLI-started per-worktree daemon
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-19. Requested by `spec-kitty-charter`
+[ADR-0010](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0010-cutover-scope-and-seam-boundary.md)
+(cutover scope and seam boundary) and
+[ADR-0011](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0011-seam-runtime-fail-closed-daemon-and-freshness.md)
+(seam runtime: fail closed, daemon, freshness), both recorded in
+[spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88). The
+decision this ADR records is accepted with this amendment; the body above is kept as written.
+
+### Scope of this record (spec-kitty-charter ADR-0010)
+
+> This record governs the seam routing only: the stages, the switch at
+> `charter.offering.api`, and the seam's failure behavior. The offering's internals, its
+> contract and the Charter Pack structure are decided in spec-kitty-charter. Stage 1 is
+> reached (#6188). Stages 3 and 4 ship together, with no Python read fallback, and the
+> conformance corpus is the only gate. Compile keeps a ratcheted Python read path until it is
+> the first write migrated.
+
+Read against the *Staged ownership* table and the *Read cut-over* sequence above:
+
+- **Stage 1 ("Callers move onto the seam") is reached.** The seam is `charter.offering.api`,
+  delivered by #6188 (PR #6200), not the #645 epic the body names (#645 is closed
+  `not_planned`).
+- **"Java authoritative" and "Java reads complete" ship together.** The release that routes
+  reads to Java also stops calling Python for reads. There is no loud Python fallback stage
+  and no observation period (`spec-kitty-charter` #75 is dropped).
+- **The conformance corpus is the only gate.** A divergence on the supported corpus fails
+  core's CI (`spec-kitty-charter` #72).
+- **The cutover covers every offering read**, including the reads `charter.activation` makes
+  of offering data; activation's own state logic stays in core.
+- **Compile is the ratcheted exemption.** Compile keeps a Python read path for its inputs; a
+  ratchet test stops any other caller from using it. The exemption ends when compile is the
+  first write migrated to Java (stage 5, *Write migration*).
+- **The seam fails closed** (`spec-kitty-charter` ADR-0011, Decision 1). A refusal from the
+  service is the answer and the seam passes it on. A transport failure (no service, timeout,
+  wrong contract version, wrong worktree) is a named error with a remedy and a non-zero exit.
+  There is no Python fallback and no cached last-good answer. In *Service boundary*, "stale
+  local inputs cause a refusal or loud fallback" now reads "cause a refusal".
+- **The point of no return moves.** With no fallback stage, rollback after the switch-over is
+  a release downgrade. The Python read code is deleted in the release after the switch-over,
+  not in the same one (ADR-0010, Risks).
+
+### Service boundary (spec-kitty-charter ADR-0011)
+
+This replaces the "daemon launcher" item of *Deferred Decisions* and extends *Service
+boundary*:
+
+> The CLI starts one charter service per worktree on first use, on loopback with a
+> per-worktree token, and stops it on idle or worktree removal. This is a CLI-started daemon;
+> it is limited to read operations and has no browser-facing surface.
+
+The launcher lives in `specify_cli` (`spec-kitty-charter` #70), as *Where the seam lives*
+already requires; the seam receives only an endpoint and a credential. CI runs the same
+daemon.
+
+### Why a CLI-started daemon, when the dashboard daemon was rejected
+
+**The Charter Offering service must be available in every repository and development
+environment.** After the cutover a spec-kitty CLI without it cannot operate: every charter
+read (action context, the active charter, profile resolution, doctrine lookups) crosses the
+seam, and the seam fails closed. That availability requirement is what separates this
+service from the two cases where core chose differently:
+
+- **The event system** needs only its writer to be present. The CLI appends to the
+  `status.events.jsonl` ledger itself; a reader exists only when an integration depends on
+  one. The Mission Status Read API ([ADR 2026-10-01-2](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+  Amendment 2026-10-03) can therefore be a *detached* service that no spec-kitty command
+  starts.
+- **The removed dashboard UI server** was optional. The CLI worked without it, and its
+  in-CLI daemon brought PID-recycling and token-leak defects with no availability need to
+  justify them. It was removed from the CLI (#5530), and ADR 2026-10-01-2 rejected its
+  Option 4 because it "put a daemon *inside the CLI*".
+
+For a service the CLI cannot work without, the choice is between **launch when down** (the
+CLI starts it on first use) and **requiring every user and every consumer, CI included, to
+keep it running**, where a stopped service is a blocker on the next command. Launch when down
+is chosen: availability is the CLI's job, not a setup step every user and runner must
+remember.
+
+The trust model the dashboard rejection closed is reopened only as far as this need
+requires (`spec-kitty-charter` ADR-0011, Decision 2): one daemon per worktree, loopback only,
+a per-worktree token readable only by the user, read operations only, no browser-facing
+surface, an identity check against the service's info operation before every session, and
+a launcher that records the process identity, not only the PID, so a recycled PID is never
+mistaken for the service. A security review of the launcher precedes the cutover.

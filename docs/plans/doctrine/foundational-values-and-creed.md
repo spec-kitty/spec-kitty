@@ -2,7 +2,7 @@
 title: FoundationalValues and Creed — canonical design
 description: "Single authority for the FoundationalValues/creed design: generic over N values, AMMERSE the default basis, and a signed impacts edge that subsumes in_tension_with."
 doc_status: draft
-updated: '2026-07-26'
+updated: '2026-10-19'
 related:
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
@@ -273,6 +273,12 @@ deltas summable across the active set, and two real corpus vectors already sum p
 active-set composition must clamp or average `base` before scaling. That is an open design
 consequence, not a solved one.
 
+> **Note 2026-10-19 (`spec-kitty-charter` ADR-0014, D-3).** Production deltas have no producer
+> while I14 is closed: the `value_impact` fields on shipped artefacts that would supply them are
+> not being authored, and only the reference corpus carries delta vectors. Until a producer
+> exists, the arithmetic here is research-grade — I8 and the ranking (I10) run on the corpus and
+> fixtures only, and production reads the creed as prose with its rationales.
+
 ### 6.5 Second-order is not adopted
 
 The article states second-order values come from "multiplying the first-order impact matrix with
@@ -373,6 +379,12 @@ value_impact:
 an unquoted `delta: 0.9` (which ruamel yields as `float`) must be a hard error. This round-trips the
 corpus byte-identically, permits exact arithmetic, and needs no comparison epsilon. **Do not enforce
 a resolution grid** — the corpus authors `0.125`.
+
+> **Note 2026-10-19 (`spec-kitty-charter` ADR-0014, D-3).** Production deltas have no producer
+> while I14 is closed: the `value_impact` fields on shipped artefacts that would supply them are
+> not being authored, and only the reference corpus carries delta vectors. Until a producer
+> exists, the arithmetic here is research-grade — I8 and the ranking (I10) run on the corpus and
+> fixtures only, and production reads the creed as prose with its rationales.
 
 ### 7.4 Which kinds carry a value field
 
@@ -576,14 +588,23 @@ repository.
 
 ## 13. Open decisions
 
-| # | Decision | Why it matters |
-| --- | --- | --- |
-| **D-1** | Value-bearing kinds: is `toolguide` in, and is `agent_profile` `value_bias` or out? | Two lenses disagreed. §7.4 adjudicates on semantics; settle before touching model/schema files |
-| **D-2** | **Which relation carries `impacts` after `in_tension_with` retires?** (= the sequence document's gate **G2**) | **The programme-shape gate.** ~45–60 files vs ~5–10. Must be decided inside the ADR |
-| **D-3** | Does the creed feed **arithmetic**, or does an agent read `creed.yaml` as prose context? | If prose, the ranking function is unnecessary and the numeric layer shrinks dramatically |
-| **D-4** | Interview instrument: authored question bank + forced choice, or model-chosen questions? | Model-chosen over N virtues with no budget predictably yields a near-flat creed, the regime in which the creed is inert — and nothing records *who supplied each weight*, so a model's prior can acquire operator provenance |
-| **D-5** | Mandatory `rationale`: advisory or hard? | The calibration corpus fails it (≥3 of 38) |
-| **D-6** | The asymmetric matrix pair (§6.3) (= the sequence ADR list's **ADR-D8**) | The symmetry validator cannot be written without it, and the headline residual moves 4.37%–6.00% |
+> **Update 2026-10-19.** D-1 to D-5 are decided; see `spec-kitty-charter`
+> [ADR-0014](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0014-foundational-values-and-creed-rulings.md),
+> which supersedes this table for them (recorded in
+> [spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88)). D-6 is
+> closed: it was adjudicated on 2026-07-26 and symmetrised to `+0.75` by amendment to
+> [ADR `2026-07-26-3`](../../adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md)
+> (§6.3, §11). ADR-0014's own Status line still lists D-6 as open; that is a slip on its side,
+> and this record does not reopen D-6. The table is kept as the record of what was asked.
+
+| # | Decision | Why it matters | Status |
+| --- | --- | --- | --- |
+| **D-1** | Value-bearing kinds: is `toolguide` in, and is `agent_profile` `value_bias` or out? | Two lenses disagreed. §7.4 adjudicates on semantics; settle before touching model/schema files | **Decided** — see `spec-kitty-charter` ADR-0014 D-1 |
+| **D-2** | **Which relation carries `impacts` after `in_tension_with` retires?** (= the sequence document's gate **G2**) | **The programme-shape gate.** ~45–60 files vs ~5–10. Must be decided inside the ADR | **Decided** — see `spec-kitty-charter` ADR-0014 D-2 |
+| **D-3** | Does the creed feed **arithmetic**, or does an agent read `creed.yaml` as prose context? | If prose, the ranking function is unnecessary and the numeric layer shrinks dramatically | **Decided** — see `spec-kitty-charter` ADR-0014 D-3 |
+| **D-4** | Interview instrument: authored question bank + forced choice, or model-chosen questions? | Model-chosen over N virtues with no budget predictably yields a near-flat creed, the regime in which the creed is inert — and nothing records *who supplied each weight*, so a model's prior can acquire operator provenance | **Decided** — see `spec-kitty-charter` ADR-0014 D-4 |
+| **D-5** | Mandatory `rationale`: advisory or hard? | The calibration corpus fails it (≥3 of 38) | **Decided** — see `spec-kitty-charter` ADR-0014 D-5 |
+| **D-6** | The asymmetric matrix pair (§6.3) (= the sequence ADR list's **ADR-D8**) | The symmetry validator cannot be written without it, and the headline residual moves 4.37%–6.00% | **Closed 2026-07-26** — symmetrised to `+0.75` by amendment to ADR `2026-07-26-3` (§6.3, §11) |
 
 ## 14. Sequence
 

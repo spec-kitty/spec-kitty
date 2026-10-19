@@ -2,7 +2,7 @@
 title: 'Packs Extraction — Domain Plan'
 description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
 doc_status: durable
-updated: '2026-10-12'
+updated: '2026-10-19'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -45,6 +45,8 @@ content across a package, wheel or repository boundary:
   [4.0.0 roadmap](../4-0-0-milestone-roadmap.md)). The repository extraction itself is recorded in ADR
   [2026-10-12-2](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); the
   extraction mechanics ride with a dedicated epic (to be filed).
+  **Superseded 2026-10-19:** the charter code is not extracted to its own repository; see the
+  note under *Open work* below.
 - **Content.** Doctrine content for **both** pack tiers is authored in `spec-kitty-open-packs`
   and vendored into the repository at release: `packs/built-in/` (#3504) and, as of the
   2026-10-12 direction update, `packs/internal/` as well — a **source-location move only**. A
@@ -104,6 +106,15 @@ The repository extraction is recorded in ADR
 [2026-10-12-2](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); its mechanics ride with a dedicated epic (to be filed);
 this plan owns the invariant and the precondition, not that epic.
 
+> **Superseded 2026-10-19 (operator ruling).** The charter does not move to its own
+> repository. The Python charter stays in core until it is retired, and nothing Python moves
+> to `spec-kitty-charter`; offering reads cut over to the `spec-kitty-charter` service through
+> `charter.offering.api`, and `charter.activation` stays in core until its post-GA rework. The
+> GA leg is a frozen seam and a green conformance corpus (epic #6099, re-scoped), not an
+> extraction. ADR 2026-10-12-2 is superseded by `spec-kitty-charter` ADR-0008 and ADR-0010; see
+> ADR [2026-10-16-1](../../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md),
+> Amendment 2026-10-19.
+
 ### 3.2 Content provenance (#3504, then #3022)
 
 **Invariant.** A consumer's install does not change when content provenance moves. Built-in
@@ -161,6 +172,8 @@ eight sub-issues is done.
    not GA dependencies. None of these issues is *on milestone 11* (local integrity); the GA gate
    now spans three legs (see the roadmap), and the charter-extraction leg is tracked on #645 and
    ADR `2026-10-12-2` plus a charter-repo-extraction epic (to be filed), not on milestone 11.
+   **Superseded 2026-10-19:** the GA leg is a frozen `charter.offering.api` seam and a green
+   conformance corpus (epic #6099, re-scoped), not a repository extraction; see *Open work*.
 
 ---
 

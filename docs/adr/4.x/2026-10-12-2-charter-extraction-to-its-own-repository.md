@@ -1,12 +1,28 @@
 ---
 title: 'ADR: the charter becomes an external contract package in its own repository'
 description: 'The charter becomes an external contract package in its own repository, consumed through charter.offering.api; precondition #645 is now GA-gating. Extends 2026-08-02-1.'
-status: Accepted
+status: Superseded
 date: '2026-10-12'
-updated: '2026-10-12'
+updated: '2026-10-19'
 ---
 
-**Status:** Accepted (2026-10-12).
+**Status:** Superseded (2026-10-19) by `spec-kitty-charter` ADR-0008 and ADR-0010. Accepted
+2026-10-12.
+
+> **Superseded (2026-10-19, operator ruling).** The charter does not move to its own
+> repository as a Python package. Per `spec-kitty-charter`
+> [ADR-0008](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0008-rewrite-and-replace-against-bdd-and-openapi-contracts.md)
+> (rewrite and replace) and
+> [ADR-0010](https://github.com/spec-kitty/spec-kitty-charter/blob/main/docs/adr/0010-cutover-scope-and-seam-boundary.md)
+> (cutover scope and seam boundary; recorded in
+> [spec-kitty-charter#88](https://github.com/spec-kitty/spec-kitty-charter/pull/88)):
+> the Python charter stays in core until it is retired, and nothing Python moves to
+> `spec-kitty-charter`. Offering reads cut over to the `spec-kitty-charter` service through
+> `charter.offering.api`; `charter.activation` stays in core until its post-GA rework (ADR
+> [2026-10-16-1](2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md),
+> Amendment 2026-10-19). The 4.0.0 leg is a frozen seam and a green conformance corpus, not an
+> extraction. Epic #6099 is re-scoped accordingly. The body below is kept unchanged as the
+> record of the earlier decision.
 
 **Date:** 2026-10-12
 
