@@ -40,9 +40,9 @@ from charter.activation.org_pack_discovery import (
     _missing_pack_diagnostic,
     _read_org_required_selections,
 )
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.activation.profile_resolution import (
     _existing_org_roots,
-    _normalize_directive_id,
     _reset_agent_profile_cache,
 )
 
@@ -196,20 +196,22 @@ class TestLoadActionGovernanceBundleTypeless:
 
 
 class TestNormalizeDirectiveId:
+    """The single normaliser (``charter.offering.drg.migration.id_normalizer``)."""
+
     def test_bare_numeral_normalises(self) -> None:
-        assert _normalize_directive_id("10") == "DIRECTIVE_010"
+        assert normalize_directive_id("10") == "DIRECTIVE_010"
 
     def test_slug_prefix_normalises(self) -> None:
-        assert _normalize_directive_id("024-locality-of-change") == "DIRECTIVE_024"
+        assert normalize_directive_id("024-locality-of-change") == "DIRECTIVE_024"
 
     def test_canonical_form_passes_through(self) -> None:
-        assert _normalize_directive_id("DIRECTIVE_024") == "DIRECTIVE_024"
+        assert normalize_directive_id("DIRECTIVE_024") == "DIRECTIVE_024"
 
     def test_non_numeric_uppercases_and_folds_hyphens(self) -> None:
         # Slug-named hub directives normalize to their UPPER_SNAKE node id, so the
         # fallback folds hyphens to underscores (#3009) -- matching id_normalizer.
-        assert _normalize_directive_id("some-slug") == "SOME_SLUG"
-        assert _normalize_directive_id("use-c4-model-techniques") == "USE_C4_MODEL_TECHNIQUES"
+        assert normalize_directive_id("some-slug") == "SOME_SLUG"
+        assert normalize_directive_id("use-c4-model-techniques") == "USE_C4_MODEL_TECHNIQUES"
 
 
 class TestExistingOrgRoots:

@@ -369,7 +369,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
 ) -> None:
     """Pins TASKS-FRESH2-001 (severity 4): each
     ``_read_org_required_selections()["directives"]`` entry must be normalized
-    via ``_normalize_directive_id`` before it joins the ``project_directives``
+    via ``normalize_directive_id`` before it joins the ``project_directives``
     union. ``activated_directives`` is left absent/None on the project side,
     so ``project_directives``'s only content comes from this org-required
     union.
@@ -378,7 +378,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     ``org_pack_discovery._load_governance_charter_config`` live shows it ALREADY
     unions raw org-required stems into ``selected_directives`` internally,
     and ``_load_action_governance_bundle``'s existing single
-    ``_normalize_directive_id`` comprehension over the merged
+    ``normalize_directive_id`` comprehension over the merged
     ``selected_directives`` set normalizes them "for free" today -- so this
     exact fixture, run through the current unmodified pipeline, is observed
     GREEN, not red (see this WP's final report for the live-run evidence).
@@ -421,7 +421,7 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
     1), no org-pack involved -- distinct from case 5 above, which only
     exercises stem-form normalization via the SEPARATE org-required-union
     path (boundary 3). A T009 step 1 implementation that dropped
-    ``_normalize_directive_id(d)`` from the comprehension -- assigning
+    ``normalize_directive_id(d)`` from the comprehension -- assigning
     ``directives_arg`` straight into ``project_directives`` unnormalized --
     would pass every other case in this file untouched, because none of them
     puts a stem-form id on this specific direct-assignment boundary.
