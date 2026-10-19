@@ -2,7 +2,7 @@
 title: Bulk-edit gate reference
 description: Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-10-19'
 ---
 # Bulk-edit gate reference
 
@@ -129,14 +129,44 @@ per-mission exception with rationale captured in `plan.md`.
 4. `target.operation: remove` but `replacement` is non-null.
 5. Fewer than eight categories declared.
 6. Any category with an `action` outside the four-value vocabulary.
-7. (review phase) A changed file matches a category whose action is
-   `do_not_change`, with no per-file exception.
+7. (review phase) A file the diff **modified, deleted or renamed** matches a
+   category whose action is `do_not_change`, or matches no category at all
+   (FR-008), with no per-file exception. A file the diff **created** is not
+   judged against the map — see the next section.
 
 Each failure prints a structured error starting with
 `Bulk Edit Gate: BLOCKED:` (planning gate) or
 `Bulk Edit Review: Diff Compliance:` (post-implementation gate). The triggering message also activates the
 `spk-practice-bulk-edit` skill, which walks the agent through
 remediation.
+
+## What the review gate exempts
+
+The review-phase check reads `git diff --name-status`, so it knows whether a
+path was created, modified, deleted or renamed. An occurrence map governs
+occurrences in content that **already exists**, which is why these cases pass
+without an exception. Every exemption is reported as a note, never silently.
+
+| Case | Verdict | Why |
+|---|---|---|
+| File **created** by the diff (`A`) | pass, listed as *created by this diff* | No pre-existing occurrence for the map to protect. Deletions and renames are still judged; an unknown status is treated as a modification. Creating a file under **another** mission's `kitty-specs/<slug>/` still blocks (C-004). |
+| The mission's **own** runtime state (`status.json`, `status.events.jsonl`, lifecycle logs) | pass, listed as *own bookkeeping* | Written by spec-kitty itself during the review. Anchored on the canonical `kitty-specs/<slug>` whatever worktree the mission's `feature_dir` resolves to, and tested **before** the map's exceptions, so `kitty-specs/**: do_not_change` cannot pre-empt it. |
+| Files that **cannot carry a textual occurrence**: webfonts, images, audio/video, compiled objects, generated lockfiles (`Gemfile.lock`, `uv.lock`, `yarn.lock`, …), `.keep`/`.gitkeep` | pass, listed as *no occurrences* | Not text, or resolver output regenerated rather than edited. Opaque **data** files (`.dat`, `.bin`, `.db`, `.sqlite`, `.pkl`, archives) are deliberately **not** exempt: they can carry serialized keys, so they block as unclassified until the map names them. |
+
+An explicit `exceptions:` entry always wins over the last row: a reviewer who
+names a binary keeps whatever action they chose.
+
+Templates, stylesheets and build DSLs (`.erb`, `.haml`, `.slim`, `.heex`,
+`.vue`, `.svelte`, `.css`, `.scss`, `.rake`, `Rakefile`, `Gemfile`,
+`.gemspec`) classify as `code_symbols`; container recipes (`Dockerfile`,
+`Containerfile`, compose files) classify as `filesystem_paths`. A template
+under `docs/` still reads as `user_facing_strings`.
+
+When the check fails, the table lists the rows that block or ask for manual
+review and summarises the rest by the reason they passed. When it passes with
+notes, the notes are grouped by kind, judgement-first: paths needing manual
+review and structural-target bypasses are listed in full; created files,
+non-occurrence files and own bookkeeping are shown as a count plus a sample.
 
 ## See also
 
