@@ -93,8 +93,8 @@ def minimal_drg_snapshot() -> dict[str, Any]:
 def base_target() -> SynthesisTarget:
     return SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )

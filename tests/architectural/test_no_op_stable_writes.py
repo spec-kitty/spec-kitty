@@ -27,7 +27,7 @@ the charter ``_substantively_equal`` skip (forcing an unconditional
 ``guard.replace``) turned ``test_charter_synthesis_is_no_op_stable`` RED with::
 
     AssertionError: charter re-synthesis dirtied the tree (#1912/#1914):
-      ' M .kittify/charter/provenance/directive-mission-type-scope-directive.yaml'
+      ' M .kittify/charter/provenance/directive-project-intent-directive.yaml'
       ' M .kittify/charter/synthesis-manifest.yaml'
 
 The injection was reverted; the guarded code keeps the ratchet GREEN.
@@ -135,8 +135,8 @@ def _synthesize_unchanged_pack(repo_root: Path, run_id: str) -> None:
     )
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )

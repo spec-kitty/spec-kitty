@@ -61,8 +61,8 @@ def synthesis_request() -> SynthesisRequest:
     return SynthesisRequest(
         target=SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
-            title="Mission Type Scope Directive",
+            slug="project-intent-directive",
+            title="Project Intent Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
         ),

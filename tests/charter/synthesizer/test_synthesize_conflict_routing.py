@@ -328,8 +328,8 @@ def _request(
 ) -> SynthesisRequest:
     target = SynthesisTarget(
         kind="directive",
-        slug="mission-type-scope-directive",
-        title="Mission Type Scope Directive",
+        slug="project-intent-directive",
+        title="Project Intent Directive",
         artifact_id="PROJECT_001",
         source_section="mission_type",
     )
@@ -524,7 +524,7 @@ class TestFullPipelineNewEmitCollisionStillRaises:
         }
         target = SynthesisTarget(
             kind="directive",
-            slug="mission-type-scope-directive",
+            slug="project-intent-directive",
             title="Mission Type Directive",
             artifact_id="PROJECT_001",
             source_section="mission_type",
