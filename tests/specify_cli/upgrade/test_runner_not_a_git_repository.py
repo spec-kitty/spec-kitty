@@ -13,7 +13,10 @@ from pathlib import Path
 
 import pytest
 
+from charter.resolution import NotInsideRepositoryError
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
 
 MIGRATION_ID = "3.2.0rc35_unified_bundle"
@@ -44,3 +47,33 @@ def test_upgrade_outside_git_repository_skips_unified_bundle(tmp_path: Path, dry
     assert MIGRATION_ID not in result.migrations_applied
     assert any("not inside a git repository" in w for w in result.warnings)
     assert MIGRATION_ID not in _ledger_ids(project)
+
+
+class _DetectOutsideRepository(BaseMigration):
+    """A stub whose ``detect()`` resolves the repo root and so raises outside a repository."""
+
+    migration_id = "stub_detect_outside_repository"
+    description = "stub"
+    target_version = "3.1.0"
+
+    def detect(self, project_path: Path) -> bool:
+        raise NotInsideRepositoryError(project_path)
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        raise AssertionError("apply() must not run after a skipped detect()")
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_detect_outside_a_git_repository_is_a_skip_with_no_ledger_record(tmp_path: Path, dry_run: bool) -> None:
+    project = _make_project(tmp_path)
+    migration = _DetectOutsideRepository()
+
+    result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=dry_run)
+
+    assert status == "skipped"
+    assert result.success
+    assert any("not inside a git repository" in w for w in result.warnings)
+    assert migration.migration_id not in _ledger_ids(project)
