@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP05 test_multi_language_evidence.py gate cases",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:35:45.624353+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
