@@ -168,10 +168,10 @@
       "criterion_id": "FR-017",
       "description": "Verify FR-017 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP01 4 nag tests pass with SPEC_KITTY_NO_NAG=1 exported; testing-flakiness.md entry 6",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:36:36.176446+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
