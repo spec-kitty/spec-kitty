@@ -1888,7 +1888,7 @@
   notes: null
 - path: docs/architecture/launch-readiness-future.md
   tag: current
-  divio_type: explanation
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
@@ -2069,6 +2069,12 @@
 - path: docs/archive/architecture/gap-analysis-connector-installation-model.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/architecture/launch-readiness-future.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -2594,6 +2600,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/archive/plans/engineering-notes/naming-identity-ssot-strangler/architect-alphonso-intended-design.md
   tag: current
   divio_type: none
@@ -2709,6 +2721,12 @@
   current_target: true
   notes: null
 - path: docs/archive/plans/engineering-notes/runtime_and_state_overhaul/05-architectural-synthesis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2907,6 +2925,12 @@
   current_target: true
   notes: null
 - path: docs/archive/plans/initiatives/2026-03-doctrine-execution-integration/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4046,6 +4070,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/how-to/governance/init-and-project-charter.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/how-to/governance/manage-glossary.md
   tag: current
   divio_type: how-to
@@ -5036,12 +5066,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md
   tag: current
   divio_type: none
@@ -5067,12 +5091,6 @@
   current_target: true
   notes: null
 - path: docs/plans/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -5169,12 +5187,6 @@
   current_target: true
   notes: null
 - path: docs/plans/user_journey/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/user_journey/init-doctrine-flow.md
   tag: current
   divio_type: none
   owning_workstream: none

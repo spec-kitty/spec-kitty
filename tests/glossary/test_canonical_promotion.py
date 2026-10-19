@@ -266,7 +266,7 @@ _LATER_WAVE_DOC_REPLACEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
     # stripped by _strip_retirement_additions), and the charter README's 2.x
     # C4 pointers moved to the living diagrams under docs/architecture/diagrams/.
     "docs/plans/engineering-notes/drg-completeness-2843-research.md": (("doc_status: active", "doc_status: deprecated"),),
-    "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md": (("doc_status: draft", "doc_status: deprecated"),),
+    "docs/archive/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md": (("doc_status: draft", "doc_status: deprecated"),),
     # Charter-pack cutover (#3732) renames the mission touched beyond the
     # glossary-path flip. Each pair is applied to the post-flip base line, so
     # every other line of the file still has to be a pure path-token flip.
@@ -294,7 +294,7 @@ _LATER_WAVE_DOC_REPLACEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
 _RETIREMENT_ADDITION_REFERRERS = frozenset(
     {
         "docs/plans/engineering-notes/drg-completeness-2843-research.md",
-        "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
+        "docs/archive/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
     }
 )
 _RETIREMENT_AUDIENCE_LINE = "audience: docs/context/audience/internal/maintainer.md"

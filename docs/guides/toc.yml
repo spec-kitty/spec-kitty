@@ -124,6 +124,8 @@
       items:
         - name: "How to Set Up Project Governance"
           href: how-to/governance/setup-governance.md
+        - name: "How to Initialize a Project and Author Its Charter"
+          href: how-to/governance/init-and-project-charter.md
         - name: "How to Synthesize and Maintain Doctrine"
           href: how-to/governance/synthesize-doctrine.md
         - name: "How to Create an Org Charter Pack"

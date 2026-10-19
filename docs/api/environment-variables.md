@@ -198,8 +198,8 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
-  for the launch-coordinator playbook behind the default flip.
+- [Launch-Readiness Behavior (Coming Soon)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/launch-readiness-future.md)
+  (archived) for the launch-coordinator playbook behind the default flip.
 
 ### SPEC_KITTY_SAAS_URL
 

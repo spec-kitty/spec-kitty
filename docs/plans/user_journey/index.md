@@ -11,7 +11,6 @@ related:
 - docs/archive/plans/user_journey/004-curating-external-practice-into-governance.md
 - docs/archive/plans/user_journey/005-governance-mission-charter-operations.md
 - docs/archive/plans/user_journey/evaluation.md
-- docs/plans/user_journey/init-doctrine-flow.md
 ---
 # Spec Kitty Architecture: User Journeys
 
@@ -75,11 +74,10 @@ Each journey metadata table also carries an `Implementation Status` field:
 
 ## Live
 
-- [Init and Project Charter — User Journey](init-doctrine-flow.md) — current, user-facing walkthrough
-  of `spec-kitty init` followed by `charter interview` and `charter generate`. It is product
-  documentation rather than a design journey and does not follow the template above.
-
-No design journey is currently live.
+No design journey is currently live. The user-facing walkthrough of `spec-kitty init` followed by
+`charter interview` and `charter generate` is product documentation, not a design journey; it now
+lives in the guides as
+[How to Initialize a Project and Author Its Charter](../../guides/how-to/governance/init-and-project-charter.md).
 
 ## Historical (2.x-era vision snapshots)
 

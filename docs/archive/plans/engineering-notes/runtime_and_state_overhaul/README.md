@@ -9,7 +9,7 @@ related:
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/03-architecture-context.md
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/04-doctrine-constraints.md
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/05-architectural-synthesis.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction.md
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/08-architecture-phase-1-summary.md
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md
@@ -63,7 +63,7 @@ to a design, so the design conversation is anchored in evidence rather than memo
 | 03 | [03-architecture-context.md](03-architecture-context.md) | 3.x architectural intent (ADRs), the 2026-05-25 deep-dive review, and the CAACS audits |
 | 04 | [04-doctrine-constraints.md](04-doctrine-constraints.md) | The binding DDD doctrine (DIRECTIVE_001/031/032, paradigms, tactics) that constrains any domain split |
 | 05 | [05-architectural-synthesis.md](05-architectural-synthesis.md) | Aggregated architectural reading: root cause, forces, invariants the design must satisfy |
-| 06 | [06-proposed-domains-and-splits.md](../../../../plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md) | **Technical concretization** (rewritten) — maps the validated model (`17`) to package homes + API entry points; net-new vs existing; the communication-artefact + Effector targets; Strangler sequencing tied to #1663/#1664 |
+| 06 | [06-proposed-domains-and-splits.md](06-proposed-domains-and-splits.md) | **Technical concretization** (rewritten) — maps the validated model (`17`) to package homes + API entry points; net-new vs existing; the communication-artefact + Effector targets; Strangler sequencing tied to #1663/#1664 |
 | 07 | [07-existing-pattern-and-domain-extraction.md](07-existing-pattern-and-domain-extraction.md) | The existing doctrine/charter infra-context pattern to mirror; the `OperationalContext` naming collision; MissionStatus aggregate + MissionFlow FSM extraction assessments (refines `06` §2/§6) |
 | 08 | [08-architecture-phase-1-summary.md](08-architecture-phase-1-summary.md) | **Phase 1 checkpoint** — standalone summary of problem, findings, invariants, decided vs open |
 | 09 | [09-context-decomposition-model.md](09-context-decomposition-model.md) | **Phase 2** — the conceptual model: Context as composition of domain-owned fragments (infra/filesystem/VC/preferences/state) → fit-for-purpose composites |

@@ -11,6 +11,7 @@ type: explanation
 Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions.
 
 - [How to Set Up Project Governance](setup-governance.md) — The complete interview-to-generation flow for creating, validating, and activating your Spec Kitty project charter.
+- [How to Initialize a Project and Author Its Charter](init-and-project-charter.md) — What `spec-kitty init` sets up, and how you author your project charter afterward with the charter commands.
 - [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) — Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state.
 - [How to Create an Org Charter Pack](create-an-org-doctrine-pack.md) — Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack.
 - [How to Run a Governed Mission](run-governed-mission.md) — Run spec-kitty next with Charter context injection, read JSON output, handle composed steps and blocked decisions.

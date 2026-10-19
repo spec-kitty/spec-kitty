@@ -1,11 +1,14 @@
 ---
-title: Init and Project Charter — User Journey
+title: How to Initialize a Project and Author Its Charter
 description: 'How spec-kitty init sets up a project and how you author your project charter afterward with the charter commands; charter.yaml is the authoritative governance file.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-19'
 audience: docs/context/audience/external/project-owner.md
+type: how-to
+related:
+- docs/guides/how-to/governance/setup-governance.md
 ---
-# Init and Project Charter — User Journey
+# How to Initialize a Project and Author Its Charter
 
 ## What `spec-kitty init` does
 
@@ -33,3 +36,6 @@ agent in the project follows. You author it on demand:
 `charter.yaml` is the source of truth. `charter.md` is an optional companion you
 write by hand to record the human rationale behind your choices — `charter
 generate` never overwrites it.
+
+For the full interview-to-generation flow, including validation and activation, see
+[How to Set Up Project Governance](setup-governance.md).

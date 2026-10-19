@@ -21,7 +21,7 @@ Canonical decisions landed (or would have landed) in `docs/adr/2.x/`.
    - Post-mortem of mission 054
 3. [`2026-03-doctrine-execution-integration/`](2026-03-doctrine-execution-integration/README.md)
    - Doctrine/execution integration planning (mission 046 era)
-4. [`2026-04-mission-nomenclature-reconciliation/`](../../../plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md)
+4. [`2026-04-mission-nomenclature-reconciliation/`](2026-04-mission-nomenclature-reconciliation/README.md)
    - ADR-driven rollout plan for `Mission Type -> Mission -> Mission Run`
 5. [`2026-04-tracker-binding-context-discovery/`](2026-04-tracker-binding-context-discovery/README.md)
    - Tracker binding and context discovery prompts

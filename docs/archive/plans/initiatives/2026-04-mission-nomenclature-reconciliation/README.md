@@ -6,7 +6,7 @@ updated: '2026-09-30'
 ---
 # Initiative: Mission Nomenclature Reconciliation
 
-> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../4-0-0-milestone-roadmap.md).
+> **Historical (2.x-era initiative, retired 2026-09-30).** Kept as a record; not a live working surface. Its wording (for example "feature" for what is now a Mission) is a legacy snapshot. The active cycle is 4.0.0 — see the [4.0.0 roadmap](../../../../plans/4-0-0-milestone-roadmap.md).
 
 This initiative operationalizes ADR
 `2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md`.

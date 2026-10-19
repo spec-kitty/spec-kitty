@@ -120,6 +120,6 @@ The org-level `internal` pack illustrates a filled-in descriptor:
 
 - Container view: `docs/architecture/diagrams/02_containers/README.md` — "Charter and Governance Engine"
 - Component view: `docs/architecture/diagrams/03_components/README.md` — Governance section
-- Init flow: `docs/plans/user_journey/init-doctrine-flow.md`
+- Init flow: `docs/guides/how-to/governance/init-and-project-charter.md`
 - Governance ADR: `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`
 - Glossary: `docs/context/governance.md`
