@@ -1,7 +1,7 @@
 {
-  "event_count": 72,
-  "last_event_id": "01M5AVAYC2GQT4B6PEGC47WAT0",
-  "materialized_at": "2026-10-19T19:48:38.914344+00:00",
+  "event_count": 74,
+  "last_event_id": "01M5AVBQV8M26GH1H003KH4MZ0",
+  "materialized_at": "2026-10-19T19:49:04.844750+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -190,11 +190,15 @@
       }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
+      "agent": "implement-command",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M59V1XKZ530RC1G81FV5094K",
-      "last_transition_at": "2026-10-19T10:24:28.800012+00:00"
+      "implementer_of_record": "implement-command",
+      "lane": "in_progress",
+      "last_event_id": "01M5AVBQV8M26GH1H003KH4MZ0",
+      "last_transition_at": "2026-10-19T19:49:04.844750+00:00",
+      "shell_pid": 16475,
+      "shell_pid_created_at": "1792439335.4"
     },
     "WP07": {
       "actor": "claude",
@@ -209,7 +213,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-19T18:33:15Z – claude – shell_pid=19346 – WP07 done at 5fd9ae296. KEY: top-level 'languages' list of catalog tokens in .kittify/config.yaml (SC-006 wording); 'charter:' is the charter.yaml pointer and 'charter_packs:' is the pack section, so neither could carry it; written directly to config.yaml (not a pointed charter.yaml) via the shared atomic YAML writer, other keys/comments preserved. PRECEDENCE: config list > compiled catalog.languages > interview free text/detection; evidence uses it (primary = first entry, no source walk); synthesis request injects it as language_scope. Invalid/family entries refused on write (ValueError, interview exit 1), dropped with a warning on read; none valid or empty or non-list reads as absent. Interactive: prompt default = stored list else detected; --defaults/non-interactive (is_interactive false) never prompt, store detected only when absent, never overwrite. RED-FIRST: test_configured_languages.py 15 failed/7 passed against stubs (real assertion failures); test_interview_languages.py 7 failed with the command unwired. TESTS: broad blast radius 1612 passed, 14 skipped, 1 xfailed, 3 failed = 2 known baseline reds (resynthesize_and_hotpath) + test_no_dead_symbols (fixed after: CONFIG_LANGUAGES_KEY/write_configured_languages dropped from __all__); rerun test_no_dead_symbols + api_reexport + configured_languages = 84 passed. ruff/format/mypy --strict clean on new code (interview.py untyped-decorator error pre-existing), 0 new noqa/type-ignore. UNOWNED EDITS: charter/activation/api.py (+configured_languages, settle_project_languages, LanguageSettlement seam exports) and tests/architectural/test_charter_activation_api_reexport.py rows; synthesizer/interview_mapping.py (leftover a: language_scope via declared_languages/is_catalog_language, family dropped, config list used via snapshot) ; specify_cli/.../_synthesis.py (injects configured list as language_scope); tests/charter/synthesizer/test_multi_language_evidence.py (leftover b: go.mod is ESSENTIAL since a single-language repo skips the source count; restored with a clear comment). Docs: docs/api/charter-commands.md. Orchestrator: CHANGELOG entry needed.",
-        "Review cycle 1 fixed (DM-01M5ASPC7101YP5CQE54DC3G3Z): non-interactive store keeps the detected list with a visible notice (text) and languages_notice (JSON, additive); 20% rule moved into resolve_languages (manifest only nominates; primary kept; secondary needs >=20% of counted sources); no WP05 test expectation encoded manifest-alone, added 2 tests in test_multi_language_evidence.py (unowned WP05 file, scope warning); interview typo re-asks (3 attempts); env-var test drops --defaults; docs updated. CHANGELOG: interview_mapping slug change 'Python 3.12' -> python-style-guide and 'Kotlin and Java' -> two targets; intentional WP05 rule change (manifest alone no longer lists a language)."
+        "Review cycle 1 fixed (DM-01M5ASPC7101YP5CQE54DC3G3Z): non-interactive store keeps the detected list with a visible notice (text) and languages_notice (JSON, additive); 20% rule moved into resolve_languages (manifest only nominates; primary kept; secondary needs >=20% of counted sources); no WP05 test expectation encoded manifest-alone, added 2 tests in test_multi_language_evidence.py (unowned WP05 file, scope warning); interview typo re-asks (3 attempts); env-var test drops --defaults; docs updated. CHANGELOG: interview_mapping slug change 'Python 3.12' -> python-style-guide and 'Kotlin and Java' -> two targets; intentional WP05 rule change (manifest alone no longer lists a language).",
+        "Review passed (cycle 2, reviewer-renata): DM-01M5ASPC implemented: non-interactive stores detected list only when key absent, never overwrites; text Notice + additive JSON languages_notice (null otherwise). 20% rule in resolve_languages: tooling-only package.json -> [python]; Kotlin+TS and python+TS(80%) both listed; single-language hashes byte-identical to origin/main (python/ts/java-gradle/maven/php/go/rust/tooling/py_residue); non-JVM single-language = 1 walk. Red-first: 6 new/changed tests fail on e3b146f06^. Bounded re-ask (3), nothing written on failure; env-var test without --defaults; docs accurate. 1210 passed (interview_languages + charter/synthesizer + charter/activation), 266 passed gates (dead-symbol, json_contract_enumeration, layer_rules, runtime boundary, api reexport, default in-force snapshot). 0 new noqa/type: ignore; ruff/format clean; mypy only pre-existing untyped-decorator. Non-blocking carry-over: cycle-1 item 3 (_real_languages phrase-slug change, e.g. python-3-12-style-guide -> python-style-guide) still lacks a CHANGELOG/WP-history line."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
