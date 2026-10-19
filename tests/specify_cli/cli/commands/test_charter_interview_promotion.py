@@ -231,17 +231,16 @@ def test_interview_narrow_activation_narrows_paradigms_to_the_interview_selectio
     assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - {_PARADIGM_DDD}
 
 
-def test_interview_narrow_activation_with_defaults_leaves_paradigms_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("untouched_key", ["activated_paradigms", "activated_tactics"])
+def test_interview_narrow_activation_with_defaults_leaves_empty_selection_kinds_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, untouched_key: str
 ) -> None:
-    """Pin: shipped ``--defaults`` select no paradigms, so ``--narrow-activation`` leaves them alone."""
+    """Shipped ``--defaults`` select no paradigms or tactics, so ``--narrow-activation`` leaves those keys alone."""
     _git_init(tmp_path)
     payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation")
 
-    config = _read_config(tmp_path)
-    assert payload["selected_paradigms"] == []
-    assert "activated_paradigms" not in config
-    assert "activated_paradigms" not in payload["narrowed"]
+    assert untouched_key not in _read_config(tmp_path)
+    assert untouched_key not in payload["narrowed"]
     # Positive control: directives were narrowed in the same run.
     assert "activated_directives" in payload["narrowed"]
 
@@ -269,20 +268,6 @@ def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(
 
     assert payload["narrowed"] == {}
     assert set(_read_config(tmp_path)["activated_directives"]) == set(effective) | {_DIRECTIVE_001_STEM}
-
-
-def test_interview_narrow_activation_leaves_empty_selection_kind_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _git_init(tmp_path)
-    payload = _run_interview_json(
-        tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation"
-    )
-
-    assert "activated_directives" in payload["narrowed"]  # positive control: narrowing ran
-    config = _read_config(tmp_path)
-    assert "activated_tactics" not in config  # no tactic selection: key untouched
-    assert "activated_tactics" not in payload["narrowed"]
 
 
 def test_interview_narrow_activation_text_output_lists_dropped(
