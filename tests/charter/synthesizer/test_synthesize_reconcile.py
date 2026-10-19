@@ -591,12 +591,15 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
     prune_node = DRGNode(urn="tactic:prune-me", kind=NodeKind.TACTIC, label="Prune me")
     keep_edge = DRGEdge(source="tactic:keep", target="directive:DIRECTIVE_003", relation=Relation.APPLIES)
     prune_edge = DRGEdge(source="tactic:prune-me", target="directive:DIRECTIVE_003", relation=Relation.APPLIES)
+    # #6404: the synthesized shape -- a built-in directive points at the tactic.
+    inbound_edge = DRGEdge(source="directive:DIRECTIVE_003", target="tactic:prune-me", relation=Relation.SUGGESTS)
+    keep_inbound = DRGEdge(source="directive:DIRECTIVE_003", target="tactic:keep", relation=Relation.SUGGESTS)
     overlay = DRGGraph(
         schema_version="1.0",
         generated_at="STATIC",
         generated_by="test",
         nodes=[keep_node, prune_node],
-        edges=[keep_edge, prune_edge],
+        edges=[keep_edge, prune_edge, inbound_edge, keep_inbound],
     )
 
     manifest = finalize_manifest(
@@ -635,6 +638,12 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
     pruned_node_urns = {n.urn for n in pruned.merged_overlay.nodes}
     assert pruned_node_urns == {"tactic:keep"}
     assert all(e.source != "tactic:prune-me" for e in pruned.merged_overlay.edges)
+    # #6404: no edge touching the pruned node survives (no dangling inbound edge) ...
+    assert all("tactic:prune-me" not in (e.source, e.target) for e in pruned.merged_overlay.edges)
+    # ... and the positive control: the kept node's inbound edge is untouched.
+    assert ("directive:DIRECTIVE_003", "tactic:keep", Relation.SUGGESTS) in {
+        (e.source, e.target, e.relation) for e in pruned.merged_overlay.edges
+    }
     pruned_manifest_keys = {(e.kind, e.slug) for e in pruned.merged_manifest.artifacts}
     assert pruned_manifest_keys == {("tactic", "keep")}
     # apply_prune preserves the delta as-is (WP03 owns reporting the CLI diff).
@@ -710,3 +719,133 @@ def test_org_referencing_edge_without_org_base_is_classified_dangling(tmp_path: 
         built_in_drg=empty_built_in,
     )
     assert any(_ORG_URN in conflict.target_id for conflict in outcome.delta.conflicts)
+
+
+# ---------------------------------------------------------------------------
+# #6404 -- synthesized tactic ``suggests`` edge + single edge ownership
+# ---------------------------------------------------------------------------
+
+_SYNTH_TACTIC = "tactic:how-we-apply-directive-003"
+_SUGGESTS_TRIPLE = ("directive:DIRECTIVE_003", _SYNTH_TACTIC, "suggests")
+
+
+def _edge_triples(graph_path: Path) -> list[tuple[str, str, str]]:
+    return [(e["source"], e["target"], e["relation"]) for e in _load_graph(graph_path).get("edges", [])]
+
+
+def _synth(
+    run_id: str,
+    interview: dict[str, Any],
+    doctrine: dict[str, Any],
+    drg: dict[str, Any],
+    adapter: FixtureAdapter,
+    repo_root: Path,
+) -> Any:
+    return synthesize(_request(run_id, interview, doctrine, drg), adapter=adapter, repo_root=repo_root)
+
+
+def test_full_synthesize_emits_one_suggests_edge_and_no_applies_edge(
+    minimal_interview_snapshot: dict[str, Any],
+    minimal_doctrine_snapshot: dict[str, Any],
+    minimal_drg_snapshot: dict[str, Any],
+    fixture_adapter: FixtureAdapter,
+    tmp_path: Path,
+) -> None:
+    """#6404: a second full run leaves exactly ONE suggests edge (no duplicate, no applies)."""
+    args = (minimal_interview_snapshot, minimal_doctrine_snapshot, minimal_drg_snapshot, fixture_adapter, tmp_path)
+    _synth("01AAAAAAAAAAAAAAAAAAAAAAAAA", *args)
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
+    assert _edge_triples(graph_path).count(_SUGGESTS_TRIPLE) == 1, "positive control: first run emits the edge"
+
+    result = _synth("01BBBBBBBBBBBBBBBBBBBBBBBBB", *args)
+
+    triples = _edge_triples(graph_path)
+    assert triples.count(_SUGGESTS_TRIPLE) == 1, f"second full run duplicated or lost the edge: {triples}"
+    assert not [t for t in triples if t[2] == "applies"]
+    assert result.reconciliation is not None
+    assert not [r for r in result.reconciliation.removable if r.backing_artifact is None], (
+        "a plain re-run must not report a spurious orphan removal for the owned edge"
+    )
+
+
+def test_legacy_applies_edge_from_synthesized_tactic_is_stripped_and_reported(
+    minimal_interview_snapshot: dict[str, Any],
+    minimal_doctrine_snapshot: dict[str, Any],
+    minimal_drg_snapshot: dict[str, Any],
+    fixture_adapter: FixtureAdapter,
+    tmp_path: Path,
+) -> None:
+    """#6404: legacy ``tactic --applies--> directive`` is stripped, reported, never silent.
+
+    Positive control: an ``applies`` edge on a hand-authored (not in the
+    synthesis manifest) node survives the same run.
+    """
+    args = (minimal_interview_snapshot, minimal_doctrine_snapshot, minimal_drg_snapshot, fixture_adapter, tmp_path)
+    _synth("01AAAAAAAAAAAAAAAAAAAAAAAAA", *args)
+    graph_path, _ = _inject_legacy_overlay_content(tmp_path)  # hand-authored legacy node + applies edge
+    graph = _load_graph(graph_path)
+    graph["edges"].append(
+        {"source": _SYNTH_TACTIC, "target": _LEGACY_EDGE_TARGET, "relation": "applies", "reason": "legacy"}
+    )
+    _dump_graph(graph_path, graph)
+
+    result = _synth("01BBBBBBBBBBBBBBBBBBBBBBBBB", *args)
+
+    triples = _edge_triples(graph_path)
+    assert (_SYNTH_TACTIC, _LEGACY_EDGE_TARGET, "applies") not in triples
+    assert (_LEGACY_URN, _LEGACY_EDGE_TARGET, "applies") in triples, "hand-authored applies edge must survive"
+    assert triples.count(_SUGGESTS_TRIPLE) == 1
+    assert result.reconciliation is not None
+    stripped = [r for r in result.reconciliation.removable if r.reason is not None]
+    assert [r.urn for r in stripped] == [f"{_SYNTH_TACTIC}--applies-->{_LEGACY_EDGE_TARGET}"]
+    assert stripped[0].backing_artifact is not None
+
+
+def test_edge_owner_assigns_synthesized_edge_to_its_tactic_and_profile_edge_to_profile() -> None:
+    from charter.activation.synthesizer.reconcile import edge_owner
+    from charter.offering.drg.models import DRGEdge, Relation
+
+    overlay_urns = {_SYNTH_TACTIC, "agent_profile:rhonda", "directive:PROJECT_001"}
+    synthesized = DRGEdge(source="directive:DIRECTIVE_003", target=_SYNTH_TACTIC, relation=Relation.SUGGESTS)
+    profile_edge = DRGEdge(source="agent_profile:rhonda", target=_SYNTH_TACTIC, relation=Relation.REQUIRES)
+    inbound_only = DRGEdge(source="directive:DIRECTIVE_003", target="directive:PROJECT_001", relation=Relation.REQUIRES)
+    foreign = DRGEdge(source="directive:DIRECTIVE_003", target="directive:DIRECTIVE_010", relation=Relation.REQUIRES)
+
+    assert edge_owner(synthesized, overlay_urns) == _SYNTH_TACTIC
+    assert edge_owner(profile_edge, overlay_urns) == "agent_profile:rhonda"
+    assert edge_owner(inbound_only, overlay_urns) == "directive:PROJECT_001"
+    assert edge_owner(foreign, overlay_urns) is None
+
+
+def test_edge_ref_of_directive_sourced_edge_resolves_backing_artifact_through_owner() -> None:
+    from charter.activation.synthesizer.reconcile import _edge_ref
+    from charter.offering.drg.models import DRGEdge, Relation
+
+    edge = DRGEdge(source="directive:DIRECTIVE_003", target=_SYNTH_TACTIC, relation=Relation.SUGGESTS)
+    path = ".kittify/charter-packs/tactic/how-we-apply-directive-003.tactic.yaml"
+    ref = _edge_ref(edge, {_SYNTH_TACTIC: path}, {_SYNTH_TACTIC})
+    assert ref.backing_artifact == path
+    assert _edge_ref(edge, {}, {_SYNTH_TACTIC}).backing_artifact is None  # control: no path -> orphan
+
+
+def test_merge_does_not_duplicate_or_prune_edge_of_untargeted_tactic() -> None:
+    """Partial-run shape: an untouched tactic keeps its edge; a regenerated one is replaced once."""
+    from charter.activation.synthesizer.reconcile import merge_project_overlay
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    def _tac(slug: str) -> DRGNode:
+        return DRGNode(urn=f"tactic:{slug}", kind=NodeKind.TACTIC, label=slug)
+
+    def _edge(slug: str) -> DRGEdge:
+        return DRGEdge(source="directive:DIRECTIVE_003", target=f"tactic:{slug}", relation=Relation.SUGGESTS)
+
+    def _graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
+        return DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=nodes, edges=edges)
+
+    existing = _graph([_tac("a"), _tac("b")], [_edge("a"), _edge("b")])
+    updated = _graph([_tac("a")], [_edge("a")])
+
+    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated)
+
+    targets = sorted(e.target for e in merged.edges)
+    assert targets == ["tactic:a", "tactic:b"], targets
