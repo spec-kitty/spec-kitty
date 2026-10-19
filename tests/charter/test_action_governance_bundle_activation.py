@@ -784,7 +784,7 @@ def _identity_bundle(
     ids=["stem-tokens", "declared-id-tokens"],
 )
 def test_activated_org_tokens_deliver_in_either_spelling(tmp_path: Path, tactic_token: str, directive_token: str) -> None:
-    """RED for the declared-id spelling: raw tokens are compared against graph ids."""
+    """RED for the stem spelling: raw stem tokens were compared against declared-id graph ids (the declared-id spelling already matched)."""
     bundle = _identity_bundle(tmp_path, activated_tactics=[tactic_token], activated_directives=[directive_token])
 
     assert "qa-seven" in bundle.tactic_ids
@@ -808,7 +808,7 @@ def test_org_required_tactic_stem_seeds_the_declared_id_root(tmp_path: Path) -> 
 
 def test_built_in_positive_control_still_delivers(tmp_path: Path) -> None:
     """Positive control: built-in doctrine is delivered on the same fixture, so absences above are not vacuous."""
-    bundle = _identity_bundle(tmp_path, activated_tactics=["qa-seven"], activated_directives=["QA_003"])
+    bundle = _identity_bundle(tmp_path, activated_tactics=["qa-seven"])
 
-    assert any(directive.startswith("DIRECTIVE_") or directive == "QA_003" for directive in bundle.directive_ids)
+    assert any(directive.startswith("DIRECTIVE_") for directive in bundle.directive_ids)
     assert bundle.identity is not None

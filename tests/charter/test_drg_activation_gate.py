@@ -54,7 +54,10 @@ from charter.activation.catalog import resolve_offering_root
 from charter.drg import load_built_in_graph
 from charter.activation.drg_activation import filter_graph_by_activation
 from charter.activation.kind_vocabulary import MissionTypeNotAnArtifactKind
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.pack_context import PackContext
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.unit]
 
@@ -363,18 +366,52 @@ def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -
 # ---------------------------------------------------------------------------
 
 
+def _identity_graph_with_controls() -> DRGGraph:
+    """Built-in graph plus the activated tactic node and a NOT-activated sibling, both really in the graph."""
+    from charter.offering.drg.models import DRGNode, NodeKind
+
+    base = load_built_in_graph()
+    extra = [
+        DRGNode(urn="tactic:qa-seven", kind=NodeKind.TACTIC, label="qa-seven"),
+        DRGNode(urn="tactic:not-activated-control", kind=NodeKind.TACTIC, label="not-activated-control"),
+    ]
+    return base.model_copy(update={"nodes": [*base.nodes, *extra]})
+
+
 @pytest.mark.parametrize("token", ["qa-tactic-seven", "qa-seven"], ids=["stem", "declared-id"])
 def test_declared_id_token_keeps_non_directive_node(tmp_path: Path, token: str) -> None:
-    from charter.drg import load_built_in_graph
-    from charter.offering.drg.models import DRGNode, NodeKind
     from tests.charter.org_pack_identity_support import write_identity_org_pack
 
     write_identity_org_pack(tmp_path, activated_tactics=[token])
     ctx = PackContext.from_config(tmp_path)
-    base = load_built_in_graph()
-    graph = base.model_copy(update={"nodes": [*base.nodes, DRGNode(urn="tactic:qa-seven", kind=NodeKind.TACTIC, label="qa-seven")]})
+    graph = _identity_graph_with_controls()
+    assert "tactic:not-activated-control" in {n.urn for n in graph.nodes}  # the control node is really present
 
     survivors = {n.urn for n in filter_graph_by_activation(graph, ctx).nodes}
 
+    assert "tactic:qa-seven" in survivors
+    assert "tactic:not-activated-control" not in survivors
+
+
+@pytest.mark.parametrize("token", ["qa-tactic-seven", "qa-seven"], ids=["stem", "declared-id"])
+def test_filter_resolves_tokens_through_a_directly_passed_identity(tmp_path: Path, token: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``identity=`` is consulted by the gate (not just the filesystem fallback) and keeps the node."""
+    from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+    write_identity_org_pack(tmp_path, activated_tactics=[token])
+    ctx = PackContext.from_config(tmp_path)
+    identity = IdentityIndex.build(tmp_path)
+    consulted: list[str] = []
+    original = IdentityIndex.declared_id
+
+    def _spy(self: IdentityIndex, kind: ArtifactKind, tok: str) -> str | None:
+        consulted.append(tok)
+        return original(self, kind, tok)
+
+    monkeypatch.setattr(IdentityIndex, "declared_id", _spy)
+
+    survivors = {n.urn for n in filter_graph_by_activation(_identity_graph_with_controls(), ctx, identity=identity).nodes}
+
+    assert token in consulted
     assert "tactic:qa-seven" in survivors
     assert "tactic:not-activated-control" not in survivors

@@ -150,6 +150,15 @@ def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     )
 
 
+def _invocation_identity(repo_root: Path, org_root: Path | None) -> IdentityIndex:
+    """The per-invocation identity index; an explicit *org_root* replaces the configured chain.
+
+    ``_resolve_action_bundle`` honours an explicit ``org_root`` verbatim (no widening),
+    so the index must scan that same root, not the configured pack chain.
+    """
+    return IdentityIndex.build(repo_root, org_roots=None if org_root is None else [org_root])
+
+
 def build_charter_context(
     repo_root: Path,
     *,
@@ -295,6 +304,8 @@ def build_charter_context(
     # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
     # org/project doctrine), so it is safe to resolve ahead of the
     # charter-presence gate below.
+    # NFR-003: ONE identity index per invocation, carried on the bundle to the renderers.
+    identity = _invocation_identity(repo_root, org_root)
     governance_bundle = _resolve_action_bundle(
         repo_root,
         action=normalized,
@@ -302,7 +313,7 @@ def build_charter_context(
         org_root=org_root,
         mission_type=mission_type,
         feature_dir=feature_dir,
-        identity=IdentityIndex.build(repo_root),
+        identity=identity,
     )
 
     # FR-001/FR-002: the 4-token fast path always renders bootstrap without
@@ -530,7 +541,7 @@ def build_charter_context_json(
     # ``resolve_project_governance`` call (no double-resolve per payload).
     # NFR-003: the identity index is built once for this entry point and handed
     # to the resolver rather than rebuilt inside it.
-    identity = IdentityIndex.build(repo_root)
+    identity = _invocation_identity(repo_root, org_root)
     all_directives, directives_source, diagnostics = _project_directive_resolution(repo_root, identity)
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
