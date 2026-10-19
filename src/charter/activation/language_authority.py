@@ -121,8 +121,8 @@ def _best_by_count(candidates: tuple[str, ...] | list[str], counts: Mapping[str,
     return max(candidates, key=lambda lang: (counts[lang], -candidates.index(lang)))
 
 
-def _top_depth_candidates(observation: TreeObservation, top: int) -> tuple[list[str], tuple[str, ...]]:
-    """Return the candidate languages at manifest depth *top*, and the shared JVM-style group.
+def _top_depth_candidates(observation: TreeObservation, top: int | None) -> tuple[list[str], tuple[str, ...]]:
+    """Return the candidate languages at manifest depth *top* (every depth when ``None``), and the shared JVM-style group.
 
     A manifest several languages share (the JVM manifests) contributes its first language
     as a placeholder and its whole group, so the caller can split it by source counts.
@@ -131,10 +131,11 @@ def _top_depth_candidates(observation: TreeObservation, top: int) -> tuple[list[
     shared: tuple[str, ...] = ()
     for spec in LANGUAGES:
         for manifest in spec.manifests:
-            if observation.indicator_depths.get(manifest) != top:
+            depth = observation.indicator_depths.get(manifest)
+            if depth is None or (top is not None and depth != top):
                 continue
             owners = languages_for_manifest(manifest)
-            lang = _js_or_ts(observation, top) if manifest == PACKAGE_JSON else owners[0]
+            lang = _js_or_ts(observation, depth) if manifest == PACKAGE_JSON else owners[0]
             if lang not in languages:
                 languages.append(lang)
             if len(owners) > 1:
@@ -182,8 +183,9 @@ def resolve_languages(
     languages at that depth are resolved by source counts, then catalog order.
 
     *count_sources* is the uncapped walk (JVM sources sit deeper than the scan depth).
-    It runs only when a JVM manifest or two or more candidate languages need it, and at
-    most once (NFR-005); a single-language, non-JVM repository never triggers it.
+    It runs only when a JVM manifest is seen or the manifests at any scanned depth name two
+    or more languages, and at most once (NFR-005); a single-language, non-JVM repository
+    never triggers it.
     """
     manifest_hits = [depth for name, depth in observation.indicator_depths.items() if languages_for_manifest(name)]
     if not manifest_hits:
@@ -191,7 +193,11 @@ def resolve_languages(
 
     candidates, shared = _top_depth_candidates(observation, min(manifest_hits))
     if len(candidates) == 1 and not shared:
-        return ObservedLanguages(candidates[0], (candidates[0],))
+        # One manifest language at the shallowest depth: the share rule still needs the
+        # uncapped count when a manifest for another language sits deeper (FR-010).
+        any_depth, any_shared = _top_depth_candidates(observation, None)
+        if len(any_depth) == 1 and not any_shared:
+            return ObservedLanguages(candidates[0], (candidates[0],))
 
     counts = count_sources()
     if shared:
