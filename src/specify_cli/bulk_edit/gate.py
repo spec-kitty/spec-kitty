@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from kernel.git import GitCommandError, changed_paths
+from kernel.git import GitCommandError, changed_entries
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -45,6 +45,11 @@ class GitDiffFilesResult:
     files: list[str] = field(default_factory=list)
     stderr: str = ""
     returncode: int | None = None
+    # Per-path git change status (``A``/``M``/``D``/``R``), from
+    # ``--name-status``. An occurrence map constrains what may happen to
+    # content that already exists, so the gate cannot judge a path without
+    # knowing whether this diff created it or edited it.
+    statuses: dict[str, str] = field(default_factory=dict)
 
 
 def _is_bulk_edit_mission(feature_dir: Path) -> bool:
@@ -170,11 +175,18 @@ def _git_diff_files(
     base_ref: str,
     head_ref: str,
 ) -> GitDiffFilesResult:
-    """Return the list of files changed between *base_ref* and *head_ref*.
+    """Return the files changed between *base_ref* and *head_ref*, with status.
 
-    Uses ``git diff --name-only <base>..<head>`` (read NUL-delimited through
-    ``kernel.git``) and returns one path per entry, relative to *repo_root*. Git failures are returned explicitly so
-    callers can fail closed instead of confusing them with valid empty diffs.
+    Uses ``git diff --name-status <base>..<head>`` and returns one path per
+    entry, relative to *repo_root*, alongside each path's change status.
+    Git failures are returned explicitly so callers can fail closed instead
+    of confusing them with valid empty diffs.
+
+    The status matters: an occurrence map says what may happen to content
+    that already exists, so a path the diff CREATED cannot violate it. Using
+    ``--name-only`` here (as this function originally did) discards that
+    distinction and makes the gate read every added file as though its
+    protected content had been edited.
     """
     for label, ref in (("base_ref", base_ref), ("head_ref", head_ref)):
         if not ref.strip():
@@ -207,16 +219,27 @@ def _git_diff_files(
             )
 
     try:
-        # Default rename detection (as ``git diff --name-only``): only the new
-        # path of a rename is listed. NUL-delimited, so a quoted path is exact.
-        files = [str(path) for path in changed_paths(repo_root, f"{base_ref}..{head_ref}", renames=True, timeout=30)]
+        # Default rename detection: only the new path of a rename is listed.
+        # NUL-delimited, so a quoted path is exact. ``changed_entries``
+        # carries each path's status alongside it, which the occurrence
+        # check needs to tell creation from modification.
+        entries = changed_entries(repo_root, f"{base_ref}..{head_ref}", renames=True, timeout=30)
     except GitCommandError as exc:
         return GitDiffFilesResult(
             ok=False,
             stderr=exc.stderr.strip() or str(exc),
             returncode=exc.returncode if exc.returncode > 0 else None,
         )
-    return GitDiffFilesResult(ok=True, files=files, stderr="", returncode=0)
+    files = [str(entry.path) for entry in entries]
+    # Normalise ``R100``/``C075`` to their leading letter: the occurrence
+    # check cares about the KIND of change, not the similarity score.
+    statuses = {
+        str(entry.path): (entry.status[:1].upper() if entry.status else "")
+        for entry in entries
+    }
+    return GitDiffFilesResult(
+        ok=True, files=files, stderr="", returncode=0, statuses=statuses
+    )
 
 
 def check_review_diff_compliance(
@@ -265,7 +288,9 @@ def check_review_diff_compliance(
         return DiffCheckResult(passed=False, errors=["; ".join(details)])
 
     feature_dir_rel = _feature_dir_rel(feature_dir, repo_root)
-    return check_diff_compliance(diff_files.files, omap, feature_dir_rel)
+    return check_diff_compliance(
+        diff_files.files, omap, feature_dir_rel, diff_files.statuses
+    )
 
 
 def render_diff_check_failure(

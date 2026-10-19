@@ -24,11 +24,13 @@ YAMLs, CLI command modules, test fixtures, user-facing docs, etc.).
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
 
 from specify_cli.bulk_edit.occurrence_map import OccurrenceMap, _is_narrow_structural_path
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 
 # ---------------------------------------------------------------------------
@@ -72,6 +74,53 @@ _PATH_RULES: list[tuple[str, list[str]]] = [
             r"\.rst$",
             r"\.txt$",
             r"(^|/)LICENSE(\.[^/]+)?$",
+        ],
+    ),
+    (
+        # Build recipes are dominated by path literals, so they follow the
+        # filesystem_paths decision rather than the code one. Listed before
+        # ``serialized_keys`` so a compose file is read as a build recipe
+        # rather than as an API/config contract.
+        "filesystem_paths",
+        [
+            r"(^|/)Dockerfile$",
+            r"(^|/)Dockerfile\.[^/]+$",
+            r"(^|/)Containerfile$",
+            r"(^|/)docker-compose(\.[^/]+)?\.ya?ml$",
+            r"(^|/)compose(\.[^/]+)?\.ya?ml$",
+        ],
+    ),
+    (
+        # Server-rendered templates, stylesheets and Ruby build DSLs. These
+        # carry identifiers — partial names, CSS classes, helper and gem
+        # names — so they belong with the other source.
+        #
+        # Without these rules a Rails, Phoenix or Laravel application is
+        # largely invisible to this classifier: every .erb/.css/.rake file
+        # lands as *unclassified* and blocks review under FR-008 even though
+        # the occurrence map never made a decision about it. Listed after
+        # ``user_facing_strings`` so a template under ``docs/`` still reads
+        # as documentation.
+        "code_symbols",
+        [
+            r"\.erb$",
+            r"\.haml$",
+            r"\.slim$",
+            r"\.jbuilder$",
+            r"\.heex$",
+            r"\.eex$",
+            r"\.blade\.php$",
+            r"\.vue$",
+            r"\.svelte$",
+            r"\.astro$",
+            r"\.css$",
+            r"\.scss$",
+            r"\.sass$",
+            r"\.less$",
+            r"\.rake$",
+            r"\.gemspec$",
+            r"(^|/)Rakefile$",
+            r"(^|/)Gemfile$",
         ],
     ),
     (
@@ -333,6 +382,97 @@ def _is_review_lifecycle_basename(basename: str) -> bool:
     return basename == "notes.md" or _glob_match(basename, "review-cycle-*.md")
 
 
+# ---------------------------------------------------------------------------
+# Files that cannot carry a textual occurrence
+# ---------------------------------------------------------------------------
+
+# Opaque binary payloads (fonts, images, archives, compiled objects) and
+# generated dependency lockfiles. Neither can carry a *reviewable* textual
+# occurrence of a rename target: the first is not text at all, the second is
+# resolver output that is regenerated rather than edited.
+#
+# The occurrence-map schema has no action meaning "contains no occurrences"
+# — its four actions are rename / manual_review / do_not_change /
+# rename_if_user_visible — so without this class the only way to stop a
+# webfont or a lockfile blocking review (FR-008, unclassified) is to label it
+# with an action that is simply untrue of it. Recognising the class here
+# keeps maps honest, and every match is still surfaced as a warning so the
+# exemption is never silent.
+# Deliberately limited to media and compiled output. Opaque *data* files
+# (``.dat``, ``.bin``, ``.db``, ``.sqlite``, ``.pkl``, and compressed
+# archives) are NOT here: they can carry serialized application data, and
+# therefore a serialized-key occurrence, so they keep blocking as
+# unclassified unless a reviewer names them in the map. Fonts, images, audio,
+# video and compiled objects cannot.
+_OPAQUE_SUFFIXES: frozenset[str] = frozenset({
+    # Webfonts
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    # Raster and vector assets
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".avif",
+    ".svg", ".pdf",
+    # Audio and video
+    ".mp3", ".wav", ".ogg", ".flac", ".mp4", ".webm", ".mov",
+    # Compiled objects
+    ".so", ".dylib", ".dll", ".wasm", ".pyc", ".pyo", ".class", ".jar",
+})
+
+# Generated lockfiles, by exact basename. ``.lock`` alone is too broad to
+# match on suffix (``*.lock`` is also used for ad-hoc mutex files).
+_LOCKFILE_BASENAMES: frozenset[str] = frozenset({
+    "Gemfile.lock", "poetry.lock", "uv.lock", "Pipfile.lock",
+    "yarn.lock", "pnpm-lock.yaml", "package-lock.json", "bun.lockb",
+    "Cargo.lock", "composer.lock", "go.sum", "mix.lock", "flake.lock",
+})
+
+# Empty-directory markers. Zero bytes by construction.
+_PLACEHOLDER_BASENAMES: frozenset[str] = frozenset({".keep", ".gitkeep"})
+
+
+def _in_foreign_mission_dir(path: str, feature_dir_rel: str | None) -> bool:
+    """Return ``True`` if *path* is inside a mission directory that is not ours.
+
+    ``kitty-specs/<slug>/...`` is the mission-artifact partition. A work
+    package may create files under its OWN mission's directory, but creating
+    them under another mission's is a cross-mission write (C-004) rather than
+    anything an occurrence map has an opinion about — so the creation
+    exemption must not cover it.
+    """
+    parts = Path(Path(path).as_posix()).parts
+    if len(parts) < 2 or parts[0] != KITTY_SPECS_DIR:
+        return False
+    if not feature_dir_rel:
+        # No anchor to compare against: treat every mission directory as
+        # foreign, which is the fail-closed reading.
+        return True
+    return parts[1] != Path(feature_dir_rel.strip("/")).name
+
+
+def _non_occurrence_reason(path: str) -> str | None:
+    """Return why *path* cannot carry a textual occurrence, or ``None``.
+
+    ``None`` means "this file is ordinary text"; the caller falls through to
+    the path-heuristic classifier.
+    """
+    p = Path(Path(path).as_posix())
+    basename = p.name
+    if basename in _PLACEHOLDER_BASENAMES:
+        return "empty-directory marker (zero bytes, no occurrences)"
+    if basename in _LOCKFILE_BASENAMES:
+        return (
+            f"'{basename}' is a generated dependency lockfile — resolver "
+            "output, regenerated rather than edited"
+        )
+    # ``.tar.gz`` and friends: any opaque component in the suffix chain is
+    # enough, so ``typst-x86_64.tar.xz`` is recognised.
+    for suffix in p.suffixes:
+        if suffix.lower() in _OPAQUE_SUFFIXES:
+            return (
+                f"opaque binary payload ('{suffix}') — carries no reviewable "
+                "textual occurrence"
+            )
+    return None
+
+
 def _under_feature_dir(posix: str, feature_dir_rel: str) -> bool:
     """Return ``True`` if *posix* lives under *feature_dir_rel* (repo-root-relative)."""
     anchor = feature_dir_rel.strip("/")
@@ -407,6 +547,7 @@ def assess_file(
     path: str,
     omap: OccurrenceMap,
     feature_dir_rel: str | None = None,
+    status: str | None = None,
 ) -> FileAssessment:
     """Classify a single file and determine whether it violates the map.
 
@@ -415,12 +556,18 @@ def assess_file(
     runtime-state gate exemption (FR-007, C-004) so only this mission's own
     bookkeeping files are exempted — never another mission's.
 
+    *status* is the file's git change status from ``git diff --name-status``
+    (``"A"`` added, ``"M"`` modified, ``"D"`` deleted, ``"R"`` renamed).
+    ``None`` means "unknown", which is treated as a modification — the
+    conservative reading, and what every caller that passes only path
+    strings gets.
+
     Field-scoped exceptions (WP02, FR-002) never change the base verdict
     computed below — they only ADD a :attr:`FileAssessment.field_path_pins`
     annotation naming the protected field(s), which
     :func:`check_diff_compliance` turns into a targeted warning.
     """
-    base = _classify_file(path, omap, feature_dir_rel)
+    base = _classify_file(path, omap, feature_dir_rel, status)
     pins = _field_path_pins_for(path, omap)
     if not pins:
         return base
@@ -431,8 +578,60 @@ def _classify_file(
     path: str,
     omap: OccurrenceMap,
     feature_dir_rel: str | None,
+    status: str | None = None,
 ) -> FileAssessment:
     """The whole-file classification :func:`assess_file` pins fields onto."""
+    # 0a) The running mission's own runtime-state bookkeeping.
+    #
+    # This MUST be tested before the map's own exceptions. These files are
+    # written by spec-kitty itself on every `move-task`, so a mission whose
+    # map carries a broad protective exception over its planning directory
+    # (e.g. ``kitty-specs/**: do_not_change``, a reasonable thing to write
+    # to protect an audit trail) would otherwise have that exception
+    # pre-empt this exemption and block review on files the tool had just
+    # written on the reviewer's behalf. The mission cannot sensibly protect
+    # its artifacts *from the tool that generates them*, and the exemption
+    # is already narrowly anchored to this mission's own feature_dir.
+    runtime_state = _own_bookkeeping_exemption(path, feature_dir_rel)
+    if runtime_state is not None:
+        return runtime_state
+
+    # 0b) Newly ADDED files.
+    #
+    # An occurrence map governs occurrences of the rename target in EXISTING
+    # text: every category action is a statement about what may happen to
+    # content that is already there ("rename it", "leave it alone", "judge
+    # each one"). A file that this diff creates has no prior occurrence to
+    # protect, so no category action can be violated by its creation.
+    #
+    # Without this, the gate reads every added file as though its protected
+    # content had been edited, and any work package that brings a tree in —
+    # an ingest, a vendored dependency, a generated migration — is blocked
+    # wholesale on files it merely created. Deletions and renames are NOT
+    # exempted here: removing or relocating a protected file is a genuine
+    # change to it, and still classifies normally below.
+    #
+    # The exemption is reported as a warning by check_diff_compliance, so a
+    # reviewer still sees every added path by name.
+    #
+    # It deliberately does NOT cover another mission's planning directory
+    # (C-004): creating a file under `kitty-specs/<other-mission>/` is an
+    # ownership violation, not an occurrence question, and the gate is the
+    # place that catches it. Only this mission's own artifacts — already
+    # handled by 0a above — are exempt there.
+    if status == "A" and not _in_foreign_mission_dir(path, feature_dir_rel):
+        return FileAssessment(
+            path=path,
+            category=None,
+            source="added",
+            action=None,
+            violation=False,
+            reason=(
+                "File is CREATED by this diff — it has no pre-existing "
+                "occurrence for the map to protect"
+            ),
+        )
+
     # 1) Exceptions take precedence over path heuristics.
     exception = _exception_for(path, omap)
     if exception is not None:
@@ -487,13 +686,22 @@ def _classify_file(
             reason=f"Declared structural target: {structural_reason}",
         )
 
-    # 4) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
-    #    path-heuristic classifier, mirroring the move/exception/structural
-    #    exemptions above — but only for the RUNNING mission's own
-    #    bookkeeping files.
-    runtime_state = _own_bookkeeping_exemption(path, feature_dir_rel)
-    if runtime_state is not None:
-        return runtime_state
+    # 4) Files that cannot carry a textual occurrence at all — opaque binary
+    #    payloads, generated lockfiles, empty-directory markers. Tested
+    #    AFTER the map's exceptions and declarations, so a reviewer who
+    #    deliberately named such a path keeps whatever action they chose,
+    #    and BEFORE the heuristic, which would otherwise block them as
+    #    unclassified.
+    non_occurrence = _non_occurrence_reason(path)
+    if non_occurrence is not None:
+        return FileAssessment(
+            path=path,
+            category=None,
+            source="non-occurrence",
+            action=None,
+            violation=False,
+            reason=non_occurrence,
+        )
 
     # 5) Path heuristic classification.
     category = classify_path(path)
@@ -557,16 +765,26 @@ def check_diff_compliance(
     changed_files: list[str],
     omap: OccurrenceMap,
     feature_dir_rel: str | None = None,
+    statuses: Mapping[str, str] | None = None,
 ) -> DiffCheckResult:
     """Assess every changed file and aggregate the verdict.
 
     *changed_files* is a list of repo-relative path strings obtained from
-    ``git diff --name-only``. *feature_dir_rel* is the running mission's own
+    ``git diff --name-status``. *feature_dir_rel* is the running mission's own
     ``feature_dir`` as a repo-root-relative POSIX path — see
-    :func:`assess_file` for how it anchors the runtime-state exemption. The
-    function is pure — no I/O — so it can be unit-tested directly.
+    :func:`assess_file` for how it anchors the runtime-state exemption.
+
+    *statuses* maps each path to its git change status (``A``/``M``/``D``/
+    ``R``). It is optional: when a path is absent the file is treated as a
+    modification, which is both the conservative reading and the behaviour
+    every caller had before statuses existed.
+
+    The function is pure — no I/O — so it can be unit-tested directly.
     """
-    assessments = [assess_file(p, omap, feature_dir_rel) for p in changed_files]
+    statuses = statuses or {}
+    assessments = [
+        assess_file(p, omap, feature_dir_rel, statuses.get(p)) for p in changed_files
+    ]
     violations = [a for a in assessments if a.violation]
     errors = [f"{a.path}: {a.reason}" for a in violations]
 
@@ -579,6 +797,8 @@ def check_diff_compliance(
     ]
     warnings.extend(_field_path_pin_warnings(assessments))
     warnings.extend(_structural_target_warnings(assessments))
+    warnings.extend(_created_file_warnings(assessments))
+    warnings.extend(_non_occurrence_warnings(assessments))
 
     return DiffCheckResult(
         passed=len(violations) == 0,
@@ -603,6 +823,32 @@ def _field_path_pin_warnings(assessments: list[FileAssessment]) -> list[str]:
         "as do_not_change — verify only those fields were left untouched"
         for a in assessments
         if a.field_path_pins
+    ]
+
+
+def _created_file_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Name every file exempted because this diff CREATES it.
+
+    The exemption is sound (a new file has no prior occurrence) but it must
+    not be silent: a work package that adds a thousand files has still added
+    a thousand files a reviewer may want to look at, and the mission's
+    occurrence decisions say nothing about any of them.
+    """
+    return [
+        f"{a.path}: created by this diff — exempt from occurrence "
+        "classification (no pre-existing occurrence); review the new file "
+        "on its merits"
+        for a in assessments
+        if a.source == "added"
+    ]
+
+
+def _non_occurrence_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Name every file exempted as incapable of carrying an occurrence."""
+    return [
+        f"{a.path}: {a.reason} — exempt from occurrence classification"
+        for a in assessments
+        if a.source == "non-occurrence"
     ]
 
 
