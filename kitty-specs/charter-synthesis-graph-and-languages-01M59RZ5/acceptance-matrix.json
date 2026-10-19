@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP03 tests/charter/synthesizer/test_project_intent_directive.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:35:04.088491+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
