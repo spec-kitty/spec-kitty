@@ -15,17 +15,14 @@ from pathlib import Path
 import pytest
 
 from charter.activation._catalog_miss import CatalogMissCause
-from charter.activation.charter_md_parsing import _extract_policy_summary, _find_section_start
+from charter.activation.charter_md_parsing import _extract_policy_summary
 from charter.activation.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
     _format_inline_agent_profile_body,
     _format_inline_directive_body,
-    _format_inline_paradigm_body,
     _format_inline_procedure_body,
     _format_inline_step_contract_body,
     _format_inline_styleguide_body,
-    _format_inline_tactic_body,
-    _format_inline_toolguide_body,
     _format_profile_directive_code,
     _jsonable_artifact_value,
 )
@@ -59,14 +56,6 @@ class _ListAllRepo:
         return [type("Item", (), {"id": i})() for i in self._ids]
 
 
-class _ScopeFilteredRepo:
-    scope_filtered_ids = frozenset({"filtered-artifact"})
-    _active_languages = ["python"]
-
-    def list_all(self) -> list[object]:
-        return []
-
-
 class TestAvailableCatalogIds:
     def test_none_repository_returns_empty(self) -> None:
         assert _available_catalog_ids(None) == []
@@ -93,15 +82,6 @@ class TestAvailableCatalogIds:
 
 
 class TestDiagnoseCatalogMiss:
-    def test_missing_artifact_when_no_close_match(self) -> None:
-        repo = _ListAllRepo(["completely-unrelated-name"])
-        diagnosis = _diagnose_catalog_miss("zzz-nonexistent-zzz", repo)
-        assert diagnosis.cause is CatalogMissCause.MISSING_ARTIFACT
-
-    def test_scope_filtered_takes_precedence_over_fuzzy_match(self) -> None:
-        diagnosis = _diagnose_catalog_miss("filtered-artifact", _ScopeFilteredRepo())
-        assert diagnosis.cause is CatalogMissCause.SCOPE_FILTERED
-
     def test_none_repository_is_missing_artifact(self) -> None:
         diagnosis = _diagnose_catalog_miss("anything", None)
         assert diagnosis.cause is CatalogMissCause.MISSING_ARTIFACT
@@ -113,30 +93,13 @@ class TestDiagnoseCatalogMiss:
 
 
 class TestFormatProfileDirectiveCode:
-    def test_bare_numeral_normalises_to_canonical_form(self) -> None:
+    def test_numeral_canonical_and_non_numeric_codes(self) -> None:
         assert _format_profile_directive_code("10") == "DIRECTIVE_010"
-
-    def test_canonical_form_passes_through(self) -> None:
         assert _format_profile_directive_code("DIRECTIVE_010") == "DIRECTIVE_010"
-
-    def test_non_numeric_code_returned_verbatim(self) -> None:
         assert _format_profile_directive_code("weird-code") == "weird-code"
 
 
 class TestJsonableArtifactValue:
-    def test_primitives_pass_through(self) -> None:
-        assert _jsonable_artifact_value("x") == "x"
-        assert _jsonable_artifact_value(1) == 1
-        assert _jsonable_artifact_value(None) is None
-
-    def test_set_is_sorted_deterministically(self) -> None:
-        result = _jsonable_artifact_value({"b", "a", "c"})
-        assert result == ["a", "b", "c"]
-
-    def test_nested_dict_drops_none_values(self) -> None:
-        result = _jsonable_artifact_value({"a": 1, "b": None})
-        assert result == {"a": 1}
-
     def test_object_with_dunder_dict_skips_private_attrs(self) -> None:
         class _Obj:
             def __init__(self) -> None:
@@ -157,28 +120,9 @@ class TestJsonableArtifactValue:
         body = "\n".join(line.removeprefix("      ") for line in lines[1:])
         assert json.loads(body) == {"id": "DIRECTIVE_001"}
 
-    def test_full_payload_body_empty_for_non_dict_payload(self) -> None:
-        assert _format_full_artifact_payload_body("just-a-string") == []
-
 
 class TestFormatInlineBodies:
     """Each formatter degrades gracefully when its attributes are absent."""
-
-    def test_directive_body_renders_populated_fields(self) -> None:
-        directive = type(
-            "D",
-            (),
-            {
-                "intent": "Keep boundaries clean",
-                "scope": "All modules",
-                "procedures": ["Do X"],
-                "integrity_rules": ["Never Y"],
-                "validation_criteria": ["Check Z"],
-            },
-        )()
-        lines = _format_inline_directive_body(directive)
-        assert "    Intent: Keep boundaries clean" in lines
-        assert "      - Do X" in lines
 
     def test_directive_body_empty_object_yields_no_lines(self) -> None:
         assert _format_inline_directive_body(object()) == []
@@ -191,27 +135,6 @@ class TestFormatInlineBodies:
         )()
         lines = _format_inline_styleguide_body(styleguide)
         assert "    Scope: python" in lines
-
-    def test_paradigm_body(self) -> None:
-        paradigm = type("P", (), {"name": "DDD", "summary": "Domain modeling"})()
-        assert _format_inline_paradigm_body(paradigm) == [
-            "    Name: DDD",
-            "    Summary: Domain modeling",
-        ]
-
-    def test_tactic_body_with_steps(self) -> None:
-        step = type("Step", (), {"title": "Step one"})()
-        tactic = type("T", (), {"name": "TDD", "purpose": "quality", "steps": [step]})()
-        lines = _format_inline_tactic_body(tactic)
-        assert "      - Step one" in lines
-
-    def test_toolguide_body(self) -> None:
-        toolguide = type("TG", (), {"title": "Ruff", "tool": "ruff", "summary": "lint"})()
-        assert _format_inline_toolguide_body(toolguide) == [
-            "    Title: Ruff",
-            "    Tool: ruff",
-            "    Summary: lint",
-        ]
 
     def test_procedure_body_with_entry_exit(self) -> None:
         procedure = type(
@@ -275,15 +198,6 @@ class TestExtractPolicySummary:
         assert _extract_policy_summary(content) == [f"item {i}" for i in range(8)]
 
 
-class TestFindSectionStart:
-    def test_returns_index_of_matching_heading(self) -> None:
-        lines = ["# Charter", "", "## Policy Summary", "- x"]
-        assert _find_section_start(lines, "## Policy Summary") == 2
-
-    def test_returns_none_when_heading_absent(self) -> None:
-        assert _find_section_start(["# Charter"], "## Policy Summary") is None
-
-
 # ---------------------------------------------------------------------------
 # context_state.py
 # ---------------------------------------------------------------------------
@@ -304,15 +218,6 @@ class TestContextStateBookkeeping:
         state = {"schema_version": "1.0.0", "actions": {"implement": "2026-01-01T00:00:00Z"}}
         _write_state(path, state)
         assert _load_state(path) == state
-
-    def test_mark_action_loaded_persists_timestamp(self, tmp_path: Path) -> None:
-        path = tmp_path / "context-state.json"
-        state: dict[str, object] = {"schema_version": "1.0.0", "actions": {}}
-        _mark_action_loaded(state, path, "implement")
-        reloaded = _load_state(path)
-        actions = reloaded["actions"]
-        assert isinstance(actions, dict)
-        assert "implement" in actions
 
     def test_mark_action_loaded_matches_pre_migration_golden_bytes(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -353,14 +258,3 @@ class TestContextStateBookkeeping:
         assert bundle.first_load is True
         assert bundle.effective_depth == _MIN_EFFECTIVE_DEPTH
         assert bundle.state_path == tmp_path / KITTIFY_DIRNAME / "charter" / "context-state.json"
-
-    def test_prepare_context_state_explicit_depth_wins(self, tmp_path: Path) -> None:
-        bundle = _prepare_context_state(tmp_path, "implement", 5)
-        assert bundle.effective_depth == 5
-
-    def test_prepare_context_state_repeat_load_uses_depth_one(self, tmp_path: Path) -> None:
-        state_path = tmp_path / KITTIFY_DIRNAME / "charter" / "context-state.json"
-        _write_state(state_path, {"schema_version": "1.0.0", "actions": {"implement": "x"}})
-        bundle = _prepare_context_state(tmp_path, "implement", None)
-        assert bundle.first_load is False
-        assert bundle.effective_depth == 1

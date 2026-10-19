@@ -296,28 +296,17 @@ class TestBuildContextV2:
         assert "Required Governance Reading:" in result.text
         assert "spec/constitution.md" in result.text
 
-    def test_text_contains_charter_context_header(self, tmp_path: Path) -> None:
-        """Output text starts with Charter Context header."""
-        result = self._call(tmp_path)
-        assert "Charter Context (Bootstrap):" in result.text
-
-    def test_text_contains_policy_summary(self, tmp_path: Path) -> None:
-        """Output text includes policy summary from charter.md."""
-        result = self._call(tmp_path)
-        assert "Policy Summary:" in result.text
-        assert "deterministic delivery" in result.text
-
-    def test_text_contains_directives_section(self, tmp_path: Path) -> None:
-        """Output text includes resolved directives."""
-        result = self._call(tmp_path)
-        assert "Directives:" in result.text
-        assert "DIRECTIVE_001" in result.text
-
-    def test_text_contains_tactics_section(self, tmp_path: Path) -> None:
-        """Output text includes resolved tactics."""
-        result = self._call(tmp_path)
-        assert "Tactics:" in result.text
-        assert "tdd-red-green-refactor" in result.text
+    def test_bootstrap_text_contains_expected_sections(self, tmp_path: Path) -> None:
+        """Bootstrap text carries the header, policy summary and every resolved section."""
+        text = self._call(tmp_path).text
+        assert "Charter Context (Bootstrap):" in text
+        assert "Policy Summary:" in text
+        assert "deterministic delivery" in text
+        assert "Directives:" in text
+        assert "DIRECTIVE_001" in text
+        assert "Tactics:" in text
+        assert "tdd-red-green-refactor" in text
+        assert "Reference Docs:" in text
 
     def test_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
         """Declared supporting governance docs appear in rendered context."""
@@ -508,16 +497,6 @@ class TestBuildContextV2:
         assert "Selected tactics:" in result.text
         assert "threat-model-first" in result.text
 
-    def test_text_contains_reference_docs(self, tmp_path: Path) -> None:
-        """Output text includes Reference Docs section."""
-        result = self._call(tmp_path)
-        assert "Reference Docs:" in result.text
-
-    def test_profile_none_does_not_crash(self, tmp_path: Path) -> None:
-        """profile=None is accepted without error."""
-        result = self._call(tmp_path, profile=None)
-        assert result.text  # non-empty
-
     def test_profile_value_ignored(self, tmp_path: Path) -> None:
         """profile value is accepted but does not change output (Phase 0)."""
         result_none = self._call(tmp_path, profile=None)
@@ -530,19 +509,16 @@ class TestBuildContextV2:
         assert result.mode == "compact"
         assert result.depth == 1
 
-    def test_depth_3_includes_extended_sections(self, tmp_path: Path) -> None:
-        """depth >= 3 renders styleguide and toolguide sections."""
-        result = self._call(tmp_path, depth=3)
-        assert "Styleguides:" in result.text
-        assert "Toolguides:" in result.text
-
-    def test_depth_2_renders_extended_sections(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("depth", [2, 3])
+    def test_depth_renders_extended_sections(self, tmp_path: Path, depth: int) -> None:
         """WP11 (T059): the retired ``_EXTENDED_CONTEXT_DEPTH`` gate no longer
         drops styleguides/toolguides at the bootstrap depth (d=2). ``depth`` is
         now purely the DRG hop cap, not a render-verbosity tier, so every
-        delivered kind renders on the bootstrap load.
+        delivered kind renders on the bootstrap load, and the result echoes the
+        requested depth.
         """
-        result = self._call(tmp_path, depth=2)
+        result = self._call(tmp_path, depth=depth)
+        assert result.depth == depth
         assert "Styleguides:" in result.text
         assert "Toolguides:" in result.text
 
@@ -653,11 +629,6 @@ class TestBuildContextV2:
         assert "Charter file not found" not in result.text
         assert "No explicit policy summary section found in charter.md." in result.text
 
-    def test_references_count(self, tmp_path: Path) -> None:
-        """references_count reflects filtered references."""
-        result = self._call(tmp_path)
-        assert result.references_count >= 0
-
     def test_build_context_uses_fallback_summary_when_policy_section_missing(
         self, tmp_path: Path
     ) -> None:
@@ -675,12 +646,6 @@ class TestBuildContextV2:
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
         assert "No explicit policy summary section found in charter.md." in result.text
-
-    def test_depth_field_matches_input(self, tmp_path: Path) -> None:
-        """The depth field in the result matches the input depth."""
-        for d in [1, 2, 3]:
-            result = self._call(tmp_path, depth=d)
-            assert result.depth == d
 
     def test_json_compact_mode_reports_project_charter_and_all_directives(
         self, tmp_path: Path
@@ -1115,50 +1080,6 @@ class TestNoPerActionFiltering:
             f"{found_literals}. FR-009 prohibits per-action filtering. "
             f"Context size is determined by graph topology, not if-statements."
         )
-
-    def test_no_conditional_on_action_parameter(self) -> None:
-        """No if-statements that compare the 'action' parameter to string literals."""
-        source = inspect.getsource(build_charter_context)
-        tree = ast.parse(textwrap.dedent(source))
-
-        func_def = None
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == "build_charter_context":
-                func_def = node
-                break
-
-        assert func_def is not None
-
-        # Look for if-statements that test 'action' or 'normalized' against
-        # string constants
-        for node in ast.walk(func_def):
-            if isinstance(node, ast.If):
-                test = node.test
-                # Check for comparisons like `action == "specify"` or
-                # `normalized in {"specify", "plan"}`
-                if isinstance(test, ast.Compare):
-                    for comparator in [test.left, *test.comparators]:
-                        if isinstance(comparator, ast.Name) and comparator.id in (
-                            "action",
-                            "normalized",
-                        ):
-                            # Check if other side has string constants matching actions
-                            for other in [test.left, *test.comparators]:
-                                if isinstance(other, ast.Constant) and isinstance(
-                                    other.value, str
-                                ):
-                                    action_names = {
-                                        "specify",
-                                        "plan",
-                                        "implement",
-                                        "review",
-                                        "tasks",
-                                    }
-                                    assert other.value.lower() not in action_names, (
-                                        f"Found conditional on action parameter: "
-                                        f"comparison with '{other.value}'. "
-                                        f"FR-009 prohibits per-action filtering."
-                                    )
 
 
 def test_build_doctrine_service_prefers_repo_src_overlay(

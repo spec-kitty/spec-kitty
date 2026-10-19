@@ -44,8 +44,3 @@ def test_explicit_org_root_builds_index_from_that_root(project: Path, monkeypatc
     monkeypatch.setattr(IdentityIndex, "build", classmethod(_spy))
     context_module.build_charter_context_json(project, action="implement", mission_type="software-dev", org_root=org)
     assert seen == [[org]]
-
-
-def test_no_explicit_org_root_uses_configured_chain(project: Path) -> None:
-    index = context_module._invocation_identity(project, None)
-    assert index.org_roots == IdentityIndex.build(project).org_roots

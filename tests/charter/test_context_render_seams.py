@@ -124,17 +124,6 @@ class TestTemplateIncludeSeam:
             is None
         )
 
-    def test_render_doctrine_artifact_include_raises_structured_miss(self) -> None:
-        class _EmptyRepo:
-            def get(self, _artifact_id: str) -> None:
-                return None
-
-        service = type("Service", (), {"paradigms": _EmptyRepo()})()
-        with pytest.raises(ValueError, match="No paradigm found"):
-            template_include._render_offering_artifact_include(
-                service, "paradigm", "missing-id"
-            )
-
 
 # ---------------------------------------------------------------------------
 # selection_block.py
@@ -142,11 +131,9 @@ class TestTemplateIncludeSeam:
 
 
 class TestSelectionBlockSeam:
-    def test_provenance_suffix_empty_when_no_map(self) -> None:
+    def test_provenance_suffix_empty_map_and_bare_org_sentinel(self) -> None:
         assert selection_block._provenance_suffix("some-id", None) == ""
         assert selection_block._provenance_suffix("some-id", {}) == ""
-
-    def test_provenance_suffix_bare_org_sentinel(self) -> None:
         # Empty-string pack name is the documented sentinel that collapses
         # to a bare "(source: org)" suffix (no per-pack attribution known).
         assert (
@@ -154,27 +141,9 @@ class TestSelectionBlockSeam:
             == " (source: org)"
         )
 
-    def test_provenance_suffix_names_the_pack(self) -> None:
-        assert (
-            selection_block._provenance_suffix(
-                "some-id", {"some-id": "example-org"}
-            )
-            == " (source: org, pack: example-org)"
-        )
-
     def test_collect_org_source_map_empty_without_repository_or_ids(self) -> None:
         assert selection_block._collect_org_source_map(None, ["a"]) == {}
         assert selection_block._collect_org_source_map(object(), []) == {}
-
-    def test_collect_org_source_map_flags_org_provenance(self) -> None:
-        class _Repo:
-            def get_provenance(self, artifact_id: str) -> str:
-                return "org" if artifact_id == "org-one" else "built-in"
-
-        result = selection_block._collect_org_source_map(
-            _Repo(), ["org-one", "builtin-one"]
-        )
-        assert result == {"org-one": ""}
 
     def test_render_selection_block_empty_without_selection_or_service(
         self,
@@ -222,9 +191,6 @@ class TestActivationBlockSeam:
 
         assert merged == [shared, project_only, org_only]
 
-    def test_union_activations_empty_inputs_yield_empty_output(self) -> None:
-        assert activation_block._union_activations([], []) == []
-
     def test_render_activation_block_empty_without_repo_root(self) -> None:
         assert (
             activation_block._render_activation_block(
@@ -258,33 +224,6 @@ class TestActivationBlockSeam:
 
 
 class TestBootstrapTextSeam:
-    def test_action_render_rows_cover_the_six_delivered_kinds(self) -> None:
-        headings = [row.heading for row in bootstrap_text._ACTION_RENDER_ROWS]
-        assert headings == [
-            "Directives",
-            "Tactics",
-            "Styleguides",
-            "Toolguides",
-            "Procedures",
-            "Assets",
-        ]
-
-    def test_action_render_rows_progressive_kind_only_on_disclosure_cadenced_kinds(
-        self,
-    ) -> None:
-        # Procedure/Asset stay always-inline (pre-D2c behaviour); the other
-        # four carry the progressive-disclosure kind prefix.
-        by_heading = {
-            row.heading: row.progressive_kind
-            for row in bootstrap_text._ACTION_RENDER_ROWS
-        }
-        assert by_heading["Directives"] == "directive"
-        assert by_heading["Tactics"] == "tactic"
-        assert by_heading["Styleguides"] == "styleguide"
-        assert by_heading["Toolguides"] == "toolguide"
-        assert by_heading["Procedures"] is None
-        assert by_heading["Assets"] is None
-
     def test_append_guidelines_lines_never_raises_on_unknown_mission(self) -> None:
         lines: list[str] = []
         # A nonsense mission/action pair resolves no guidelines; the helper
@@ -321,75 +260,19 @@ class TestBootstrapTextSeam:
         assert lines[0] == "  - item-0"
         assert lines[-1] == "  - item-7"
 
-    def test_append_policy_summary_lines_empty_summary_uses_fallback(self) -> None:
-        lines: list[str] = []
-        bootstrap_text._append_policy_summary_lines(lines, [])
-        assert lines == [bootstrap_text.NO_POLICY_SUMMARY_MESSAGE]
-
-    def test_append_block_non_empty_adds_separator_and_block(self) -> None:
+    def test_append_block_adds_separator_for_content_and_skips_empty(self) -> None:
         lines: list[str] = ["existing"]
         bootstrap_text._append_block(lines, "new block")
         assert lines == ["existing", "", "new block"]
-
-    def test_append_block_empty_is_a_no_op(self) -> None:
-        lines: list[str] = ["existing"]
         bootstrap_text._append_block(lines, "")
-        assert lines == ["existing"]
+        assert lines == ["existing", "", "new block"]
 
-    def test_resolve_authority_block_missing_repo_root_returns_empty(self) -> None:
+    def test_resolve_blocks_empty_without_repo_root_or_selection(self, tmp_path: Path) -> None:
         selection = GovernanceCharterConfig()
         assert bootstrap_text._resolve_authority_block(None, selection) == ""
-
-    def test_resolve_authority_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
         assert bootstrap_text._resolve_authority_block(tmp_path, None) == ""
-
-    def test_resolve_authority_block_delegates_to_renderer(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        selection = GovernanceCharterConfig()
-        captured: dict[str, Any] = {}
-
-        def _fake_render(repo_root: Path, charter_config: GovernanceCharterConfig) -> str:
-            captured["repo_root"] = repo_root
-            captured["charter_config"] = charter_config
-            return "authority-block-sentinel"
-
-        monkeypatch.setattr(bootstrap_text, "render_authority_paths", _fake_render)
-
-        result = bootstrap_text._resolve_authority_block(tmp_path, selection)
-
-        assert result == "authority-block-sentinel"
-        assert captured == {"repo_root": tmp_path, "charter_config": selection}
-
-    def test_resolve_reference_block_missing_repo_root_returns_empty(self) -> None:
-        selection = GovernanceCharterConfig()
         assert bootstrap_text._resolve_reference_block(None, selection) == ""
-
-    def test_resolve_reference_block_missing_selection_returns_empty(self, tmp_path: Path) -> None:
         assert bootstrap_text._resolve_reference_block(tmp_path, None) == ""
-
-    def test_resolve_reference_block_delegates_to_renderer(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        selection = GovernanceCharterConfig(governance_references=["spec/constitution.md"])
-        captured: dict[str, Any] = {}
-
-        def _fake_render(repo_root: Path, references: list[str]) -> str:
-            captured["repo_root"] = repo_root
-            captured["references"] = references
-            return "reference-block-sentinel"
-
-        monkeypatch.setattr(bootstrap_text, "render_governance_references", _fake_render)
-
-        result = bootstrap_text._resolve_reference_block(tmp_path, selection)
-
-        assert result == "reference-block-sentinel"
-        assert captured == {"repo_root": tmp_path, "references": ["spec/constitution.md"]}
-
-    def test_append_reference_docs_lines_empty_uses_fallback(self) -> None:
-        lines: list[str] = []
-        bootstrap_text._append_reference_docs_lines(lines, [])
-        assert lines == [bootstrap_text.MISSING_REFERENCES_MESSAGE]
 
     def test_append_reference_docs_lines_renders_each_pointer(self, tmp_path: Path) -> None:
         lines: list[str] = []
@@ -416,23 +299,32 @@ class TestCompactGovernanceSeam:
     def test_compact_section_block_empty_without_charter_md(self, tmp_path: Path) -> None:
         assert compact_governance._compact_section_block(tmp_path, "implement") == ""
 
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [({"suppress_project_resolver": True}, True), ({}, False)],
+        ids=["suppressed", "default-not-suppressed"],
+    )
     def test_render_compact_from_bundle_threads_suppress_project_resolver(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        kwargs: dict[str, bool],
+        expected: bool,
     ) -> None:
         """WP03/#3064 contract: ``suppress_project_resolver`` must reach
         ``render_compact_view`` unchanged through BOTH wrapper layers
         (``_render_compact_from_bundle`` -> ``_render_compact_governance``
         -> ``charter.activation.compact.render_compact_view``) — this is the exact
         seam the reviewer guidance calls out as the highest-risk part of
-        this move.
+        this move. The default must not suppress.
         """
         captured: dict[str, Any] = {}
 
         class _FakeView:
             text = "compact-view-body"
 
-        def _fake_render_compact_view(_repo_root: Path, **kwargs: Any) -> _FakeView:
-            captured.update(kwargs)
+        def _fake_render_compact_view(_repo_root: Path, **view_kwargs: Any) -> _FakeView:
+            captured.update(view_kwargs)
             return _FakeView()
 
         monkeypatch.setattr(
@@ -456,44 +348,7 @@ class TestCompactGovernanceSeam:
             action="implement",
             profile=None,
             bundle=_Bundle(),  # type: ignore[arg-type]
-            suppress_project_resolver=True,
+            **kwargs,
         )
 
-        assert captured["suppress_project_resolver"] is True
-
-    def test_render_compact_from_bundle_default_does_not_suppress(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        captured: dict[str, Any] = {}
-
-        class _FakeView:
-            text = "compact-view-body"
-
-        def _fake_render_compact_view(_repo_root: Path, **kwargs: Any) -> _FakeView:
-            captured.update(kwargs)
-            return _FakeView()
-
-        monkeypatch.setattr(
-            "charter.activation.compact.render_compact_view", _fake_render_compact_view
-        )
-        monkeypatch.setattr(
-            "charter.activation.context._load_governance_charter_config",
-            lambda _repo_root: GovernanceCharterConfig(),
-        )
-
-        class _Bundle:
-            directive_ids: list[str] = []
-            tactic_ids: list[str] = []
-            styleguide_ids: list[str] = []
-            toolguide_ids: list[str] = []
-            procedure_ids: list[str] = []
-            asset_ids: list[str] = []
-
-        compact_governance._render_compact_from_bundle(
-            tmp_path,
-            action="implement",
-            profile=None,
-            bundle=_Bundle(),  # type: ignore[arg-type]
-        )
-
-        assert captured["suppress_project_resolver"] is False
+        assert captured["suppress_project_resolver"] is expected

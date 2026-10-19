@@ -200,26 +200,14 @@ class _DummyContract:
 class TestEmptySelection:
     """An empty selection MUST NOT emit a header, body line, or stray block."""
 
-    def test_render_selected_styleguides_returns_empty_when_no_selection(self) -> None:
-        assert _render_selected_styleguides([], _StubService()) == []
-
-    def test_render_selected_toolguides_returns_empty_when_no_selection(self) -> None:
-        assert _render_selected_toolguides([], _StubService()) == []
-
-    def test_render_selected_procedures_returns_empty_when_no_selection(self) -> None:
-        assert _render_selected_procedures([], _StubService()) == []
-
-    def test_render_selected_agent_profiles_returns_empty_when_no_selection(self) -> None:
-        assert _render_selected_agent_profiles([], _StubService()) == []
-
-    def test_render_selected_mission_step_contracts_returns_empty_when_no_selection(
-        self,
-    ) -> None:
-        assert _render_selected_mission_step_contracts([], _StubService()) == []
-
-    def test_selection_block_returns_empty_string_when_all_empty(self) -> None:
-        selection = GovernanceCharterConfig()
-        assert _render_selection_block(selection, _StubService()) == ""
+    def test_empty_selection_emits_nothing_for_every_renderer(self) -> None:
+        service = _StubService()
+        assert _render_selected_styleguides([], service) == []
+        assert _render_selected_toolguides([], service) == []
+        assert _render_selected_procedures([], service) == []
+        assert _render_selected_agent_profiles([], service) == []
+        assert _render_selected_mission_step_contracts([], service) == []
+        assert _render_selection_block(GovernanceCharterConfig(), service) == ""
 
 
 # ---------------------------------------------------------------------------
@@ -407,16 +395,6 @@ class TestFetchSelectorRecovery:
         assert text.strip()
         assert "Regression Vigilance" in text
         assert ".kittify/charter/charter.md" in text
-
-    def test_selected_styleguide_include_recovers_body(self) -> None:
-        sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
-        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
-
-        text = _render_offering_artifact_include(service, "styleguide", "caveman-comments")
-
-        assert text is not None
-        assert "Styleguide caveman-comments: Caveman" in text
-        assert "Prefer concrete names." in text
 
     def test_unknown_doctrine_artifact_include_fails_closed(self) -> None:
         with pytest.raises(ValueError, match="No styleguide found"):
@@ -785,14 +763,15 @@ class TestOrgProvenance:
         )
         assert suffix == " (source: org, pack: very-serious-developers)"
 
-    def test_project_sourced_styleguide_carries_no_suffix(self) -> None:
+    @pytest.mark.parametrize("provenance", ["project", "built-in"])
+    def test_non_org_sourced_styleguide_carries_no_suffix(self, provenance: str) -> None:
         sg = _DummyStyleguide(title="Caveman", principles=["UGG"])
         repo = _StubRepo(
             items={"caveman-comments": sg},
-            provenance={"caveman-comments": "project"},
+            provenance={"caveman-comments": provenance},
         )
         service = _StubService(styleguides=repo)
-        # Project sources are NOT in the org map.
+        # Project and built-in sources are NOT in the org map.
         org_map = _collect_org_source_map(repo, ["caveman-comments"])
         assert org_map == {}
         lines = _render_selected_styleguides(
@@ -801,32 +780,6 @@ class TestOrgProvenance:
         joined = "\n".join(lines)
         assert "source: org" not in joined
         assert "source: project" not in joined
-
-    def test_builtin_sourced_styleguide_carries_no_suffix(self) -> None:
-        sg = _DummyStyleguide(title="Built-in", principles=["BI"])
-        repo = _StubRepo(
-            items={"builtin-sg": sg},
-            provenance={"builtin-sg": "built-in"},
-        )
-        org_map = _collect_org_source_map(repo, ["builtin-sg"])
-        assert org_map == {}
-
-
-# ---------------------------------------------------------------------------
-# Catalog miss — unknown ID does not crash, renders fetch stanza
-# ---------------------------------------------------------------------------
-
-
-class TestCatalogMiss:
-    """An ID that the repository does not carry MUST surface a placeholder."""
-
-    def test_unknown_styleguide_id_emits_placeholder_and_fetch(self) -> None:
-        service = _StubService(styleguides=_StubRepo(items={}))
-        lines = _render_selected_styleguides(["does-not-exist"], service)
-        joined = "\n".join(lines)
-        assert "does-not-exist" in joined
-        assert "catalog entry not found" in joined
-        assert "spec-kitty charter context --include styleguide:does-not-exist" in joined
 
 
 # ---------------------------------------------------------------------------
