@@ -203,3 +203,103 @@ def test_performance_1000_files(tmp_path):
     elapsed = time.monotonic() - start
 
     assert_timing_budget(elapsed, 5.0, name="collect_1000_files")
+
+
+# ---------------------------------------------------------------------------
+# #6405: root-first stack detection
+# ---------------------------------------------------------------------------
+
+
+def _site_manifests(root) -> None:
+    _make_file(root / "site" / "package.json", '{"name":"site"}')
+    _make_file(root / "site" / "tsconfig.json", "{}")
+
+
+def test_gradle_kts_root_with_nested_site_is_java(tmp_path):
+    """Root Gradle Kotlin DSL build beats a nested docs-site package.json."""
+    _make_file(tmp_path / "build.gradle.kts", "")
+    _make_file(tmp_path / "settings.gradle.kts", "")
+    _make_file(tmp_path / "gradlew", "#!/bin/sh")
+    _make_file(tmp_path / "src" / "main" / "java" / "App.java", "class App {}")
+    _site_manifests(tmp_path)
+
+    signals = CodeReadingCollector(tmp_path).collect()
+
+    assert signals.primary_language == "java"
+    assert signals.scope_tag == "java"
+
+
+def test_docs_only_site_is_still_typescript_control(tmp_path):
+    """Positive control: with no root indicator the nested site still wins."""
+    _site_manifests(tmp_path)
+
+    signals = CodeReadingCollector(tmp_path).collect()
+
+    assert signals.primary_language == "typescript"
+
+
+@pytest.mark.parametrize(
+    "indicators",
+    [["build.gradle.kts"], ["settings.gradle"], ["gradlew"], ["mvnw"], ["pom.xml"]],
+)
+def test_jvm_indicators_resolve_java(tmp_path, indicators):
+    for name in indicators:
+        _make_file(tmp_path / name, "")
+    _site_manifests(tmp_path)
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "java"
+
+
+def test_root_pyproject_beats_deeply_nested_package_json(tmp_path):
+    _make_file(tmp_path / "pyproject.toml", "")
+    _make_file(tmp_path / "a" / "b" / "c" / "package.json", "{}")
+    _make_file(tmp_path / "a" / "b" / "c" / "tsconfig.json", "{}")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "python"
+
+
+def test_equal_depth_tie_broken_by_source_counts(tmp_path):
+    _make_file(tmp_path / "pyproject.toml", "")
+    _make_file(tmp_path / "package.json", "{}")
+    for i in range(3):
+        _make_file(tmp_path / "src" / f"m{i}.js", "")
+    _make_file(tmp_path / "src" / "only.py", "")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "javascript"
+
+
+def test_equal_depth_count_tie_uses_indicator_order(tmp_path):
+    _make_file(tmp_path / "pyproject.toml", "")
+    _make_file(tmp_path / "go.mod", "")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "python"
+
+
+def test_nested_only_manifests_resolve_by_counts(tmp_path):
+    _make_file(tmp_path / "svc" / "pyproject.toml", "")
+    _make_file(tmp_path / "web" / "package.json", "{}")
+    for i in range(3):
+        _make_file(tmp_path / "svc" / f"m{i}.py", "")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "python"
+
+
+def test_frameworks_still_detected_from_nested_files(tmp_path):
+    _make_file(tmp_path / "pom.xml", "")
+    _make_file(tmp_path / "web" / "next.config.js", "")
+    _make_file(tmp_path / "web" / "jest.config.js", "")
+
+    signals = CodeReadingCollector(tmp_path).collect()
+
+    assert signals.primary_language == "java"
+    assert "nextjs" in signals.frameworks
+    assert "jest" in signals.test_frameworks
+
+
+def test_root_package_json_beats_nested_android_gradle(tmp_path):
+    """Root-first rule: a root package.json wins over a nested android/build.gradle (React Native shape)."""
+    _make_file(tmp_path / "package.json", "{}")
+    _make_file(tmp_path / "android" / "build.gradle", "")
+    _make_file(tmp_path / "android" / "app" / "src" / "main" / "java" / "Main.java", "class Main {}")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "javascript"
