@@ -15,9 +15,8 @@ This mission's blocking design decisions are now **all settled** — D-1, D-5 an
 on 2026-07-26 and are recorded under *Carried constraints* below. What still argues for waiting is
 mission A: it adds `extra="forbid"` to `AgentProfile` and the zero-producer lint that both of this
 mission's new profile fields must satisfy, so the shape of that work is only knowable after A lands.
-D-4 (the interview instrument) is settled too (2026-07-26; see *Scope sketch* below). D-1 to D-5 are
-recorded, with refinements, in `spec-kitty-charter` ADR-0014 (2026-10-19), which wins where this sketch
-disagrees.
+D-4 (the interview instrument's question design) also remains operator-only and unanswered, though it
+gates only a slice.
 
 ## Scope sketch
 
@@ -137,7 +136,7 @@ milestone 3.3.x and stays open.
 
   **Both fields are new schema slots on `AgentProfile`, so C-009 binds them**: producer plus coverage gate in the same commit, or they ship inert and mission A's zero-producer lint fails. Mission A also adds `extra="forbid"` to `AgentProfile`, which is a further reason this cannot precede A.
 - **D-5 — mandatory `rationale` is HARD on value descriptions and deltas. Settled by operator ruling, 2026-07-26**, with a deliberate boundary: the numeric value is a *warning signal*; the rationale is the tie-breaker and the real value-add, so a number without one is the failure mode the layer exists to prevent. **Hard** on value descriptions and `delta` entries; **not** on `DRGEdge` relationships, unless the rationale there can be trivially inferred.
-  **Scope, per `spec-kitty-charter` ADR-0014 D-5 (2026-10-19):** the rule is a validation error on everything authored for this programme — creed weights, value descriptions and any deltas. **The reference corpus is exempt:** I9 imports it labelled as reference, so the ≥3 of 38 entries that lack a rationale are neither supplied nor rejected (see *The corpus is a reference, not a target* above). The rule is not weakened to advisory for our own artefacts.
+  **Consequence to handle at import:** the calibration corpus fails a hard rule (≥3 of 38 entries lack a rationale). I9's corpus import must therefore either supply the missing rationales or reject those entries — it cannot import them silently. Decide which when speccing; do not let the import quietly weaken the rule to advisory.
 - **Do not unify into the compiled charter bundle.** `.kittify/charter/` is a regeneration target; divergence there is a staleness symptom, and a fix written there is deleted by the next regeneration.
 - **The gain check must be start-vector-independent.** Plain power iteration is **fail-open** on two-camp bases — a true gain of 1.0 reads as 0.33 from an all-ones start. That is the dangerous direction.
 - **Never renormalise per tier** — that *is* power iteration, and every artefact converges to the same attractor. Scale once at the end, from the **sup-norm** (`1/(1+r∞)` = 0.75 for AMMERSE), not the spectral radius, which overflows to 1.074 on an adversarial ±1 base. And **no fixed constant bounds a sum** — two real corpus vectors already sum past 1.7.
