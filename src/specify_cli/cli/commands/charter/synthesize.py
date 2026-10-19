@@ -61,6 +61,28 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["charter_synthesize"]
 
 
+def _converge_legacy_project_intent_directive(repo_root: Path, *, dry_run: bool, console: Any, json_output: bool) -> None:
+    """Run the shared FR-008 rename helper before a synthesis write (#6443).
+
+    A refusal is a ``SynthesisError`` the command's own handler renders. The notice goes to stderr
+    under ``--json`` so stdout stays one JSON document.
+    """
+    from charter.activation.api import rename_legacy_project_intent_directive  # noqa: PLC0415
+
+    report = rename_legacy_project_intent_directive(repo_root, dry_run=dry_run)
+    if not report.pending:
+        return
+    sink = err_console if json_output else console
+    heading = (
+        "Legacy project-intent directive found (dry run, nothing changed)"
+        if dry_run
+        else "Renamed the legacy mission-type-scope-directive to project-intent-directive"
+    )
+    sink.print(f"[yellow]{heading}:[/yellow]")
+    for action in report.actions:
+        sink.print(f"  - {action}")
+
+
 def _coerce_cli_bool(value: bool) -> bool:
     """Coerce a non-``bool`` Typer sentinel to ``False`` (defense in depth).
 
@@ -212,6 +234,11 @@ def charter_synthesize(  # noqa: C901
         resolve_charter_write_root(Path.cwd())
 
         repo_root = _charter_pkg.find_repo_root()
+
+        # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything
+        # writes, so a run can never leave two files declaring the same PROJECT_00N id. The
+        # shared helper refuses (a SynthesisError, nothing changed) on a target collision.
+        _converge_legacy_project_intent_directive(repo_root, dry_run=dry_run, console=console, json_output=json_output)
 
         # T032 (#839 fresh-project): When the operator runs synthesize on a
         # fresh project (post `charter generate` but before the LLM harness

@@ -119,12 +119,77 @@ def _write_generated_directive(repo_root: Path, body: dict[str, object]) -> None
         / "charter"
         / "generated"
         / "directives"
-        / "001-mission-type-scope-directive.directive.yaml"
+        / "001-project-intent-directive.directive.yaml"
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     with path.open("w", encoding="utf-8") as fh:
         yaml.dump(body, fh)
+
+
+class TestLegacyProjectIntentDirectiveConvergence:
+    """#6443 / FR-008 (US2 scenarios 2 and 4): synthesize converges a legacy directive first."""
+
+    _LEGACY = "001-mission-type-scope-directive.directive.yaml"
+    _NEW = "001-project-intent-directive.directive.yaml"
+
+    def _seed_legacy(self, repo_root: Path) -> None:
+        _write_interview_answers(repo_root)
+        _write_url_config(repo_root)
+        _seed_complete_bundle(repo_root)
+        _write_generated_directive(repo_root, VALID_DIRECTIVE_BODY)
+        generated = repo_root / ".kittify" / "charter" / "generated" / "directives"
+        (generated / self._NEW).replace(generated / self._LEGACY)
+        pack = repo_root / ".kittify" / "charter-packs" / "directive"
+        pack.mkdir(parents=True)
+        (pack / self._LEGACY).write_text("id: PROJECT_001\ntitle: Old\nschema_version: '1.0'\n", encoding="utf-8")
+
+    def test_synthesize_with_legacy_files_leaves_exactly_one_project_001_file(
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
+    ) -> None:
+        self._seed_legacy(tmp_path)
+        charter_cwd_isolation()
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["synthesize"])
+
+        assert result.exit_code == 0, result.output
+        assert "project-intent-directive" in result.output  # the rename is reported, not silent
+        pack = tmp_path / ".kittify" / "charter-packs" / "directive"
+        declaring = [p.name for p in pack.glob("*.directive.yaml") if "PROJECT_001" in p.read_text(encoding="utf-8")]
+        assert declaring == [self._NEW]
+        assert not (tmp_path / ".kittify" / "charter" / "generated" / "directives" / self._LEGACY).exists()
+
+    def test_resynthesize_after_the_rename_finds_the_harness_input(
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
+    ) -> None:
+        self._seed_legacy(tmp_path)
+        charter_cwd_isolation()
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+            assert runner.invoke(app, ["synthesize"]).exit_code == 0
+            # A second legacy file appears (an operator restoring the old harness input): the helper
+            # converges it again and resynthesize must not raise GeneratedArtifactMissingError.
+            generated = tmp_path / ".kittify" / "charter" / "generated" / "directives"
+            (generated / self._NEW).replace(generated / self._LEGACY)
+            result = runner.invoke(app, ["resynthesize", "--topic", "directive:PROJECT_001"])
+
+        assert result.exit_code == 0, result.output
+        assert (generated / self._NEW).is_file()
+
+    def test_a_collision_refuses_the_synthesis_and_changes_nothing(
+        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
+    ) -> None:
+        self._seed_legacy(tmp_path)
+        pack = tmp_path / ".kittify" / "charter-packs" / "directive"
+        (pack / self._NEW).write_text("id: PROJECT_001\n", encoding="utf-8")
+        charter_cwd_isolation()
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["synthesize"])
+
+        assert result.exit_code == 1
+        assert (pack / self._LEGACY).is_file()
+        assert not (tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml").exists()
 
 
 class TestCharterStatus:
@@ -185,14 +250,14 @@ class TestCharterStatus:
             / ".kittify"
             / "charter-packs"
             / "directive"
-            / "001-mission-type-scope-directive.directive.yaml"
+            / "001-project-intent-directive.directive.yaml"
         )
         provenance_path = (
             tmp_path
             / ".kittify"
             / "charter"
             / "provenance"
-            / "directive-mission-type-scope-directive.yaml"
+            / "directive-project-intent-directive.yaml"
         )
         manifest_path = (
             tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"

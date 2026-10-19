@@ -67,6 +67,15 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
+# Legacy project-intent directive convergence (#6443, FR-008) — the one helper the
+# ``4.0.0rc8_project_intent_directive_rename`` migration and ``charter synthesize`` /
+# ``resynthesize`` both call. Public per charter.activation.synthesizer.legacy_rename.__all__.
+from charter.activation.synthesizer.legacy_rename import (
+    LegacyRenameRefusedError as LegacyRenameRefusedError,
+    RenameReport as RenameReport,
+    rename_legacy_project_intent_directive as rename_legacy_project_intent_directive,
+)
+
 # Reach-only activation — the synthesis-run helpers the ``charter synthesize`` /
 # ``resynthesize`` CLI commands consume (#6404, #6442) to append the tactics and
 # styleguides a run created to an explicit ``activated_<kind>s`` list. Public per
@@ -114,6 +123,8 @@ __all__ = [
     "EffectiveSet",
     "IdentityEntry",
     "IdentityIndex",
+    "LegacyRenameRefusedError",
+    "RenameReport",
     "append_synthesized_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
@@ -122,6 +133,7 @@ __all__ = [
     "load_yaml",
     "org_required_stems",
     "read_mission_type",
+    "rename_legacy_project_intent_directive",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
     "verify",
