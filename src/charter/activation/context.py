@@ -29,6 +29,7 @@ from charter.activation.action_governance_bundle import (
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
 from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION as CONTEXT_SCHEMA_VERSION
 from charter.activation.context_json import (
@@ -37,6 +38,7 @@ from charter.activation.context_json import (
     _project_charter_json_block as _project_charter_json_block,
     _project_directive_entries as _project_directive_entries,
     _project_directive_entries_with_source as _project_directive_entries_with_source,
+    _project_directive_resolution as _project_directive_resolution,
 )
 from charter.activation.context_renderers.artifact_bodies import (
     _jsonable_artifact_value as _jsonable_artifact_value,
@@ -516,7 +518,11 @@ def build_charter_context_json(
     # Single governance resolution: both ``all_directives`` and the resolution-
     # level ``directives_source`` provenance come from one
     # ``resolve_project_governance`` call (no double-resolve per payload).
-    all_directives, directives_source = _project_directive_entries_with_source(repo_root)
+    # NFR-003: the identity index is built once for this entry point and handed
+    # to the resolver rather than rebuilt inside it.
+    all_directives, directives_source, diagnostics = _project_directive_resolution(
+        repo_root, IdentityIndex.build(repo_root)
+    )
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
@@ -530,6 +536,10 @@ def build_charter_context_json(
         # or ``null`` when the resolver raised. Distinct from the per-entry
         # ``all_directives[].source`` artifact-origin field.
         "directives_source": directives_source,
+        # NEW (#6407, FR-010, schema 1.4.0): resolution diagnostics (for example
+        # a selected id that exists in no layer and was dropped). Always present;
+        # ``[]`` when the resolution has nothing to report.
+        "diagnostics": diagnostics,
         "references": [],
         "project_charter": _project_charter_json_block(repo_root),
         "org_charter": (

@@ -149,3 +149,33 @@ def test_render_compact_view_lists_compiled_languages(tmp_path: Path) -> None:
     compact = render_compact_view(tmp_path)
 
     assert "  - Languages: go, python" in compact.text
+
+
+def test_compact_view_surfaces_unknown_selection_diagnostic(tmp_path: Path) -> None:
+    """#6407: an unknown selected id is named in the compact text; the org id is listed."""
+    from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
+    from tests.charter.test_resolver import _identity_project
+
+    repo = _identity_project(
+        tmp_path,
+        selected="[QA_003, NOPE_999]",
+        activated_directives=["001-architectural-integrity-standard"],
+    )
+
+    compact = render_compact_view(repo)
+
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in compact.text
+    assert "QA_003" in compact.text
+    assert "QA_003_NO_FAKE_GREEN" not in compact.text
+    assert "governance unresolved" not in compact.text
+
+
+def test_compact_view_clean_selection_has_no_unknown_diagnostic(tmp_path: Path) -> None:
+    from tests.charter.test_resolver import _identity_project
+
+    repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=[])
+
+    compact = render_compact_view(repo)
+
+    assert "Unknown selected" not in compact.text
+    assert "QA_003" in compact.text
