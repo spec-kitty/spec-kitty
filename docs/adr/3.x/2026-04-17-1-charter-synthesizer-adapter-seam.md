@@ -141,3 +141,7 @@ Changes to either file require a synchronised update to both, plus an amendment 
 * Data model: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/data-model.md` §E-1, §E-2, §E-3
 * Contract: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/contracts/adapter.py`
 * Research: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/research.md` §R-0-6
+
+## Amendment 2026-10-19: styleguide source URNs enter the request hash (#6442)
+
+A synthesized `testing_philosophy`, `quality_gates` or `documentation_policy` styleguide now carries a `source_urns` entry naming its directive (DIRECTIVE_034, DIRECTIVE_030, DIRECTIVE_037), present only when that directive is in the run's DRG snapshot. `target` is a hashed input, so the request hash of a sourced styleguide target differs from that of the same target without a source. No checked-in fixture under `tests/charter/fixtures/synthesizer/styleguide/` is keyed on a sourced request, so none was re-keyed; a fixture recorded for a sourced styleguide is keyed on the new hash. `normalize_request_for_hash()` itself is unchanged: the hash rule is the same, only the hashed values differ. Tactic, directive and `language_scope` styleguide hashes are unaffected.
