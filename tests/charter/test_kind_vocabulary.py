@@ -240,3 +240,36 @@ def test_resolve_config_id_malformed_urn_raises_value_error(
 ) -> None:
     with pytest.raises(ValueError):
         resolve_config_id("not-a-valid-urn", offering_root=offering_root)
+
+
+# --------------------------------------------------------------------------- #
+# Declared-id acceptance for every kind (#6406, FR-006)
+# --------------------------------------------------------------------------- #
+
+
+def _org_tactic_pack(tmp_path: Path) -> Path:
+    pack = tmp_path / "org-pack"
+    (pack / "tactics").mkdir(parents=True)
+    (pack / "tactics" / "qa-tactic-seven.tactic.yaml").write_text("schema_version: '1.0'\nid: qa-seven\ntitle: Seven\n", encoding="utf-8")
+    return pack
+
+
+def test_resolve_artifact_urn_accepts_declared_id_for_non_directive_kind(tmp_path: Path) -> None:
+    pack = _org_tactic_pack(tmp_path)
+    root = resolve_offering_root()
+    # positive control: the stem already resolves
+    assert resolve_artifact_urn(ArtifactKind.TACTIC, "qa-tactic-seven", offering_root=root, org_roots=[pack]) == "tactic:qa-seven"
+    assert resolve_artifact_urn(ArtifactKind.TACTIC, "qa-seven", offering_root=root, org_roots=[pack]) == "tactic:qa-seven"
+    with pytest.raises(UnknownArtifactIdError):
+        resolve_artifact_urn(ArtifactKind.TACTIC, "qa-ghost", offering_root=root, org_roots=[pack])
+
+
+def test_resolve_selected_id_to_stem_returns_stem_for_declared_id(tmp_path: Path) -> None:
+    from charter.activation.kind_vocabulary import resolve_selected_id_to_stem
+
+    pack = _org_tactic_pack(tmp_path)
+    root = resolve_offering_root()
+    kwargs = {"offering_root": root, "org_roots": [pack]}
+    assert resolve_selected_id_to_stem(ArtifactKind.TACTIC, "qa-tactic-seven", **kwargs) == "qa-tactic-seven"
+    assert resolve_selected_id_to_stem(ArtifactKind.TACTIC, "qa-seven", **kwargs) == "qa-tactic-seven"
+    assert resolve_selected_id_to_stem(ArtifactKind.TACTIC, "qa-ghost", **kwargs) is None
