@@ -65,7 +65,7 @@ def _stem_spelled_effective(repo_root: Path, effective: dict[str, EffectiveSet],
     activation lists hold stems, so a kept artifact whose stem differs from its id
     would otherwise be reported as no longer in force (#6408).
     """
-    from charter.activation.identity_index import IdentityIndex
+    from charter.activation.api import IdentityIndex
 
     index = IdentityIndex.build(repo_root)
     mapped: dict[str, EffectiveSet] = {}
