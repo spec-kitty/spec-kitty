@@ -255,26 +255,19 @@ def edge_owner(edge: DRGEdge, overlay_urns: Collection[str]) -> str | None:
     * A synthesized tactic edge (:func:`is_synthesized_tactic_edge`) is owned by
       its tactic *target* (the node synthesis derived it for); its source is a
       built-in or org directive the overlay does not own.
-    * Any other ``directive:* --suggests--> tactic:*`` edge is hand-authored: it is
-      owned by its source when that is an overlay node (so regenerating the
-      *directive* replaces it, never regenerating the tactic) and otherwise has no
-      owner, so it is preserved untouched.
-    * Any other edge is owned by its source when that is an overlay node (a
-      hand-authored ``agent_profile --requires--> tactic:...`` stays with the
-      profile), else by its target when that is an overlay node.
+    * Every other edge, including a hand-authored ``directive:* --suggests--> tactic:*``,
+      is owned by its source when that is an overlay node (so regenerating the
+      *directive* replaces it, and a hand-authored
+      ``agent_profile --requires--> tactic:...`` stays with the profile). When its
+      source is not an overlay node it has no owner and is preserved untouched, so a
+      hand-authored ``procedure --requires--> tactic:...`` survives regeneration of
+      that tactic. Prune drops an edge touching a removed node at either end through
+      its own explicit check.
     """
     if is_synthesized_tactic_edge(edge) and edge.target in overlay_urns:
         return edge.target
     if edge.source in overlay_urns:
         return edge.source
-    if (
-        edge.relation is Relation.SUGGESTS
-        and edge.source.startswith(_DIRECTIVE_URN_PREFIX)
-        and edge.target.startswith(_TACTIC_URN_PREFIX)
-    ):
-        return None
-    if edge.target in overlay_urns:
-        return edge.target
     return None
 
 

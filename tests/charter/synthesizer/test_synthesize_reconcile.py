@@ -821,7 +821,8 @@ def test_edge_owner_assigns_synthesized_edge_to_its_tactic_and_profile_edge_to_p
 
     assert edge_owner(synthesized, overlay_urns) == _SYNTH_TACTIC
     assert edge_owner(profile_edge, overlay_urns) == "agent_profile:rhonda"
-    assert edge_owner(inbound_only, overlay_urns) == "directive:PROJECT_001"
+    # Source is not an overlay node: no owner, preserved (no target fallback, #6404).
+    assert edge_owner(inbound_only, overlay_urns) is None
     assert edge_owner(foreign, overlay_urns) is None
 
 
@@ -896,6 +897,63 @@ def test_hand_authored_directive_suggests_edge_survives_tactic_regeneration(
     assert triples.count(_SUGGESTS_TRIPLE) == 1
     assert result.reconciliation is not None
     assert f"{hand_triple[0]}--suggests-->{hand_triple[1]}" in {r.urn for r in result.reconciliation.retained}
+
+
+def test_hand_authored_requires_edges_into_regenerated_tactic_survive(
+    minimal_interview_snapshot: dict[str, Any],
+    minimal_doctrine_snapshot: dict[str, Any],
+    minimal_drg_snapshot: dict[str, Any],
+    fixture_adapter: FixtureAdapter,
+    tmp_path: Path,
+) -> None:
+    """#6404: a built-in ``procedure``/``directive`` ``requires`` edge into a regenerated tactic is kept.
+
+    A non-overlay source gives the edge no owner, so neither a full run nor a
+    topic-scoped merge may delete it, and the delta must not report it removable.
+    """
+    from charter.activation.synthesizer.reconcile import _graph_delta, merge_project_overlay
+    from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+
+    args = (minimal_interview_snapshot, minimal_doctrine_snapshot, minimal_drg_snapshot, fixture_adapter, tmp_path)
+    _synth("01AAAAAAAAAAAAAAAAAAAAAAAAA", *args)
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
+    hand = [("procedure:some-builtin", _SYNTH_TACTIC, "requires"), ("directive:DIRECTIVE_002", _SYNTH_TACTIC, "requires")]
+    graph = _load_graph(graph_path)
+    for src, tgt, rel in hand:
+        graph["edges"].append({"source": src, "target": tgt, "relation": rel, "reason": "hand-authored"})
+    _dump_graph(graph_path, graph)
+
+    result = _synth("01BBBBBBBBBBBBBBBBBBBBBBBBB", *args)  # full run regenerates the tactic
+
+    triples = _edge_triples(graph_path)
+    for triple in hand:
+        assert triple in triples, f"hand-authored edge {triple} must survive a full run"
+    assert result.reconciliation is not None
+    retained_urns = {r.urn for r in result.reconciliation.retained}
+    for src, tgt, rel in hand:
+        assert f"{src}--{rel}-->{tgt}" in retained_urns
+
+    # Topic-scoped merge + delta (unit level) behave the same.
+    def _graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
+        return DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=nodes, edges=edges)
+
+    tactic = DRGNode(urn=_SYNTH_TACTIC, kind=NodeKind.TACTIC, label="t")
+    derived = _derived_edge_fixture("directive:DIRECTIVE_003", _SYNTH_TACTIC)
+    hand_edges = [DRGEdge(source=s_, target=t_, relation=Relation.REQUIRES, reason="hand") for s_, t_, _ in hand]
+    existing = _graph([tactic], [derived, *hand_edges])
+    updated = _graph([tactic], [derived])
+    merged = merge_project_overlay(
+        existing_overlay=existing, updated_overlay=updated, synthesized_urns={_SYNTH_TACTIC}, topic_scoped=True
+    )
+    assert {(e.source, e.relation.value) for e in merged.edges} >= {(s_, "requires") for s_, _, _ in hand}
+    retained, _added, removable_refs = _graph_delta(
+        existing_overlay=existing, fresh_overlay=updated, urn_to_path={}, synthesized_urns={_SYNTH_TACTIC}
+    )
+    for e in hand_edges:
+        label = f"{e.source}--requires-->{e.target}"
+        assert label in {r.urn for r in retained}
+        # ``removable`` mirrors ``retained`` by design (prune-eligible only under --prune).
+        assert label in {r.urn for r in removable_refs}
 
 
 def test_legacy_applies_strip_is_limited_to_regenerated_tactic_sources() -> None:
