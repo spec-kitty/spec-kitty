@@ -1,7 +1,7 @@
 {
-  "event_count": 45,
-  "last_event_id": "01M5AB42YPJBKM83RN4BD7FY89",
-  "materialized_at": "2026-10-19T15:05:17.014892+00:00",
+  "event_count": 50,
+  "last_event_id": "01M5ADCXTZ97T9G2S0NXVKB8KN",
+  "materialized_at": "2026-10-19T15:45:03.839517+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "software-dev",
@@ -125,19 +125,28 @@
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "implement-command",
       "lane": "in_review",
-      "last_event_id": "01M5AB42YPJBKM83RN4BD7FY89",
-      "last_transition_at": "2026-10-19T15:05:17.014892+00:00",
+      "last_event_id": "01M5ADCXTZ97T9G2S0NXVKB8KN",
+      "last_transition_at": "2026-10-19T15:45:03.839517+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-19T14:56:19Z – implement-command – shell_pid=15513 – Red-first: 14 behavioural tests failed with real assertions before the fix (Kotlin-majority Gradle/Maven primary was java; declared Kotlin/Gradle/JUnit gave java/unknown; jvm-tagged artifact did not match kotlin/java; lacks_specialist_guidance did not expand families); 3 interview_mapping tests red (Gradle gave a java target, Kotlin gave java); architectural test_single_language_vocabulary red on code_reader.py:50/71/173 and language_scope.py:48. Green: 1081 passed, 13 skipped over tests/charter/evidence, test_language_*.py, charter_offering/shared, charter/synthesizer, infer_repo_languages test files, arch test_single_language_vocabulary/layer_rules/runtime_charter_activation_boundary/no_dead_symbols. ruff, format, mypy --strict clean; no new noqa/type-ignore. Changed behaviour for CHANGELOG: declared 'Gradle'/'Maven'/'JUnit' alone now resolves to [jvm] (was [java]); 'Java, Gradle' stays [java]; Kotlin-majority JVM repos report kotlin (was java); declared order of extract_declared_languages now follows catalog order (python, go, rust, java, kotlin, ruby, php, javascript, typescript, swift). Deviations: canonical_tokens() omitted (dead-symbol gate: no src caller); no existing pinned expectation needed changing (code_reader Java cases are Java-majority); observe_primary_language does its own depth-capped walk (second walk beside the collector scan). Unowned edits: none. Schemas accept jvm (free string items; validate rejects only unknown/any/all). test_scoping_any_all.py untouched."
+        "- 2026-10-19T14:56:19Z – implement-command – shell_pid=15513 – Red-first: 14 behavioural tests failed with real assertions before the fix (Kotlin-majority Gradle/Maven primary was java; declared Kotlin/Gradle/JUnit gave java/unknown; jvm-tagged artifact did not match kotlin/java; lacks_specialist_guidance did not expand families); 3 interview_mapping tests red (Gradle gave a java target, Kotlin gave java); architectural test_single_language_vocabulary red on code_reader.py:50/71/173 and language_scope.py:48. Green: 1081 passed, 13 skipped over tests/charter/evidence, test_language_*.py, charter_offering/shared, charter/synthesizer, infer_repo_languages test files, arch test_single_language_vocabulary/layer_rules/runtime_charter_activation_boundary/no_dead_symbols. ruff, format, mypy --strict clean; no new noqa/type-ignore. Changed behaviour for CHANGELOG: declared 'Gradle'/'Maven'/'JUnit' alone now resolves to [jvm] (was [java]); 'Java, Gradle' stays [java]; Kotlin-majority JVM repos report kotlin (was java); declared order of extract_declared_languages now follows catalog order (python, go, rust, java, kotlin, ruby, php, javascript, typescript, swift). Deviations: canonical_tokens() omitted (dead-symbol gate: no src caller); no existing pinned expectation needed changing (code_reader Java cases are Java-majority); observe_primary_language does its own depth-capped walk (second walk beside the collector scan). Unowned edits: none. Schemas accept jvm (free string items; validate rejects only unknown/any/all). test_scoping_any_all.py untouched.",
+        "- 2026-10-19T15:34:44Z – unknown – Review 1 fixes: catalog declared_rank restores pre-catalog declared order (kotlin next to java, jvm tool tokens at java slot); red-first 9 tests failed before (order churn cases, one-walk), now green; collector reuses its single walk via resolve_primary_language (observe_primary_language wrapper removed, no src caller); vocabulary gate scans ast.List with a test; family constants kept out of __all__; canonical_tokens omitted (dead-symbol gate). DoD suites 1092 passed after fixing one test-only bug; ruff/format/mypy clean, no new suppressions.",
+        "Cycle 1 fixes dfbc73f33; orchestrator reran DoD subset: 455 passed, 7 skipped; zero new suppressions."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/charter-synthesis-graph-and-languages-01M59RZ5-coord/kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP04-language-catalog-authority/review-cycle-1.md",
+        "reference": "review-cycle://charter-synthesis-graph-and-languages-01M59RZ5/WP04-language-catalog-authority/review-cycle-1.md",
+        "reviewer": "claude",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
-      "shell_pid": 824,
-      "shell_pid_created_at": "1792422309.64",
+      "shell_pid": 26246,
+      "shell_pid_created_at": "1792424696.46",
       "subtasks": {
         "T016": "done",
         "T017": "done",
