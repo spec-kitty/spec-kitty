@@ -179,6 +179,26 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-10-19T19:19:56.385371Z",
+      "decision_id": "01M5ASPC7101YP5CQE54DC3G3Z",
+      "final_answer": "Store the detected list, make the operator clearly aware (text and JSON: what was stored, that it was detected, how to change it), and apply the 20% rule: a secondary language is detected only when it holds at least 20% of the counted sources; a manifest alone only nominates a candidate.",
+      "input_key": "non_interactive_language_store",
+      "mission_id": "01M59RZ597H5999C9E7JJMMWJW",
+      "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "What does a non-interactive charter interview do when config.yaml has no languages list (#6444)?",
+      "rationale": "Operator write-in 2026-10-19 on the WP07 review finding (tooling-only package.json).",
+      "resolved_at": "2026-10-19T19:20:00.463224Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.languages.non-interactive-store",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M59RZ597H5999C9E7JJMMWJW",
