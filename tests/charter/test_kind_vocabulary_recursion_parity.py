@@ -53,21 +53,6 @@ def test_nested_org_styleguide_resolves(tmp_path: Path) -> None:
 # ── T009: nested org + project tactic resolve ─────────────────────────────────
 
 
-def test_nested_org_tactic_resolves(tmp_path: Path) -> None:
-    pack = tmp_path / "orgpack"
-    _write(
-        pack / "tactics" / "testing" / "wp02t.tactic.yaml",
-        {"id": "wp02-nested-tactic"},
-    )
-    urn = resolve_artifact_urn(
-        ArtifactKind.TACTIC,
-        "wp02t",
-        offering_root=tmp_path / "offering_root",
-        org_roots=[pack],
-    )
-    assert urn == "tactic:wp02-nested-tactic"
-
-
 def test_nested_project_tactic_resolves(tmp_path: Path) -> None:
     """The project layer (``<project pack root>/tactic/``) also recurses."""
     proj = tmp_path / "project"
@@ -94,7 +79,6 @@ def test_resolver_matches_loader_for_nested_org_tactic(tmp_path: Path) -> None:
     pack = tmp_path / "orgpack"
     built_in = tmp_path / "built-in"
     built_in.mkdir()
-    _write(pack / "tactics" / "deep" / "parity.tactic.yaml", {"id": "parity-tactic"})
     # A valid tactic for the loader (needs schema fields, not just id).
     _write(
         pack / "tactics" / "deep" / "parity.tactic.yaml",

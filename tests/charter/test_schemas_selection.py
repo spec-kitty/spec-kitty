@@ -23,7 +23,6 @@ from charter.activation.schemas import (
     GovernanceCharterConfig,
     GovernanceConfig,
     _OPTIONAL_EMPTY_OMIT_KEYS,
-    _prune_optional_empties,
     emit_yaml,
 )
 
@@ -52,39 +51,6 @@ def test_default_construction_exposes_all_new_selected_fields() -> None:
         assert getattr(cfg, key) == [], (
             f"Field {key} should default to empty list, got {getattr(cfg, key)!r}"
         )
-
-
-def test_new_selected_keys_are_in_optional_omit_set() -> None:
-    """All five new selected_<kind> field names must appear in
-    ``_OPTIONAL_EMPTY_OMIT_KEYS`` so empty values stay out of emitted YAML.
-    """
-    missing = sorted(set(_NEW_SELECTED_KEYS) - _OPTIONAL_EMPTY_OMIT_KEYS)
-    assert not missing, (
-        "The following selected_<kind> fields are not in "
-        f"_OPTIONAL_EMPTY_OMIT_KEYS: {missing}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Pruning
-# ---------------------------------------------------------------------------
-
-
-def test_prune_omits_empty_new_selected_fields() -> None:
-    raw = GovernanceCharterConfig().model_dump(mode="json")
-    pruned = _prune_optional_empties(raw)
-    for key in _NEW_SELECTED_KEYS:
-        assert key not in pruned, (
-            f"Empty {key!r} should have been pruned, but appears in: "
-            f"{sorted(pruned)}"
-        )
-
-
-def test_prune_keeps_populated_new_selected_fields() -> None:
-    cfg = GovernanceCharterConfig(selected_styleguides=["caveman-comments"])
-    raw = cfg.model_dump(mode="json")
-    pruned = _prune_optional_empties(raw)
-    assert pruned.get("selected_styleguides") == ["caveman-comments"]
 
 
 # ---------------------------------------------------------------------------

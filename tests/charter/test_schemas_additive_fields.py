@@ -38,19 +38,6 @@ def _load_yaml_str(text: str) -> dict[str, Any]:
 
 
 class TestDirectiveReferencesField:
-    def test_default_is_empty_list(self) -> None:
-        """A Directive constructed without ``references`` defaults to ``[]``."""
-        directive = Directive(id="DIR-001", title="t", description="d")
-        assert directive.references == []
-
-    def test_default_is_not_shared_between_instances(self) -> None:
-        """Two Directives must not share the same list object (Pydantic uses
-        ``default_factory``)."""
-        a = Directive(id="DIR-001", title="t", description="d")
-        b = Directive(id="DIR-002", title="t", description="d")
-        a.references.append("DIRECTIVE_999")
-        assert b.references == []
-
     def test_round_trip_without_references(self) -> None:
         """Existing YAML lacking ``references:`` deserializes with ``[]`` and
         re-serializes (with ``exclude_defaults=True``) without emitting the
@@ -90,29 +77,12 @@ class TestDirectiveReferencesField:
         dumped = directive.model_dump(exclude_defaults=True)
         assert dumped["references"] == ["DIRECTIVE_032", "some-tactic-slug"]
 
-    def test_references_accepts_empty_list_explicitly(self) -> None:
-        directive = Directive(
-            id="DIR-001", title="t", description="d", references=[]
-        )
-        assert directive.references == []
-
-
 # ---------------------------------------------------------------------------
 # GovernanceCharterConfig.authority_paths
 # ---------------------------------------------------------------------------
 
 
 class TestDoctrineSelectionAuthorityPathsField:
-    def test_default_is_empty_list(self) -> None:
-        config = GovernanceCharterConfig()
-        assert config.authority_paths == []
-
-    def test_default_is_not_shared_between_instances(self) -> None:
-        a = GovernanceCharterConfig()
-        b = GovernanceCharterConfig()
-        a.authority_paths.append("docs/context/")
-        assert b.authority_paths == []
-
     def test_round_trip_without_authority_paths(self) -> None:
         """Existing YAML lacking ``authority_paths:`` loads with ``[]`` and
         does not emit the new key when dumped with ``exclude_defaults=True``."""

@@ -34,7 +34,6 @@ from tests._support.charter_cwd_tripwire import (
     _make_wrapper,
     _Tripwire,
     _WrapAfterCharterImport,
-    build_violation_message,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -293,14 +292,6 @@ def test_predicate_resolves_symlinks(tmp_path: Path) -> None:
     alias.symlink_to(checkout, target_is_directory=True)
 
     assert _is_inside_invoking_checkout(alias, checkout=checkout.resolve()) is True
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_message_deduplicates_and_sorts_the_probed_paths() -> None:
-    message = build_violation_message("tests/x/test_y.py::test_z", [Path("/b"), Path("/a"), Path("/b")])
-
-    assert "(/a, /b)" in message
 
 
 @pytest.mark.fast

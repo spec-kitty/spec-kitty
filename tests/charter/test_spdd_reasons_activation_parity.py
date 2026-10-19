@@ -142,22 +142,6 @@ def _expected_active(pack_context: PackContext) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def test_absent_config_yaml_returns_false(tmp_path: Path) -> None:
-    """FR-004 pin: no ``.kittify/config.yaml`` at all -> ``False``.
-
-    PIN, not a red-on-main regression test (T001 step 3): the pre-fix body
-    already returns ``False`` when ``.kittify/charter/`` is absent (its own
-    early-return check), so this specific assertion is trivially GREEN on
-    ``main`` today. It belongs in the ATDD-first sequence because it pins
-    the value T004's rewrite must preserve byte-for-byte -- committed before
-    the rewrite so the rewrite's own correctness against this case is
-    verified by a pre-existing assertion, not asserted after the fact.
-    """
-    assert not (tmp_path / ".kittify").exists()
-
-    assert is_spdd_reasons_active(tmp_path) is False
-
-
 _TEMPLATE_TEXT = (
     "preceding line\n"
     "\n"

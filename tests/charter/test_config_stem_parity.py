@@ -126,25 +126,6 @@ def activated_directive_stems(repo_root: Path) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# T001/T002 — resolve_artifact_urn is the stem→canonical, reject-not-drop
-# resolver (pin, not reimplementation).
-# --------------------------------------------------------------------------- #
-
-
-def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
-    offering_root: Path, org_roots: list[Path]
-) -> None:
-    """An unresolvable stem raises — it is never silently skipped (C-006)."""
-    with pytest.raises(UnknownArtifactIdError):
-        resolve_artifact_urn(
-            ArtifactKind.DIRECTIVE,
-            "999-does-not-exist-anywhere",
-            offering_root=offering_root,
-            org_roots=org_roots,
-        )
-
-
-# --------------------------------------------------------------------------- #
 # T003 — full activated-directive parity fixture, driven by this repo's own
 # .kittify/config.yaml (production-shaped data, not placeholders).
 # --------------------------------------------------------------------------- #

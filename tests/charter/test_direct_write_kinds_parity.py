@@ -41,7 +41,6 @@ def test_scanner_binds_the_canonical_constant() -> None:
     # The scanner references the single canonical constant rather than a
     # re-declared local five-kind tuple (`is` proves the exact object binding).
     assert project_scan.DIRECT_WRITE_KINDS is artifact_kinds.DIRECT_WRITE_KINDS
-    assert set(project_scan.DIRECT_WRITE_KINDS) == set(DIRECT_WRITE_KINDS)
 
 
 def test_manifest_literal_matches_direct_write_kinds() -> None:

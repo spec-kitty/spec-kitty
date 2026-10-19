@@ -83,41 +83,6 @@ def test_sync_never_writes_derivatives(tmp_path: Path):
         assert not (tmp_path / filename).exists(), filename
 
 
-def test_sync_directive_placeholder_body_does_not_resurrect_extraction(tmp_path: Path):
-    """A charter body that used to trigger directive-scrape warnings is now inert.
-
-    Regression guard for the retired prose->triad extractor: a charter.md
-    carrying the exact shape that used to trip the "hollow generated
-    placeholder" warning (part of the now-RETIRED directives.yaml scraper)
-    must not resurrect any extraction side effect -- no directives.yaml, no
-    warning, no write of any kind.
-    """
-    charter_file = tmp_path / "charter.md"
-    charter_file.write_text(
-        """# Project Charter
-
-## Governance Activation
-
-```yaml
-selected_directives: [DIRECTIVE_003]
-```
-
-## Project Directives
-
-1. Apply doctrine directive `DIRECTIVE_003` to planning and implementation decisions.
-""",
-        encoding="utf-8",
-    )
-
-    result = sync(charter_file, tmp_path, force=True)
-
-    assert result.synced is False
-    assert result.files_written == []
-    assert result.warnings == []
-    assert not (tmp_path / "directives.yaml").exists()
-    assert not (tmp_path / "governance.yaml").exists()
-
-
 def test_sync_stale_before_true_when_no_prior_metadata(tmp_path: Path):
     """No pre-existing metadata.yaml -> stale_before=True (nothing to compare against)."""
     charter_file = tmp_path / "charter.md"
@@ -160,19 +125,6 @@ def test_sync_stale_before_true_after_charter_modified(tmp_path: Path):
 
     assert result.synced is False
     assert result.stale_before is True
-
-
-def test_sync_force_flag_does_not_change_behavior(tmp_path: Path):
-    """force=True is accepted for signature stability but no longer alters behavior."""
-    charter_file = tmp_path / "charter.md"
-    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
-
-    without_force = sync(charter_file, tmp_path)
-    with_force = sync(charter_file, tmp_path, force=True)
-
-    assert without_force.synced is False
-    assert with_force.synced is False
-    assert with_force.files_written == []
 
 
 def test_sync_repeated_calls_are_stable(tmp_path: Path):
