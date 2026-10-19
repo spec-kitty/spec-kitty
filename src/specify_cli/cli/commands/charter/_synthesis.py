@@ -984,11 +984,19 @@ def _emit_dry_run_report(
     console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
     for f in staged_files:
         console.print(f"  [dim]staged:[/dim] {f}")
-    if delta.removable:
-        console.print("[yellow]Planned deletions (would run under --prune):[/yellow]")
-        for ref in delta.removable:
+    stripped = _stripped_legacy_edges(delta)
+    prune_only = [ref for ref in delta.removable if ref.reason is None]
+    if stripped:
+        # Removed on every run (replaced by their ``suggests`` successor), NOT
+        # only under --prune.
+        console.print("[yellow]Replaced legacy edges (removed without --prune):[/yellow]")
+        for ref in stripped:
             console.print(f"  - {ref.ref_kind}: {ref.urn}")
-    else:
+    if prune_only:
+        console.print("[yellow]Planned deletions (would run under --prune):[/yellow]")
+        for ref in prune_only:
+            console.print(f"  - {ref.ref_kind}: {ref.urn}")
+    elif not stripped:
         console.print("[dim]No divergence: --prune would remove nothing.[/dim]")
     for conflict in delta.conflicts:
         console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
