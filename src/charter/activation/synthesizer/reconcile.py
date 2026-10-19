@@ -60,7 +60,6 @@ __all__ = [
     "ReconciliationDelta",
     "SynthesizeMode",
     "apply_prune",
-    "edge_owner",
     "is_synthesized_tactic_edge",
     "legacy_strip_notice",
     "merge_project_overlay",

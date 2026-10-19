@@ -22,6 +22,7 @@ from typer.testing import CliRunner
 
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
+from charter.activation.synthesizer.reach_only import CREATED_TACTICS_PATH
 from charter.bundle import compute_bundle_content_hash
 from specify_cli.cli.commands.charter import charter_app
 
@@ -139,10 +140,11 @@ def test_synthesize_does_not_readd_a_tactic_the_operator_removed(tmp_path: Path,
     assert "operator-kept-other" in _activated(charter_yaml)
 
 
-def test_synthesize_appends_a_tactic_created_by_the_rerun(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
-    """Control for the test above: when the rerun creates the tactic afresh, it is appended."""
+def test_removed_tactic_stays_removed_when_a_rerun_regenerates_it(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """Operator ruling 2026-10-19: a removed tactic is never silently re-added, even when regenerated."""
     charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
     assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+    assert _TACTIC in _activated(charter_yaml)  # control: the first run created and appended it
     charter_yaml.write_text(charter_yaml.read_text(encoding="utf-8").replace(_TACTIC, "operator-kept-other"), encoding="utf-8")
     (tmp_path / MANIFEST_PATH).unlink()
     shutil.rmtree(tmp_path / ".kittify" / "charter-packs")
@@ -150,7 +152,36 @@ def test_synthesize_appends_a_tactic_created_by_the_rerun(tmp_path: Path, charte
     result = _synthesize_cli(charter_cwd_isolation)
 
     assert result.exit_code == 0, result.output
-    assert _TACTIC in _activated(charter_yaml)  # new to the manifest this run -> appended
+    assert any(ref.slug == _TACTIC for ref in load_yaml(tmp_path / MANIFEST_PATH).artifacts)  # regenerated
+    assert _TACTIC not in _activated(charter_yaml)  # but not reinstalled
+
+
+def test_removal_sticks_after_a_run_with_the_key_absent(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """A run with no explicit list still records the tactic, so a later explicit removal sticks."""
+    charter_yaml = _seed_project(tmp_path, activated_tactics=None)
+    assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+    assert _activated(charter_yaml) is None
+    assert _TACTIC in (yaml.safe_load((tmp_path / CREATED_TACTICS_PATH).read_text(encoding="utf-8")) or {})["created_tactics"]
+    charter_yaml.write_text(charter_yaml.read_text(encoding="utf-8") + yaml.safe_dump({"activated_tactics": [_EXISTING]}), encoding="utf-8")
+    (tmp_path / MANIFEST_PATH).unlink()
+    shutil.rmtree(tmp_path / ".kittify" / "charter-packs")
+
+    assert _synthesize_cli(charter_cwd_isolation).exit_code == 0
+
+    assert _activated(charter_yaml) == [_EXISTING]
+
+
+def test_unreadable_created_tactics_record_appends_nothing_and_warns(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    record = tmp_path / CREATED_TACTICS_PATH
+    record.write_text("created_tactics: not-a-list\n", encoding="utf-8")
+
+    result = _synthesize_cli(charter_cwd_isolation)
+
+    assert result.exit_code == 0, result.output
+    assert _activated(charter_yaml) == [_EXISTING]
+    assert "synthesized-tactics.yaml is unreadable" in result.output
+    assert record.read_text(encoding="utf-8") == "created_tactics: not-a-list\n"  # never overwritten
 
 
 def test_created_tactic_slugs_takes_only_added_tactic_entries() -> None:
@@ -253,3 +284,16 @@ def test_append_skips_slugs_already_activated(tmp_path: Path) -> None:
 
     assert append_synthesized_tactic_activations(tmp_path, [_EXISTING]) == []
     assert charter_yaml.read_bytes() == before
+
+
+def test_append_records_every_slug_and_appends_only_first_time_ones(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import append_synthesized_tactic_activations
+
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    (tmp_path / CREATED_TACTICS_PATH).write_text("created_tactics:\n- removed-earlier\n", encoding="utf-8")
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_synthesized_tactic_activations(tmp_path, ["removed-earlier", "brand-new"])
+
+    assert _activated(charter_yaml) == [_EXISTING, "brand-new"]
+    recorded = yaml.safe_load((tmp_path / CREATED_TACTICS_PATH).read_text(encoding="utf-8"))["created_tactics"]
+    assert recorded == ["brand-new", "removed-earlier"]

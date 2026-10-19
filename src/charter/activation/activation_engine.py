@@ -81,7 +81,6 @@ __all__ = [
     "commit_plan",
     "plan_activation",
     "plan_deactivation",
-    "plan_narrowed_list",
     "promote_activations",
 ]
 

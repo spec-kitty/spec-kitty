@@ -138,8 +138,11 @@ completes.
 Synthesis links each synthesized "how we apply" tactic from its directive with a
 `directive --suggests--> tactic` edge. Such a tactic is reach-only: it is delivered
 only while its directive is active, even when listed in `activated_tactics`. When
-`activated_tactics` is present, synthesis appends the tactic ids it creates; it never
-creates the key. Re-synthesis replaces legacy `applies` edges on synthesized tactics
+`activated_tactics` is present, synthesis appends a tactic id the first time it creates
+that tactic; it never creates the key. A tactic you remove from the list stays removed:
+synthesis records every tactic it has created in `.kittify/charter/synthesized-tactics.yaml`
+and never appends one again, even when a later run regenerates it. Bring one back with
+`spec-kitty charter activate tactic <id>`. Re-synthesis replaces legacy `applies` edges on synthesized tactics
 and reports the replacement.
 
 | Flag | Description | Default |

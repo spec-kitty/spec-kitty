@@ -325,3 +325,12 @@ def test_reach_only_tactic_ids_empty_without_a_manifest(tmp_path: Path) -> None:
 
     _write_overlay(tmp_path, with_edge=True, manifest_slugs=())
     assert reach_only_tactic_ids(tmp_path) == frozenset()
+
+
+def test_operator_removed_reach_only_tactic_is_not_delivered_through_its_directive(tmp_path: Path) -> None:
+    """An operator who removes the tactic from an explicit list keeps it out, directive or not."""
+    removed = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS - {_REACH_ONLY})
+    kept = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS)
+
+    assert _REACH_ONLY not in removed
+    assert _REACH_ONLY in kept
