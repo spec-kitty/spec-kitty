@@ -363,3 +363,19 @@ def test_plan_activation_narrow_base_still_validates_the_id_first(config_path: P
     data, _ = _load(config_path)
     with pytest.raises(UnknownActivationIdError):
         plan_activation("directive", "nope", yaml_key="activated_directives", available_ids=_AVAILABLE, config_data=data, narrow_base=["001-foo"])
+
+
+def test_plan_activation_narrow_base_stays_fail_closed_on_a_non_list_value() -> None:
+    """The narrow path must not skip the engine's malformed-config check (#6408)."""
+    data: dict[str, Any] = {"activated_directives": "001-foo"}
+    with pytest.raises(ValueError, match="must be a list"):
+        plan_activation(
+            "directive",
+            "001-foo",
+            yaml_key="activated_directives",
+            available_ids=_AVAILABLE,
+            config_data=data,
+            narrow_base=["001-foo"],
+            previous_ids=["001-foo"],
+        )
+    assert data == {"activated_directives": "001-foo"}

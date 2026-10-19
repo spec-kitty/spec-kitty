@@ -349,11 +349,13 @@ def plan_activation(
     if artifact_id not in set(available_ids):
         raise UnknownActivationIdError(kind, artifact_id)
 
+    # Fail closed on a malformed (non-list) value on every path, narrowing included.
+    current = _current_list(config_data, yaml_key)
+
     if narrow_base is not None:
         return plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids)
 
     warnings: list[str] = []
-    current = _current_list(config_data, yaml_key)
 
     was_unrestricted = current is None
     if current is None:  # the UNRESTRICTED state; narrows `current` for the else branch
