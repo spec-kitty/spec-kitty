@@ -13,5 +13,7 @@
   "purpose_tldr": "Make synthesized styleguides reach-only through their directive, make the project-intent directive honest about its scope, and give charter one language authority with multi-language evidence and a jvm family tag.",
   "slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "target_branch": "issue-6442-charter-synthesis-graph-work",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-19T10:25:05.694593+00:00"
 }

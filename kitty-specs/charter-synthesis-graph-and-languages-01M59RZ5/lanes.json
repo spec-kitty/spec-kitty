@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+  "mission_id": "01M59RZ597H5999C9E7JJMMWJW",
+  "mission_branch": "kitty/mission-charter-synthesis-graph-and-languages-01M59RZ5",
+  "target_branch": "issue-6442-charter-synthesis-graph-work",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/testing/testing-flakiness.md",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command.py",
+        "tests/specify_cli/upgrade/test_runner_not_a_git_repository.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        ".kittify/charter-packs/directive/**",
+        ".kittify/charter-packs/graph.yaml",
+        ".kittify/charter/charter.yaml",
+        ".kittify/charter/generated/**",
+        ".kittify/charter/provenance/**",
+        ".kittify/charter/synthesis-manifest.yaml",
+        ".kittify/config.yaml",
+        "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md",
+        "docs/adr/3.x/2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md",
+        "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md",
+        "src/charter/activation/action_governance_bundle.py",
+        "src/charter/activation/api.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/evidence/code_reader.py",
+        "src/charter/activation/language_authority.py",
+        "src/charter/activation/language_scope.py",
+        "src/charter/activation/synthesizer/evidence.py",
+        "src/charter/activation/synthesizer/interview_mapping.py",
+        "src/charter/activation/synthesizer/legacy_rename.py",
+        "src/charter/activation/synthesizer/project_drg.py",
+        "src/charter/activation/synthesizer/reach_only.py",
+        "src/charter/activation/synthesizer/reconcile.py",
+        "src/charter/activation/synthesizer/request.py",
+        "src/charter/activation/synthesizer/resynthesize_pipeline.py",
+        "src/charter/activation/synthesizer/targets.py",
+        "src/charter/activation/synthesizer/write_pipeline.py",
+        "src/charter/offering/shared/language_catalog.py",
+        "src/charter/offering/shared/scoping.py",
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_project_intent_directive_rename.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "tests/acceptance/charter_pack_cutover/**",
+        "tests/agent/cli/commands/test_charter_status_cli.py",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/architectural/test_no_op_stable_writes.py",
+        "tests/architectural/test_single_language_vocabulary.py",
+        "tests/charter/evidence/test_code_reader.py",
+        "tests/charter/fixtures/synthesizer/directive/**",
+        "tests/charter/fixtures/synthesizer/styleguide/**",
+        "tests/charter/synthesizer/test_context_reflects_synthesis.py",
+        "tests/charter/synthesizer/test_edge_wiring.py",
+        "tests/charter/synthesizer/test_evidence.py",
+        "tests/charter/synthesizer/test_generated_artifact_adapter.py",
+        "tests/charter/synthesizer/test_interview_mapping.py",
+        "tests/charter/synthesizer/test_legacy_rename.py",
+        "tests/charter/synthesizer/test_multi_language_evidence.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_orchestrator_synthesize.py",
+        "tests/charter/synthesizer/test_performance_envelopes.py",
+        "tests/charter/synthesizer/test_project_drg.py",
+        "tests/charter/synthesizer/test_project_intent_directive.py",
+        "tests/charter/synthesizer/test_reach_only_delivery.py",
+        "tests/charter/synthesizer/test_request.py",
+        "tests/charter/synthesizer/test_schema_conformance.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py",
+        "tests/charter/synthesizer/test_synthesize_activation_append.py",
+        "tests/charter/synthesizer/test_synthesize_conflict_routing.py",
+        "tests/charter/synthesizer/test_synthesize_node_preservation.py",
+        "tests/charter/synthesizer/test_synthesize_path_parity.py",
+        "tests/charter/synthesizer/test_synthesize_reconcile.py",
+        "tests/charter/synthesizer/test_write_pipeline.py",
+        "tests/charter/test_language_authority.py",
+        "tests/charter/test_language_scope.py",
+        "tests/charter/test_synthesis_provenance_paths.py",
+        "tests/charter_offering/shared/test_language_catalog.py",
+        "tests/charter_offering/shared/test_scoping.py",
+        "tests/charter_offering/shared/test_scoping_any_all.py",
+        "tests/fixtures/charter_pack_cutover/static/synthesized/**",
+        "tests/specify_cli/charter/test_bundle_validate_fresh_seed.py",
+        "tests/specify_cli/charter_freshness/test_computer.py",
+        "tests/specify_cli/charter_runtime/test_boundary_heal.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_preserve.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py",
+        "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_project_intent_directive_rename.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "packs/built-in.source.yaml",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/toolguide.graph.yaml",
+        "packs/built-in/toolguides/java-supply-chain.toolguide.yaml",
+        "packs/built-in/toolguides/maven-review-checks.toolguide.yaml",
+        "tests/charter/fixtures/synthesized_in_force_snapshot.json",
+        "tests/charter/test_jvm_toolguide_scoping.py",
+        "tests/charter/test_synthesized_in_force_snapshot.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-19T10:24:31.700276+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7cd9ee7e14fe4a3c366bdf22ed35d66fca4af345",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/charter/activation/synthesizer/reconcile.py' vs 'src/charter/activation/synthesizer/reconcile.py', 'src/charter/activation/synthesizer/interview_mapping.py' vs 'src/charter/activation/synthesizer/interview_mapping.py', 'src/charter/activation/synthesizer/targets.py' vs 'src/charter/activation/synthesizer/targets.py', 'src/charter/activation/api.py' vs 'src/charter/activation/api.py', 'src/specify_cli/cli/commands/charter/synthesize.py' vs 'src/specify_cli/cli/commands/charter/synthesize.py', 'src/specify_cli/cli/commands/charter/resynthesize.py' vs 'src/specify_cli/cli/commands/charter/resynthesize.py', 'tests/charter/synthesizer/test_synthesize_activation_append.py' vs 'tests/charter/synthesizer/test_synthesize_activation_append.py', 'tests/charter/synthesizer/test_synthesize_reconcile.py' vs 'tests/charter/synthesizer/test_synthesize_reconcile.py', 'tests/charter/synthesizer/test_edge_wiring.py' vs 'tests/charter/synthesizer/test_edge_wiring.py', 'tests/architectural/test_charter_activation_api_reexport.py' vs 'tests/architectural/test_charter_activation_api_reexport.py'; WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/charter/activation/synthesizer/interview_mapping.py' vs 'src/charter/activation/synthesizer/interview_mapping.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/charter/synthesize.py' vs 'src/specify_cli/cli/commands/charter/synthesize.py', 'docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md' vs 'docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md'"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 3
+    }
+  }
+}

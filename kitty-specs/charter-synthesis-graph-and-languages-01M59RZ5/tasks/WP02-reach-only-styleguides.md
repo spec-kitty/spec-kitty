@@ -1,46 +1,66 @@
 ---
-work_package_id: "WP02"
-subtasks:
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Reach-only by kind: synthesized styleguides follow their directive"
-task_type: "implement"
-phase: "Phase 1 - Synthesis graph"
-execution_mode: "code_change"
+work_package_id: WP02
+title: 'Reach-only by kind: synthesized styleguides follow their directive'
 dependencies: []
-requirement_refs: ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-019", "C-001", "C-002", "C-003", "SC-001", "SC-002"]
-owned_files:
-  - "src/charter/activation/synthesizer/reach_only.py"
-  - "src/charter/activation/synthesizer/reconcile.py"
-  - "src/charter/activation/synthesizer/project_drg.py"
-  - "src/charter/activation/synthesizer/interview_mapping.py"
-  - "src/charter/activation/synthesizer/targets.py"
-  - "src/charter/activation/synthesizer/resynthesize_pipeline.py"
-  - "src/charter/activation/compiler.py"
-  - "src/charter/activation/api.py"
-  - "src/specify_cli/cli/commands/charter/synthesize.py"
-  - "src/specify_cli/cli/commands/charter/resynthesize.py"
-  - "tests/charter/synthesizer/test_styleguide_reach_only.py"
-  - "tests/charter/synthesizer/test_reach_only_delivery.py"
-  - "tests/charter/synthesizer/test_synthesize_activation_append.py"
-  - "tests/charter/synthesizer/test_project_drg.py"
-  - "tests/charter/synthesizer/test_synthesize_reconcile.py"
-  - "tests/charter/synthesizer/test_edge_wiring.py"
-  - "tests/architectural/test_charter_activation_api_reexport.py"
-  - "tests/charter/fixtures/synthesizer/styleguide/**"
-  - "docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md"
-  - "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md"
-authoritative_surface: "src/charter/activation/synthesizer/"
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-019
+- C-001
+- C-002
+- C-003
+- SC-001
+- SC-002
+planning_base_branch: issue-6442-charter-synthesis-graph-work
+merge_target_branch: issue-6442-charter-synthesis-graph-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-synthesis-graph-and-languages-01M59RZ5
+base_commit: 08f617b050721dc3140f62e8ab1604458fb175a7
+created_at: '2026-10-19T10:25:48.938649+00:00'
+subtasks:
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Phase 1 - Synthesis graph
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/charter/activation/synthesizer/
 create_intent:
-  - "tests/charter/synthesizer/test_styleguide_reach_only.py"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5-5"
+- tests/charter/synthesizer/test_styleguide_reach_only.py
+execution_mode: code_change
+model: claude-sonnet-5-5
+owned_files:
+- src/charter/activation/action_governance_bundle.py
+- src/charter/activation/synthesizer/reach_only.py
+- src/charter/activation/synthesizer/reconcile.py
+- src/charter/activation/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/interview_mapping.py
+- src/charter/activation/synthesizer/targets.py
+- src/charter/activation/synthesizer/resynthesize_pipeline.py
+- src/charter/activation/compiler.py
+- src/charter/activation/api.py
+- src/specify_cli/cli/commands/charter/synthesize.py
+- src/specify_cli/cli/commands/charter/resynthesize.py
+- tests/charter/synthesizer/test_styleguide_reach_only.py
+- tests/charter/synthesizer/test_reach_only_delivery.py
+- tests/charter/synthesizer/test_synthesize_activation_append.py
+- tests/charter/synthesizer/test_project_drg.py
+- tests/charter/synthesizer/test_synthesize_reconcile.py
+- tests/charter/synthesizer/test_edge_wiring.py
+- tests/architectural/test_charter_activation_api_reexport.py
+- tests/charter/fixtures/synthesizer/styleguide/**
+- docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md
+- docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Reach-only by kind: synthesized styleguides follow their directive
@@ -85,15 +105,16 @@ Make synthesized testing, quality-gate and documentation styleguides reach-only:
     - an unreadable record appends nothing for any kind and warns.
   - **Legacy edge:** a `styleguide --applies--> X` overlay edge is stripped and reported.
   - **No dangling URN:** a DRG snapshot without the table directive emits no edge.
+  - **Org-required:** a synthesized styleguide whose id an org pack requires stays a compiled-references root.
 - Confirm each fails on the current source. Record which ones fail in the WP history.
 
 ### Subtask T006: Styleguide source table and per-kind source_urns (FR-001)
 
 - In `interview_mapping.py`, add `_STYLEGUIDE_SOURCE_DIRECTIVES = {"testing_philosophy": "DIRECTIVE_034", "quality_gates": "DIRECTIVE_030", "documentation_policy": "DIRECTIVE_037"}`.
-- Emit `source_urns_by_kind = {"styleguide": ("directive:…",)}` only when the directive exists in the DRG snapshot, using a presence check like `mission_type_urn_candidate`.
+- Emit `source_urns_by_kind = {"styleguide": ("directive:…",)}` statically from the table. `interview_mapping` must not read the DRG (R-9, `targets.py` around lines 207-210).
 - The `testing_philosophy` tactic must NOT get this source.
 - `_append_language_scope_results` emits no source.
-- In `targets.build_targets`, merge `source_urns_by_kind[kind]` into each target's `source_urns` inside the per-kind loop.
+- In `targets.build_targets`, merge `source_urns_by_kind[kind]` into each target's `source_urns` inside the per-kind loop. First filter the table URNs against the snapshot with a small extracted helper over `_known_drg_urns(drg_snapshot)`, so that a missing directive omits the edge instead of tripping `_validate_source_urns` (`ProjectDRGValidationError`). Make the helper standalone: WP03 deletes `_mission_type_evidence_urns`.
 
 ### Subtask T007: Generalise reach-only and reconcile by kind (FR-002, FR-004, FR-005)
 
@@ -107,7 +128,7 @@ Make synthesized testing, quality-gate and documentation styleguides reach-only:
   - `reach_only_ids(repo_root, kind)`, with org-required ids excluded per kind
 - **Callers:** update every caller. Remove or alias the tactic-only names: keep public names only where `charter.activation.api` must stay stable, and update `tests/architectural/test_charter_activation_api_reexport.py`.
 - **Compiled-references filter:** `compiler._direct_root_urns` filters reach-only styleguides from `config_roots.styleguides`, as it does for tactics.
-- **Action bundle:** leave `action_governance_bundle.py` unchanged (it seeds no styleguide roots), and pin that in a test.
+- **Action bundle:** it seeds no styleguide roots; keep it that way and pin it in a test. It imports `reach_only_tactic_ids` (around line 38), so switch that call to `reach_only_ids(root, "tactic")` and remove the tactic-only name. You own this file for that edit only.
 
 ### Subtask T008: Per-kind created-artifact record (FR-003, D-01)
 
@@ -127,7 +148,10 @@ Make synthesized testing, quality-gate and documentation styleguides reach-only:
   - `tests/charter/synthesizer/test_project_drg.py::test_styleguide_source_urn_keeps_applies_edge` now expects `suggests`;
   - the styleguide case in `test_synthesize_reconcile.py` (around line 960) expects the edge stripped.
 - **Updated tests:** `test_reach_only_delivery.py`, `test_synthesize_activation_append.py` (record path) and `test_edge_wiring.py`.
-- **Fixtures:** re-key the fixture-adapter styleguide fixtures under `tests/charter/fixtures/synthesizer/styleguide/`, whose request hash changes because `source_urns` changes. Use the repository's documented regeneration path; find it in the fixture adapter or a test helper and never hand-edit hashes.
+- **Fixtures:** re-key the fixture-adapter styleguide fixtures under `tests/charter/fixtures/synthesizer/styleguide/`, whose request hash changes because `source_urns` changes. No regeneration script exists, so use this procedure:
+  1. Run the tests and read `expected_path` from `FixtureAdapterMissingError`.
+  2. `git mv` the prior fixture body to that path. Add a new file instead if the old key is still exercised.
+  3. Never compute hashes by hand.
 - **Report:** list in the WP history every test whose expectation changed, and why.
 
 ### Subtask T010: ADR amendment (FR-019 part)
@@ -145,6 +169,7 @@ Make synthesized testing, quality-gate and documentation styleguides reach-only:
   - `tests/architectural/test_runtime_charter_activation_boundary.py`
   - `tests/architectural/test_layer_rules.py`
   - `tests/architectural/test_no_dead_symbols.py`
+  - `tests/architectural/test_charter_pack_path_authority.py`, `tests/architectural/test_charter_path_literal_authority.py` (spell no `.kittify/charter-packs` literal; use `kernel.charter_pack_paths`)
 - ruff, format and `mypy --strict` are clean on changed files; complexity ≤ 15.
 
 ## Risks

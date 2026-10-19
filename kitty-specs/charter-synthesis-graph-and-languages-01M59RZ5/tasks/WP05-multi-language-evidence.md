@@ -1,39 +1,55 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Multi-language evidence, neutrality gate, stable hash, JSON
+dependencies:
+- WP04
+- WP03
+requirement_refs:
+- FR-010
+- FR-011
+- FR-012
+- FR-014
+- FR-019
+- NFR-005
+- SC-004
+planning_base_branch: issue-6442-charter-synthesis-graph-work
+merge_target_branch: issue-6442-charter-synthesis-graph-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-title: "Multi-language evidence, neutrality gate, stable hash, JSON"
-task_type: "implement"
-phase: "Phase 2 - Languages"
-execution_mode: "code_change"
-dependencies: ["WP04", "WP03"]
-requirement_refs: ["FR-010", "FR-011", "FR-012", "FR-014", "FR-019", "NFR-005", "SC-004"]
-owned_files:
-  - "src/charter/activation/language_authority.py"
-  - "src/charter/activation/evidence/code_reader.py"
-  - "src/charter/activation/synthesizer/evidence.py"
-  - "src/charter/activation/synthesizer/request.py"
-  - "src/charter/activation/synthesizer/write_pipeline.py"
-  - "src/specify_cli/cli/commands/charter/_status_collectors.py"
-  - "src/specify_cli/cli/commands/charter/status.py"
-  - "src/specify_cli/cli/commands/charter/synthesize.py"
-  - "tests/charter/synthesizer/test_multi_language_evidence.py"
-  - "tests/charter/synthesizer/test_request.py"
-  - "tests/charter/synthesizer/test_write_pipeline.py"
-  - "tests/charter/synthesizer/test_evidence.py"
-  - "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md"
-authoritative_surface: "src/charter/activation/synthesizer/"
+- T021
+- T022
+- T023
+- T024
+- T025
+phase: Phase 2 - Languages
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/charter/activation/synthesizer/
 create_intent:
-  - "src/charter/activation/language_authority.py"
-  - "tests/charter/synthesizer/test_multi_language_evidence.py"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5-5"
+- src/charter/activation/language_authority.py
+- tests/charter/synthesizer/test_multi_language_evidence.py
+execution_mode: code_change
+model: claude-sonnet-5-5
+owned_files:
+- tests/agent/cli/commands/test_charter_status_cli.py
+- tests/agent/cli/commands/test_charter_synthesize_cli.py
+- src/charter/activation/language_authority.py
+- src/charter/activation/evidence/code_reader.py
+- src/charter/activation/synthesizer/evidence.py
+- src/charter/activation/synthesizer/request.py
+- src/charter/activation/synthesizer/write_pipeline.py
+- src/specify_cli/cli/commands/charter/_status_collectors.py
+- src/specify_cli/cli/commands/charter/status.py
+- src/specify_cli/cli/commands/charter/synthesize.py
+- tests/charter/synthesizer/test_multi_language_evidence.py
+- tests/charter/synthesizer/test_request.py
+- tests/charter/synthesizer/test_write_pipeline.py
+- tests/charter/synthesizer/test_evidence.py
+- docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – Multi-language evidence, neutrality gate, stable hash, JSON
@@ -70,6 +86,9 @@ Describe polyglot repositories in synthesis evidence and gate them correctly. Ke
   - **Residue below the threshold:** a Python repository with a few `.js` config files lists only `python`, because 20% is the inclusion threshold.
   - **Gate:** it exempts a slug naming any observed or declared language, or a family of one (`jvm-…` for a Kotlin repository).
   - **JSON:** `charter status --json` and `charter synthesize --dry-run --json` carry `languages`, and every existing key is unchanged.
+  - **Nested manifests:** a polyglot repository whose manifests are all nested still lists both languages.
+  - **Languages without doctrine:** `go` and `rust` are listed even though no doctrine exists for them.
+  - **Corpus:** it is chosen by the primary language only.
 - Confirm they fail before the fix.
 
 ### Subtask T022: Observed languages (FR-010)
@@ -91,7 +110,7 @@ Describe polyglot repositories in synthesis evidence and gate them correctly. Ke
 ### Subtask T024: Neutrality gate (FR-011)
 
 - `_is_generic_scoped` treats a slug as language-scoped when any of its components is in `expand_language_families(observed languages ∪ declared languages)`.
-- Take the declared languages from the same source the synthesis request already carries. Find how the `language_scope` styleguide slugs are derived, and use that.
+- Take the declared languages from `stage_and_validate(request)` → `request.interview_snapshot["language_scope"]` (or the `languages_frameworks` alias, resolved through `language_authority`), and pass them into `_run_neutrality_gate`.
 
 ### Subtask T025: JSON surfaces and pinned tests (FR-014)
 

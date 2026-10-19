@@ -1,40 +1,52 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: One language catalog and authority, kotlin token and jvm family
+dependencies:
+- WP03
+requirement_refs:
+- FR-009
+- FR-013
+- C-005
+planning_base_branch: issue-6442-charter-synthesis-graph-work
+merge_target_branch: issue-6442-charter-synthesis-graph-work
+branch_strategy: Planning artifacts for this mission were generated on issue-6442-charter-synthesis-graph-work. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6442-charter-synthesis-graph-work unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-title: "One language catalog and authority, kotlin token and jvm family"
-task_type: "implement"
-phase: "Phase 1 - Languages"
-execution_mode: "code_change"
-dependencies: []
-requirement_refs: ["FR-009", "FR-013", "C-005"]
-owned_files:
-  - "src/charter/offering/shared/language_catalog.py"
-  - "src/charter/offering/shared/scoping.py"
-  - "src/charter/activation/language_authority.py"
-  - "src/charter/activation/language_scope.py"
-  - "src/charter/activation/evidence/code_reader.py"
-  - "tests/charter_offering/shared/test_language_catalog.py"
-  - "tests/charter/test_language_authority.py"
-  - "tests/charter/evidence/test_code_reader.py"
-  - "tests/charter/test_language_scope.py"
-  - "tests/charter_offering/shared/test_scoping.py"
-  - "tests/architectural/test_single_language_vocabulary.py"
-authoritative_surface: "src/charter/activation/"
+- T016
+- T017
+- T018
+- T019
+- T020
+phase: Phase 1 - Languages
+history: []
+agent_profile: python-pedro
+authoritative_surface: src/charter/activation/
 create_intent:
-  - "src/charter/offering/shared/language_catalog.py"
-  - "src/charter/activation/language_authority.py"
-  - "tests/charter_offering/shared/test_language_catalog.py"
-  - "tests/charter/test_language_authority.py"
-  - "tests/architectural/test_single_language_vocabulary.py"
-agent_profile: "python-pedro"
-role: "implementer"
-agent: "claude"
-model: "claude-sonnet-5-5"
+- src/charter/offering/shared/language_catalog.py
+- src/charter/activation/language_authority.py
+- tests/charter_offering/shared/test_language_catalog.py
+- tests/charter/test_language_authority.py
+- tests/architectural/test_single_language_vocabulary.py
+execution_mode: code_change
+model: claude-sonnet-5-5
+owned_files:
+- tests/charter/synthesizer/test_interview_mapping.py
+- src/charter/activation/synthesizer/interview_mapping.py
+- tests/charter_offering/shared/test_scoping_any_all.py
+- src/charter/offering/shared/language_catalog.py
+- src/charter/offering/shared/scoping.py
+- src/charter/activation/language_authority.py
+- src/charter/activation/language_scope.py
+- src/charter/activation/evidence/code_reader.py
+- tests/charter_offering/shared/test_language_catalog.py
+- tests/charter/test_language_authority.py
+- tests/charter/evidence/test_code_reader.py
+- tests/charter/test_language_scope.py
+- tests/charter_offering/shared/test_scoping.py
+- tests/architectural/test_single_language_vocabulary.py
+role: implementer
+tags: []
+task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP04 – One language catalog and authority, kotlin token and jvm family
@@ -69,7 +81,7 @@ Replace the two parallel language vocabularies with one I/O-free catalog in `cha
   - "Gradle" alone resolves to `[jvm]`, and "Java, Gradle" to `[java]` (unchanged);
   - an artifact tagged `jvm` matches active `[kotlin]` and `[java]`; an artifact tagged `java` does not match `[kotlin]`;
   - `lacks_specialist_guidance` expands families before intersecting.
-- `tests/architectural/test_single_language_vocabulary.py`: an AST scan of `src/` that flags dict, set or tuple literals holding three or more catalog language tokens or source extensions anywhere outside `language_catalog.py`. `src/specify_cli/review/fix_prompt.py` is allowlisted with a rationale: it is a markdown fence-language map, a different concept.
+- `tests/architectural/test_single_language_vocabulary.py`: an AST scan of `src/` that flags dict, set or tuple literals holding three or more catalog language tokens or source extensions anywhere outside `language_catalog.py`. Count string constants anywhere inside a literal's nested tuples and dicts too. Today's `language_scope._LANGUAGE_PATTERNS` is a tuple of `(token, patterns)` pairs, and a flat scan misses it. `src/specify_cli/review/fix_prompt.py` is allowlisted with a rationale: it is a markdown fence-language map, a different concept.
 - Confirm the behavioural tests fail before the fix, and that the architectural test fails on today's two tables.
 
 ### Subtask T017: Language catalog (offering layer)
@@ -87,7 +99,8 @@ Replace the two parallel language vocabularies with one I/O-free catalog in `cha
   - `declared_languages(text)`, which replaces `extract_declared_languages`. Apply the build-token rule: add `jvm` only when no JVM language is declared;
   - re-export `expand_language_families`.
 - `code_reader` and `language_scope` delegate to it and keep their public signatures. `infer_repo_languages` keeps its four-state contract and never persists families.
-- Reach it through `charter.activation.api` where `specify_cli` needs it (C-005).
+- No `specify_cli` caller needs the authority, so do not touch `charter.activation.api` (WP02 and WP03 own it). Keep the signatures of `extract_declared_languages` and `infer_repo_languages`: `interview_mapping` and five activation modules import them.
+- **Family tokens never become synthesis targets.** In `interview_mapping`'s language_scope path (`_extract_languages_from_alias` / `_normalize_language_scope_section`), drop family tokens such as `jvm`, so "Gradle" alone synthesizes no `jvm-style-guide`. A declared "Kotlin" synthesizes a `kotlin` language styleguide like any other language. Add a fixture-adapter fixture if the tests need one, following the procedure in WP02 T009.
 
 ### Subtask T019: Match-time family expansion
 
@@ -108,6 +121,7 @@ Replace the two parallel language vocabularies with one I/O-free catalog in `cha
   - `tests/charter/evidence/`, `tests/charter/test_language_*.py`
   - `tests/charter_offering/shared/`
   - the `infer_repo_languages` test files
+  - `tests/charter/synthesizer/` (the JVM split changes the Kotlin evidence hash)
   - `tests/architectural/test_single_language_vocabulary.py`, `tests/architectural/test_layer_rules.py`, `tests/architectural/test_runtime_charter_activation_boundary.py`, `tests/architectural/test_no_dead_symbols.py`
 - ruff, format and `mypy --strict` are clean; complexity ≤ 15.
 

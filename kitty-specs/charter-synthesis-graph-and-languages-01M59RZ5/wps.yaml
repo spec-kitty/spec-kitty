@@ -26,6 +26,7 @@ work_packages:
     title: "Reach-only by kind: synthesized styleguides follow their directive"
     dependencies: []
     owned_files:
+      - "src/charter/activation/action_governance_bundle.py"
       - "src/charter/activation/synthesizer/reach_only.py"
       - "src/charter/activation/synthesizer/reconcile.py"
       - "src/charter/activation/synthesizer/project_drg.py"
@@ -73,6 +74,38 @@ work_packages:
     dependencies:
       - WP02
     owned_files:
+      - "tests/charter/synthesizer/test_context_reflects_synthesis.py"
+      - "tests/charter/synthesizer/test_edge_wiring.py"
+      - "tests/charter/synthesizer/test_generated_artifact_adapter.py"
+      - "tests/charter/synthesizer/test_orchestrator_resynthesize.py"
+      - "tests/charter/synthesizer/test_orchestrator_synthesize.py"
+      - "tests/charter/synthesizer/test_performance_envelopes.py"
+      - "tests/charter/synthesizer/test_schema_conformance.py"
+      - "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      - "tests/charter/synthesizer/test_synthesize_conflict_routing.py"
+      - "tests/charter/synthesizer/test_synthesize_node_preservation.py"
+      - "tests/charter/synthesizer/test_synthesize_path_parity.py"
+      - "tests/charter/synthesizer/test_synthesize_reconcile.py"
+      - "tests/charter/synthesizer/test_write_pipeline.py"
+      - "tests/charter/test_synthesis_provenance_paths.py"
+      - "tests/architectural/test_no_op_stable_writes.py"
+      - "tests/architectural/test_charter_activation_api_reexport.py"
+      - "tests/agent/cli/commands/test_charter_status_cli.py"
+      - "tests/agent/cli/commands/test_charter_synthesize_cli.py"
+      - "tests/specify_cli/charter/test_bundle_validate_fresh_seed.py"
+      - "tests/specify_cli/charter_freshness/test_computer.py"
+      - "tests/specify_cli/charter_runtime/test_boundary_heal.py"
+      - "tests/specify_cli/cli/commands/charter/test_activate_preserve.py"
+      - "tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py"
+      - "tests/acceptance/charter_pack_cutover/**"
+      - "tests/fixtures/charter_pack_cutover/static/synthesized/**"
+      - ".kittify/charter-packs/directive/**"
+      - ".kittify/charter/provenance/**"
+      - ".kittify/charter/synthesis-manifest.yaml"
+      - ".kittify/charter-packs/graph.yaml"
+      - ".kittify/charter/generated/**"
+      - ".kittify/config.yaml"
+      - ".kittify/charter/charter.yaml"
       - "src/charter/activation/synthesizer/targets.py"
       - "src/charter/activation/synthesizer/interview_mapping.py"
       - "src/charter/activation/synthesizer/reconcile.py"
@@ -105,8 +138,12 @@ work_packages:
 
   - id: WP04
     title: "One language catalog and authority, kotlin token and jvm family"
-    dependencies: []
+    dependencies:
+      - WP03
     owned_files:
+      - "tests/charter/synthesizer/test_interview_mapping.py"
+      - "src/charter/activation/synthesizer/interview_mapping.py"
+      - "tests/charter_offering/shared/test_scoping_any_all.py"
       - "src/charter/offering/shared/language_catalog.py"
       - "src/charter/offering/shared/scoping.py"
       - "src/charter/activation/language_authority.py"
@@ -137,6 +174,8 @@ work_packages:
       - WP04
       - WP03
     owned_files:
+      - "tests/agent/cli/commands/test_charter_status_cli.py"
+      - "tests/agent/cli/commands/test_charter_synthesize_cli.py"
       - "src/charter/activation/language_authority.py"
       - "src/charter/activation/evidence/code_reader.py"
       - "src/charter/activation/synthesizer/evidence.py"
@@ -173,6 +212,7 @@ work_packages:
       - WP01
       - WP05
     owned_files:
+      - "tests/charter/test_jvm_toolguide_scoping.py"
       - "packs/built-in/toolguides/java-supply-chain.toolguide.yaml"
       - "packs/built-in/toolguides/maven-review-checks.toolguide.yaml"
       - "packs/built-in/toolguide.graph.yaml"
