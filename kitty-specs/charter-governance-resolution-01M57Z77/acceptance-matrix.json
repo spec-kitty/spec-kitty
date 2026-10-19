@@ -158,10 +158,10 @@
       "criterion_id": "FR-016",
       "description": "Verify FR-016 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP08 approved: tests/charter/synthesizer/test_write_pipeline.py java vs javascript slug",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T03:09:20.896727+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
