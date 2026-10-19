@@ -347,9 +347,13 @@ def test_activate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) 
     assert _LEGACY_URN in node_urns, (
         "activate --resynthesize silently dropped backed overlay content"
     )
-    assert any(e["source"] == _LEGACY_URN for e in graph.get("edges", [])), (
-        "activate --resynthesize dropped the legacy node's edge"
+    # #6404: the legacy node is registered in the synthesis manifest, so its
+    # inert ``applies`` edge is stripped -- and reported, never silent.
+    assert not any(e["source"] == _LEGACY_URN for e in graph.get("edges", [])), (
+        "legacy applies edge from a synthesized node must be stripped"
     )
+    assert "legacy 'applies' edge" in result.output, result.output
+    assert _LEGACY_URN in result.output, "the stripped edge must be named in the output"
 
 
 def test_deactivate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) -> None:

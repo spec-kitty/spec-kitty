@@ -395,6 +395,48 @@ class TestUs3KindSlug:
         assert after_nodes == before_nodes
         assert after_edges == before_edges
 
+    def test_partial_resynthesize_keeps_one_suggests_edge_and_strips_legacy_applies(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+    ) -> None:
+        """#6404: a bounded run neither duplicates nor prunes the owned suggests edge,
+        and strips (and reports) a legacy ``applies`` edge of a synthesized tactic."""
+        repo = repo_with_prior_synthesis
+        graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
+        suggests = ("directive:DIRECTIVE_003", "tactic:how-we-apply-directive-003", "suggests")
+        legacy = ("tactic:testing-philosophy-tactic", "directive:DIRECTIVE_003", "applies")
+
+        def _triples() -> list[tuple[str, str, str]]:
+            return [(e.source, e.target, e.relation.value) for e in load_graph(graph_path).edges]
+
+        assert _triples().count(suggests) == 1, "positive control: baseline overlay carries the edge"
+        text = graph_path.read_text(encoding="utf-8")
+        assert "\nedges:" in text
+        graph_path.write_text(
+            text.replace(
+                "\nedges:\n",
+                "\nedges:\n- source: tactic:testing-philosophy-tactic\n  target: directive:DIRECTIVE_003\n"
+                "  relation: applies\n  reason: legacy\n",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        assert legacy in _triples(), "precondition: legacy edge injected"
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=repo,
+        )
+
+        triples = _triples()
+        assert triples.count(suggests) == 1
+        assert legacy not in triples
+        assert any("tactic:testing-philosophy-tactic --applies--> directive:DIRECTIVE_003" in w for w in result.reference_warnings)
+
 
 # ---------------------------------------------------------------------------
 # US-2: DRG URN → multiple artifacts affected, unrelated unchanged

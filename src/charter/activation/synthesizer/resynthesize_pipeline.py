@@ -46,6 +46,9 @@ from .manifest import (
     load_yaml as load_manifest,
 )
 from .reconcile import merge_project_overlay as _merge_project_overlay
+from .reconcile import legacy_applies_edges as _legacy_applies_edges
+from .reconcile import legacy_strip_notice as _legacy_strip_notice
+from .reconcile import synthesized_node_urns as _synthesized_node_urns
 from .reconcile import rewrite_manifest as _rewrite_manifest
 from .request import SynthesisRequest, SynthesisTarget
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version
@@ -372,9 +375,17 @@ def run(
         existing_graph_dir = project_pack_root(_repo_root)
         project_graph = updated_overlay
         if existing_graph_dir.exists():
+            existing_overlay = load_graph_or_dir(existing_graph_dir)
+            synthesized_urns = _synthesized_node_urns(new_manifest)
+            # #6404: legacy ``applies`` edges are stripped on partial runs too;
+            # surface each one so a preserving run never drops silently.
+            reference_warnings.extend(
+                _legacy_strip_notice(e) for e in _legacy_applies_edges(existing_overlay, synthesized_urns)
+            )
             project_graph = _merge_project_overlay(
-                existing_overlay=load_graph_or_dir(existing_graph_dir),
+                existing_overlay=existing_overlay,
                 updated_overlay=updated_overlay,
+                synthesized_urns=synthesized_urns,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
         _validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
