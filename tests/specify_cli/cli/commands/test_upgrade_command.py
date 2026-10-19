@@ -211,6 +211,7 @@ def test_cli_and_project_mutex_error_message(tmp_path: Path) -> None:
 
 
 def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)  # agent containers export it; this test needs the nag on
     from specify_cli.compat._detect.install_method import InstallMethod
     from specify_cli.compat.cache import NagCache
     from specify_cli.compat.provider import PyPIProvider
@@ -240,6 +241,7 @@ def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypa
 
 
 def test_agent_check_guidance_when_upgrade_command_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)  # agent containers export it; this test needs the nag on
     from specify_cli.compat._detect.install_method import InstallMethod
     from specify_cli.compat.cache import NagCache
     from specify_cli.compat.provider import PyPIProvider
@@ -267,6 +269,7 @@ def test_agent_check_guidance_when_upgrade_command_unavailable(tmp_path: Path, m
 
 
 def test_agent_check_uv_tool_command_targets_latest_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)  # agent containers export it; this test needs the nag on
     from specify_cli.compat._detect.install_method import InstallMethod
     from specify_cli.compat.cache import NagCache
     from specify_cli.compat.provider import PyPIProvider
@@ -341,11 +344,12 @@ def test_yes_and_force_together_allowed(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_cli_update_available_dry_run_shows_nag(tmp_path: Path) -> None:
+def test_cli_update_available_dry_run_shows_nag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Outdated CLI + compatible project: planner returns is_outdated=True.
 
     Uses FakeLatestVersionProvider("999.0.0") to force is_outdated=True.
     """
+    monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)  # agent containers export it; this test needs the nag on
     _make_compatible_project(tmp_path, schema_version=3)
 
     fake_provider = FakeLatestVersionProvider("999.0.0")
