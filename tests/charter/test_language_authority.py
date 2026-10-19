@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -13,7 +15,6 @@ from charter.activation.language_authority import (
     TreeObservation,
     declared_languages,
     expand_language_families,
-    observe_primary_language,
     resolve_primary_language,
 )
 from charter.activation.language_scope import extract_declared_languages, infer_repo_languages, lacks_specialist_guidance
@@ -134,11 +135,30 @@ def test_java_scoped_doctrine_is_not_guidance_for_kotlin(tmp_path: Path) -> None
 # -- the authority itself ------------------------------------------------------
 
 
-def test_observe_primary_language_matches_the_collector(tmp_path: Path) -> None:
+def _primary(root: Path) -> str:
+    return CodeReadingCollector(root).collect().primary_language
+
+
+def test_collector_walks_the_tree_once_without_a_jvm_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-005: the collector's single scan feeds the authority; no extra count without a JVM manifest or tie."""
+    _touch(tmp_path / "pyproject.toml")
+    walks: list[str] = []
+    real_walk = os.walk
+
+    def _spy(top: str) -> Iterator[tuple[str, list[str], list[str]]]:
+        walks.append(top)
+        return real_walk(top)
+
+    monkeypatch.setattr(os, "walk", _spy)
+
+    assert _primary(tmp_path) == "python"
+    assert len(walks) == 1
+
+
+def test_collector_counts_sources_only_when_a_jvm_manifest_is_present(tmp_path: Path) -> None:
     _gradle_repo(tmp_path, kotlin=2, java=1)
 
-    assert observe_primary_language(tmp_path) == "kotlin"
-    assert observe_primary_language(tmp_path / "missing") == "unknown"
+    assert _primary(tmp_path) == "kotlin"
 
 
 def test_jvm_split_reads_sources_below_the_scan_depth(tmp_path: Path) -> None:
@@ -146,7 +166,7 @@ def test_jvm_split_reads_sources_below_the_scan_depth(tmp_path: Path) -> None:
     for i in range(3):
         _touch(tmp_path / "src" / "main" / "kotlin" / "com" / "acme" / "deep" / f"K{i}.kt")
 
-    assert observe_primary_language(tmp_path, max_depth=1) == "kotlin"
+    assert CodeReadingCollector(tmp_path, max_depth=1).collect().primary_language == "kotlin"
 
 
 def test_single_non_jvm_manifest_never_pays_for_the_uncapped_walk() -> None:
@@ -164,14 +184,14 @@ def test_kotlin_sources_without_a_jvm_manifest_do_not_make_a_kotlin_repo(tmp_pat
     for i in range(5):
         _touch(tmp_path / "scripts" / f"K{i}.kt")
 
-    assert observe_primary_language(tmp_path) == "python"
+    assert _primary(tmp_path) == "python"
 
 
 def test_typescript_package_json_is_still_typescript(tmp_path: Path) -> None:
     _touch(tmp_path / "package.json")
     _touch(tmp_path / "tsconfig.json")
 
-    assert observe_primary_language(tmp_path) == "typescript"
+    assert _primary(tmp_path) == "typescript"
 
 
 @pytest.mark.parametrize(
@@ -192,3 +212,36 @@ def test_declared_languages(text: str, expected: list[str]) -> None:
 def test_families_are_never_persisted_for_a_declared_language() -> None:
     assert "jvm" not in declared_languages("Kotlin, Gradle, JUnit, Maven")
     assert expand_language_families(declared_languages("Kotlin")) == ("kotlin", "jvm")
+
+
+# -- declared order is preserved for non-JVM answers (persisted via the unsorted fallback) --
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("TypeScript and Rust", ["typescript", "rust"]),
+        ("JavaScript, Rust", ["javascript", "rust"]),
+        ("React with Node.js and TypeScript", ["typescript", "javascript"]),
+        ("Swift, PHP", ["swift", "php"]),
+        ("Rails and PHP", ["ruby", "php"]),
+        ("Swift and Ruby", ["swift", "ruby"]),
+        ("Java and Python", ["python", "java"]),
+        ("Gradle and Python", ["python", "jvm"]),
+    ],
+)
+def test_declared_order_matches_the_pre_catalog_pattern_order(text: str, expected: list[str]) -> None:
+    assert extract_declared_languages(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("answers", "expected"),
+    [
+        ({"testing_philosophy": "jest + tsc + pytest"}, ["python", "typescript", "javascript"]),
+        ({"project_description": "Swift app, PHP backend"}, ["swift", "php"]),
+    ],
+)
+def test_unsorted_fallback_keeps_declared_order(answers: dict[str, str], expected: list[str]) -> None:
+    interview = apply_answer_overrides(default_interview(mission="software-dev", profile="minimal"), answers=answers)
+
+    assert infer_repo_languages(None, interview=interview) == expected

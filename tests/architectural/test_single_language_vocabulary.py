@@ -1,7 +1,7 @@
-"""One language vocabulary: no dict/set/tuple literal outside the catalog repeats it (#6444, FR-009).
+"""One language vocabulary: no dict/set/tuple/list literal outside the catalog repeats it (#6444, FR-009).
 
 ``charter.offering.shared.language_catalog`` is the only place a language token or
-source extension table may live. This AST scan flags any dict, set or tuple literal in
+source extension table may live. This AST scan flags any dict, set, tuple or list literal in
 ``src/`` that holds three or more catalog language tokens or source extensions. It
 counts string constants anywhere inside the literal, nested tuples and dicts included:
 a ``(token, patterns)`` pair table such as the former ``_LANGUAGE_PATTERNS`` is a tuple
@@ -43,7 +43,7 @@ def _flagged_literals(tree: ast.AST) -> list[tuple[int, set[str]]]:
     flagged: list[tuple[int, set[str]]] = []
 
     def visit(node: ast.AST) -> None:
-        if isinstance(node, (ast.Dict, ast.Set, ast.Tuple)):
+        if isinstance(node, (ast.Dict, ast.Set, ast.Tuple, ast.List)):
             hits = _vocabulary_hits(node)
             if len(hits) >= _THRESHOLD:
                 flagged.append((node.lineno, hits))
@@ -88,3 +88,9 @@ def test_scan_ignores_literals_below_the_threshold() -> None:
     tree = ast.parse('X = {"python": 1, "go": 2}')
 
     assert _flagged_literals(tree) == []
+
+
+def test_scan_catches_list_tables() -> None:
+    tree = ast.parse('X = ["python", "rust", "go"]')
+
+    assert [hits for _line, hits in _flagged_literals(tree)] == [{"python", "rust", "go"}]

@@ -13,7 +13,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from charter.activation.language_authority import EXCLUDED_DIRS, observe_primary_language
+from charter.activation.language_authority import (
+    EXCLUDED_DIRS,
+    TreeObservation,
+    count_sources_uncapped,
+    resolve_primary_language,
+)
 from charter.activation.synthesizer.evidence import CodeSignals
 from kernel.clock import now_utc_iso
 from kernel.paths import to_posix
@@ -66,14 +71,14 @@ class CodeReadingError(Exception):
 class _TreeScan:
     """Raw file-system observations gathered by a single ``os.walk`` pass."""
 
-    indicator_depths: dict[str, int]
+    observation: TreeObservation
     source_files: list[str]
     test_files: list[str]
 
     @property
     def indicator_files(self) -> set[str]:
         """All observed basenames."""
-        return set(self.indicator_depths)
+        return set(self.observation.indicator_depths)
 
 
 # ---------------------------------------------------------------------------
@@ -100,9 +105,7 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
 
 def _observe(scan: _TreeScan, filename: str, rel_path: str, depth: int) -> None:
     """Record one file into *scan* (shallowest depth per basename, counts, buckets)."""
-    known = scan.indicator_depths.get(filename)
-    if known is None or depth < known:
-        scan.indicator_depths[filename] = depth
+    scan.observation.observe(filename, depth)
 
     if _is_test_file(rel_path, filename):
         scan.test_files.append(rel_path)
@@ -164,7 +167,7 @@ class CodeReadingCollector:
     def _detect(self) -> CodeSignals:
         scan = self._scan_tree()
 
-        language = self._detect_language()
+        language = self._detect_language(scan)
         frameworks = self._detect_frameworks(scan.indicator_files)
         test_fws = self._detect_test_frameworks(
             scan.indicator_files, scan.test_files, language
@@ -192,7 +195,7 @@ class CodeReadingCollector:
         majority heuristic) — all gathered in a single ``os.walk`` pass.
         """
         scan = _TreeScan(
-            indicator_depths={}, source_files=[], test_files=[]
+            observation=TreeObservation(), source_files=[], test_files=[]
         )
         root_str = str(self._repo_root)
 
@@ -267,9 +270,9 @@ class CodeReadingCollector:
 
         return "+".join(parts_stack)
 
-    def _detect_language(self) -> str:
-        """Return the primary language, as decided by the language authority."""
-        return observe_primary_language(self._repo_root, self._max_depth)
+    def _detect_language(self, scan: _TreeScan) -> str:
+        """Return the primary language, as decided by the language authority (one walk, NFR-005)."""
+        return resolve_primary_language(scan.observation, lambda: count_sources_uncapped(self._repo_root))
 
     @staticmethod
     def _unknown_signals() -> CodeSignals:

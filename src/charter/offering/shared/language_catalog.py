@@ -6,7 +6,7 @@ from this table, and :func:`charter.offering.shared.scoping.applies_to_languages
 expands families through :func:`expand_language_families`. No other module may hold a
 parallel language vocabulary (``tests/architectural/test_single_language_vocabulary.py``).
 
-Specs are listed in tie-break order: when several languages have a manifest at the
+Specs are listed in tie-break order (``declared_rank`` fixes the declared-output order): when several languages have a manifest at the
 same depth and the same source count, the earlier spec wins.
 
 ``java`` and ``kotlin`` share the JVM manifests; which of them a repository is comes
@@ -57,6 +57,8 @@ class LanguageSpec:
     manifests: tuple[str, ...] = ()
     declared_patterns: tuple[str, ...] = ()
     families: tuple[str, ...] = ()
+    #: Position in declared-language output (the order persisted into ``catalog.languages``).
+    declared_rank: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,24 +68,28 @@ class BuildToolSpec:
     token: str
     declared_patterns: tuple[str, ...]
     family: str = JVM_FAMILY
+    declared_rank: int = 4
 
 
 LANGUAGES: tuple[LanguageSpec, ...] = (
     LanguageSpec(
         "python",
+        declared_rank=0,
         extensions=(".py",),
         manifests=("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt"),
         declared_patterns=(r"\bpython\b", r"\bpytest\b", r"\bmypy\b", r"\bruff\b"),
     ),
-    LanguageSpec("go", extensions=(".go",), manifests=("go.mod",)),
+    LanguageSpec("go", extensions=(".go",), manifests=("go.mod",), declared_rank=9),
     LanguageSpec(
         "rust",
+        declared_rank=3,
         extensions=(".rs",),
         manifests=("Cargo.toml",),
         declared_patterns=(r"\brust\b", r"\bcargo\b", r"\brustc\b"),
     ),
     LanguageSpec(
         "java",
+        declared_rank=4,
         extensions=(".java",),
         manifests=_JVM_MANIFESTS,
         declared_patterns=(r"\bjava\b",),
@@ -91,6 +97,7 @@ LANGUAGES: tuple[LanguageSpec, ...] = (
     ),
     LanguageSpec(
         "kotlin",
+        declared_rank=5,
         extensions=(".kt",),
         manifests=_JVM_MANIFESTS,
         declared_patterns=(r"\bkotlin\b",),
@@ -98,29 +105,34 @@ LANGUAGES: tuple[LanguageSpec, ...] = (
     ),
     LanguageSpec(
         "ruby",
+        declared_rank=7,
         extensions=(".rb",),
         manifests=("Gemfile",),
         declared_patterns=(r"\bruby\b", r"\brspec\b", r"\brails\b"),
     ),
     LanguageSpec(
         "php",
+        declared_rank=8,
         extensions=(".php",),
         manifests=("composer.json",),
         declared_patterns=(r"\bphp\b", r"\bphpunit\b"),
     ),
     LanguageSpec(
         "javascript",
+        declared_rank=2,
         extensions=(".js", ".jsx", ".mjs"),
         manifests=("package.json",),
         declared_patterns=(r"\bjavascript\b", r"\bjest\b", r"\bnode(?:\.js)?\b", r"\bnpm\b", r"\bpnpm\b", r"\byarn\b"),
     ),
     LanguageSpec(
         "typescript",
+        declared_rank=1,
         extensions=(".ts", ".tsx"),
         declared_patterns=(r"\btypescript\b", r"\btsc\b"),
     ),
     LanguageSpec(
         "swift",
+        declared_rank=6,
         extensions=(".swift",),
         declared_patterns=(r"\bswift\b", r"\bxctest\b"),
     ),
