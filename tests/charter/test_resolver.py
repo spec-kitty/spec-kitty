@@ -985,6 +985,30 @@ def test_org_paradigm_selection_accepted_and_unknown_dropped(tmp_path: Path) -> 
     assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="paradigm", token="ghost-paradigm") in resolution.diagnostics
 
 
+def test_all_unknown_charter_selections_add_no_misleading_diagnostics_or_source_suffix(tmp_path: Path) -> None:
+    repo = _identity_project(
+        tmp_path,
+        selected="[NOPE_999]",
+        paradigms="[ghost-paradigm]",
+        activated_directives=["001-architectural-integrity-standard"],
+        activated_paradigms=[],
+    )
+
+    resolution = resolve_project_governance(repo)
+
+    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in resolution.diagnostics
+    assert not any("none added" in d or "beyond the" in d for d in resolution.diagnostics)
+    assert resolution.metadata["directives_source"] == "activation"
+
+
+def test_resolved_charter_selection_keeps_charter_source_suffix(tmp_path: Path) -> None:
+    repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=["001-architectural-integrity-standard"])
+
+    resolution = resolve_project_governance(repo)
+
+    assert resolution.metadata["directives_source"] == "activation+charter"
+
+
 def test_template_set_error_names_more_than_built_in_missions(tmp_path: Path) -> None:
     _write_charter_files(tmp_path, governance="charter:\n  template_set: ghost-template-set\n")
 
