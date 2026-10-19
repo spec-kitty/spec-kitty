@@ -41,15 +41,15 @@ from specify_cli.cli.commands.charter._widen import (
 import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
-    from charter.activation.activation_engine import EffectiveSet
-    from charter.drg import ArtifactKind
+    from charter.activation.api import EffectiveSet
+    from charter.offering.api import ArtifactKind
 
 __all__ = ["interview"]
 
 
 def _narrow_bases(repo_root: Path, promotions: dict[str, list[str]], warnings: list[str]) -> dict[str, list[str]]:
     """Per promoted key, the narrow base: the selection stems plus the org-required ids (#6408)."""
-    from charter.activation.org_charter import org_required_stems
+    from charter.activation.api import org_required_stems
 
     bases: dict[str, list[str]] = {}
     for yaml_key, stems in promotions.items():

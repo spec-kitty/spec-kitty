@@ -50,7 +50,8 @@ from charter.activation.kind_vocabulary import (
     resolve_artifact_urn,
 )
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, ActivationResult, ActiveCharterManager
+from charter.activation.api import ActivationResult
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.preset_application import (
     PresetApplicationError,
     PresetPlan,

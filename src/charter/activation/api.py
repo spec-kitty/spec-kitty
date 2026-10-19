@@ -93,12 +93,25 @@ from charter.activation.identity_index import (
     IdentityIndex as IdentityIndex,
 )
 
+# Activation result / effective-set / org-required-stem / selection-diagnostic
+# primitives the ``charter activate`` / ``interview`` commands and the runtime
+# doctor consume (#6099). Public per the respective modules' ``__all__``.
+from charter.activation.activation_engine import EffectiveSet as EffectiveSet
+from charter.activation.org_charter import org_required_stems as org_required_stems
+from charter.activation.pack_manager import ActivationResult as ActivationResult
+from charter.activation.resolver import (
+    UNKNOWN_SELECTION_DIAGNOSTIC as UNKNOWN_SELECTION_DIAGNOSTIC,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
 #: ``tests/architectural/test_charter_activation_api_reexport.py``.
 __all__ = [
     "MANIFEST_PATH",
+    "UNKNOWN_SELECTION_DIAGNOSTIC",
+    "ActivationResult",
+    "EffectiveSet",
     "IdentityEntry",
     "IdentityIndex",
     "append_synthesized_tactic_activations",
@@ -107,6 +120,7 @@ __all__ = [
     "created_tactic_slugs",
     "finalize_manifest",
     "load_yaml",
+    "org_required_stems",
     "read_mission_type",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",

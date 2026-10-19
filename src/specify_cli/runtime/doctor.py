@@ -12,8 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from charter.activation.api import UNKNOWN_SELECTION_DIAGNOSTIC
 from charter.activation.resolver import (
-    UNKNOWN_SELECTION_DIAGNOSTIC,
     GovernanceResolutionError,
     resolve_project_governance,
 )
