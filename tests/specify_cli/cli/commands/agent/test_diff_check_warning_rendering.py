@@ -118,3 +118,56 @@ class TestGrouping:
         """The old renderer called every note a manual_review note."""
         out = _render(_result([_ok("new.rb", "added"), _ok("f.woff2", "non-occurrence")]))
         assert "manual_review" not in out
+
+
+class TestFailureTableIsScannable:
+    """The failure table listed every assessment, however large the diff."""
+
+    def _blocked(self, path: str) -> FileAssessment:
+        return FileAssessment(
+            path=path,
+            category="cli_commands",
+            source="path-heuristic",
+            action="do_not_change",
+            violation=True,
+            reason="forbidden",
+        )
+
+    def test_only_blocking_and_review_rows_are_listed(self) -> None:
+        from specify_cli.bulk_edit.gate import render_diff_check_failure
+
+        assessments = [self._blocked("bin/x")]
+        assessments += [_ok(f"added{i}.rb", "added") for i in range(400)]
+        console = Console(width=120, record=True, force_terminal=False)
+        render_diff_check_failure(
+            DiffCheckResult(
+                passed=False,
+                assessments=assessments,
+                errors=["bin/x: forbidden"],
+                warnings=[],
+            ),
+            console,
+        )
+        out = console.export_text()
+        assert "bin/x" in out
+        assert "BLOCK" in out
+        assert "added0.rb" not in out
+        assert "400 further files passed" in out or "400 created here" in out
+        assert len(out.splitlines()) < 40
+
+    def test_exempted_rows_are_not_called_unclassified(self) -> None:
+        from specify_cli.bulk_edit.gate import render_diff_check_failure
+
+        console = Console(width=120, record=True, force_terminal=False)
+        render_diff_check_failure(
+            DiffCheckResult(
+                passed=False,
+                assessments=[self._blocked("bin/x"), _ok("new.rb", "added")],
+                errors=["bin/x: forbidden"],
+                warnings=[],
+            ),
+            console,
+        )
+        out = console.export_text()
+        assert "created here" in out
+        assert "(unclassified)" not in out

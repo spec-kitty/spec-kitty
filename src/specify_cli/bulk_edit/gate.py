@@ -24,6 +24,7 @@ from specify_cli.bulk_edit.occurrence_map import (
     load_occurrence_map,
     validate_occurrence_map,
 )
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import load_meta_fail_closed
 
 
@@ -76,11 +77,29 @@ def _feature_dir_rel(feature_dir: Path, repo_root: Path) -> str | None:
     test double built from unrelated temp directories) — callers treat that
     as "cannot anchor the runtime-state exemption" and fall back to the
     ordinary classifier for every file.
+
+    The result is normalised to the mission's CANONICAL planning path,
+    ``kitty-specs/<slug>``, whenever *feature_dir* names one. On a
+    coord-topology mission the resolved ``feature_dir`` is the STATUS-only
+    ``-coord`` worktree husk, so the raw relative path is
+    ``.worktrees/<mission>-coord/kitty-specs/<slug>`` — a prefix that never
+    appears in a diff taken against the main repo root. Anchoring on that
+    silently disabled the runtime-state exemption for exactly the topology
+    that needs it, so a mission's own status.json and status.events.jsonl
+    blocked its own reviews: diff paths are relative to the partition they
+    live in, not to wherever the husk sits on disk.
     """
     try:
-        return feature_dir.resolve().relative_to(repo_root.resolve()).as_posix()
+        relative = feature_dir.resolve().relative_to(repo_root.resolve())
     except ValueError:
         return None
+    parts = relative.parts
+    # Rightmost ``kitty-specs/<slug>`` wins: that is the canonical form the
+    # diff uses regardless of which worktree the husk lives in.
+    for index in range(len(parts) - 2, -1, -1):
+        if parts[index] == KITTY_SPECS_DIR:
+            return Path(*parts[index : index + 2]).as_posix()
+    return relative.as_posix()
 
 
 def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
@@ -293,27 +312,76 @@ def check_review_diff_compliance(
     )
 
 
+# How each FileAssessment.source reads in the operator-facing table, where
+# `category` is None because the verdict came from an exemption rather than
+# the path heuristic. "(unclassified)" was shown for all of these, which
+# describes only the last one.
+_SOURCE_LABELS: dict[str, str] = {
+    "added": "created here",
+    "non-occurrence": "no occurrences",
+    "runtime-state": "own bookkeeping",
+    "exception": "map exception",
+    "move": "declared move",
+    "structural-target": "structural target",
+    "path-heuristic": "(unclassified)",
+}
+
+
+def _source_label(source: str) -> str:
+    return _SOURCE_LABELS.get(source, source)
+
+
 def render_diff_check_failure(
     result: DiffCheckResult,
     console: Console,
 ) -> None:
-    """Display a diff compliance failure with a Rich table of assessments."""
+    """Display a diff compliance failure with a Rich table of assessments.
+
+    Lists the rows that BLOCK and the rows asking for manual review; the
+    rest are summarised by the reason they passed.
+
+    Listing every assessment meant a work package touching hundreds of
+    files printed hundreds of rows to report a handful of violations — on a
+    415-file ingest, ~550 lines of ``ok`` around 3 ``BLOCK``s — and each
+    exempted row read as ``(unclassified) | (none)``, which looks like a
+    complaint rather than a pass.
+    """
+    blocking = [a for a in result.assessments if a.violation]
+    reviewable = [
+        a for a in result.assessments
+        if not a.violation and a.action == "manual_review"
+    ]
+
     table = Table(title="Bulk Edit Review: Diff Compliance", show_lines=False)
     table.add_column("File", overflow="fold")
     table.add_column("Category", no_wrap=True)
     table.add_column("Action", no_wrap=True)
     table.add_column("Verdict", no_wrap=True)
-    for a in result.assessments:
-        verdict = "[bold red]BLOCK[/]" if a.violation else (
-            "[yellow]review[/]" if a.action == "manual_review" else "[green]ok[/]"
-        )
+    for assessment, verdict in (
+        *((a, "[bold red]BLOCK[/]") for a in blocking),
+        *((a, "[yellow]review[/]") for a in reviewable),
+    ):
         table.add_row(
-            a.path,
-            a.category or "(unclassified)",
-            a.action or "(none)",
+            assessment.path,
+            assessment.category or _source_label(assessment.source),
+            assessment.action or "(none)",
             verdict,
         )
     console.print(table)
+
+    others = [
+        a for a in result.assessments
+        if not a.violation and a.action != "manual_review"
+    ]
+    if others:
+        counts: dict[str, int] = {}
+        for a in others:
+            counts[a.source] = counts.get(a.source, 0) + 1
+        summary = ", ".join(
+            f"{count} {_source_label(source)}"
+            for source, count in sorted(counts.items(), key=lambda kv: -kv[1])
+        )
+        console.print(f"[green]{len(others)} further files passed[/]: {summary}")
 
     if result.errors:
         panel = Panel(
