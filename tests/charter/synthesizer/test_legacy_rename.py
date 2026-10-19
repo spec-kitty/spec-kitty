@@ -292,3 +292,28 @@ def test_an_interrupted_run_is_finished_by_the_next_one(legacy_root: Path) -> No
 
     verify(load_yaml(legacy_root / MANIFEST_PATH), legacy_root)
     assert not rename_legacy_project_intent_directive(legacy_root).pending
+
+
+def test_a_stale_bundle_hash_is_restamped_even_with_nothing_to_rename(legacy_root: Path) -> None:
+    """An interrupted run can leave the rename done but the stamp stale: the next run self-heals it."""
+    rename_legacy_project_intent_directive(legacy_root)
+    with (legacy_root / _CHARTER_YAML).open("a", encoding="utf-8") as handle:
+        handle.write("# edited after the rename was interrupted\n")
+    stale = load_yaml(legacy_root / MANIFEST_PATH).bundle_content_hash
+    assert stale != compute_bundle_content_hash(legacy_root), "control: the stamp is stale"
+
+    dry = rename_legacy_project_intent_directive(legacy_root, dry_run=True)
+    assert not dry.pending
+    assert load_yaml(legacy_root / MANIFEST_PATH).bundle_content_hash == stale, "a dry run writes nothing"
+
+    report = rename_legacy_project_intent_directive(legacy_root)
+
+    assert not report.pending
+    assert load_yaml(legacy_root / MANIFEST_PATH).bundle_content_hash == compute_bundle_content_hash(legacy_root)
+
+
+def test_an_unreadable_manifest_without_legacy_state_is_left_to_its_own_reader(tmp_path: Path) -> None:
+    (tmp_path / MANIFEST_PATH).parent.mkdir(parents=True)
+    (tmp_path / MANIFEST_PATH).write_text("{unclosed: [", encoding="utf-8")
+
+    assert not rename_legacy_project_intent_directive(tmp_path).pending

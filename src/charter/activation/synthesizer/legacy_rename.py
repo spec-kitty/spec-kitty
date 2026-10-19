@@ -18,7 +18,7 @@ What moves, when present:
 * the overlay node label, and the dead ``requires --> mission_type:*`` edge
   (dropped);
 * stem tokens in the resolved activation write target;
-* then the manifest's bundle hash is restamped once.
+* then the manifest's bundle hash is restamped (a no-op when it already matches).
 
 The declared ``PROJECT_00N`` id, its ``directive:PROJECT_00N`` URN, the interview
 section label ``mission_type`` and the artifact body are never touched. The helper
@@ -412,8 +412,9 @@ def _apply_tokens(repo_root: Path) -> None:
 # Public entry point
 # ---------------------------------------------------------------------------
 
-#: Write order: artifact/input files first; the manifest last of the synthesis state, so an interrupted
-#: run leaves a state the next run recognises and finishes (every step acts only on legacy state).
+#: Write order: artifact/input files, provenance, the manifest, the overlay, then the activation tokens.
+#: Every step acts only on legacy state, so an interrupted run leaves a state the next run recognises
+#: and finishes; the bundle-hash restamp that follows the steps always runs (see the entry point).
 _STEPS: tuple[_Step, ...] = (
     _Step(_check_files, _apply_files),
     _Step(_check_provenance, _apply_provenance),
@@ -447,11 +448,24 @@ def rename_legacy_project_intent_directive(repo_root: Path, *, dry_run: bool = F
     :class:`LegacyRenameRefusedError` (nothing changed) on an unreadable input or a target collision.
     """
     actions = _preflight(repo_root)
-    if dry_run or not actions:
-        return RenameReport(dry_run=dry_run, actions=tuple(actions))
-    for step in _STEPS:
+    if dry_run:
+        return RenameReport(dry_run=True, actions=tuple(actions))
+    for step in _STEPS if actions else ():
         step.apply(repo_root)
+    _restamp(repo_root, tolerate_unreadable=not actions)
+    return RenameReport(dry_run=False, actions=tuple(actions))
+
+
+def _restamp(repo_root: Path, *, tolerate_unreadable: bool) -> None:
+    """Restamp the bundle hash on every non-dry run, so an interrupted run self-heals.
+
+    A no-op when the stamp already matches. With nothing to rename an unreadable manifest is
+    left to the command that reads it, like the preflight's soft refusals.
+    """
     from charter.activation.bundle_restamp import restamp_bundle_hash  # deferred: import cycle
 
-    restamp_bundle_hash(repo_root)
-    return RenameReport(dry_run=False, actions=tuple(actions))
+    try:
+        restamp_bundle_hash(repo_root)
+    except _READ_ERRORS:
+        if not tolerate_unreadable:
+            raise
