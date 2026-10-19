@@ -2,10 +2,9 @@
   "event_count": 90,
   "last_event_id": "01M592ZXP8EMEBSWW574H8XKN7",
   "materialized_at": "2026-10-19T03:23:57.512682+00:00",
-  "mission_number": "236",
+  "mission_number": "",
   "mission_slug": "charter-governance-resolution-01M57Z77",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,325 +20,162 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592YFP36YX0ZT1ZPNM3RZ1Z",
       "last_transition_at": "2026-10-19T03:23:10.403524+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-18T18:48:16Z – claude – shell_pid=32469 – Out-of-map edits: tests/charter/test_directive_identity_mapping.py (inverted stale stem-only assertion, FR-006) and tests/specify_cli/cli/commands/charter/test_activate_declared_id_writes_stem.py (T005 blast-radius test).",
-        "IdentityIndex added+exported; resolve_artifact_urn accepts declared ids for all kinds; golden snapshot first. Gates: ruff check/format/C901/mypy --strict exit 0. Tests: tests/charter + cli/commands/charter 4173 passed, 8 failed (6 load-flaky pass in isolation, 2 resynthesize pre-existing on base, 1 stale assertion fixed). CLI declared-id activation not changed (engine availability is stem-based; out of WP01).",
-        "Cycle 2: identity index tests now derived from activatable kinds (adds mission_step_contract, glossary_pack, skill; anti_pattern explicit skip; guard test). Declared-id activation pinned as strict xfail (#6423); CLI test renamed. ruff/format clean; tests/charter 3894 passed, 20 skipped.",
-        "Review passed cycle 2 (reviewer-renata): identity-index tests now derive kinds from ArtifactKind.activatable with real org+project fixtures for mission_step_contract/glossary_pack/skill (mutation-killed: dropping their scan fails 3 params), anti_pattern explicitly skipped with reason, set-equality guard present. CLI test renamed to test_activate_stem_writes_stem.py; strict xfail for declared-id activation fails on the genuine 'Unknown tactic ID' refusal, tracked by open #6423. Out-of-map test edit (CLI test outside owned_files) accepted as justified: it is the T005 test this WP introduced. ruff/format clean; tests/charter/activation + CLI test: 257 passed, 1 xfailed."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP01:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 12404,
-      "shell_pid_created_at": "1792353278.7",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 902,
+      "shell_pid_created_at": "1792351532.63"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592YZ26KAR0PWM15W85YFGV",
       "last_transition_at": "2026-10-19T03:23:26.150123+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "IdentityIndex wired into resolve_project_governance + ActiveCharterService (all kinds); unknown selections dropped with UNKNOWN_SELECTION_DIAGNOSTIC. Gates: ruff check/format --force-exclude exit 0, mypy --strict resolver.py clean, C901 clean. Sweep tests/charter charter_offering runtime next: 10003 passed; only reds #6424/#6428-class + packaging_parity timeout. Out-of-map: test_resolver_directive_activation_keying.py (scan counter).",
-        "Review passed (reviewer-renata): red-first verified (18 tests red on pre-fix src); declared-id directive base, stem/declared selections, [QA_003, NOPE_999] drops with exact UNKNOWN_SELECTION_DIAGNOSTIC, org/unknown paradigms, all getters via _gated; #4240 warning test green; NFR-004 snapshot unchanged; one PackContext+IdentityIndex per resolve; ruff/format/mypy --strict/C901 clean; tests/charter+charter_offering 8025 passed. Non-blocking: getter ratchet omits agent_profiles/skills (probed manually: work); duck-typed repo_root fallback in _identity_index exists only for test stand-ins."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 15317,
-      "shell_pid_created_at": "1792355991.81",
-      "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T011": "done"
-      }
+      "shell_pid": 15441,
+      "shell_pid_created_at": "1792353489.06"
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592ZKH03VJM80TQ626R8B9P",
       "last_transition_at": "2026-10-19T03:23:47.104491+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-18T23:57:44Z – claude – shell_pid=28329 – Out-of-map edit: context.py passes per-invocation IdentityIndex to _resolve_action_bundle (T013 wiring, WP09 owns file)",
-        "Bundle carries identity; activation/org-required mapped via activation_id; filter_graph_by_activation(identity=); context.py wired. ruff/format/mypy --strict/C901 clean; charter+charter_offering 8032 passed, 6 sandbox wheel-build errors; NFR-004 snapshot unchanged",
-        "Review passed (reviewer-renata): bundle carries per-invocation IdentityIndex (context.py out-of-map edit minimal, recorded, no conflict with WP10 lane-j); activated/org-required via activation_id; filter_graph_by_activation(identity=) with resolve_artifact_urn fallback; no normalize_directive_id; C-007 absent-key unmapped; snapshot unchanged; red verified for stem tokens + org-required stem tactic; gates clean; tests/charter+charter_offering 8038 passed. Non-blocking: drg gate test green pre-fix and does not pass identity=; 'not-activated-control' absence is vacuous; built-in control accepts QA_003; explicit org_root override not reflected in context.py index build."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP03:20261019",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 22728,
-      "shell_pid_created_at": "1792368500.48",
-      "subtasks": {
-        "T012": "done",
-        "T013": "done",
-        "T016": "done"
-      }
+      "shell_pid": 28329,
+      "shell_pid_created_at": "1792366621.73"
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592YMSYDQ0Q1T990KDNZJGH",
       "last_transition_at": "2026-10-19T03:23:15.646433+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "T017-T021 done. Commits 655e2d45d (red), 1187d8070 (fix), d5973cfae (fixtures). Gates: ruff check/format, mypy --strict, C901 all exit 0. WP tests 691+ passed; sweep 8382 passed, 3 failed (2 pre-existing on base: test_resynthesize_and_hotpath x2; 1 load-flaky, passes alone). Pre-existing: charter_pack_cutover upgrade_migration reds (base too).",
-        "Review passed (reviewer-renata): suggests edge emitted directive->tactic, no APPLIES in synthesizer; edge_owner single ownership authority (merge/delta/edge_ref/conflicts); prune drops edges on either endpoint; legacy applies stripped for manifest nodes and reported (delta.removable reason, CLI count, partial-run reference_warnings) with hand-authored positive control. All 7 red tests verified failing on 655e2d45d src. Gates green (ruff, format --force-exclude, mypy --strict, C901). Targeted 693 passed; tests/charter+charter_offering 7980 passed. Pre-existing reds identical on merge-base a86fdfc85 (14). Out-of-map edits justified. Non-blocking: JSON stripped_legacy_edges and _orphaned_removals reason-exclusion branch lack direct tests; synthesized_node_urns includes project-direct-write manifest entries (matches WP definition)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP04:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 5548,
-      "shell_pid_created_at": "1792350209.45",
-      "subtasks": {
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done"
-      }
+      "shell_pid": 32469,
+      "shell_pid_created_at": "1792345340.34"
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592ZXP8EMEBSWW574H8XKN7",
       "last_transition_at": "2026-10-19T03:23:57.512682+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP05: reach_only.py (reach_only_tactic_ids, append_synthesized_tactic_activations, manifest_tactic_slugs); subtracted in bundle seeds + compiler direct roots; appended from synthesize/resynthesize (also activate --resynthesize via charter_synthesize). Red-first commit 773f7cade. Gates: ruff check/format 0, C901 0, mypy --strict only pre-existing errors (compiler.py no-any-return, typer untyped-decorator). Suite 4522 passed; 2 fails test_resynthesize_and_hotpath *without_resynthesize_stays_stale also red on base.",
-        "Review passed (reviewer-renata): red-first verified (11 red vs pre-fix src); reach-only subtraction in bundle seeds + compiler reference seeds; activation append only on explicit list, after dry-run/orphan refusal, restamps manifest (verified); --topic appends; deactivated directive drops tactic with control delivered; edgeless/hand-authored stay roots; NFR-004 snapshot green; gates clean (mypy errors pre-existing only); sweep 4241 passed, 2 known #6424 reds. Edge-dropped-from-merged-graph test accepted: AC 'edge removed from overlay' conflicts with 'edgeless tactics remain roots'."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP05:20261019",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 414,
-      "shell_pid_created_at": "1792372857.8",
-      "subtasks": {
-        "T022": "done",
-        "T023": "done",
-        "T024": "done",
-        "T025": "done"
-      }
+      "shell_pid": 13739,
+      "shell_pid_created_at": "1792369823.76"
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592Z4C1BPMG1W7VGGVVGJPV",
       "last_transition_at": "2026-10-19T03:23:31.585810+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP06 done: engine narrow_base/narrow_bases (keyword-only, default None), org_required_stems, manager only=, CLI --only (renderer extracted, C901 ok), frozen-list sentence via FROZEN_LIST_NOTE; dropped ids compared in stem form via IdentityIndex (stem!=id kept not reported dropped, tested). Gates: ruff check/format/C901 exit 0; mypy --strict only 5 pre-existing pack_manager redundant-cast errors (same on base). Tests: charter + CLI charter dirs 4319 passed, 2 failed = known #6424 activate/deactivate hotpath.",
-        "Review passed (reviewer-renata): red-first verified (12 fail + 1 import error at d546006f0); all US4 scenarios covered incl. stem!=id org-required kept as stem and exact dropped list vs fixture; --only+--preset exit 2; default path unchanged except FROZEN_LIST_NOTE; promote_activations still returns PromotionOutcome, new kw-only narrow_bases defaults None (callers interview.py, org_charter, m_unify_charter_activation unaffected); ruff/format/C901 clean; mypy --strict delta 0 (5 pre-existing pack_manager errors on base); targeted 502 passed; tests/charter + charter CLI 4195 passed, 2 failed in test_resynthesize_and_hotpath.py also red on base. Non-blocking: org_required_stems re-implements the _normalize_required_ids loop (new BLE001 noqa) instead of wrapping it; --only discards the unresolved-effective-set warning; cascade test does not assert cross-kind append."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP06:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 26270,
-      "shell_pid_created_at": "1792356551.3",
-      "subtasks": {
-        "T026": "done",
-        "T027": "done",
-        "T028": "done",
-        "T029": "done",
-        "T030": "done"
-      }
+      "shell_pid": 17597,
+      "shell_pid_created_at": "1792353541.08"
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592Z9EMFHT95MVEAYH8FSBA",
       "last_transition_at": "2026-10-19T03:23:36.788697+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP07: interview --narrow-activation (helpers _narrow_bases; interview() complexity unchanged), JSON narrowed always present, text 'No longer in force' lines, prompt.md contract text, cli-commands.md regenerated, charter-commands.md row. Gates: ruff check/format OK, C901 OK, regenerate-graph --check fresh, pack vendor --check matches pin, cli-reference freshness clean, 612 arch/offering tests pass; wider sweep 17 red all identical on base (incl #6424). mypy --strict: only 9 env import-not-found/untyped-decorator errors, identical on base.",
-        "Cycle 2: fixed prompt.md paradigm/additive text, reverted unrelated docs drift, deterministic defaults pin + positive control",
-        "Review passed cycle 2 (reviewer-renata): prompt.md paradigm text now matches shipped defaults and additive bullet qualified; agent-subcommands.md identical to base, cli-commands.md only --only/--narrow-activation hunks, freshness exits 0; defaults pin asserts directly with directives positive control plus explicit-paradigm test. ruff/format/graph clean; 625 passed, 1 skipped."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP07:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 23445,
-      "shell_pid_created_at": "1792366450.61",
-      "subtasks": {
-        "T031": "done",
-        "T032": "done",
-        "T033": "done",
-        "T034": "done"
-      }
+      "shell_pid": 31144,
+      "shell_pid_created_at": "1792365919.63"
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592YSYHD55495KDE03Z9VGA",
       "last_transition_at": "2026-10-19T03:23:20.913086+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Red 8d0ff2af2, fix 987aef066 (#6405). ruff/format/C901 exit 0; mypy --strict clean on code_reader.py (write_pipeline.py:209,214 no-any-return + platformdirs stub are pre-existing/env). WP tests 68 pass; tests/charter 3878 pass 20 skip. Behaviour change: nested-only multi-language manifests resolve by file counts.",
-        "Review passed (reviewer-renata, opus): red-first verified (9 fail on test commit), all acceptance criteria met, gates clean, tests/charter 3878 passed. mypy write_pipeline.py:209,214 pre-existing on base."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP08:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 10787,
-      "shell_pid_created_at": "1792347134.03",
-      "subtasks": {
-        "T035": "done",
-        "T036": "done",
-        "T037": "done",
-        "T038": "done"
-      }
+      "shell_pid": 32469,
+      "shell_pid_created_at": "1792345340.34"
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592ZEEBFJSNS2FFJ3Q4A69R",
       "last_transition_at": "2026-10-19T03:23:41.899083+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-18T22:46:50Z – claude – shell_pid=6920 – Out-of-map edits: tests/next/test_prompt_builder_unit.py, CHANGELOG.md. CLI also passes directives_source (trivially additive).",
-        "T039-T042 done. diagnostics top-level key (schema 1.4.0, ledger+2 pins), CLI pass-through of diagnostics+directives_source, doctor warning naming dropped ids, prompt-builder already rendered diagnostics (test added), org entries carry org provenance via IdentityIndex layer. IdentityIndex built once in build_charter_context_json. Gates: ruff check 0, ruff format --check 0, C901 0, mypy --strict identical to baseline (108 env import errors, 0 new), boundary/json-contract/terminology gates pass. Sweep: 13433 passed, 18 failed = #6424 (2) + 16 pre-existing (upgrade_command, doctrine_asset, reassess, skill_drift, regenerate_graph; 15 reproduce on base).",
-        "Review passed (reviewer-renata): diagnostics in builder+CLI JSON (schema 1.4.0, ledger, pins), QA_003 org source via identity index (scoped to JSON builder path; org_roots=None callers unchanged), doctor warns naming NOPE_999, compact/prompt builder characterized. Red-first verified (5 red on base). mypy identical to base (2 pre-existing). Suspect-file failures identical base vs head (15); charter/runtime/next sweep 5906 passed. Closeout: fold the CHANGELOG line into the closeout entry."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP09:20261018",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 25689,
-      "shell_pid_created_at": "1792364338.51",
-      "subtasks": {
-        "T039": "done",
-        "T040": "done",
-        "T041": "done",
-        "T042": "done"
-      }
+      "shell_pid": 6920,
+      "shell_pid_created_at": "1792357241.68"
     },
     "WP10": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M592ZRQ1KT0103GKQTWP6422",
       "last_transition_at": "2026-10-19T03:23:52.418038+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP10 done: --include (declared id or stem, every kind), selection block org attribution by declared id, preset _id_key via IdentityIndex, charter list stem (declared_id) + activated-by-either-spelling + declared_id in available JSON entries. Red commit b1ed6e49a, fix 4fba49b79. Gates: ruff check, format, mypy --strict (5 src files), C901 clean; arch gates 124 passed; WP tests 242 passed; broad charter sweep partial (~34%, 0 failures, stopped for time).",
-        "Cycle 2: preset plan builds IdentityIndex from shared _Roots/ResolutionPass (timing 0.89x, base 1.13x); removed 4 type-ignore + noqa E402. No CHANGELOG here: Mission closeout owns the single entry (mention charter list --all --json available[] declared_id key).",
-        "Cycle 3: fast path now conservative (single plain-string id line, special scalars/BOM/CR/doc markers/dup keys fall back); equivalence + edge tests; timing 3/3 pass",
-        "Review passed cycle 3 (reviewer-renata): f9c581efe fixes all cycle-2 divergences (numbers, bools, null, case variants, multi-doc, duplicate/quoted keys); built-in equivalence test + edge cases lock it in. Gates clean (ruff, format --force-exclude, C901, mypy --strict on identity_index + WP10 src; the one mypy hit, context.py:25 untyped typer decorator, predates WP10). 559 targeted tests pass; timing 6/6 serial, ratios preset 1.01-1.13x, pack list 0.89-1.08x. Residuals (non-blocking, trivial follow-up): (1) valid-YAML plain-scalar continuation 'id: foo\\n  bar' gives fast 'foo' vs full 'foo bar'; reject the fast path when the next line is indented. (2) tab after 'id:' or trailing tab gives fast id where ruamel errors (broken-YAML class). (3) the accepted broken-YAML limitation leaks the fast id into the shared ResolutionPass, so same-pass _read_id callers see it too; impact is limited to an id the repository can't load (shows as missing, not as a second identity)."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP10:20261019",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 6168,
-      "shell_pid_created_at": "1792378757.98",
-      "subtasks": {
-        "T043": "done",
-        "T044": "done",
-        "T045": "done",
-        "T046": "done"
-      }
+      "shell_pid": 16156,
+      "shell_pid_created_at": "1792377278.24"
     }
   }
 }
