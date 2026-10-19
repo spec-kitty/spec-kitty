@@ -34,6 +34,7 @@ from charter.activation.charter_yaml_io import (
 from kernel.charter_pack_paths import pack_presets_dir
 from kernel.clock import now_utc_stamp
 from kernel.errors import KittyInternalConsistencyError
+from charter.activation.synthesizer.reach_only import reach_only_tactic_ids
 from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
@@ -293,7 +294,7 @@ def _resolve_config_activated_roots(
         raise UnknownArtifactIdError(f"{exc} Activation store: {source}.") from exc
 
 
-def _direct_root_urns(config_roots: ConfigActivatedRoots) -> frozenset[str]:
+def _direct_root_urns(config_roots: ConfigActivatedRoots, repo_root: Path | None) -> frozenset[str]:
     """Direct-activation root URNs (WP02 T026).
 
     These are the kinds that may be activated directly in
@@ -304,7 +305,9 @@ def _direct_root_urns(config_roots: ConfigActivatedRoots) -> frozenset[str]:
     DRG-reachable and are loaded directly from YAML, so neither appears here.
     """
     urns: set[str] = set()
-    urns.update(f"{ArtifactKind.TACTIC.value}:{artifact_id}" for artifact_id in config_roots.tactics)
+    # #6404: a synthesized tactic reached by a directive's suggests edge is not a root.
+    reach_only = reach_only_tactic_ids(repo_root) if repo_root is not None else frozenset()
+    urns.update(f"{ArtifactKind.TACTIC.value}:{artifact_id}" for artifact_id in config_roots.tactics if artifact_id not in reach_only)
     urns.update(f"{ArtifactKind.STYLEGUIDE.value}:{artifact_id}" for artifact_id in config_roots.styleguides)
     urns.update(f"{ArtifactKind.TOOLGUIDE.value}:{artifact_id}" for artifact_id in config_roots.toolguides)
     urns.update(f"{ArtifactKind.PROCEDURE.value}:{artifact_id}" for artifact_id in config_roots.procedures)
@@ -1663,7 +1666,7 @@ def _build_references_from_service(
     graph = _resolve_transitive_reference_graph(
         offering_root=offering_root,
         directives=config_roots.directives,
-        direct_root_urns=_direct_root_urns(config_roots),
+        direct_root_urns=_direct_root_urns(config_roots, repo_root),
         repo_root=repo_root,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,

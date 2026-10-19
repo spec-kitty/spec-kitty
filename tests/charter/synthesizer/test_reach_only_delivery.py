@@ -57,11 +57,7 @@ def _write_overlay(repo_root: Path, *, with_edge: bool) -> None:
     for tactic_id in (_REACH_ONLY, _EDGELESS_SYNTH, _HAND_AUTHORED):
         (pack / "tactic" / f"{tactic_id}.tactic.yaml").write_text(_tactic_yaml(tactic_id), encoding="utf-8")
     nodes = [{"urn": f"tactic:{t}", "kind": "tactic", "label": t} for t in (_REACH_ONLY, _EDGELESS_SYNTH)]
-    edges = (
-        [{"source": f"directive:{_DIRECTIVE_ID}", "target": f"tactic:{_REACH_ONLY}", "relation": "suggests"}]
-        if with_edge
-        else []
-    )
+    edges = [{"source": f"directive:{_DIRECTIVE_ID}", "target": f"tactic:{_REACH_ONLY}", "relation": "suggests"}] if with_edge else []
     (pack / "graph.yaml").write_text(
         yaml.safe_dump({"schema_version": "1.0", "generated_at": "2026-10-19T00:00:00+00:00", "generated_by": "test", "nodes": nodes, "edges": edges}),
         encoding="utf-8",
@@ -102,9 +98,12 @@ def _delivered_tactics(
     with_edge: bool,
     directives: frozenset[str] | None,
     tactics: frozenset[str] | None,
+    merged_has_edge: bool | None = None,
 ) -> frozenset[str]:
+    """Deliver through the real bundle; *merged_has_edge* lets the merged graph differ from the overlay."""
     _write_overlay(repo_root, with_edge=with_edge)
-    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_merged_graph(with_edge=with_edge)):
+    merged = _merged_graph(with_edge=with_edge if merged_has_edge is None else merged_has_edge)
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=merged):
         bundle = _load_action_governance_bundle(
             repo_root=repo_root,
             action=_ACTION,
@@ -126,11 +125,14 @@ def test_reach_only_tactic_delivered_via_directive_edge(tmp_path: Path) -> None:
     assert _CONTROL in delivered  # control: the fixture delivers tactics at all
 
 
-def test_edge_removed_tactic_is_not_delivered_on_the_same_fixture(tmp_path: Path) -> None:
-    delivered = _delivered_tactics(tmp_path, with_edge=False, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS)
+def test_edge_is_the_only_delivery_route(tmp_path: Path) -> None:
+    """Same fixture, same activation: dropping the edge from the merged graph drops the tactic."""
+    with_edge = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS)
+    without_edge = _delivered_tactics(tmp_path, with_edge=True, directives=_DIRECTIVE_ON, tactics=_EXPLICIT_TACTICS, merged_has_edge=False)
 
-    assert _REACH_ONLY not in delivered
-    assert _CONTROL in delivered
+    assert _REACH_ONLY in with_edge
+    assert _REACH_ONLY not in without_edge
+    assert _CONTROL in without_edge
 
 
 def test_deactivated_directive_removes_tactic_but_not_unrelated_activated_tactic(tmp_path: Path) -> None:
@@ -215,3 +217,18 @@ def test_classify_delivers_reach_only_tactic_from_a_seeded_directive() -> None:
 
     assert _REACH_ONLY in delivered["tactics"]
     assert _REACH_ONLY not in undelivered["tactics"]
+
+
+def test_compiler_reference_seeds_exclude_reach_only_tactic(tmp_path: Path) -> None:
+    import dataclasses
+
+    from charter.activation.compiler import ConfigActivatedRoots, _direct_root_urns
+
+    _write_overlay(tmp_path, with_edge=True)
+    empty = {f.name: [] for f in dataclasses.fields(ConfigActivatedRoots)}
+    roots = ConfigActivatedRoots(**{**empty, "tactics": [_REACH_ONLY, _EDGELESS_SYNTH, _CONTROL]})
+
+    urns = _direct_root_urns(roots, tmp_path)
+
+    assert f"tactic:{_REACH_ONLY}" not in urns
+    assert {f"tactic:{_EDGELESS_SYNTH}", f"tactic:{_CONTROL}"} <= urns

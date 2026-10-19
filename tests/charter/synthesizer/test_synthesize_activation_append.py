@@ -30,7 +30,7 @@ runner = CliRunner()
 
 _TACTIC = "how-we-apply-directive-003"
 _EXISTING = "adversarial-qa-handoff"
-_CHARTER_YAML = "schema_version: '2.0.0'\ngovernance: {}\ndirectives: {}\n"
+_CHARTER_YAML = "schema_version: '2.0.0'\ngovernance: {}\ndirectives: {}\nmetadata:\n  generated_at: '2026-10-19T00:00:00Z'\n  bundle_schema_version: 2\n"
 
 
 def _request(run_id: str) -> SynthesisRequest:
@@ -52,7 +52,9 @@ def _request(run_id: str) -> SynthesisRequest:
             "risk_appetite": "moderate",
         },
         doctrine_snapshot={
-            "directives": {"DIRECTIVE_003": {"id": "DIRECTIVE_003", "title": "Decision Documentation", "body": "Document ADRs."}},
+            "directives": {
+                "DIRECTIVE_003": {"id": "DIRECTIVE_003", "title": "Decision Documentation", "body": "Document significant architectural decisions via ADRs."}
+            },
             "tactics": {},
             "styleguides": {},
         },
