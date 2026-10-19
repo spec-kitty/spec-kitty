@@ -351,8 +351,7 @@ class CodeReadingCollector:
 
         return "+".join(parts_stack)
 
-    @staticmethod
-    def _detect_language(scan: _TreeScan) -> str:
+    def _detect_language(self, scan: _TreeScan) -> str:
         """Return the primary language, preferring the shallowest manifests.
 
         Manifests at the shallowest depth win; several languages at that depth
@@ -378,7 +377,19 @@ class CodeReadingCollector:
 
         if len(languages) == 1:
             return languages[0]
-        return _break_tie(languages, scan.ext_counts)
+        # Only a real tie pays for the uncapped walk (JVM sources sit deeper than max_depth).
+        return _break_tie(languages, self._count_sources_uncapped())
+
+    def _count_sources_uncapped(self) -> Counter[str]:
+        """Count source extensions across the whole tree, pruning ``EXCLUDED_DIRS``."""
+        counts: Counter[str] = Counter()
+        for _dirpath, dirnames, filenames in os.walk(str(self._repo_root)):
+            dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
+            for filename in filenames:
+                lang = SOURCE_EXT_LANG.get(os.path.splitext(filename)[1])
+                if lang:
+                    counts[lang] += 1
+        return counts
 
     @staticmethod
     def _unknown_signals() -> CodeSignals:

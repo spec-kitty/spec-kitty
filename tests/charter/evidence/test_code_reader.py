@@ -303,3 +303,45 @@ def test_root_package_json_beats_nested_android_gradle(tmp_path):
     _make_file(tmp_path / "android" / "app" / "src" / "main" / "java" / "Main.java", "class Main {}")
 
     assert CodeReadingCollector(tmp_path).collect().primary_language == "javascript"
+
+
+def _make_deep_java(root, count: int = 40) -> None:
+    for i in range(count):
+        _make_file(root / "src" / "main" / "java" / "com" / "acme" / f"C{i}.java", "")
+
+
+def test_deep_jvm_sources_beat_root_package_json(tmp_path):
+    """Java below the scan depth still counts when breaking a same-depth tie (#6405)."""
+    _make_file(tmp_path / "pom.xml", "")
+    _make_file(tmp_path / "package.json", "{}")
+    _make_file(tmp_path / "index.js", "")
+    _make_deep_java(tmp_path)
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "java"
+
+
+def test_deep_jvm_sources_beat_requirements_and_helper_script(tmp_path):
+    _make_file(tmp_path / "build.gradle.kts", "")
+    _make_file(tmp_path / "requirements.txt", "")
+    _make_file(tmp_path / "scripts" / "gen.py", "")
+    _make_deep_java(tmp_path)
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "java"
+
+
+def test_deep_jvm_sources_beat_pyproject_without_python(tmp_path):
+    _make_file(tmp_path / "build.gradle", "")
+    _make_file(tmp_path / "pyproject.toml", "")
+    _make_deep_java(tmp_path)
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "java"
+
+
+def test_tie_break_count_prunes_excluded_dirs(tmp_path):
+    _make_file(tmp_path / "pom.xml", "")
+    _make_file(tmp_path / "pyproject.toml", "")
+    for i in range(20):
+        _make_file(tmp_path / "node_modules" / "a" / "b" / "c" / "d" / f"X{i}.java", "")
+    _make_file(tmp_path / "src" / "app.py", "")
+
+    assert CodeReadingCollector(tmp_path).collect().primary_language == "python"
