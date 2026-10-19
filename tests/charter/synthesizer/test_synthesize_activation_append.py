@@ -266,14 +266,16 @@ def test_resynthesize_does_not_readd_a_tactic_the_operator_removed(tmp_path: Pat
 def test_resynthesize_with_nothing_new_does_not_rewrite_config_or_restamp(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING, _TACTIC])
     synthesize(_request("01AAAAAAAAAAAAAAAAAAAAAAAAA"), adapter=FixtureAdapter(), repo_root=tmp_path)
-    before = charter_yaml.read_bytes()
+    manifest_path = tmp_path / MANIFEST_PATH
+    before, manifest_before = charter_yaml.read_bytes(), manifest_path.read_bytes()
 
-    with patch("charter.activation.bundle_restamp.restamp_bundle_hash") as restamp:
-        result = _resynthesize_tactic_cli(charter_cwd_isolation)
+    # The legacy-rename convergence restamps on every run (a no-op when the stamp matches), so the
+    # contract is "nothing is rewritten", not "the restamp helper is never called".
+    result = _resynthesize_tactic_cli(charter_cwd_isolation)
 
     assert result.exit_code == 0, result.output
     assert charter_yaml.read_bytes() == before
-    restamp.assert_not_called()
+    assert manifest_path.read_bytes() == manifest_before
 
 
 def test_append_skips_slugs_already_activated(tmp_path: Path) -> None:
