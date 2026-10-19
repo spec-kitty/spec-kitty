@@ -68,6 +68,24 @@ EXCLUDED_DIRS: frozenset[str] = frozenset(
         ".worktrees",
         ".mypy_cache",
         ".tox",
+        # Spec Kitty's own state and the generated agent/tool directories ship Python helpers
+        # (``.kittify/missions/**/__init__.py``): they are tooling, never project sources (#6444).
+        ".kittify",
+        ".claude",
+        ".agents",
+        ".codex",
+        ".gemini",
+        ".cursor",
+        ".qwen",
+        ".opencode",
+        ".windsurf",
+        ".kilocode",
+        ".augment",
+        ".amazonq",
+        ".kiro",
+        ".agent",
+        ".llxprt",
+        ".vibe",
     }
 )
 
