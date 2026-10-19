@@ -9,10 +9,9 @@ looser than the live total (a shrink-only ratchet).
 
 Current sealed caps, by class::
 
-    process-bootstrap    6
-    subprocess-entry    6
+    process-bootstrap    5
+    subprocess-entry     6
     leak-sentinel        2
-    deferred-01M3EW3Z    4
 
 This module reuses ``test_no_manual_global_state_mutation``'s own
 ``load_allowlist``/``AllowlistRow``/``Allowlist`` -- it does not parse the YAML
@@ -47,7 +46,7 @@ SEALED_CLASS_CAPS: Final[Mapping[str, int]] = {
     "process-bootstrap": 5,
     "subprocess-entry": 6,  # #6164: S8 lease_revocation rows removed (shrink-only)
     "leak-sentinel": 2,
-    "deferred-01M3EW3Z": 4,
+    # #2972: deferred-01M3EW3Z retired (its 4 sites converted to monkeypatch).
 }
 
 

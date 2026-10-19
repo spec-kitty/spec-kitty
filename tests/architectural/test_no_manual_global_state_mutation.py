@@ -18,7 +18,7 @@ becomes a "verdict work" module under
 directory is deliberately named ``global_state_allowlist/`` rather than
 anything containing "census"/"baseline" (that guard's artefact-read signal).
 
-Shard schema (permanent, one file per shard + ``deferred-01M3EW3Z.yaml``)::
+Shard schema (permanent, one file per shard)::
 
     shard: S1
     owns:
@@ -64,13 +64,14 @@ ALLOWLIST_DIR = Path(__file__).resolve().with_name("global_state_allowlist")
 
 #: The five kinds the detector emits (contract "Site").
 VALID_KINDS: frozenset[str] = frozenset({"cwd", "sys.path", "sys.modules", "os.environ", "sys.argv"})
-#: The four row classes the contract's allowlist row schema permits.
+#: The row classes the contract's allowlist row schema permits. The
+#: ``deferred-01M3EW3Z`` class was retired once its last sites were converted
+#: (#2972), so a new site can no longer be parked as deferred debt.
 VALID_CLASSES: frozenset[str] = frozenset(
     {
         "process-bootstrap",
         "subprocess-entry",
         "leak-sentinel",
-        "deferred-01M3EW3Z",
     }
 )
 

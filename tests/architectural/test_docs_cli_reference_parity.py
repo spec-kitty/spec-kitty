@@ -42,22 +42,23 @@ from collections.abc import Iterator
 import pytest
 import typer
 
-# CRITICAL: env flags MUST be set before importing specify_cli so that
-# the tracker / issue-search subtree is registered.
-# SPEC_KITTY_ENABLE_SAAS_SYNC is now set collection-wide in tests/conftest.py
-# pytest_configure (#3213), before any module import, so the gate decision is
-# selection-invariant; only the non-gate NO_UPGRADE flag remains per-module.
-os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
-
-# Ensure scripts/docs is importable (matches tests/docs/conftest.py).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.docs._typer_walker import walk  # noqa: E402
-from scripts.docs.check_cli_reference_freshness import (  # noqa: E402
+# The repository root is already importable here: with the default ``prepend``
+# import mode, pytest puts the first ancestor without an ``__init__.py`` (the
+# repo root, since ``tests/`` and ``tests/architectural/`` are packages) on
+# ``sys.path``, so the ``scripts.docs`` helpers import without a hand-made
+# ``sys.path`` insert (``--import-mode=importlib`` would break this file).
+from scripts.docs._typer_walker import walk
+from scripts.docs.check_cli_reference_freshness import (
     extract_referenced_paths,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# The upgrade-check notice is read on every invocation, never at import or app
+# construction, so it is opted out on the one ``CliRunner`` call below instead
+# of by a module-level ``os.environ`` write that leaks into every later test on
+# the worker.
+_NO_UPGRADE_CHECK_ENV = {"SPEC_KITTY_NO_UPGRADE_CHECK": "1"}
 
 # ``docs_scoped``: reads the ``docs/api/*.md`` CLI-reference files and
 # shipped skill docs, so a docs-only PR could newly-red it — it MUST run on the
@@ -78,12 +79,8 @@ def _build_live_app() -> typer.Typer:
     # the documented surface. Construction performs no live sync operation.
     with pytest.MonkeyPatch.context() as env:
         env.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-        saved = sys.argv[:]
-        sys.argv = ["spec-kitty", "--help"]
-        try:
-            app = specify_cli._build_app()
-        finally:
-            sys.argv = saved
+        env.setattr(sys, "argv", ["spec-kitty", "--help"])
+        app = specify_cli._build_app()
     assert isinstance(app, typer.Typer), "specify_cli.app must be a Typer instance"
     return app
 
@@ -206,7 +203,7 @@ def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
     """The unreachable residual flag must not survive in help or docs."""
     from typer.testing import CliRunner
 
-    result = CliRunner().invoke(_build_live_app(), ["review", "--help"])
+    result = CliRunner().invoke(_build_live_app(), ["review", "--help"], env=_NO_UPGRADE_CHECK_ENV)
 
     assert result.exit_code == 0, result.output
     assert "--check-residual" not in result.output
