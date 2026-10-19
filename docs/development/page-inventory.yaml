@@ -3860,6 +3860,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/sync-packs.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/index.md
   tag: current
   divio_type: none

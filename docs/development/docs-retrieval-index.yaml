@@ -2907,9 +2907,9 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "delivery-status-this-slice", text: "Delivery status (this slice)", level: 2}
   - path: "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md"
-    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release"
+    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It (amended)"
     divio_type: "none"
-    abstract: "Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change."
+    abstract: "Built-in doctrine is authored in spec-kitty-open-packs; core pins it by commit and fetches the verified tree, so consumers see no change (amended 2026-10-19; was a CI re-vendor)."
     anchors:
     - {slug: "amendment-2026-10-11-pre-spec-grounding-for-3504", text: "Amendment (2026-10-11 — pre-spec grounding for #3504)", level: 2}
     - {slug: "why-it-was-needed", text: "Why it was needed", level: 3}

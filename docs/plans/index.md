@@ -44,8 +44,8 @@ below, a throughline does not retire when a milestone closes.
   [Charter-Resolution Program](charter-resolution/README.md).
 - **Packs extraction** — [Packs Extraction — Domain Plan](domains/packs-extraction-domain-plan.md):
   re-extracting the doctrine layer from `src/charter/offering/` and `packs/built-in/`
-  into separately released units: the wheel split (#3101), open-packs re-vendoring
-  (#3504) and verified distribution (#2539). None of it is 4.0.0 scope.
+  into separately released units: the wheel split (#3101), open-packs pinning and fetch
+  (#3504, #6451) and verified distribution (#2539). None of it is 4.0.0 scope.
 - **API & dashboard** — [API & Dashboard — Domain Plan](domains/api-dashboard-domain-plan.md):
   the stable application/mission-data API surface (#645) and the dashboard/UX consumers
   (#650), including retiring the Feature-labelled UI drift.

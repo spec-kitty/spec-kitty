@@ -401,10 +401,12 @@ explainer `packs/internal/README.md`):
   `pyproject.toml` narrows the wheel/sdist `packs` include to `packs/built-in/`,
   guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`.
 
-**Source home (direction): `spec-kitty-open-packs`.** The *source* of **both** pack trees —
-`packs/built-in/` and `packs/internal/` — is moving to the `spec-kitty-open-packs`
-repository: authored there and vendored into this repository at release (a pinned,
-checksummed ref; #3504, with the deferred runtime-fetch step #3022). This is a
+**Source home: `spec-kitty-open-packs`.** The *source* of **both** pack trees —
+`packs/built-in/` and `packs/internal/` — is the `spec-kitty-open-packs` repository:
+authored there, pinned here by commit in the lockfiles `packs/built-in.source.yaml` and
+`packs/internal.source.yaml`, and fetched, digest-verified and placed by `make sync-packs`
+instead of being committed (#6451, ADR `2026-08-16-2` Amendment 2026-10-19; consumer-side
+runtime fetch stays deferred, #3022). This is a
 **source-location move only, and it changes neither pack's packaging invariant.**
 `packs/internal/` stays excluded from the wheel/sdist (the `packs` include stays narrowed to
 `packs/built-in/`, guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`), and
