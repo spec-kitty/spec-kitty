@@ -59,7 +59,6 @@ from charter.activation.context_renderers.token_budget import (
     _budget_estimate,
 )
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -121,22 +120,16 @@ def _provenance_suffix(
     return " (source: org)"
 
 
-def _selection_id(
-    identity: IdentityIndex | None,
-    kind: ArtifactKind | None,
-    token: str,
-    normalize_id: Callable[[str], str] | None = None,
-) -> str:
+def _selection_id(identity: IdentityIndex | None, kind: ArtifactKind | None, token: str) -> str:
     """The repository key for a selected *token* (declared id or file stem).
 
     Repositories are keyed by declared id, so the identity index turns either
-    spelling into that key (FR-017, #6406). *normalize_id* is the fallback for a
-    token the index does not know (directives: the id normaliser, #3816).
+    spelling into that key with selection precedence (FR-017, #6406); a token no
+    index knows falls back to :meth:`IdentityIndex.unindexed_key`.
     """
-    declared: str | None = identity.selection_id(kind, token) if identity is not None and kind is not None else None
-    if declared is not None:
-        return declared
-    return normalize_id(token) if normalize_id else token
+    if identity is None:
+        return IdentityIndex.unindexed_key(kind, token)
+    return identity.lookup_key(kind, token, selection=True)
 
 
 def _render_selected_artifacts(
@@ -149,7 +142,6 @@ def _render_selected_artifacts(
     body_formatter: Callable[[object], list[str]],
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
-    normalize_id: Callable[[str], str] | None = None,
     identity: IdentityIndex | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
@@ -182,7 +174,7 @@ def _render_selected_artifacts(
         artifact = None
         if repository is not None:
             try:
-                lookup_id = _selection_id(identity, kind, artifact_id, normalize_id)
+                lookup_id = _selection_id(identity, kind, artifact_id)
                 artifact = repository.get(lookup_id)
             except Exception:  # noqa: BLE001 — best-effort catalog lookup
                 artifact = None
@@ -276,7 +268,6 @@ def _render_selected_directives(
         body_formatter=_format_inline_directive_body,
         org_source_map=org_source_map,
         repo_root=repo_root,
-        normalize_id=normalize_directive_id,
         identity=identity,
     )
 

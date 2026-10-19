@@ -772,6 +772,22 @@ def _resolve_selected_directives(
     return resolved
 
 
+def _report_charter_selection(noun: str, resolved: list[str], base: list[str], base_source: str, diagnostics: list[str]) -> None:
+    """Append the "beyond the base" / "none added" diagnostic for a resolved charter selection.
+
+    Silent when nothing resolved (every entry was unknown): the unknown-selection
+    diagnostics already say so, and "All 0 ... none added" would be misleading.
+    """
+    if not resolved:
+        return
+    base_set = set(base)
+    added = [item for item in resolved if item not in base_set]
+    if added:
+        diagnostics.append(f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + ".")
+    else:
+        diagnostics.append(f"All {len(resolved)} charter-selected {noun}(s) already present in the {base_source} base; none added: " + ", ".join(resolved) + ".")
+
+
 def _resolve_directive_base(
     charter_config: GovernanceCharterConfig,
     directives_cfg: DirectivesConfig,
@@ -829,17 +845,10 @@ def _resolve_directive_base(
 
     selected_directives = _resolve_selected_directives(list(charter_config.selected_directives), local_ids, catalog_ids, identity, diagnostics)
 
-    base_set = set(base)
-    added = [d for d in selected_directives if d not in base_set]
-    if added:
-        diagnostics.append(f"Charter selected {len(added)} directive(s) beyond the {base_source} base: " + ", ".join(added) + ".")
-    else:
-        diagnostics.append(
-            f"All {len(selected_directives)} charter-selected directive(s) already present in "
-            f"the {base_source} base; none added: " + ", ".join(selected_directives) + "."
-        )
-    unioned = list(dict.fromkeys([*base, *selected_directives]))
-    return unioned, f"{base_source}+charter"
+    _report_charter_selection("directive", selected_directives, base, base_source, diagnostics)
+    if not selected_directives:
+        return base, base_source
+    return list(dict.fromkeys([*base, *selected_directives])), f"{base_source}+charter"
 
 
 def _resolve_directives_selection(
@@ -951,19 +960,8 @@ def resolve_project_governance(
 
     selected_paradigms_raw = _resolve_selected_paradigms(list(charter_config.selected_paradigms), offering_catalog, identity, diagnostics)
     paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, pack_ctx, identity, diagnostics)
-    if charter_config.selected_paradigms:
-        paradigm_base_set = set(paradigm_base)
-        added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
-        if added_paradigms:
-            diagnostics.append(f"Charter selected {len(added_paradigms)} paradigm(s) beyond the {paradigm_base_source} base: " + ", ".join(added_paradigms) + ".")
-        else:
-            diagnostics.append(
-                f"All {len(selected_paradigms_raw)} charter-selected paradigm(s) already present in the "
-                f"{paradigm_base_source} base; none added: " + ", ".join(selected_paradigms_raw) + "."
-            )
-        selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
-    else:
-        selected_paradigms = paradigm_base
+    _report_charter_selection("paradigm", selected_paradigms_raw, paradigm_base, paradigm_base_source, diagnostics)
+    selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(charter_config, available_tools, diagnostics)

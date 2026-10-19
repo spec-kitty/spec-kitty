@@ -503,3 +503,18 @@ class TestListIdentity:
         assert text.count("qa-tactic-seven (qa-seven)") == 1
         # Positive control: an unactivated artifact of the same kind stays available.
         assert row["available"], "built-in tactics remain available"
+
+    def test_shadowed_builtin_row_keeps_its_own_declared_id(self, tmp_path: Path) -> None:
+        """A built-in row sharing its stem with an org row must not report the org row's id."""
+        from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+        pack = write_identity_org_pack(tmp_path)
+        shadow = pack / "tactics" / "reasons-canvas-fill.tactic.yaml"
+        shadow.write_text('schema_version: "1.0"\nid: org-shadow-id\ntitle: t\nname: n\nsummary: s\n', encoding="utf-8")
+
+        payload: dict[str, Any] = json.loads(_invoke_list(tmp_path, "--all", "--json").output)
+        rows = {(e["layer"], e["artifact_id"]): e["declared_id"] for e in self._tactic_row(payload)["available"]}
+
+        assert rows[("org", "reasons-canvas-fill")] == "org-shadow-id"
+        assert rows[("built-in", "reasons-canvas-fill")] == "reasons-canvas-fill"
+

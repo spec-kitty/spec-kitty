@@ -73,6 +73,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 __all__ = [
+    "NARROW_UNRESOLVED_WARNING",
     "ActivationPlan",
     "EffectiveSet",
     "NoActivationRestrictionsError",
@@ -80,6 +81,7 @@ __all__ = [
     "commit_plan",
     "plan_activation",
     "plan_deactivation",
+    "plan_narrowed_list",
     "promote_activations",
 ]
 
@@ -224,11 +226,27 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
 # ---------------------------------------------------------------------------
 
 
-def _plan_narrow(yaml_key: str, artifact_id: str, base: Iterable[str], previous_ids: Iterable[str]) -> ActivationPlan:
-    """The narrow post-state: *base* plus *artifact_id*; what stops being in force is reported."""
-    new_list = list(dict.fromkeys([*base, artifact_id]))
-    dropped = [item for item in dict.fromkeys(previous_ids) if item not in new_list]
-    return ActivationPlan(yaml_key=yaml_key, new_list=new_list, activated=[artifact_id], deactivated=dropped)
+#: Warning shared by every narrowing caller when what was in force cannot be listed.
+NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
+
+
+def plan_narrowed_list(yaml_key: str, selection: Iterable[str], base: Iterable[str], previous: Iterable[str]) -> ActivationPlan:
+    """The one narrow post-state: *base* plus *selection*; what stops being in force is reported (#6408).
+
+    Every id must already be in activation-stem spelling (callers map the effective
+    set's declared ids through the identity index first). ``activated`` is the
+    selection ids that were not already in *previous*; ``deactivated`` is every
+    *previous* id that is not in the new list.
+    """
+    chosen = list(dict.fromkeys(selection))
+    in_force = list(dict.fromkeys(previous))
+    new_list = list(dict.fromkeys([*base, *chosen]))
+    return ActivationPlan(
+        yaml_key=yaml_key,
+        new_list=new_list,
+        activated=[item for item in chosen if item not in in_force],
+        deactivated=[item for item in in_force if item not in new_list],
+    )
 
 
 def plan_activation(
@@ -333,7 +351,7 @@ def plan_activation(
         raise UnknownActivationIdError(kind, artifact_id)
 
     if narrow_base is not None:
-        return _plan_narrow(yaml_key, artifact_id, narrow_base, previous_ids)
+        return plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids)
 
     warnings: list[str] = []
     current = _current_list(config_data, yaml_key)
@@ -603,17 +621,12 @@ def _plan_promotion(
     warnings: list[str] = []
 
     if narrow_base is not None:
-        previous = current if current is not None else sorted(effective.ids) if effective is not None and effective.resolved else []
-        new_list = list(dict.fromkeys([*narrow_base, *ids]))
-        # `activated` is only the selection ids that were not already in force; the
-        # base is written but not reported as activated, and what stopped being in
-        # force is `deactivated`.
-        return ActivationPlan(
-            yaml_key=yaml_key,
-            new_list=new_list,
-            activated=[item for item in dict.fromkeys(ids) if item not in previous],
-            deactivated=[item for item in previous if item not in new_list],
-        )
+        resolved = effective is not None and effective.resolved
+        previous = current if current is not None else sorted(effective.ids) if effective is not None and resolved else []
+        plan = plan_narrowed_list(yaml_key, ids, narrow_base, previous)
+        if current is None and not resolved:
+            plan.warnings.append(NARROW_UNRESOLVED_WARNING)
+        return plan
 
     if current is None:
         if effective is None or not effective.resolved:

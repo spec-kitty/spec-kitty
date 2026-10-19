@@ -74,6 +74,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.activation_engine import (
+    NARROW_UNRESOLVED_WARNING,
     NoActivationRestrictionsError,
     UnknownActivationIdError,
     commit_plan,
@@ -518,7 +519,7 @@ def _narrow_inputs(
         previous = list(preserved)
     else:
         previous = []
-        warnings.append("What stopped being in force cannot be listed: the effective set could not be resolved.")
+        warnings.append(NARROW_UNRESOLVED_WARNING)
     if kind is None:  # mission-type: no ArtifactKind, no org-required base
         return _NarrowInputs([], previous, artifact_id, warnings)
     index = IdentityIndex.build(repo_root)

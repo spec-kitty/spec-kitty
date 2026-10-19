@@ -124,13 +124,6 @@ def test_directive_selection_id_prefers_declared_id(project: Path) -> None:
     assert index.stem(D, index.selection_id(D, "clash") or "") == "b-file"
 
 
-def test_resolve_many_splits_known_and_unknown(project: Path) -> None:
-    index = IdentityIndex.build(project)
-    ids, unknown = index.resolve_many(T, ["qa-tactic-seven", "qa-seven", "ghost"])
-    assert ids == ["qa-seven"]  # order-preserving, de-duplicated
-    assert unknown == ["ghost"]
-
-
 def test_directive_normaliser_fallback_only_when_normalised_id_known(project: Path) -> None:
     index = IdentityIndex.build(project)
     assert index.declared_id(D, "1") == "DIRECTIVE_001"
@@ -303,3 +296,64 @@ def test_index_returns_full_parse_identity(tmp_path: Path, name: str) -> None:
     expected = kind_vocabulary._parse_id(path, "id", YAML(typ="safe"))
     index = IdentityIndex(org_roots=[root], _offering_root=tmp_path / "none")
     assert index.declared_id(T, "edge") == expected
+
+
+def test_fast_path_values_never_seed_the_shared_resolution_pass(tmp_path: Path) -> None:
+    """Only canonical-reader results enter the shared pass; fast values stay in the index's private cache."""
+    from charter.activation.identity_index import _declared_id_of
+
+    path = tmp_path / "plain.tactic.yaml"
+    path.write_bytes(b"id: plain-id\ntitle: x\n")
+    quoted = tmp_path / "quoted.tactic.yaml"
+    quoted.write_bytes(b"id: 'quoted-id'\ntitle: x\n")
+    shared, fast = kind_vocabulary.ResolutionPass(), {}
+    yaml = YAML(typ="safe")
+
+    assert _declared_id_of(path, "id", yaml, shared, fast) == "plain-id"
+    assert _declared_id_of(quoted, "id", yaml, shared, fast) == "quoted-id"
+
+    assert (path, "id") not in shared.ids and fast == {(path, "id"): "plain-id"}
+    assert shared.ids == {(quoted, "id"): "quoted-id"}  # the canonical reader did seed this one
+
+
+def test_lookup_is_stem_first_across_layers_then_declared_id(tmp_path: Path) -> None:
+    """A lower layer's stem beats a higher layer's declared id (parity with resolve_artifact_urn)."""
+    project = tmp_path / "proj"
+    (project / ".kittify").mkdir(parents=True)
+    org = tmp_path / "org-pack"
+    _write(project / ".kittify" / "charter-packs" / PROJECT_KIND_DIRS[T], T, "high-layer", "shared-name")
+    _write(org / "tactics", T, "shared-name", "low-layer-id")
+    _register_org(project, org)
+    index = IdentityIndex.build(project)
+
+    assert index.declared_id(T, "shared-name") == "low-layer-id"
+    assert index.source_layer(T, "shared-name") == "org"
+
+
+def test_lookup_key_returns_declared_id_for_either_spelling(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.lookup_key(T, "qa-tactic-seven") == "qa-seven"
+    assert index.lookup_key(T, "qa-seven") == "qa-seven"
+
+
+def test_lookup_key_unknown_token_falls_back_to_unindexed_key(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.lookup_key(T, "ghost") == "ghost"
+    assert index.lookup_key(D, "DIRECTIVE_9999") == IdentityIndex.unindexed_key(D, "DIRECTIVE_9999")
+    assert index.lookup_key(None, "anything") == "anything"
+    assert IdentityIndex.unindexed_key(D, "1") == "DIRECTIVE_001"
+    assert IdentityIndex.unindexed_key(T, "1") == "1"
+
+
+def test_lookup_key_selection_flag_switches_directive_precedence(tmp_path: Path) -> None:
+    """selection=True: a declared id beats a coincidentally equal stem; the default is stem first."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    org = tmp_path / "org"
+    _write(org / "directives", D, "clash", "A_ID")
+    _write(org / "directives", D, "b-file", "clash")
+    (tmp_path / ".kittify").mkdir()
+    _register_org(tmp_path, org)
+    index = IdentityIndex.build(tmp_path)
+
+    assert index.lookup_key(D, "clash") == "A_ID"
+    assert index.lookup_key(D, "clash", selection=True) == "clash"

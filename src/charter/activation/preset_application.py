@@ -74,7 +74,6 @@ from charter.activation.org_charter import REQUIRED_KIND_FIELDS, load_org_charte
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.pack_manager import ActiveCharterManager, prepare_activation_write, resolve_activation_write_target
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
-from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.drg.loader import DRGLoadError
 from charter.offering.drg.models import DRGGraphSchemaError, NodeKind
 from charter.offering.drg.validator import DRGValidationError
@@ -290,14 +289,14 @@ _KIND_BY_KEY: dict[str, ArtifactKind] = {preset_activation_key(kind): kind for k
 def _id_key(yaml_key: str, artifact_id: str, identity: IdentityIndex | None = None) -> str:
     """Comparison key of a listed id: its declared id (stem and id spell one artifact, FR-017, #6406).
 
-    An id the index does not know keeps the previous spelling-insensitive key
-    (the directive id normaliser, else the id itself).
+    Uses the default (stem-first) precedence of :meth:`IdentityIndex.lookup_key`; an
+    id the index does not know keeps the spelling-insensitive key of
+    :meth:`IdentityIndex.unindexed_key`.
     """
     kind = _KIND_BY_KEY.get(yaml_key)
-    declared: str | None = identity.declared_id(kind, artifact_id) if identity is not None and kind is not None else None
-    if declared is not None:
-        return declared
-    return normalize_directive_id(artifact_id) if yaml_key == _DIRECTIVES_KEY else artifact_id
+    if identity is None:
+        return IdentityIndex.unindexed_key(kind, artifact_id)
+    return identity.lookup_key(kind, artifact_id)
 
 
 def _missing(yaml_key: str, listed: Iterable[str], available: Iterable[str]) -> list[str]:

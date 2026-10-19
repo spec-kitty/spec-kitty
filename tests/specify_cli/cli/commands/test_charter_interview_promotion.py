@@ -231,17 +231,16 @@ def test_interview_narrow_activation_narrows_paradigms_to_the_interview_selectio
     assert set(payload["narrowed"]["activated_paradigms"]) == set(effective) - {_PARADIGM_DDD}
 
 
-def test_interview_narrow_activation_with_defaults_leaves_paradigms_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("untouched_key", ["activated_paradigms", "activated_tactics"])
+def test_interview_narrow_activation_with_defaults_leaves_empty_selection_kinds_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, untouched_key: str
 ) -> None:
-    """Pin: shipped ``--defaults`` select no paradigms, so ``--narrow-activation`` leaves them alone."""
+    """Shipped ``--defaults`` select no paradigms or tactics, so ``--narrow-activation`` leaves those keys alone."""
     _git_init(tmp_path)
     payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation")
 
-    config = _read_config(tmp_path)
-    assert payload["selected_paradigms"] == []
-    assert "activated_paradigms" not in config
-    assert "activated_paradigms" not in payload["narrowed"]
+    assert untouched_key not in _read_config(tmp_path)
+    assert untouched_key not in payload["narrowed"]
     # Positive control: directives were narrowed in the same run.
     assert "activated_directives" in payload["narrowed"]
 
@@ -271,20 +270,6 @@ def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(
     assert set(_read_config(tmp_path)["activated_directives"]) == set(effective) | {_DIRECTIVE_001_STEM}
 
 
-def test_interview_narrow_activation_leaves_empty_selection_kind_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _git_init(tmp_path)
-    payload = _run_interview_json(
-        tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001", "--narrow-activation"
-    )
-
-    assert "activated_directives" in payload["narrowed"]  # positive control: narrowing ran
-    config = _read_config(tmp_path)
-    assert "activated_tactics" not in config  # no tactic selection: key untouched
-    assert "activated_tactics" not in payload["narrowed"]
-
-
 def test_interview_narrow_activation_text_output_lists_dropped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -299,3 +284,49 @@ def test_interview_narrow_activation_text_output_lists_dropped(
     assert result.exit_code == 0
     assert "No longer in force" in result.stdout
     assert "activated_directives" in result.stdout
+
+
+def test_interview_narrow_with_org_pack_keeps_org_required_stem_spelled_tactic(tmp_path: Path) -> None:
+    """An org-required tactic whose stem differs from its id stays and is not reported dropped (#6408)."""
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.charter.interview import _promote_interview_selections
+    from tests.charter.org_pack_identity_support import ORG_PACK_NAME, write_identity_org_pack
+
+    _git_init(tmp_path)
+    pack = write_identity_org_pack(tmp_path)
+    (pack / "org-charter.yaml").write_text(
+        f'schema_version: "2"\norg_name: {ORG_PACK_NAME}\nrequired_tactics:\n  - qa-seven\n', encoding="utf-8"
+    )
+    interview_data = SimpleNamespace(selected_directives=[], selected_tactics=["qa-seven"], selected_paradigms=[])
+    effective = resolve_effective_sets(tmp_path, ["activated_tactics"])["activated_tactics"].ids
+    assert len(effective) > 1, "control: narrowing is observable"
+
+    warnings, narrowed = _promote_interview_selections(tmp_path, interview_data, narrow=True)
+
+    assert _read_config(tmp_path)["activated_tactics"][0] == "qa-tactic-seven"
+    assert "qa-tactic-seven" in _read_config(tmp_path)["activated_tactics"]
+    dropped = narrowed.get("activated_tactics", [])
+    assert "qa-seven" not in dropped and "qa-tactic-seven" not in dropped
+    assert set(dropped) == {item for item in effective if item not in {"qa-seven"}} - {"qa-tactic-seven"}
+    assert not any("could not be listed" in warning for warning in warnings)
+
+
+def test_stem_spelled_effective_maps_declared_ids_to_stems(tmp_path: Path) -> None:
+    """A declared-id spelling in the effective set becomes the activation stem; unknown ids pass through."""
+    from charter.activation.activation_engine import EffectiveSet
+    from charter.drg import ArtifactKind
+    from specify_cli.cli.commands.charter.interview import _stem_spelled_effective
+    from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+    write_identity_org_pack(tmp_path)
+    key = "activated_tactics"
+    effective = {
+        key: EffectiveSet(kind="tactic", yaml_key=key, ids=frozenset({"qa-seven", "qa-tactic-seven", "ghost"})),
+        "activated_paradigms": EffectiveSet(kind="paradigm", yaml_key="activated_paradigms", resolved=False, reason="x"),
+    }
+
+    mapped = _stem_spelled_effective(tmp_path, effective, {key: ArtifactKind.TACTIC})
+
+    assert mapped[key].ids == frozenset({"qa-tactic-seven", "ghost"})
+    assert mapped["activated_paradigms"] is effective["activated_paradigms"]
