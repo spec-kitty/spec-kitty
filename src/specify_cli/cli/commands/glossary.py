@@ -19,6 +19,7 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.json_contract import json_error, json_output_guard
 from rich.table import Table
 from spec_kitty_events.persistence import LedgerAppendError, build_record
+from kernel.locks import LockAcquireTimeout
 
 from glossary.events import (
     append_event,
@@ -735,6 +736,9 @@ def _append_resolution_events(events: list[dict[str, Any]], event_log_path: Path
             append_event(event, event_log_path)
     except LedgerAppendError as exc:
         console.print(f"[red]Error: the glossary event log refused the resolution: {exc}[/red]")
+        raise typer.Exit(1) from exc
+    except LockAcquireTimeout as exc:
+        console.print(f"[red]Error: the glossary event log is busy (repair lock timed out): {exc}[/red]")
         raise typer.Exit(1) from exc
 
 

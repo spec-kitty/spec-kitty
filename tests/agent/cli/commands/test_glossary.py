@@ -1686,3 +1686,22 @@ class TestRegressionDeprecatedStatus:
         assert len(data) == 1
         assert data[0]["surface"] == "active-term"
         assert data[0]["status"] == "active"
+
+
+def test_resolve_exits_1_when_the_repair_lock_times_out(tmp_path, monkeypatch):
+    """A torn-tail repair that cannot take its lock exits 1 with a message, never a raw traceback."""
+    import typer
+
+    from kernel.locks import LockAcquireTimeout
+    from specify_cli.cli.commands import glossary as glossary_cmd
+
+    def _timeout(event, path):
+        raise LockAcquireTimeout(path=str(path) + ".lock")
+
+    monkeypatch.setattr(glossary_cmd, "build_record", lambda event: event)
+    monkeypatch.setattr(glossary_cmd, "append_event", _timeout)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        glossary_cmd._append_resolution_events([{"event_type": "GlossarySenseUpdated"}], tmp_path / "x.events.jsonl")
+
+    assert excinfo.value.exit_code == 1
