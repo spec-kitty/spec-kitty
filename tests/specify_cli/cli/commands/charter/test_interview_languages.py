@@ -93,18 +93,28 @@ def test_an_invalid_answer_is_asked_again_then_stored(tmp_path: Path, monkeypatc
     root = _repo(tmp_path, monkeypatch)
     monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
 
-    result = runner.invoke(charter_app, ["interview"], input=_interactive_input("jvm\npython"))
+    result = runner.invoke(charter_app, ["interview"], input=_interactive_input("cobol\npython"))
 
     assert result.exit_code == 0, result.output
-    assert "Not a catalog language: jvm" in result.output
+    assert "Not a catalog language: cobol" in result.output
     assert _config(root)["languages"] == ["python"]
+
+
+def test_a_family_answer_is_stored_like_a_declared_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+
+    result = runner.invoke(charter_app, ["interview"], input=_interactive_input("jvm"))
+
+    assert result.exit_code == 0, result.output
+    assert _config(root)["languages"] == ["jvm"]
 
 
 def test_repeated_invalid_answers_fail_after_bounded_retries_and_write_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path, monkeypatch)
     monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
 
-    result = runner.invoke(charter_app, ["interview"], input=_interactive_input("jvm\njvm\njvm"))
+    result = runner.invoke(charter_app, ["interview"], input=_interactive_input("cobol\ncobol\ncobol"))
 
     assert result.exit_code != 0
     assert "Not a catalog language" in result.output

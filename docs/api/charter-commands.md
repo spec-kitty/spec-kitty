@@ -91,9 +91,10 @@ The key is a plain top-level `languages` list because `charter:` (the charter.ya
   doctrine scoping (`infer_repo_languages`, ahead of the compiled `catalog.languages` and the
   interview free text; synthesis also makes it the `language_scope`, one styleguide per language).
   File detection and free-text parsing apply only when the key is absent.
-- **Families.** Write members (`kotlin`), never families (`jvm`): a `jvm`-tagged artifact still
-  matches `[kotlin]` because families are expanded at match time.
-- **Validation.** An entry that is not a catalog language, or is a family, is refused when written
+- **Families.** Prefer members (`kotlin`): a `jvm`-tagged artifact still matches `[kotlin]`
+  because families are expanded at match time. A family on its own (`jvm`, what a declared
+  "Gradle" or "Maven" resolves to) is accepted too and matches `jvm`-tagged artifacts only.
+- **Validation.** An entry that is neither a catalog language nor a family (`jvm`) is refused when written
   (`ValueError`; the interview exits 1 and writes nothing). On read it is dropped with a warning;
   if valid entries remain they alone are used, and if none remain (or the list is empty or not a
   list) the key reads as absent and detection applies. Answer `none` to leave the key unset.

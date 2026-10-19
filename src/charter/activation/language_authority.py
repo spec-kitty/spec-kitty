@@ -10,9 +10,10 @@
   (key ``languages``). When it is set it is the one list for synthesis evidence and doctrine
   scoping; detection and free-text parsing are only the fallback when it is absent (FR-020).
 
-Families (``jvm``) are expanded at match time only
+Families (``jvm``) are expanded at match time
 (:func:`~charter.offering.shared.language_catalog.expand_language_families`) and are never
-persisted as an observed language.
+persisted as an *observed* language; a family a declaration names on its own (``jvm`` from
+"Gradle") is a valid configured language, so declared and configured resolution agree.
 """
 
 from __future__ import annotations
@@ -329,9 +330,12 @@ def is_catalog_language(token: str) -> bool:
 
 
 def _invalid_reason(token: str) -> str | None:
-    if is_language_family(token):
-        return "a family, expanded at match time and never stored"
-    if not is_catalog_language(token):
+    """Why *token* cannot be a configured language, or ``None``.
+
+    A catalog language or a family declared on its own (``jvm`` from "Gradle") is accepted, the
+    same set :func:`declared_languages` resolves to (FR-013).
+    """
+    if not is_catalog_language(token) and not is_language_family(token):
         return "not a catalog language"
     return None
 
@@ -340,8 +344,8 @@ def configured_languages(repo_root: Path) -> tuple[str, ...] | None:
     """Return the operator-confirmed language list of ``.kittify/config.yaml``, or ``None`` when unset.
 
     A pure read. Entries are lower-cased and de-duplicated; the first entry is the primary
-    language. An entry that is not a catalog language, or is a family token such as ``jvm``
-    (families are expanded at match time, never stored), is dropped with a warning. When
+    language. An entry that is neither a catalog language nor a family declared on its own
+    (``jvm``, which a declared "Gradle" resolves to) is dropped with a warning. When
     valid entries remain they alone are the list; when none remain (or the list is empty,
     not a list, or unreadable) the key reads as absent and detection applies.
     """
@@ -362,7 +366,7 @@ def configured_languages(repo_root: Path) -> tuple[str, ...] | None:
 def write_configured_languages(repo_root: Path, languages: Iterable[str]) -> None:
     """Store *languages* (catalog tokens, primary first) as ``.kittify/config.yaml`` ``languages``.
 
-    Refuses an empty list, a non-catalog token and a family token with ``ValueError`` before
+    Refuses an empty list and a token that is neither a catalog language nor a family (``jvm``) with ``ValueError`` before
     touching the file. Every other key and comment of the file is preserved; the write goes
     through the shared atomic YAML writer.
     """
