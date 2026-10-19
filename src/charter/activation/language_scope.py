@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from charter.activation.charter_yaml_io import read_catalog_field
 from charter.activation.interview import packaged_default_answer, read_interview_answers
-from charter.activation.language_authority import declared_languages, expand_language_families
+from charter.activation.language_authority import configured_languages, declared_languages, expand_language_families
 from charter.activation.language_vocabulary import scoped_language_vocabulary
 from charter.offering.shared.language_catalog import COMPOUND_PREFIX_GUARD
 from charter.offering.shared.scoping import (
@@ -228,7 +228,9 @@ def infer_repo_languages(
     * ``["unknown"]`` — a real declaration no doctrine artifact is scoped to
       (#5284); the runtime falls back to language-independent guidance.
 
-    Tier order: (1) the compiled ``catalog.languages`` in ``charter.yaml`` —
+    Tier order: (0) the operator-confirmed ``languages`` list of ``.kittify/config.yaml``
+    (:func:`~charter.activation.language_authority.configured_languages`), which wins over
+    everything below, the interview free text included (FR-020); (1) the compiled ``catalog.languages`` in ``charter.yaml`` —
     authoritative once present, even when empty; (2) the interview (*interview*
     if supplied, else the on-disk transcript), via
     :func:`_languages_from_interview`. There is no ``charter.md`` fallback.
@@ -241,6 +243,11 @@ def infer_repo_languages(
     *repo_root* may be ``None`` (in-memory compiles): tier 1 and the on-disk
     interview are then skipped.
     """
+    if repo_root is not None:
+        configured = configured_languages(repo_root)
+        if configured is not None:
+            return list(configured)
+
     resolved_interview = interview
     if prefer_interview and resolved_interview is None:
         resolved_interview = _read_disk_interview(repo_root)

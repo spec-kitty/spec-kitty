@@ -5,7 +5,10 @@
 * :func:`resolve_languages` decides the primary language and the full language list of a repository from its manifests and source counts;
 * :func:`declared_languages` decides which languages a free-form declaration names,
   including the build-token rule (``gradle``/``maven``/``junit`` add ``jvm`` only when no
-  JVM language is declared).
+  JVM language is declared);
+* :func:`configured_languages` reads the operator-confirmed list from ``.kittify/config.yaml``
+  (key ``languages``). When it is set it is the one list for synthesis evidence and doctrine
+  scoping; detection and free-text parsing are only the fallback when it is absent (FR-020).
 
 Families (``jvm``) are expanded at match time only
 (:func:`~charter.offering.shared.language_catalog.expand_language_families`) and are never
@@ -14,18 +17,25 @@ persisted as an observed language.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Literal
 
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from charter.activation.charter_yaml_io import apply_yaml_write, observe_yaml_input, prepare_yaml_write, render_yaml_document
 from charter.offering.shared.language_catalog import (
     BUILD_TOOLS,
     COMPOUND_PREFIX_GUARD,
     LANGUAGES,
     expand_language_families,
+    is_language_family,
     language_for_extension,
     languages_for_manifest,
 )
@@ -33,6 +43,10 @@ from charter.offering.shared.scoping import normalize_languages
 
 __all__ = [
     "EXCLUDED_DIRS",
+    "LanguageSettlement",
+    "configured_languages",
+    "is_catalog_language",
+    "settle_project_languages",
     "declared_languages",
     "expand_language_families",
     "count_sources_uncapped",
@@ -250,3 +264,177 @@ def declared_languages(text: str) -> list[str]:
             matches.append((rank, family))
             families.add(family)
     return list(normalize_languages(token for _rank, token in sorted(matches)))
+
+
+# ---------------------------------------------------------------------------
+# Configured (operator-confirmed, FR-020)
+# ---------------------------------------------------------------------------
+
+#: Top-level key of ``.kittify/config.yaml`` holding the operator-confirmed language list.
+#: ``charter:`` there is the charter.yaml pointer, and ``charter_packs:`` is the pack section,
+#: so neither can carry it; the key is a plain top-level ``languages`` list of catalog tokens.
+CONFIG_LANGUAGES_KEY = "languages"
+
+_CONFIG_RELATIVE = Path(".kittify") / "config.yaml"
+_LOGGER = logging.getLogger(__name__)
+_CATALOG_TOKENS: frozenset[str] = frozenset(spec.token for spec in LANGUAGES)
+
+
+def _config_path(repo_root: Path) -> Path:
+    return repo_root / _CONFIG_RELATIVE
+
+
+def _read_config_list(repo_root: Path) -> list[Any] | None:
+    """Return the raw ``languages`` list of ``config.yaml``, or ``None`` when absent or not a list."""
+    path = _config_path(repo_root)
+    try:
+        document = YAML(typ="safe").load(path.read_text(encoding="utf-8")) if path.is_file() else None
+    except (OSError, YAMLError, UnicodeDecodeError) as exc:
+        _LOGGER.warning("Ignoring %s: it cannot be read (%s); detected languages apply.", path, exc)
+        return None
+    raw = document.get(CONFIG_LANGUAGES_KEY) if isinstance(document, Mapping) else None
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        _LOGGER.warning("Ignoring '%s' in %s: it must be a list of language tokens; detected languages apply.", CONFIG_LANGUAGES_KEY, path)
+        return None
+    return raw
+
+
+def is_catalog_language(token: str) -> bool:
+    """Return True when *token* is a catalog language (a family such as ``jvm`` is not)."""
+    return token.strip().lower() in _CATALOG_TOKENS
+
+
+def _invalid_reason(token: str) -> str | None:
+    if is_language_family(token):
+        return "a family, expanded at match time and never stored"
+    if not is_catalog_language(token):
+        return "not a catalog language"
+    return None
+
+
+def configured_languages(repo_root: Path) -> tuple[str, ...] | None:
+    """Return the operator-confirmed language list of ``.kittify/config.yaml``, or ``None`` when unset.
+
+    A pure read. Entries are lower-cased and de-duplicated; the first entry is the primary
+    language. An entry that is not a catalog language, or is a family token such as ``jvm``
+    (families are expanded at match time, never stored), is dropped with a warning. When
+    valid entries remain they alone are the list; when none remain (or the list is empty,
+    not a list, or unreadable) the key reads as absent and detection applies.
+    """
+    raw = _read_config_list(repo_root)
+    if not raw:
+        return None
+    valid: list[str] = []
+    for entry in raw:
+        token = entry.strip().lower() if isinstance(entry, str) else ""
+        reason = _invalid_reason(token) if token else "not a language token"
+        if reason is not None:
+            _LOGGER.warning("Dropping %r from '%s' in %s: %s.", entry, CONFIG_LANGUAGES_KEY, _config_path(repo_root), reason)
+        elif token not in valid:
+            valid.append(token)
+    return tuple(valid) or None
+
+
+def write_configured_languages(repo_root: Path, languages: Iterable[str]) -> None:
+    """Store *languages* (catalog tokens, primary first) as ``.kittify/config.yaml`` ``languages``.
+
+    Refuses an empty list, a non-catalog token and a family token with ``ValueError`` before
+    touching the file. Every other key and comment of the file is preserved; the write goes
+    through the shared atomic YAML writer.
+    """
+    tokens = list(normalize_languages(languages))
+    if not tokens:
+        raise ValueError("languages must name at least one language")
+    for token in tokens:
+        reason = _invalid_reason(token)
+        if reason is not None:
+            raise ValueError(f"{token!r} cannot be stored in '{CONFIG_LANGUAGES_KEY}': {reason}.")
+    path = _config_path(repo_root)
+    before = observe_yaml_input(path)
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    document = yaml.load(before.content.decode("utf-8")) if before.content is not None else None
+    if document is None:
+        document = {}
+    if not isinstance(document, dict):
+        raise ValueError(f"{path} root must be a mapping.")
+    document[CONFIG_LANGUAGES_KEY] = tokens
+    desired = render_yaml_document(before.content, document, yaml)
+    apply_yaml_write(prepare_yaml_write(path, desired, section="languages", inputs=(before,)))
+
+
+# ---------------------------------------------------------------------------
+# Interview: detect, propose, confirm, store (FR-020)
+# ---------------------------------------------------------------------------
+
+_ANSWER_SEPARATORS = re.compile(r"[,;\s]+")
+_NO_LANGUAGES_ANSWERS = frozenset({"none", "-", "n/a"})
+
+
+@dataclass(frozen=True, slots=True)
+class LanguageSettlement:
+    """What the interview's language step left in force.
+
+    ``source`` is ``stored`` (an existing list kept as it was), ``confirmed`` (the operator's
+    answer, written), ``detected`` (a non-interactive run stored the detected list because the
+    key was absent) or ``none`` (nothing stored). ``languages`` is empty only for ``none``.
+    """
+
+    languages: tuple[str, ...]
+    source: Literal["stored", "confirmed", "detected", "none"]
+    detected: tuple[str, ...]
+    written: bool
+
+
+def parse_language_answer(answer: str) -> tuple[str, ...]:
+    """Return the catalog tokens an operator answer lists; ``ValueError`` names every invalid entry.
+
+    ``none`` (or ``-``, ``n/a``, blank) is an empty list.
+    """
+    text = answer.strip().lower()
+    if text in _NO_LANGUAGES_ANSWERS or not text:
+        return ()
+    tokens = tuple(normalize_languages(part for part in _ANSWER_SEPARATORS.split(text) if part))
+    invalid = [token for token in tokens if _invalid_reason(token) is not None]
+    if invalid:
+        known = ", ".join(spec.token for spec in LANGUAGES)
+        raise ValueError(f"Not a catalog language: {', '.join(invalid)}. Use any of: {known}.")
+    return tokens
+
+
+def _detect_repository_languages(repo_root: Path) -> tuple[str, ...]:
+    """Observe the repository's languages, ignoring any configured list (primary first)."""
+    from charter.activation.evidence.code_reader import CodeReadingCollector
+
+    return tuple(CodeReadingCollector(repo_root, use_configured_languages=False).collect().languages)
+
+
+def settle_project_languages(repo_root: Path, *, ask: Callable[[str], str] | None) -> LanguageSettlement:
+    """Detect the repository's languages, propose them, and store the settled list (FR-020).
+
+    *ask* receives the proposal (the stored list, else the detected one, comma-separated) and
+    returns the operator's answer; it is ``None`` for a non-interactive or ``--defaults`` run,
+    which never blocks and never overwrites a stored list: it stores the detected list only
+    when the key is absent. A blank or ``none`` answer leaves the key as it was; an invalid
+    answer raises ``ValueError`` before anything is written.
+    """
+    stored = configured_languages(repo_root)
+    detected = _detect_repository_languages(repo_root)
+    proposal = stored or detected
+    if ask is None:
+        if stored is not None:
+            return LanguageSettlement(stored, "stored", detected, False)
+        if not detected:
+            return LanguageSettlement((), "none", detected, False)
+        write_configured_languages(repo_root, detected)
+        return LanguageSettlement(detected, "detected", detected, True)
+
+    confirmed = parse_language_answer(ask(", ".join(proposal)))
+    if not confirmed:
+        return LanguageSettlement(stored or (), "stored" if stored else "none", detected, False)
+    if confirmed == stored:
+        return LanguageSettlement(stored, "stored", detected, False)
+    write_configured_languages(repo_root, confirmed)
+    return LanguageSettlement(confirmed, "confirmed", detected, True)

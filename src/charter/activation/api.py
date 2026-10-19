@@ -102,6 +102,14 @@ from charter.activation.identity_index import (
     IdentityIndex as IdentityIndex,
 )
 
+# Operator-confirmed project languages (``.kittify/config.yaml`` ``languages``): the read the
+# synthesis request builder uses and the interview's detect/propose/confirm/store step (FR-020).
+from charter.activation.language_authority import (
+    LanguageSettlement as LanguageSettlement,
+    configured_languages as configured_languages,
+    settle_project_languages as settle_project_languages,
+)
+
 # Activation result / effective-set / org-required-stem / selection-diagnostic
 # primitives the ``charter activate`` / ``interview`` commands and the runtime
 # doctor consume (#6099). Public per the respective modules' ``__all__``.
@@ -123,11 +131,13 @@ __all__ = [
     "EffectiveSet",
     "IdentityEntry",
     "IdentityIndex",
+    "LanguageSettlement",
     "LegacyRenameRefusedError",
     "RenameReport",
     "append_synthesized_activations",
     "canonical_mission_type_key",
     "canonical_yaml",
+    "configured_languages",
     "created_slugs_by_kind",
     "finalize_manifest",
     "load_yaml",
@@ -136,5 +146,6 @@ __all__ = [
     "rename_legacy_project_intent_directive",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
+    "settle_project_languages",
     "verify",
 ]

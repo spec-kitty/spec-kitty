@@ -61,6 +61,7 @@ def _build_synthesis_request(
 
     from charter.activation.compiler import resolve_config_activated_roots
     from charter.activation.interview import read_interview_answers
+    from charter.activation.api import configured_languages
     from charter.activation.pack_context import PackContext
     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
     from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
@@ -109,6 +110,11 @@ def _build_synthesis_request(
         "selected_paradigms": config_roots.paradigms,
     }
     interview_snapshot.update(dict(interview_data.answers))
+    # FR-020: the operator-confirmed ``languages`` list of config.yaml, when set, is the one list
+    # that scopes doctrine (one styleguide per language), whatever the free-text answer says.
+    configured = configured_languages(repo_root)
+    if configured:
+        interview_snapshot["language_scope"] = list(configured)
 
     # Build a minimal doctrine snapshot (directives only for now)
     doctrine_snapshot: dict[str, Any] = {
