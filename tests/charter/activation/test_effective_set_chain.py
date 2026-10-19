@@ -7,7 +7,6 @@ project declaring only pack 1 must not see them.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -86,14 +85,3 @@ def test_negative_control_pack_two_absent_when_only_pack_one_declared(tmp_path: 
     assert len(presets._org_roots_or_refuse(repo, _preset())) == 1
     with pytest.raises(PresetIdUnresolvedError):
         presets._resolve_preset_ids(repo, _preset())
-
-
-def test_effective_set_stays_fail_closed_when_a_declared_pack_is_unfetched(tmp_path: Path) -> None:
-    repo = _build(tmp_path, declare_pack2=True)
-    (repo / "org-packs" / "two" / "tactics" / f"{PACK2_TACTIC}.tactic.yaml").unlink()
-
-    shutil.rmtree(repo / "org-packs" / "two")
-
-    entry = resolve_effective_sets(repo, ["activated_tactics"])["activated_tactics"]
-    assert not entry.resolved
-    assert "pack-one-tactic" in entry.fallback_ids

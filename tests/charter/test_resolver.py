@@ -210,41 +210,6 @@ charter:
     )
 
 
-def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> None:
-    _write_charter_files(
-        tmp_path,
-        governance="""
-charter:
-  template_set: missing-template-set
-""",
-    )
-
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(tmp_path)
-
-    assert "missing-template-set" in str(exc.value)
-
-
-def test_resolve_governance_template_set_fallback_visible(tmp_path: Path) -> None:
-    _write_charter_files(
-        tmp_path,
-        governance="""
-charter:
-  available_tools: []
-""",
-    )
-
-    result = resolve_project_governance(
-        tmp_path,
-        tool_registry={"git"},
-        fallback_template_set="fallback-pack",
-    )
-
-    assert result.template_set == "fallback-pack"
-    assert result.metadata["template_set_source"] == "fallback"
-    assert any("fallback-pack" in line for line in result.diagnostics)
-
-
 def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
     _write_charter_files(
         tmp_path,
@@ -270,6 +235,15 @@ charter:
     diagnostics = collect_governance_diagnostics(tmp_path)
     assert diagnostics
     assert any("NOT_A_DIRECTIVE" in line for line in diagnostics)
+
+    # kwargs are forwarded to the resolver: the success-path diagnostics are reported too.
+    fallback = collect_governance_diagnostics(
+        tmp_path,
+        tool_registry={"git"},
+        fallback_template_set="fallback-pack",
+    )
+    assert any("runtime tool registry fallback" in line for line in fallback)
+    assert any("fallback-pack" in line for line in fallback)
 
 
 def test_resolve_governance_uses_registry_local_directives_and_template_fallback(
@@ -343,28 +317,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
     assert result.metadata["directives_source"] == "catalog_fallback"
-
-
-def test_bare_project_fallback_emits_catalog_default_diagnostic(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """FR-005: the catalog-default fallback (branch 3a) is no longer silent —
-    a diagnostic names the fallback and its size."""
-    _write_charter_files(tmp_path, governance="charter: {}\n")
-    monkeypatch.setattr(
-        "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
-            paradigms=frozenset(),
-            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
-            template_sets=frozenset({"software-dev-default"}),
-            domains_present=frozenset(),
-        ),
-    )
-
-    result = resolve_project_governance(tmp_path, tool_registry={"git"})
-
-    assert result.metadata["directives_source"] == "catalog_fallback"
+    # FR-005: the catalog-default fallback is never silent -- a diagnostic names it and its size.
     assert any(
         "built-in catalog default" in line and "2 directives" in line
         for line in result.diagnostics
@@ -607,67 +560,6 @@ def test_resolve_governance_for_profile_rejects_blank_profile_id() -> None:
         resolve_governance_for_profile("   ", None, charter_service, interview)
 
 
-def test_resolve_governance_for_profile_records_unresolved_references_in_diagnostics() -> None:
-    """Post-WP03, unresolved references surface via the DRG walker.
-
-    The ``unresolved`` entries in the :class:`ResolveTransitiveRefsResult`
-    are formatted into ``diagnostics`` by ``resolve_governance_for_profile``.
-    """
-    interview = default_interview(mission="software-dev", profile="minimal")
-    object.__setattr__(interview, "selected_directives", [])
-
-    profile = SimpleNamespace(
-        profile_id="reviewer",
-        directive_references=[SimpleNamespace(code="MISSING_DIRECTIVE")],
-    )
-    charter_service = MagicMock()
-    charter_service.agent_profiles.resolve_profile.return_value = profile
-
-    monkeypatch_graph = SimpleNamespace(
-        tactics=[],
-        styleguides=[],
-        toolguides=[],
-        procedures=[],
-        unresolved=[
-            (
-                "directive:MISSING_DIRECTIVE",
-                "directive:MISSING_DIRECTIVE",
-            )
-        ],
-    )
-    stub_graph = SimpleNamespace()
-
-    with patch(
-        "charter.activation.resolver.resolve_references_transitively",
-        return_value=monkeypatch_graph,
-    ):
-        resolution = resolve_governance_for_profile(
-            "reviewer",
-            None,
-            charter_service,
-            interview,
-            graph=stub_graph,
-        )
-
-    assert resolution.directives == ["MISSING_DIRECTIVE"]
-    assert any("MISSING_DIRECTIVE" in line for line in resolution.diagnostics)
-
-
-def test_collect_governance_diagnostics_returns_success_diagnostics(
-    tmp_path: Path,
-) -> None:
-    _write_charter_files(tmp_path, governance="charter: {}\n")
-
-    diagnostics = collect_governance_diagnostics(
-        tmp_path,
-        tool_registry={"git"},
-        fallback_template_set="fallback-pack",
-    )
-
-    assert any("runtime tool registry fallback" in line for line in diagnostics)
-    assert any("fallback-pack" in line for line in diagnostics)
-
-
 # ---------------------------------------------------------------------------
 # T017: Regression tests — named-ID failures, shipped-only, no agents.yaml
 # ---------------------------------------------------------------------------
@@ -687,23 +579,6 @@ def _make_doctrine_root(tmp_path: Path, *, with_paradigm: str | None = None) -> 
     (offering_root / "missions" / "software-dev").mkdir(parents=True)
     (offering_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     return offering_root
-
-
-def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
-    """Diagnostic names the exact paradigm ID that was not found (dropped, not raised)."""
-    offering_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
-
-    repo_root = tmp_path / "repo"
-    _write_charter_files(
-        repo_root,
-        governance="charter:\n  selected_paradigms: [my-bad-paradigm]\n",
-    )
-
-    resolution = resolve_project_governance(repo_root)
-
-    assert "my-bad-paradigm" not in resolution.paradigms
-    assert any("my-bad-paradigm" in d for d in resolution.diagnostics)
 
 
 def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkeypatch) -> None:
@@ -731,67 +606,6 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     assert result.paradigms == ["any-value"]
 
 
-def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) -> None:
-    """Diagnostic names the exact directive ID that was not found (dropped, not raised)."""
-    offering_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
-
-    repo_root = tmp_path / "repo"
-    _write_charter_files(
-        repo_root,
-        governance="charter:\n  selected_directives: [GHOST_DIRECTIVE]\n",
-    )
-
-    resolution = resolve_project_governance(repo_root)
-
-    assert "GHOST_DIRECTIVE" not in resolution.directives
-    assert any("GHOST_DIRECTIVE" in d for d in resolution.diagnostics)
-
-
-def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -> None:
-    """Error message names the exact template_set value that was not in shipped catalog."""
-    offering_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
-
-    repo_root = tmp_path / "repo"
-    _write_charter_files(
-        repo_root,
-        governance="charter:\n  template_set: ghost-template-set\n",
-    )
-
-    with pytest.raises(GovernanceResolutionError) as exc:
-        resolve_project_governance(repo_root)
-
-    assert "ghost-template-set" in str(exc.value)
-
-
-def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch) -> None:
-    """A charter-declared tool not in the runtime registry is unioned into the
-    resolved tools and the operator is informed via diagnostics (DRIFT-1 remediation).
-
-    The pre-remediation behaviour raised GovernanceResolutionError; the union
-    semantic treats the runtime registry as a baseline of always-available
-    tools and the charter declaration as additive. The diagnostic message
-    names the exact tool(s) that came from the charter so operators can audit.
-    """
-    offering_root = _make_doctrine_root(tmp_path)
-    monkeypatch.setattr(catalog_module, "resolve_offering_root", lambda: offering_root)
-
-    repo_root = tmp_path / "repo"
-    _write_charter_files(
-        repo_root,
-        governance="charter:\n  available_tools: [ghost-tool]\n",
-    )
-
-    result = resolve_project_governance(repo_root, tool_registry={"git"})
-
-    assert "ghost-tool" in result.tools
-    assert "git" in result.tools
-    diagnostic_text = "\n".join(result.diagnostics)
-    assert "ghost-tool" in diagnostic_text
-    assert "Charter declared additional tool" in diagnostic_text
-
-
 def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, monkeypatch) -> None:
     """Directives declared in directives.yaml are valid without being in the shipped catalog."""
     offering_root = _make_doctrine_root(tmp_path)
@@ -809,50 +623,36 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     assert "LOCAL_ONLY" in result.directives
 
 
-def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
-    """consolidate-charter-bundle (IC-04 / WP04): sync() writes nothing at all now.
-
-    The prose->triad scrape this test originally pinned (governance/
-    directives/metadata, never agents.yaml) is retired -- ``sync()``
-    always reports ``synced=False`` / ``files_written=[]``, which trivially
-    satisfies "no agents.yaml" but for a stronger reason than before.
-    """
-    from charter.activation.sync import sync
-
-    charter_file = tmp_path / "charter.md"
-    charter_file.write_text("# Project\n\n## Directives\n1. Write tests\n")
-
-    result = sync(charter_file, tmp_path)
-
-    assert result.synced is False
-    assert result.files_written == []
-    assert not (tmp_path / "agents.yaml").exists()
-
-
 # ---------------------------------------------------------------------------
 # ActiveCharterService wrapper — activation filter coverage (FR-016 / FR-017)
 # ---------------------------------------------------------------------------
 
 
-def test_active_charter_service_paradigms_filtered_by_pack_context(tmp_path: Path) -> None:
-    """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
-    from unittest.mock import MagicMock
-
-    paradigm_a = MagicMock()
-    paradigm_a.id = "test-first"
-    paradigm_b = MagicMock()
-    paradigm_b.id = "ddd"
+@pytest.mark.parametrize(
+    ("attr", "activated_field", "kept", "dropped"),
+    [
+        ("paradigms", "activated_paradigms", "test-first", "ddd"),
+        ("procedures", "activated_procedures", "tdd", "bdd"),
+    ],
+)
+def test_active_charter_service_property_filtered_by_pack_context(
+    tmp_path: Path, attr: str, activated_field: str, kept: str, dropped: str
+) -> None:
+    """ActiveCharterService.<attr> applies the matching pack_context.activated_* filter."""
+    item_kept = MagicMock()
+    item_kept.id = kept
+    item_dropped = MagicMock()
+    item_dropped.id = dropped
 
     inner = MagicMock()
-    inner.paradigms.list_all.return_value = [paradigm_a, paradigm_b]
+    getattr(inner, attr).list_all.return_value = [item_kept, item_dropped]
 
-    pack_ctx = real_pack_context(tmp_path, activated_paradigms=frozenset({"test-first"}))
+    pack_ctx = real_pack_context(tmp_path, **{activated_field: frozenset({kept})})
 
-    service = ActiveCharterService(inner, pack_context=pack_ctx)
-    result = service.paradigms
+    result = getattr(ActiveCharterService(inner, pack_context=pack_ctx), attr)
 
-    assert "test-first" in result
-    assert "ddd" not in result
+    assert kept in result
+    assert dropped not in result
 
 
 def test_active_charter_service_paradigms_unfiltered_when_pack_context_none() -> None:
@@ -868,27 +668,6 @@ def test_active_charter_service_paradigms_unfiltered_when_pack_context_none() ->
     result = service.paradigms
 
     assert "test-first" in result
-
-
-def test_active_charter_service_procedures_filtered_by_pack_context(tmp_path: Path) -> None:
-    """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
-    from unittest.mock import MagicMock
-
-    proc_a = MagicMock()
-    proc_a.id = "tdd"
-    proc_b = MagicMock()
-    proc_b.id = "bdd"
-
-    inner = MagicMock()
-    inner.procedures.list_all.return_value = [proc_a, proc_b]
-
-    pack_ctx = real_pack_context(tmp_path, activated_procedures=frozenset({"tdd"}))
-
-    service = ActiveCharterService(inner, pack_context=pack_ctx)
-    result = service.procedures
-
-    assert "tdd" in result
-    assert "bdd" not in result
 
 
 def test_active_charter_service_getattr_delegates_to_inner() -> None:

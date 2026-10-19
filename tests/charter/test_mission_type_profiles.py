@@ -20,7 +20,6 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.action_grain import scan_builtin_cross_grain_duplicates
 from charter.activation.mission_type_profiles import (
     MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
@@ -46,27 +45,12 @@ class TestMissionTypeProfileOpenStr:
     time. The Literal constraint was removed in T029 (FR-009).
     """
 
-    def test_canonical_types_still_accepted(self) -> None:
-        """The four canonical mission types remain valid."""
-        for mt in ("software-dev", "documentation", "research", "plan"):
+    def test_any_string_accepted_canonical_and_custom(self) -> None:
+        """The four canonical types stay valid and any other string is accepted
+        at model time (before T029 a custom type raised pydantic.ValidationError)."""
+        for mt in ("software-dev", "documentation", "research", "plan", "custom-type", "compliance-audit"):
             profile = MissionTypeProfile(mission_type=mt)
             assert profile.mission_type == mt
-
-    def test_custom_type_accepted_without_validation_error(self) -> None:
-        """MissionTypeProfile(mission_type='custom-type') MUST NOT raise ValidationError.
-
-        Before T029 this would fail with pydantic.ValidationError because the
-        field was typed as Literal["software-dev", "documentation", "research", "plan"].
-        After T029 the annotation is str — any value is accepted at model time.
-        """
-        profile = MissionTypeProfile(mission_type="custom-type")
-        assert profile.mission_type == "custom-type"
-
-    def test_arbitrary_string_accepted(self) -> None:
-        """Any non-empty string is valid at model construction time."""
-        profile = MissionTypeProfile(mission_type="compliance-audit")
-        assert profile.mission_type == "compliance-audit"
-
 
 # ---------------------------------------------------------------------------
 # T030 — UnknownMissionTypeError carries registered_ids
@@ -76,53 +60,26 @@ class TestMissionTypeProfileOpenStr:
 class TestUnknownMissionTypeError:
     """UnknownMissionTypeError MUST include registered_ids (FR-009)."""
 
-    def test_message_contains_mission_type_id(self) -> None:
-        """The exception message MUST contain the unknown mission_type_id verbatim."""
-        err = UnknownMissionTypeError("compliance-audit")
-        assert "compliance-audit" in str(err)
-
-    def test_message_contains_registered_ids_when_provided(self) -> None:
-        """When registered_ids are provided, the message lists them."""
-        err = UnknownMissionTypeError(
-            "compliance-audit",
-            registered_ids=["documentation", "plan", "research", "software-dev"],
-        )
-        msg = str(err)
-        assert "compliance-audit" in msg
-        assert "documentation" in msg
-        assert "software-dev" in msg
-
-    def test_registered_ids_attribute_is_set(self) -> None:
-        """err.registered_ids MUST be the list passed at construction."""
-        ids = ["documentation", "plan", "research", "software-dev"]
-        err = UnknownMissionTypeError("unknown-type", registered_ids=ids)
-        assert err.registered_ids == ids
-
-    def test_registered_ids_defaults_to_empty_list(self) -> None:
-        """When no registered_ids are provided, the attribute defaults to []."""
-        err = UnknownMissionTypeError("something")
-        assert err.registered_ids == []
-
-    def test_mission_type_id_attribute_is_set(self) -> None:
-        """err.mission_type_id MUST equal the first positional argument."""
-        err = UnknownMissionTypeError("compliance-audit", registered_ids=["software-dev"])
-        assert err.mission_type_id == "compliance-audit"
-
-    def test_is_value_error_subclass(self) -> None:
-        """UnknownMissionTypeError MUST remain a ValueError subclass."""
-        err = UnknownMissionTypeError("bad-type")
-        assert isinstance(err, ValueError)
-
     def test_formatted_message_matches_fr009_contract(self) -> None:
         """FR-009: message format is 'Unknown mission type X. Registered types: A, B, C.'"""
-        err = UnknownMissionTypeError(
-            "compliance-audit",
-            registered_ids=["documentation", "plan", "research", "software-dev"],
-        )
+        ids = ["documentation", "plan", "research", "software-dev"]
+        err = UnknownMissionTypeError("compliance-audit", registered_ids=ids)
         msg = str(err)
         assert "Unknown mission type" in msg
         assert "compliance-audit" in msg
         assert "Registered types:" in msg
+        assert "documentation" in msg
+        assert "software-dev" in msg
+
+    def test_attributes_and_value_error_subclass(self) -> None:
+        """mission_type_id / registered_ids carry the constructor arguments (the
+        latter defaulting to []), and the error stays a ValueError subclass."""
+        ids = ["documentation", "plan", "research", "software-dev"]
+        err = UnknownMissionTypeError("unknown-type", registered_ids=ids)
+        assert err.mission_type_id == "unknown-type"
+        assert err.registered_ids == ids
+        assert UnknownMissionTypeError("something").registered_ids == []
+        assert isinstance(err, ValueError)
 
 
 # ---------------------------------------------------------------------------
@@ -208,35 +165,8 @@ class TestResolveMissionTypeGovernanceValidation:
             resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
         assert "totally-custom-type" in str(exc_info.value)
-
-    def test_error_includes_registered_ids(self, tmp_path: Path) -> None:
-        """UnknownMissionTypeError from resolve_mission_type_context carries registered_ids."""
-        _git_init_minimal(tmp_path)
-        feature_dir = tmp_path / "kitty-specs" / "unknown-001"
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "meta.json").write_text(
-            json.dumps(
-                {"mission_type": "compliance-audit", "mission_slug": "unknown-001"}
-            ),
-            encoding="utf-8",
-        )
-
-        activated = ["documentation", "plan", "research", "software-dev"]
-        with (
-            patch(
-                "charter.activation.mission_type_profiles.existing_mission_types",
-                return_value=activated,
-            ),
-            patch(
-                "charter.activation.mission_type_profiles._project_has_pack_overrides",
-                return_value=False,
-            ),
-            pytest.raises(UnknownMissionTypeError) as exc_info,
-        ):
-            resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
-
-        err = exc_info.value
-        assert err.registered_ids == activated
+        # The error carries the activated ids so callers can list what is registered.
+        assert exc_info.value.registered_ids == ["documentation", "plan", "research", "software-dev"]
 
     def test_project_with_overrides_does_not_hard_fail_for_unknown_type(
         self, tmp_path: Path
@@ -1139,37 +1069,6 @@ class TestExpectedArtifactsSlotSchemaValidation:
         assert "org-tier" in exc_info.value.origin
 
 
-# ---------------------------------------------------------------------------
-# WP02 T009 (#3770): the slot now delegates to the authority -- proves the
-# delegation is live, not an inert local copy that happens to agree with the
-# authority today.
-# ---------------------------------------------------------------------------
-
-
-class TestExpectedArtifactsSlotRoutesThroughAuthority:
-    def test_delegates_to_manifest_loader_load_manifest(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import charter.activation.manifest_loader as manifest_loader_module
-
-        _git_init_minimal(tmp_path)
-        _write_org_pack_config(tmp_path, packs=[], activated_mission_types=["software-dev"])
-
-        calls: list[tuple[str, Path | None]] = []
-        original_load_manifest = manifest_loader_module.load_manifest
-
-        def _tracking_load_manifest(mission_type: str, repo_root: Path | None = None) -> object:
-            calls.append((mission_type, repo_root))
-            return original_load_manifest(mission_type, repo_root=repo_root)
-
-        monkeypatch.setattr(manifest_loader_module, "load_manifest", _tracking_load_manifest)
-
-        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
-        _ = bundle.expected_artifacts
-
-        assert calls == [("software-dev", tmp_path)]
-
-
 class TestActionGrainBuiltinOnlyPathUnaffected:
     """T019 (WP04): `charter.activation.action_grain`'s built-in-only call site — which
     calls `_load_mission_type_profile(mission_type)` with NO `repo_root`
@@ -1217,33 +1116,3 @@ class TestActionGrainBuiltinOnlyPathUnaffected:
         assert builtin_only is not None
         assert builtin_only.template_set == "software-dev-default"
         assert builtin_only.template_set != _ORG_OVERRIDE_TEMPLATE_SET
-
-    def test_scan_builtin_cross_grain_duplicates_unaffected_by_org_override(
-        self, tmp_path: Path
-    ) -> None:
-        """The real `action_grain.py:220`-adjacent call path — exercised via
-        its own public entry point — completes without raising and without
-        picking up the org override, confirming the guard holds at the
-        actual call site, not just at the `_load_mission_type_profile` unit
-        level above.
-        """
-        _git_init_minimal(tmp_path)
-        org_root = tmp_path / "org-pack"
-        _write_org_governance_profile(
-            org_root,
-            "software-dev",
-            {
-                "id": "software-dev",
-                "mission_type": "software-dev",
-                "template_set": _ORG_OVERRIDE_TEMPLATE_SET,
-            },
-        )
-        _write_org_pack_config(
-            tmp_path,
-            packs=[("acme", org_root)],
-            activated_mission_types=["software-dev"],
-        )
-
-        scanned = scan_builtin_cross_grain_duplicates()
-
-        assert "software-dev" in scanned

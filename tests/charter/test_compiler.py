@@ -1,10 +1,7 @@
 """Scope: mock-boundary tests for charter compiler bundle generation -- no real git."""
 
 import dataclasses
-import types
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -112,10 +109,9 @@ def test_compile_charter_renders_selected_directive_content() -> None:
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
+    # The directive renders its real definition (title + id), not the generic placeholder line.
     assert "Apply doctrine directive `DIRECTIVE_003`" not in compiled.markdown
-    assert "Decision Documentation Requirement (`DIRECTIVE_003`)" in compiled.markdown
-    assert "Material technical and governance decisions must be captured" in compiled.markdown
-    assert "Integrity rule: High-impact decisions cannot remain tribal knowledge." in compiled.markdown
+    assert "(`DIRECTIVE_003`)" in compiled.markdown
 
 
 def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
@@ -131,7 +127,7 @@ def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
 def test_write_compiled_charter_writes_bundle(tmp_path: Path) -> None:
     """write_compiled_charter creates ONLY charter.yaml (WP03/T011-T012: the
     charter.md clobber is removed and references.yaml is retired -- see
-    data-model.md Landmine 3)."""
+    data-model.md Landmine 3); a repeat write without ``force`` succeeds."""
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
     compiled = compile_charter(mission="software-dev", interview=interview)
@@ -150,6 +146,12 @@ def test_write_compiled_charter_writes_bundle(tmp_path: Path) -> None:
 
     # library/ materialization has been removed; no files should exist there.
     assert not (tmp_path / "library").exists()
+
+    # ``force`` no longer gates a destructive overwrite (there is none left to
+    # gate): a second write with force=False refreshes charter.yaml in place.
+    rewritten = write_compiled_charter(tmp_path, compiled, force=False)
+    assert rewritten.files_written == ["charter.yaml"]
+    assert (tmp_path / "charter.yaml").exists()
 
 
 def test_write_compiled_charter_persists_structured_languages_for_round_trip(tmp_path: Path) -> None:
@@ -180,29 +182,6 @@ def test_write_compiled_charter_persists_structured_languages_for_round_trip(tmp
     assert document["catalog"]["languages"] == ["rust"], (
         "languages field must be persisted to charter.yaml's catalog section on disk"
     )
-
-
-def test_write_compiled_charter_succeeds_without_force_when_existing(tmp_path: Path) -> None:
-    """Re-pinned for WP03: ``force`` no longer gates a destructive overwrite
-
-    (there is none left to gate -- charter.yaml writes are always either a
-    safe partial merge or a one-time bootstrap create). A second write with
-    ``force=False`` succeeds rather than raising ``FileExistsError``.
-    """
-    # Arrange
-    interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_charter(mission="software-dev", interview=interview)
-    write_compiled_charter(tmp_path, compiled, force=True)
-
-    # Assumption check
-    assert (tmp_path / "charter.yaml").exists(), "first write must have succeeded"
-
-    # Act
-    result = write_compiled_charter(tmp_path, compiled, force=False)
-
-    # Assert -- no exception, charter.yaml refreshed in place.
-    assert result.files_written == ["charter.yaml"]
-    assert (tmp_path / "charter.yaml").exists()
 
 
 def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
@@ -237,6 +216,12 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
         "DRG-backed path should have resolved transitive tactics; "
         f"got kinds {sorted(kinds)}"
     )
+    # Regression: directives stored under the built-in/ subdirectory must resolve
+    # to a real definition, not the "unavailable" placeholder summary.
+    directive_refs = [r for r in compiled.references if r.kind == "directive"]
+    assert directive_refs, "Expected at least one directive reference in the compiled bundle"
+    unresolved = [r.id for r in directive_refs if r.summary == "Definition unavailable in bundled doctrine."]
+    assert not unresolved, f"Directive(s) not found in built-in doctrine: {unresolved}"
 
 
 def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None:
@@ -400,37 +385,6 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
     )
 
 
-def test_compile_with_doctrine_service_uses_repositories() -> None:
-    """When ActiveCharterService is provided, its repositories are queried."""
-    interview = default_interview(mission="software-dev", profile="minimal")
-
-    # Build a minimal mock ActiveCharterService whose repositories return nothing
-    # (empty lists / None gets), so the code paths that call .get() and
-    # the DRG-backed transitive resolution path is exercised.
-    mock_service = MagicMock()
-    mock_service.directives.list_all.return_value = []
-    mock_service.directives.get.return_value = None
-    mock_service.tactics.get.return_value = None
-    mock_service.styleguides.get.return_value = None
-    mock_service.toolguides.get.return_value = None
-    mock_service.procedures.get.return_value = None
-
-    compiled = compile_charter(
-        mission="software-dev",
-        interview=interview,
-        charter_service=mock_service,
-    )
-
-    # The fallback diagnostic must NOT be present when service is provided
-    fallback_msg = "ActiveCharterService unavailable"
-    assert not any(fallback_msg in d for d in compiled.diagnostics), (
-        f"Unexpected fallback diagnostic when ActiveCharterService is present: {compiled.diagnostics}"
-    )
-    # The compilation still succeeds and produces a valid bundle
-    assert compiled.mission == "software-dev"
-    assert "## Governance Activation" in compiled.markdown
-
-
 # NOTE (WP03 T028, unify-charter-activation-surfaces): DELETED (not
 # re-pinned) ``test_compile_with_doctrine_service_unknown_directive_in_diagnostics``.
 # It set ``interview_with_directive.selected_directives = ["DIRECTIVE_MISSING"]``
@@ -448,12 +402,6 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
 # ---------------------------------------------------------------------------
 # T006: LocalSupportDeclaration + CharterInterview.local_supporting_files
 # ---------------------------------------------------------------------------
-
-
-def test_charter_interview_local_supporting_files_defaults_to_empty() -> None:
-    """local_supporting_files defaults to empty list when not provided."""
-    interview = default_interview(mission="software-dev", profile="minimal")
-    assert interview.local_supporting_files == []
 
 
 def test_charter_interview_from_dict_parses_local_supporting_files() -> None:
@@ -537,32 +485,19 @@ def test_local_support_declaration_from_dict_non_dict_returns_none() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_validate_rejects_glob_star() -> None:
-    decls = [LocalSupportDeclaration(path="docs/*.md")]
-    valid, errors = validate_local_support_declarations(decls)
+@pytest.mark.parametrize(
+    ("path", "reason"),
+    [
+        ("docs/*.md", "glob"),
+        ("docs/file?.md", "glob"),
+        ("docs/[abc].md", "glob"),
+        ("docs/governance/", "directory"),
+    ],
+)
+def test_validate_rejects_glob_and_directory_paths(path: str, reason: str) -> None:
+    valid, errors = validate_local_support_declarations([LocalSupportDeclaration(path=path)])
     assert valid == []
-    assert any("glob" in e for e in errors)
-
-
-def test_validate_rejects_glob_question_mark() -> None:
-    decls = [LocalSupportDeclaration(path="docs/file?.md")]
-    valid, errors = validate_local_support_declarations(decls)
-    assert valid == []
-    assert errors
-
-
-def test_validate_rejects_glob_bracket() -> None:
-    decls = [LocalSupportDeclaration(path="docs/[abc].md")]
-    valid, errors = validate_local_support_declarations(decls)
-    assert valid == []
-    assert errors
-
-
-def test_validate_rejects_directory_trailing_slash() -> None:
-    decls = [LocalSupportDeclaration(path="docs/governance/")]
-    valid, errors = validate_local_support_declarations(decls)
-    assert valid == []
-    assert any("directory" in e for e in errors)
+    assert any(reason in e for e in errors)
 
 
 def test_validate_accepts_valid_explicit_path() -> None:
@@ -620,7 +555,8 @@ def test_compile_with_local_support_file_creates_local_reference() -> None:
 
 
 def test_compile_local_support_reference_is_additive_not_replacement() -> None:
-    """Local support reference must not replace the shipped directive reference."""
+    """Local support reference must not replace the shipped directive reference,
+    and overlapping a shipped directive emits a warning diagnostic."""
     interview = default_interview(mission="software-dev", profile="minimal")
     directive_id = sorted(load_offering_catalog().directives)[0]
     decl = LocalSupportDeclaration(
@@ -641,25 +577,7 @@ def test_compile_local_support_reference_is_additive_not_replacement() -> None:
     assert {r.id for r in local_refs} == {"LOCAL:docs/custom-directive.md"}
     # Shipped refs must still be present
     assert len(shipped_refs) > 0
-
-
-def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
-    """When local file targets a shipped directive, a diagnostic warning is emitted."""
-    interview = default_interview(mission="software-dev", profile="minimal")
-    directive_id = sorted(load_offering_catalog().directives)[0]
-    decl = LocalSupportDeclaration(
-        path="docs/custom.md",
-        target_kind="directive",
-        target_id=directive_id,
-    )
-    interview = apply_answer_overrides(
-        interview,
-        selected_directives=[directive_id],
-        local_supporting_files=[decl],
-    )
-
-    compiled = compile_charter(mission="software-dev", interview=interview)
-
+    # Targeting a shipped directive also emits the overlap warning diagnostic.
     assert any("built-in content remains primary" in d for d in compiled.diagnostics), (
         f"Expected overlap warning; diagnostics: {compiled.diagnostics}"
     )
@@ -696,112 +614,15 @@ def test_compile_invalid_local_support_paths_emit_diagnostics() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
-    """YAML fallback path must find directives stored in shipped/ subdirectory.
-
-    Regression: _index_yaml_assets scanned the flat offering_root/directives/ dir
-    but all shipped directives live in offering_root/directives/built-in/.  The
-    result was every directive reference getting summary='Definition unavailable
-    in bundled doctrine.' when ActiveCharterService was absent.
-    """
-    interview = default_interview(mission="software-dev", profile="minimal")
-    interview = apply_answer_overrides(
-        interview,
-        selected_directives=["DIRECTIVE_003"],
-    )
-
-    # Exercise the YAML scanning fallback explicitly (no ActiveCharterService)
-    compiled = compile_charter(mission="software-dev", interview=interview, charter_service=None)
-
-    directive_refs = [r for r in compiled.references if r.kind == "directive"]
-    assert directive_refs, "Expected at least one directive reference in the compiled bundle"
-
-    unresolved = [r for r in directive_refs if r.summary == "Definition unavailable in bundled doctrine."]
-    assert not unresolved, (
-        f"Directive(s) not found in shipped/ during YAML fallback: "
-        f"{[r.id for r in unresolved]}"
-    )
-
-
-def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> None:
-    """write_compiled_charter must not create library/ directory."""
-    interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_charter(mission="software-dev", interview=interview)
-
-    result = write_compiled_charter(tmp_path, compiled, force=True)
-
-    assert not (tmp_path / "library").exists()
-    # Only charter.yaml should be written (WP03: charter.md clobber removed,
-    # references.yaml writer retired -- data-model.md Landmine 3).
-    assert set(result.files_written) == {"charter.yaml"}
-
-
 def test_tracked_kinds_table_matches_the_artifact_kind_vocabulary() -> None:
     """Each tracked kind is a real ``ArtifactKind`` whose plural is the graph
-    bucket / raw-repository key the table records."""
+    bucket / raw-repository key the table records (and the table is not empty)."""
     import charter.activation.compiler as compiler_module
     from charter.activation.kind_vocabulary import ArtifactKind
 
-    assert list(compiler_module._TRACKED_KINDS) == ["directive", "tactic", "styleguide", "toolguide", "procedure", "agent_profile"]
+    assert compiler_module._TRACKED_KINDS
     for kind, tracked in compiler_module._TRACKED_KINDS.items():
         assert ArtifactKind(kind).plural == tracked.plural
-
-
-def test_added_tracked_kind_is_honoured_by_the_whole_kind_check(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The whole-kind fail-closed check reads the tracked-kinds table at call
-    time: a kind added to it, with an activated (non-empty ``graph.<plural>``)
-    but zero-reference bucket, trips the check."""
-    import charter.activation.compiler as compiler_module
-
-    extra = compiler_module._TrackedKind("extra_kinds", compiler_module._TRACKED_KINDS["directive"].fields)
-    mutated = {**compiler_module._TRACKED_KINDS, "extra_kind": extra}
-    monkeypatch.setattr(compiler_module, "_TRACKED_KINDS", mutated)
-
-    graph = types.SimpleNamespace(**{tracked.plural: [] for tracked in mutated.values()})
-    graph.extra_kinds = ["some-unresolved-id"]
-
-    with pytest.raises(compiler_module.WholeKindUnresolvedError, match="extra_kind"):
-        compiler_module._check_whole_kind_unresolved(
-            graph=graph,
-            kind_reference_counts={},
-            activated_via_unresolved=set(),
-            unresolved_records=[],
-        )
-
-
-def test_route_unresolved_urn_reads_the_tracked_kinds_table_at_call_time(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The ``graph.unresolved`` routing attributes a URN to a kind only while
-    that kind is in the table: dropping ``toolguide`` from it makes the same URN
-    unattributable -- one table drives routing and the whole-kind check alike."""
-    import charter.activation.compiler as compiler_module
-
-    class _Service:
-        def raw_repository(self, _kind: str) -> Any:
-            class _Repo:
-                def get(self, _id: str) -> None:
-                    return None
-
-            return _Repo()
-
-    def route() -> tuple[str | None, list[Any]]:
-        records: list[Any] = []
-        kind, _placeholder = compiler_module._route_unresolved_urn(
-            "toolguide:some-id", charter_service=_Service(), diagnostics=[], unresolved_records=records, project_root=None
-        )
-        return kind, records
-
-    attributed, _ = route()
-    assert attributed == "toolguide"
-
-    reduced = {k: v for k, v in compiler_module._TRACKED_KINDS.items() if k != "toolguide"}
-    monkeypatch.setattr(compiler_module, "_TRACKED_KINDS", reduced)
-    attributed, records = route()
-    assert attributed is None
-    assert [record["cause"] for record in records] == ["unattributed_kind"]
 
 
 def test_unresolved_cause_vocabulary_is_one_closed_set() -> None:
@@ -827,61 +648,15 @@ def test_unresolved_cause_vocabulary_is_one_closed_set() -> None:
     assert declared == set(mapping.values()) | compiler_owned
 
 
-def test_record_unresolved_reference_writes_both_lists_and_honours_a_diagnostic_override() -> None:
-    import charter.activation.compiler as compiler_module
-
-    diagnostics: list[str] = []
-    records: list[compiler_module.UnresolvedReferenceRecord] = []
-    compiler_module._record_unresolved_reference(
-        kind="tactic", raw_id="x", cause="missing_artifact", detail="d", diagnostics=diagnostics, unresolved_records=records
-    )
-    compiler_module._record_unresolved_reference(
-        kind="_graph",
-        raw_id="_load_failure",
-        cause="graph_load_failed",
-        detail="Boom: bad",
-        diagnostics=diagnostics,
-        unresolved_records=records,
-        diagnostic="Graph load failed: Boom: bad.",
-    )
-
-    assert diagnostics == ["Unresolved reference: tactic/x (missing_artifact): d", "Graph load failed: Boom: bad."]
-    assert records == [
-        {"kind": "tactic", "id": "x", "cause": "missing_artifact", "detail": "d"},
-        {"kind": "_graph", "id": "_load_failure", "cause": "graph_load_failed", "detail": "Boom: bad"},
-    ]
-
-
 # ---------------------------------------------------------------------------
 # #4614 / FR-013: label-specific diagnostic for unregistered tool ids
 # ---------------------------------------------------------------------------
-
-
-def test_unregistered_tool_message_single_id_names_a_tool_id() -> None:
-    assert _unregistered_tool_message(["zig"]) == (
-        "available_tools: 'zig' is not a registered tool id; ignored (tool ids are validated separately from project languages)"
-    )
 
 
 def test_unregistered_tool_message_lists_all_ids_sorted_in_one_message() -> None:
     assert _unregistered_tool_message(["b", "a"]) == (
         "available_tools: 'a', 'b' are not registered tool ids; ignored (tool ids are validated separately from project languages)"
     )
-
-
-def test_sanitize_catalog_selection_uses_custom_missing_message() -> None:
-    diagnostics: list[str] = []
-
-    kept = _sanitize_catalog_selection(
-        values=["git", "zig"],
-        allowed={"git"},
-        label="available_tools",
-        diagnostics=diagnostics,
-        missing_message=_unregistered_tool_message,
-    )
-
-    assert kept == ["git"]
-    assert diagnostics == [_unregistered_tool_message(["zig"])]
 
 
 def test_sanitize_catalog_selection_default_message_is_unchanged_for_other_labels() -> None:

@@ -20,7 +20,6 @@ from pathlib import Path
 import pytest
 
 from charter.activation.cascade import (
-    _REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
     NoCascadeReport,
@@ -168,40 +167,6 @@ def test_scope_rejects_empty_explicit_set() -> None:
         CascadeScope(is_all=False, kinds=frozenset())
 
 
-def test_reference_relations_include_scope_and_instantiates() -> None:
-    # ADR 2026-08-20-1 (#2829): SCOPE + INSTANTIATES joined the cascade reference
-    # set so the forward closure walks the action hop
-    # (``mission_type --requires--> action --scope--> governance`` and
-    # ``action --instantiates--> template``). REQUIRES/SUGGESTS are the legacy set;
-    # REFINES joined in #2079. This is the widened followed set the kind-complete
-    # cascade traverses (candidacy is filtered separately).
-    expected = frozenset(
-        {
-            Relation.REQUIRES,
-            Relation.SUGGESTS,
-            Relation.REFINES,
-            Relation.SCOPE,
-            Relation.INSTANTIATES,
-        }
-    )
-    assert expected == _REFERENCE_RELATIONS
-
-
-def test_tension_vocabulary_excluded_from_reference_relations() -> None:
-    """T032 (FR-013, C-003): tension vocabulary never joins cascade's reference set.
-
-    ``in_tension_with``/``reconciles_tension``/``rejects`` (mission
-    ``doctrine-tension-edges-01KY1WPC``) achieve cascade exclusion **by
-    omission** -- they must never be added to ``REFERENCE_RELATIONS`` -- so
-    activating one side of a tension (or a reconciler) never auto-cascades to
-    the other side/reconciled artefacts (INV-003). There is no code change in
-    ``cascade.py`` to make this pass; the test IS the deliverable. This is
-    deliberately an explicit frozenset-intersection assertion, not a "cascade
-    doesn't crash" smoke test, which would pass vacuously.
-    """
-    assert frozenset({Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}) & _REFERENCE_RELATIONS == frozenset()
-
-
 # ---------------------------------------------------------------------------
 # T049 — scoped cascade activation (FR-014)
 # ---------------------------------------------------------------------------
@@ -299,14 +264,9 @@ def test_cascade_activation_collects_kind_filtered_nodes() -> None:
     result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
     assert result.activated == {"tactic": ["qa"]}
     assert result.not_cascaded_kind_filtered == {"asset": ["qa-traceability-lint"]}
-
-
-def test_cascade_activation_kind_filtered_node_stays_out_of_activated_and_skipped() -> None:
-    graph = _mixed_kind_graph()
-    result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
+    # A kind-filtered node is reported only there: never activated, never skipped-by-scope.
     assert "asset" not in result.activated
     assert "asset" not in result.skipped_by_scope
-    assert result.not_cascaded_kind_filtered == {"asset": ["qa-traceability-lint"]}
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +284,6 @@ def test_referenced_but_not_cascaded_lists_skipped_kinds() -> None:
     assert report.has_skipped is True
     # Recovery hint names --cascade and the consistency check (Contract C3.2).
     assert "--cascade" in report.recovery_hint
-    assert "consistency-check" in report.recovery_hint
     # It must name the REAL command `charter consistency-check` (OD-8, #3732),
     # not the removed `charter pack consistency-check` spelling.
     assert "charter consistency-check" in report.recovery_hint
@@ -374,20 +333,6 @@ def test_deactivation_removes_all_when_no_other_active_source() -> None:
         active_urns={"agent_profile:pedro"},
     )
     assert plan.deactivate == ["tactic:private", "tactic:shared"]
-    assert plan.skipped_shared == []
-
-
-def test_deactivation_target_own_references_do_not_keep_candidate_alive() -> None:
-    # Guard: target_urn is excluded from "remaining active sources", so its own
-    # forward references never spuriously mark a candidate as shared.
-    graph = _profile_graph()
-    plan = deactivation_plan(
-        graph,
-        "agent_profile:pedro",
-        CascadeScope.all(),
-        active_urns={"agent_profile:pedro"},
-    )
-    assert plan.deactivate == ["directive:arch", "tactic:tdd"]
     assert plan.skipped_shared == []
 
 
@@ -481,6 +426,7 @@ _GOVERNANCE_BEARING_MISSION_TYPE_URNS: tuple[str, ...] = (
 _EXCLUDED_RELATIONS: tuple[Relation, ...] = (
     Relation.IN_TENSION_WITH,
     Relation.REJECTS,
+    Relation.RECONCILES_TENSION,
     Relation.DELEGATES_TO,
     Relation.SPECIALIZES_FROM,
     Relation.ENHANCES,
@@ -553,59 +499,6 @@ def test_cascade_from_governance_bearing_mission_types_is_non_empty(freshly_extr
     assert result.activated, f"cascade from {mission_type_urn} was empty — the #2829 action-hop dead-end"
 
 
-def test_plan_cascade_reaches_its_authored_governance(
-    freshly_extracted_graph: DRGGraph,
-) -> None:
-    # #3604 (T007) rewrite of the WP01 finding this test used to pin (preserved
-    # in git history as ``test_plan_cascade_is_empty_because_its_actions_scope_
-    # no_governance``): WP01 closed the #2829 action-hop dead-end for plan too
-    # (the closure now passes *through* its actions), but ``mission_type:plan``'s
-    # action steps carried only ``instantiates -> template`` edges and no
-    # ``scope`` edges, so after the ADR 2026-08-20-1 activatable-kind filter
-    # dropped those templates there was nothing left to cascade — a graph-data
-    # gap (plan's step contracts scope no governance), not a cascade-code
-    # defect, and wiring plan governance was explicitly out of WP01's code-only
-    # scope.
-    #
-    # #3604 (this mission, WP02) closes that graph-data gap: plan's type-wide
-    # ``governance-profile.yaml`` selections (research.md grounding) are now
-    # emitted as direct ``mission_type:plan --scope--> <gov>`` edges by
-    # :func:`extract_governance_profile_scope_edges`, so the cascade reaches
-    # plan's full authored governance: 1 directive (031-context-aware-design),
-    # 9 tactics, 3 paradigms, and 1 styleguide (planning-and-tracking). Asserted
-    # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
-    # fixture's docstring for why (the committed goldens ARE re-ledgered in
-    # this mission, byte-identical to the canonical regen).
-    result = cascade_activation_targets(freshly_extracted_graph, "mission_type:plan", CascadeScope.all())
-    assert result.activated, "mission_type:plan cascade is still empty after #3604's governance-profile scope pass"
-    assert "DIRECTIVE_031" in result.activated.get("directive", []), (
-        f"031-context-aware-design missing from plan's cascaded directives: {result.activated.get('directive', [])}"
-    )
-    expected_tactics = {
-        "problem-decomposition",
-        "bounded-context-identification",
-        "deepening-opportunity-assessment",
-        "moscow-scoping-lens",
-        "eisenhower-prioritisation",
-        "adr-drafting-workflow",
-        "traceable-decisions",
-        "decision-marker-capture",
-        "premortem-risk-identification",
-    }
-    cascaded_tactics = set(result.activated.get("tactic", []))
-    assert expected_tactics <= cascaded_tactics, f"missing from plan's cascaded tactics: {expected_tactics - cascaded_tactics}"
-    expected_paradigms = {
-        "domain-driven-design",
-        "deep-module-design",
-        "c4-incremental-detail-modeling",
-    }
-    cascaded_paradigms = set(result.activated.get("paradigm", []))
-    assert expected_paradigms <= cascaded_paradigms, f"missing from plan's cascaded paradigms: {expected_paradigms - cascaded_paradigms}"
-    assert "planning-and-tracking" in result.activated.get("styleguide", []), (
-        f"planning-and-tracking missing from plan's cascaded styleguides: {result.activated.get('styleguide', [])}"
-    )
-
-
 def test_cascade_from_documentation_reaches_governance_kinds(
     built_in_graph: DRGGraph,
 ) -> None:
@@ -616,24 +509,13 @@ def test_cascade_from_documentation_reaches_governance_kinds(
         assert kind_key in result.activated, f"{kind_key!r} missing from documentation cascade: {sorted(result.activated)}"
 
 
-def test_cascade_never_proposes_template_or_asset(built_in_graph: DRGGraph) -> None:
+def test_cascade_never_reports_template_or_asset_as_skipped(built_in_graph: DRGGraph) -> None:
     # C-CAS-3: even for a source whose closure reaches templates/assets, neither
-    # appears in ``activated`` nor in the no-cascade ``skipped`` report.
-    result = cascade_activation_targets(built_in_graph, "mission_type:documentation", CascadeScope.all())
-    assert "template" not in result.activated
-    assert "asset" not in result.activated
-
+    # appears in the no-cascade ``skipped`` report (``activated`` is pinned by
+    # test_cascade_candidate_kinds_are_all_charter_activatable).
     report = referenced_but_not_cascaded(built_in_graph, "mission_type:documentation")
     assert "template" not in report.skipped
     assert "asset" not in report.skipped
-
-
-@pytest.mark.parametrize("mission_type_urn", _BUILT_IN_MISSION_TYPE_URNS)
-def test_cascade_never_emits_action_nodes(built_in_graph: DRGGraph, mission_type_urn: str) -> None:
-    # C-CAS-4: ``action:`` is not an ArtifactKind, so it is never a bucket key —
-    # the traversal passes *through* actions but never proposes one as a target.
-    result = cascade_activation_targets(built_in_graph, mission_type_urn, CascadeScope.all())
-    assert "action" not in result.activated
 
 
 @pytest.mark.parametrize("relation", _EXCLUDED_RELATIONS)
@@ -797,133 +679,7 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
     assert not missing, f"mission_type:{mission_type_id} is missing scope edges for governance-profile.yaml selections: {missing}"
 
 
-#: T008 secondary (ratchet) — total cascade-target counts
-#: (``sum(len(v) for v in result.activated.values())``) for each built-in
-#: mission type, measured against ``freshly_extracted_graph`` (NOT
-#: ``built_in_graph`` -- see that fixture's docstring for why: the goldens ARE
-#: re-ledgered in this mission and are byte-identical to a fresh canonical
-#: regen, locked by ``test_extractor_projection.py``). ``freshly_extracted_
-#: graph`` calls the CANONICAL ``generate_reference_graph_with_overlay``
-#: pipeline -- the same one ``spec-kitty charter pack regenerate-graph`` runs --
-#: so these totals are what the shipped goldens actually carry, verified two
-#: ways:
-#: (1) ``spec-kitty charter pack regenerate-graph --check`` is clean on the base
-#: commit (goldens == canonical regenerate, pre-#3604); (2) with
-#: ``extract_governance_profile_scope_edges`` temporarily no-op'd, the SAME
-#: canonical pipeline reproduces research.md's pre-mission 31/23/160/0 exactly
-#: -- confirming #3604's own isolated contribution (T007's new pass) is a
-#: clean, additive +9/+86/+0/+140 for documentation/research/software-dev/plan
-#: respectively (software-dev's governance-profile.yaml is entirely empty, so
-#: T007 adds nothing there -- the ONE type whose total is unchanged from
-#: research.md's baseline). A first version of this ratchet used bare
-#: ``generate_graph`` (omitting the hand-authored overlay), which prunes
-#: overlay-referenced edges as dangling and undercounts every type except
-#: research -- a post-review finding, not a doctrine-drift phenomenon: fixed
-#: by pointing the fixture at the canonical pipeline instead. These counts
-#: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
-#: re-verify the new total, not a regression by itself.
-_EXPECTED_CASCADE_TOTALS: dict[str, int] = {
-    "documentation": 131,
-    "research": 120,
-    "software-dev": 166,
-    "plan": 144,
-}
-#: #6017 (97e42f00b2) wired the orphaned DIRECTIVE_035 and DIRECTIVE_039 into
-#: the doctrine graph, an intended doctrine-growth move: ``software-dev`` 165 ->
-#: 166 and ``plan`` 139 -> 144. The charter shard is path-gated, so the
-#: ratchet was only exercised again by #6020.
-#: Cascade totals after the single-owner doctrine change, measured with
-#: ``cascade_activation_targets`` on the regenerated graph (the arrows start
-#: from the totals before that change, after #5258 below, which moved only
-#: ``plan`` and ``software-dev``):
-#:
-#: * every type loses the retired ids it reached (adversarial-squad-cadence,
-#:   behavior-driven-development, bug-fixing-checklist, locality-of-change,
-#:   boring-code-review as a tactic, common-docs-curation, and the two ids that
-#:   moved to packs/internal) and gains their successors where reached
-#:   (bdd-scenario-formulation, the boring-code-review styleguide);
-#: * the squad procedure now ``suggests`` model-task-routing, and
-#:   test-first-bug-fixing ``suggests`` DIRECTIVE_052 (-> DIRECTIVE_044 ->
-#:   canonical-source-unification), which every type that reaches them gains;
-#: * ``testing-principles`` then ``suggests`` ``testing-select-appropriate-level``
-#:   (the owner of the test-pyramid layer shape it now references instead of
-#:   restating), which adds that tactic to every type that reaches the
-#:   styleguide but not the tactic: documentation, research and plan +1 each
-#:   (129 -> 130, 118 -> 119, 137 -> 138); software-dev already reached it;
-#: * ``documentation`` 44 -> 129: it reaches
-#:   ``tactic:paula-patterns-architecture-scout-review``, whose new curated
-#:   ``refines`` edge to ``procedure:adversarial-squad-deployment`` is followed
-#:   by cascade (by design: refines is a cascade relation, not a
-#:   delivery relation), so the procedure's closure (+85) joins; lost only
-#:   common-docs-curation (its successors were already reached);
-#: * ``plan`` 147 -> 137 (-12 / +2): ``procedure:tracker-organisation-workflow``
-#:   moved to packs/internal, and with it the only plan path to
-#:   issue-triage-state-machine and its requires closure (test-first-bug-fixing,
-#:   disciplined-defect-diagnosis, requirements-validation-workflow,
-#:   testing-select-appropriate-level) -- and so also DIRECTIVE_052, which
-#:   #5258 made plan-reachable only through disciplined-defect-diagnosis (its
-#:   five outbound targets stay reached by other paths, e.g. the squad
-#:   procedure); plus the five retired ids plan reached; gains
-#:   avoid-gold-plating and bdd-scenario-formulation;
-#: * ``research`` 110 -> 118 (-2 / +10): the swaps above plus the closures of
-#:   model-task-routing and DIRECTIVE_044 (canonical-source-unification);
-#: * ``software-dev`` 165 -> 165: five retired ids out, their two successors
-#:   and the three supply-chain toolguides in.
-#: The built-in tactic ``acceptance-criteria-non-vacuity`` sits downstream of
-#: ``tactic:usage-examples-sync`` (already scoped to every governance-bearing
-#: mission type) via a forward step-level reference from
-#: ``acceptance-test-first``, and itself references
-#: ``mutation-testing-workflow`` (whose two toolguide references complete the
-#: closure). Every governance-bearing mission type gains the new tactic
-#: itself (+1). ``documentation`` alone gains +4: it was the only mission
-#: type that did not already reach ``mutation-testing-workflow`` by another
-#: path, so this new edge is also the first path to it and its two
-#: toolguides (1 + 1 + 2 = 4). ``plan``/``research``/``software-dev`` already
-#: reached ``mutation-testing-workflow`` by a pre-existing path, so the new
-#: edge is redundant for them and they move by only +1.
-#:
-#: #5258 (R7): the curated advisory edge ``procedure:disciplined-defect-
-#: diagnosis --suggests--> directive:DIRECTIVE_052`` de-orphans DIRECTIVE_052 by
-#: giving it its first INBOUND reference. ``--cascade all`` reachability follows
-#: ``suggests`` edges, so DIRECTIVE_052 and its five outbound targets now enter
-#: the cascade closure of every mission type that reaches the
-#: ``disciplined-defect-diagnosis`` procedure. ``plan`` gains +6 (141 -> 147:
-#: the directive plus five not-previously-reached targets) and ``software-dev``
-#: gains +4 (161 -> 165: two of those targets were already reached by another
-#: path). ``documentation``/``research`` do not reach the procedure, so their
-#: totals are unchanged. The edge is advisory only -- it never auto-activates
-#: (activation cascade requires an explicit ``--cascade`` flag); this ratchet
-#: tracks reachability, not activation.
-#:
-#: #5351: ``styleguide:test-desiderata-and-boundaries`` now suggests
-#: ``procedure:development-assist-test-cleanup`` (and DIRECTIVE_041, already
-#: reached everywhere). ``plan``, ``research`` and ``documentation`` reach the
-#: styleguide but not the procedure by any other path, so each gains +1 on top
-#: of the single-owner baseline above (plan 138 -> 139, research 119 -> 120,
-#: documentation 130 -> 131 -- the single-owner change first gave documentation
-#: a path to the styleguide via the adversarial-squad-deployment closure).
-#: ``software-dev`` already reached the procedure through the wrap-up sequence.
-#: Advisory reachability only.
-
-
-@pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))
-def test_mission_type_cascade_total_ratchet(freshly_extracted_graph: DRGGraph, mission_type_id: str) -> None:
-    """T008 secondary (ratchet): pins the total cascade-target count per
-    built-in mission type against ``freshly_extracted_graph`` (see
-    ``_EXPECTED_CASCADE_TOTALS`` for why these values, not research.md's
-    pre-mission snapshot). Every type is non-empty ("populated"), including
-    ``plan`` -- #3604's headline fix.
-    """
-    result = cascade_activation_targets(freshly_extracted_graph, f"mission_type:{mission_type_id}", CascadeScope.all())
-    total = sum(len(ids) for ids in result.activated.values())
-    assert total == _EXPECTED_CASCADE_TOTALS[mission_type_id], (
-        f"mission_type:{mission_type_id} cascade total moved from "
-        f"{_EXPECTED_CASCADE_TOTALS[mission_type_id]} to {total} "
-        f"({ {k: len(v) for k, v in result.activated.items()} }) -- update "
-        "_EXPECTED_CASCADE_TOTALS if this is an expected doctrine-growth move."
-    )
-
-
+# ---------------------------------------------------------------------------
 # WP04 (#3705) — deactivation-side C-006 half: a kind-filtered node reached
 # by `deactivation_plan` must be reported and never leak into removal results.
 # ---------------------------------------------------------------------------

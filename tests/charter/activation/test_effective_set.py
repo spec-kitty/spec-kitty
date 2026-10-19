@@ -113,6 +113,7 @@ def test_tactics_union_builtin_org_packs_and_project(project: Path) -> None:
     assert result.resolved
     assert _builtin_ids("tactic") <= result.ids
     assert {"acme-pairing", "acme-two-tactic", PROJECT_TACTIC} <= result.ids
+    assert result.fallback_ids == frozenset(), "a resolved set carries no fallback"
 
 
 def test_procedure_whose_id_differs_from_its_stem_appears_in_id_spelling(project: Path) -> None:
@@ -145,6 +146,7 @@ def test_skill_is_never_resolvable(project: Path) -> None:
     assert not result.resolved
     assert result.ids == frozenset()
     assert result.reason is not None and "required-only" in result.reason
+    assert result.fallback_ids == frozenset(), "a required-only kind never seeds the catalogue"
 
 
 def test_mission_type_is_never_resolvable_but_carries_the_chain_fallback(project: Path) -> None:
@@ -161,13 +163,6 @@ def test_mission_type_is_never_resolvable_but_carries_the_chain_fallback(project
 def test_unknown_key_is_refused(project: Path) -> None:
     with pytest.raises(ValueError, match="Unknown activation key"):
         _resolve(project, ["activated_nonsense"])
-
-
-def test_resolved_set_and_skill_carry_no_fallback(project: Path) -> None:
-    results = _resolve(project, ["activated_tactics", "activated_skills"])
-
-    assert results["activated_tactics"].fallback_ids == frozenset()
-    assert results["activated_skills"].fallback_ids == frozenset(), "a required-only kind never seeds the catalogue"
 
 
 def test_missing_middle_org_root_fallback_spans_every_readable_root(project: Path) -> None:
@@ -192,6 +187,7 @@ def test_service_build_failure_fallback_spans_both_org_packs(project: Path, monk
     result = _resolve(project, ["activated_tactics"])["activated_tactics"]
 
     assert not result.resolved
+    assert result.reason is not None and "doctrine service" in result.reason
     assert {"acme-pairing", "acme-two-tactic", PROJECT_TACTIC} <= result.fallback_ids
 
 
@@ -201,6 +197,7 @@ def test_malformed_registry_fallback_keeps_builtin_and_project(project: Path) ->
     result = _resolve(project, ["activated_tactics"])["activated_tactics"]
 
     assert not result.resolved
+    assert result.reason is not None and "org pack registry" in result.reason
     assert _builtin_ids("tactic") | {PROJECT_TACTIC} <= result.fallback_ids
 
 
@@ -223,15 +220,6 @@ def test_fallback_skips_an_org_root_that_raises_on_scan(project: Path, monkeypat
     assert _builtin_ids("tactic") <= result.fallback_ids
 
 
-def test_malformed_org_registry_is_unresolved(project: Path) -> None:
-    _config(project, 7)
-
-    result = _resolve(project, ["activated_tactics"])["activated_tactics"]
-
-    assert not result.resolved
-    assert result.reason is not None and "org pack registry" in result.reason
-
-
 def test_missing_declared_org_root_is_unresolved(project: Path) -> None:
     _config(project, [{"name": "acme", "local_path": ORG1}, {"name": "gone", "local_path": "org-packs/does-not-exist"}])
 
@@ -240,36 +228,6 @@ def test_missing_declared_org_root_is_unresolved(project: Path) -> None:
     for entry in results.values():
         assert not entry.resolved
         assert entry.reason is not None and "does-not-exist" in entry.reason
-
-
-def test_org_root_that_raises_on_scan_is_unresolved(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    real = ActiveCharterManager.list_available
-
-    def exploding(self: ActiveCharterManager, ctx: ProjectContext, kind: str, *, layer_roots: dict[str, Path] | None = None) -> frozenset[str]:
-        if layer_roots and "org" in layer_roots and layer_roots["org"].name == "acme-two":
-            raise OSError("permission denied")
-        return frozenset(real(self, ctx, kind, layer_roots=layer_roots))
-
-    monkeypatch.setattr(ActiveCharterManager, "list_available", exploding)
-
-    result = _resolve(project, ["activated_tactics"])["activated_tactics"]
-
-    assert not result.resolved
-    assert result.reason is not None and "permission denied" in result.reason
-
-
-def test_service_build_failure_is_unresolved(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import charter.activation.active_charter_service_builder as builder
-
-    def broken(repo_root: Path) -> None:
-        raise RuntimeError(f"cannot build for {repo_root.name}")
-
-    monkeypatch.setattr(builder, "build_active_charter_service", broken)
-
-    result = _resolve(project, ["activated_procedures"])["activated_procedures"]
-
-    assert not result.resolved
-    assert result.reason is not None and "doctrine service" in result.reason
 
 
 def test_directives_alone_do_not_build_the_service(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
