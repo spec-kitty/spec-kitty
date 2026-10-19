@@ -138,10 +138,10 @@
       "criterion_id": "FR-014",
       "description": "Verify FR-014 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP05 charter status/synthesize CLI JSON tests; test_json_contract_enumeration.py",
+      "pass_fail": "pass",
+      "verified_by": "claude-code/opus",
+      "verified_at": "2026-10-19T20:36:10.975140+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
