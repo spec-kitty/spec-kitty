@@ -1,0 +1,170 @@
+schema_version: 1
+mission_id: 01M59RZ597H5999C9E7JJMMWJW
+mission_slug: charter-synthesis-graph-and-languages-01M59RZ5
+mission_number: 237
+friendly_name: Charter synthesis graph and languages
+mission_type: software-dev
+target_branch: issue-6442-charter-synthesis-graph-work
+created_at: '2026-10-19T20:42:49.756534+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-19T20:42:49.756534+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-001
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP05 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP01-local-only-reds.md
+- id: e-006
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP02-reach-only-styleguides.md
+- id: e-007
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP03-project-intent-directive.md
+- id: e-008
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP04-language-catalog-authority.md
+- id: e-009
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP05-multi-language-evidence.md
+- id: e-010
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP06-jvm-retag-and-closeout.md
+- id: e-011
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP07-configured-languages.md
+- id: e-012
+  kind: file
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M59YARQVYX2SS2626DX40T25..01M5A0AHRS7Q30NA8ND8GT9W4C
+- id: e-014
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M5A6CVF3J5BG538SJ2KXYPM3..01M5A8DMHR8RB3Z8C2BYYP55PP
+- id: e-015
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M5ABZ47H5KFASV7H2STY283G
+- id: e-016
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M5AGB60KDFY28XKZNAQS5ENP
+- id: e-017
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M5AXDZWS2RS8B8XE1C32C453
+- id: e-018
+  kind: event_range
+  path: kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/status.events.jsonl
+  range: 01M5AS8BZFNTM357GYXMSGGVN8
+generator_version: '1.0'
+provenance_history: []
