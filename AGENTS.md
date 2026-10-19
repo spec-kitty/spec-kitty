@@ -357,8 +357,16 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    (#648: a PR's `## Tests run` excluded a whole test file over exactly
    this; a clean `uv sync --frozen --all-extras` reproduced 1621/1621 passing, no exclusion
    needed).
+5. **Harness environment leaks** — agent containers export `SPEC_KITTY_NO_NAG`,
+   `SPEC_KITTY_NO_UPGRADE_CHECK` and `SPEC_KITTY_NON_INTERACTIVE`, and the root test fixture
+   keeps pre-existing `SPEC_KITTY_*` values by design, so a test that needs one of them unset
+   goes red only in such a session. The remedy is a test-local `monkeypatch.delenv`.
+6. **Out-of-matrix reds** — `tests/specify_cli/cli/commands` and `tests/specify_cli/upgrade`
+   are `out_of_matrix_test_dirs` (`.github/ci-module-registry.yml`) and run only in the
+   nightly, so a red there can be real on `main` although every PR was green. Check the
+   latest nightly and its auto-opened issue before calling it environmental.
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
-green-wash category 1, and never misattribute categories 2–4 to your own work. Full policy:
+green-wash category 1, and never misattribute categories 2–5 to your own work. Full policy:
 [docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
