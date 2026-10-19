@@ -138,3 +138,4 @@ charter_pack_cutover
 4.0.0rc7_exclude_spec_kitty
 4.0.0rc7_pack_level_backfill  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved
 4.0.0rc7_track_charter_pack_yaml  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved
+4.0.0rc8_project_intent_directive_rename
