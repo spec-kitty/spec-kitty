@@ -1,7 +1,7 @@
 {
-  "event_count": 30,
-  "last_event_id": "01M5A4E2YNNK4AR3PFBJ1E4JP0",
-  "materialized_at": "2026-10-19T13:08:24.661760+00:00",
+  "event_count": 35,
+  "last_event_id": "01M5A847T4KKGJSQJ5PGNFWJC0",
+  "materialized_at": "2026-10-19T14:12:56.260279+00:00",
   "mission_number": "",
   "mission_slug": "charter-synthesis-graph-and-languages-01M59RZ5",
   "mission_type": "software-dev",
@@ -90,19 +90,27 @@
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "implement-command",
       "lane": "in_review",
-      "last_event_id": "01M5A4E2YNNK4AR3PFBJ1E4JP0",
-      "last_transition_at": "2026-10-19T13:08:24.661760+00:00",
+      "last_event_id": "01M5A847T4KKGJSQJ5PGNFWJC0",
+      "last_transition_at": "2026-10-19T14:12:56.260279+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-19T12:57:40Z – implement-command – shell_pid=4042 – Implemented T011-T015 (commits 64da0ff28, 953788a2b, bd9603bf2, efc82dc95, c7255baa0). Red-first: test_project_intent_directive.py on pre-fix source = 5 failed/3 passed (slug, title, source_urns x2, overlay edge, reconcile strip); test_legacy_rename.py and the migration test fail at collection on the base commit (helper/migration absent: ImportError/ModuleNotFoundError). Green: tests/charter/synthesizer + provenance_paths + default_in_force_snapshot 574 passed 12 skipped; status/synthesize CLI, edge/reconcile/arch gates (no_dead_symbols, api_reexport, order_manifest, path authorities, runtime boundary), migration tests 210 passed + the one fixed acceptance test. Baseline reds (also on base 0874d78ee, not mine): 16 in tests/acceptance/charter_pack_cutover (test_upgrade_migration x10, test_rename_skills_glossary x1: rc8 ledger backfill migration_failed) and 5 test_session_presence_upgrade_smoke. Changed expectations: all slug/title pins -> project-intent-directive; test_edge_wiring mission-type evidence tests removed and replaced by no-edge pins; test_fr012_project_root_moved expects the renamed artifact after upgrade; fixture-adapter fixtures git-mv'd to 26d34812f1be/4b33ebc9faf5/75ba87f4274b under directive/project-intent-directive (4293a00ba37b removed, unused). Kept legacy: acceptance legacy_fixtures/generate_golden_before/static synthesized tree, test_bundle_validate_fresh_seed stale-sidecar. Unowned edits: none (tests/charter/synthesizer/test_charter_synthesize_cli etc all owned). One narrowly justified type-ignore on LegacyRenameRefusedError (errors.py is on mypy exclude ratchet so SynthesisError is Any). Dogfood rename applied to .kittify (no overlay edge/stems/generated input existed); validate_synthesis_state and build_charter_context OK on the worktree."
+        "- 2026-10-19T12:57:40Z – implement-command – shell_pid=4042 – Implemented T011-T015 (commits 64da0ff28, 953788a2b, bd9603bf2, efc82dc95, c7255baa0). Red-first: test_project_intent_directive.py on pre-fix source = 5 failed/3 passed (slug, title, source_urns x2, overlay edge, reconcile strip); test_legacy_rename.py and the migration test fail at collection on the base commit (helper/migration absent: ImportError/ModuleNotFoundError). Green: tests/charter/synthesizer + provenance_paths + default_in_force_snapshot 574 passed 12 skipped; status/synthesize CLI, edge/reconcile/arch gates (no_dead_symbols, api_reexport, order_manifest, path authorities, runtime boundary), migration tests 210 passed + the one fixed acceptance test. Baseline reds (also on base 0874d78ee, not mine): 16 in tests/acceptance/charter_pack_cutover (test_upgrade_migration x10, test_rename_skills_glossary x1: rc8 ledger backfill migration_failed) and 5 test_session_presence_upgrade_smoke. Changed expectations: all slug/title pins -> project-intent-directive; test_edge_wiring mission-type evidence tests removed and replaced by no-edge pins; test_fr012_project_root_moved expects the renamed artifact after upgrade; fixture-adapter fixtures git-mv'd to 26d34812f1be/4b33ebc9faf5/75ba87f4274b under directive/project-intent-directive (4293a00ba37b removed, unused). Kept legacy: acceptance legacy_fixtures/generate_golden_before/static synthesized tree, test_bundle_validate_fresh_seed stale-sidecar. Unowned edits: none (tests/charter/synthesizer/test_charter_synthesize_cli etc all owned). One narrowly justified type-ignore on LegacyRenameRefusedError (errors.py is on mypy exclude ratchet so SynthesisError is Any). Dogfood rename applied to .kittify (no overlay edge/stems/generated input existed); validate_synthesis_state and build_charter_context OK on the worktree.",
+        "- 2026-10-19T14:08:38Z – unknown – Review cycle 1 fixed: error class in errors.py (unowned edit, authorised), no type-ignore; migration no-any-return; noqa PLC0415 removed; _synthesis.py (unowned, authorised) reports dead edge with own wording + converge helper moved there; new CLI test (red on prior commit: _print_stripped_edges absent). Tests 403 passed, 2 known baseline reds (test_resynthesize_and_hotpath)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/.worktrees/charter-synthesis-graph-and-languages-01M59RZ5-coord/kitty-specs/charter-synthesis-graph-and-languages-01M59RZ5/tasks/WP03-project-intent-directive/review-cycle-1.md",
+        "reference": "review-cycle://charter-synthesis-graph-and-languages-01M59RZ5/WP03-project-intent-directive/review-cycle-1.md",
+        "reviewer": "claude",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
-      "shell_pid": 23609,
-      "shell_pid_created_at": "1792415297.57",
+      "shell_pid": 1764,
+      "shell_pid_created_at": "1792419168.73",
       "subtasks": {
         "T011": "done",
         "T012": "done",
