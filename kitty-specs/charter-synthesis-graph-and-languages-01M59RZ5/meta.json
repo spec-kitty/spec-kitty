@@ -28,6 +28,7 @@
   "purpose_context": "Three follow-ups to the charter governance resolution Mission (#6442-#6444): synthesized styleguides have no source directive and float as roots; PROJECT_001 claims a mission-type link no traversal follows; two parallel language authorities disagree on vocabulary and cardinality, and Kotlin is miscounted as Java. Operator decisions of 2026-10-19 fix the model for each.",
   "purpose_tldr": "Make synthesized styleguides reach-only through their directive, make the project-intent directive honest about its scope, and give charter one language authority with multi-language evidence and a jvm family tag.",
   "slug": "charter-synthesis-graph-and-languages-01M59RZ5",
+  "status_phase": "1",
   "target_branch": "issue-6442-charter-synthesis-graph-work",
   "topology": "coord",
   "vcs": "git",
