@@ -19,6 +19,7 @@ from charter.activation.language_authority import (
     expand_language_families,
     resolve_languages,
 )
+from charter.offering.shared.scoping import applies_to_languages_match
 from charter.activation.language_scope import extract_declared_languages, infer_repo_languages, lacks_specialist_guidance
 
 pytestmark = [pytest.mark.fast, pytest.mark.regression]
@@ -128,10 +129,10 @@ def test_jvm_scoped_doctrine_counts_as_guidance_for_a_jvm_language(tmp_path: Pat
     assert lacks_specialist_guidance(active, tmp_path) is False
 
 
-def test_java_scoped_doctrine_is_not_guidance_for_kotlin(tmp_path: Path) -> None:
-    _write_overlay(tmp_path, languages=["java"])
-
-    assert lacks_specialist_guidance(["kotlin"], tmp_path) is True
+def test_java_scoped_doctrine_is_not_guidance_for_kotlin() -> None:
+    """Asserted at the matching seam, independent of the shipped doctrine (whose jvm toolguides do guide Kotlin)."""
+    assert applies_to_languages_match(["java"], ["kotlin"]) is False
+    assert applies_to_languages_match(["jvm"], ["kotlin"]) is True, "control: a jvm-tagged artifact is guidance for kotlin"
 
 
 # -- the authority itself ------------------------------------------------------
