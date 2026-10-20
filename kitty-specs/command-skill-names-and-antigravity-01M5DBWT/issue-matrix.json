@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6470": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "red-first repro WP01; fix WP05-WP06",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#6471": {
       "evidence_ref": "<link or commit>",
