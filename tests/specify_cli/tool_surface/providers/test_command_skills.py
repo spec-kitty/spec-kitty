@@ -1009,17 +1009,42 @@ def test_repair_retires_legacy_skills_and_reports_the_kept_one_as_skipped(tmp_pa
     edited = _legacy_project(tmp_path, edited="plan")
     provider = CommandSkillsProvider()
     statuses = _probe_all(provider, tmp_path)
-    legacy_states = {s.state for s in statuses if "spec-kitty." in s.instance.path.as_posix()}
-    assert legacy_states == {STATE_STALE}
+    by_rel = {s.instance.path.relative_to(tmp_path).as_posix(): s for s in statuses}
+    kept_rel = ".agents/skills/spec-kitty.plan/SKILL.md"
+    assert {s.state for rel, s in by_rel.items() if "spec-kitty." in rel} == {STATE_STALE}
 
     result = provider.repair(tmp_path, statuses)
 
+    kept_id = _surface_id(by_rel[kept_rel].instance)
     assert result.failed == ()
-    [skipped] = result.skipped
-    assert ".agents/skills/spec-kitty.plan/SKILL.md" in skipped and "no longer managed" in skipped
+    assert result.skipped == (kept_id,)  # surface ids, never sentences
+    assert kept_id not in result.repaired
+    assert _surface_id(by_rel[".agents/skills/spec-kitty.tasks/SKILL.md"].instance) in result.repaired
     assert edited.read_text(encoding="utf-8") == "my edits\n"
     assert not (tmp_path / ".agents/skills/spec-kitty.tasks").exists()
     assert {e.path for e in manifest_store.load(tmp_path).entries} == {f".agents/skills/spec-kitty-{c}/SKILL.md" for c in command_installer.CANONICAL_COMMANDS}
+
+    # A later --fix: the kept file is a present warning naming it, never "repaired" again.
+    later = _probe_all(provider, tmp_path)
+    [kept] = [s for s in later if s.instance.path == tmp_path / kept_rel]
+    assert kept.state == STATE_PRESENT
+    [finding] = kept.findings
+    assert kept_rel in finding.message and "no longer managed" in finding.message
+    again = provider.repair(tmp_path, later)
+    assert _surface_id(kept.instance) not in again.repaired
+
+
+def test_leftover_legacy_folder_probe_is_a_present_warning(tmp_path: Path) -> None:
+    _configured_project(tmp_path)
+    folder = tmp_path / ".agents/skills/spec-kitty.plan"
+    folder.mkdir(parents=True)
+    (folder / "notes.md").write_text("mine\n", encoding="utf-8")
+    provider = CommandSkillsProvider()
+
+    [status] = [s for s in _probe_all(provider, tmp_path) if s.instance.path == folder]
+
+    assert status.state == STATE_PRESENT
+    assert ".agents/skills/spec-kitty.plan/" in status.findings[0].message
 
 
 def test_warning_message_ignores_other_dispositions() -> None:

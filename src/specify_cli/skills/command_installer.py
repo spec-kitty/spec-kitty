@@ -929,6 +929,23 @@ class _CommandBatch:
             return False  # No proof of ownership: keep the file (the safe direction).
         return bool(manifest_store.fingerprint(legacy_rendering(rendered, command)) == before.sha256)
 
+    def release_legacy_entry(self, entry: ManifestEntry, remove_agents: tuple[str, ...]) -> None:
+        """Release *remove_agents* from a legacy entry in a remove-only preparation (FR-020).
+
+        Nothing is installed in such a pass, so the remaining owners keep their dotted skill
+        (their next install or upgrade migrates it). Only when a removed agent was the last
+        owner does the legacy rule run: delete if unmodified, otherwise keep with a warning.
+        """
+        if not set(remove_agents) & set(entry.agents):
+            return
+        remaining = tuple(agent for agent in entry.agents if agent not in remove_agents)
+        if not remaining:
+            self.migrate_legacy_entry(entry)
+            return
+        updated = replace(entry, agents=remaining)
+        self.manifest.upsert(updated)
+        self.commands.append(PreparedCommand(entry.path, None, updated, "kept"))
+
     def migrate_legacy_entry(self, entry: ManifestEntry) -> None:
         """Retire one legacy dotted manifest entry with the single legacy rule (FR-020).
 
@@ -1150,7 +1167,10 @@ def prepare_commands(
         batch = _CommandBatch(inputs, agents)
         legacy = tuple(entry for entry in batch.original_entries if is_legacy_rel_path(entry.path))
         for entry in () if adopt_only else legacy:
-            batch.migrate_legacy_entry(entry)
+            if remove_agents and not agents:
+                batch.release_legacy_entry(entry, remove_agents)
+            else:
+                batch.migrate_legacy_entry(entry)
         for path in command_renderer.rendering_inputs(inputs.root.path):
             batch.observe(path)
             resolved = _resolve_observed_input(path)
@@ -1448,11 +1468,19 @@ def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, re
 
 
 def _verify_legacy_folders(repo_root: Path, report: VerifyReport) -> None:
-    """Report on-disk legacy dotted folders of the canonical commands (explicit set only)."""
+    """Report on-disk legacy dotted leftovers of the canonical commands (explicit set only).
+
+    The ``SKILL.md`` path when it still exists; otherwise the folder itself
+    (``.agents/skills/spec-kitty.<command>/``) when only other files remain in it.
+    """
     for command in CANONICAL_COMMANDS:
         rel = legacy_command_skill_rel_path(command)
-        if rel not in report.legacy and os.path.lexists((repo_root / rel).parent):
+        if rel in report.legacy:
+            continue
+        if os.path.lexists(repo_root / rel):
             report.legacy.append(rel)
+        elif os.path.lexists((repo_root / rel).parent):
+            report.legacy.append(f"{Path(rel).parent.as_posix()}/")
 
 
 def _verify_canonical_folders(repo_root: Path, manifest_paths: set[str], report: VerifyReport) -> None:

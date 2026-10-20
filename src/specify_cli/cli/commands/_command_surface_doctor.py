@@ -420,7 +420,7 @@ def _command_skill_payload(
         or report.orphans
         or report.stale
         or report.unsafe
-        or report.legacy
+        or _manifest_has_legacy_entries(manifest)
         or report.collisions
         or uninstalled_agents
         or vibe_config_missing
@@ -525,6 +525,8 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
             "[green]Command Skills[/green]: all manifest entries healthy "
             f"({payload['entries']} file(s))"
         )
+        # A kept, edited legacy skill is a warning (the user's choice), never a failure.
+        _print_command_skill_guidance(payload)
         return
 
     _print_command_skill_summary_table(payload)

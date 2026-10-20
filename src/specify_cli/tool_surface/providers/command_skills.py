@@ -235,8 +235,9 @@ class CommandSkillsProvider:
                 return self._unsafe_status(instance, path)
             if rel in verify_report.collisions:
                 return self._collision_status(instance, path)
-            if rel in verify_report.legacy:
-                return self._legacy_status(instance, path)
+            legacy = _legacy_leftover(project_root, rel, verify_report.legacy)
+            if legacy is not None:
+                return self._legacy_status(instance, path) if legacy[1] else self._legacy_kept_status(instance, path, legacy[0])
             if rel in verify_report.stale:
                 return self._stale_status(instance, path)
             if rel in verify_report.orphans:
@@ -363,6 +364,24 @@ class CommandSkillsProvider:
         )
 
     @staticmethod
+    def _legacy_kept_status(instance: SurfaceInstance, path: Path, rel: str) -> SurfaceStatus:
+        """FR-020: a kept, edited legacy skill is the user's choice; reported, never repaired."""
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_PRESENT,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    command_installer.legacy_kept_warning(rel),
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=path,
+                ),
+            ),
+        )
+
+    @staticmethod
     def _unsafe_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
         return SurfaceStatus(
             instance=instance,
@@ -439,9 +458,12 @@ class CommandSkillsProvider:
         if not assessment.complete:
             return RepairResult(failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
         unresolved = {d.path for d in assessment.dispositions if d.state in {"preserve", "consent_required"}}
-        skipped = _warning_messages(assessment.dispositions)
+        skip_paths = _skipped_paths(assessment, statuses, project_root)
+        skipped = tuple(_surface_id(s.instance) for s in statuses if s.instance.owner in affected and _rel(s, project_root) in skip_paths)
         eligible = tuple(
-            _surface_id(s.instance) for s in statuses if s.instance.owner in affected and s.instance.path.relative_to(project_root).as_posix() not in unresolved
+            _surface_id(s.instance)
+            for s in statuses
+            if s.instance.owner in affected and _rel(s, project_root) not in unresolved and _rel(s, project_root) not in skip_paths
         )
         failed = tuple(sorted(path for path in unresolved if path is not None))
         if dry_run:
@@ -467,8 +489,32 @@ def warning_message(disposition: Disposition) -> str | None:
     return None
 
 
-def _warning_messages(dispositions: Sequence[Disposition]) -> tuple[str, ...]:
-    return tuple(message for message in (warning_message(d) for d in dispositions) if message is not None)
+def _legacy_leftover(project_root: Path | None, rel: str | None, legacy: list[str]) -> tuple[str, bool] | None:
+    """Return ``(reported path, still managed)`` when *rel* is a legacy dotted leftover, else ``None``.
+
+    A leftover folder is reported with a trailing ``/`` (only other files remain in it).
+    """
+    if project_root is None or rel is None:
+        return None
+    if f"{rel}/" in legacy:
+        return f"{rel}/", False
+    if rel not in legacy:
+        return None
+    return rel, manifest_store.load(project_root).find(rel) is not None
+
+
+def _rel(status: SurfaceStatus, project_root: Path) -> str:
+    rel: str = Path(status.instance.path).relative_to(project_root).as_posix()
+    return rel
+
+
+def _skipped_paths(assessment: OwnerAssessment, statuses: Sequence[SurfaceStatus], project_root: Path) -> set[str]:
+    """Paths a repair leaves alone with a warning: collisions, kept legacy skills, and legacy
+    leftovers the batch does not delete (FR-019 / FR-020); never reported as repaired."""
+    warned = {d.path for d in assessment.dispositions if warning_message(d) is not None}
+    deleted = {effect.path for effect in assessment.effects if effect.after.kind == "absent"}
+    legacy = {_rel(s, project_root) for s in statuses if command_installer.is_legacy_rel_path(_rel(s, project_root))}
+    return {path for path in warned if path is not None} | (legacy - deleted)
 
 
 def _command_from_rel(rel: str) -> str | None:

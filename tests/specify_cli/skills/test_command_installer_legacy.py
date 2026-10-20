@@ -199,8 +199,8 @@ def test_edited_legacy_kept_through_provider_prepare_with_prune(repo: Path) -> N
     assert _manifest_paths(repo) == _canonical_rels()
 
 
-def test_edited_legacy_kept_through_remove(repo: Path) -> None:
-    _seed_legacy(repo, agents=("codex", "vibe"))
+def test_edited_legacy_kept_through_remove_of_its_last_owner(repo: Path) -> None:
+    _seed_legacy(repo, agents=("codex",))
     edited = _edit_legacy(repo)
 
     report = remove(repo, "codex")
@@ -209,6 +209,32 @@ def test_edited_legacy_kept_through_remove(repo: Path) -> None:
     assert report.legacy_kept == [legacy_command_skill_rel_path("plan")]
     assert legacy_command_skill_rel_path("plan") not in report.deref
     assert install_warnings(report)
+    assert not (repo / legacy_command_skill_rel_path("tasks")).exists()  # unmodified, last owner gone
+
+
+def test_remove_of_one_owner_only_releases_it_from_legacy_entries(repo: Path) -> None:
+    """Review cycle 1: a remove-only pass installs nothing, so the other owners keep their skills."""
+    _seed_legacy(repo, agents=("codex", "vibe"))
+    edited = _edit_legacy(repo)
+
+    report = remove(repo, "vibe")
+
+    assert report.legacy_removed == report.legacy_kept == []
+    assert sorted(report.kept) == sorted(legacy_command_skill_rel_path(c) for c in CANONICAL_COMMANDS)
+    assert {entry.agents for entry in manifest_store.load(repo).entries} == {("codex",)}
+    assert all((repo / legacy_command_skill_rel_path(c)).is_file() for c in CANONICAL_COMMANDS)
+    assert edited.read_bytes() == _EDITED
+
+
+def test_remove_of_an_agent_that_owns_no_legacy_entry_leaves_it_alone(repo: Path) -> None:
+    _seed_legacy(repo, ("plan",), agents=("codex",))
+    install(repo, "vibe")  # vibe's install migrates codex's legacy entry too (one rule on install)
+    _seed_legacy(repo, ("tasks",), agents=("codex",))
+
+    remove(repo, "vibe")
+
+    assert manifest_store.load(repo).find(legacy_command_skill_rel_path("tasks")) is not None
+    assert (repo / legacy_command_skill_rel_path("tasks")).is_file()
 
 
 def test_edited_legacy_is_never_drift_deleted_on_the_derived_surface(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -345,6 +371,15 @@ def test_user_skills_sharing_the_prefix_are_never_reported_or_touched(repo: Path
     assert mine.read_text(encoding="utf-8") == dotted.read_text(encoding="utf-8") == "mine\n"
     reported = {*report.orphans, *report.collisions, *report.legacy, *report.stale, *report.unsafe}
     assert not any("spec-kitty-mine" in p or "spec-kitty.mine" in p for p in reported)
+
+
+def test_verify_reports_a_leftover_legacy_folder_not_a_missing_skill_md(repo: Path) -> None:
+    """Review cycle 1: only real paths are reported; a folder with other files is named itself."""
+    folder = repo / ".agents/skills/spec-kitty.plan"
+    folder.mkdir(parents=True)
+    (folder / "notes.md").write_text("mine\n", encoding="utf-8")
+
+    assert verify(repo).legacy == [".agents/skills/spec-kitty.plan/"]
 
 
 def test_orphan_in_a_canonical_folder_is_still_reported(repo: Path) -> None:

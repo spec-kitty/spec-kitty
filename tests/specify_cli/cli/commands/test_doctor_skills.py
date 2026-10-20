@@ -159,6 +159,9 @@ def test_skills_fix_retires_owned_legacy_skills_and_keeps_edited_one(tmp_path: P
     assert data["repair_errors"] == []
     assert data["repaired_agents"] == ["codex"]
     assert data["legacy"] == [legacy_command_skill_rel_path("plan")]  # the kept one, read-only
+    # A kept edited legacy skill is the user's choice: a warning, not a failure.
+    assert data["ok"] is True
+    assert result.exit_code == 0
     assert edited.read_text(encoding="utf-8") == "my edits\n"
     assert not (tmp_path / legacy_command_skill_rel_path("tasks")).exists()
     assert all(not command_installer.is_legacy_rel_path(e.path) for e in manifest_store.load(tmp_path).entries)
@@ -532,3 +535,36 @@ def test_repair_pack_skills_skips_projection_without_missing_findings(monkeypatc
     errors: list[str] = []
     assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
     assert repaired == [] and errors == []
+
+
+def test_skills_kept_legacy_skill_is_a_warning_with_exit_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Orchestrator decision (review cycle 1): an unmanaged legacy leftover warns, exit 0."""
+    _write_config(tmp_path, "codex")
+    command_installer.install(tmp_path, "codex")
+    leftover = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    leftover.parent.mkdir(parents=True)
+    leftover.write_text("my edited dotted skill\n", encoding="utf-8")
+
+    result = _invoke(tmp_path, monkeypatch)
+
+    assert result.exit_code == 0, result.output
+    text = " ".join(result.output.split())
+    assert "Legacy dotted command skills (no longer managed): .agents/skills/spec-kitty.tasks/SKILL.md" in text
+
+
+def test_skills_still_managed_legacy_entries_need_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A manifest that still records dotted entries is not migrated yet: exit 1 until --fix."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _write_config(tmp_path, "codex")
+    rel = legacy_command_skill_rel_path("plan")
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_text("old plan\n", encoding="utf-8")
+    entry = manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), ("codex",), "2026-01-01T00:00:00+00:00", "3.2.0")
+    manifest_store.save(tmp_path, manifest_store.SkillsManifest(entries=[entry]))
+
+    result = _invoke(tmp_path, monkeypatch, "--json")
+
+    assert result.exit_code == 1
+    assert _payload(result.output)["legacy"] == [rel]
