@@ -93,7 +93,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: installer/provider/doctor/init on spec-kitty-<cmd>; one legacy rule on every repair path; collision skip; gate _PENDING emptied",
-        "Review cycle 1 fixed: remove-only releases legacy owners; repair skipped = surface ids; verify reports real legacy paths; kept legacy = warning exit 0"
+        "Review cycle 1 fixed: remove-only releases legacy owners; repair skipped = surface ids; verify reports real legacy paths; kept legacy = warning exit 0",
+        "Review cycle 2 passed: remove keeps other owners, repair skipped ids, legacy folder report, exit codes"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
