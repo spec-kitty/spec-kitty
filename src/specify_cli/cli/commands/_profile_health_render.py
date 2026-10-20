@@ -35,7 +35,7 @@ from specify_cli.cli.console import console
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from charter.drg import OrgDRGConflict, OrgDRGConflictError
+    from charter.drg import DRGGraph, OrgDRGConflict, OrgDRGConflictError
 
     from ._charter_pack_health import CharterPackHealthReport
 
@@ -349,7 +349,6 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
         merged = merge_three_layers(
             built_in=built_in, org_fragments=fragments, project=None
         )
-        console.print("  collisions: none")
     except OrgDRGConflictError as exc:
         _render_org_conflicts(console, exc)
     except Exception as exc:  # noqa: BLE001 — doctor must not crash
@@ -357,6 +356,11 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
         # completeness check, and naming only one of the two checks it skipped
         # would understate what the operator is missing.
         console.print(f"  [yellow]org-layer merge checks skipped:[/yellow] {exc}")
+    else:
+        # A merge that does not raise is not the same as "nothing collided": a
+        # permitted same-kind org override of a built-in is recorded and the
+        # merge still succeeds (#5777). Read the merged graph to say so.
+        _render_collision_line(console, built_in, merged)
 
     if merged is None:
         # "Not checked" and "checked, found nothing" are different answers, and
@@ -382,6 +386,45 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
         _render_dangling_org_endpoints(console, validate_dangling_references(merged))
     except Exception as exc:  # noqa: BLE001 — doctor must not crash
         console.print(f"  [yellow]dangling endpoints: not checked[/yellow] ({exc})")
+
+
+def _permitted_builtin_overrides(merged: DRGGraph, built_in: DRGGraph) -> list[str]:
+    """Return the sorted URNs of built-ins that an org pack overrode and won.
+
+    ``merge_three_layers`` returns only the merged graph, so the permitted
+    overrides it resolved are visible solely through node provenance: a node
+    tagged ``org:<pack>`` that sits at a URN the shipped built-in also defines.
+    This is the same rule as ``override_policy.find_overridden_builtins`` (the
+    canonical finder used by the JSON collector). It is restated here, not
+    imported, because the architectural boundary tests allow ``override_policy``
+    to be imported only from ``_charter_pack_collect`` and forbid render modules
+    from depending on the collect layer.
+    """
+    built_in_urns = {node.urn for node in built_in.nodes}
+    return sorted(
+        node.urn
+        for node in merged.nodes
+        if (node.provenance or "").startswith("org:") and node.urn in built_in_urns
+    )
+
+
+def _render_collision_line(
+    console: Console, built_in: DRGGraph, merged: DRGGraph
+) -> None:
+    """Print the ``collisions:`` verdict for a merge that did not raise."""
+    overridden = _permitted_builtin_overrides(merged, built_in)
+    if not overridden:
+        console.print("  collisions: none")
+    elif len(overridden) == 1:
+        console.print(
+            "  collisions: 1 permitted org override of a built-in "
+            "(see the sanction report)"
+        )
+    else:
+        console.print(
+            f"  collisions: {len(overridden)} permitted org overrides of "
+            "built-ins (see the sanction report)"
+        )
 
 
 def _render_org_conflicts(console: Console, exc: OrgDRGConflictError) -> None:
