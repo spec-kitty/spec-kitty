@@ -3841,6 +3841,7 @@ pages:
     - {slug: "1-init-seed-baseline-finding-1-remediation", text: "1. Init-seed baseline (finding-1 remediation)", level: 3}
     - {slug: "2-recorded-elsewhere-vs-pending-for-a-fresh-clone-finding-2", text: "2. \"Recorded elsewhere\" vs \"pending\" for a fresh clone (finding-2)", level: 3}
     - {slug: "3-incidental-notes", text: "3. Incidental notes", level: 3}
+    - {slug: "4-amendment-2026-10-20-6539-the-requires-git-repository-classvar", text: "4. Amendment 2026-10-20 (#6539): the `requires_git_repository` ClassVar", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

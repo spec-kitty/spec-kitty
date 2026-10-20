@@ -185,6 +185,7 @@ What this changes in the record above:
   [2026-10-03-1](2026-10-03-1-charter-read-write-service-strangler.md) (Amendment 2026-10-19)
   governs. The GA leg is the frozen seam (P1, #6285) and the green conformance corpus (P2,
   #6286).
+- **Additive seam symbols land by amendment of ADR [2026-10-03-1](2026-10-03-1-charter-read-write-service-strangler.md)** while P1 (#6285) freezes the surface (first: `LANGUAGE_TOKENS`, #6541).
 - **D-2 stands.** `charter.activation` stays in core until its post-GA rework.
 - **ADR [2026-10-12-2](2026-10-12-2-charter-extraction-to-its-own-repository.md) is
   superseded** by `spec-kitty-charter` ADR-0008 and ADR-0010 (operator ruling, 2026-10-19).
