@@ -30,7 +30,8 @@
       "last_transition_at": "2026-10-20T20:25:29.884097+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Review passed: both repros red-for-reason on base, literals only, no product code"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
