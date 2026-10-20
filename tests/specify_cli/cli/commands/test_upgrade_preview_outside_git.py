@@ -97,7 +97,7 @@ class _Flagged(_Unflagged):
         raise AssertionError("detect() must not run when the repository cannot be determined")
 
 
-def test_verbose_preview_reports_an_undeterminable_repository_as_skipped(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_verbose_preview_reports_an_undeterminable_repository_as_would_fail(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     def _resolver(path: Path) -> Path:
         raise GitCommonDirUnavailableError(path, "git binary missing")
 
@@ -105,5 +105,6 @@ def test_verbose_preview_reports_an_undeterminable_repository_as_skipped(tmp_pat
         _preview([_Flagged()], _legacy_project(tmp_path))
 
     output = _ANSI_RE.sub("", capsys.readouterr().out)
-    assert "stub_flagged_preview: skipped" in output
+    assert "stub_flagged_preview: would fail" in output
+    assert "stub_flagged_preview: skipped" not in output
     assert "cannot determine repository" in output

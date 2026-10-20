@@ -94,8 +94,10 @@ def migration_skipped_outside_repository(migration: BaseMigration, probe: Reposi
 
     True when ``migration`` declares ``requires_git_repository`` and the project is
     not inside a repository. Both the runner's pre-detect gate and the
-    ``--dry-run --verbose`` preview ask this, so they cannot disagree. The probe is
-    consulted only for a flagged migration.
+    ``--dry-run --verbose`` preview ask this, so they agree on whether the project is
+    outside a repository. The probe is consulted only for a flagged migration, and
+    may raise ``GitCommonDirUnavailableError``: the runner records that as a failure
+    and the preview reports that it would fail.
     """
     return migration.requires_git_repository and not probe.inside()
 

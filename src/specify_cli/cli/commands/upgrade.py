@@ -691,8 +691,10 @@ def _show_migration_plan_and_confirm(
                 try:
                     outside_repository = migration_skipped_outside_repository(migration, repository_probe)
                 except GitCommonDirUnavailableError as exc:
-                    console.print(f"  {migration.migration_id}: [yellow]skipped[/yellow]")
-                    console.print(f"    [dim]skipped (cannot determine repository: {escape(str(exc))})[/dim]")
+                    # The real run records this as a failure (the runner's probe
+                    # catch), so the preview says it would fail, not skip.
+                    console.print(f"  {migration.migration_id}: [red]would fail[/red]")
+                    console.print(f"    [dim]cannot determine repository: {escape(str(exc))}[/dim]")
                     continue
                 if outside_repository:
                     # Same rule as the runner's pre-detect gate (#6539): detect() of a
