@@ -100,17 +100,6 @@ def _assert_names_file_and_remedy(text: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_synthesize_refuses_unparseable_charter(project: Path) -> None:
-    (project / _CHARTER_REL).write_text(_BROKEN_YAML, encoding="utf-8")
-    before = _snapshot(project)
-
-    text = _assert_refused(_invoke(project, "synthesize"), before, project)
-
-    _assert_names_file_and_remedy(text)
-    assert "not valid YAML" in text
-    assert "fresh project" not in text.lower()
-
-
 def test_synthesize_dry_run_refuses_unparseable_charter(project: Path) -> None:
     (project / _CHARTER_REL).write_text(_BROKEN_YAML, encoding="utf-8")
     before = _snapshot(project)
@@ -163,12 +152,15 @@ def test_synthesize_refuses_broken_charter_on_established_store(project: Path) -
 @pytest.mark.parametrize(
     ("body", "reason"),
     [
-        pytest.param("- a\n- b\n", "root must be a mapping, got", id="list-root"),
-        pytest.param("just a string\n", "root must be a mapping, got", id="scalar-root"),
+        pytest.param(_BROKEN_YAML, "Invalid YAML in", id="unparseable"),
+        pytest.param("- a\n- b\n", "root must be a mapping", id="list-root"),
+        pytest.param("just a string\n", "root must be a mapping", id="scalar-root"),
         pytest.param("\n  \n", "it has no content", id="whitespace-only"),
         pytest.param("# only a comment\n", "it has no content", id="comment-only"),
-        pytest.param("schema_version: !!int xyz\n", "not valid YAML", id="constructor-valueerror"),
-        pytest.param("catalog:\n  generated_at: 2001-13-45\n", "not valid YAML", id="impossible-date"),
+        pytest.param("{}\n", "it has no content", id="empty-mapping"),
+        pytest.param("schema_version: !!int xyz\n", "Invalid YAML in", id="constructor-valueerror"),
+        pytest.param("catalog:\n  generated_at: 2001-13-45\n", "Invalid YAML in", id="impossible-date"),
+        pytest.param("a: *undefined\n", "Invalid YAML in", id="composer-error"),
     ],
 )
 def test_synthesize_refuses_unsound_charter_shape(project: Path, body: str, reason: str) -> None:
@@ -179,6 +171,23 @@ def test_synthesize_refuses_unsound_charter_shape(project: Path, body: str, reas
 
     _assert_names_file_and_remedy(text)
     assert reason in text
+    assert "fresh project" not in text.lower()
+
+
+def test_synthesize_refuses_broken_charter_named_by_the_config_pointer(project: Path) -> None:
+    """The activation reader follows ``charter:`` in config.yaml; so must the gate."""
+    relocated = project / "relocated" / "charter.yaml"
+    relocated.parent.mkdir()
+    relocated.write_text(_BROKEN_YAML, encoding="utf-8")
+    (project / _CHARTER_REL).unlink()
+    (project / ".kittify" / "config.yaml").write_text("charter: relocated/charter.yaml\n", encoding="utf-8")
+    before = _snapshot(project)
+
+    text = _assert_refused(_invoke(project, "synthesize"), before, project)
+
+    assert _CODE in text
+    assert "relocated/charter.yaml" in text
+    assert _REMEDY in text
 
 
 # ---------------------------------------------------------------------------

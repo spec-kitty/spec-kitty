@@ -22,7 +22,7 @@ within the allowed layer boundary for charter→doctrine reads).
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +41,7 @@ __all__ = [
     "PackContext",
     "charter_activated_urns",
     "explicit_activated_skills",
+    "load_charter_yaml_mapping",
     "normalize_activation_identifier",
     "partition_activated_unreachable",
     "resolve_charter_yaml_pointer",
@@ -58,6 +59,9 @@ _ACTIVATION_KEY_PREFIX = "activated_"
 #: ``config.yaml`` itself). Present -> the resolver follows it to
 #: ``charter.yaml`` (INV-2).
 _CHARTER_POINTER_KEY = "charter"
+
+#: Repo-root-relative default location of ``charter.yaml`` (no pointer set).
+_DEFAULT_CHARTER_YAML = Path(".kittify/charter/charter.yaml")
 
 
 class ActiveCharterConfigError(KittyInternalConsistencyError):
@@ -572,13 +576,59 @@ def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> di
         return data
     if not charter_path.exists():
         raise _config_error(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
+    return _read_charter_mapping(charter_path, str(charter_path), _config_error)
+
+
+def _read_charter_mapping(
+    charter_path: Path,
+    display: str,
+    fail: Callable[[str], ActiveCharterConfigError],
+) -> dict[str, Any]:
+    """Load ``charter_path`` as a mapping, refusing anything unparseable or non-mapping.
+
+    The single parse + shape implementation behind :func:`_load_charter_activation_source`
+    and :func:`load_charter_yaml_mapping`. Any load exception (a scanner, composer or
+    constructor error, ``RecursionError``, an unreadable file) is an invalid charter.
+    """
     try:
         loaded = load_charter_yaml(charter_path)
     except Exception as exc:
-        raise _config_error(f"Invalid YAML in {charter_path}: {exc}") from exc
+        raise fail(f"Invalid YAML in {display}: {exc}") from exc
     if not isinstance(loaded, dict):
-        raise _config_error(f"{charter_path} root must be a mapping.")
+        raise fail(f"{display} root must be a mapping.")
     return dict(loaded)
+
+
+def load_charter_yaml_mapping(repo_root: Path, *, remediation: str | None = None) -> tuple[Path, dict[str, Any]] | None:
+    """Load the active ``charter.yaml`` as a mapping, or ``None`` when it is absent.
+
+    Resolves the ``.kittify/config.yaml`` ``charter:`` pointer (falling back to
+    the default ``.kittify/charter/charter.yaml``), then applies the activation
+    reader's own soundness rule: unparseable or non-mapping content raises
+    :class:`ActiveCharterConfigError`. An absent default file is ``None`` (the
+    caller owns that case); a pointer naming a missing file is a refusal, as it
+    is for the activation reader.
+
+    *remediation* replaces the reader's default advice in the error text and
+    marks the refusal as having written nothing. Returns ``(path, mapping)``.
+    """
+    pointer = resolve_charter_yaml_pointer(repo_root, _load_config(repo_root))
+    charter_path = pointer if pointer is not None else repo_root / _DEFAULT_CHARTER_YAML
+    try:
+        display = charter_path.relative_to(repo_root).as_posix()
+    except ValueError:
+        display = str(charter_path)
+
+    def fail(message: str) -> ActiveCharterConfigError:
+        if remediation is None:
+            return _config_error(message)
+        return ActiveCharterConfigError(f"{message}\nNothing was written.\n{remediation}")
+
+    if not charter_path.exists():
+        if pointer is not None:
+            raise fail(f".kittify/config.yaml 'charter:' pointer names {display}, which does not exist.")
+        return None
+    return charter_path, _read_charter_mapping(charter_path, display, fail)
 
 
 def _load_config(repo_root: Path) -> dict[str, Any]:
