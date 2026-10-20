@@ -11,11 +11,12 @@ the activation reader's own rule (it follows the ``charter:`` pointer in
 ``.kittify/config.yaml``, refuses unparseable and non-mapping content, and
 raises :class:`~charter.activation.api.ActiveCharterConfigError`,
 ``ACTIVE_CHARTER_CONFIG_INVALID``), so every charter command refuses a broken
-charter identically. The only check local to this gate is an explicit empty
-mapping (``{}``). The activation reader accepts it, since an empty activation
+charter identically. The only check local to this gate is for content: an
+empty, whitespace-only or comment-only file and an explicit ``{}`` all load as an
+empty mapping. The activation reader accepts that, since an empty activation
 store is valid to read and extend. Synthesis cannot proceed from it: the fresh
-seed is keyed on the file existing, so an empty mapping would take the same
-destructive seed path as an empty file, which the reader already refuses.
+seed is keyed on the file existing, so an empty mapping would take the
+destructive seed path. This check is the only guard for every empty case.
 """
 
 from __future__ import annotations
