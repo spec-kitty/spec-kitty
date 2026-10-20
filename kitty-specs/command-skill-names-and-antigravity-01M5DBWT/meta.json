@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-20T19:16:33.521703+00:00",
+  "flattened": false,
+  "friendly_name": "Spec-conformant command skill names + Antigravity skills delivery",
+  "mid8": "01M5DBWT",
+  "mission_id": "01M5DBWTRXZQ3ZJWGKX0KES8JP",
+  "mission_number": null,
+  "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Generated command skills use dotted names (spec-kitty.<cmd>) that VS Code/Copilot, Cursor and OpenCode silently drop and the Agent Skills spec rejects, and Antigravity's legacy .agent/workflows surface stopped working on 2026-10-19. This mission renames the command skills to spec-conformant names, delivers them to Antigravity as skills, cleans up the dead surfaces Spec Kitty owns, and keeps generated frontmatter inside the spec.",
+  "purpose_tldr": "Make Spec Kitty's command skills load in every harness and give Antigravity users working commands again.",
+  "slug": "command-skill-names-and-antigravity-01M5DBWT",
+  "target_branch": "issue-6475-6470-command-skill-names",
+  "topology": "single_branch"
+}
