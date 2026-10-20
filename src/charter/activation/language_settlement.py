@@ -28,7 +28,7 @@ from charter.activation.language_authority import (
     languages_key_is_set,
     write_configured_languages,
 )
-from charter.offering.shared.language_catalog import LANGUAGES
+from charter.languages import LANGUAGE_TOKENS
 from charter.offering.shared.scoping import normalize_languages
 
 __all__ = [
@@ -75,7 +75,7 @@ def _parse_language_answer(answer: str) -> tuple[str, ...]:
     tokens = tuple(normalize_languages(part for part in _ANSWER_SEPARATORS.split(text) if part))
     invalid = [token for token in tokens if invalid_language_reason(token) is not None]
     if invalid:
-        known = ", ".join(spec.token for spec in LANGUAGES)
+        known = ", ".join(LANGUAGE_TOKENS)
         raise ValueError(f"Not a catalog language: {', '.join(invalid)}. Use any of: {known}.")
     return tokens
 
@@ -165,6 +165,14 @@ def settle_project_languages(
 
 
 def store_language_settlement(repo_root: Path, settlement: LanguageSettlement) -> None:
-    """Write what *settlement* decided to ``.kittify/config.yaml``; a no-op when it decided nothing. Idempotent."""
-    if settlement.to_store is not None:
-        write_configured_languages(repo_root, settlement.to_store)
+    """Write what *settlement* decided to ``.kittify/config.yaml``; a no-op when it decided nothing. Idempotent.
+
+    A ``detected`` settlement was decided because the key was absent. The write comes later (after
+    the interview answers), so the key is checked again: one that appeared meanwhile is the
+    operator's and is never overwritten.
+    """
+    if settlement.to_store is None:
+        return
+    if settlement.source == "detected" and languages_key_is_set(repo_root):
+        return
+    write_configured_languages(repo_root, settlement.to_store)

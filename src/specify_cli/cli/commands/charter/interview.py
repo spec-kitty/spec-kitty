@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 from rich.markup import escape
+from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.env import is_interactive
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
@@ -305,8 +306,8 @@ def interview(  # noqa: C901
             if not json_output:
                 console.print(f"[yellow]Org charter pre-fill skipped:[/yellow] {exc}")
 
-        # FR-020 -- detect the repository's languages, propose them, and store the confirmed
-        # list in .kittify/config.yaml. When set it is the one list for evidence and scoping.
+        # FR-020 -- detect the repository's languages, propose them, and decide what to store.
+        # The settlement writes nothing; it is stored with the answers below (#6542).
         language_settlement = _settle_languages(repo_root, interactive=not use_defaults and is_interactive())
 
         # Resolve actor for Decision Moment events (non-fatal fallback)
@@ -422,10 +423,15 @@ def interview(  # noqa: C901
 
         # #6542 -- the languages are stored with the answers: an interview that aborts or fails
         # before this point stores neither. Before the promotion, which re-reads config.yaml.
-        # A store failure is not swallowed: the generic handler below exits 1 with the error.
+        # A store failure is not swallowed: it is named and exits 1 (answers are already saved).
         from charter.activation.api import store_language_settlement
 
-        store_language_settlement(repo_root, language_settlement)
+        try:
+            store_language_settlement(repo_root, language_settlement)
+        except (OSError, ValueError, YAMLError) as exc:
+            raise TaskCliError(
+                f"Could not write the project languages to .kittify/config.yaml: {exc}. The interview answers were saved and re-running is safe."
+            ) from exc
 
         # FR-007 — append-promote captured selections into config.activated_*
         # via the WP06 primitive. Best-effort / non-fatal: a promotion failure

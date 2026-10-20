@@ -119,6 +119,17 @@ def test_storing_the_settlement_writes_the_list(tmp_path: Path) -> None:
     assert activation_api.configured_languages(tmp_path) == ("python",)
 
 
+def test_a_detected_settlement_never_overwrites_a_key_set_after_it_was_decided(tmp_path: Path) -> None:
+    _python_repo(tmp_path)
+    settlement = activation_api.settle_project_languages(tmp_path, ask=None)
+    assert settlement.source == "detected"
+    _set_config(tmp_path, "languages: [go]\n")  # the operator set it during the interview
+
+    activation_api.store_language_settlement(tmp_path, settlement)
+
+    assert YAML(typ="safe").load(_config_path(tmp_path).read_text(encoding="utf-8"))["languages"] == ["go"]
+
+
 def test_storing_a_confirmed_change_writes_it(tmp_path: Path) -> None:
     _python_repo(tmp_path)
     _set_config(tmp_path, "languages: [go]\n")

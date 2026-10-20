@@ -114,7 +114,7 @@ The key is a plain top-level `languages` list because `charter:` (the charter.ya
   `languages_notice`.
 - **Stored with the answers.** The languages are written to `config.yaml` together with the
   interview answers, after they are saved. An interview that aborts or fails before that stores
-  neither; a failure to store the languages exits non-zero with the error.
+  neither; a failure to store the languages exits non-zero with the error. If the languages write fails after the answers are saved, the command exits non-zero and re-running is safe.
 - **Typos.** An interactive answer that is not a catalog list is asked again (up to three
   attempts), then the interview fails without writing.
 - **Compiled catalog.** When the key is set, the compiled `catalog.languages` stamp, and therefore
