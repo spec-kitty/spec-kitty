@@ -96,6 +96,19 @@ one of them, run the upgrade, inspect the tree, the manifest and the output.
    deleted), **When** upgrade runs, **Then** no directory is re-created for it.
 6. **Given** leftover dotted folders after upgrade, **When** `spec-kitty doctor skills` runs,
    **Then** it lists each leftover with the action to take.
+7. **Given** a hand-edited dotted skill and a CLI already upgraded but `spec-kitty upgrade` not yet
+   run, **When** `spec-kitty doctor skills --fix`, `spec-kitty init` or `spec-kitty agent config`
+   runs, **Then** the edited file is kept with the same warning (every repair path follows the same
+   rule, not only the migration).
+8. **Given** a user-authored folder already at a new canonical path (for example
+   `.agents/skills/spec-kitty-plan/` not recorded in the manifest), **When** `init` or `upgrade`
+   installs the command skills, **Then** that one path is skipped and left untouched, every other
+   command skill is installed, the command succeeds, and the output and `doctor skills` name the
+   path with the remedy (operator ruling 2026-10-20). This is also an acceptance scenario in
+   `tests/scenarios/init/`.
+9. **Given** a teammate's clone that pulled a project already migrated elsewhere, **When** that
+   clone upgrades, **Then** its own dotted skills are migrated too (the rename is recorded per
+   clone, not in the committed ledger).
 
 ### User Story 3 - Antigravity users get working commands (Priority: P1)
 
@@ -116,8 +129,11 @@ upgrade it.
 1. **Given** a fresh project, **When** `spec-kitty init --ai antigravity` runs, **Then** every
    command skill exists under `.agents/skills/` and no `.agent/workflows` file is written.
 2. **Given** an Antigravity project with Spec Kitty-written `.agent/workflows/spec-kitty.*.md` and
-   a user-authored workflow in the same directory, **When** upgrade runs, **Then** only the owned
-   Spec Kitty files are removed; the directory and the user file stay.
+   a user-authored workflow in the same directory, **When** upgrade runs, **Then** only the
+   Spec Kitty-generated files (exact version-marker line, a known command name, a regular file) are
+   moved to `.kittify/backups/antigravity-workflows/` (archived, never deleted, operator ruling
+   2026-10-20); the directory and the user file stay, and a symlinked `.agent` or
+   `.agent/workflows` that leaves the project is refused.
 3. **Given** the doctor and the agent path matrix, **When** a user reads them, **Then** they name
    `.agents/skills/` as Antigravity's command surface.
 
@@ -201,15 +217,17 @@ The shipped mission-step prompts (authored in `spec-kitty-open-packs`) tell agen
 | FR-006 | New-invocation notice | As a user, I want `init` and `upgrade` output and the release notes to tell me the new invocation names, so that I know how to call the commands after the rename. | Medium | Open | [build] | no — output assertion on the upgrade/init path |
 | FR-007 | Doctor flags leftover dotted skills | As a user, I want `spec-kitty doctor skills` to list leftover dotted command-skill folders with the remedy, so that I can clean them up. | Medium | Open | [build] | no — fixture with a kept edited dotted skill |
 | FR-008 | Antigravity receives command skills | As an Antigravity user, I want `init`/`upgrade`/`agent config add antigravity` to install the command skills into `.agents/skills/`, so that every Spec Kitty command works in Antigravity. (#6470) | High | Open | [build] | no — a red-first p0_repro test asserts the command surface on `init --ai antigravity` |
-| FR-009 | No project `.agent/workflows` writes | As an Antigravity user, I want Spec Kitty to stop writing `.agent/workflows` in projects, so that it no longer targets a dead surface. (#6470) | High | Open | [build] | no — init assertion that the path is absent |
-| FR-010 | Project workflows cleanup migration | As an upgrading Antigravity user, I want a migration that removes only Spec Kitty-owned `spec-kitty.*.md` files from `.agent/workflows`, never the directory and never foreign files, so that stale commands disappear safely. (#6470) | High | Open | [build] | no — fixture with owned + foreign + edited files |
+| FR-009 | No project `.agent/workflows` writes | As an Antigravity user, I want Spec Kitty to keep not writing `.agent/workflows` in projects (true on the base commit since 3.1.2), so that it never targets the dead surface again. (#6470) | High | Open | [ratchet] | yes — guard only; paired with the FR-008 positive control on the same init fixture |
+| FR-010 | Project workflows cleanup migration | As an upgrading Antigravity user, I want a migration that archives only Spec Kitty-generated `spec-kitty.*.md` files from `.agent/workflows` into `.kittify/backups/antigravity-workflows/`, never the directory and never foreign files, so that stale commands disappear and no edit is lost. (#6470) | High | Open | [build] | no — fixture with marked + foreign + symlinked files |
 | FR-011 | Home-folder writer scoped and cleaned | As a user, I want the global writer to stop writing `~/.agent/workflows`, to write only for agents configured in the current project, and to remove only Spec Kitty-owned `spec-kitty.*.md` files from `~/.agent/workflows`, so that my home folder is not filled with dead or unwanted command files. (#6470, #3048 context) | High | Open | [build] | no — temp-home fixture |
 | FR-012 | Spec-only frontmatter in the shared root | As a skills-harness user, I want skills written to `.agents/skills/` (command skills and pack skills) to carry only Agent Skills specification fields, with any extras under `metadata`, so that strict validators accept them. (#6475) | High | Open | [build] | no — validator over a generated project |
 | FR-013 | Claude-only fields only in native roots | As a maintainer, I want `user-invocable`, `argument-hint` and `disable-model-invocation` emitted only into native roots that support them, so that the shared root stays spec-valid while native harnesses keep their behaviour. | Medium | Open | [build] | no — per-root frontmatter assertion |
 | FR-014 | Name and description limits | As a pack author, I want pack skill validation and rendering to enforce name ≤ 64 and description ≤ 1024 characters, so that a generated skill is never silently dropped for length. (#6475) | High | Open | [build] | no — boundary tests at 64/65 and 1024/1025 |
 | FR-015 | Validator in CI | As a maintainer, I want a CI check that runs the Agent Skills validator over every generated and shipped skill, so that a non-conformant skill fails the PR. (#6475) | Medium | Open | [build] | no — the check is shown failing on a seeded bad skill |
 | FR-016 | Mission-step prompts use new names | As a user, I want the shipped mission-step prompts to invoke command skills by the `spec-kitty-<cmd>` name, via an open-packs change and a core pin bump, so that agents call skills that exist. | Medium | Open | [build] | no — grep of the synced pack |
-| FR-017 | Retired dotted names recorded | As a maintainer, I want the dotted command-skill names recorded as retired, so that every pruning path treats them as no longer canonical. | Medium | Open | [folded] | no — folded into FR-005's fixture |
+| FR-017 | Legacy dotted names recorded once | As a maintainer, I want the dotted command-skill names recorded as legacy in the naming authority (not in the existing retired-skill sets, which drive other removal paths), so that every repair path classifies them the same way. | Medium | Open | [folded] | no — folded into FR-005's fixture |
+| FR-019 | Canonical-path collision skipped | As a user with my own folder at a new canonical path, I want install to skip that path with a warning instead of failing the whole batch, so that init and upgrade still succeed. | High | Open | [build] | no — acceptance scenario + unit test with a user-authored `spec-kitty-plan/` |
+| FR-020 | Same rule on every repair path | As a user, I want `doctor skills --fix`, `init`, `agent config` and the tool-surface repair to treat legacy dotted skills exactly as the migration does, so that running them before `upgrade` never deletes my edits. | High | Open | [build] | no — edited dotted fixture run through each path |
 | FR-018 | Docs, ADR and agent tables updated | As a reader, I want the agent path matrix, the docs, `CLAUDE.md`/`AGENTS.md` agent tables and a new ADR amending 2026-04-07-1 to describe the new names and the Antigravity surface, so that docs mirror shipped behaviour. | Medium | Open | [build] | no — docs freshness/terminology checks plus review |
 
 ### Non-Functional Requirements
@@ -248,8 +266,8 @@ The shipped mission-step prompts (authored in `spec-kitty-open-packs`) tell agen
 
 - **SC-001**: 100 % of generated command skills and shipped skills pass the Agent Skills validator
   (0 violations) in CI. — [build] · no-op passable: no
-- **SC-002**: A fresh `init --ai antigravity` yields all 14 command skills and 0 `.agent/workflows`
-  files. — [build] · no-op passable: no
+- **SC-002**: A fresh `init --ai antigravity` yields all 14 command skills, 0 project
+  `.agent/workflows` files and 0 `~/.agent/workflows` Spec Kitty files. — [build] · no-op passable: no
 - **SC-003**: Upgrading a prior-release fixture leaves exactly one copy of each of the 14 commands,
   0 dotted manifest keys, and every edited/foreign file intact. — [build] · no-op passable: no
 - **SC-004**: Both P0 reproduction tests are red on the base commit and green on the mission head.
@@ -263,6 +281,12 @@ The shipped mission-step prompts (authored in `spec-kitty-open-packs`) tell agen
   hyphenated names comply with the Agent Skills rule either way.
 - The `skills-ref` validator, if not installable in CI, is replaced by an equivalent in-repo
   checker that implements the same published rules, with the reason recorded in the plan.
+- An older CLI cannot read a command-skill manifest written by this release (the manifest schema
+  pattern changes); accepted as part of the clean break and named in the release note. The
+  manifest is per-machine and untracked by default, so this bites only a downgrade.
+- Projects that combine a slash-command agent with a shared `.agents/skills/` reader (for example
+  codex + copilot) now see each command twice in that harness, because the skills load at last;
+  recorded in the ADR, resolved by #6471.
 - Codex, Vibe, Pi and Letta read the hyphenated names the same way they read the dotted ones
   (they resolve skills by folder).
 

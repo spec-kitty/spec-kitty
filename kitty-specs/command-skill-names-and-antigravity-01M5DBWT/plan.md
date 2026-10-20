@@ -204,3 +204,31 @@ No charter violations.
 - **Relevant requirements**: FR-006 (release note), FR-016, FR-018.
 - **Sequencing/depends-on**: IC-01..IC-05.
 - **Risks**: docs freshness checker; terminology guard.
+
+## Post-plan squad dispositions (2026-10-20)
+
+Two profile-loaded reviewers (architect-alphonso, reviewer-renata). Every finding was accepted;
+the amendments below override the concern text above where they disagree.
+
+| # | Finding | Disposition |
+|---|---------|-------------|
+| A-B1 / R-B1 | After the rename, `prepare_commands(prune=True)` treats dotted entries as retired and `remove_entry` drift-deletes edited files (DERIVED/IGNORED gate) on `init`, `doctor skills --fix`, `agent config`, provider repair. | The naming authority classifies paths as canonical / legacy / other. The installer owns legacy handling: owned + hash-equal → delete (folder only if then empty); edited → keep, drop entry, emit a `legacy_kept` disposition with warning; never the drift-delete branch. The migration calls the installer, so there is one rule (FR-020). Ruling 2 already requires keep-edited, so no new operator decision. Fix `prune_stale`'s docstring. |
+| A-B2 / R-M1 | Rename effect is outside VCS; committed ledger would settle teammates' clones. | `clone_local_effect = True`; `detect()` exact (legacy entry or legacy folder present); `apply()` idempotent; missing/corrupt manifest → success + warning, legacy folders left for doctor. |
+| A-M1 / R-m2 | `m_3_2_0rc35_kittify_profile_handoff` patches dotted implement/review in place; `pi_letta_backfill` re-detects. | Do not edit historical migrations (DIRECTIVE_044). The rename's ownership proof also accepts bytes equal to the current render under the legacy name; a handoff-patched file that matches neither is kept with the warning (conservative; doctor reports it). Recorded in design-decisions. |
+| A-M2 | A second frontmatter authority would make the verifier and the global `~/.agents/skills` writer disagree. | Extend `ensure_skill_frontmatter` into the root-aware projection (single module `skills/skill_frontmatter.py`, re-exported); thread root into `verifier._expected_content_hash` and `runtime/agent_skills._prepare_skill_tree`; architectural test: only that module strips/moves frontmatter keys. |
+| A-M3 | Pack skills render once, copied per root. | `render_pack_skill` stays neutral; projection applied in `installer._expected_project_entries` keyed on the root. Native primary roots are `.claude/skills`, `.qwen/skills`, `.kilocode/skills` only. |
+| A-M4 | Plugin bundles reuse the shared-root bytes. | Claude bundle applies the native projection; Codex/Copilot keep the spec projection; per-bundle frontmatter assertions. |
+| A-M5 | Agent-dependent rewrite breaks `shared_content_conflict`. | `rewrite_command_invocations` is agent-independent: `/spec-kitty.<cmd>` and `$spec-kitty.<cmd>` → `/spec-kitty-<cmd>` / `$spec-kitty-<cmd>` (token sigil kept, name changed) for canonical commands only; `init._agent_command_token` derives from the naming authority. |
+| A-M6 / R-m1 | Adding dotted names to retired sets re-arms `m_3_2_0rc45` and the global retire. | New `LEGACY_COMMAND_SKILL_NAMES` in the naming authority; the existing retired sets are untouched (FR-017 reworded). |
+| A-M7 / R-M5 | Scoped home writer loses the fast path; cleanup never triggers. | Freshness stamp records per-key health; scoped calls write it; short-circuit when every requested key matches version+signature and is healthy; stamp carries a `retired_surfaces_cleaned` schema field so the first run on new code builds and cleans; `()` outside a project means "none", never "all". `agent config add <slash agent>` triggers that agent's write. |
+| A-M8 / R-M5 | Home cleanup proof. | `AssetPreparation.retire()` (inventory proof) on `spec-kitty.*.md` children of a hard-coded `~/.agent/workflows`, probed with `role="destination_probe"`; a pre-inventory file is removed only on exact current-version marker + byte equality with a render from a frozen private antigravity config row; never the different-version predecessor branch; refuse a symlinked directory. |
+| A-M9 / R-M3 | More `AGENT_COMMAND_CONFIG` consumers; `get_agent_dirs_for_project` loses `.agent`. | List them in the Antigravity WP (regen.py, assessment.py, rewrite_shims.py, shims/generator.py, surface_presence.py, agent/config.py, _command_surface_doctor.py). One `configured_slash_agents()` filter. Workflows migration gates on `get_configured_agents()` and a hard-coded retired path (C-003 deviation, rationale recorded); never mkdir. |
+| A-M10 | Older CLI fails on a hyphen manifest. | Accept as clean break; release note + ADR; tighten pattern to canonical grammar while also accepting the legacy form for reading. |
+| R-M2 | No proof for project workflows; FR-009 already passes. | Operator ruling 2026-10-20: archive (move to `.kittify/backups/antigravity-workflows/`) on exact marker line + historical command name + regular file; FR-009 relabelled `[ratchet]`. |
+| R-M4 | Guard is lexical; symlinked dirs escape. | Refuse when `.agent`, `.agent/workflows` (or `~/.agent/workflows`) is a symlink or resolves outside its root; fixture. |
+| R-M6 | One user folder at a canonical path fails the batch. | Operator ruling 2026-10-20: skip that path with a warning; `doctor skills` reports it; acceptance scenario in `tests/scenarios/init/` (FR-019). |
+| R-M7 / R-m6 | Upgrade tests vacuous; red evidence lost on rebuild. | Fixtures strip the ledger row, seed prior-release dotted bytes + manifest, assert the migration's own record and warning; P0 repros assert literals, not the authority; red run captured with `SPEC_KITTY_RUN_P0_REPRO=1` and the red commit kept as the first commit of the rebuilt branch. |
+| A-m1 | Uniqueness source set. | Build from `resolve_builtin_skill_catalog()` + built-in pack skills + retired + legacy sets. |
+| A-m2 | Shipped `argument-hint`. | Source unchanged; projection moves it under `metadata` in shared roots; CI validates projected output. |
+| A-m3 | `is_projected_skills_path` changes meaning. | Accept legacy paths for deletions only; listed in IC-01. |
+| A-m4 / R-m4 / R-m5 | Duplicate commands in mixed harnesses; `runs_on_worktrees`; doctor never feeds `--fix` deletion by name. | ADR note; declare `runs_on_worktrees=True`; doctor legacy report is read-only. |
