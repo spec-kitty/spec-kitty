@@ -19,6 +19,7 @@ from charter.resolution import GitCommonDirUnavailableError, NotInsideRepository
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
+from specify_cli.upgrade import runner as runner_module
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -44,8 +45,18 @@ def _ledger_ids(project: Path) -> list[str]:
 def test_upgrade_outside_git_repository_skips_unified_bundle(tmp_path: Path, dry_run: bool) -> None:
     auto_discover_migrations()
     project = _make_project(tmp_path)
+    probes: list[Path] = []
+    real_probe = runner_module.project_is_inside_git_repository
 
-    result = MigrationRunner(project).upgrade("3.2.0rc35", dry_run=dry_run, include_worktrees=False)
+    def _counting_probe(path: Path) -> bool:
+        probes.append(path)
+        return real_probe(path)
+
+    with patch.object(runner_module, "project_is_inside_git_repository", _counting_probe):
+        result = MigrationRunner(project).upgrade("3.2.0rc35", dry_run=dry_run, include_worktrees=False)
+
+    # The runner's probe is lazy and memoised: one git probe serves every flagged migration.
+    assert len(probes) <= 1
 
     assert MIGRATION_ID in result.migrations_skipped
     assert MIGRATION_ID not in result.migrations_applied
