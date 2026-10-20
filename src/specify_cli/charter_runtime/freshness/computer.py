@@ -716,6 +716,28 @@ def _synthesized_drg_missing_graph_state(repo_root: Path) -> FreshnessSubState:
     )
 
 
+def _synthesized_drg_upstream_blocked_state(
+    graph_mtime_iso: str | None,
+    synced_bundle: FreshnessSubState,
+) -> FreshnessSubState:
+    """``stale`` because the ``synced_bundle`` is not itself fresh (#6415).
+
+    We cannot prove the graph is fresh either, but ``charter synthesize`` is no
+    remedy: it refuses an unsound ``charter.yaml`` and cannot create an absent
+    one. The remedy therefore belongs to the upstream layer and is echoed, never
+    a command of this layer's own: the F1/F2 ``charter generate`` / ``upgrade``
+    command for a ``missing`` bundle, and ``None`` (fix ``charter.yaml`` first)
+    for the cascading ``stale`` bundle. Declared exempt alongside that
+    upstream state in the remediation-effectiveness gate (C-EFF-2).
+    """
+    return FreshnessSubState(
+        state="stale",
+        last_change=graph_mtime_iso,
+        remediation=synced_bundle.remediation,
+        detail=synced_bundle.detail or f"synced_bundle is {synced_bundle.state}; resolve it before synthesizing",
+    )
+
+
 def _synthesized_drg_graph_state(
     repo_root: Path,
     graph_path: Path,
@@ -738,13 +760,7 @@ def _synthesized_drg_graph_state(
     graph_mtime_iso = _mtime_iso(graph_path)
 
     if synced_bundle.state != "fresh" or synced_bundle.last_change is None:
-        # If the bundle is not itself fresh we cannot prove the graph is
-        # fresh either; mark it stale so the operator rebuilds upstream.
-        return FreshnessSubState(
-            state="stale",
-            last_change=graph_mtime_iso,
-            remediation=_REMEDIATE_CHARTER_SYNTHESIZE,
-        )
+        return _synthesized_drg_upstream_blocked_state(graph_mtime_iso, synced_bundle)
 
     # NFR-003: defer the ``charter.bundle`` import until this branch actually
     # needs it, keeping it off the ``spec-kitty next`` startup hot path (LD-3).

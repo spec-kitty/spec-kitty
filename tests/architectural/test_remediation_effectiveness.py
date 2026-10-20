@@ -274,6 +274,11 @@ def _discover_remediation_emitting_states() -> tuple[int, ...]:
     return tuple(lineno for lineno, _function, _state in _discover_remediation_emitting_states_full())
 
 
+# Helper functions (not ``_compute_*`` producers) that construct a check's
+# ``FreshnessSubState`` and appear in ``_EXEMPT_STATES``, mapped to their check.
+_HELPER_CHECK_NAMES: dict[str, str] = {"_synthesized_drg_upstream_blocked_state": "synthesized_drg"}
+
+
 def _check_name_for_producer(producer_function_name: str) -> str:
     """Map an AST-derived producer function name (e.g.
     ``_compute_charter_source``) to the check/layer name used everywhere
@@ -287,6 +292,8 @@ def _check_name_for_producer(producer_function_name: str) -> str:
     producer that breaks this naming convention fails loudly here instead
     of silently mismatching a check name downstream.
     """
+    if producer_function_name in _HELPER_CHECK_NAMES:
+        return _HELPER_CHECK_NAMES[producer_function_name]
     prefix = "_compute_"
     assert producer_function_name.startswith(prefix), (
         f"producer function {producer_function_name!r} does not follow the {prefix!r} naming convention _check_name_for_producer relies on"
@@ -321,10 +328,25 @@ def _check_name_for_producer(producer_function_name: str) -> str:
 # sites now emit `remediation=None` in `computer.py`, so they no longer
 # appear in `_discover_remediation_emitting_states()`'s output either (see
 # `_REMEDIATION_STATE_FLOOR` below).
+#
+# #6415 added the third member. `charter synthesize` now refuses an unsound
+# `charter.yaml` (and cannot create an absent one), so the old
+# `_synthesized_drg_graph_state` branch "bundle not fresh -> stale, run
+# `charter synthesize`" advertised a command that always refuses. That branch
+# was split into `_synthesized_drg_upstream_blocked_state`, which echoes the
+# UPSTREAM layer's remediation (`synced_bundle.remediation`: the F1/F2
+# `generate` / `upgrade` command when `missing`, `None` when the cascading
+# `stale`) instead of a command of its own. It is a distinct producer function
+# so the pair stays disjoint from the hash-mismatch `stale` site, which keeps
+# its literal `charter synthesize` and its effectiveness case. The echoed
+# remediation is computed, not a literal, so this gate's AST cannot (and need
+# not) see it as emitting: each upstream state is itself covered (`missing`
+# by the synced_bundle cases) or exempt (`stale`).
 _EXEMPT_STATES: frozenset[tuple[str, str]] = frozenset(
     {
         ("_compute_charter_source", "invalid"),
         ("_compute_synced_bundle", "stale"),
+        ("_synthesized_drg_upstream_blocked_state", "stale"),
     }
 )
 
@@ -343,7 +365,8 @@ _EXEMPT_STATES: frozenset[tuple[str, str]] = frozenset(
 # sites (synthesized_drg) = 7. The :318/:357-equivalent sites (`invalid` /
 # cascading `stale`) still emit `remediation=None` and are declared exempt
 # above rather than counted here — WP03, a deliberate reviewed change (was
-# 7, then 5).
+# 7, then 5). #6415: the synthesized_drg bundle-not-fresh site stopped
+# emitting a literal command (it echoes upstream, exempt above): 7 -> 6.
 #
 # WP08 (FR-007 F11): a floor over SITES (non-vacuity), not a pin — the
 # actual coverage guarantee is the per-site partition
@@ -351,7 +374,7 @@ _EXEMPT_STATES: frozenset[tuple[str, str]] = frozenset(
 # by dropping this floor to match a shrunk count (the old `== 9` sum's own
 # exploit). Update deliberately, in the same change, when a state is
 # legitimately added — never to nudge a red run green.
-_REMEDIATION_STATE_FLOOR = 7
+_REMEDIATION_STATE_FLOOR = 6
 
 # `_compute_charter_source`, `_compute_synced_bundle`, `_compute_synthesized_drg`
 # (R-005). WP08 (FR-007 F11): a floor over sites (non-vacuity), not a pin.
@@ -364,13 +387,13 @@ _PRODUCER_FLOOR = 3
 # `_EXEMPT_STATES` to dodge a red run now fails that partition's
 # disjointness check directly, not only this floor.
 #
-# WP03: 0 -> 2, a deliberate reviewed change. WP02 proved exhaustively that
+# #6415: 2 -> 3 (see `_EXEMPT_STATES`). WP03: 0 -> 2, a deliberate reviewed change. WP02 proved exhaustively that
 # `_compute_charter_source`'s `invalid` state and `_compute_synced_bundle`'s
 # cascading `stale` state have no effective self-service remediation (see
 # `_EXEMPT_STATES` above) — this is not a check being reclassified to dodge
 # a red run, it is the two genuinely unfixable states the mechanism itself
 # proved unfixable via `test_remediation_changes_check_state`.
-_EXEMPTION_FLOOR = 2
+_EXEMPTION_FLOOR = 3
 
 
 def test_remediation_state_meets_floor() -> None:
@@ -406,11 +429,12 @@ def test_exemption_set_meets_floor() -> None:
         {
             ("_compute_charter_source", "invalid"),
             ("_compute_synced_bundle", "stale"),
+            ("_synthesized_drg_upstream_blocked_state", "stale"),
         }
     )
     assert expected_exempt == _EXEMPT_STATES, (
-        "C-EFF-2: _EXEMPT_STATES membership drifted from the two states WP02 "
-        f"proved unfixable; got {sorted(_EXEMPT_STATES)}. Exemption is a "
+        "C-EFF-2: _EXEMPT_STATES membership drifted from the declared reviewed "
+        f"set (WP02's two unfixable states plus #6415's upstream-blocked drg state); got {sorted(_EXEMPT_STATES)}. Exemption is a "
         "DECLARED, reviewed property — a state may only be added here with the "
         "same standard of proof WP02 applied (every write path exhausted), and "
         "swapping a member silently redirects the exemption onto a state that "
@@ -569,13 +593,17 @@ def _fixture_charter_source_missing_f1(root: Path) -> Path:
 
 
 def _fixture_exempt_pair(root: Path) -> Path:
-    """F4 — drives the two exempt states (``charter_source: invalid`` and
-    the cascading ``synced_bundle: stale``) simultaneously: ``synced_bundle``
-    reads ``charter_source``'s ``invalid``. WP03: no longer a
+    """F4 plus a manifest and graph — drives the three exempt states
+    (``charter_source: invalid``, the cascading ``synced_bundle: stale`` and,
+    #6415, the cascading ``synthesized_drg: stale``) simultaneously: each reads
+    the upstream layer's non-fresh state. WP03: no longer a
     ``test_remediation_changes_check_state`` case (both sites emit
     ``remediation=None`` and are declared in ``_EXEMPT_STATES``) — retained
     for the T015 "no command in the composed output" coverage below."""
-    return build_f4_invalid_charter_yaml(root)
+    build_f4_invalid_charter_yaml(root)
+    seed_manifest(root, built_in_only=False, bundle_content_hash=None)
+    seed_graph(root)
+    return root
 
 
 def _fixture_drg_missing(root: Path) -> Path:
@@ -584,17 +612,6 @@ def _fixture_drg_missing(root: Path) -> Path:
     fresh."""
     init_git_repo(root)
     seed_charter_yaml(root)
-    return root
-
-
-def _fixture_drg_stale_bundle_not_fresh(root: Path) -> Path:
-    """charter.yaml invalid + graph.yaml + manifest present (not
-    built_in_only). Isolates the synthesized_drg ``stale`` state reached via
-    the synced_bundle-not-fresh branch, before any hash comparison."""
-    init_git_repo(root)
-    seed_charter_yaml(root, valid=False)
-    seed_manifest(root, built_in_only=False, bundle_content_hash=None)
-    seed_graph(root)
     return root
 
 
@@ -656,14 +673,17 @@ class _EffectivenessCase:
 #: Re-pinned once more by charter-pack-cutover WP03 (#3732), whose
 #: ``computer.py`` change shifted every row up by 8 lines (525 -> 517,
 #: 531 -> 523, 612 -> 604, 618 -> 610, 723 -> 715, 754 -> 746, 767 -> 759).
+#: Re-pinned by #6415: the bundle-not-fresh `synthesized_drg` row (746) is
+#: gone (that branch now echoes upstream and is exempt, see `_EXEMPT_STATES`)
+#: and the hash-mismatch row moved 759 -> 775 (the extracted helper sits
+#: above it). Re-derived with `_discover_remediation_emitting_states_full()`.
 _CASES: tuple[_EffectivenessCase, ...] = (
     _EffectivenessCase("charter_source", 517, _fixture_charter_source_missing),
     _EffectivenessCase("charter_source", 523, _fixture_charter_source_missing_f1),
     _EffectivenessCase("synced_bundle", 604, _fixture_charter_source_missing),
     _EffectivenessCase("synced_bundle", 610, _fixture_charter_source_missing_f1),
     _EffectivenessCase("synthesized_drg", 715, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 746, _fixture_drg_stale_bundle_not_fresh),
-    _EffectivenessCase("synthesized_drg", 759, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("synthesized_drg", 775, _fixture_drg_stale_hash_mismatch),
 )
 
 

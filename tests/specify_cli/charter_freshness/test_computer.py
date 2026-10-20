@@ -624,7 +624,11 @@ def test_synthesized_drg_stale_when_synced_bundle_not_fresh(tmp_path: Path) -> N
     assert result.charter_source.state == "invalid"
     assert result.synced_bundle.state == "stale"
     assert result.synthesized_drg.state == "stale"
-    assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
+    # `charter synthesize` refuses an unsound charter.yaml (#6415): no command is
+    # advertised, mirroring the cascading synced_bundle state it echoes.
+    assert result.synthesized_drg.remediation is None
+    assert result.synthesized_drg.remediation == result.synced_bundle.remediation
+    assert result.synthesized_drg.detail == result.synced_bundle.detail
 
 
 def test_synthesized_drg_fresh_when_hash_matches(tmp_path: Path) -> None:
@@ -687,8 +691,13 @@ def test_synthesized_drg_stale_when_charter_yaml_is_missing(tmp_path: Path) -> N
 
     # The recipe fail-safes to None (never raises) on the missing file...
     assert compute_bundle_content_hash(tmp_path) is None
-    # ...and the reader maps the incomplete bundle to stale, not fresh/crash.
-    assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
+    # ...and the reader maps the incomplete bundle to stale, not fresh/crash,
+    # echoing the upstream remedy (create charter.yaml) rather than a
+    # `charter synthesize` that cannot run without one (#6415).
+    result = compute_freshness(tmp_path)
+    assert result.synthesized_drg.state == "stale"
+    assert result.synthesized_drg.remediation == result.synced_bundle.remediation
+    assert result.synthesized_drg.remediation != "spec-kitty charter synthesize"
 
 
 def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: Path) -> None:
