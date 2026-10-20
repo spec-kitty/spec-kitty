@@ -13,7 +13,7 @@
       "wp": null
     },
     "#3048": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "home slash-command writer scoped to configured agents (WP06); global skills fan-out stays open in #3048",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP06"
     },
     "#6469": {
       "evidence_ref": "<link or commit>",
