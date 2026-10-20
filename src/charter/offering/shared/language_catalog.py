@@ -23,6 +23,7 @@ __all__ = [
     "BUILD_TOOLS",
     "COMPOUND_PREFIX_GUARD",
     "LANGUAGES",
+    "LANGUAGE_TOKENS",
     "expand_language_families",
     "is_language_family",
     "language_for_extension",
@@ -145,6 +146,9 @@ BUILD_TOOLS: tuple[BuildToolSpec, ...] = (
     BuildToolSpec("maven", (r"\bmaven\b",)),
     BuildToolSpec("junit", (r"\bjunit\b",)),
 )
+
+#: The public token list (the seam exports this); the ``LanguageSpec`` records stay internal.
+LANGUAGE_TOKENS: tuple[str, ...] = tuple(spec.token for spec in LANGUAGES)
 
 #: Family token -> the language tokens that imply it, derived from :data:`LANGUAGES`.
 LANGUAGE_FAMILIES: dict[str, tuple[str, ...]] = {

@@ -152,6 +152,11 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.missions.mission_step_repository": "FACADE-ONLY",
     # model/task routing → new charter.model_routing (symbol-level PUBLIC)
     "charter.offering.model_task_routing": "PUBLIC",
+    # language vocabulary → charter.languages (PUBLIC). Module-keyed: the census has no
+    # per-symbol entries, so FR-008 (only LANGUAGE_TOKENS, never the records or family
+    # helpers) is enforced by charter.offering.api.__all__ and
+    # tests/charter_offering/test_language_tokens_seam.py.
+    "charter.offering.shared.language_catalog": "PUBLIC",
     # assets → new charter.assets (PUBLIC)
     "charter.offering.assets.repository": "PUBLIC",
     "charter.offering.assets.models": "PUBLIC",

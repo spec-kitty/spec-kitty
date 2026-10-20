@@ -57,6 +57,11 @@ from charter.offering.assets.repository import (
     AssetResolutionError,
 )
 
+# Public language vocabulary: the token list only (#6541). The catalog records, family
+# data and family expansion stay internal (FR-008). PUBLIC per
+# DISPOSITION["charter.offering.shared.language_catalog"].
+from charter.offering.shared.language_catalog import LANGUAGE_TOKENS
+
 # Model→task-type routing surface — the deterministic evaluator/loader callables
 # plus their result types. PUBLIC per DISPOSITION["charter.offering.model_task_routing"]
 # (the spec's "true gap" #1: evaluator / loader / RoutingRecommendation).
@@ -74,6 +79,7 @@ __all__ = [
     "AssetRepository",
     "AssetResolutionError",
     "CatalogLoadResult",
+    "LANGUAGE_TOKENS",
     "RoutingRecommendation",
     "evaluate",
     "load",

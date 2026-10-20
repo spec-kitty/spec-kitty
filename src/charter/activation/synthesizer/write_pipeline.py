@@ -45,8 +45,8 @@ from kernel.charter_pack_paths import (
 )
 
 from charter.activation.language_authority import declared_languages, expand_language_families
-from charter.offering.shared.language_catalog import LANGUAGES as _CATALOG_LANGUAGES
 from charter.bundle import compute_bundle_content_hash
+from charter.languages import LANGUAGE_TOKENS
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
 from .artifact_naming import artifact_filename, pack_kind_subdir
@@ -316,7 +316,7 @@ def _observed_languages(evidence: EvidenceBundle | None) -> tuple[str, ...]:
         return ()
     return signals.languages or (signals.scope_tag,)
 
-_CATALOG_LANGUAGE_TOKENS: frozenset[str] = frozenset(spec.token for spec in _CATALOG_LANGUAGES)
+_CATALOG_LANGUAGE_TOKENS: frozenset[str] = frozenset(LANGUAGE_TOKENS)
 
 
 def _declared_scope_languages(interview_snapshot: Mapping[str, Any]) -> tuple[str, ...]:

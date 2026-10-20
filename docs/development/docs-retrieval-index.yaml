@@ -3458,6 +3458,7 @@ pages:
     - {slug: "scope-of-this-record-spec-kitty-charter-adr-0010", text: "Scope of this record (spec-kitty-charter ADR-0010)", level: 3}
     - {slug: "service-boundary-spec-kitty-charter-adr-0011", text: "Service boundary (spec-kitty-charter ADR-0011)", level: 3}
     - {slug: "why-a-cli-started-daemon-when-the-dashboard-daemon-was-rejected", text: "Why a CLI-started daemon, when the dashboard daemon was rejected", level: 3}
+    - {slug: "amendment-2026-10-20-accepted-language-tokens-joins-the-frozen-seam-6541", text: "Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)", level: 2}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
     divio_type: "none"

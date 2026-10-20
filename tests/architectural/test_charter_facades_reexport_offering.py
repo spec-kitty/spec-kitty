@@ -205,6 +205,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("evaluate", "charter.offering.api"),
         ("load", "charter.offering.api"),
     ],
+    # Language vocabulary door (#6541): the token tuple only, never the catalog records.
+    "charter.languages": [
+        ("LANGUAGE_TOKENS", "charter.offering.shared.language_catalog"),
+    ],
     # New door (WP03/T014): asset-resolution surface. PUBLIC — re-exported from
     # ``charter.offering.api`` so the wheel symbols gain live in-repo callers.
     "charter.assets": [

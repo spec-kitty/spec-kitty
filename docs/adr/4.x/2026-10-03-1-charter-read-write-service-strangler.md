@@ -459,3 +459,9 @@ a per-worktree token readable only by the user, read operations only, no browser
 surface, an identity check against the service's info operation before every session, and
 a launcher that records the process identity, not only the PID, so a recycled PID is never
 mistaken for the service. A security review of the launcher precedes the cutover.
+
+## Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)
+
+`charter.offering.api` gains one symbol, `LANGUAGE_TOKENS`: a read-only tuple of plain language tokens, in catalog order, derived once from the language catalog. The charter service and the conformance corpus need the token vocabulary, and a hand-copied list would drift from the catalog.
+
+Only the token list crosses the seam (operator decisions `seam_language_catalog` and `seam_language_export_shape`). The catalog records, their family data and the family expansion stay internal to `charter.offering.shared`. The census is module-keyed, so the catalog module is dispositioned `PUBLIC`, and the narrowing to the one symbol is enforced by `charter.offering.api.__all__` and `tests/charter_offering/test_language_tokens_seam.py`. Core reaches the tuple through the `charter.languages` facade. A conformance-corpus case for the token list belongs to epic #6099.
