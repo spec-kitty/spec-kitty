@@ -19,6 +19,8 @@ from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 MIGRATION_ID = "3.2.0rc35_unified_bundle"
 
 
@@ -70,6 +72,36 @@ class _DetectOutsideRepository(BaseMigration):
 def test_detect_outside_a_git_repository_is_a_skip_with_no_ledger_record(tmp_path: Path, dry_run: bool) -> None:
     project = _make_project(tmp_path)
     migration = _DetectOutsideRepository()
+
+    result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=dry_run)
+
+    assert status == "skipped"
+    assert result.success
+    assert any("not inside a git repository" in w for w in result.warnings)
+    assert migration.migration_id not in _ledger_ids(project)
+
+
+class _CanApplyOutsideRepository(BaseMigration):
+    """A stub that detects legacy state but whose ``can_apply()`` resolves the repo root and raises outside a repository."""
+
+    migration_id = "stub_can_apply_outside_repository"
+    description = "stub"
+    target_version = "3.1.0"
+
+    def detect(self, project_path: Path) -> bool:
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        raise NotInsideRepositoryError(project_path)
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        raise AssertionError("apply() must not run after a skipped can_apply()")
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_can_apply_outside_a_git_repository_is_a_skip_with_no_ledger_record(tmp_path: Path, dry_run: bool) -> None:
+    project = _make_project(tmp_path)
+    migration = _CanApplyOutsideRepository()
 
     result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=dry_run)
 
