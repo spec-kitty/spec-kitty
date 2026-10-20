@@ -112,6 +112,9 @@ The key is a plain top-level `languages` list because `charter:` (the charter.ya
   (edit `languages:` in `.kittify/config.yaml`, or re-run `spec-kitty charter interview`
   interactively); `--json` carries `languages`, `languages_source: "detected"` and
   `languages_notice`.
+- **Stored with the answers.** The languages are written to `config.yaml` together with the
+  interview answers, after they are saved. An interview that aborts or fails before that stores
+  neither; a failure to store the languages exits non-zero with the error.
 - **Typos.** An interactive answer that is not a catalog list is asked again (up to three
   attempts), then the interview fails without writing.
 - **Compiled catalog.** When the key is set, the compiled `catalog.languages` stamp, and therefore

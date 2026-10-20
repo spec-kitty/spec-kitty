@@ -204,12 +204,12 @@ _LANGUAGES_PROMPT = "Project languages (comma-separated catalog tokens, primary 
 
 
 def _settle_languages(repo_root: Path, *, interactive: bool) -> LanguageSettlement:
-    """Detect, propose and store the project language list in config.yaml (FR-020).
+    """Detect, propose and settle the project language list (FR-020). Writes nothing (#6542).
 
     Interactive runs show the stored list (else the detected one) as the default. A
     ``--defaults`` or non-interactive run never prompts, never overwrites a stored list, and
-    stores the detected list (with a notice) only when the key is absent. An invalid answer
-    is asked again (bounded), then fails without writing.
+    decides to store the detected list (with a notice) only when the key is absent. An invalid
+    answer is asked again (bounded), then fails. The caller stores the settlement with the answers.
     """
     from charter.activation.api import settle_project_languages
 
@@ -419,6 +419,13 @@ def interview(  # noqa: C901
 
         answers_path = _interview_path(repo_root)
         write_interview_answers(answers_path, interview_data)
+
+        # #6542 -- the languages are stored with the answers: an interview that aborts or fails
+        # before this point stores neither. Before the promotion, which re-reads config.yaml.
+        # A store failure is not swallowed: the generic handler below exits 1 with the error.
+        from charter.activation.api import store_language_settlement
+
+        store_language_settlement(repo_root, language_settlement)
 
         # FR-007 — append-promote captured selections into config.activated_*
         # via the WP06 primitive. Best-effort / non-fatal: a promotion failure

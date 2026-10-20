@@ -10,7 +10,8 @@ import pytest
 
 from charter.activation.evidence.code_reader import CodeReadingCollector
 from charter.activation.interview import CharterInterview, apply_answer_overrides, default_interview
-from charter.activation.language_authority import configured_languages, settle_project_languages, write_configured_languages
+from charter.activation.language_authority import configured_languages, write_configured_languages
+from charter.activation.language_settlement import settle_project_languages, store_language_settlement
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
 from charter.offering.shared.scoping import applies_to_languages_match
@@ -246,7 +247,7 @@ def test_non_interactive_settle_keeps_a_set_but_unusable_key(tmp_path: Path, tex
     settlement = settle_project_languages(tmp_path, ask=None)
 
     assert (tmp_path / ".kittify" / "config.yaml").read_bytes() == before
-    assert settlement.written is False
+    assert settlement.to_store is None
     assert settlement.source == "none"
     assert settlement.languages == ()
     assert settlement.notice is not None
@@ -261,6 +262,7 @@ def test_non_interactive_settle_stores_the_detected_list_when_the_key_is_absent(
 
     settlement = settle_project_languages(tmp_path, ask=None)
 
-    assert settlement.written is True
+    assert settlement.to_store == settlement.languages
+    store_language_settlement(tmp_path, settlement)
     assert settlement.source == "detected"
     assert configured_languages(tmp_path) == settlement.languages

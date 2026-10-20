@@ -6,6 +6,8 @@
 * :func:`declared_languages` decides which languages a free-form declaration names,
   including the build-token rule (``gradle``/``maven``/``junit`` add ``jvm`` only when no
   JVM language is declared);
+* :func:`write_configured_languages` stores that list; deciding what to store (detect, propose, ask) lives one layer
+  up in :mod:`charter.activation.language_settlement`, which also reads the code reader, so this module never imports it (#6540);
 * :func:`configured_languages` reads the operator-confirmed list from ``.kittify/config.yaml``
   (key ``languages``). When it is set it is the one list for synthesis evidence and doctrine
   scoping; detection and free-text parsing are only the fallback when it is absent (FR-020).
@@ -25,7 +27,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -44,10 +46,13 @@ from charter.offering.shared.scoping import normalize_languages
 
 __all__ = [
     "EXCLUDED_DIRS",
-    "LanguageSettlement",
+    "CONFIG_LANGUAGES_KEY",
+    "CONFIG_RELATIVE_PATH",
     "configured_languages",
+    "invalid_language_reason",
     "is_catalog_language",
-    "settle_project_languages",
+    "languages_key_is_set",
+    "write_configured_languages",
     "declared_languages",
     "expand_language_families",
     "count_sources_uncapped",
@@ -298,13 +303,13 @@ def declared_languages(text: str) -> list[str]:
 #: so neither can carry it; the key is a plain top-level ``languages`` list of catalog tokens.
 CONFIG_LANGUAGES_KEY = "languages"
 
-_CONFIG_RELATIVE = Path(".kittify") / "config.yaml"
+CONFIG_RELATIVE_PATH = Path(".kittify") / "config.yaml"
 _LOGGER = logging.getLogger(__name__)
 _CATALOG_TOKENS: frozenset[str] = frozenset(spec.token for spec in LANGUAGES)
 
 
 def _config_path(repo_root: Path) -> Path:
-    return repo_root / _CONFIG_RELATIVE
+    return repo_root / CONFIG_RELATIVE_PATH
 
 
 def _read_config_list(repo_root: Path) -> list[Any] | None:
@@ -324,7 +329,7 @@ def _read_config_list(repo_root: Path) -> list[Any] | None:
     return raw
 
 
-def _languages_key_is_set(repo_root: Path) -> bool:
+def languages_key_is_set(repo_root: Path) -> bool:
     """True when ``config.yaml`` carries a non-empty ``languages`` value or cannot be read (so it must not be overwritten)."""
     path = _config_path(repo_root)
     if not path.is_file():
@@ -342,7 +347,7 @@ def is_catalog_language(token: str) -> bool:
     return token.strip().lower() in _CATALOG_TOKENS
 
 
-def _invalid_reason(token: str) -> str | None:
+def invalid_language_reason(token: str) -> str | None:
     """Why *token* cannot be a configured language, or ``None``.
 
     A catalog language or a family declared on its own (``jvm`` from "Gradle") is accepted, the
@@ -368,7 +373,7 @@ def configured_languages(repo_root: Path) -> tuple[str, ...] | None:
     valid: list[str] = []
     for entry in raw:
         token = entry.strip().lower() if isinstance(entry, str) else ""
-        reason = _invalid_reason(token) if token else "not a language token"
+        reason = invalid_language_reason(token) if token else "not a language token"
         if reason is not None:
             _LOGGER.warning("Dropping %r from '%s' in %s: %s.", entry, CONFIG_LANGUAGES_KEY, _config_path(repo_root), reason)
         elif token not in valid:
@@ -387,7 +392,7 @@ def write_configured_languages(repo_root: Path, languages: Iterable[str]) -> Non
     if not tokens:
         raise ValueError("languages must name at least one language")
     for token in tokens:
-        reason = _invalid_reason(token)
+        reason = invalid_language_reason(token)
         if reason is not None:
             raise ValueError(f"{token!r} cannot be stored in '{CONFIG_LANGUAGES_KEY}': {reason}.")
     path = _config_path(repo_root)
@@ -402,137 +407,3 @@ def write_configured_languages(repo_root: Path, languages: Iterable[str]) -> Non
     document[CONFIG_LANGUAGES_KEY] = tokens
     desired = render_yaml_document(before.content, document, yaml)
     apply_yaml_write(prepare_yaml_write(path, desired, section="languages", inputs=(before,)))
-
-
-# ---------------------------------------------------------------------------
-# Interview: detect, propose, confirm, store (FR-020)
-# ---------------------------------------------------------------------------
-
-_ANSWER_SEPARATORS = re.compile(r"[,;\s]+")
-_NO_LANGUAGES_ANSWERS = frozenset({"none", "-", "n/a"})
-
-
-@dataclass(frozen=True, slots=True)
-class LanguageSettlement:
-    """What the interview's language step left in force.
-
-    ``source`` is ``stored`` (an existing list kept as it was), ``confirmed`` (the operator's
-    answer, written), ``detected`` (a non-interactive run stored the detected list because the
-    key was absent) or ``none`` (nothing stored). ``languages`` is empty only for ``none``.
-    ``notice`` is set for ``detected`` (what was stored, that it was detected rather than
-    confirmed, and how to change it; DM-01M5ASPC) and for a ``none`` left by a set but unusable key.
-    """
-
-    languages: tuple[str, ...]
-    source: Literal["stored", "confirmed", "detected", "none"]
-    detected: tuple[str, ...]
-    written: bool
-    notice: str | None = None
-
-
-def parse_language_answer(answer: str) -> tuple[str, ...]:
-    """Return the catalog tokens an operator answer lists; ``ValueError`` names every invalid entry.
-
-    ``none`` (or ``-``, ``n/a``, blank) is an empty list.
-    """
-    text = answer.strip().lower()
-    if text in _NO_LANGUAGES_ANSWERS or not text:
-        return ()
-    tokens = tuple(normalize_languages(part for part in _ANSWER_SEPARATORS.split(text) if part))
-    invalid = [token for token in tokens if _invalid_reason(token) is not None]
-    if invalid:
-        known = ", ".join(spec.token for spec in LANGUAGES)
-        raise ValueError(f"Not a catalog language: {', '.join(invalid)}. Use any of: {known}.")
-    return tokens
-
-
-def _detect_repository_languages(repo_root: Path) -> tuple[str, ...]:
-    """Observe the repository's languages, ignoring any configured list (primary first)."""
-    from charter.activation.evidence.code_reader import CodeReadingCollector
-
-    return tuple(CodeReadingCollector(repo_root, use_configured_languages=False).collect().languages)
-
-
-#: How many times an interactive answer is re-asked after an invalid entry before the step fails.
-LANGUAGE_ANSWER_ATTEMPTS = 3
-
-
-def _detected_notice(languages: tuple[str, ...]) -> str:
-    """Return the notice a non-interactive run shows after storing the detected list."""
-    return (
-        f"Project languages stored as DETECTED, not confirmed: {', '.join(languages)}. "
-        f"To change them, edit '{CONFIG_LANGUAGES_KEY}:' in {_CONFIG_RELATIVE.as_posix()} "
-        "or re-run 'spec-kitty charter interview' interactively."
-    )
-
-
-def _ask_until_valid(
-    ask: Callable[[str], str],
-    proposal: str,
-    on_invalid: Callable[[str], None] | None,
-) -> tuple[str, ...]:
-    """Ask for the language list, re-asking after an invalid answer; raise the last error after the bounded retries."""
-    for attempt in range(1, LANGUAGE_ANSWER_ATTEMPTS + 1):
-        try:
-            return parse_language_answer(ask(proposal))
-        except ValueError as exc:
-            if attempt == LANGUAGE_ANSWER_ATTEMPTS:
-                raise
-            if on_invalid is not None:
-                on_invalid(str(exc))
-    raise AssertionError("unreachable")  # pragma: no cover
-
-
-def _unusable_notice() -> str:
-    """Return the notice shown when the key is set but yields no usable language, so nothing is stored."""
-    return (
-        f"'{CONFIG_LANGUAGES_KEY}:' in {_CONFIG_RELATIVE.as_posix()} is set but holds no usable language list, so it was left as it is. "
-        f"Set it to a list of catalog language tokens (for example '{CONFIG_LANGUAGES_KEY}: [python]') or remove the key, "
-        "then re-run 'spec-kitty charter interview'."
-    )
-
-
-def _settle_without_asking(repo_root: Path, stored: tuple[str, ...] | None, detected: tuple[str, ...]) -> LanguageSettlement:
-    """Non-interactive settle: keep a stored list, else store the detected one with a notice.
-
-    A key that is set but unusable (a scalar, only non-catalog entries, an unreadable file) is the
-    operator's, not absent: it is never overwritten and the notice says how to fix it.
-    """
-    if stored is not None:
-        return LanguageSettlement(stored, "stored", detected, False)
-    if _languages_key_is_set(repo_root):
-        return LanguageSettlement((), "none", detected, False, _unusable_notice())
-    if not detected:
-        return LanguageSettlement((), "none", detected, False)
-    write_configured_languages(repo_root, detected)
-    return LanguageSettlement(detected, "detected", detected, True, _detected_notice(detected))
-
-
-def settle_project_languages(
-    repo_root: Path,
-    *,
-    ask: Callable[[str], str] | None,
-    on_invalid: Callable[[str], None] | None = None,
-) -> LanguageSettlement:
-    """Detect the repository's languages, propose them, and store the settled list (FR-020).
-
-    *ask* receives the proposal (the stored list, else the detected one, comma-separated) and
-    returns the operator's answer; it is ``None`` for a non-interactive or ``--defaults`` run,
-    which never blocks and never overwrites a stored list: it stores the detected list only
-    when the key is absent, and says so in ``notice``. An invalid answer is reported through
-    *on_invalid* and asked again, up to ``LANGUAGE_ANSWER_ATTEMPTS`` times; after that
-    ``ValueError`` is raised before anything is written. A blank or ``none`` answer leaves the
-    key as it was.
-    """
-    stored = configured_languages(repo_root)
-    detected = _detect_repository_languages(repo_root)
-    if ask is None:
-        return _settle_without_asking(repo_root, stored, detected)
-
-    confirmed = _ask_until_valid(ask, ", ".join(stored or detected), on_invalid)
-    if not confirmed:
-        return LanguageSettlement(stored or (), "stored" if stored else "none", detected, False)
-    if confirmed == stored:
-        return LanguageSettlement(stored, "stored", detected, False)
-    write_configured_languages(repo_root, confirmed)
-    return LanguageSettlement(confirmed, "confirmed", detected, True)

@@ -156,10 +156,12 @@ def test_non_interactive_env_without_defaults_never_prompts_the_language_step(tm
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
 
     # No --defaults: only the language step is non-interactive. The remaining questions
-    # prompt, and the empty input aborts them AFTER the language step has settled.
+    # prompt, and the empty input aborts them AFTER the language step has settled; an
+    # aborted interview stores neither the answers nor the languages (#6542).
     result = runner.invoke(charter_app, ["interview"], input="")
 
-    assert _config(root)["languages"] == ["python"]
+    assert result.exit_code != 0
+    assert not _has_languages(root)
     assert "Project languages (comma-separated" not in result.output
 
 
@@ -186,3 +188,81 @@ def test_other_config_keys_survive_the_write(tmp_path: Path, monkeypatch: pytest
     text = (root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
     assert "# keep me" in text and "strategy: squash" in text
     assert _config(root)["languages"] == _detected(root)
+
+
+# -- the languages are stored with the answers, never before them (#6542) ------------
+
+
+def _has_languages(root: Path) -> bool:
+    path = root / ".kittify" / "config.yaml"
+    return path.exists() and "languages" in _config(root)
+
+
+def _answers_file(root: Path) -> Path:
+    return root / ".kittify" / "charter" / "interview" / "answers.yaml"
+
+
+def test_an_abort_after_the_language_step_stores_neither_languages_nor_answers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+
+    result = runner.invoke(charter_app, ["interview"], input="")
+
+    assert result.exit_code != 0
+    assert not _has_languages(root)
+    assert not _answers_file(root).exists()
+
+
+def test_a_failing_answers_write_stores_no_languages(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("charter.activation.interview.write_interview_answers", boom)
+
+    result = runner.invoke(charter_app, ["interview", "--defaults", "--json"])
+
+    assert result.exit_code == 1
+    assert not _has_languages(root)
+
+
+def test_an_interactive_change_followed_by_an_abort_keeps_the_previous_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    _set_config(root, "languages:\n- go\n")
+
+    result = runner.invoke(charter_app, ["interview"], input="python\n")  # the next prompt hits EOF and aborts
+
+    assert result.exit_code != 0
+    assert _config(root)["languages"] == ["go"]
+
+
+def test_a_completed_run_stores_the_answers_and_the_languages_and_promotion_keeps_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+
+    result = runner.invoke(charter_app, ["interview", "--defaults", "--json", "--selected-directives", "DIRECTIVE_010"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output[result.output.index("{") :])
+    assert (root / payload["interview_path"]).exists()
+    assert _config(root)["languages"] == ["python"]
+    assert payload["languages"] == ["python"]
+    assert payload["languages_source"] == "detected"
+    assert "DETECTED, not confirmed" in payload["languages_notice"]
+    assert "activated_directives" in _config(root), "promotion ran and its write sits beside the languages"
+
+
+def test_a_failing_languages_store_after_the_answers_exits_non_zero_without_claiming_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repo(tmp_path, monkeypatch)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("config is read-only")
+
+    monkeypatch.setattr("charter.activation.api.store_language_settlement", boom)
+
+    result = runner.invoke(charter_app, ["interview", "--defaults", "--json"])
+
+    assert result.exit_code == 1
+    assert "config is read-only" in result.output
+    assert '"success": true' not in result.output
+    assert not _has_languages(root)

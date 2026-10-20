@@ -104,10 +104,11 @@ from charter.activation.identity_index import (
 
 # Operator-confirmed project languages (``.kittify/config.yaml`` ``languages``): the read the
 # synthesis request builder uses and the interview's detect/propose/confirm/store step (FR-020).
-from charter.activation.language_authority import (
+from charter.activation.language_authority import configured_languages as configured_languages
+from charter.activation.language_settlement import (
     LanguageSettlement as LanguageSettlement,
-    configured_languages as configured_languages,
     settle_project_languages as settle_project_languages,
+    store_language_settlement as store_language_settlement,
 )
 
 # Activation result / effective-set / org-required-stem / selection-diagnostic
@@ -147,5 +148,6 @@ __all__ = [
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
     "settle_project_languages",
+    "store_language_settlement",
     "verify",
 ]
