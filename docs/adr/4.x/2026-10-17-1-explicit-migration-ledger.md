@@ -413,6 +413,9 @@ state for the fresh-clone case accordingly.
   `apply()` may already have written state. It is a recorded `failed` (a `runs_first` migration
   records nothing, as for any failure), the run stops and exits non-zero. The `detect()` and
   `can_apply()` catches stay: they run before any write.
+  A repository probe that cannot run (`GitCommonDirUnavailableError`: git missing or unusable) is
+  neither inside nor outside: it is a recorded failure at all three sites, and
+  `upgrade --dry-run --verbose` says it would fail.
 - **Accepted drift (C-002).** Adding the ClassVar changes the `content_hash` of each migration that
   declares it, which surfaces as audit-only drift (it is never re-selected). Migrations that
   declare it: `3.2.0rc35_unified_bundle`. The executed audit
