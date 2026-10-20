@@ -6,6 +6,12 @@ source extension table may live. This AST scan flags any dict, set, tuple or lis
 counts string constants anywhere inside the literal, nested tuples and dicts included:
 a ``(token, patterns)`` pair table such as the former ``_LANGUAGE_PATTERNS`` is a tuple
 of tuples, and a flat scan would miss it.
+
+Known blind spots (a heuristic guard, not a proof): it reads only string constants written
+inside one literal, so it does not see a table assembled from module-level ``Name``
+constants (``(PY, RS, GO)``), the ``dict(python=..., rust=...)`` keyword form (the keys are
+not constants), or a string split at runtime (``"python rust go".split()``). Review catches
+those; do not rely on this scan alone.
 """
 
 from __future__ import annotations
