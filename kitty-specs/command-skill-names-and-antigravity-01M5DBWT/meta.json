@@ -13,5 +13,7 @@
   "purpose_tldr": "Make Spec Kitty's command skills load in every harness and give Antigravity users working commands again.",
   "slug": "command-skill-names-and-antigravity-01M5DBWT",
   "target_branch": "issue-6475-6470-command-skill-names",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "contracts": "none",
+  "contracts_rationale": "CLI-only change: no network API, event payload or external contract is added or changed; on-disk naming is specified in data-model.md."
 }
