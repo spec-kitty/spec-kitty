@@ -112,6 +112,17 @@ class BaseMigration(ABC):
     #: (charter-pack-cutover research/runtime-seams.md §1.2).
     runs_first: ClassVar[bool] = False
 
+    #: The migration resolves the canonical repo root
+    #: (``charter.resolution.resolve_canonical_repo_root``), directly or through
+    #: ``charter.activation.*``, which raises ``NotInsideRepositoryError`` for a
+    #: project outside any git repository (#6539). A migration author who calls
+    #: it sets this True; the runner (and the ``upgrade --dry-run --verbose``
+    #: preview) then skips the migration BEFORE ``detect()`` when the project is
+    #: not inside a repository, records nothing in the ledger, and selects it
+    #: again on a run inside one. An executed audit
+    #: (``test_requires_git_repository_audit``) fails for a caller that omits it.
+    requires_git_repository: ClassVar[bool] = False
+
     #: The migration's effect lives OUTSIDE version control -- clone-local state
     #: such as ``.git/info/exclude``, ``git config --local`` or ``.git/hooks``.
     #: The tracked, pushed ``metadata.yaml`` ledger records one clone's local

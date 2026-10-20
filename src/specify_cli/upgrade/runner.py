@@ -14,7 +14,7 @@ from typing import Any
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
-from charter.resolution import NotInsideRepositoryError
+from charter.resolution import NotInsideRepositoryError, resolve_canonical_repo_root
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
@@ -55,6 +55,22 @@ class UpgradeResult:
     # CLI --json path to surface schema-shaped reports emitted by individual
     # migrations (e.g. 3.2.0rc35_unified_bundle's contract-shaped payload).
     migration_results: dict[str, MigrationResult] = field(default_factory=dict)
+
+
+def project_is_inside_git_repository(project_path: Path) -> bool:
+    """Return True when ``project_path`` is inside a git repository (#6539).
+
+    Uses the same resolver the repository-bound migrations use
+    (``charter.resolution.resolve_canonical_repo_root``), so "inside" means exactly
+    what that resolver accepts, including a project in a repository subdirectory.
+    It is the one probe behind the runner's pre-detect gate for migrations that
+    declare ``requires_git_repository`` and behind the ``--dry-run --verbose`` preview.
+    """
+    try:
+        resolve_canonical_repo_root(project_path)
+    except NotInsideRepositoryError:
+        return False
+    return True
 
 
 def _display_version(value: str) -> str:
@@ -167,6 +183,7 @@ class MigrationRunner:
         self.kittify_dir = project_path / KITTIFY_DIR
         self.console = console or Console()
         self.detector = VersionDetector(project_path)
+        self._inside_git_repository: bool | None = None
 
     def upgrade(
         self,
@@ -371,6 +388,12 @@ class MigrationRunner:
                 "skipped",
             )
 
+        # A migration that needs a git repository is not applicable outside one
+        # (#6539). Decide before detect() (which may itself resolve the repo
+        # root), record nothing, and let a run inside a repository apply it.
+        if migration.requires_git_repository and not self._project_inside_git_repository():
+            return self._not_inside_repository_skip(migration)
+
         # Check if migration is needed via detection. A symlinked
         # `.gitignore`/`.claudeignore` makes detect() fail closed with
         # GitignorePathError (gitignore_manager.py) rather than follow the
@@ -447,8 +470,15 @@ class MigrationRunner:
         # migration failure, not an unhandled crash.
         try:
             result = migration.apply(self.project_path, dry_run=dry_run)
-        except NotInsideRepositoryError:
-            return self._not_inside_repository_skip(migration)
+        except NotInsideRepositoryError as exc:
+            # An ``apply()`` that reaches the repo resolver may already have
+            # written state, so this is a failure, never a skip (#6539). It is
+            # recorded below like any other failed apply (``runs_first`` records
+            # nothing), and the run stops with a non-zero exit.
+            result = MigrationResult(
+                success=False,
+                errors=[f"Cannot apply {migration.migration_id}: it needs a git repository but {exc.path} is not inside one"],
+            )
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return (
                 MigrationResult(
@@ -473,21 +503,23 @@ class MigrationRunner:
 
         return result, ("applied" if result.success else "failed")
 
+    def _project_inside_git_repository(self) -> bool:
+        """Probe once per run whether the project is inside a git repository (#6539)."""
+        if self._inside_git_repository is None:
+            self._inside_git_repository = project_is_inside_git_repository(self.project_path)
+        return self._inside_git_repository
+
     @staticmethod
     def _not_inside_repository_skip(migration: BaseMigration) -> tuple[MigrationResult, str]:
-        """Skip a migration that needs a git repository when the project has none (#6437).
+        """Skip a migration that needs a git repository when the project has none (#6437, #6539).
 
-        A migration that resolves the canonical repo root (for example
-        ``3.2.0rc35_unified_bundle``) raises ``NotInsideRepositoryError`` for a
-        project outside any git repository. It is not applicable there: skip it,
-        record nothing, and let a run inside a repository apply it. Only this
-        one exception type is caught, so a migration that wrote state and then
-        failed for any other reason still surfaces as a failure.
-
-        The ``detect()`` and ``can_apply()`` catches are safe by construction (they
-        run before any write). The ``apply()`` catch is safe only because the known
-        raiser resolves the repo root before it writes anything; a migration that
-        wrote first and then raised this error would be skipped with partial state.
+        Reached from the pre-detect gate for a migration that declares
+        ``requires_git_repository``, and from the ``detect()`` and ``can_apply()``
+        catches of ``NotInsideRepositoryError`` (C-004). All three run before any
+        write, so a skip loses nothing: record nothing, and let a run inside a
+        repository apply it. The ``apply()`` catch is gone: ``apply()`` may already
+        have written state, so an ``apply()``-time repository error is a recorded
+        failure (see ``_apply_migration``), never a skip.
         """
         return (
             MigrationResult(

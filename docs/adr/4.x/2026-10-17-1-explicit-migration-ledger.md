@@ -399,3 +399,22 @@ state for the fresh-clone case accordingly.
   adoption** (`_ledger_adopted`), rather than inside the backfill migration — so a `save()` that
   runs before the backfill never strips the block prematurely, and once the ledger owns the fact
   the dead second authority is removed on the next write.
+
+### 4. Amendment 2026-10-20 (#6539): the `requires_git_repository` ClassVar
+
+- **Contract.** `BaseMigration.requires_git_repository: ClassVar[bool] = False`. A migration that
+  resolves the canonical repo root (`charter.resolution.resolve_canonical_repo_root`, directly or
+  through `charter.activation.*`) sets it. Outside a git repository the runner skips it **before
+  `detect()`**, warns "not inside a git repository", and writes **no ledger record**, so it stays
+  selected and applies on a run inside a repository. "Inside" means exactly what the resolver
+  accepts (a project in a repository subdirectory counts). `upgrade --dry-run --verbose` reports
+  such a migration as skipped through the same probe.
+- **`apply()` failure.** A `NotInsideRepositoryError` raised from `apply()` is no longer a skip: an
+  `apply()` may already have written state. It is a recorded `failed` (a `runs_first` migration
+  records nothing, as for any failure), the run stops and exits non-zero. The `detect()` and
+  `can_apply()` catches stay: they run before any write.
+- **Accepted drift (C-002).** Adding the ClassVar changes the `content_hash` of each migration that
+  declares it, which surfaces as audit-only drift (it is never re-selected). Migrations that
+  declare it: `3.2.0rc35_unified_bundle`. The executed audit
+  `tests/specify_cli/upgrade/test_requires_git_repository_audit.py` fails for any migration that
+  reaches the resolver without declaring the flag.

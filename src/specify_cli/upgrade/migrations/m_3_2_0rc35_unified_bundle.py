@@ -85,6 +85,9 @@ class UnifiedBundleMigration(BaseMigration):
     scope only.
     """
 
+    # Resolves the canonical repo root (charter.resolution), so it needs a git repository (#6539).
+    requires_git_repository = True
+
     migration_id = MIGRATION_ID
     description = (
         "Advance 3.x project to the unified charter bundle (v1.0.0): validate "

@@ -88,7 +88,7 @@ from specify_cli.upgrade.outcome import (
     UpgradeOutcome,
     UpgradeOutcomeKind,
 )
-from specify_cli.upgrade.runner import UpgradeResult
+from specify_cli.upgrade.runner import UpgradeResult, project_is_inside_git_repository
 from specify_cli.upgrade.version_stamp_boundary import version_stamp_boundary
 
 
@@ -685,7 +685,14 @@ def _show_migration_plan_and_confirm(
         if verbose:
             # Show detection results
             console.print("[dim]Detection results:[/dim]")
+            inside_repository = project_is_inside_git_repository(project_path)
             for migration in migrations_needed:
+                if migration.requires_git_repository and not inside_repository:
+                    # Same rule as the runner's pre-detect gate (#6539): detect() of a
+                    # repository-bound migration resolves the repo root and would raise.
+                    console.print(f"  {migration.migration_id}: [yellow]skipped[/yellow]")
+                    console.print("    [dim]not applicable here (not inside a git repository)[/dim]")
+                    continue
                 # A symlinked `.gitignore`/`.claudeignore` makes detect() fail
                 # closed with GitignorePathError rather than follow it
                 # (gitignore_manager.py) -- report it as skipped instead of
