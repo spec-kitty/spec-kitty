@@ -302,8 +302,20 @@ def _load_command_skill_state(
     )
 
 
+def _manifest_has_legacy_entries(manifest: SkillsManifest) -> bool:
+    """Whether the manifest still records a legacy dotted command skill (pre-#6475)."""
+    from specify_cli.skills import command_installer
+
+    return any(command_installer.is_legacy_rel_path(entry.path) for entry in manifest.entries)
+
+
 def _repair_refusal(report: VerifyReport) -> str | None:
-    """Return a refusal reason if the repair must be blocked, else None."""
+    """Return a refusal reason if the repair must be blocked, else None.
+
+    Legacy dotted leftovers and canonical-path collisions never refuse ``--fix``
+    (R-m5 / FR-019): they are reported read-only, the installer's own legacy rule
+    retires a still-managed legacy entry, and a collision path is skipped.
+    """
     if report.drift:
         return "Refusing --fix while managed skill files have edited-file drift."
     if report.unsafe:
@@ -326,6 +338,8 @@ def _install_command_skill_agents(
     errors: list[str] = []
     for agent in sorted(set(agents)):
         try:
+            # Collisions and kept legacy skills surface through the post-fix verify report
+            # (``collisions`` / ``legacy``), so nothing is printed here and --json stays clean.
             command_installer.install(project_path, agent)
             if agent == "vibe":
                 ensure_project_skill_path(project_path)
@@ -342,12 +356,19 @@ def _repair_command_skill_state(
     uninstalled_agents: list[str],
     report: VerifyReport,
     vibe_config_missing: bool,
+    *,
+    legacy_managed: bool = False,
 ) -> tuple[list[str], list[str], list[str], bool]:
-    """Repair missing command-skill files unless edited-file drift is present."""
+    """Repair missing command-skill files unless edited-file drift is present.
+
+    *legacy_managed* (the manifest still records legacy dotted entries) is a repair
+    trigger of its own: the install pass retires those entries by the legacy rule
+    (FR-020) and installs the canonical names.
+    """
     from specify_cli.skills import command_installer
     from specify_cli.skills.vibe_config import ensure_project_skill_path
 
-    if not (report.gaps or report.stale or uninstalled_agents or vibe_config_missing):
+    if not (report.gaps or report.stale or uninstalled_agents or vibe_config_missing or legacy_managed):
         return [], [], [], False
     refusal = _repair_refusal(report)
     if refusal is not None:
@@ -399,6 +420,8 @@ def _command_skill_payload(
         or report.orphans
         or report.stale
         or report.unsafe
+        or report.legacy
+        or report.collisions
         or uninstalled_agents
         or vibe_config_missing
         or repair_errors
@@ -413,6 +436,8 @@ def _command_skill_payload(
         "orphans": sorted(report.orphans),
         "stale": sorted(report.stale),
         "unsafe": sorted(report.unsafe),
+        "legacy": sorted(report.legacy),
+        "collisions": sorted(report.collisions),
         "uninstalled_agents": uninstalled_agents,
         "vibe_config_missing": vibe_config_missing,
         "repaired_agents": repaired,
@@ -432,6 +457,27 @@ def _print_command_skill_paths(title: str, paths: list[str]) -> None:
         console.print(f"  [yellow]![/yellow] {path}")
 
 
+_LEGACY_LEFTOVER_PREFIX = "Legacy dotted command skills (no longer managed): "
+
+
+def _print_command_skill_guidance(payload: dict[str, object]) -> None:
+    """Name each legacy leftover and collision with the action to take (read-only, R-m5)."""
+    for path in cast(list[str], payload["legacy"]):
+        console.print(f"\n  [yellow]![/yellow] {_LEGACY_LEFTOVER_PREFIX}{path} — remove it when you no longer need your edits", highlight=False)
+    for path in cast(list[str], payload["collisions"]):
+        console.print(f"\n  [yellow]![/yellow] {_collision_line(path)}", highlight=False)
+
+
+def _collision_line(path: str) -> str:
+    """The installer's one collision wording (escaped for Rich markup)."""
+    from rich.markup import escape
+
+    from specify_cli.skills import command_installer
+
+    message: str = command_installer.collision_warning(path)
+    return escape(message)
+
+
 def _print_command_skill_summary_table(payload: dict[str, object]) -> None:
     """Render the per-check count table for ``doctor skills`` (extracted helper)."""
     console.print("\n[bold]Command Skills[/bold] - issue(s) found\n")
@@ -444,6 +490,8 @@ def _print_command_skill_summary_table(payload: dict[str, object]) -> None:
     summary.add_row("orphans", str(len(cast(list[str], payload["orphans"]))))
     summary.add_row("stale", str(len(cast(list[str], payload["stale"]))))
     summary.add_row("unsafe", str(len(cast(list[str], payload["unsafe"]))))
+    summary.add_row("legacy", str(len(cast(list[str], payload["legacy"]))))
+    summary.add_row("collisions", str(len(cast(list[str], payload["collisions"]))))
     summary.add_row(
         "uninstalled agents",
         str(len(cast(list[str], payload["uninstalled_agents"]))),
@@ -491,6 +539,7 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
     )
     _print_command_skill_paths("Stale managed files", cast(list[str], payload["stale"]))
     _print_command_skill_paths("Unsafe managed paths", cast(list[str], payload["unsafe"]))
+    _print_command_skill_guidance(payload)
 
     uninstalled_agents = cast(list[str], payload["uninstalled_agents"])
     if uninstalled_agents:
@@ -667,6 +716,7 @@ def _assemble_skills_payload(
             uninstalled_agents,
             report,
             vibe_config_missing,
+            legacy_managed=_manifest_has_legacy_entries(manifest),
         )
         if (repaired or pruned or repaired_vibe_config) and not repair_errors:
             try:

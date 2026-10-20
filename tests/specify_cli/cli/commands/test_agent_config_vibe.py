@@ -31,7 +31,7 @@ def _write_config(tmp_path: Path, agents: list[str]) -> None:
 
 def _expected_command_skill_paths() -> set[str]:
     return {
-        f".agents/skills/spec-kitty.{command}/SKILL.md"
+        f".agents/skills/spec-kitty-{command}/SKILL.md"
         for command in command_installer.CANONICAL_COMMANDS
     }
 
@@ -121,7 +121,7 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
     # Skill dirs must be gone
     skills_root = tmp_path / ".agents" / "skills"
     if skills_root.exists():
-        remaining = list(skills_root.glob("spec-kitty.*/SKILL.md"))
+        remaining = [p for p in skills_root.glob("spec-kitty-*/SKILL.md") if p.parent.name.removeprefix("spec-kitty-") in command_installer.CANONICAL_COMMANDS]
         assert len(remaining) == 0, f"Unexpected SKILL.md files remain: {remaining}"
 
     # Config must not contain vibe

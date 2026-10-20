@@ -55,7 +55,7 @@ def _copy_fixture(fixture_name: str, tmp_path: Path) -> Path:
 
 
 def _skill_path(project: Path, command: str) -> Path:
-    return project / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+    return project / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md"
 
 
 def _manifest_path(project: Path) -> Path:

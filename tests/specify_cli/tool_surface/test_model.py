@@ -28,7 +28,7 @@ def _definition() -> SurfaceDefinition:
         kind=ToolSurfaceKind.COMMAND_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
-        path_pattern=".agents/skills/spec-kitty.{command}/SKILL.md",
+        path_pattern=".agents/skills/spec-kitty-{command}/SKILL.md",
         required_policy=RequiredPolicy.REQUIRED,
         activation_mode=ActivationMode.USER_INVOKED,
         provider_key="command-skill",
@@ -46,7 +46,7 @@ def test_surface_definition_is_hashable() -> None:
 def test_surface_instance_absent_has_none_hash() -> None:
     instance = SurfaceInstance(
         definition=_definition(),
-        path=Path(".agents/skills/spec-kitty.specify/SKILL.md"),
+        path=Path(".agents/skills/spec-kitty-specify/SKILL.md"),
         exists=False,
         file_hash=None,
         owner="command-skill",

@@ -1,6 +1,6 @@
 """Issue-pinned regression for #702 — DERIVED command-skill projections regenerate on drift.
 
-The `.agents/skills/spec-kitty.<command>/SKILL.md` command-skill projection (codex / vibe /
+The `.agents/skills/spec-kitty-<command>/SKILL.md` command-skill projection (codex / vibe /
 pi / letta) is declared ``authority=DERIVED``, ``git_class=IGNORED`` by the state contract
 (`specify_cli.state.contract` — ``shared_skills_projection``): it is never committed and is
 always safe to regenerate from the canonical render. Across two checkouts of one project the
@@ -60,7 +60,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _skill_path(repo_root: Path, command: str) -> Path:
-    return repo_root / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+    return repo_root / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md"
 
 
 def _introduce_drift(repo_root: Path, command: str) -> tuple[Path, bytes]:
@@ -174,25 +174,25 @@ def test_702_third_party_paths_preserved_during_regeneration(repo: Path) -> None
 def test_702_unowned_file_at_canonical_path_is_not_regenerated(repo: Path) -> None:
     """The boundary of the fix: only manifest-owned projections regenerate.
 
-    An unowned file at a canonical ``spec-kitty.*`` path is refused as a collision before
-    any write, so neither it nor a drifted owned projection is rewritten.
+    An unowned file at a canonical ``spec-kitty-<cmd>`` path is skipped as a collision
+    (FR-019, #6475) and never rewritten, while the drifted owned projection regenerates.
     """
     install(repo, "codex")
     drift_path, _canonical = _introduce_drift(repo, "plan")
     drifted_bytes = drift_path.read_bytes()
-    unowned = repo / ".agents" / "skills" / "spec-kitty.status" / "SKILL.md"
+    unowned = repo / ".agents" / "skills" / "spec-kitty-status" / "SKILL.md"
     unowned_rel = unowned.relative_to(repo).as_posix()
     manifest = manifest_store.load(repo)
     manifest.remove_path(unowned_rel)
     manifest_store.save(repo, manifest)
     unowned.write_bytes(b"mine")
 
-    with pytest.raises(command_installer.InstallerError, match="unexpected_collision"):
-        install(repo, "codex")
+    report = install(repo, "codex")
 
+    assert report.collisions == [unowned_rel]
     assert unowned.read_bytes() == b"mine"
     assert manifest_store.load(repo).find(unowned_rel) is None
-    assert drift_path.read_bytes() == drifted_bytes  # refused before any write
+    assert drift_path.read_bytes() != drifted_bytes  # the owned projection still regenerates
 
 
 # ---------------------------------------------------------------------------

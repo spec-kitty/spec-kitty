@@ -164,7 +164,7 @@ def test_rendered_skill_snapshot_names_record_analysis(agent_key: str) -> None:
 
     Rendered fresh through the production ``command_renderer.render`` path —
     the same output ``command_renderer.py`` produces at
-    ``.agents/skills/spec-kitty.analyze/SKILL.md`` in a consumer project, the
+    ``.agents/skills/spec-kitty-analyze/SKILL.md`` in a consumer project, the
     surface #3096 was filed against. (Previously read from a committed byte
     snapshot; #3447 retired that snapshot grid, so the guard renders the
     surface it checks rather than pinning a fixture that no longer exists.)

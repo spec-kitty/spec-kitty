@@ -101,7 +101,7 @@ def test_init_vibe_config_yaml(
 # ---------------------------------------------------------------------------
 # Integration: init --ai vibe actually installs the command-skill packages
 # (post-mission-review regression guard: the mission's headline promise is
-# that Vibe users can invoke /spec-kitty.specify in their TUI, which requires
+# that Vibe users can invoke /spec-kitty-specify in their TUI, which requires
 # SKILL.md files to exist under .agents/skills/ after init.)
 # ---------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ def test_init_vibe_installs_command_skills(
 
     # Every canonical command must produce a SKILL.md.
     for command in CANONICAL_COMMANDS:
-        skill_md = skills_root / f"spec-kitty.{command}" / "SKILL.md"
+        skill_md = skills_root / f"spec-kitty-{command}" / "SKILL.md"
         assert skill_md.is_file(), f"Missing {skill_md.relative_to(project_path)}"
 
     # Ownership manifest must record each install with agents=["vibe"].
@@ -176,7 +176,7 @@ def test_init_vibe_gitignore(
 
 
 # ---------------------------------------------------------------------------
-# T026-D: printed output contains Vibe install URL and /spec-kitty.specify
+# T026-D: printed output contains Vibe install URL and /spec-kitty-specify
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +184,7 @@ def test_init_vibe_next_steps_output(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Printed output must mention mistral-vibe and /spec-kitty.specify."""
+    """Printed output must mention mistral-vibe and /spec-kitty-specify."""
     buf = io.StringIO()
     console = Console(file=buf, force_terminal=False)
     app = Typer()
@@ -207,8 +207,8 @@ def test_init_vibe_next_steps_output(
     assert "mistral-vibe" in output, (
         f"Install command not found in output; got:\n{output[:500]}"
     )
-    assert "/spec-kitty.specify" in output, (
-        f"/spec-kitty.specify not found in output; got:\n{output[:500]}"
+    assert "/spec-kitty-specify" in output, (
+        f"/spec-kitty-specify not found in output; got:\n{output[:500]}"
     )
 
 

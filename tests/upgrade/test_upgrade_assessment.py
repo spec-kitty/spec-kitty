@@ -33,7 +33,7 @@ def test_real_composer_retains_descriptor_and_applies_cold_owners(tmp_path: Path
     if key_present:
         config["mission_type_activations"] = []
     config_path.write_text(yaml.safe_dump(config, sort_keys=False))
-    missing = project / ".agents/skills/spec-kitty.plan/SKILL.md"
+    missing = project / ".agents/skills/spec-kitty-plan/SKILL.md"
     expected_command = missing.read_bytes()
     missing.unlink()
     home = tmp_path / "cold-home"

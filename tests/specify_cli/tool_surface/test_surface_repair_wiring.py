@@ -240,7 +240,7 @@ def test_init_command_bytes_agree_with_final_config(tmp_path: Path, agents: str)
         assert entry["agents"] == sorted(agents.split(","))
         actual = (project / entry["path"]).read_bytes()
         assert entry["content_hash"] == hashlib.sha256(actual).hexdigest()  # noqa: TID251 -- independent file-integrity checksum
-        command = Path(entry["path"]).parent.name.removeprefix("spec-kitty.")
+        command = Path(entry["path"]).parent.name.removeprefix("spec-kitty-")
         if command in command_installer.PROMPT_BACKED_COMMANDS:
             rendered = (
                 command_renderer.render(
@@ -253,7 +253,7 @@ def test_init_command_bytes_agree_with_final_config(tmp_path: Path, agents: str)
                 .encode()
             )
             assert actual == rendered, f"init/final-config render disagreement: {command}"
-    assert b"### REASONS Guidance" in (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes(), (
+    assert b"### REASONS Guidance" in (project / ".agents/skills/spec-kitty-plan/SKILL.md").read_bytes(), (
         "independent content pin must not accept two inactive renders"
     )
 
@@ -269,18 +269,22 @@ def test_init_command_bytes_agree_with_final_config(tmp_path: Path, agents: str)
 
 
 def test_init_preserves_unknown_command_bytes_and_no_proof(tmp_path: Path) -> None:
-    """#3920: delaying installation cannot authorize an unknown canonical name."""
+    """#3920: delaying installation cannot authorize an unknown canonical name.
+
+    FR-019 (#6475): the unknown file is skipped with a warning and init still succeeds.
+    """
     import json
 
     from tests.upgrade.preview_support.snapshot import snapshot
 
-    victim = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    victim = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     victim.parent.mkdir(parents=True)
     victim.write_bytes(b"# Authored plan\nNot a shipped command.\n")
     victim.chmod(0o400)
     before = snapshot({"custom": victim})
     result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
-    assert "unexpected_collision" in result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Your own folder blocks command skill .agents/skills/spec-kitty-plan/SKILL.md" in " ".join((result.stdout + result.stderr).split())
     assert snapshot({"custom": victim}) == before
     manifest_path = tmp_path / ".kittify/command-skills-manifest.json"
     if manifest_path.exists():
@@ -375,14 +379,14 @@ main()
     assert manifest.is_file(), "retry left the interrupted command delivery absent"
     entries = json.loads(manifest.read_text())["entries"]
     assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
-    assert len(list((project / ".agents/skills").glob("spec-kitty.*/SKILL.md"))) == len(command_installer.CANONICAL_COMMANDS)
+    assert all((project / f".agents/skills/spec-kitty-{command}/SKILL.md").is_file() for command in command_installer.CANONICAL_COMMANDS)
     owners = ["codex"] if authored_after_fault else sorted(agents.split(","))
     for entry in entries:
         assert entry["agents"] == owners
         assert entry["content_hash"] == hashlib.sha256((project / entry["path"]).read_bytes()).hexdigest()  # noqa: TID251 -- independent checksum
     assert_unchanged(before, snapshot({"config": config}))
     assert is_spdd_reasons_active(project) is not authored_after_fault
-    plan = (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes()
+    plan = (project / ".agents/skills/spec-kitty-plan/SKILL.md").read_bytes()
     assert (b"### REASONS Guidance" in plan) is not authored_after_fault
     rows = [json.loads(line) for line in log.read_text().splitlines()]
     replacements = Counter(row["args"][1] for row in rows[1:] if row["event"] == "os.rename")
@@ -465,7 +469,7 @@ def test_init_pending_command_recovery_boundaries(tmp_path: Path, monkeypatch: p
         ignore.unlink()
         ignore.symlink_to(custom)
     elif case == "unknown-skill":
-        custom = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+        custom = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
         custom.parent.mkdir(parents=True)
         custom.write_bytes(b"unknown plan")
         custom.chmod(0o400)
@@ -476,11 +480,18 @@ def test_init_pending_command_recovery_boundaries(tmp_path: Path, monkeypatch: p
             command_installer.install(tmp_path, agent)
     config_before = snapshot({"config": tmp_path / ".kittify/config.yaml"})
     custom_before = snapshot({"custom": custom})
-    if case in {"unknown-skill", "runtime-guard", "unsaved-selection"}:
+    if case in {"runtime-guard", "unsaved-selection"}:
         with pytest.raises(ValueError):
             init._resume_command_delivery(tmp_path)
         assert record.is_file()
         assert not manifest_store.load(tmp_path).entries
+    elif case == "unknown-skill":
+        # FR-019 (#6475): the unknown file is a skipped collision; delivery of the rest completes.
+        assert init._resume_command_delivery(tmp_path)
+        assert not record.exists()
+        paths = {entry.path for entry in manifest_store.load(tmp_path).entries}
+        assert custom.relative_to(tmp_path).as_posix() not in paths
+        assert len(paths) == len(command_installer.CANONICAL_COMMANDS) - 1
     else:
         commands_before = snapshot({"commands": tmp_path / ".agents"})
         assert init._resume_command_delivery(tmp_path)

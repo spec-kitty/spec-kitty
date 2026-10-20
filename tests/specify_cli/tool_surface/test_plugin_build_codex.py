@@ -592,7 +592,7 @@ class TestSkillsCopy:
     def test_all_canonical_commands_present(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
         for command in CANONICAL_COMMANDS:
-            skill_file = bundle_dir / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+            skill_file = bundle_dir / "skills" / f"spec-kitty-{command}" / "SKILL.md"
             assert skill_file.is_file(), (
                 f"Missing SKILL.md for canonical command: {command}"
             )
@@ -607,12 +607,12 @@ class TestSkillsCopy:
             )
 
     def test_skills_dir_uses_spec_kitty_prefix(self, tmp_path: Path) -> None:
-        """All skill subdirectories must follow the spec-kitty.<cmd> naming."""
+        """All skill subdirectories must follow the spec-kitty-<cmd> naming (#6475)."""
         bundle_dir = _run_build(tmp_path)
         for skill_dir in (bundle_dir / "skills").iterdir():
             if skill_dir.is_dir():
-                assert skill_dir.name.startswith("spec-kitty."), (
-                    f"Skill directory {skill_dir.name!r} must start with 'spec-kitty.'"
+                assert skill_dir.name.startswith("spec-kitty-"), (
+                    f"Skill directory {skill_dir.name!r} must start with 'spec-kitty-'"
                 )
 
 

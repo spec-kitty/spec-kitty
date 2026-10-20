@@ -107,7 +107,7 @@ The findings are: the `.kittify/doctrine/` directory, a `governance.yaml` with t
   The old `doctrine.org` single-pack form is rewritten for you: the entry is named after the `local_path` directory (or `org`).
 - **`organisation_packs` entries that are not local paths** are kept and reported for review. Declare them under `charter_packs.org.packs[]` with their source fields.
 - **Org packs outside the project that use the nested layout** `<pack>/doctrine/<kind>/<layer>/` are no longer read; nor is a repository-root `doctrine/` directory used as the project layer. The upgrade cannot convert files it does not own. `spec-kitty doctor charter-packs` names each one; the pack maintainer moves the artifacts to the flat layout `<pack>/<kind>/`.
-- **Agent prompts that still say `/ad-hoc-profile-load`.** Projects that took the 3.2.0rc35 profile hand-off migration have that text in `.kittify/missions/software-dev/command-templates/implement.md` and `review.md`, `.kittify/overrides/missions/software-dev/templates/task-prompt-template.md`, and `.agents/skills/spec-kitty.implement/SKILL.md` and `spec-kitty.review/SKILL.md`. The migration does not run twice, so replace the old skill name yourself:
+- **Agent prompts that still say `/ad-hoc-profile-load`.** Projects that took the 3.2.0rc35 profile hand-off migration have that text in `.kittify/missions/software-dev/command-templates/implement.md` and `review.md`, `.kittify/overrides/missions/software-dev/templates/task-prompt-template.md`, and `.agents/skills/spec-kitty.implement/SKILL.md` and `spec-kitty.review/SKILL.md`. The migration does not run twice, so replace the old skill name yourself: <!-- tool-surface: ignore -->
 
   ```bash
   grep -rln "ad-hoc-profile-load" .kittify .agents

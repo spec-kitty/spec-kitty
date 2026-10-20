@@ -68,7 +68,7 @@ def canonical_bundle_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
     result = CliRunner().invoke(app, ["init", str(project), "--ai", "claude,codex,vibe", "--non-interactive"])
     assert result.exit_code == 0, f"{result.output}\n{result.exception}"
     assert (project / ".kittify/config.yaml").is_file()
-    assert (project / ".agents/skills/spec-kitty.plan/SKILL.md").is_file()
+    assert (project / ".agents/skills/spec-kitty-plan/SKILL.md").is_file()
     return project
 
 
@@ -241,7 +241,7 @@ def test_equivalent_independent_canonical_copies_have_exact_effects(tmp_path: Pa
     assert deltas[0] == deltas[1]
 
 
-@pytest.mark.parametrize("member", [".mcp.json", ".agents/skills/spec-kitty.plan/SKILL.md"])
+@pytest.mark.parametrize("member", [".mcp.json", ".agents/skills/spec-kitty-plan/SKILL.md"])
 def test_malformed_required_source_is_incomplete_and_write_free(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, member: str) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -303,7 +303,7 @@ def test_retired_command_is_not_copied_from_pre_repair_source(tmp_path: Path, mo
     assert command_installer.apply_commands(initial, consent).outcome == "applied"
     plans = SurfacePlanBuilder(build_registry(("codex",)), build_providers()).build(("codex",), tmp_path, kinds=(ToolSurfaceKind.COMMAND_SKILL,))
     original = ClaudeCodeBundleProjector().entries(plans, tmp_path)
-    stale = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    stale = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     assert any(stale in entry.sources for entry in original)
     monkeypatch.setattr(command_installer, "CANONICAL_COMMANDS", tuple(name for name in command_installer.CANONICAL_COMMANDS if name != "plan"))
     retirement = command_installer.prepare_commands(inputs, ("codex",), prune=True)
@@ -313,7 +313,7 @@ def test_retired_command_is_not_copied_from_pre_repair_source(tmp_path: Path, mo
     entries = supplied_entries(original, (retirement,))
     files = files_for_entries(entries, tmp_path / "dist", root, [])
     assert files
-    assert all("skills/spec-kitty.plan/" not in member.path for member in files)
+    assert all("skills/spec-kitty-plan/" not in member.path for member in files)
     assert stale.is_file()
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
@@ -338,7 +338,7 @@ def test_shared_codex_vibe_inventory_has_one_effect_with_both_owners(tmp_path: P
     files = files_for_entries(entries, tmp_path / "dist", root, observations)
     assessment = prepare_staging(AssessmentInputs(root, consent=consent), files, (), tuple(observations))
     assert assessment.complete and assessment.effects
-    member = [e for e in assessment.effects if e.path == "dist/skills/spec-kitty.plan/SKILL.md"]
+    member = [e for e in assessment.effects if e.path == "dist/skills/spec-kitty-plan/SKILL.md"]
     assert len(member) == 1 and set(member[0].logical_owners) == {"codex", "vibe"}
 
 
@@ -355,7 +355,7 @@ def test_custom_member_and_unknown_link_are_not_adopted_by_manifest(
     if known:
         first = _selected(provider, tmp_path)
         assert provider.apply(first, first.consent).outcome == "applied"
-    path = "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty.plan/SKILL.md"
+    path = "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty-plan/SKILL.md"
     destination = tmp_path / path
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
@@ -380,7 +380,7 @@ def test_managed_drift_requires_exact_consent(tmp_path: Path, monkeypatch: pytes
     provider = _unit_provider(tmp_path, monkeypatch)
     first = _selected(provider, tmp_path)
     assert provider.apply(first, first.consent).outcome == "applied"
-    path = "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty.plan/SKILL.md"
+    path = "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty-plan/SKILL.md"
     (tmp_path / path).write_bytes(b"managed drift")
     pending = _selected(provider, tmp_path)
     assert any(d.path == path and d.state == "consent_required" for d in pending.dispositions)
@@ -411,12 +411,12 @@ def test_whole_selected_batch_refuses_each_changed_precondition(
     first = _selected(provider, project)
     assert provider.apply(first, first.consent).outcome == "applied"
     target = project / "dist/spec-kitty-plugins/claude_code_plugin"
-    victim = target / "skills/spec-kitty.plan/SKILL.md"
+    victim = target / "skills/spec-kitty-plan/SKILL.md"
     victim.unlink()
     assessment = _selected(provider, project)
     assert assessment.complete and assessment.effects
     if change == "source":
-        (project / ".agents/skills/spec-kitty.plan/SKILL.md").write_bytes(b"changed source")
+        (project / ".agents/skills/spec-kitty-plan/SKILL.md").write_bytes(b"changed source")
     elif change == "manifest":
         (target / ".claude-plugin/plugin.json").write_bytes(b"{}")
     elif change == "destination":
@@ -451,7 +451,7 @@ def test_prepared_missing_command_is_used_without_second_render(
     plans = skills_only_plans(tmp_path)
     provider = PluginBundleProvider()
     monkeypatch.setattr(provider, "_plans_for_projection", lambda root: plans)
-    source = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    source = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     source.unlink()
     root = OperationRoot("project", "project", tmp_path)
     supplier = command_installer.prepare_commands(AssessmentInputs(root), ("codex",))
@@ -469,7 +469,7 @@ def test_prepared_missing_command_is_used_without_second_render(
     result = provider.apply(assessment, inputs.consent)
     assert result.outcome == "applied", result
     assert not source.exists(), "Bundle acquired upstream write ownership"
-    staged = tmp_path / "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty.plan/SKILL.md"
+    staged = tmp_path / "dist/spec-kitty-plugins/claude_code_plugin/skills/spec-kitty-plan/SKILL.md"
     assert staged.read_bytes().startswith(b"---")
 
 
@@ -580,10 +580,10 @@ def test_probe_detects_one_missing_member_among_surviving_kinds(
     instances = provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
     result = provider.repair(tmp_path, [provider.probe(i) for i in instances])
     assert not result.failed
-    victim = instances[0].path.parent.parent / "skills/spec-kitty.plan/SKILL.md"
+    victim = instances[0].path.parent.parent / "skills/spec-kitty-plan/SKILL.md"
     assert victim.is_file()
     victim.unlink()
-    assert (victim.parent.parent / "spec-kitty.charter/SKILL.md").is_file()
+    assert (victim.parent.parent / "spec-kitty-charter/SKILL.md").is_file()
     status = provider.probe(instances[0])
     assert status.state == STATE_MISSING, "Surviving kinds concealed an omitted member"
     assert not provider.repair(tmp_path, [status]).failed
@@ -631,7 +631,7 @@ def selected_codex_seed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path,
         patch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
         result = CliRunner().invoke(app, ["init", str(project), "--ai", "codex", "--non-interactive"])
         assert result.exit_code == 0, (result.output, result.exception)
-        assert (project / ".agents/skills/spec-kitty.plan/SKILL.md").is_file()
+        assert (project / ".agents/skills/spec-kitty-plan/SKILL.md").is_file()
     return project, home
 
 
@@ -724,7 +724,7 @@ def _selected_skill_project(
     assert config["agents"]["available"] == ["codex"]
     if dist_present:
         (project / "dist").mkdir()
-    (project / ".agents/skills/spec-kitty.plan/SKILL.md").unlink()
+    (project / ".agents/skills/spec-kitty-plan/SKILL.md").unlink()
     return project, {"project": project, "home": home}
 
 
@@ -763,7 +763,7 @@ def test_selected_bundle_skill_transitions(
     assert not writes, writes
     assert_unchanged(before, snapshot(roots))
     assert bundle.effects and any(e.path.endswith("plugin.json") for e in bundle.effects)
-    assert any(e.path.endswith("skills/spec-kitty.plan/SKILL.md") for e in bundle.effects)
+    assert any(e.path.endswith("skills/spec-kitty-plan/SKILL.md") for e in bundle.effects)
     assert any("agents/" in e.path for e in bundle.effects)
     with provider.recheck(bundle) as errors:
         assert not errors, errors
@@ -778,7 +778,7 @@ def test_selected_bundle_skill_transitions(
         assert result.outcome == "applied", result
         staged = snapshot(roots)
         _assert_selected_delta(bundle.effects, provisioned, staged)
-        assert not (project / ".agents/skills/spec-kitty.plan/SKILL.md").exists()
+        assert not (project / ".agents/skills/spec-kitty-plan/SKILL.md").exists()
         results = managed.apply_composition(composition, consent)
         record_property("skill_results", json.dumps([asdict(r) for r in results], default=str))
         assert all(r.outcome in {"applied", "skipped"} for r in results), results

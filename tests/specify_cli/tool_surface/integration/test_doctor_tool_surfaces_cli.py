@@ -110,7 +110,7 @@ def test_doctor_tool_surfaces_fix_rebuilds_plan_before_reporting(
 ) -> None:
     project = write_controlled_project(tmp_path)
     old_entry = {
-        "path": ".agents/skills/spec-kitty.analyze/SKILL.md",
+        "path": ".agents/skills/spec-kitty-analyze/SKILL.md",
         "content_hash": "0" * 64,
         "agents": ["codex"],
         "installed_at": "2026-06-14T00:00:00+00:00",

@@ -21,10 +21,10 @@ directory, C-001) are not caught by path allowlist but by not matching:
 Shipped historical migrations (``upgrade/migrations/m_[0-3]_*``) are frozen
 (DIRECTIVE_044, drift is audit-only) and excluded.
 
-``_PENDING`` names the files WP03 of mission
-``command-skill-names-and-antigravity-01M5DBWT`` still has to route through the
-authority. It may only shrink: every entry must still offend (remove it once
-fixed) and must stay inside ``_PENDING_CEILING``.
+``_PENDING`` named the files WP03 of mission
+``command-skill-names-and-antigravity-01M5DBWT`` had to route through the
+authority; it is now empty. It may only shrink: every entry must still offend
+(remove it once fixed) and must stay inside ``_PENDING_CEILING``.
 """
 
 from __future__ import annotations
@@ -46,14 +46,8 @@ _AUTHORITY = "src/specify_cli/skills/command_skill_names.py"
 #: Frozen historical migrations (pre-4.x): never edited, so never scanned.
 _FROZEN_MIGRATION = re.compile(r"^src/specify_cli/upgrade/migrations/m_[0-3]_[^/]*\.py$")
 
-#: Files still composing the command-skill name themselves (WP03 empties this).
-_PENDING: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/cli/commands/init.py",
-        "src/specify_cli/skills/command_installer.py",
-        "src/specify_cli/tool_surface/providers/command_skills.py",
-    }
-)
+#: Files still composing the command-skill name themselves (emptied by WP03).
+_PENDING: frozenset[str] = frozenset()
 
 #: The set ``_PENDING`` started from; it may never grow past this.
 _PENDING_CEILING: frozenset[str] = frozenset(

@@ -213,7 +213,7 @@ class TestAgentSurfaces:
         _setup_project(tmp_path, ["codex"])
         install(tmp_path, "codex")
 
-        skill_md = tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        skill_md = tmp_path / ".agents" / "skills" / "spec-kitty-implement" / "SKILL.md"
         assert skill_md.exists(), (
             f"Expected Agent Skills package at {skill_md} (post-083 codex layout)"
         )

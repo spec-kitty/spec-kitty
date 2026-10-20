@@ -212,7 +212,12 @@ def coalesce_effects(effects: tuple[PhysicalEffect, ...]) -> tuple[PhysicalEffec
 
 @dataclass(frozen=True)
 class Disposition:
-    """An unchanged, preserved, consent-requiring or inapplicable non-write."""
+    """An unchanged, preserved, consent-requiring or inapplicable non-write.
+
+    ``collision`` (a path occupied by content its owner does not manage, skipped with a
+    warning, FR-019) and ``legacy_kept`` (an edited legacy file kept on disk and no
+    longer managed, FR-020) are warning non-writes: they never block the batch.
+    """
 
     owner: str
     root_id: str | None
@@ -224,7 +229,7 @@ class Disposition:
         _immutable(self)
         if not self.owner or not self.reason:
             raise ValueError("Disposition requires an owner and reason")
-        _one_of(self.state, ("unchanged", "preserve", "consent_required", "not_applicable"), "disposition")
+        _one_of(self.state, ("unchanged", "preserve", "consent_required", "not_applicable", "collision", "legacy_kept"), "disposition")
         if self.path is not None:
             _relative_path(self.path)
 

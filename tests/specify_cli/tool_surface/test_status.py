@@ -42,7 +42,7 @@ _DEF = SurfaceDefinition(
     kind=ToolSurfaceKind.COMMAND_SKILL,
     source_kind=SourceKind.GENERATED,
     install_scope=InstallScope.PROJECT,
-    path_pattern=".agents/skills/spec-kitty.{command}/SKILL.md",
+    path_pattern=".agents/skills/spec-kitty-{command}/SKILL.md",
     required_policy=RequiredPolicy.REPAIRABLE_REQUIRED,
     activation_mode=ActivationMode.SKILLS_INVOKABLE,
     provider_key="command_skills",
@@ -171,7 +171,7 @@ def test_configured_tools_default_from_plans() -> None:
 
 
 def test_surface_ids_are_unique_for_skill_md_siblings() -> None:
-    inst_a = _instance(".agents/skills/spec-kitty.plan/SKILL.md")
-    inst_b = _instance(".agents/skills/spec-kitty.review/SKILL.md")
+    inst_a = _instance(".agents/skills/spec-kitty-plan/SKILL.md")
+    inst_b = _instance(".agents/skills/spec-kitty-review/SKILL.md")
     ids = [_surface_id(inst_a), _surface_id(inst_b)]
     assert len(ids) == len(set(ids))

@@ -700,7 +700,7 @@ class TestWP01InitCoherence:
 
         Mission 083 migrated Codex from the slash-command pipeline to the Agent Skills
         pipeline. The correct post-083 behavior is: if a skills agent is configured
-        (codex, vibe), init MUST populate .agents/skills/spec-kitty.<command>/SKILL.md
+        (codex, vibe), init MUST populate .agents/skills/spec-kitty-<command>/SKILL.md
         for every canonical command. See CLAUDE.md "Agent Skills Agents" section.
 
         The earlier form of this test asserted the *inverse* (no .agents/skills/) — that
@@ -740,5 +740,5 @@ class TestWP01InitCoherence:
             "charter",
         }
         packages = {p.name for p in skills_root.iterdir() if p.is_dir()}
-        missing = {f"spec-kitty.{c}" for c in expected_commands} - packages
+        missing = {f"spec-kitty-{c}" for c in expected_commands} - packages
         assert not missing, f"Missing skill packages: {missing}"

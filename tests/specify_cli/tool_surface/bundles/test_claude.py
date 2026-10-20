@@ -19,7 +19,7 @@ def test_binary_supporting_member_keeps_subtree_and_mode(tmp_path: Path) -> None
     from dataclasses import replace
 
     plans = full_plans(tmp_path)
-    supporting = tmp_path / ".agents/skills/spec-kitty.charter/assets/pixel.bin"
+    supporting = tmp_path / ".agents/skills/spec-kitty-charter/assets/pixel.bin"
     supporting.parent.mkdir()
     supporting.write_bytes(b"\x00\xff\xfe\x80")
     supporting.chmod(0o640)
@@ -27,7 +27,7 @@ def test_binary_supporting_member_keeps_subtree_and_mode(tmp_path: Path) -> None
     plans[0] = replace(plans[0], instances=plans[0].instances + (instance,))
     output = tmp_path / "dist"
     ClaudeCodeBundleProjector().project(plans, tmp_path, output)
-    destination = output / "skills/spec-kitty.charter/assets/pixel.bin"
+    destination = output / "skills/spec-kitty-charter/assets/pixel.bin"
     assert destination.read_bytes() == b"\x00\xff\xfe\x80"
     assert destination.stat().st_mode & 0o777 == 0o640
 
@@ -44,7 +44,7 @@ def test_equivalent_root_alias_coalesces_shared_member(tmp_path: Path) -> None:
     shared = replace(first, path=alias / first.path.relative_to(root), owner="vibe")
     plans[0] = replace(plans[0], instances=plans[0].instances + (shared,))
     entries = ClaudeCodeBundleProjector().entries(plans, root)
-    matches = [e for e in entries if e.bundle_relative_path == "skills/spec-kitty.plan/SKILL.md"]
+    matches = [e for e in entries if e.bundle_relative_path == "skills/spec-kitty-plan/SKILL.md"]
     assert len(matches) == 1
     assert set(matches[0].logical_owners) == {"codex", "vibe"}
     assert matches[0].sources == (first.path,)
@@ -113,7 +113,7 @@ def test_projection_preserves_unknown_destination_link(tmp_path: Path) -> None:
     plans = full_plans(project)
     sentinel = tmp_path / "sentinel"
     sentinel.write_bytes(b"custom outside staged tree")
-    destination = out / "skills/spec-kitty.plan/SKILL.md"
+    destination = out / "skills/spec-kitty-plan/SKILL.md"
     destination.parent.mkdir(parents=True)
     destination.symlink_to(sentinel)
     with pytest.raises((OSError, ValueError)):
@@ -130,8 +130,8 @@ def test_claude_code_bundle_layout_is_correct(tmp_path: Path) -> None:
     )
     # Manifest under .claude-plugin/, skills under skills/, agents under agents/.
     assert (out / ".claude-plugin" / "plugin.json").is_file()
-    assert (out / "skills" / "spec-kitty.plan" / "SKILL.md").is_file()
-    assert (out / "skills" / "spec-kitty.charter" / "SKILL.md").is_file()
+    assert (out / "skills" / "spec-kitty-plan" / "SKILL.md").is_file()
+    assert (out / "skills" / "spec-kitty-charter" / "SKILL.md").is_file()
     assert (out / "agents" / "architect-alphonso.md").is_file()
     # Hooks land at hooks/hooks.json, MCP config at root .mcp.json -- NOT
     # settings.json.
@@ -225,7 +225,7 @@ def test_claude_code_bundle_excludes_out_of_tree_sources(tmp_path: Path) -> None
     project = tmp_path / "proj"
     project.mkdir(parents=True, exist_ok=True)
     out = tmp_path / "dist"
-    outside = tmp_path / "elsewhere" / "spec-kitty.plan" / "SKILL.md"
+    outside = tmp_path / "elsewhere" / "spec-kitty-plan" / "SKILL.md"
     outside.parent.mkdir(parents=True, exist_ok=True)
     outside.write_text("# outside\n", encoding="utf-8")
     plan = SurfacePlan(

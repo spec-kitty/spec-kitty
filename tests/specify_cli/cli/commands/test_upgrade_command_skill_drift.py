@@ -6,7 +6,7 @@ hash behind). The adoption pass inside ``spec-kitty upgrade`` refreshes the
 recorded hash, so a following ``upgrade --yes`` exits 0.
 
 The regeneration leg (#702) proves the other half of the contract: the
-``.agents/skills/spec-kitty.<command>/SKILL.md`` projection is DERIVED,
+``.agents/skills/spec-kitty-<command>/SKILL.md`` projection is DERIVED,
 git-ignored generated state, so a *drifted* projection is regenerated to the
 canonical render by an unattended ``upgrade --yes`` (exit 0, no drift banner),
 keeping the surface idempotent against the manifest rather than keeping the
@@ -33,7 +33,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 _runner = CliRunner()
 
-_SKILL_REL = ".agents/skills/spec-kitty.plan/SKILL.md"
+_SKILL_REL = ".agents/skills/spec-kitty-plan/SKILL.md"
 _DRIFT_BANNER = "Not updated, your local edit was kept"
 _STALE_HASH = "0" * 64
 

@@ -38,6 +38,8 @@ Frozen success-path fields:
 | `orphans` | list[str] | Unexpected skills |
 | `stale` | list[str] | Stale skills |
 | `unsafe` | list[str] | Unsafe skill paths |
+| `legacy` | list[str] | Legacy dotted `spec-kitty.<command>` skills still recorded or still on disk (additive, #6475) |
+| `collisions` | list[str] | Canonical `spec-kitty-<command>` paths occupied by the user's own content (additive, #6475) |
 | `uninstalled_agents` | list[str] | Configured but not installed |
 | `vibe_config_missing` | bool | Vibe skill-path config absent |
 | `repaired_agents` | list[str] | Agents repaired by `--fix` |

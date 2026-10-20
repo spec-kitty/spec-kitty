@@ -206,6 +206,10 @@ def _register_skill_agent(
         else:
             for line in render_regenerated_surface_lines(report.regenerated):
                 console.print(line, style="dim", markup=False, highlight=False)
+            # FR-019 / FR-020: a skipped collision or a kept legacy skill is a warning, never a
+            # failure (human output only; ``sync --json`` keeps stdout to the JSON payload).
+            for warning in command_installer.install_warnings(report):
+                console.print(f"Warning: {warning}", style="yellow", markup=False, highlight=False)
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"

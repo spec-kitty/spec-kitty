@@ -15,6 +15,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from specify_cli.skills import command_installer, manifest_store
+from specify_cli.skills.command_skill_names import COMMAND_SKILLS_ROOT, command_skill_name, command_skill_rel_path, parse_command_skill_rel_path
 
 from ..enums import (
     ActivationMode,
@@ -59,12 +60,12 @@ from ..status import (
 from ._registry import SurfaceProviderRegistry, SurfaceRegistration
 
 PROVIDER_KEY = "command_skills"
-_PATH_PATTERN = ".agents/skills/spec-kitty.{command}/SKILL.md"
+#: Display pattern of the surface; real paths come from the naming authority.
+_PATH_PATTERN = command_skill_rel_path("{command}")
 _REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind command-skill --fix"
 # Drift guidance: an edited command skill is replaced only by the explicit repair.
 _DRIFT_REPAIR_HINT = "spec-kitty doctor tool-surfaces --fix"
-_SKILLS_PREFIX = ".agents/skills/spec-kitty."
-_SKILL_SUFFIX = "/SKILL.md"
+_SKILLS_ROOT_PREFIX = f"{COMMAND_SKILLS_ROOT}/"
 
 
 def command_skill_definition() -> SurfaceDefinition:
@@ -82,11 +83,12 @@ def command_skill_definition() -> SurfaceDefinition:
 
 
 def _rel_path(command: str) -> str:
-    return _PATH_PATTERN.format(command=command)
+    rel: str = command_skill_rel_path(command)
+    return rel
 
 
 def _surface_id_for_rel(tool_key: str, rel_path: str) -> str:
-    safe = rel_path.removeprefix(".agents/skills/")
+    safe = rel_path.removeprefix(_SKILLS_ROOT_PREFIX)
     safe = safe.replace("/", ".").replace("\\", ".")
     return f"{tool_key}.{ToolSurfaceKind.COMMAND_SKILL}.{safe}"
 
@@ -165,7 +167,8 @@ class CommandSkillsProvider:
             and all(item.state == "not_applicable" for item in assessment.dispositions)
         ):
             return ()
-        return command_installer.recheck_commands(assessment, phase="preflight")
+        diagnostics: tuple[Diagnostic, ...] = command_installer.recheck_commands(assessment, phase="preflight")
+        return diagnostics
 
     def apply(self, assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerApplyResult:
         """Consume the command owner's exact preparation and truthful results."""
@@ -195,14 +198,14 @@ class CommandSkillsProvider:
                     exists=abs_path.exists(),
                     file_hash=entry.content_hash if entry is not None else None,
                     owner=tool_key,
-                    surface_id=f"{tool_key}.{ToolSurfaceKind.COMMAND_SKILL}.{rel.removeprefix('.agents/skills/').removesuffix('/SKILL.md')}",
+                    surface_id=f"{tool_key}.{ToolSurfaceKind.COMMAND_SKILL}.{command_skill_name(command)}",
                 )
             )
         try:
             report = command_installer.verify(project_root)
         except command_installer.InstallerError:
             return instances
-        extra_rels = set(report.orphans) | set(report.stale) | set(report.unsafe)
+        extra_rels = set(report.orphans) | set(report.stale) | set(report.unsafe) | set(report.legacy)
         for rel in sorted(extra_rels - expected_rels):
             abs_path = project_root / rel
             instances.append(
@@ -230,6 +233,10 @@ class CommandSkillsProvider:
         if verify_report is not None:
             if rel in verify_report.unsafe:
                 return self._unsafe_status(instance, path)
+            if rel in verify_report.collisions:
+                return self._collision_status(instance, path)
+            if rel in verify_report.legacy:
+                return self._legacy_status(instance, path)
             if rel in verify_report.stale:
                 return self._stale_status(instance, path)
             if rel in verify_report.orphans:
@@ -320,6 +327,42 @@ class CommandSkillsProvider:
         )
 
     @staticmethod
+    def _collision_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
+        """FR-019: the user's own content occupies a canonical path; reported, never repaired."""
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_PRESENT,
+            findings=(
+                make_finding(
+                    UNMANAGED_SPEC_KITTY_SURFACE,
+                    SEVERITY_WARNING,
+                    command_installer.collision_warning(str(path)),
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=path,
+                ),
+            ),
+        )
+
+    @staticmethod
+    def _legacy_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
+        """FR-020: a legacy dotted command skill; repair retires it by the legacy rule."""
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_STALE,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    f"Legacy dotted command skill (renamed to spec-kitty-<command>): {path}",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=path,
+                ),
+            ),
+        )
+
+    @staticmethod
     def _unsafe_status(instance: SurfaceInstance, path: Path) -> SurfaceStatus:
         return SurfaceStatus(
             instance=instance,
@@ -361,8 +404,7 @@ class CommandSkillsProvider:
         root is recovered by stripping the canonical relative suffix so the
         installer's shared-root safety logic is preserved.
         """
-        rel = _PATH_PATTERN.split("{command}", 1)[0]
-        marker = rel.split("/", 1)[0]
+        marker = COMMAND_SKILLS_ROOT.split("/", 1)[0]
         parts = instance.path.parts
         if marker not in parts:
             return False
@@ -397,25 +439,42 @@ class CommandSkillsProvider:
         if not assessment.complete:
             return RepairResult(failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
         unresolved = {d.path for d in assessment.dispositions if d.state in {"preserve", "consent_required"}}
+        skipped = _warning_messages(assessment.dispositions)
         eligible = tuple(
             _surface_id(s.instance) for s in statuses if s.instance.owner in affected and s.instance.path.relative_to(project_root).as_posix() not in unresolved
         )
         failed = tuple(sorted(path for path in unresolved if path is not None))
         if dry_run:
-            return RepairResult(repaired=eligible, failed=failed, dry_run=True)
+            return RepairResult(repaired=eligible, skipped=skipped, failed=failed, dry_run=True)
         result = self.apply(assessment, consent)
         if result.outcome != "applied":
             successful_paths = {e.destination for e in assessment.effects if e.id in result.succeeded}
             repaired = tuple(_surface_id(s.instance) for s in statuses if s.instance.path in successful_paths)
-            return RepairResult(repaired=repaired, failed=failed + tuple(d.message for d in result.diagnostics))
-        return RepairResult(repaired=eligible, failed=failed)
+            return RepairResult(repaired=repaired, skipped=skipped, failed=failed + tuple(d.message for d in result.diagnostics))
+        return RepairResult(repaired=eligible, skipped=skipped, failed=failed)
+
+
+def warning_message(disposition: Disposition) -> str | None:
+    """Return the user-facing warning of a ``collision`` / ``legacy_kept`` disposition, else ``None``."""
+    if disposition.path is None:
+        return None
+    if disposition.state == command_installer.COLLISION:
+        message: str = command_installer.collision_warning(disposition.path)
+        return message
+    if disposition.state == command_installer.LEGACY_KEPT:
+        message = command_installer.legacy_kept_warning(disposition.path)
+        return message
+    return None
+
+
+def _warning_messages(dispositions: Sequence[Disposition]) -> tuple[str, ...]:
+    return tuple(message for message in (warning_message(d) for d in dispositions) if message is not None)
 
 
 def _command_from_rel(rel: str) -> str | None:
     """Return the canonical command name of a command-skill relative path, else ``None``."""
-    if not (rel.startswith(_SKILLS_PREFIX) and rel.endswith(_SKILL_SUFFIX)):
-        return None
-    return rel[len(_SKILLS_PREFIX) : -len(_SKILL_SUFFIX)] or None
+    command: str | None = parse_command_skill_rel_path(rel, command_installer.CANONICAL_COMMANDS)
+    return command
 
 
 def _is_canonical_bytes(project_root: Path | None, rel: str | None, on_disk: str) -> bool:
