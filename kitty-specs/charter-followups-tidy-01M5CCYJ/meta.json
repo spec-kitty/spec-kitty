@@ -1,0 +1,36 @@
+{
+  "accept_commit": "aabe4a8af81acdd48fb3a1481765606b6e2ee940",
+  "acceptance_history": [
+    {
+      "accept_commit": "aabe4a8af81acdd48fb3a1481765606b6e2ee940",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-20T13:08:37.790779+00:00",
+      "accepted_by": "claude-orchestrator",
+      "accepted_from_commit": "c0e5cf754ec672ceefa26026b263ca56e06b5002"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-20T13:08:37.790779+00:00",
+  "accepted_by": "claude-orchestrator",
+  "accepted_from_commit": "c0e5cf754ec672ceefa26026b263ca56e06b5002",
+  "baseline_merge_commit": "6bc860286f708e99157aebc27dd2a64a656e9788",
+  "contracts": "none",
+  "contracts_rationale": "No new external interface: the interview JSON keys and config key are unchanged; the only seam change (LANGUAGES on charter.offering.api) is an in-process Python export pinned by the public-surface and census gates.",
+  "created_at": "2026-10-20T10:15:54.682456+00:00",
+  "flattened": true,
+  "friendly_name": "Charter follow-ups tidy-up (#6539-#6543)",
+  "merged_at": "2026-10-20T13:12:14.720447+00:00",
+  "merged_commit": "4876b1bc9710da01766145ab915fc425ad0aaf53",
+  "mid8": "01M5CCYJ",
+  "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+  "mission_number": 239,
+  "mission_slug": "charter-followups-tidy-01M5CCYJ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Charter follow-ups tidy-up (#6539-#6543) on tidy-charter-6539-followups so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Close the five #6511 follow-ups: migration repo requirement, a hidden import cycle, LANGUAGES on the seam, interview language write ordering, and a reconcile test.",
+  "slug": "charter-followups-tidy-01M5CCYJ",
+  "status_phase": "1",
+  "target_branch": "tidy-charter-6539-followups",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-20T11:44:20.949290+00:00"
+}

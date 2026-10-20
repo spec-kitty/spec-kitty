@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "mission_slug": "charter-followups-tidy-01M5CCYJ",
+  "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+  "mission_branch": "kitty/mission-charter-followups-tidy-01M5CCYJ",
+  "target_branch": "tidy-charter-6539-followups",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/upgrade/migrations/base.py",
+        "src/specify_cli/upgrade/migrations/m_*.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/specify_cli/cli/commands/test_upgrade_preview_outside_git.py",
+        "tests/specify_cli/upgrade/test_requires_git_repository_audit.py",
+        "tests/specify_cli/upgrade/test_runner_not_a_git_repository.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "src/charter/activation/api.py",
+        "src/charter/activation/language_authority.py",
+        "src/charter/activation/language_settlement.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/charter/test_configured_languages.py",
+        "tests/charter/test_language_authority.py",
+        "tests/charter/test_language_settlement.py",
+        "tests/specify_cli/cli/commands/charter/test_interview_languages.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md",
+        "src/charter/activation/synthesizer/write_pipeline.py",
+        "src/charter/languages.py",
+        "src/charter/offering/api.py",
+        "src/charter/offering/shared/language_catalog.py",
+        "tests/architectural/test_charter_facades_reexport_offering.py",
+        "tests/architectural/test_doctrine_census.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/charter_offering/test_language_tokens_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/charter/synthesizer/test_synthesize_reconcile.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-20T11:42:57.592534+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "972502734048c1bda83c56f25a7d0f1cc62da252"
+}

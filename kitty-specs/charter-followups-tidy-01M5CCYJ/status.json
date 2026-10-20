@@ -1,0 +1,85 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M5CQ0VP0NTZYMD81FGK50R3M",
+  "materialized_at": "2026-10-20T13:11:43.040808+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-followups-tidy-01M5CCYJ",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5CQ0D7071JVY48Y48PVYB99",
+      "last_transition_at": "2026-10-20T13:11:28.224839+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261020",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3668,
+      "shell_pid_created_at": "1792496648.12"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5CQ0J4D5NAB1BS2Y1YGQK7G",
+      "last_transition_at": "2026-10-20T13:11:33.261902+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261020",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3668,
+      "shell_pid_created_at": "1792496648.12"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5CQ0PYSK4NJE27BBJXSR2MT",
+      "last_transition_at": "2026-10-20T13:11:38.201425+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261020",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3668,
+      "shell_pid_created_at": "1792496648.12"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5CQ0VP0NTZYMD81FGK50R3M",
+      "last_transition_at": "2026-10-20T13:11:43.040808+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261020",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3668,
+      "shell_pid_created_at": "1792496648.12"
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-20T10:48:04.801820Z",
+      "decision_id": "01M5CESVE1AZ19TA685NSW2EYG",
+      "final_answer": "Declared flag: BaseMigration.requires_git_repository ClassVar; runner checks it before detect() and skips unrecorded; apply()-level NotInsideRepositoryError catch removed so a raise inside apply() is a recorded failed (retries).",
+      "input_key": "migration_repo_requirement",
+      "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+      "mission_slug": "charter-followups-tidy-01M5CCYJ",
+      "opened_by": "cli",
+      "options": [
+        "Declared flag",
+        "apply()-raise = failed",
+        "Pin with a gate only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6539: how should the upgrade runner handle a migration that needs a git repository when run outside one?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T10:48:08.206736Z",
+      "resolved_by": null,
+      "slot_key": "specify.migrations.repo-requirement",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-20T10:48:11.630057Z",
+      "decision_id": "01M5CET23DJE5C2FP8AKT9ZBM4",
+      "final_answer": "Expose LANGUAGES only: read-only token list, PUBLIC census disposition, charter facade re-export; family expansion stays internal; corpus case filed against epic #6099.",
+      "input_key": "seam_language_catalog",
+      "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+      "mission_slug": "charter-followups-tidy-01M5CCYJ",
+      "opened_by": "cli",
+      "options": [
+        "Not yet, record INTERNAL",
+        "Expose full read surface",
+        "Expose LANGUAGES only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6541: should the language catalog go on the frozen seam charter.offering.api now?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T10:48:15.214073Z",
+      "resolved_by": null,
+      "slot_key": "specify.seam.language-catalog",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-20T10:48:18.712436Z",
+      "decision_id": "01M5CET90RPAFRNBTGSERQHQMS",
+      "final_answer": "Ask first, write with answers: propose and ask up front, hold the settled list, write it in the same step as the interview answers for interactive and non-interactive runs; an aborted or failed interview writes neither.",
+      "input_key": "interview_language_write_order",
+      "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+      "mission_slug": "charter-followups-tidy-01M5CCYJ",
+      "opened_by": "cli",
+      "options": [
+        "Ask first, write with answers",
+        "Settle after the answers",
+        "Keep, document only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6542: when should charter interview write the settled languages: to .kittify/config.yaml?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T10:48:22.201751Z",
+      "resolved_by": null,
+      "slot_key": "specify.interview.language-write-order",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-20T10:48:25.415474Z",
+      "decision_id": "01M5CETFJ79H4CTYF14PE9Z8GB",
+      "final_answer": "Edit + accept drift: declare the ClassVar on each affected migration class, accept the one-time audit-only drift, and record the reason in the PR, changelog and an ADR 2026-10-17-1 note.",
+      "input_key": "migration_flag_ledger_drift",
+      "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+      "mission_slug": "charter-followups-tidy-01M5CCYJ",
+      "opened_by": "cli",
+      "options": [
+        "Edit + accept drift",
+        "Declare runner-side",
+        "Edit + pin hash sources",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6539: declaring the flag on shipped migrations changes their content_hash (audit-only drift). How should the flag be declared?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T10:48:28.662900Z",
+      "resolved_by": null,
+      "slot_key": "specify.migrations.ledger-drift",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-20T11:33:58.458367Z",
+      "decision_id": "01M5CHDWHTNG4R0964NWNSQ5SZ",
+      "final_answer": "Token tuple only: export a derived read-only LANGUAGE_TOKENS tuple[str, ...] declared in the catalog; LanguageSpec, families and regexes stay internal.",
+      "input_key": "seam_language_export_shape",
+      "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+      "mission_slug": "charter-followups-tidy-01M5CCYJ",
+      "opened_by": "cli",
+      "options": [
+        "Token tuple only",
+        "LANGUAGES as-is",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6541: LANGUAGES is a tuple of LanguageSpec (families, regexes, rank). What goes on charter.offering.api?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T11:34:02.332674Z",
+      "resolved_by": null,
+      "slot_key": "specify.seam.language-export-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5CCYJ1V76VYA1EQN734QDZW",
+  "version": 1
+}

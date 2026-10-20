@@ -1,0 +1,187 @@
+schema_version: 1
+mission_id: 01M5CCYJ1V76VYA1EQN734QDZW
+mission_slug: charter-followups-tidy-01M5CCYJ
+mission_number: 239
+friendly_name: Charter follow-ups tidy-up (#6539-#6543)
+mission_type: software-dev
+target_branch: tidy-charter-6539-followups
+created_at: '2026-10-20T13:13:30.754271+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-20T13:13:30.754271+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-009
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-10-20][plan] An execution-based audit, not grep, decides which migrations need a git repository.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-10-20][plan] An execution-based audit, not grep, decides which migrations need a git repository.** Squad
+    evidence: about 10 migrations reach `resolve_canonical_repo_root` transitively through `charter.activation.*`.'
+- id: n-002
+  category: tooling
+  summary: 'Tracer: [2026-10-20][plan] One Mission, four parallel work packages.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-10-20][plan] One Mission, four parallel work packages.** WP01 is the migration repository requirement
+    (#6539). WP02 is the language settlement module plus the write-with-answers change (#6540 + #6542, one WP because both
+    rewrite `settle_project_languages`). WP03 puts `LANGUAGE_TOKENS` on the seam (#6541). WP04 adds the reconcile tests (#6543).
+    The files are disjoint, so there are four lanes.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-20][specify] A container restart dropped a background squad report.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-10-20][specify] A container restart dropped a background squad report.** The scope lens was cut off
+    mid-run and had to be re-run. Disposition: workaround (re-dispatched with the settled decisions included).'
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-20][specify] A declared `requires_git_repository` ClassVar, checked before `detect()`.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-20][specify] A declared `requires_git_repository` ClassVar, checked before `detect()`.** An `apply()`-time
+    repository error is now a recorded `failed`. Operator decision `migration_repo_requirement`.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-20][specify] The flag is set on shipped migrations, and the content-hash drift is accepted.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-20][specify] The flag is set on shipped migrations, and the content-hash drift is accepted.** Operator
+    decision `migration_flag_ledger_drift`. Recorded in an ADR 2026-10-17-1 note.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-20][specify] The interview writes `languages:` after the answers and before promotion.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-20][specify] The interview writes `languages:` after the answers and before promotion.** Operator
+    decision `interview_language_write_order`. The settle step decides only; `store_language_settlement` writes.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-20][specify] The seam carries `LANGUAGE_TOKENS` only, as plain strings.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-20][specify] The seam carries `LANGUAGE_TOKENS` only, as plain strings.** `LANGUAGES`/`LanguageSpec`
+    and the family helpers stay internal. Operator decisions `seam_language_catalog` and `seam_language_export_shape`. The
+    census is module-keyed, so FR-008 is enforced by `__all__` plus a negative test.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-20][tasks] `map-requirements` rewrites WP frontmatter in a different YAML style.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-10-20][tasks] `map-requirements` rewrites WP frontmatter in a different YAML style.** Exact-string edits
+    made after it failed until the file was re-read. Disposition: workaround (read before edit).'
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/tasks/WP01-migration-repository-requirement.md
+- id: e-006
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/tasks/WP02-language-settlement.md
+- id: e-007
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/tasks/WP03-language-tokens-on-the-seam.md
+- id: e-008
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/tasks/WP04-reconcile-table-edge-tests.md
+- id: e-009
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/status.events.jsonl
+- id: e-010
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/analysis-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/traces/approach.md
+- id: e-012
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/traces/design-decisions.md
+- id: e-013
+  kind: file
+  path: kitty-specs/charter-followups-tidy-01M5CCYJ/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
