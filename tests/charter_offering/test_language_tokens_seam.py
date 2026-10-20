@@ -8,20 +8,14 @@ from __future__ import annotations
 
 import pytest
 
+from charter.offering.shared import language_catalog
+
 pytestmark = pytest.mark.fast
 
-_INTERNAL_CATALOG_NAMES = (
-    "LANGUAGES",
-    "LanguageSpec",
-    "LANGUAGE_FAMILIES",
-    "JVM_FAMILY",
-    "BUILD_TOOLS",
-    "BuildToolSpec",
-    "expand_language_families",
-    "is_language_family",
-    "language_for_extension",
-    "languages_for_manifest",
-)
+# Everything the catalog module exports except the one name the seam carries, so a new
+# internal (``COMPOUND_PREFIX_GUARD`` was one) is covered without editing this list; plus the
+# helpers that are not in the module's ``__all__``.
+_INTERNAL_CATALOG_NAMES = sorted((set(language_catalog.__all__) - {"LANGUAGE_TOKENS"}) | {"LanguageSpec", "LANGUAGE_FAMILIES", "JVM_FAMILY", "BuildToolSpec"})
 
 
 def test_language_tokens_importable_from_seam() -> None:
@@ -35,7 +29,6 @@ def test_language_tokens_importable_from_seam() -> None:
 
 def test_language_tokens_derived_from_catalog_in_order() -> None:
     from charter.offering.api import LANGUAGE_TOKENS
-    from charter.offering.shared import language_catalog
 
     expected = tuple(spec.token for spec in language_catalog.LANGUAGES)
     assert expected == LANGUAGE_TOKENS

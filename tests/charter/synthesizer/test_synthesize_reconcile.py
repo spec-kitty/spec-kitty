@@ -658,7 +658,7 @@ def test_org_referencing_edge_without_org_base_is_classified_dangling(tmp_path: 
         run_id="01ORGREFERENCE000000000000000",
         built_in_drg=empty_built_in,
     )
-    assert any(_ORG_URN in conflict.target_id for conflict in outcome.delta.conflicts)
+    assert f"agent_profile:ops-responder--requires-->{_ORG_URN}" in [conflict.target_id for conflict in outcome.delta.conflicts]
 
 
 # ---------------------------------------------------------------------------
@@ -977,4 +977,4 @@ def test_classify_conflicts_edge_to_unshipped_urn_is_dangling() -> None:
 
     dangling = [c for c in conflicts if c.kind == "preserved_dangling_endpoint"]
     assert len(dangling) == 1
-    assert "NOT_SHIPPED_999" in dangling[0].target_id
+    assert dangling[0].target_id == f"directive:NOT_SHIPPED_999--suggests-->{_TABLE_STYLEGUIDE}"
