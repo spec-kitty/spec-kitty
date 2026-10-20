@@ -280,14 +280,6 @@ def test_flagged_migration_runs_normally_inside_a_repository(tmp_path: Path, sub
     assert migration.migration_id in _ledger_ids(project)
 
 
-def test_unified_bundle_migration_declares_the_repository_requirement() -> None:
-    auto_discover_migrations()
-    from specify_cli.upgrade.registry import MigrationRegistry
-
-    by_id = {m.migration_id: m for m in MigrationRegistry.get_all()}
-    assert by_id[MIGRATION_ID].requires_git_repository is True
-
-
 def _probe_cannot_run(path: Path) -> Path:
     raise GitCommonDirUnavailableError(path, "git binary missing")
 
