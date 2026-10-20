@@ -443,14 +443,42 @@ def test_description_from_frontmatter_takes_priority(tmp_path: Path) -> None:
 
 
 def test_rendered_skill_name(tmp_path: Path) -> None:
-    """RenderedSkill.name must be 'spec-kitty.<command>'."""
+    """RenderedSkill.name must be 'spec-kitty-<command>' (Agent Skills grammar, #6475)."""
     template = tmp_path / "my-command.md"
     template.write_text(
         "---\ndescription: A command\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\nYou **MUST** consider the user input before proceeding (if not empty).\n",
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
-    assert skill.name == "spec-kitty.my-command"
+    assert skill.name == "spec-kitty-my-command"
+    assert skill.frontmatter["name"] == skill.name
+    assert skill.to_skill_md().startswith("---\nname: spec-kitty-my-command\n")
+
+
+def test_rendered_body_rewrites_command_invocations_to_the_skill_name(tmp_path: Path) -> None:
+    """Pack sources keep ``/spec-kitty.<cmd>``; a skill body names the skill (#6475, answer A)."""
+    template = tmp_path / "my-command.md"
+    template.write_text(
+        "---\ndescription: A command\n---\n## User Input\n\n```text\n$ARGUMENTS\n```\n\n"
+        "## Next\n\nRun `/spec-kitty.plan`, then `$spec-kitty.tasks-outline` or /skill:spec-kitty.review.\n"
+        "Keep https://spec-kitty.ai, spec-kitty.analysis-report and .claude/commands/spec-kitty.plan.md.\n",
+        encoding="utf-8",
+    )
+    skill = render(template, "codex", _TEST_VERSION)
+    assert "Run `/spec-kitty-plan`, then `$spec-kitty-tasks-outline` or /skill:spec-kitty-review." in skill.body
+    assert "Keep https://spec-kitty.ai, spec-kitty.analysis-report and .claude/commands/spec-kitty.plan.md." in skill.body
+
+
+def test_rendered_body_rewrite_is_agent_independent() -> None:
+    """Every command-skill agent gets byte-identical bodies (shared ``.agents/skills`` batch)."""
+    from specify_cli.skills.command_renderer import SUPPORTED_AGENTS
+
+    template = TEMPLATES_DIR / "specify" / "prompt.md"
+    bodies = {render(template, agent, _TEST_VERSION).body for agent in SUPPORTED_AGENTS}
+    assert len(bodies) == 1
+    (body,) = bodies
+    assert "/spec-kitty-plan" in body
+    assert "/spec-kitty.plan`" not in body
 
 
 def test_rendered_skill_no_arguments_in_body(tmp_path: Path) -> None:
@@ -568,7 +596,7 @@ def test_replacement_block_constant_unchanged() -> None:
         "## User Input\n\n"
         "The content of the user's message that invoked this skill "
         "(everything after the skill invocation token, e.g. after "
-        "`/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input "
+        "`/spec-kitty-<command>` or `$spec-kitty-<command>`) is the User Input "
         "referenced elsewhere in these instructions.\n\n"
         "You **MUST** consider this user input before proceeding (if not empty).\n\n"
     )
@@ -618,7 +646,7 @@ def test_nfr004_specify_step_renders_from_doctrine() -> None:
 
     skill = render(specify_prompt, "codex", _TEST_VERSION)
 
-    assert skill.name == "spec-kitty.specify", f"Expected name 'spec-kitty.specify', got '{skill.name}'"
+    assert skill.name == "spec-kitty-specify", f"Expected name 'spec-kitty-specify', got '{skill.name}'"
     assert skill.source_template == specify_prompt.resolve(), f"source_template mismatch: expected {specify_prompt.resolve()}, got {skill.source_template}"
     assert "$ARGUMENTS" not in skill.body, "Rendered body must not contain $ARGUMENTS"
 
@@ -642,7 +670,7 @@ def test_nfr004_all_canonical_steps_render() -> None:
             continue
         try:
             skill = render(prompt_path, "codex", _TEST_VERSION)
-            if skill.name != f"spec-kitty.{command}":
+            if skill.name != f"spec-kitty-{command}":
                 raise AssertionError(f"Wrong skill name for {command}: {skill.name}")
         except Exception as exc:  # noqa: BLE001
             render_errors.append(f"{command}: {exc}")

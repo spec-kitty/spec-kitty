@@ -1,5 +1,5 @@
 ---
-name: spec-kitty.specify
+name: spec-kitty-specify
 description: Create a mission specification
 user-invocable: true
 ---
@@ -38,7 +38,7 @@ If no host-native question UI is available, present the same four choices in pla
 In non-interactive hosts, choose `not_now` and continue.
 
 
-# /spec-kitty.specify - Create Mission Specification
+# /spec-kitty-specify - Create Mission Specification
 
 **Version**: 0.11.0+
 
@@ -58,7 +58,7 @@ cd /path/to/project/root  # Your repository root checkout
 # - NO worktrees created
 ```
 
-**Worktrees are created later** during `/spec-kitty.implement`, after task finalization computes execution lanes.
+**Worktrees are created later** during `/spec-kitty-implement`, after task finalization computes execution lanes.
 
 ## Mission Handle Rule
 
@@ -81,7 +81,7 @@ committing it.
 
 ## User Input
 
-The content of the user's message that invoked this skill (everything after the skill invocation token, e.g. after `/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input referenced elsewhere in these instructions.
+The content of the user's message that invoked this skill (everything after the skill invocation token, e.g. after `/spec-kitty-<command>` or `$spec-kitty-<command>`) is the User Input referenced elsewhere in these instructions.
 
 You **MUST** consider this user input before proceeding (if not empty).
 
@@ -287,7 +287,7 @@ require an issue-matrix row before its owning work package can be approved. A
 context-only citation (e.g. `Follow-up:`, `see #`, `parent`, `epic`) or a PR/commit
 reference (`PR #NNNN`, a `/pull/NNNN` URL) is non-gating and needs no row; if an issue
 genuinely owes the mission no work, it can later be recorded with the `not-applicable`
-verdict. This is informational only — it does not gate `/spec-kitty.specify`.
+verdict. This is informational only — it does not gate `/spec-kitty-specify`.
 
 ## Charter Context Bootstrap (required)
 
@@ -300,7 +300,7 @@ spec-kitty charter context --action specify --json
 - If JSON `mode` is `bootstrap`, treat JSON `text` as the initial governance context and consult referenced docs as needed.
 - If JSON `mode` is `compact`, proceed with concise governance context.
 - If no charter exists yet, note that and continue. Missing charter is not a
-  blocker for `/spec-kitty.specify`.
+  blocker for `/spec-kitty-specify`.
 
 ## Visual Communication (recommended)
 
@@ -516,7 +516,7 @@ breakage that DIRECTIVE_035 exists to prevent.
 2. Commits creation metadata; `spec.md` remains untracked until it is substantive and explicitly committed
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). On a software-dev mission `next` issues the `/spec-kitty.analyze` step first (the required analysis gate), and only once the analysis report is current does it hand out `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/checkout-upsell-flow-01J6XW9K-lane-a/`).
+**Worktrees created later**: After `/spec-kitty-tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). On a software-dev mission `next` issues the `/spec-kitty-analyze` step first (the required analysis gate), and only once the analysis report is current does it hand out `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/checkout-upsell-flow-01J6XW9K-lane-a/`).
 
 ## Location
 
@@ -538,7 +538,7 @@ breakage that DIRECTIVE_035 exists to prevent.
 - Before creating, freeze the activated Mission type and the creation metadata
   snapshot as described above. Do not defer type selection until discovery.
 
-The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial mission description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
+The text the user typed after `/spec-kitty-specify` in the triggering message **is** the initial mission description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that mission description, do this:
 
@@ -765,7 +765,7 @@ Given that mission description, do this:
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `/spec-kitty.plan`
+      - Items marked incomplete require spec updates before `/spec-kitty-plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -803,7 +803,7 @@ Given that mission description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-9. Report completion with mission directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
+9. Report completion with mission directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty-plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

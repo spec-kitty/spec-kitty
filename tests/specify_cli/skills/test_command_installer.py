@@ -574,7 +574,8 @@ class TestHappyPathInstall:
         skill_path = _skill_path(repo, "specify")
         content = skill_path.read_text(encoding="utf-8")
         assert content.startswith("---\n"), "SKILL.md should start with YAML frontmatter"
-        assert "name: spec-kitty.specify" in content
+        # The renderer owns the name (WP02); the folder follows in WP03 (#6475).
+        assert "name: spec-kitty-specify" in content
 
 
 # ---------------------------------------------------------------------------

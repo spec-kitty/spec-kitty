@@ -17,7 +17,9 @@ Three invariants are enforced by this module:
 
 3. **Single body for every agent** — supported agents receive identical skill
    bodies.  The only per-agent variation permitted is in frontmatter, and even
-   that is currently identical for the initial release.
+   that is currently identical for the initial release.  The invocation-token
+   rewrite (``/spec-kitty.<cmd>`` → ``/spec-kitty-<cmd>``, #6475) is
+   agent-independent for the same reason.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from typing import Any
 from kernel.text_decode import normalize_newlines
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
+from specify_cli.skills.command_skill_names import command_skill_name, rewrite_command_invocations
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 
 # ---------------------------------------------------------------------------
@@ -98,7 +101,8 @@ class RenderedSkill:
     Attributes
     ----------
     name:
-        ``"spec-kitty.<command>"`` derived from the template filename.
+        ``"spec-kitty-<command>"`` derived from the template filename through
+        :func:`~specify_cli.skills.command_skill_names.command_skill_name`.
     frontmatter:
         Ordered dict with keys ``name``, ``description``, ``user-invocable``.
     body:
@@ -339,7 +343,7 @@ def ensure_skill_frontmatter(content: str, skill_name: str) -> str:
 def _build_frontmatter(
     body: str,
     raw_text: str,
-    name: str,
+    command: str,
     agent_key: str,  # noqa: ARG001
 ) -> dict[str, Any]:
     """Build the frontmatter dict for the rendered skill.
@@ -358,15 +362,14 @@ def _build_frontmatter(
         The full raw template text including YAML frontmatter — used to
         extract a ``description:`` value that template authors may have already
         curated for the command-file pipeline.
-    name:
-        ``"spec-kitty.<command>"``.
+    command:
+        The command name; the skill name is derived from it by the naming
+        authority (``spec-kitty-<command>``).
     agent_key:
         Unused in the initial release (both agents get the same frontmatter)
         but kept as a parameter so the signature can accommodate per-agent
         overlays without changing callers.
     """
-    command = name.removeprefix("spec-kitty.")
-
     # Description priority:
     # 1. Existing ``description:`` value in the template's YAML frontmatter
     #    (human-curated, already maintained for the command-file pipeline).
@@ -381,7 +384,7 @@ def _build_frontmatter(
     )
 
     return {
-        "name": name,
+        "name": command_skill_name(command),
         "description": description,
         "user-invocable": True,
     }
@@ -469,6 +472,13 @@ def render(
     # Rewrite the User-Input block.  Raises SkillRenderError on missing block.
     body = _rewrite_user_input(stripped_body)
 
+    # Pack sources keep the slash-command form ``/spec-kitty.<cmd>``; a skill
+    # body names the skill instead (#6475, planning answer A). Lazy import:
+    # ``command_installer`` (owner of the command set) imports this module.
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS  # noqa: PLC0415
+
+    body = rewrite_command_invocations(body, CANONICAL_COMMANDS)
+
     # Guard: no $ARGUMENTS token should survive the rewrite.
     for lineno, line in enumerate(body.splitlines(), start=1):
         if "$ARGUMENTS" in line:
@@ -485,7 +495,6 @@ def render(
     # Legacy fallback: .../command-templates/<command>.md
     # → command is the stem.
     command = template_path.parent.name if template_path.name == "prompt.md" else template_path.stem
-    name = f"spec-kitty.{command}"
 
     # Build a version of the stripped body with the User-Input section removed
     # for prose-based description extraction.  This prevents the $ARGUMENTS
@@ -501,10 +510,10 @@ def render(
 
     # Pass both the prose-extraction body and the raw text (for frontmatter
     # description extraction).
-    frontmatter = _build_frontmatter(desc_body, raw_text, name, agent_key)
+    frontmatter = _build_frontmatter(desc_body, raw_text, command, agent_key)
 
     return RenderedSkill(
-        name=name,
+        name=frontmatter["name"],
         frontmatter=frontmatter,
         body=prepend_agent_upgrade_check(body),
         source_template=template_path.resolve(),
