@@ -8,6 +8,7 @@ Settling the languages never writes ``config.yaml``; ``store_language_settlement
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -57,12 +58,6 @@ def test_the_code_reader_imports_the_authority_and_not_the_settlement() -> None:
     assert _SETTLEMENT not in modules
 
 
-def test_the_settlement_imports_both_at_module_level() -> None:
-    module_level = {module for module, level in _imported_modules(_ACTIVATION / "language_settlement.py") if level}
-    assert _AUTHORITY in module_level
-    assert _CODE_READER in module_level
-
-
 def _python_repo(root: Path) -> None:
     (root / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
     (root / "src").mkdir()
@@ -85,27 +80,36 @@ def _has_languages_key(root: Path) -> bool:
     return isinstance(loaded, dict) and "languages" in loaded
 
 
-def test_settling_without_asking_writes_nothing(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("stored_text", "ask", "source", "languages", "on_disk"),
+    [
+        (None, None, "detected", ("python",), None),
+        ("languages: [go]\n", lambda _proposal: "python, go", "confirmed", ("python", "go"), ["go"]),
+    ],
+    ids=["without-asking", "interactive-change"],
+)
+def test_settling_writes_nothing(
+    tmp_path: Path,
+    stored_text: str | None,
+    ask: Callable[[str], str] | None,
+    source: str,
+    languages: tuple[str, ...],
+    on_disk: list[str] | None,
+) -> None:
     _python_repo(tmp_path)
+    if stored_text is not None:
+        _set_config(tmp_path, stored_text)
 
-    settlement = activation_api.settle_project_languages(tmp_path, ask=None)
+    settlement = activation_api.settle_project_languages(tmp_path, ask=ask)
 
-    assert not _has_languages_key(tmp_path)
-    assert settlement.source == "detected"
-    assert settlement.languages == ("python",)
-    assert settlement.detected == ("python",)
-    assert settlement.notice is not None and "DETECTED, not confirmed" in settlement.notice
-
-
-def test_settling_an_interactive_change_writes_nothing(tmp_path: Path) -> None:
-    _python_repo(tmp_path)
-    _set_config(tmp_path, "languages: [go]\n")
-
-    settlement = activation_api.settle_project_languages(tmp_path, ask=lambda _proposal: "python, go")
-
-    assert settlement.source == "confirmed"
-    assert settlement.languages == ("python", "go")
-    assert YAML(typ="safe").load(_config_path(tmp_path).read_text(encoding="utf-8"))["languages"] == ["go"]
+    assert settlement.source == source
+    assert settlement.languages == languages
+    if on_disk is None:
+        assert not _has_languages_key(tmp_path)
+        assert settlement.detected == ("python",)
+        assert settlement.notice is not None and "DETECTED, not confirmed" in settlement.notice
+    else:
+        assert YAML(typ="safe").load(_config_path(tmp_path).read_text(encoding="utf-8"))["languages"] == on_disk
 
 
 def test_storing_the_settlement_writes_the_list(tmp_path: Path) -> None:

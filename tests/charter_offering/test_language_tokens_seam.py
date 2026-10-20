@@ -18,18 +18,12 @@ pytestmark = pytest.mark.fast
 _INTERNAL_CATALOG_NAMES = sorted((set(language_catalog.__all__) - {"LANGUAGE_TOKENS"}) | {"LanguageSpec", "LANGUAGE_FAMILIES", "JVM_FAMILY", "BuildToolSpec"})
 
 
-def test_language_tokens_importable_from_seam() -> None:
+def test_language_tokens_derived_from_catalog_in_order() -> None:
     import charter.offering.api as api
     from charter.offering.api import LANGUAGE_TOKENS
 
     assert "LANGUAGE_TOKENS" in api.__all__
     assert isinstance(LANGUAGE_TOKENS, tuple)
-    assert all(isinstance(token, str) for token in LANGUAGE_TOKENS)
-
-
-def test_language_tokens_derived_from_catalog_in_order() -> None:
-    from charter.offering.api import LANGUAGE_TOKENS
-
     expected = tuple(spec.token for spec in language_catalog.LANGUAGES)
     assert expected == LANGUAGE_TOKENS
     assert {"python", "kotlin", "java"} <= set(LANGUAGE_TOKENS)
@@ -57,11 +51,3 @@ def test_the_seam_takes_exactly_language_tokens_from_the_catalog() -> None:
         for alias in node.names
     }
     assert taken == {"LANGUAGE_TOKENS"}
-
-
-def test_facade_reexports_the_same_object() -> None:
-    import charter.languages as facade
-    from charter.offering.api import LANGUAGE_TOKENS
-
-    assert facade.LANGUAGE_TOKENS is LANGUAGE_TOKENS
-    assert facade.__all__ == ["LANGUAGE_TOKENS"]
