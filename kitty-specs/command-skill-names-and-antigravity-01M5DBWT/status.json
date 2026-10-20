@@ -91,6 +91,9 @@
       "last_event_id": "01M5DR44G92SKSEBY2PXNT6MRB",
       "last_transition_at": "2026-10-20T22:50:13.385655+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: installer/provider/doctor/init on spec-kitty-<cmd>; one legacy rule on every repair path; collision skip; gate _PENDING emptied"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 6191,
