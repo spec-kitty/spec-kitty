@@ -37,7 +37,11 @@ Contracts pinned here:
 * A corrupted file the user edited *since* install (on-disk hash !=
   manifest hash) is classified ``consent_required`` and surfaces as
   ``skipped`` (never ``repaired``) -- never silently overwritten.
-* ``.gitattributes`` pins both source trees to ``eol=lf``; the cross-cutting
+* ``.gitattributes`` pins the doctrine-skill source tree to ``eol=lf``. The
+  command-template tree (``packs/built-in/``) is untracked since #6451, so no
+  git attribute reaches it: the pack fetch checks out raw bytes
+  (``core.autocrlf=false``, ``kernel.git.remote.fetch_commit_subtree``) and the
+  raw-byte ``snapshot_sha256`` refuses a rewritten tree. The cross-cutting
   parser guard lives in
   ``tests/architectural/test_merge_reconciliation_class_guard.py``.
 """
@@ -850,25 +854,35 @@ def test_drifted_user_edit_stays_consent_required(tmp_path: Path, monkeypatch: p
 
 
 # --------------------------------------------------------------------------
-# ``.gitattributes`` pins both source trees to eol=lf.
+# Both source trees reach the renderer with LF line endings (#4998, #6432).
 # --------------------------------------------------------------------------
 
 
-def test_gitattributes_pins_source_trees_to_lf() -> None:
+def test_gitattributes_pins_doctrine_skill_tree_to_lf() -> None:
     doctrine_sample = "src/charter/offering/skills/spec-kitty/SKILL.md"
-    command_sample = "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md"
     assert (_REPO_ROOT / doctrine_sample).is_file(), doctrine_sample
-    assert (_REPO_ROOT / command_sample).is_file(), command_sample
 
     result = subprocess.run(
-        ["git", "check-attr", "eol", "--", doctrine_sample, command_sample],
+        ["git", "check-attr", "eol", "--", doctrine_sample],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
-    lines = {line.strip() for line in result.stdout.splitlines() if line.strip()}
-    assert lines == {
-        f"{doctrine_sample}: eol: lf",
-        f"{command_sample}: eol: lf",
-    }, result.stdout
+    assert result.stdout.strip() == f"{doctrine_sample}: eol: lf", result.stdout
+
+
+def test_synced_command_templates_are_lf() -> None:
+    """``packs/built-in/`` is fetched, not tracked (#6451), so ``.gitattributes`` cannot pin it.
+
+    The LF guarantee moved to the fetch: ``fetch_commit_subtree`` checks out the
+    commit's raw bytes whatever the user's ``core.autocrlf``
+    (``tests/kernel/git/test_remote_fetch_commit_subtree.py``) and the raw-byte
+    ``snapshot_sha256`` refuses any rewritten tree. This pins the outcome on the
+    synced tree itself.
+    """
+    command_root = _REPO_ROOT / "packs/built-in/missions/mission-steps"
+    prompts = sorted(command_root.rglob("prompt.md"))
+    assert prompts, f"no synced command templates under {command_root}; run `make sync-packs`"
+    crlf = [str(p.relative_to(_REPO_ROOT)) for p in prompts if b"\r\n" in p.read_bytes()]
+    assert crlf == [], crlf

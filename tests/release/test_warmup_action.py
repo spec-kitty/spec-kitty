@@ -149,13 +149,47 @@ def test_cache_key_derives_from_uv_lock_and_the_resolved_events_rev() -> None:
     assert str(key_step.get("id", "")) in key_expr or "cache-key" in key_expr, "the actions/cache key must consume the computed cache-key step output"
 
 
+def _remote_uses(action_path: Path, seen: frozenset[Path] = frozenset()) -> list[str]:
+    """Every remote `uses:` of *action_path*, recursing into the local (`./`) composites it calls.
+
+    A local action is checked out with the repository, so it carries no `@ref`;
+    the remote actions it calls in turn are what DIR-051 pins.
+    """
+    action = yaml.safe_load(action_path.read_text(encoding="utf-8"))
+    remote: list[str] = []
+    for step in action["runs"]["steps"]:
+        uses = str(step.get("uses", ""))
+        if not uses:
+            continue
+        if uses.startswith("./"):
+            local = (ROOT / uses / "action.yml").resolve()
+            assert local.is_file(), f"local action '{uses}' has no action.yml"
+            if local not in seen:
+                remote.extend(_remote_uses(local, seen | {action_path.resolve()}))
+            continue
+        remote.append(uses)
+    return remote
+
+
 def test_every_uses_step_is_pinned_to_a_full_commit_sha() -> None:
-    """DIR-051 supply-chain: every `uses:` must be a full commit SHA, never a moving tag."""
-    uses_steps = [str(s["uses"]) for s in _steps() if "uses" in s]
+    """DIR-051 supply-chain: every remote `uses:` must be a full commit SHA, never a moving tag.
+
+    Local `./` composites (e.g. sync-packs, #6451) cannot carry a ref; their own
+    remote `uses:` are checked instead.
+    """
+    uses_steps = _remote_uses(ACTION_PATH)
     assert uses_steps, "expected at least one `uses:` step (checkout / setup-uv / cache)"
     for uses in uses_steps:
         _, _, ref = uses.partition("@")
         assert ref and FULL_SHA_RE.match(ref), f"'{uses}' is not pinned to a full 40-character commit SHA (DIR-051)"
+
+
+def test_local_composite_uses_are_followed() -> None:
+    """The pin check reaches the remote actions of the local sync-packs composite (#6432)."""
+    sync_packs = ROOT / ".github" / "actions" / "sync-packs" / "action.yml"
+    own = [str(s["uses"]) for s in yaml.safe_load(sync_packs.read_text(encoding="utf-8"))["runs"]["steps"] if "uses" in s]
+    assert own, "sync-packs composite has no remote `uses:` to follow"
+    assert set(own) <= set(_remote_uses(ACTION_PATH))
 
 
 def test_editable_install_runs_exactly_once_gated_on_cache_miss() -> None:
