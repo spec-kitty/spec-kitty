@@ -242,11 +242,12 @@ def test_apply_time_repository_error_on_runs_first_records_nothing(tmp_path: Pat
     assert migration.migration_id not in _ledger_ids(project)
 
 
-def test_flagged_migration_runs_normally_inside_a_repository(tmp_path: Path) -> None:
+@pytest.mark.parametrize("subdir", ["", "sub/dir"], ids=["repository-root", "subdirectory"])
+def test_flagged_migration_runs_normally_inside_a_repository(tmp_path: Path, subdir: str) -> None:
     import subprocess
 
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    project = _make_project(tmp_path)
+    project = _make_project(tmp_path / subdir)
 
     class _Inside(_FlaggedMigration):
         migration_id = "stub_requires_git_repository_inside"
