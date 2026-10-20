@@ -291,5 +291,6 @@ def test_a_failing_languages_store_after_the_answers_exits_non_zero_without_clai
     assert ".kittify/config.yaml" in result.output
     assert "answers were saved" in result.output
     assert "re-running is safe" in result.output
+    assert "interactively" in result.output
     assert '"success": true' not in result.output
     assert not _has_languages(root)
