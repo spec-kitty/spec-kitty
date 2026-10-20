@@ -80,7 +80,7 @@ def test_uniqueness_refuses_two_commands_on_one_name() -> None:
 
 def _reserved_skill_names() -> set[str]:
     """Shipped charter skills + built-in pack skills + retired names (plan A-m1)."""
-    from charter.offering.pack_skills.validation import BUILT_IN, rendered_name
+    from charter.offering.pack_skills.validation import rendered_name
     from specify_cli.skills.catalog import resolve_builtin_skill_catalog
     from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES, RETIRED_STANDALONE_SKILL_NAMES
 
@@ -90,7 +90,7 @@ def _reserved_skill_names() -> set[str]:
     assert "spec-kitty-implement-review" in shipped, "catalog resolution lost the shipped charter skills"
     built_in_pack_root = Path(__file__).resolve().parents[3] / "packs" / "built-in" / "skills"
     built_in_pack = {rendered_name(path.name.removesuffix(".skill.yaml"), None) for path in built_in_pack_root.glob("*.skill.yaml")}
-    assert BUILT_IN  # the tier exists; built-in pack skills render under their bare id
+    assert built_in_pack_root.parent.is_dir(), "run `make sync-packs`: the built-in pack tree is missing"
     return shipped | built_in_pack | set(RETIRED_CANONICAL_SKILL_NAMES) | set(RETIRED_STANDALONE_SKILL_NAMES)
 
 

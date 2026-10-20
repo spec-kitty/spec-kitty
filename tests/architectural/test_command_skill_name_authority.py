@@ -14,7 +14,9 @@ directory, C-001) are not caught by path allowlist but by not matching:
 * an f-string ``…spec-kitty[.-]{x}/SKILL.md``;
 * an f-string ``name: spec-kitty[.-]{x}`` (frontmatter);
 * an f-string starting ``$spec-kitty[.-]{x}`` or ``/skill:spec-kitty[.-]{x}``;
-* a path expression ``… / f"spec-kitty[.-]{x}" / "SKILL.md"``.
+* a path expression ``… / f"spec-kitty[.-]{x}" / "SKILL.md"``;
+* the canonical name f-string ``f"spec-kitty-{x}"`` on its own. The bare dotted
+  ``f"spec-kitty.{x}"`` is not gated, because the slash-command file producers use it.
 
 Shipped historical migrations (``upgrade/migrations/m_[0-3]_*``) are frozen
 (DIRECTIVE_044, drift is audit-only) and excluded.
@@ -68,6 +70,10 @@ _TEXT_SHAPES: tuple[re.Pattern[str], ...] = (
     re.compile(r"(?:^|/)spec-kitty[.\-]\{\}/SKILL\.md"),
     re.compile(r"name: spec-kitty[.\-]\{\}"),
     re.compile(r"^(?:\$|/skill:)spec-kitty[.\-]\{\}"),
+    # The canonical name itself. The bare dotted f-string stays ungated: the slash-command
+    # file producers (``runtime/agent_commands.py``, ``migration/rewrite_shims.py``) build
+    # ``spec-kitty.<cmd>`` file stems with exactly that shape (C-001, #6471).
+    re.compile(r"^spec-kitty-\{\}$"),
 )
 _BARE_NAME = re.compile(r"^spec-kitty[.\-]\{\}$")
 
@@ -170,7 +176,8 @@ def test_scan_covers_real_source() -> None:
 @pytest.mark.parametrize(
     "snippet",
     [
-        'name = f"spec-kitty.{command}"\nrel = f".agents/skills/{name}/SKILL.md"\nx = ".agents/skills/spec-kitty."',
+        'name = f"spec-kitty-{command}"',
+        'x = ".agents/skills/spec-kitty."',
         'rel = f".agents/skills/spec-kitty-{command}/SKILL.md"',
         'rel = f"{root}/spec-kitty.{cmd}/SKILL.md"',
         'fm = f"---\\nname: spec-kitty-{command}\\n"',
