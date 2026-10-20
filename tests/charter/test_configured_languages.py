@@ -10,7 +10,7 @@ import pytest
 
 from charter.activation.evidence.code_reader import CodeReadingCollector
 from charter.activation.interview import CharterInterview, apply_answer_overrides, default_interview
-from charter.activation.language_authority import configured_languages, write_configured_languages
+from charter.activation.language_authority import configured_languages, settle_project_languages, write_configured_languages
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
 from charter.offering.shared.scoping import applies_to_languages_match
@@ -227,3 +227,40 @@ def test_synthesis_request_carries_the_configured_list_as_language_scope(tmp_pat
 
     snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
     assert _scope_targets(snapshot) == ["python"]
+
+
+# -- non-interactive settle never overwrites an operator-set key ----------------
+
+
+def _python_repo(root: Path) -> None:
+    _touch(root, "pyproject.toml", "[project]\nname='x'\n")
+    _touch(root, "src/app.py", "x = 1\n")
+
+
+@pytest.mark.parametrize("text", ["languages: [elixir]\n", "languages: python\n", "languages: [1, {a: b}]\n", "languages: [unclosed\n"])
+def test_non_interactive_settle_keeps_a_set_but_unusable_key(tmp_path: Path, text: str) -> None:
+    _python_repo(tmp_path)
+    _config(tmp_path, text)
+    before = (tmp_path / ".kittify" / "config.yaml").read_bytes()
+
+    settlement = settle_project_languages(tmp_path, ask=None)
+
+    assert (tmp_path / ".kittify" / "config.yaml").read_bytes() == before
+    assert settlement.written is False
+    assert settlement.source == "none"
+    assert settlement.languages == ()
+    assert settlement.notice is not None
+    assert "languages" in settlement.notice
+    assert ".kittify/config.yaml" in settlement.notice
+
+
+@pytest.mark.parametrize("text", ["vcs:\n  type: git\n", "languages: []\n", "languages:\n"])
+def test_non_interactive_settle_stores_the_detected_list_when_the_key_is_absent(tmp_path: Path, text: str) -> None:
+    _python_repo(tmp_path)
+    _config(tmp_path, text)
+
+    settlement = settle_project_languages(tmp_path, ask=None)
+
+    assert settlement.written is True
+    assert settlement.source == "detected"
+    assert configured_languages(tmp_path) == settlement.languages

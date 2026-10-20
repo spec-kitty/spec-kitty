@@ -324,6 +324,19 @@ def _read_config_list(repo_root: Path) -> list[Any] | None:
     return raw
 
 
+def _languages_key_is_set(repo_root: Path) -> bool:
+    """True when ``config.yaml`` carries a non-empty ``languages`` value or cannot be read (so it must not be overwritten)."""
+    path = _config_path(repo_root)
+    if not path.is_file():
+        return False
+    try:
+        document = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    except (OSError, YAMLError, UnicodeDecodeError):
+        return True
+    raw = document.get(CONFIG_LANGUAGES_KEY) if isinstance(document, Mapping) else None
+    return raw is not None and raw != []
+
+
 def is_catalog_language(token: str) -> bool:
     """Return True when *token* is a catalog language (a family such as ``jvm`` is not)."""
     return token.strip().lower() in _CATALOG_TOKENS
@@ -406,8 +419,8 @@ class LanguageSettlement:
     ``source`` is ``stored`` (an existing list kept as it was), ``confirmed`` (the operator's
     answer, written), ``detected`` (a non-interactive run stored the detected list because the
     key was absent) or ``none`` (nothing stored). ``languages`` is empty only for ``none``.
-    ``notice`` is set only for ``detected``: it tells the operator what was stored, that it was
-    detected rather than confirmed, and how to change it (DM-01M5ASPC).
+    ``notice`` is set for ``detected`` (what was stored, that it was detected rather than
+    confirmed, and how to change it; DM-01M5ASPC) and for a ``none`` left by a set but unusable key.
     """
 
     languages: tuple[str, ...]
@@ -470,10 +483,25 @@ def _ask_until_valid(
     raise AssertionError("unreachable")  # pragma: no cover
 
 
+def _unusable_notice() -> str:
+    """Return the notice shown when the key is set but yields no usable language, so nothing is stored."""
+    return (
+        f"'{CONFIG_LANGUAGES_KEY}:' in {_CONFIG_RELATIVE.as_posix()} is set but holds no usable language list, so it was left as it is. "
+        f"Set it to a list of catalog language tokens (for example '{CONFIG_LANGUAGES_KEY}: [python]') or remove the key, "
+        "then re-run 'spec-kitty charter interview'."
+    )
+
+
 def _settle_without_asking(repo_root: Path, stored: tuple[str, ...] | None, detected: tuple[str, ...]) -> LanguageSettlement:
-    """Non-interactive settle: keep a stored list, else store the detected one with a notice."""
+    """Non-interactive settle: keep a stored list, else store the detected one with a notice.
+
+    A key that is set but unusable (a scalar, only non-catalog entries, an unreadable file) is the
+    operator's, not absent: it is never overwritten and the notice says how to fix it.
+    """
     if stored is not None:
         return LanguageSettlement(stored, "stored", detected, False)
+    if _languages_key_is_set(repo_root):
+        return LanguageSettlement((), "none", detected, False, _unusable_notice())
     if not detected:
         return LanguageSettlement((), "none", detected, False)
     write_configured_languages(repo_root, detected)
