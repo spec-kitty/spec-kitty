@@ -929,3 +929,52 @@ def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> 
     stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
     assert [e.source for e in stripped] == ["tactic:regen"]
     assert {e.source for e in legacy_applies_edges(existing, synthesized)} == {"tactic:regen", "tactic:untargeted", "styleguide:style"}
+
+
+# ---------------------------------------------------------------------------
+# #6543 -- table-edge classification: shipped-but-unselected vs unshipped source
+# ---------------------------------------------------------------------------
+
+_TABLE_STYLEGUIDE = "styleguide:table-edge-style"
+
+
+def _table_edge_overlay(source_urn: str) -> DRGGraph:
+    """Overlay holding a synthesized styleguide and a ``suggests`` edge into it."""
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-10-20T00:00:00+00:00",
+        generated_by="test-table-edge-overlay",
+        nodes=[DRGNode(urn=_TABLE_STYLEGUIDE, kind=NodeKind.STYLEGUIDE)],
+        edges=[DRGEdge(source=source_urn, target=_TABLE_STYLEGUIDE, relation=Relation.SUGGESTS, provenance="project")],
+    )
+
+
+def _classify_table_edge(source_urn: str) -> tuple[ReconciliationConflict, ...]:
+    from charter.activation.synthesizer.reconcile import _classify_conflicts
+
+    overlay = _table_edge_overlay(source_urn)
+    # The selection snapshot holds no directive, so the edge source is unselected.
+    return _classify_conflicts(
+        merged_overlay=overlay,
+        built_in_drg=_org_base_graph([]),
+        fresh_overlay=overlay,
+        urn_to_path={},
+    )
+
+
+def test_classify_conflicts_table_edge_from_shipped_unselected_directive_is_not_dangling() -> None:
+    """A shipped directive that is not selected still resolves: no dangling conflict (#6543)."""
+    conflicts = _classify_table_edge("directive:DIRECTIVE_034")
+
+    assert [c for c in conflicts if c.kind == "preserved_dangling_endpoint"] == []
+
+
+def test_classify_conflicts_edge_to_unshipped_urn_is_dangling() -> None:
+    """A URN no layer ships is still reported as a preserved dangling endpoint (#6543)."""
+    conflicts = _classify_table_edge("directive:NOT_SHIPPED_999")
+
+    dangling = [c for c in conflicts if c.kind == "preserved_dangling_endpoint"]
+    assert len(dangling) == 1
+    assert "NOT_SHIPPED_999" in dangling[0].target_id
