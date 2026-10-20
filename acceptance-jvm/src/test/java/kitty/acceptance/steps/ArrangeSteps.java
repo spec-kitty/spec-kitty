@@ -338,7 +338,21 @@ public final class ArrangeSteps {
         succeed(List.of("spec-kitty", "upgrade", "--yes"),
                 "Setting the project up fully before recasting it as a pre-record project");
         commitWorkingTree("commit the fully set-up project");
-        recastAsProjectWithoutAppliedRecords();
+        recastAsProjectWithoutAppliedRecords(true);
+        commitWorkingTree("commit the pre-record project state");
+        context.world().recordRepoState();
+    }
+
+    @Given("a project set up before Spec Kitty recorded its applied setup steps, whose metadata lists none of them")
+    public void aProjectSetUpBeforeSpecKittyRecordedItsAppliedSetupStepsListingNone() {
+        // The shape a project initialised before the applied-work records carries (#6431): its
+        // project metadata stamps the version it was set up at but lists no applied step, because
+        // init never recorded one and older steps were settled by that version stamp alone.
+        context.missions().ensureProject();
+        succeed(List.of("spec-kitty", "upgrade", "--yes"),
+                "Setting the project up fully before recasting it as a pre-record project");
+        commitWorkingTree("commit the fully set-up project");
+        recastAsProjectWithoutAppliedRecords(false);
         commitWorkingTree("commit the pre-record project state");
         context.world().recordRepoState();
     }
@@ -393,14 +407,17 @@ public final class ArrangeSteps {
         }
     }
 
-    private void recastAsProjectWithoutAppliedRecords() {
-        // Note each step the records show as applied in the legacy project metadata, so the project
-        // recognises the work as already done, then remove the applied-work records themselves.
-        List<String> steps = new ArrayList<>(new LinkedHashSet<>(recordedSuccessfulStepIds()));
-        if (!steps.contains(BACKFILL_MARKER_STEP)) {
-            steps.add(BACKFILL_MARKER_STEP);
+    private void recastAsProjectWithoutAppliedRecords(boolean listAppliedSteps) {
+        // Note each step the records show as applied in the legacy project metadata (or, for a
+        // project that predates any such note, none of them), then remove the applied-work records.
+        List<String> steps = new ArrayList<>();
+        if (listAppliedSteps) {
+            steps.addAll(new LinkedHashSet<>(recordedSuccessfulStepIds()));
+            if (!steps.contains(BACKFILL_MARKER_STEP)) {
+                steps.add(BACKFILL_MARKER_STEP);
+            }
         }
-        StringBuilder block = new StringBuilder("migrations:\n  applied:\n");
+        StringBuilder block = new StringBuilder(steps.isEmpty() ? "migrations:\n  applied: []\n" : "migrations:\n  applied:\n");
         for (String step : steps) {
             block.append("  - id: ").append(step).append("\n")
                     .append("    applied_at: '2026-01-01T00:00:00+00:00'\n")

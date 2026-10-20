@@ -89,6 +89,11 @@ public final class ScenarioWorld {
         return git.commitCountUnchanged();
     }
 
+    /** The paths the commits made since the repository state was recorded changed. */
+    public List<String> pathsChangedSinceRecorded() {
+        return git.pathsChangedSinceRecorded();
+    }
+
     /** Runs a plain git command in the working tree (the harness identity, no signing) and returns its output. */
     public String git(String... args) {
         return git.git(args);

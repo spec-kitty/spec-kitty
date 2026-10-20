@@ -19,11 +19,19 @@
 #       amendment 2026-10-17; src/specify_cli/upgrade/migrations/base.py
 #       `clone_local_effect` / `reselect_when_recorded`).
 #     * "finishes the job when re-run" restates selection-correctness: run exactly
-#       the declared-but-not-recorded work (a stranded step is picked up).
+#       the declared-but-not-recorded work (a stranded step is picked up). The
+#       project is set up before it has a git repository, so its local git setup
+#       cannot be in place yet and must stay pending (#6431). The first upgrade may
+#       commit (#6416 still adds a .gitattributes line there); only the re-run must
+#       commit nothing, so the repository state is recorded between the two runs.
 #     * The "I can ask what ran" / "tells me whether a local-only step is in place
 #       here" / drift scenarios restate the operator-visibility and drift promises.
 #     * "keeps its already-done work recognized" restates the backfill promise:
-#       a pre-ledger project is not force-re-migrated.
+#       a pre-ledger project is not force-re-migrated. Its first upgrade commits
+#       exactly the adoption (the record of what ran leaves metadata.yaml for the
+#       tracked ledger, ADR 2026-10-17-1 §6 hard cutover); the re-run commits
+#       nothing (#6369). "lists no done work" is the shape pre-ledger init left
+#       (applied: []): adoption settles what the version stamp had settled (#6431).
 # - Steps follow Arrange / Assume / Act / Assert; see tests/scenarios/README.md.
 #   This folder carries no PROMISES.md and uses the untagged-gating style of
 #   upgrade.feature; these scenarios therefore carry no @promise tag (operator
@@ -73,6 +81,7 @@ Feature: Upgrade runs exactly the setup work a project still needs
     When I run "spec-kitty upgrade --yes"
     Then the command succeeds
     And the previously pending setup step has taken effect
+    And the repository has at least one commit
     When I run "spec-kitty upgrade --yes"
     Then the command succeeds
     And the repository has no new commits
@@ -109,6 +118,23 @@ Feature: Upgrade runs exactly the setup work a project still needs
     When I run "spec-kitty upgrade --yes"
     Then the command succeeds
     And the setup work already done is not done again
+    And the upgrade changed only the project's record of its applied setup steps
+    And the working tree has no uncommitted changes to tracked files
+    And the repository has at least one commit
+    When I run "spec-kitty upgrade --yes"
+    Then the command succeeds
+    And the repository has no new commits
+
+  Scenario: A project set up before the ledger existed whose metadata lists no done work is not re-migrated
+    Given a project set up before Spec Kitty recorded its applied setup steps, whose metadata lists none of them
+    When I run "spec-kitty upgrade --yes"
+    Then the command succeeds
+    And the setup work already done is not done again
+    And the upgrade changed only the project's record of its applied setup steps
+    And the working tree has no uncommitted changes to tracked files
+    And the repository has at least one commit
+    When I run "spec-kitty upgrade --yes"
+    Then the command succeeds
     And the repository has no new commits
 
   Scenario: The system tells me when a setup step's content no longer matches what it ran
@@ -122,12 +148,14 @@ Feature: Upgrade runs exactly the setup work a project still needs
 #   commits a .gitattributes merge-driver line init never wrote. "A tracked refresh ..." also
 #   never records the repository state before it acts, so "the repository has no new commits"
 #   cannot pass as written; fix that Arrange too before dropping @wip.
-# The acceptance-jvm steps these scenarios bind (seven gate the nightly; two are @wip, above):
+# The acceptance-jvm steps these scenarios bind (eight gate the nightly; two are @wip, above):
 #   Arrange (Given):
 #     - "a setup step the project declares but has not recorded as run"
 #     - "a freshly pulled clone whose shared records show its local git setup ran
 #        but whose own local git state is missing"
 #     - "a project set up before Spec Kitty recorded its applied setup steps"
+#     - "a project set up before Spec Kitty recorded its applied setup steps, whose
+#        metadata lists none of them"
 #     - "a project whose recorded setup step no longer matches its current definition"
 #   Assert (Then):
 #     - "the previously pending setup step has taken effect"
@@ -135,6 +163,7 @@ Feature: Upgrade runs exactly the setup work a project still needs
 #     - "the setup steps that ran are listed in the order they ran"
 #     - "the report shows a local-only setup step as not yet in place on this checkout"
 #     - "the setup work already done is not done again"
+#     - "the upgrade changed only the project's record of its applied setup steps"
 #     - "the report flags a setup step whose content changed since it ran"
 # The read surface the last four scenarios drive is `spec-kitty migrate ledger`
 # (the read-only applied-work visibility surface, #5230 / IC-05). The clone Given

@@ -565,6 +565,17 @@ public final class AssertSteps {
                 .containsPattern(recognised);
     }
 
+    @Then("the upgrade changed only the project's record of its applied setup steps")
+    public void theUpgradeChangedOnlyTheRecordOfAppliedSetupSteps() {
+        // Adopting the applied-work records moves the project's record of what ran out of the
+        // project metadata and into its own file (ADR 2026-10-17-1 §6, hard cutover); nothing
+        // else in the project may change, or already-done work was redone.
+        List<String> changed = context.world().pathsChangedSinceRecorded();
+        assertThat(changed)
+                .as("Files the upgrade changed in the project:%n%s", context.lastResult())
+                .isSubsetOf(List.of(".kittify/metadata.yaml", ".kittify/migration-ledger.jsonl"));
+    }
+
     @Then("the report flags a setup step whose content changed since it ran")
     public void theReportFlagsASetupStepWhoseContentChanged() {
         assertThat(flowed(output()))

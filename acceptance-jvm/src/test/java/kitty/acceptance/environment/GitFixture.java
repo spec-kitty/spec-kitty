@@ -53,6 +53,15 @@ final class GitFixture {
         return recordedHead != null && recordedHead.equals(git("rev-parse", "HEAD").trim());
     }
 
+    /** The paths the commits made since {@link #recordRepoState()} changed, one per entry. */
+    List<String> pathsChangedSinceRecorded() {
+        if (recordedHead == null) {
+            throw new IllegalStateException("No recorded repository state: record it with an Assume step first");
+        }
+        return git("diff", "--name-only", recordedHead, "HEAD").lines()
+                .map(String::strip).filter(line -> !line.isEmpty()).toList();
+    }
+
     boolean commitCountUnchanged() {
         return recordedCommitCount != null
                 && recordedCommitCount == Integer.parseInt(git("rev-list", "--count", "HEAD").trim());
