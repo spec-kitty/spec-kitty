@@ -164,15 +164,18 @@ def settle_project_languages(
     return LanguageSettlement(confirmed, "confirmed", detected, to_store=confirmed)
 
 
-def store_language_settlement(repo_root: Path, settlement: LanguageSettlement) -> None:
+def store_language_settlement(repo_root: Path, settlement: LanguageSettlement) -> bool:
     """Write what *settlement* decided to ``.kittify/config.yaml``; a no-op when it decided nothing. Idempotent.
+
+    Returns ``True`` only when it wrote the list, so a caller reports a store that happened.
 
     A ``detected`` settlement was decided because the key was absent. The write comes later (after
     the interview answers), so the key is checked again: one that appeared meanwhile is the
     operator's and is never overwritten.
     """
     if settlement.to_store is None:
-        return
+        return False
     if settlement.source == "detected" and languages_key_is_set(repo_root):
-        return
+        return False
     write_configured_languages(repo_root, settlement.to_store)
+    return True

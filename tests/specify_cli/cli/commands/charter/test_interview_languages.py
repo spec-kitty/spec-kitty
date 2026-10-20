@@ -252,6 +252,30 @@ def test_a_completed_run_stores_the_answers_and_the_languages_and_promotion_keep
     assert "activated_directives" in _config(root), "promotion ran and its write sits beside the languages"
 
 
+def test_a_detected_store_that_loses_the_race_to_a_set_key_reports_the_kept_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.activation import api
+    from charter.activation.language_settlement import LanguageSettlement
+
+    root = _repo(tmp_path, monkeypatch)
+    real_store = api.store_language_settlement
+
+    def key_set_meanwhile(repo_root: Path, settlement: LanguageSettlement) -> bool:
+        with (repo_root / ".kittify" / "config.yaml").open("a", encoding="utf-8") as handle:
+            handle.write("\nlanguages: [go]\n")
+        return real_store(repo_root, settlement)
+
+    monkeypatch.setattr("charter.activation.api.store_language_settlement", key_set_meanwhile)
+
+    result = runner.invoke(charter_app, ["interview", "--defaults", "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output[result.output.index("{") :])
+    assert _config(root)["languages"] == ["go"]
+    assert payload["languages"] == ["go"]
+    assert payload["languages_source"] == "stored"
+    assert payload["languages_notice"] is None
+
+
 def test_a_failing_languages_store_after_the_answers_exits_non_zero_without_claiming_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path, monkeypatch)
 

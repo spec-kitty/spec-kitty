@@ -424,14 +424,19 @@ def interview(  # noqa: C901
         # #6542 -- the languages are stored with the answers: an interview that aborts or fails
         # before this point stores neither. Before the promotion, which re-reads config.yaml.
         # A store failure is not swallowed: it is named and exits 1 (answers are already saved).
-        from charter.activation.api import store_language_settlement
+        from charter.activation.api import configured_languages, store_language_settlement
 
         try:
-            store_language_settlement(repo_root, language_settlement)
+            wrote = store_language_settlement(repo_root, language_settlement)
         except (OSError, ValueError, YAMLError) as exc:
             raise TaskCliError(
                 f"Could not write the project languages to .kittify/config.yaml: {exc}. The interview answers were saved and re-running is safe."
             ) from exc
+        if language_settlement.source == "detected" and not wrote:
+            # The key appeared during the interview and was kept: do not report a detected store that did not happen.
+            language_settlement = dataclasses.replace(
+                language_settlement, languages=configured_languages(repo_root), source="stored", to_store=None, notice=None
+            )
 
         # FR-007 — append-promote captured selections into config.activated_*
         # via the WP06 primitive. Best-effort / non-fatal: a promotion failure
