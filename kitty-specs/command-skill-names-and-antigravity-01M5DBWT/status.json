@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M5DEQ0MYY3B03MN7W5F3Q5R1",
-  "materialized_at": "2026-10-20T20:05:46.270965+00:00",
+  "event_count": 9,
+  "last_event_id": "01M5DEQ2Q3494CV8BRP78XNR76",
+  "materialized_at": "2026-10-20T20:05:48.387494+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 8
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -73,6 +73,13 @@
       "lane": "planned",
       "last_event_id": "01M5DEQ0MYY3B03MN7W5F3Q5R1",
       "last_transition_at": "2026-10-20T20:05:46.270965+00:00"
+    },
+    "WP09": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M5DEQ2Q3494CV8BRP78XNR76",
+      "last_transition_at": "2026-10-20T20:05:48.387494+00:00"
     }
   }
 }
