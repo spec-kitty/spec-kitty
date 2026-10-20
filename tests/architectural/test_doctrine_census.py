@@ -155,7 +155,9 @@ DISPOSITION: dict[str, str] = {
     # language vocabulary → charter.languages (PUBLIC). Module-keyed: the census has no
     # per-symbol entries, so FR-008 (only LANGUAGE_TOKENS, never the records or family
     # helpers) is enforced by charter.offering.api.__all__ and
-    # tests/charter_offering/test_language_tokens_seam.py.
+    # tests/charter_offering/test_language_tokens_seam.py. That module's
+    # test_the_seam_takes_exactly_language_tokens_from_the_catalog is the binding gate for this
+    # module-wide PUBLIC row: it pins the names the seam takes from language_catalog.
     "charter.offering.shared.language_catalog": "PUBLIC",
     # assets → new charter.assets (PUBLIC)
     "charter.offering.assets.repository": "PUBLIC",

@@ -43,6 +43,22 @@ def test_catalog_internals_are_not_on_the_seam(name: str) -> None:
     assert not hasattr(api, name)
 
 
+def test_the_seam_takes_exactly_language_tokens_from_the_catalog() -> None:
+    """Binding gate for the census row: ``language_catalog`` is PUBLIC module-wide, this pins the symbol."""
+    import ast
+    import inspect
+
+    import charter.offering.api as api
+
+    taken = {
+        alias.name
+        for node in ast.walk(ast.parse(inspect.getsource(api)))
+        if isinstance(node, ast.ImportFrom) and node.module == language_catalog.__name__
+        for alias in node.names
+    }
+    assert taken == {"LANGUAGE_TOKENS"}
+
+
 def test_facade_reexports_the_same_object() -> None:
     import charter.languages as facade
     from charter.offering.api import LANGUAGE_TOKENS
