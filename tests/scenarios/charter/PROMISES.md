@@ -43,8 +43,9 @@ project, which takes the seed path and evaluates nothing. Nine scenarios are bou
 outcome-verb step; three are `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
 over an org pack needs the black-box override + layer-provenance fixture tracked by #6137; and
 `GOVERNANCE-002` (#6417) and `SHARING-004` (#6418), which landed gating without ever running and
-were red on their first nightly (#6369). `REFUSAL-003` was red on that nightly too and stays gating
-by operator ruling: it is a confirmed product gap (#6415).
+were red on their first nightly (#6369). `REFUSAL-003` was red on that nightly too and stayed gating
+by operator ruling as a confirmed product gap; #6415 fixed it (`charter synthesize` now refuses an
+unsound `charter.yaml` with `ACTIVE_CHARTER_CONFIG_INVALID`), so it is expected green.
 `GOVERNANCE-003` is now bound to its positive outcome step (`the shared governance is reported
 sound`) — bound-and-red until the coherence check resolves org-pack-provided governance, then
 green (epic #6286).

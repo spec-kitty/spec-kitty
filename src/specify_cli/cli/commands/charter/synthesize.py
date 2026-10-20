@@ -22,6 +22,7 @@ from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
+from specify_cli.cli.commands.charter._charter_yaml_gate import assert_charter_yaml_sound
 from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
@@ -213,6 +214,13 @@ def charter_synthesize(  # noqa: C901
         resolve_charter_write_root(Path.cwd())
 
         repo_root = _charter_pkg.find_repo_root()
+
+        # #6415: refuse an unsound charter.yaml before anything below can write. The fresh
+        # gate keys on charter.yaml merely existing and the establishment probe reads an
+        # unparseable file as "never activated", so without this a broken charter took the
+        # destructive minimal-seed path and exited 0. Raises ActiveCharterConfigError,
+        # rendered by the KittyInternalConsistencyError branch below (exit 1, --json envelope).
+        assert_charter_yaml_sound(repo_root)
 
         # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything
         # writes, so a run can never leave two files declaring the same PROJECT_00N id. The

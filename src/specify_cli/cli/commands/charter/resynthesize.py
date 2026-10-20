@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from charter.activation.evidence.orchestrator import ConfigShapeError
+from kernel.errors import KittyInternalConsistencyError
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
@@ -22,6 +23,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
 )
+from specify_cli.cli.commands.charter._charter_yaml_gate import assert_charter_yaml_sound
 from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._synthesis import _converge_legacy_project_intent_directive
 
@@ -104,6 +106,8 @@ def charter_resynthesize(  # noqa: C901
         resolve_charter_write_root(Path.cwd())
 
         repo_root = _charter_pkg.find_repo_root()
+        # #6415: refuse an unsound charter.yaml before the convergence below can write.
+        assert_charter_yaml_sound(repo_root)
         # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything writes.
         _converge_legacy_project_intent_directive(repo_root, dry_run=list_topics, console=console, json_output=json_output)
         charter_dir = repo_root / ".kittify" / "charter"
@@ -267,6 +271,11 @@ def charter_resynthesize(  # noqa: C901
         # closed with the exact, actionable remedy text. Catch the BASE class
         # so any write-root failure mode fails closed identically.
         _emit_error(console, json_output=json_output, message=str(e))
+        raise typer.Exit(code=1) from e
+    except KittyInternalConsistencyError as e:
+        # #6415: an unsound charter.yaml (ACTIVE_CHARTER_CONFIG_INVALID) is a typed,
+        # expected refusal -- render its code and body, not "Unexpected error".
+        _emit_error(console, json_output=json_output, message=e.body or e.code, code=e.code)
         raise typer.Exit(code=1) from e
     except (TaskCliError, ConfigShapeError) as e:
         # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
