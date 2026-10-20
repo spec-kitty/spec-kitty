@@ -113,6 +113,30 @@ _MANUAL_REVIEW_HEADER = "[yellow]Manual review required:[/yellow]"
 _REPAIR_NOT_PREPARED_MESSAGE = "Tool-surface repair was not prepared; re-run 'spec-kitty upgrade'."
 _AUTO_COMMITTED_LINE = "[cyan]→ Auto-committed upgrade changes ({count} files)[/cyan]"
 _AUTO_COMMITTED_UNLISTED_LINE = "[cyan]→ Auto-committed upgrade changes[/cyan]"
+_COMMAND_SKILL_RENAME_MIGRATION_ID = "4.0.0rc8_command_skill_hyphen_names"
+#: FR-006: the one line naming the new command-skill invocation after the #6475 rename.
+_COMMAND_SKILL_RENAME_NOTICE = (
+    "Command skills are now named spec-kitty-<command> (for example `{codex}` in Codex, `{slash}` in Vibe, Letta and Antigravity, `{pi}` in Pi)."
+)
+_LEGACY_COMMAND_REPORT_KINDS = frozenset({"legacy_removed", "legacy_kept"})
+
+
+def command_skill_rename_notice() -> str:
+    """The new-invocation notice, with each token from the naming authority (FR-006)."""
+    from specify_cli.skills.command_skill_names import skill_invocation_token
+
+    def token(agent: str) -> str:
+        return skill_invocation_token(agent, "specify", is_skill_agent=True)
+
+    return _COMMAND_SKILL_RENAME_NOTICE.format(codex=token("codex"), slash=token("vibe"), pi=token("pi"))
+
+
+def _rename_migration_ran(result: UpgradeResult) -> bool:
+    """True when this (real) run's rename migration retired or installed command skills."""
+    migration_result = result.migration_results.get(_COMMAND_SKILL_RENAME_MIGRATION_ID)
+    if result.dry_run or migration_result is None or not migration_result.success:
+        return False
+    return bool(migration_result.changes_made or migration_result.preserved_paths)
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -1013,12 +1037,15 @@ def _render_text_report(
     project_path: Path,
     dry_run: bool,
     surface_repair_summary: DriftPolicySummary | None = None,
+    command_skills_renamed: bool = False,
 ) -> None:
     """Render a completed run in text mode, for both the migrations and no-migrations paths."""
     if outcome.had_migrations:
         _display_upgrade_results(outcome.result)
     for notice in outcome.notices():
         console.print(notice, style="dim", markup=False, highlight=False)
+    if command_skills_renamed or _rename_migration_ran(outcome.result):
+        console.print(command_skill_rename_notice(), markup=False, highlight=False)
     # #6155 item 1: name each regenerated DERIVED command-skill projection. These are owned by
     # the surface-repair summary (not the outcome), so this does not assemble outcome messages.
     if surface_repair_summary is not None:
@@ -1061,6 +1088,8 @@ class _FinalizerRenderContext:
         self.commit_paths: list[str] = []
         self.commit_warning: str | None = None
         self.prepared_repairs: PreparedUpgradeRepairs | None = None
+        #: The surface repair retired legacy dotted command skills (#6475), so the notice prints.
+        self.command_skills_renamed = False
 
 
 def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: PreparedUpgradeRepairs | None = None) -> list[str]:
@@ -1200,6 +1229,31 @@ def _regenerated_paths(prepared: PreparedUpgradeRepairs) -> set[Path]:
     return regenerated
 
 
+def _command_skill_warnings(prepared: PreparedUpgradeRepairs) -> list[str]:
+    """Collision / kept-legacy warnings of the command-skill repair, one per path (FR-019/FR-020)."""
+    from specify_cli.tool_surface.providers.command_skills import warning_message
+
+    warnings: list[str] = []
+    for owner in prepared.owners:
+        for disposition in owner.dispositions:
+            message = warning_message(disposition)
+            if message is not None and message not in warnings:
+                warnings.append(message)
+    return warnings
+
+
+def _command_skill_legacy_retired(prepared: PreparedUpgradeRepairs) -> bool:
+    """True when the command-skill repair retired a legacy dotted entry (deleted or kept)."""
+    from specify_cli.skills.command_installer import PreparedCommands
+
+    return any(
+        command.report_kind in _LEGACY_COMMAND_REPORT_KINDS
+        for owner in prepared.owners
+        if isinstance(owner.prepared, PreparedCommands)
+        for command in owner.prepared.commands
+    )
+
+
 def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRenderContext, prepared: PreparedUpgradeRepairs) -> SurfaceRepairReport:
     """Apply the prepared repairs and report drift, failures and the summary the JSON payload reads."""
     from specify_cli.upgrade.assessment import apply_upgrade_repairs
@@ -1221,6 +1275,8 @@ def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRend
     drifted_reasons = _preserved_for_consent(prepared)
     summary.drifted_reported.extend(drifted_reasons)
     ctx.surface_repair_summary = summary
+    ctx.command_skills_renamed = _command_skill_legacy_retired(prepared)
+    outcome.result.warnings.extend(w for w in _command_skill_warnings(prepared) if w not in outcome.result.warnings)
     outcome.result.errors.extend(d.message for result in results for d in result.diagnostics if d.severity == "error")
     return SurfaceRepairReport(
         drifted_paths=tuple(summary.drifted_reported),
@@ -2177,6 +2233,7 @@ def upgrade(
             project_path=project_path,
             dry_run=dry_run,
             surface_repair_summary=surface_repair_summary,
+            command_skills_renamed=render_ctx.command_skills_renamed,
         )
 
     # D-5 — the exit code is derived exactly once, here, from the finalized
