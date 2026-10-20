@@ -60,7 +60,8 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
 Once a Java 25 is present, `scripts/dev/cloud-session-setup.sh` auto-detects it,
-exports `JAVA_HOME` for the session and puts the pinned Gradle from
+exports `JAVA_HOME` for the session, puts the JDK's `bin/` on `PATH` (so a plain `java`
+is 25 too) and puts the pinned Gradle from
 [`tools/pins.json`](tools/pins.json) (installed checksum-verified by
 `contracts/tools/install_tools.py`, as CI does, and cached under
 `${XDG_CACHE_HOME:-~/.cache}/spec-kitty/acceptance-jvm-tools/`) first on `PATH`, so

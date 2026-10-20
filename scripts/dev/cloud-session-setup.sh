@@ -64,7 +64,7 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     fi
   done
   if [ -n "$jdk25" ]; then
-    lines=("export JAVA_HOME=$jdk25")
+    lines=("export JAVA_HOME=$jdk25" "export PATH=\"$jdk25/bin:\$PATH\"")
     gradle_version=$(python3 -c 'import json,sys; print(next(t["version"] for t in json.load(open(sys.argv[1]))["tools"] if t["name"] == "gradle"))' acceptance-jvm/tools/pins.json)
     tools_dir="${XDG_CACHE_HOME:-$HOME/.cache}/spec-kitty/acceptance-jvm-tools"
     gradle_bin="$tools_dir/gradle-$gradle_version/bin"
