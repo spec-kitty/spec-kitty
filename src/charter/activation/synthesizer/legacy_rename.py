@@ -223,12 +223,20 @@ def _provenance_plan(repo_root: Path) -> Iterator[tuple[Path, Path, dict[str, An
         yield path, dst, updated, None
 
 
+def _is_resumable_move(dst: Path, data: dict[str, Any]) -> bool:
+    """True when *dst* already holds exactly *data*: an interrupted move that only lacks the old file's removal."""
+    try:
+        return _read_mapping(dst) == data
+    except _READ_ERRORS:
+        return False
+
+
 def _check_provenance(repo_root: Path) -> _Finding:
     finding = _Finding()
-    for src, dst, _data, error in _provenance_plan(repo_root):
+    for src, dst, data, error in _provenance_plan(repo_root):
         if error is not None:
             finding.refusals.append(error)
-        elif dst != src and dst.exists():
+        elif dst != src and dst.exists() and not _is_resumable_move(dst, data):
             finding.refusals.append(f"{_rel(repo_root, dst)} already exists, so {_rel(repo_root, src)} cannot move onto it")
         else:
             verb = "rewrite" if dst == src else "move and rewrite"

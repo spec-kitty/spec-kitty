@@ -230,6 +230,20 @@ def test_a_provenance_collision_is_refused_and_nothing_changes(tmp_path: Path) -
     assert _tree(tmp_path) == before
 
 
+def test_an_interrupted_provenance_move_is_resumed_by_the_next_run(tmp_path: Path) -> None:
+    """The new sidecar was written but the old one not yet unlinked: the re-run removes the old one."""
+    _legacy_project(tmp_path, shape="slug-keyed")
+    old = tmp_path / _PROVENANCE_DIR / "directive-mission-type-scope-directive.yaml"
+    new = tmp_path / _PROVENANCE_DIR / "directive-project-intent-directive.yaml"
+    _dump(new, {**_load(old), "artifact_slug": "project-intent-directive"})
+
+    rename_legacy_project_intent_directive(tmp_path)
+
+    assert not old.exists()
+    assert sorted(p.name for p in (tmp_path / _PROVENANCE_DIR).glob("directive-*.yaml")) == [new.name]
+    assert _load(new)["artifact_slug"] == "project-intent-directive"
+
+
 def test_a_manifest_slug_collision_is_refused_and_nothing_changes(tmp_path: Path) -> None:
     _legacy_project(tmp_path, shape="slug-keyed")
     manifest = load_yaml(tmp_path / MANIFEST_PATH)
