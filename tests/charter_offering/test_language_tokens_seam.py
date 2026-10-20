@@ -27,6 +27,11 @@ def test_language_tokens_derived_from_catalog_in_order() -> None:
     expected = tuple(spec.token for spec in language_catalog.LANGUAGES)
     assert expected == LANGUAGE_TOKENS
     assert {"python", "kotlin", "java"} <= set(LANGUAGE_TOKENS)
+    # The ``charter.languages`` facade hands out the seam's object, not a copy. This static
+    # import is also what keeps the facade reachable for test_src_reachability_guard.
+    from charter.languages import LANGUAGE_TOKENS as facade_tokens
+
+    assert facade_tokens is LANGUAGE_TOKENS
 
 
 @pytest.mark.parametrize("name", _INTERNAL_CATALOG_NAMES)
