@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,6 @@ from specify_cli.audit.models import (
     Severity,
     is_teamspace_blocker,
 )
-
 
 # ---------------------------------------------------------------------------
 # T001: Severity StrEnum
@@ -85,9 +85,25 @@ class TestSeverity:
     def test_rank_orders_most_severe_first(self) -> None:
         assert [s.rank for s in (Severity.ERROR, Severity.WARNING, Severity.INFO)] == [0, 1, 2]
 
+    def test_str_operand_follows_rank_on_both_sides(self) -> None:
+        # ``Severity`` is a ``str``: returning NotImplemented for a plain value
+        # would hand the comparison to ``str`` and its alphabetical order.
+        assert Severity.WARNING <= "info"
+        assert Severity.WARNING < "info"
+        assert not (Severity.WARNING > "info")
+        # Plain value on the left: Python asks the ``Severity`` subclass first.
+        assert operator.gt("info", Severity.WARNING)
+        assert operator.ge("info", Severity.WARNING)
+        assert not operator.lt("info", Severity.WARNING)
+
     @pytest.mark.parametrize("op", ["__lt__", "__le__", "__gt__", "__ge__"])
-    def test_non_severity_operand_is_not_implemented(self, op: str) -> None:
-        assert getattr(Severity.ERROR, op)("info") is NotImplemented
+    def test_unknown_str_operand_raises(self, op: str) -> None:
+        with pytest.raises(ValueError, match="critical"):
+            getattr(Severity.ERROR, op)("critical")
+
+    @pytest.mark.parametrize("op", ["__lt__", "__le__", "__gt__", "__ge__"])
+    def test_non_str_operand_is_not_implemented(self, op: str) -> None:
+        assert getattr(Severity.ERROR, op)(1) is NotImplemented
 
     def test_all_four_operators_agree_with_sorting(self) -> None:
         members = sorted([Severity.INFO, Severity.ERROR, Severity.WARNING])

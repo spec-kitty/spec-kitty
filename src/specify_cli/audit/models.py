@@ -73,24 +73,41 @@ class Severity(StrEnum):
         return _SEVERITY_RANK[self.value]
 
     def __lt__(self, other: object) -> bool:
-        if not isinstance(other, Severity):
+        other_rank = _operand_rank(other)
+        if other_rank is None:
             return NotImplemented
-        return self.rank < other.rank
+        return self.rank < other_rank
 
     def __le__(self, other: object) -> bool:
-        if not isinstance(other, Severity):
+        other_rank = _operand_rank(other)
+        if other_rank is None:
             return NotImplemented
-        return self.rank <= other.rank
+        return self.rank <= other_rank
 
     def __gt__(self, other: object) -> bool:
-        if not isinstance(other, Severity):
+        other_rank = _operand_rank(other)
+        if other_rank is None:
             return NotImplemented
-        return self.rank > other.rank
+        return self.rank > other_rank
 
     def __ge__(self, other: object) -> bool:
-        if not isinstance(other, Severity):
+        other_rank = _operand_rank(other)
+        if other_rank is None:
             return NotImplemented
-        return self.rank >= other.rank
+        return self.rank >= other_rank
+
+
+def _operand_rank(other: object) -> int | None:
+    """Rank of a comparison operand, or ``None`` when it is not a severity.
+
+    A plain ``str`` is read as a severity value (an unknown one raises
+    ``ValueError``): returning ``NotImplemented`` for it would hand the
+    comparison to ``str`` and its alphabetical order, since ``Severity`` is a
+    ``str``.
+    """
+    if isinstance(other, str):
+        return Severity(other).rank
+    return None
 
 
 @dataclass(frozen=True)
