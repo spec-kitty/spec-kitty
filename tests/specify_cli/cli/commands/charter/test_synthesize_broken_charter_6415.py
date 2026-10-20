@@ -131,6 +131,7 @@ def test_synthesize_json_emits_typed_failure_envelope(project: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["result"] == "failure"
     assert payload["written_artifacts"] == []
+    assert payload["code"] == _CODE
     detail = " ".join(payload["warnings"])
     _assert_names_file_and_remedy(detail)
 

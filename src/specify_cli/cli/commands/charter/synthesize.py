@@ -722,6 +722,7 @@ def charter_synthesize(  # noqa: C901
                     {
                         "result": "failure",
                         "adapter": {"id": adapter, "version": "unknown"},
+                        "code": e.code,
                         "written_artifacts": [],
                         "warnings": warnings_collected + [detail],
                     },
