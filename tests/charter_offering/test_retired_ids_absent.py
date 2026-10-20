@@ -122,26 +122,49 @@ def _scan_text(text: str, rel: str) -> list[str]:
     return [stem for stem, pattern in _PATTERNS.items() if pattern.search(text) and not _is_allowlisted(rel, stem)]
 
 
-def _tracked_text_files() -> list[str]:
+#: The synced pack trees. Since #6451 they are fetched from ``spec-kitty-open-packs``
+#: and gitignored, so ``git ls-files`` no longer sees them; they are walked on disk
+#: instead, because they are exactly what core ships (#6553).
+_PACK_ROOTS: tuple[str, ...] = ("packs/built-in", "packs/internal")
+
+
+def _pack_text_files(root: str) -> list[str]:
+    """Every text file of the synced pack tree *root*, repo-relative; never empty."""
+    files = sorted(p.relative_to(_REPO_ROOT).as_posix() for p in (_REPO_ROOT / root).rglob("*") if p.is_file() and p.suffix in _TEXT_SUFFIXES)
+    assert files, f"no synced text files under {root}; run `make sync-packs` (an empty tree would make this scan vacuous)"
+    return files
+
+
+def _shipped_text_files() -> list[str]:
+    """Tracked ``src`` text files plus the synced pack trees on disk."""
     out = subprocess.run(
-        ["git", "ls-files", "--", "src", "packs"],
+        ["git", "ls-files", "--", "src"],
         cwd=_REPO_ROOT,
         check=True,
         capture_output=True,
         text=True,
     ).stdout
-    return [p for p in out.splitlines() if Path(p).suffix in _TEXT_SUFFIXES]
+    tracked = [p for p in out.splitlines() if Path(p).suffix in _TEXT_SUFFIXES]
+    return tracked + [rel for root in _PACK_ROOTS for rel in _pack_text_files(root)]
 
 
 def test_no_retired_id_is_named_under_src_or_packs() -> None:
     hits: list[tuple[str, str]] = []
-    for rel in _tracked_text_files():
+    for rel in _shipped_text_files():
         path = _REPO_ROOT / rel
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         hits.extend((rel, stem) for stem in _scan_text(text, rel))
     assert hits == [], f"retired ids still named in shipped source: {hits}"
+
+
+@pytest.mark.parametrize(("rel", "stem", "phrase"), _PROVENANCE_PHRASES, ids=lambda v: str(v))
+def test_provenance_phrase_is_still_present(rel: str, stem: str, phrase: str) -> None:
+    """Each provenance row still strips real text, so the exemption cannot outlive its phrase."""
+    text = (_REPO_ROOT / rel).read_text(encoding="utf-8")
+    assert stem in phrase
+    assert phrase in text, f"{rel} no longer carries {phrase!r}; drop the provenance row"
 
 
 #: (artifact kind, id) of every retired built-in artifact that had a file and a

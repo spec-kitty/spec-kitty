@@ -89,6 +89,7 @@ import os
 import re
 import subprocess
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -173,6 +174,19 @@ _AUTHORITY_ZERO_PIN_SURFACES: tuple[str, ...] = (
     "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",
     ".kittify/charter/charter.yaml",
 )
+
+# The zero-pin surfaces that are no longer tracked: since #6451 the built-in pack
+# is fetched from ``spec-kitty-open-packs`` and gitignored, so the working-tree
+# ``git grep`` census can never see it. These are read on disk instead (#6553).
+_UNTRACKED_ZERO_PIN_SURFACES: tuple[str, ...] = ("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",)
+
+
+def _governing_lines_on_disk(rel: str) -> list[str]:
+    """Governing lines of the synced file *rel*, read on disk; a missing file fails."""
+    path = REPO_ROOT / rel
+    assert path.is_file(), f"{rel} is missing; run `make sync-packs` (the zero-pin would pass vacuously)"
+    return [line for line in path.read_text(encoding="utf-8").splitlines() if _TOKEN in line and _is_governing_line(line)]
+
 
 # This guard and its sibling WP04 test must never be scanned (belt-and-suspenders
 # on top of the fragment-built token: neither file carries a governing marker).
@@ -334,6 +348,8 @@ def test_authority_footprint_shrank() -> None:
         "Charter-Bundle selection key was re-widened (weaker count>baseline rule "
         "would miss a bare re-add of the identical coordinate)"
     )
+    surviving_on_disk = {rel: lines for rel in _UNTRACKED_ZERO_PIN_SURFACES if (lines := _governing_lines_on_disk(rel))}
+    assert not surviving_on_disk, f"the retired governing surface still survives in the synced built-in pack: {surviving_on_disk}"
 
 
 def test_guard_has_teeth() -> None:
@@ -427,3 +443,16 @@ def test_cr01_control_paths_are_currently_real() -> None:
             "coordinate — it has been fixed and MUST be removed from "
             "_CR01_CONTROL_PATHS (shrink-only), not left in it"
         )
+
+
+def test_untracked_zero_pin_is_read_on_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The synced-pack zero-pin bites on a governing line the ``git grep`` census cannot see (#6553)."""
+    rel = _UNTRACKED_ZERO_PIN_SURFACES[0]
+    target = tmp_path / rel
+    target.parent.mkdir(parents=True)
+    target.write_text(f"terms:\n  - surface: {_TOKEN}\n  - surface: {_TOKEN} pack\n", encoding="utf-8")
+    monkeypatch.setattr(f"{__name__}.REPO_ROOT", tmp_path)
+    assert _governing_lines_on_disk(rel) == [f"  - surface: {_TOKEN}"]
+    target.unlink()
+    with pytest.raises(AssertionError, match="make sync-packs"):
+        _governing_lines_on_disk(rel)

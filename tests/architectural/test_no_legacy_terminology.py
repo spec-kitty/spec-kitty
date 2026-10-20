@@ -522,6 +522,11 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
 # the same generic phrase-scan/baseline machinery (``_grep_for_phrase_ci`` /
 # ``_hits_outside_baseline``), scanning ``src``, ``docs``, **and** ``packs``
 # (SC-003 -- the lane-consolidation guard above does not scan ``packs``).
+# ``src`` and ``docs`` are read through ``git grep``. The pack trees are not:
+# since #6451 they are fetched from ``spec-kitty-open-packs`` and gitignored, so
+# ``git grep`` sees only the pin files there. They are walked on disk instead
+# (``_COMMAND_SURFACE_PACK_ROOTS``), because the synced tree is what core ships
+# (#6553).
 #
 # "spec-kitty merge" is fixed-string-matched (case-insensitive) then filtered
 # through ``_COMMAND_SURFACE_PHRASE_PATTERN`` so genuine git-plumbing compounds
@@ -542,7 +547,8 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
 # blanket carve-out for anything discussing the rename.
 _COMMAND_SURFACE_PHRASE: str = "spec-kitty merge"
 _COMMAND_SURFACE_PHRASE_PATTERN = re.compile(r"spec-kitty merge(?!-)", re.IGNORECASE)
-_COMMAND_SURFACE_SCAN_ROOTS: tuple[str, ...] = ("src", "docs", "packs")
+_COMMAND_SURFACE_SCAN_ROOTS: tuple[str, ...] = ("src", "docs")
+_COMMAND_SURFACE_PACK_ROOTS: tuple[str, ...] = ("packs/built-in", "packs/internal")
 
 _COMMAND_SURFACE_PHRASE_BASELINE: frozenset[str] = frozenset(
     {
@@ -609,9 +615,29 @@ def _is_command_surface_phrase_hit(line: str) -> bool:
     return _COMMAND_SURFACE_PHRASE_PATTERN.search(content) is not None
 
 
+def _synced_pack_phrase_hits(pattern: re.Pattern[str], roots: tuple[str, ...]) -> list[str]:
+    """``<path>:<line>:<content>`` hits of *pattern* in the synced pack trees, read on disk.
+
+    The trees are untracked (#6451), so ``git grep`` cannot see them. Each root
+    must hold at least one file: an unsynced tree fails here instead of passing
+    vacuously.
+    """
+    repo = _repo_root()
+    hits: list[str] = []
+    for root in roots:
+        files = sorted(p for p in (repo / root).rglob("*") if p.is_file())
+        assert files, f"no synced files under {root}; run `make sync-packs` (an empty tree would make this scan vacuous)"
+        for path in files:
+            rel = path.relative_to(repo).as_posix()
+            text = path.read_bytes().decode("utf-8", errors="surrogateescape")
+            hits.extend(f"{rel}:{number}:{line}" for number, line in enumerate(text.splitlines(), start=1) if pattern.search(line))
+    return hits
+
+
 def _collect_command_surface_phrase_violations() -> dict[str, list[str]]:
     """Real-repo scan: every command-surface "spec-kitty merge" hit outside the baseline."""
     hits = [line for line in _grep_for_phrase_ci(_COMMAND_SURFACE_PHRASE, roots=_COMMAND_SURFACE_SCAN_ROOTS) if _is_command_surface_phrase_hit(line)]
+    hits += _synced_pack_phrase_hits(_COMMAND_SURFACE_PHRASE_PATTERN, _COMMAND_SURFACE_PACK_ROOTS)
     return _hits_outside_baseline(hits, _COMMAND_SURFACE_PHRASE_BASELINE)
 
 
@@ -679,6 +705,24 @@ def test_command_surface_guard_green_on_legit_uses() -> None:
     )
     for line in legit_lines:
         assert not _is_command_surface_phrase_hit(line), f"Legitimate line falsely matched the command-surface phrase: {line!r}"
+
+
+def test_synced_pack_scan_flags_the_phrase_on_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The on-disk pack leg reports a hit in an untracked tree and skips ``merge-*`` compounds (#6553)."""
+    pack = tmp_path / "packs" / "built-in" / "missions"
+    pack.mkdir(parents=True)
+    (pack / "prompt.md").write_text("intro\nthen run spec-kitty merge --dry-run\nspec-kitty merge-driver-event-log\n", encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    hits = _synced_pack_phrase_hits(_COMMAND_SURFACE_PHRASE_PATTERN, ("packs/built-in",))
+    assert hits == ["packs/built-in/missions/prompt.md:2:then run spec-kitty merge --dry-run"]
+    assert set(_hits_outside_baseline(hits, _COMMAND_SURFACE_PHRASE_BASELINE)) == {"packs/built-in/missions/prompt.md"}
+
+
+def test_synced_pack_scan_refuses_an_unsynced_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing or empty pack tree fails the scan instead of passing it vacuously (#6553)."""
+    monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
+    with pytest.raises(AssertionError, match="make sync-packs"):
+        _synced_pack_phrase_hits(_COMMAND_SURFACE_PHRASE_PATTERN, ("packs/internal",))
 
 
 def test_command_surface_guard_green_on_grandfathered_baseline() -> None:
