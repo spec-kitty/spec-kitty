@@ -287,6 +287,18 @@ def test_an_unreadable_overlay_without_legacy_state_is_left_to_its_own_reader(tm
     assert not rename_legacy_project_intent_directive(tmp_path).pending
 
 
+def test_a_dangling_charter_pointer_is_left_to_its_own_reader(tmp_path: Path) -> None:
+    """``charter:`` naming a missing file must not crash the preflight (dry-run, migration ``detect()``)."""
+    (tmp_path / _CONFIG).parent.mkdir(parents=True)
+    (tmp_path / _CONFIG).write_text("charter: .kittify/charter/charter.yaml\n", encoding="utf-8")
+    before = _tree(tmp_path)
+
+    report = rename_legacy_project_intent_directive(tmp_path, dry_run=True)
+
+    assert not report.pending
+    assert _tree(tmp_path) == before
+
+
 def test_a_project_without_legacy_state_is_untouched(tmp_path: Path) -> None:
     (tmp_path / _PACK_DIR).mkdir(parents=True)
     (tmp_path / _PACK_DIR / _NEW).write_text(_BODY, encoding="utf-8")

@@ -40,6 +40,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.offering.artifact_kinds import ArtifactKind
 from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path
@@ -397,7 +398,7 @@ def _check_tokens(repo_root: Path) -> _Finding:
 
     try:
         target_path, data, _save = resolve_activation_write_target(repo_root)
-    except (*_READ_ERRORS, RuntimeError) as exc:
+    except (*_READ_ERRORS, RuntimeError, ActiveCharterConfigError) as exc:
         finding.soft_refusals.append(f"the activation write target is unreadable ({exc})")
         return finding
     for key in _legacy_token_keys(data):
