@@ -60,7 +60,8 @@
       "last_transition_at": "2026-10-20T21:04:20.807749+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Review passed after rework: gate now catches bare f\"spec-kitty-{x}\"; installer-side uniqueness call handed to WP03"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
