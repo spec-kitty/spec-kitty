@@ -20,7 +20,7 @@ from pathlib import Path
 from kernel.clock import now_utc
 
 from specify_cli.upgrade.ledger import MigrationLedger
-from specify_cli.upgrade.metadata import MigrationRecord, ProjectMetadata
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger import (
     BackfillMigrationLedgerMigration,
 )
@@ -159,16 +159,21 @@ def test_prior_record_detect_true_before_backfill(tmp_path: Path) -> None:
     assert BackfillMigrationLedgerMigration().detect(project) is True
 
 
-def test_metadata_only_backfill_adds_no_version_floor_records(tmp_path: Path) -> None:
-    """The backfill seeds ONLY from metadata.applied_migrations -- no version-floor baseline (operator ruling)."""
+def test_first_adoption_also_settles_the_version_floor(tmp_path: Path) -> None:
+    """First adoption stamps every migration below the recorded version, not only the listed ones (#6431).
+
+    Replaces the 2026-10-18 metadata-only ruling (reversed by the operator,
+    2026-10-20): pre-ledger ``init`` wrote ``applied: []``, so the version stamp,
+    not the list, was what settled a project's older migrations.
+    """
     project = _seed_pre_ledger_project(tmp_path)
     BackfillMigrationLedgerMigration().apply(project)
 
-    tracked_ids = {r.id for r in MigrationLedger(project).read_tracked()}
-    # Exactly the one id the metadata recorded -- nothing floor-seeded from the manifest/version window.
-    assert tracked_ids == {_PRIOR_ID}
-    seed = MigrationRecord(id=_PRIOR_ID, applied_at=now_utc(), result="success")
-    assert seed.id == _PRIOR_ID  # the only seed source is the recorded metadata row
+    tracked = {r.id: r for r in MigrationLedger(project).read_tracked()}
+    assert _PRIOR_ID in tracked
+    assert "0.2.0_specify_to_kittify" in tracked, "a migration below the recorded 3.2.0 is settled"
+    assert all(record.result == "success" for record in tracked.values())
+    assert "4_0_0rc5_heal_run_index_paths" not in tracked, "a migration above the recorded version stays pending"
 
 
 def test_backfill_prefers_success_over_an_earlier_non_success_record(tmp_path: Path) -> None:

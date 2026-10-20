@@ -8,6 +8,7 @@ permanent strip of the on-disk ``migrations:`` block is WP-F's concern.
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -79,6 +80,9 @@ def seeded_project(tmp_path: Path) -> Iterator[Path]:
     for cls in (_TrackedFake, _CloneAbsentFake, _ClonePresentFake):
         MigrationRegistry.register(cls)
 
+    # A clone-local effect lives in the git directory, so "present on this
+    # checkout" needs a repository to be true at all (#6431).
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     # The backfill reads ``metadata.yaml.migrations.applied`` -- the pre-ledger

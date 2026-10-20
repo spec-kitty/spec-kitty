@@ -152,6 +152,19 @@ class BaseMigration(ABC):
     #: and never re-selects or re-applies the migration.
     content_hash_sources: ClassVar[tuple[str, ...]] = ()
 
+    #: The migration adopts the ledger: it records other migrations as settled
+    #: when it applies (ADR ``2026-10-17-1`` §6, Amendment 2026-10-20). Selection
+    #: never caps it at the run's requested target (an upgrade to an older
+    #: target must still adopt, or its own records would hide the adoption for
+    #: good), and while it is unsettled, selection treats the ids
+    #: :meth:`adoption_settled_ids` returns as already settled, so a preview or
+    #: dry run lists what the real run will apply (#6431).
+    ledger_adoption: ClassVar[bool] = False
+
+    def adoption_settled_ids(self, project_path: Path) -> frozenset[str]:  # noqa: ARG002 -- hook; the default settles nothing
+        """The migration ids this ledger-adoption migration will record as ``success`` when it applies."""
+        return frozenset()
+
     def structural_detect(self, project_path: Path) -> bool:  # noqa: ARG002 -- hook; the default ignores the project
         """Return True when the project still carries state this migration owns.
 

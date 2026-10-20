@@ -25,7 +25,10 @@ migration's ``clone_local_effect`` through the shipped ledger API:
   clone is correct;
 * a **clone-local** migration (``clone_local_effect`` True) is seeded into the
   per-clone (gitignored) ``.kittify/migrations/clone-local.jsonl``, and only
-  when its effect is actually present on THIS checkout (``detect()`` False).
+  when its effect is actually present on THIS checkout
+  (:func:`~specify_cli.upgrade.ledger.clone_local_effect_in_place`: a git
+  repository exists and ``detect()`` is False). An ``init`` outside git
+  therefore seeds none of them; the first upgrade after ``git init`` applies them.
   Because that ledger never travels, a pulled clone still re-applies the
   clone-local effect (#6233); seeding it on the origin never leaks a tracked
   record that would suppress that re-apply.
@@ -38,29 +41,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .ledger import MigrationLedger, build_record
+from .ledger import MigrationLedger, build_record, clone_local_effect_in_place
 from .registry import MigrationRegistry, migration_settled
 
 #: The honest init-seed result stamped on every seeded record.
 _SEED_RESULT = "success"
-
-
-def _effect_absent(migration: object, project_root: Path) -> bool:
-    """True when a clone-local migration's own ``detect()`` says the effect is absent here.
-
-    ``detect()`` True means the OLD state is present -- i.e. the effect is not
-    yet applied on this checkout -- so the migration is left pending and the
-    first ``upgrade`` applies it. Any ``detect()`` error is treated as "absent"
-    so the seed leaves the migration pending rather than wrongly suppressing it;
-    the seed never crashes init on one migration's probe.
-    """
-    detect = getattr(migration, "detect", None)
-    if detect is None:
-        return True
-    try:
-        return bool(detect(project_root))
-    except Exception:  # noqa: BLE001 - a flaky detect() must leave the migration pending, never fail the seed
-        return True
 
 
 def seed_migration_ledger_for_init(project_root: Path) -> list[str]:
@@ -69,7 +54,8 @@ def seed_migration_ledger_for_init(project_root: Path) -> list[str]:
     Records every declared migration the fresh project has already satisfied
     into its authoritative partition, so the first ``spec-kitty upgrade`` is a
     no-op. Tracked-effect migrations are seeded unconditionally; clone-local
-    migrations only when their effect is present here (``detect()`` False).
+    migrations only when their effect is present here
+    (:func:`~specify_cli.upgrade.ledger.clone_local_effect_in_place`).
 
     Args:
         project_root: The project root (the ``.kittify`` parent).
@@ -88,9 +74,10 @@ def seed_migration_ledger_for_init(project_root: Path) -> list[str]:
         if migration_settled(ledger, migration):
             continue
         clone_local = bool(getattr(migration, "clone_local_effect", False))
-        if clone_local and _effect_absent(migration, project_root):
-            # Effect not yet present on this checkout: leave it pending so the
-            # first upgrade applies it (and so a pulled clone re-applies it, #6233).
+        if clone_local and not clone_local_effect_in_place(migration, project_root):
+            # Effect not yet present on this checkout (or no git repository to
+            # hold it yet): leave it pending so the first upgrade applies it
+            # (and so a pulled clone re-applies it, #6233).
             continue
         ledger.append(build_record(migration, _SEED_RESULT))
         seeded.append(str(migration.migration_id))

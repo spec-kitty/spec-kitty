@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from .ledger import SETTLED_RESULT, MigrationLedger
 from .manifest import load_order_manifest
@@ -103,12 +103,20 @@ class MigrationRegistry:
         never changes selection — a recorded migration stays recorded whatever
         its content now hashes to (C-004).
 
-        ``from_version`` / ``to_version`` are kept for call-compatibility and the
-        downgrade cross-check the caller runs; selection no longer reads them.
+        ``from_version`` is kept for call-compatibility and the downgrade
+        cross-check the caller runs; selection no longer reads it. ``to_version``
+        is the run's requested target and stays an UPPER bound (#6431): a
+        migration declared for a later version than the run upgrades to is out
+        of this run's scope -- neither selected nor settled -- so
+        ``upgrade --target X`` never applies work it then stamps as version X.
+        An unparseable target caps nothing, and a ``ledger_adoption`` migration
+        is never capped. While a ledger-adoption migration is unsettled, the ids
+        it will settle on apply count as settled here, so a preview or dry run
+        selects exactly what the real run applies.
 
         Args:
             from_version: Current version (unused by selection; see above).
-            to_version: Target version (unused by selection; see above).
+            to_version: Requested target version; migrations above it are out of scope.
             project_path: Project root whose two-partition ledger is diffed. When
                 ``None`` there is no ledger to diff, so every declared migration
                 is returned in manifest order (production callers always pass a
@@ -117,17 +125,19 @@ class MigrationRegistry:
         Returns:
             List of applicable migrations in manifest order.
         """
-        del from_version, to_version  # retired as the applied authority (§3)
+        del from_version  # retired as the applied authority (§3)
 
-        all_migrations = cls.get_all()
+        all_migrations = [m for m in cls.get_all() if m.ledger_adoption or _within_target(m, to_version)]
         if project_path is None:
             return all_migrations
 
         path = Path(project_path)
         ledger = MigrationLedger(path)
+        adopting = _pending_adoption_ids(ledger, all_migrations, path)
         selected: list[BaseMigration] = []
         for migration in all_migrations:
-            if not migration_settled(ledger, migration) or migration.reselect_when_recorded(path):
+            settled = migration_settled(ledger, migration) or migration.migration_id in adopting
+            if not settled or migration.reselect_when_recorded(path):
                 selected.append(migration)
         return selected
 
@@ -148,6 +158,27 @@ class MigrationRegistry:
     def clear(cls) -> None:
         """Clear all registered migrations (for testing)."""
         cls._migrations.clear()
+
+
+def _pending_adoption_ids(ledger: MigrationLedger, migrations: list[BaseMigration], project_path: Path) -> frozenset[str]:
+    """Ids an unsettled ledger-adoption migration in *migrations* will settle when it applies (#6431)."""
+    ids: set[str] = set()
+    for migration in migrations:
+        if migration.ledger_adoption and not migration_settled(ledger, migration):
+            ids |= migration.adoption_settled_ids(project_path) - {migration.migration_id}
+    return frozenset(ids)
+
+
+def _within_target(migration: BaseMigration, to_version: str) -> bool:
+    """True when *migration* is declared at or below the run's requested target (#6431).
+
+    An unparseable target (or migration version) caps nothing: the run keeps
+    its full declared set rather than silently dropping work.
+    """
+    try:
+        return Version(migration.target_version) <= Version(to_version)
+    except (InvalidVersion, TypeError):
+        return True
 
 
 def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool:

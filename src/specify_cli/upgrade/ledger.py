@@ -37,6 +37,7 @@ from kernel.clock import datetime, now_utc, parse_iso
 from kernel.content_digest import sha256_digest
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.git_ops import is_git_repo
 from specify_cli.version_utils import get_version
 
 from .metadata import _LEGACY_MIGRATION_ID_MAP
@@ -251,6 +252,21 @@ class MigrationLedger:
         lines.append(json.dumps(record.to_dict(), ensure_ascii=False))
         atomic_write(path, "\n".join(lines) + "\n", mkdir=True)
 
+    def append_many(self, records: list[LedgerRecord]) -> None:
+        """Append *records* with one full-file atomic rewrite per partition.
+
+        A crash leaves each partition with all of its new records or none,
+        never a prefix (the adoption backfill relies on this, #6431).
+        """
+        for clone_local in (False, True):
+            batch = [record for record in records if record.clone_local == clone_local]
+            if not batch:
+                continue
+            path = self._path_for(clone_local)
+            lines = self._read_raw_lines(path)
+            lines.extend(json.dumps(record.to_dict(), ensure_ascii=False) for record in batch)
+            atomic_write(path, "\n".join(lines) + "\n", mkdir=True)
+
     def recorded_ids_for(self, migration: object) -> set[str]:
         return {record.id for record in self.applicable_records_for(migration)}
 
@@ -275,6 +291,32 @@ def _safe_detect(migration: object, project_root: Path) -> bool:
     try:
         return bool(detect(project_root))
     except Exception:  # noqa: BLE001 - report assembly never fails on one migration's detect()
+        return False
+
+
+def clone_local_effect_in_place(migration: object, project_root: Path | str) -> bool:
+    """True only when a clone-local migration's effect is verifiably present on this checkout.
+
+    The single predicate the init seed and the adoption backfill use before they
+    record a clone-local migration as settled without running it. A clone-local
+    effect lives in the git directory (``.git/info/exclude``,
+    ``git config --local``, ``.git/hooks``), so with no git repository it cannot
+    be present: a ``detect()`` that reports "nothing to do" there only means
+    "nothing to do YET" (#6431, the "interrupted upgrade" scenario: ``init``
+    outside git must leave the step pending for the first upgrade after
+    ``git init``). Otherwise ``detect()`` False means the old state is gone, so
+    the effect is in place. A ``detect()`` error reads as "not in place", so the
+    migration stays pending rather than being wrongly settled.
+    """
+    root = Path(project_root)
+    if not is_git_repo(root):
+        return False
+    detect = getattr(migration, "detect", None)
+    if detect is None:
+        return False
+    try:
+        return not detect(root)
+    except Exception:  # noqa: BLE001 - one migration's flaky probe must leave it pending, never fail the caller
         return False
 
 
