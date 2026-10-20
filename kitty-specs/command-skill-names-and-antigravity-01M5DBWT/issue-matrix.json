@@ -24,6 +24,18 @@
       "verdict": "in-mission",
       "wp": "WP06"
     },
+    "#4609": {
+      "evidence_ref": "context-only citation in WP prompts (existing behaviour to preserve)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6469": {
       "evidence_ref": "context only: skills.sh listing; this mission removes the dotted name it mangles",
       "fr": null,
