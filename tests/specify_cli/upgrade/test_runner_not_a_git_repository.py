@@ -60,9 +60,13 @@ def test_upgrade_outside_git_repository_skips_unified_bundle(tmp_path: Path, dry
 
     with patch.object(runner_module, "project_is_inside_git_repository", _counting_probe):
         result = MigrationRunner(project).upgrade("3.2.0rc35", dry_run=dry_run, include_worktrees=False)
-
-    # The runner's probe is lazy and memoised: one git probe serves every flagged migration.
-    assert len(probes) <= 1
+        # The one flagged migration in the registry triggers exactly one git probe.
+        assert len(probes) == 1
+        # Memoised: a second question to the same probe does not run git again.
+        probe = runner_module.RepositoryProbe(project)
+        assert probe.inside() is False
+        assert probe.inside() is False
+        assert len(probes) == 2
 
     assert MIGRATION_ID in result.migrations_skipped
     assert MIGRATION_ID not in result.migrations_applied
