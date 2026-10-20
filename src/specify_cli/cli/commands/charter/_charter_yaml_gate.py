@@ -6,7 +6,7 @@
 destructive minimal-seed path and exit 0. This gate runs before the first
 write a synthesis command can make and refuses instead.
 
-The refusal reuses :class:`charter.activation.pack_context.ActiveCharterConfigError`
+The refusal reuses :class:`charter.activation.api.ActiveCharterConfigError`
 (``ACTIVE_CHARTER_CONFIG_INVALID``): it is the one typed error the activation
 reader, ``charter context``, ``activate`` and ``deactivate`` already raise for
 an unreadable or non-mapping ``charter.yaml``, so every charter command refuses
@@ -24,8 +24,7 @@ from pathlib import Path
 
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.charter_yaml_io import load_charter_yaml
-from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.api import ActiveCharterConfigError, load_charter_yaml
 from charter.bundle import CHARTER_YAML
 
 __all__ = ["assert_charter_yaml_sound"]

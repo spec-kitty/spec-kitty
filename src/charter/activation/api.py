@@ -121,6 +121,11 @@ from charter.activation.resolver import (
     UNKNOWN_SELECTION_DIAGNOSTIC as UNKNOWN_SELECTION_DIAGNOSTIC,
 )
 
+# ``charter.yaml`` read + the typed refusal for an unreadable one, consumed by the
+# ``charter synthesize`` soundness gate (#6415). Public per the respective modules' ``__all__``.
+from charter.activation.charter_yaml_io import load_charter_yaml as load_charter_yaml
+from charter.activation.pack_context import ActiveCharterConfigError as ActiveCharterConfigError
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
@@ -128,6 +133,7 @@ from charter.activation.resolver import (
 __all__ = [
     "MANIFEST_PATH",
     "UNKNOWN_SELECTION_DIAGNOSTIC",
+    "ActiveCharterConfigError",
     "ActivationResult",
     "EffectiveSet",
     "IdentityEntry",
@@ -141,6 +147,7 @@ __all__ = [
     "configured_languages",
     "created_slugs_by_kind",
     "finalize_manifest",
+    "load_charter_yaml",
     "load_yaml",
     "org_required_stems",
     "read_mission_type",
