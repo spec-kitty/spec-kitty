@@ -5,7 +5,10 @@ any git repository, with ``charter.resolution.resolve_canonical_repo_root``
 instrumented at every import site. It records which migration was executing
 when the resolver was reached (directly or transitively) and requires each of
 them to declare ``requires_git_repository``. This is an execution, not a grep:
-transitive callers through ``charter.activation.*`` are caught as well.
+transitive callers through ``charter.activation.*`` are caught as well. Its reach is
+what its fixtures reach: it detects callers reached under ``detect``, ``can_apply``,
+``apply(dry_run=True)`` and ``apply(dry_run=False)`` on the bare and populated
+projects below, not a caller behind state those projects do not have.
 """
 
 from __future__ import annotations
@@ -106,6 +109,7 @@ def test_every_resolver_caller_declares_requires_git_repository(tmp_path: Path, 
             lambda m=migration: m.detect(project),
             lambda m=migration: m.can_apply(project),
             lambda m=migration: m.apply(project, dry_run=True),
+            lambda m=migration: m.apply(project, dry_run=False),
         ):
             try:
                 step()
