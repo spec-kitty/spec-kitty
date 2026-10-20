@@ -113,6 +113,39 @@ def test_can_apply_outside_a_git_repository_is_a_skip_with_no_ledger_record(tmp_
     assert migration.migration_id not in _ledger_ids(project)
 
 
+class _RaisesInPhase(BaseMigration):
+    """A stub whose ``detect()`` or ``can_apply()`` hits an unrunnable repository probe."""
+
+    migration_id = "stub_probe_unrunnable_in_phase"
+    description = "stub"
+    target_version = "3.1.0"
+    phase = "detect"
+
+    def detect(self, project_path: Path) -> bool:
+        if self.phase == "detect":
+            raise GitCommonDirUnavailableError(project_path, "git binary missing")
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        raise GitCommonDirUnavailableError(project_path, "git binary missing")
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        raise AssertionError("apply() must not run after a failed detect()/can_apply()")
+
+
+@pytest.mark.parametrize("phase", ["detect", "can_apply"])
+def test_an_unrunnable_probe_in_detect_or_can_apply_is_a_recorded_failure(tmp_path: Path, phase: str) -> None:
+    project = _make_project(tmp_path)
+    migration = _RaisesInPhase()
+    migration.phase = phase
+
+    result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+
+    assert status == "failed"
+    assert not result.success
+    assert migration.migration_id in _ledger_ids(project)
+
+
 class _FlaggedMigration(BaseMigration):
     """A stub that declares the repository requirement; ``detect()`` must never run outside a repository."""
 
@@ -148,12 +181,22 @@ def test_flagged_migration_is_skipped_before_detect_outside_a_repository(tmp_pat
     assert migration.migration_id not in _ledger_ids(project)
 
 
+def _make_error(error_type: type[RuntimeError], path: Path) -> RuntimeError:
+    if error_type is GitCommonDirUnavailableError:
+        return GitCommonDirUnavailableError(path, "git binary missing")
+    return NotInsideRepositoryError(path)
+
+
+_REPOSITORY_ERRORS = [NotInsideRepositoryError, GitCommonDirUnavailableError]
+
+
 class _WritesThenRaises(BaseMigration):
     """An unflagged stub whose ``apply()`` writes a marker and then raises the repository error."""
 
     migration_id = "stub_writes_then_raises"
     description = "stub"
     target_version = "3.1.0"
+    error_type: type[RuntimeError] = NotInsideRepositoryError
 
     def detect(self, project_path: Path) -> bool:
         return True
@@ -163,7 +206,7 @@ class _WritesThenRaises(BaseMigration):
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         (project_path / "marker.txt").write_text("written", encoding="utf-8")
-        raise NotInsideRepositoryError(project_path)
+        raise _make_error(self.error_type, project_path)
 
 
 class _WritesThenRaisesRunsFirst(_WritesThenRaises):
@@ -171,9 +214,11 @@ class _WritesThenRaisesRunsFirst(_WritesThenRaises):
     runs_first = True
 
 
-def test_apply_time_repository_error_is_a_recorded_failure(tmp_path: Path) -> None:
+@pytest.mark.parametrize("error_type", _REPOSITORY_ERRORS)
+def test_apply_time_repository_error_is_a_recorded_failure(tmp_path: Path, error_type: type[RuntimeError]) -> None:
     project = _make_project(tmp_path)
     migration = _WritesThenRaises()
+    migration.error_type = error_type
 
     result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
 
@@ -184,9 +229,11 @@ def test_apply_time_repository_error_is_a_recorded_failure(tmp_path: Path) -> No
     assert migration.migration_id in _ledger_ids(project)
 
 
-def test_apply_time_repository_error_on_runs_first_records_nothing(tmp_path: Path) -> None:
+@pytest.mark.parametrize("error_type", _REPOSITORY_ERRORS)
+def test_apply_time_repository_error_on_runs_first_records_nothing(tmp_path: Path, error_type: type[RuntimeError]) -> None:
     project = _make_project(tmp_path)
     migration = _WritesThenRaisesRunsFirst()
+    migration.error_type = error_type
 
     result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
 

@@ -425,8 +425,7 @@ class MigrationRunner:
             # The probe could not run (git missing or unusable). That is neither
             # "inside" nor "outside": fail closed with a recorded failure, like a
             # detect() that cannot run safely, so the migration stays retryable.
-            reason = f"Cannot determine whether the project is inside a git repository: {exc}"
-            return self._detect_failure(metadata, migration, reason, f"{reason} ({migration.migration_id})", dry_run=dry_run)
+            return self._probe_unavailable_failure(metadata, migration, exc, dry_run=dry_run)
 
         # Check if migration is needed via detection. A symlinked
         # `.gitignore`/`.claudeignore` makes detect() fail closed with
@@ -443,6 +442,8 @@ class MigrationRunner:
             migration_needed = migration.detect(self.project_path)
         except NotInsideRepositoryError:
             return self._not_inside_repository_skip(migration)
+        except GitCommonDirUnavailableError as exc:
+            return self._probe_unavailable_failure(metadata, migration, exc, dry_run=dry_run)
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return self._detect_failure(
                 metadata,
@@ -482,6 +483,8 @@ class MigrationRunner:
             can_apply, reason = migration.can_apply(self.project_path)
         except NotInsideRepositoryError:
             return self._not_inside_repository_skip(migration)
+        except GitCommonDirUnavailableError as exc:
+            return self._probe_unavailable_failure(metadata, migration, exc, dry_run=dry_run)
         if not can_apply:
             return (
                 MigrationResult(
@@ -504,6 +507,13 @@ class MigrationRunner:
             result = MigrationResult(
                 success=False,
                 errors=[f"Cannot apply {migration.migration_id}: it needs a git repository but {exc.path} is not inside one"],
+            )
+        except GitCommonDirUnavailableError as exc:
+            # Same as above: the probe could not run, so the repository state is
+            # unknown after a possible write. A recorded failure, never a crash.
+            result = MigrationResult(
+                success=False,
+                errors=[f"Cannot apply {migration.migration_id}: it needs a git repository and the probe could not run ({exc})"],
             )
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return (
@@ -542,6 +552,18 @@ class MigrationRunner:
         if not dry_run:
             self._record_migration_result(metadata, self.project_path, migration, "failed", message)
         return MigrationResult(success=False, errors=[error]), "failed"
+
+    def _probe_unavailable_failure(
+        self,
+        metadata: ProjectMetadata,
+        migration: BaseMigration,
+        exc: GitCommonDirUnavailableError,
+        *,
+        dry_run: bool,
+    ) -> tuple[MigrationResult, str]:
+        """Fail closed, recorded, when the repository probe itself cannot run (git missing or unusable)."""
+        reason = f"Cannot determine whether the project is inside a git repository: {exc}"
+        return self._detect_failure(metadata, migration, reason, f"{reason} ({migration.migration_id})", dry_run=dry_run)
 
     @staticmethod
     def _not_inside_repository_skip(migration: BaseMigration) -> tuple[MigrationResult, str]:
