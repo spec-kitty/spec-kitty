@@ -92,7 +92,8 @@
       "last_transition_at": "2026-10-20T23:26:43.597708+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: installer/provider/doctor/init on spec-kitty-<cmd>; one legacy rule on every repair path; collision skip; gate _PENDING emptied"
+        "Ready for review: installer/provider/doctor/init on spec-kitty-<cmd>; one legacy rule on every repair path; collision skip; gate _PENDING emptied",
+        "Review cycle 1 fixed: remove-only releases legacy owners; repair skipped = surface ids; verify reports real legacy paths; kept legacy = warning exit 0"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
