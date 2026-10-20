@@ -26,6 +26,8 @@ import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
@@ -178,6 +180,144 @@ def test_render_org_layer_section_reports_clean_when_no_dangling_endpoint(
     assert "collisions: none" in output, output
     assert "dangling endpoints: none" in output, output
     assert "plain-language" not in output, output
+
+
+# ---------------------------------------------------------------------------
+# ``collisions:`` verdict line vs. permitted org overrides of built-ins (#5777)
+#
+# ``merge_three_layers`` does not raise for a same-kind org override of a
+# built-in node: the org node takes the built-in's place and the merged node is
+# tagged ``org:<pack>``. The human section used to print ``collisions: none``
+# after EVERY merge that did not raise, so it contradicted the "Sanctioned /
+# Unsanctioned built-in override(s)" blocks printed further down the report.
+#
+# The merge and the built-in graph are stubbed (test doubles) so each case
+# controls exactly which built-in nodes an org pack replaced, without a pack
+# fixture that has to track the shipped doctrine.
+# ---------------------------------------------------------------------------
+
+_BUILT_IN_URN = "tactic:shared"
+
+
+def _drg_node(urn: str, provenance: str) -> DRGNode:
+    return DRGNode(urn=urn, kind=NodeKind.TACTIC, label="Node", provenance=provenance)
+
+
+def _drg_graph(*nodes: DRGNode) -> DRGGraph:
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-06-27T00:00:00Z",
+        generated_by="unit-test",
+        nodes=list(nodes),
+        edges=[],
+    )
+
+
+def _render_with_stubbed_merge(
+    repo_root: Path, built_in: DRGGraph, merged: DRGGraph
+) -> str:
+    """Render the org section with ``load_built_in_graph`` and the merge stubbed."""
+    from specify_cli.cli.commands.doctor import _render_org_layer_section
+
+    buf = StringIO()
+    console = Console(file=buf, highlight=False, markup=False, width=200)
+    with (
+        patch("charter.drg.load_built_in_graph", return_value=built_in),
+        patch(
+            "charter.activation.drg_activation.merge_three_layers",
+            return_value=merged,
+        ),
+    ):
+        _render_org_layer_section(repo_root, console)
+    return buf.getvalue()
+
+
+def test_collisions_line_reports_a_permitted_builtin_override(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """RED before the fix: the merged node is org-tagged, yet the line said ``none``."""
+    built_in = _drg_graph(_drg_node(_BUILT_IN_URN, "built-in"))
+    merged = _drg_graph(_drg_node(_BUILT_IN_URN, "org:example-org"))
+
+    output = _render_with_stubbed_merge(tmp_repo_with_org_pack, built_in, merged)
+
+    assert (
+        "collisions: 1 permitted org override of a built-in (see the sanction report)"
+        in output
+    ), output
+    assert "collisions: none" not in output, output
+
+
+def test_collisions_line_counts_every_permitted_builtin_override(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    built_in = _drg_graph(
+        _drg_node("tactic:alpha", "built-in"), _drg_node("tactic:beta", "built-in")
+    )
+    merged = _drg_graph(
+        _drg_node("tactic:alpha", "org:example-org"),
+        _drg_node("tactic:beta", "org:example-org"),
+    )
+
+    output = _render_with_stubbed_merge(tmp_repo_with_org_pack, built_in, merged)
+
+    assert (
+        "collisions: 2 permitted org overrides of built-ins (see the sanction report)"
+        in output
+    ), output
+    assert "collisions: none" not in output, output
+
+
+def test_collisions_line_stays_none_when_an_org_node_overrides_nothing(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """Discriminator: an org node at a NEW urn is not a collision with a built-in."""
+    built_in = _drg_graph(_drg_node(_BUILT_IN_URN, "built-in"))
+    merged = _drg_graph(
+        _drg_node(_BUILT_IN_URN, "built-in"),
+        _drg_node("tactic:org-only", "org:example-org"),
+    )
+
+    output = _render_with_stubbed_merge(tmp_repo_with_org_pack, built_in, merged)
+
+    assert "collisions: none" in output, output
+    assert "permitted org override" not in output, output
+
+
+def test_collision_count_agrees_with_the_canonical_override_finder() -> None:
+    """The renderer's count must not drift from ``find_overridden_builtins``.
+
+    ``_profile_health_render`` may not import ``override_policy`` (that internal
+    is reachable only from ``_charter_pack_collect``; see
+    ``tests/architectural/test_runtime_charter_doctrine_boundary.py``), so the
+    render side applies the same provenance rule locally. This pins the two to
+    one answer, including the cases that must NOT count.
+    """
+    from charter.offering.drg.override_policy import find_overridden_builtins
+    from specify_cli.cli.commands._profile_health_render import (
+        _permitted_builtin_overrides,
+    )
+
+    built_in = _drg_graph(
+        _drg_node("tactic:alpha", "built-in"),
+        _drg_node("tactic:beta", "built-in"),
+        _drg_node("tactic:gamma", "built-in"),
+    )
+    merged = _drg_graph(
+        _drg_node("tactic:alpha", "org:pack"),  # permitted org override: counts
+        _drg_node("tactic:beta", "project"),  # project tier: out of scope
+        _drg_node("tactic:gamma", "built-in"),  # untouched
+        _drg_node("tactic:novel", "org:pack"),  # org node at a new urn: not an override
+    )
+
+    expected = [
+        override.urn
+        for override in find_overridden_builtins(
+            merged, frozenset(node.urn for node in built_in.nodes)
+        )
+    ]
+
+    assert _permitted_builtin_overrides(merged, built_in) == expected == ["tactic:alpha"]
 
 
 def test_render_org_layer_section_no_crash_on_missing_pack(
