@@ -82,7 +82,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -95,6 +95,7 @@
         "Ready for review: installer/provider/doctor/init on spec-kitty-<cmd>; one legacy rule on every repair path; collision skip; gate _PENDING emptied"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/command-skill-names-and-antigravity-01M5DBWT/tasks/WP03-installer-provider-doctor/review-cycle-1.md",
         "reference": "review-cycle://command-skill-names-and-antigravity-01M5DBWT/WP03-installer-provider-doctor/review-cycle-1.md",
@@ -102,15 +103,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 12623,
-      "shell_pid_created_at": "1792537099.42",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T009": "done",
-        "T010": "done",
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done"
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
       }
     },
     "WP04": {
