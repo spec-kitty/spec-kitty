@@ -19,9 +19,11 @@ index construction (they cannot be resolved by identity).  To fix such missions,
 run ``spec-kitty migrate backfill-identity``.
 
 Implementation note: ``kitty-specs/`` is walked once per ``resolve_mission``
-call.  The resulting in-memory index is not cached across calls because the
-resolver is used in short-lived CLI commands; caching can be added later if
-profiling shows it is needed.
+call, except for a handle that names an indexed directory exactly (and is
+neither ULID- nor mid8-shaped): the ladder can only return that directory, so
+its one ``meta.json`` is read instead of every Mission's
+(:func:`_resolve_exact_directory`, #6517). The in-memory index is not cached
+across calls (C-005).
 
 ``MissionResolver`` port (mission-resolver-port-01KX1C05 WP02, FR-001/FR-005):
 this module hosts the two concrete adapters for the ``MissionResolver``
@@ -32,13 +34,14 @@ free ``resolve_mission`` function accepts an optional ``resolver`` so the walk
 is injectable at its single call site; existing callers that omit ``resolver``
 get exactly the previous behavior via a default-constructed
 ``FsMissionResolver``. No adapter is cached at module or process scope
-(C-005) — each is request-scoped and re-walks (or re-reads its in-memory list)
-on every ``resolve``/``all_missions`` call.
+(C-005) — each is request-scoped and re-reads ``kitty-specs/`` (or its
+in-memory list) on every ``resolve``/``all_missions`` call.
 """
 
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+import os
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -317,38 +320,70 @@ def _markers_exist(path: Path) -> bool:
     return any((path / name).exists() for name in _MISSION_MARKER_FILES)
 
 
+def _index_entry(entry: Path) -> ResolvedMission | None:
+    """Return the index row for one ``kitty-specs/`` child, or ``None`` when it is not indexable.
+
+    The single per-directory indexing rule, shared by the full walk
+    (:func:`_build_index`) and the exact-directory lookup
+    (:func:`_index_entry_named`), so the two can never disagree on whether a
+    directory is in the index or on the row it yields.
+
+    A missing, malformed, or non-object ``meta.json`` (e.g. a JSON array) is
+    not indexable here rather than crashing the index: per-mission topology
+    validation belongs to the consumer (``status.aggregate._read_meta``), which
+    fails the *targeted* mission closed with ``MissionMetadataUnavailable``. A
+    legacy mission without a ``mission_id`` cannot be resolved by identity;
+    the operator runs ``spec-kitty migrate backfill-identity``.
+    """
+    data = load_meta(entry, on_malformed="none")
+    if data is None:
+        return None
+    mission_id: str | None = data.get("mission_id") or None
+    if not mission_id:
+        return None
+    return ResolvedMission(
+        mission_id=mission_id,
+        mission_slug=entry.name,
+        feature_dir=entry,
+        mid8=resolve_mid8(entry.name, mission_id=mission_id),
+    )
+
+
 def _build_index(repo_root: Path) -> list[ResolvedMission]:
     """Walk ``kitty-specs/`` and return a list of indexable missions.
 
-    Missions whose ``meta.json`` lacks a ``mission_id`` are silently skipped.
-    Non-directory entries (e.g. ``README.md``) are also skipped. A ``meta.json``
-    that parses to a non-object (e.g. a JSON array) is skipped here rather than
-    crashing the index: per-mission topology validation belongs to the consumer
-    (``status.aggregate._read_meta``), which fails the *targeted* mission closed
-    with ``MissionMetadataUnavailable``.
+    Directories :func:`_index_entry` declines (no ``meta.json``, a malformed
+    or non-object one, or no ``mission_id``) are silently skipped, as are
+    non-directory entries (e.g. ``README.md``).
     """
     missions: list[ResolvedMission] = []
     for entry in _iter_mission_dirs(repo_root):
-        data = load_meta(entry, on_malformed="none")
-        if data is None:
-            # Missing, malformed, or a non-object meta.json (e.g. a JSON array)
-            # — not indexable by identity. The consumer validates and fails
-            # the targeted mission closed.
-            continue
-        mission_id: str | None = data.get("mission_id") or None
-        if not mission_id:
-            # Legacy mission without mission_id — cannot be resolved by identity.
-            # Operator must run `spec-kitty migrate backfill-identity`.
-            continue
-        missions.append(
-            ResolvedMission(
-                mission_id=mission_id,
-                mission_slug=entry.name,
-                feature_dir=entry,
-                mid8=resolve_mid8(entry.name, mission_id=mission_id),
-            )
-        )
+        row = _index_entry(entry)
+        if row is not None:
+            missions.append(row)
     return missions
+
+
+def _index_entry_named(repo_root: Path, name: str) -> ResolvedMission | None:
+    """Return the index row :func:`_build_index` would hold for the directory called exactly *name*.
+
+    ``None`` when no ``kitty-specs/`` child carries that exact name, when it
+    is not a directory, or when :func:`_index_entry` declines it. Membership
+    is checked against the directory listing, not with ``exists()``: on a
+    case-insensitive filesystem ``kitty-specs/FOO`` exists when the directory
+    is ``foo``, but the walk compares ``entry.name`` exactly and would not
+    match it. A *name* that is not a single path segment (``..``, ``a/b``)
+    is never a listing entry, so it never matches either. Reads one
+    ``meta.json``, never the whole tree.
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    try:
+        if name not in os.listdir(specs_dir):
+            return None
+    except OSError:
+        return None
+    entry = specs_dir / name
+    return _index_entry(entry) if entry.is_dir() else None
 
 
 # ---------------------------------------------------------------------------
@@ -500,6 +535,29 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     raise MissionNotFoundError(handle)
 
 
+def _resolve_exact_directory(repo_root: Path, handle: str) -> ResolvedMission | None:
+    """Answer the priority ladder for a handle that names an indexed directory exactly, without the walk.
+
+    When *handle* is neither ULID- nor mid8-shaped, priorities 1 and 2 of
+    :func:`_resolve_from_index` do not apply, and priority 3 matches the index
+    rows whose ``mission_slug`` (the directory name) equals *handle*. Directory
+    names are unique, so that is at most one row, and when the directory is
+    indexed it is exactly one: the ladder returns it before priorities 4 and 5
+    are consulted, and it can raise neither ``AmbiguousHandleError`` nor
+    ``MissionNotFoundError``. This returns that same row by reading the one
+    ``meta.json`` instead of every Mission's (#6517: a project-wide read
+    resolves each Mission by its directory name, which made it O(N^2)).
+
+    ``None`` means "not decided here": the caller runs the full walk, so every
+    other handle form (and an unindexed directory, whose handle may still match
+    another Mission at priority 4 or 5) keeps the walk's answer, ambiguity
+    errors included.
+    """
+    if _is_full_ulid(handle) or _is_mid8(handle):
+        return None
+    return _index_entry_named(repo_root, handle)
+
+
 # ---------------------------------------------------------------------------
 # MissionResolver port adapters (mission-resolver-port-01KX1C05 WP02)
 # ---------------------------------------------------------------------------
@@ -513,16 +571,22 @@ class FsMissionResolver:
     single ``repo_root`` at construction so callers pass only the handle.
 
     Request-scoped: every call to :meth:`resolve` / :meth:`all_missions`
-    re-walks ``kitty-specs/`` — there is no module or process-level cache
+    reads ``kitty-specs/`` afresh — there is no module or process-level cache
     (C-005); an instance may be reused across calls within one request without
-    changing this contract, since the walk itself is not memoized.
+    changing this contract, since nothing is memoized. :meth:`resolve` reads
+    only the named directory's ``meta.json`` when the handle names an indexed
+    directory exactly (:func:`_resolve_exact_directory`) and walks the whole
+    tree otherwise.
     """
 
     def __init__(self, repo_root: Path) -> None:
         self._repo_root = repo_root
 
     def resolve(self, handle: str) -> ResolvedMission:
-        """Resolve ``handle`` via a fresh walk of ``kitty-specs/``.
+        """Resolve ``handle`` via a fresh read of ``kitty-specs/``.
+
+        An exact indexed directory name is answered from that directory alone;
+        every other handle walks the whole tree (:func:`_resolve_exact_directory`).
 
         Raises:
             AmbiguousHandleError: The handle matches more than one mission.
@@ -530,6 +594,9 @@ class FsMissionResolver:
                 message names ``spec-kitty migrate backfill-identity`` for
                 legacy missions missing ``mission_id``.
         """
+        exact = _resolve_exact_directory(self._repo_root, handle)
+        if exact is not None:
+            return exact
         return _resolve_from_index(handle, _build_index(self._repo_root))
 
     def all_missions(self) -> list[ResolvedMission]:
