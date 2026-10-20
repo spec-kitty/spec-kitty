@@ -43,9 +43,10 @@ _PYPROJECT = _REPO_ROOT / "pyproject.toml"
 _WEAK_ORACLE_RULES = ("PT010", "PT011", "PT012", "PT015", "PT016", "PT017", "PT030", "PT031")
 
 # Shrink-only high-water mark of (file, PT code) baseline pairs, as of the
-# 2026-09-29 enablement (123 files). Lower it when you clean a file; raising it
-# needs a reviewed reason the new test cannot simply name its expected failure.
-_BASELINE_PT_PAIRS = 125
+# 2026-09-29 enablement (123 files), lowered to 111 when the PT012 entries were
+# drained (#2972). Lower it when you clean a file; raising it needs a reviewed
+# reason the new test cannot simply name its expected failure.
+_BASELINE_PT_PAIRS = 111
 
 
 # Shrink-only high-water mark of inline PT suppressions ((file, line, code)

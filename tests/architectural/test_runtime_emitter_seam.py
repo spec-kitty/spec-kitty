@@ -18,6 +18,7 @@ The guard reads source text only; it must never import the runtime.
 from __future__ import annotations
 
 import ast
+import functools
 import re
 import sys
 from pathlib import Path
@@ -302,11 +303,15 @@ def test_bridge_guards_reject_semantic_mutations(tmp_path: Path, monkeypatch: py
     mutant = tmp_path / "runtime_bridge.py"
     mutant.write_text(source.replace(before, after), encoding="utf-8")
     monkeypatch.setattr(sys.modules[__name__], "_BRIDGE", mutant)
+    if guard == "factory":
+        check = test_bridge_obtains_seam_only_through_factory
+    else:
+        check = functools.partial(
+            test_bridge_never_hands_engine_paths_the_plain_seam,
+            "flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter",
+        )
     with pytest.raises(AssertionError):
-        if guard == "factory":
-            test_bridge_obtains_seam_only_through_factory()
-        else:
-            test_bridge_never_hands_engine_paths_the_plain_seam("flush(ctx.sync_emitter)" if guard == "flush" else "sync_emitter=ctx.sync_emitter")
+        check()
 
 
 @pytest.mark.parametrize(

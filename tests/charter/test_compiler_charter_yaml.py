@@ -374,12 +374,13 @@ def test_provisioning_oracle_rejects_faulty_application(tmp_path: Path, mutation
     elif mutation == "forged-bytes":
         target.write_bytes(b"mission_type_activations: [forged]\n")
 
-    with pytest.raises(AssertionError):
-        if mutation in {"empty-as-missing", "resave"}:
+    if mutation in {"empty-as-missing", "resave"}:
+        with pytest.raises(AssertionError):
             assert_unchanged(before, snapshot({"project": tmp_path}))
-        else:
-            assert target.read_bytes() == prepared.write.desired_bytes
-            assert {(e.path, e.action) for e in net_delta(before, snapshot({"project": tmp_path}))} == {("policy.yaml", "update")}
+    else:
+        written_as_prepared = target.read_bytes() == prepared.write.desired_bytes
+        only_policy_updated = {(e.path, e.action) for e in net_delta(before, snapshot({"project": tmp_path}))} == {("policy.yaml", "update")}
+        assert not (written_as_prepared and only_policy_updated), f"mutation {mutation!r} was not detected"
 
 
 _AUTHORED_FIXTURE = """\

@@ -318,24 +318,29 @@ class TestForcedPreCommitHookFailure:
 
         # Second transaction: append + commit. The pre-commit hook
         # rejects the commit; rollback truncates the event log.
-        with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
-            repo_root=repo_root,
-            mission_id=mission["mission_id"],
+        event = build_status_event(
             mission_slug=mission["mission_slug"],
-            mid8=mission["mid8"],
-            destination_ref=coord_branch,
-            operation="planned -> claimed for WP01",
-        ) as txn:
-            event = build_status_event(
-                mission_slug=mission["mission_slug"],
-                wp_id="WP01",
-                from_lane="planned",
-                to_lane="claimed",
-                actor="claude",
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="claimed",
+            actor="claude",
+            mission_id=mission["mission_id"],
+        )
+
+        def _commit_rejected_transaction() -> None:
+            with BookkeepingTransaction.acquire(
+                repo_root=repo_root,
                 mission_id=mission["mission_id"],
-            )
-            txn.append_event(event)
-            txn.commit("status: WP01 claimed for implementation")
+                mission_slug=mission["mission_slug"],
+                mid8=mission["mid8"],
+                destination_ref=coord_branch,
+                operation="planned -> claimed for WP01",
+            ) as txn:
+                txn.append_event(event)
+                txn.commit("status: WP01 claimed for implementation")
+
+        with pytest.raises(BookkeepingCommitFailed, match=r"safe_commit (recovery )?failed on"):
+            _commit_rejected_transaction()
 
         # 1. The event log is byte-identical to the pre-emit state.
         post_sha = _sha256(events_path)
@@ -475,24 +480,29 @@ class TestForcedPreCommitHookFailure:
         hook.write_text("#!/bin/sh\nexit 1\n")
         hook.chmod(0o755)
 
-        with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
-            repo_root=repo_root,
-            mission_id=mission["mission_id"],
+        event = build_status_event(
             mission_slug=mission["mission_slug"],
-            mid8=mission["mid8"],
-            destination_ref=coord_branch,
-            operation=f"iter {iteration}",
-        ) as txn:
-            event = build_status_event(
-                mission_slug=mission["mission_slug"],
-                wp_id="WP01",
-                from_lane="planned",
-                to_lane="claimed",
-                actor="claude",
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="claimed",
+            actor="claude",
+            mission_id=mission["mission_id"],
+        )
+
+        def _commit_rejected_transaction() -> None:
+            with BookkeepingTransaction.acquire(
+                repo_root=repo_root,
                 mission_id=mission["mission_id"],
-            )
-            txn.append_event(event)
-            txn.commit(f"iter {iteration}")
+                mission_slug=mission["mission_slug"],
+                mid8=mission["mid8"],
+                destination_ref=coord_branch,
+                operation=f"iter {iteration}",
+            ) as txn:
+                txn.append_event(event)
+                txn.commit(f"iter {iteration}")
+
+        with pytest.raises(BookkeepingCommitFailed, match=r"safe_commit (recovery )?failed on"):
+            _commit_rejected_transaction()
 
         assert _sha256(events_path) == pre_sha
 

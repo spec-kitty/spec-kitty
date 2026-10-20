@@ -198,19 +198,23 @@ def test_saas_does_not_emit_on_commit_failure(
 
     event = _make_event()
 
-    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
-        repo_root=repo,
-        mission_id=MISSION_ID,
-        mission_slug=MISSION_SLUG,
-        mid8=MID8,
-        destination_ref=COORD_BRANCH,
-        operation="test_outbound_rollback",
-    ) as txn:
-        txn.append_event(event)
-        queue_saas_emission(txn, event)
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
+            repo_root=repo,
+            mission_id=MISSION_ID,
+            mission_slug=MISSION_SLUG,
+            mid8=MID8,
+            destination_ref=COORD_BRANCH,
+            operation="test_outbound_rollback",
+        ) as txn:
+            txn.append_event(event)
+            queue_saas_emission(txn, event)
             # __exit__'s implicit commit will fail because of the hook;
             # BookkeepingCommitFailed propagates and the deferred queue
             # is intentionally SKIPPED.
+
+    with pytest.raises(BookkeepingCommitFailed, match=r"safe_commit (recovery )?failed on"):
+        _commit_rejected_transaction()
 
     # Critical assertion: no SaaS emission for a rolled-back commit.
     assert mock_saas_sink.call_count == 0, (

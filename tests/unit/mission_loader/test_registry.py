@@ -160,9 +160,13 @@ def test_context_manager_restores_on_exception() -> None:
     template = _template("alpha", ["plan"])
     registry = get_runtime_contract_registry()
 
-    with pytest.raises(RuntimeError), registered_runtime_contracts(template):
-        assert registry.lookup("custom:alpha:plan") is not None
-        raise RuntimeError("boom")
+    def _fail_inside_registration() -> None:
+        with registered_runtime_contracts(template):
+            assert registry.lookup("custom:alpha:plan") is not None
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        _fail_inside_registration()
 
     assert registry.lookup("custom:alpha:plan") is None
 

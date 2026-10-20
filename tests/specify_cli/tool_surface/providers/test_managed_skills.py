@@ -11,19 +11,23 @@ logic. Doctrine skills must surface as
 
 from __future__ import annotations
 
+import functools
 import json
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager
 from pathlib import Path
+
+import pytest
+
 from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
-
 from specify_cli.skills.manifest import (
     compute_content_hash,
     load_manifest,
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.tool_surface.enums import ToolSurfaceKind
+from specify_cli.tool_surface.operations import ApplyConsent, OwnerApplyResult, OwnerAssessment
 from specify_cli.tool_surface.providers.command_skills import (
     CommandSkillsProvider,
     command_skill_definition,
@@ -39,10 +43,7 @@ from specify_cli.tool_surface.status import (
     STATE_MISSING,
     STATE_PRESENT,
 )
-from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment, OwnerApplyResult
 from tests.upgrade.preview_support.snapshot import Snapshot
-
-import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -205,6 +206,7 @@ def test_managed_provisioning_original_pair_refuses_before_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed: str,
 ) -> None:
     from dataclasses import replace
+
     from specify_cli.tool_surface.operations import ApplyConsent
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -239,6 +241,7 @@ def test_managed_provisioning_poststate_refuses_both_before_skill_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed: str,
 ) -> None:
     import os
+
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     provisioning, installation, registry = _provisioning_installation(tmp_path, monkeypatch, pointer=True)
@@ -332,9 +335,13 @@ def test_managed_provisioning_empty_selection_and_context_cleanup(
     provider = ManagedSkillsProvider()
     consent = installation.project_skills.consent
     before = snapshot({"sandbox": tmp_path})
-    with pytest.raises(RuntimeError, match="consumer stopped"), provider.preflight_installation(installation, consent) as errors:
-        assert not errors
-        raise RuntimeError("consumer stopped")
+    def _stop_inside_preflight() -> None:
+        with provider.preflight_installation(installation, consent) as errors:
+            assert not errors
+            raise RuntimeError("consumer stopped")
+
+    with pytest.raises(RuntimeError, match="consumer stopped"):
+        _stop_inside_preflight()
     assert all(result.outcome == "precondition_changed" for result in provider.apply_installation(installation, consent))
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
     with provider.preflight_installation(installation, consent) as errors:
@@ -470,10 +477,11 @@ def _bind_consumer_home(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_coordinated_provider_dispatch_keeps_both_owner_batches(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, all_families: bool,
 ) -> None:
+    from collections.abc import Sequence
+
     from specify_cli.skills.installer import assess_skill_installation
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
-    from collections.abc import Sequence
     from specify_cli.tool_surface.repair import SurfaceRepairService
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -523,7 +531,7 @@ def test_coordinated_provider_dispatch_keeps_both_owner_batches(
 def test_paired_consumer_config_change_refuses_before_any_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str,
 ) -> None:
-    from specify_cli.skills.installer import assess_skill_installation, apply_skill_installation
+    from specify_cli.skills.installer import apply_skill_installation, assess_skill_installation
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
@@ -608,8 +616,9 @@ def test_paired_provider_global_change_refuses_project_and_context_does_not_leak
 def test_paired_provider_refusal_and_exception_release_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, refusal: str,
 ) -> None:
-    from dataclasses import replace
     from collections.abc import Sequence
+    from dataclasses import replace
+
     from specify_cli.skills.installer import assess_skill_installation
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from specify_cli.tool_surface.providers.managed_skills import GlobalSkillAssetsProvider
@@ -1214,9 +1223,10 @@ def _shared_parent_case(
 
 
 def _shared_write_observer() -> AbstractContextManager[list[str]]:
-    from contextlib import contextmanager
     import os
     import sys
+    from contextlib import contextmanager
+
     from tests.upgrade.preview_support.write_observer import EVENTS
 
     @contextmanager
@@ -1248,6 +1258,7 @@ def test_shared_parent_composition_cold_real_owners(
     empty: bool,
 ) -> None:
     from dataclasses import asdict
+
     from specify_cli.tool_surface.operations import coalesce_effects
     from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
@@ -1339,8 +1350,9 @@ def test_shared_parent_composition_cold_real_owners(
 
 @pytest.mark.parametrize("change", ["prestate", "premature", "parent-replaced", "mode", "content", "pointer", "consent"])
 def test_shared_parent_composition_refuses_before_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str) -> None:
-    from dataclasses import replace
     import os
+    from dataclasses import replace
+
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(
@@ -1436,6 +1448,7 @@ def test_shared_parent_composition_mutated_receipt_is_detected(tmp_path: Path, m
 
 def test_shared_parent_composition_rejects_unsupported_overlap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from dataclasses import replace
+
     from specify_cli.tool_surface.operations import FileState
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
@@ -1457,17 +1470,19 @@ def test_shared_parent_composition_rejects_error_bearing_complete_owner(
     route: str,
 ) -> None:
     from dataclasses import replace
+
     from specify_cli.tool_surface.operations import Diagnostic
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     roots, before, provisioning, consent, installation, commands, provider = _shared_parent_case(tmp_path, monkeypatch)
     composition = provider.compose_installation(installation, commands)
     invalid = replace(commands, diagnostics=(Diagnostic("required_input_failed", commands.owner_key, "error", "Known input failure"),))
+    if route == "factory":
+        build = functools.partial(provider.compose_installation, installation, invalid)
+    else:
+        build = functools.partial(replace, composition, commands=invalid)
     with _shared_write_observer() as writes, pytest.raises(ValueError, match="Complete commands"):
-        if route == "factory":
-            provider.compose_installation(installation, invalid)
-        else:
-            replace(composition, commands=invalid)
+        build()
     assert not writes
     assert_unchanged(before, snapshot(roots))
 
@@ -1478,6 +1493,7 @@ def test_absent_authority_paired_owners_require_canonical_creation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing_parent: bool, damage: str | None,
 ) -> None:
     import os
+
     from specify_cli.skills.command_installer import prepare_commands
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot

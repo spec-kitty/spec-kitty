@@ -118,10 +118,15 @@ def test_doctors_delegate_root_failure_to_one_guard(
 def test_json_guard_restores_warning_filters_and_logging_on_failure() -> None:
     previous_filters = warnings.filters[:]
     previous_disable = logging.root.manager.disable
-    with pytest.raises(RuntimeError), _doctor_shared._json_output_guard(True):
-        assert logging.root.manager.disable == logging.CRITICAL
-        warnings.warn("suppressed boundary warning", stacklevel=1)
-        raise RuntimeError("command failed")
+
+    def _fail_inside_guard() -> None:
+        with _doctor_shared._json_output_guard(True):
+            assert logging.root.manager.disable == logging.CRITICAL
+            warnings.warn("suppressed boundary warning", stacklevel=1)
+            raise RuntimeError("command failed")
+
+    with pytest.raises(RuntimeError, match="command failed"):
+        _fail_inside_guard()
     assert warnings.filters == previous_filters
     assert logging.root.manager.disable == previous_disable
 

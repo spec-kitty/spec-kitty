@@ -118,11 +118,11 @@ def test_assessment_retains_exact_preparation_and_observation() -> None:
     assessment = OwnerAssessment("commands", effect.root, effects=(effect,), prepared=prepared, inputs_fingerprint=(observation,))
     assert assessment.prepared is prepared
     assert assessment.inputs_fingerprint == (observation,)
+    field_name = "complete"
     with pytest.raises(FrozenInstanceError):
-        field_name = "complete"
         setattr(assessment, field_name, False)
+    field_name = "sampled_at"
     with pytest.raises(FrozenInstanceError):
-        field_name = "sampled_at"
         setattr(prepared, field_name, "T2")
 
 

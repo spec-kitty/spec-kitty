@@ -46,6 +46,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 MISSION_SLUG = "demo-feature"
 MID8 = "01J6XW9K"
+# commit() wraps every safe_commit failure in this wording; matching it pins the
+# raise to commit(), not to append_event() or write_artifact() in the same block.
+_COMMIT_FAILED = r"safe_commit (recovery )?failed on"
 MISSION_ID = "01J6XW9K00000000000000000P"  # 26-char placeholder ULID
 COORD_BRANCH = f"kitty/mission-{MISSION_SLUG}-{MID8}"
 FEATURE_DIRNAME = f"{MISSION_SLUG}-{MID8}"
@@ -397,19 +400,20 @@ def test_commit_failure_rolls_back_event_log_byte_identical(repo: Path) -> None:
     worktree_root = repo / ".worktrees" / f"{FEATURE_DIRNAME}-coord"
     _install_rejecting_pre_commit_hook(worktree_root)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_test",
-        ) as txn,
-    ):
-        txn.append_event(_make_event("WP02", "claimed"))
-        txn.commit("status: should reject")
+        ) as txn:
+            txn.append_event(_make_event("WP02", "claimed"))
+            txn.commit("status: should reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     post_rollback_sha = _sha256(events_path)
     assert post_rollback_sha == pre_rollback_sha, "rollback must restore status.events.jsonl byte-identical"
@@ -427,19 +431,20 @@ def test_commit_failure_removes_event_log_created_by_transaction(repo: Path) -> 
 
     _install_rejecting_pre_commit_hook(worktree_root)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_missing_event_log",
-        ) as txn,
-    ):
-        txn.append_event(_make_event("WP02", "claimed"))
-        txn.commit("status: should reject")
+        ) as txn:
+            txn.append_event(_make_event("WP02", "claimed"))
+            txn.commit("status: should reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert not events_path.exists()
     assert not status_path.exists()
@@ -495,19 +500,20 @@ def test_commit_failure_restores_empty_status_json(repo: Path) -> None:
 
     _install_rejecting_pre_commit_hook(worktree_root)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_empty_status",
-        ) as txn,
-    ):
-        txn.append_event(_make_event("WP02", "claimed"))
-        txn.commit("status: should reject")
+        ) as txn:
+            txn.append_event(_make_event("WP02", "claimed"))
+            txn.commit("status: should reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert status_path.exists()
     assert status_path.read_bytes() == b""
@@ -534,20 +540,22 @@ def test_post_commit_recovery_failure_does_not_roll_back_committed_artifacts(
 
     monkeypatch.setattr(transaction_module, "safe_commit", fail_after_commit)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        nonlocal emitted_bytes
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="post_commit_recovery",
-        ) as txn,
-    ):
-        txn.append_event(_make_event("WP02", "claimed"))
-        emitted_bytes = events_path.read_bytes()
-        txn.commit("status: committed then recovery failed")
+        ) as txn:
+            txn.append_event(_make_event("WP02", "claimed"))
+            emitted_bytes = events_path.read_bytes()
+            txn.commit("status: committed then recovery failed")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert emitted_bytes is not None
     assert events_path.read_bytes() == emitted_bytes
@@ -571,20 +579,22 @@ def test_rollback_skips_deferred_outbound(repo: Path) -> None:
     hook.chmod(0o755)
 
     ran: list[str] = []
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_outbound",
-        ) as txn,
-    ):
-        txn.append_event(_make_event("WP03", "claimed"))
-        txn.defer_outbound(lambda: ran.append("a"))
-        txn.commit("status: reject")
+        ) as txn:
+            txn.append_event(_make_event("WP03", "claimed"))
+            txn.defer_outbound(lambda: ran.append("a"))
+            txn.commit("status: reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert ran == []
 
@@ -606,29 +616,29 @@ def test_rollback_artifact_restore_refuses_parent_symlink_escape(
 
     monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
 
-    with (
-        caplog.at_level(logging.ERROR),
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_artifact_symlink_escape",
-        ) as txn,
-    ):
-        link_path = worktree / "kitty-specs" / FEATURE_DIRNAME / "rollback-link"
-        artifact = link_path / "artifact.txt"
-        link_path.mkdir(parents=True, exist_ok=True)
-        artifact.write_bytes(b"old-inside")
+        ) as txn:
+            link_path = worktree / "kitty-specs" / FEATURE_DIRNAME / "rollback-link"
+            artifact = link_path / "artifact.txt"
+            link_path.mkdir(parents=True, exist_ok=True)
+            artifact.write_bytes(b"old-inside")
 
-        txn.write_artifact(artifact, b"new-inside")
+            txn.write_artifact(artifact, b"new-inside")
 
-        backup_path = link_path.with_name("rollback-link-backup")
-        link_path.rename(backup_path)
-        link_path.symlink_to(outside_dir, target_is_directory=True)
-        txn.commit("status: should reject")
+            backup_path = link_path.with_name("rollback-link-backup")
+            link_path.rename(backup_path)
+            link_path.symlink_to(outside_dir, target_is_directory=True)
+            txn.commit("status: should reject")
+
+    with caplog.at_level(logging.ERROR), pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert not (outside_dir / "artifact.txt").exists()
     assert any("rollback: restore of" in record.getMessage() and "resolves outside worktree" in record.getMessage() for record in caplog.records)
@@ -671,21 +681,22 @@ def test_rollback_restores_artifact_bytes_exactly_through_windows_fallback(
 
     monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_fallback_bytes",
-        ) as txn,
-    ):
-        artifact.parent.mkdir(parents=True, exist_ok=True)
-        artifact.write_bytes(original)
-        txn.write_artifact(artifact, b"replaced\r\ncontent\n")
-        txn.commit("status: should reject")
+        ) as txn:
+            artifact.parent.mkdir(parents=True, exist_ok=True)
+            artifact.write_bytes(original)
+            txn.write_artifact(artifact, b"replaced\r\ncontent\n")
+            txn.commit("status: should reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert artifact.read_bytes() == original
 
@@ -706,19 +717,20 @@ def test_rollback_removes_newly_created_artifact_through_windows_fallback(
 
     monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
 
-    with (
-        pytest.raises(BookkeepingCommitFailed),
-        BookkeepingTransaction.acquire(
+    def _commit_rejected_transaction() -> None:
+        with BookkeepingTransaction.acquire(
             repo_root=repo,
             mission_id=MISSION_ID,
             mission_slug=MISSION_SLUG,
             mid8=MID8,
             destination_ref=COORD_BRANCH,
             operation="rollback_fallback_unlink",
-        ) as txn,
-    ):
-        txn.write_artifact(artifact, b"created\n")
-        txn.commit("status: should reject")
+        ) as txn:
+            txn.write_artifact(artifact, b"created\n")
+            txn.commit("status: should reject")
+
+    with pytest.raises(BookkeepingCommitFailed, match=_COMMIT_FAILED):
+        _commit_rejected_transaction()
 
     assert not artifact.exists()
 

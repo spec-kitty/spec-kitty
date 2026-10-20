@@ -610,11 +610,11 @@ def test_safe_commit_keyword_only(lane_repo: Path) -> None:
     target = lane_repo / "alpha.txt"
     target.write_text("alpha v1\n", encoding="utf-8")
 
+    # Intentional bad call: positional args.
+    # Routed through a dynamic dispatch so mypy doesn't flag the bad call
+    # at static-check time; runtime still raises TypeError.
+    _dispatch = safe_commit
     with pytest.raises(TypeError):
-        # Intentional bad call: positional args.
-        # Routed through a dynamic dispatch so mypy doesn't flag the bad call
-        # at static-check time; runtime still raises TypeError.
-        _dispatch = safe_commit
         _dispatch(  # type: ignore[misc]
             lane_repo,
             lane_repo,

@@ -2182,30 +2182,29 @@ class TestSynthesizeFabricateProvenance:
         actor = GenActor(kind="runtime", id="test")
 
         # Build a record with synthesize_fabricate provenance AND has_findings — must be rejected
-        with pytest.raises(RecordValidationError, match="synthesize_fabricate"):
-            bad_record = GenRetrospectiveRecord(
-                schema_version=1,
-                mission_id=MISSION_ID_COMPLETED,
-                mission_slug=MISSION_SLUG_COMPLETED,
-                created_at=now,
-                created_by=actor,
-                provenance=GenProvenance(
-                    kind="synthesize_fabricate",
-                    invoked_at=now,
-                ),
-                findings_status="has_findings",  # violates the invariant
-                helped=[
-                    GenFinding(
-                        id="h-001",
-                        category="process",
-                        summary="Some finding",
-                        evidence_refs=[],
-                    )
-                ],
-            )
-            # write_gen_record calls validate_record which must raise
-            with tempfile.TemporaryDirectory() as td:
-                write_gen_record(bad_record, mode="error", repo_root=pathlib.Path(td))
+        bad_record = GenRetrospectiveRecord(
+            schema_version=1,
+            mission_id=MISSION_ID_COMPLETED,
+            mission_slug=MISSION_SLUG_COMPLETED,
+            created_at=now,
+            created_by=actor,
+            provenance=GenProvenance(
+                kind="synthesize_fabricate",
+                invoked_at=now,
+            ),
+            findings_status="has_findings",  # violates the invariant
+            helped=[
+                GenFinding(
+                    id="h-001",
+                    category="process",
+                    summary="Some finding",
+                    evidence_refs=[],
+                )
+            ],
+        )
+        # write_gen_record calls validate_record which must raise
+        with tempfile.TemporaryDirectory() as td, pytest.raises(RecordValidationError, match="synthesize_fabricate"):
+            write_gen_record(bad_record, mode="error", repo_root=pathlib.Path(td))
 
 
 # ---------------------------------------------------------------------------

@@ -217,15 +217,20 @@ def test_decision_append_waits_for_rollback_and_lands_after_truncate(repo: Path,
         except BaseException as exc:
             thread_errors.append(exc)
 
-    with pytest.raises(BookkeepingCommitFailed), _acquire(repo) as txn:
-        doomed = _make_event("WP02")
-        txn.append_event(doomed)  # captures _pre_emit_size
-        racer = threading.Thread(target=_racing_open)
-        racer.start()
-        # Unlocked: the append lands now. Locked: the racer blocks here on the
-        # lock until the transaction releases it.
-        racer.join(timeout=2.0)
-        txn.commit("status: should fail")  # -> _rollback() -> truncate
+    doomed = _make_event("WP02")
+    racer = threading.Thread(target=_racing_open)
+
+    def _commit_racing_transaction() -> None:
+        with _acquire(repo) as txn:
+            txn.append_event(doomed)  # captures _pre_emit_size
+            racer.start()
+            # Unlocked: the append lands now. Locked: the racer blocks here on
+            # the lock until the transaction releases it.
+            racer.join(timeout=2.0)
+            txn.commit("status: should fail")  # -> _rollback() -> truncate
+
+    with pytest.raises(BookkeepingCommitFailed, match=r"safe_commit (recovery )?failed on"):
+        _commit_racing_transaction()
 
     racer.join(timeout=15.0)
     assert not racer.is_alive(), "racing decision append never completed"
