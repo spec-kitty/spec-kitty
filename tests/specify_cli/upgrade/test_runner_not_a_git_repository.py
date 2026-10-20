@@ -13,7 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.resolution import NotInsideRepositoryError
+from unittest.mock import patch
+
+from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
@@ -219,3 +221,26 @@ def test_unified_bundle_migration_declares_the_repository_requirement() -> None:
 
     by_id = {m.migration_id: m for m in MigrationRegistry.get_all()}
     assert by_id[MIGRATION_ID].requires_git_repository is True
+
+
+def _probe_cannot_run(path: Path) -> Path:
+    raise GitCommonDirUnavailableError(path, "git binary missing")
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_a_repository_probe_that_cannot_run_is_a_failure_not_a_skip_or_a_crash(tmp_path: Path, dry_run: bool) -> None:
+    project = _make_project(tmp_path)
+    metadata = ProjectMetadata.load(project / ".kittify")
+    version_before = metadata.version
+    migration = _FlaggedMigration()
+    _FlaggedMigration.detect_calls = 0
+
+    with patch("specify_cli.upgrade.runner.resolve_canonical_repo_root", _probe_cannot_run):
+        result, status = MigrationRunner(project)._apply_migration(migration, metadata, dry_run=dry_run)
+
+    assert status == "failed"
+    assert not result.success
+    assert any("Cannot determine whether the project is inside a git repository" in e for e in result.errors)
+    assert _FlaggedMigration.detect_calls == 0
+    assert ProjectMetadata.load(project / ".kittify").version == version_before
+    assert (migration.migration_id in _ledger_ids(project)) is (not dry_run)

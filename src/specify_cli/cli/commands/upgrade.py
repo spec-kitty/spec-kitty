@@ -62,6 +62,7 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
+from charter.resolution import GitCommonDirUnavailableError
 from specify_cli.cli.click_context import current_click_context
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
@@ -687,7 +688,13 @@ def _show_migration_plan_and_confirm(
             console.print("[dim]Detection results:[/dim]")
             repository_probe = RepositoryProbe(project_path)
             for migration in migrations_needed:
-                if migration_skipped_outside_repository(migration, repository_probe):
+                try:
+                    outside_repository = migration_skipped_outside_repository(migration, repository_probe)
+                except GitCommonDirUnavailableError as exc:
+                    console.print(f"  {migration.migration_id}: [yellow]skipped[/yellow]")
+                    console.print(f"    [dim]skipped (cannot determine repository: {escape(str(exc))})[/dim]")
+                    continue
+                if outside_repository:
                     # Same rule as the runner's pre-detect gate (#6539): detect() of a
                     # repository-bound migration resolves the repo root and would raise.
                     console.print(f"  {migration.migration_id}: [yellow]skipped[/yellow]")

@@ -87,3 +87,23 @@ def test_verbose_preview_never_probes_the_repository_for_unflagged_migrations(tm
         _preview([_Unflagged()], _legacy_project(tmp_path))
 
     assert probe_calls == []
+
+
+class _Flagged(_Unflagged):
+    migration_id = "stub_flagged_preview"
+    requires_git_repository = True
+
+    def detect(self, project_path: Path) -> bool:
+        raise AssertionError("detect() must not run when the repository cannot be determined")
+
+
+def test_verbose_preview_reports_an_undeterminable_repository_as_skipped(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def _resolver(path: Path) -> Path:
+        raise GitCommonDirUnavailableError(path, "git binary missing")
+
+    with patch("specify_cli.upgrade.runner.resolve_canonical_repo_root", _resolver):
+        _preview([_Flagged()], _legacy_project(tmp_path))
+
+    output = _ANSI_RE.sub("", capsys.readouterr().out)
+    assert "stub_flagged_preview: skipped" in output
+    assert "cannot determine repository" in output

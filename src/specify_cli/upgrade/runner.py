@@ -14,7 +14,7 @@ from typing import Any
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
-from charter.resolution import NotInsideRepositoryError, resolve_canonical_repo_root
+from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError, resolve_canonical_repo_root
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
@@ -418,8 +418,15 @@ class MigrationRunner:
         # A migration that needs a git repository is not applicable outside one
         # (#6539). Decide before detect() (which may itself resolve the repo
         # root), record nothing, and let a run inside a repository apply it.
-        if migration_skipped_outside_repository(migration, self._repository_probe):
-            return self._not_inside_repository_skip(migration)
+        try:
+            if migration_skipped_outside_repository(migration, self._repository_probe):
+                return self._not_inside_repository_skip(migration)
+        except GitCommonDirUnavailableError as exc:
+            # The probe could not run (git missing or unusable). That is neither
+            # "inside" nor "outside": fail closed with a recorded failure, like a
+            # detect() that cannot run safely, so the migration stays retryable.
+            reason = f"Cannot determine whether the project is inside a git repository: {exc}"
+            return self._detect_failure(metadata, migration, reason, f"{reason} ({migration.migration_id})", dry_run=dry_run)
 
         # Check if migration is needed via detection. A symlinked
         # `.gitignore`/`.claudeignore` makes detect() fail closed with
@@ -437,20 +444,12 @@ class MigrationRunner:
         except NotInsideRepositoryError:
             return self._not_inside_repository_skip(migration)
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
-            if not dry_run:
-                self._record_migration_result(
-                    metadata,
-                    self.project_path,
-                    migration,
-                    "failed",
-                    f"Cannot safely detect: {exc}",
-                )
-            return (
-                MigrationResult(
-                    success=False,
-                    errors=[f"Cannot safely detect {migration.migration_id}: {exc}"],
-                ),
-                "failed",
+            return self._detect_failure(
+                metadata,
+                migration,
+                f"Cannot safely detect: {exc}",
+                f"Cannot safely detect {migration.migration_id}: {exc}",
+                dry_run=dry_run,
             )
 
         if not migration_needed:
@@ -529,6 +528,20 @@ class MigrationRunner:
             )
 
         return result, ("applied" if result.success else "failed")
+
+    def _detect_failure(
+        self,
+        metadata: ProjectMetadata,
+        migration: BaseMigration,
+        message: str,
+        error: str,
+        *,
+        dry_run: bool,
+    ) -> tuple[MigrationResult, str]:
+        """Record (unless dry-run) and return a failed result for a pre-apply check that could not run."""
+        if not dry_run:
+            self._record_migration_result(metadata, self.project_path, migration, "failed", message)
+        return MigrationResult(success=False, errors=[error]), "failed"
 
     @staticmethod
     def _not_inside_repository_skip(migration: BaseMigration) -> tuple[MigrationResult, str]:
