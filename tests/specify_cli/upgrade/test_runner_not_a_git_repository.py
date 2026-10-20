@@ -27,6 +27,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 MIGRATION_ID = "3.2.0rc35_unified_bundle"
 
 
+@pytest.fixture(autouse=True)
+def _confine_git_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop git walking above ``tmp_path`` so the tests hold when TMPDIR sits inside a checkout."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+
+
 def _make_project(root: Path) -> Path:
     kittify = root / ".kittify"
     kittify.mkdir(parents=True)

@@ -29,6 +29,12 @@ from specify_cli.upgrade.runner import MigrationRunner
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
+@pytest.fixture(autouse=True)
+def _confine_git_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop git walking above ``tmp_path`` so the tests hold when TMPDIR sits inside a checkout."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+
+
 def _manifest_ids() -> list[str]:
     manifest = Path(sys.modules[BaseMigration.__module__].__file__ or "").parent / "order_manifest.txt"
     ids = []
