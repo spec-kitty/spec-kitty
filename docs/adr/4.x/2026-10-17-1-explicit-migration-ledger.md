@@ -3,7 +3,7 @@ title: 'ADR: the applied-migration ledger is an explicit, two-partition record t
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
 date: '2026-10-17'
-updated: '2026-10-17'
+updated: '2026-10-20'
 ---
 
 **Status:** Accepted (2026-10-17).
@@ -421,3 +421,68 @@ state for the fresh-clone case accordingly.
   declare it: `3.2.0rc35_unified_bundle`. The executed audit
   `tests/specify_cli/upgrade/test_requires_git_repository_audit.py` fails for any migration that
   reaches the resolver without declaring the flag.
+
+---
+
+## Amendment 2026-10-20 (#6431: adoption baseline, requested-target cap)
+
+Three refinements, ruled by the operator on 2026-10-20 after the nightly found the first
+ledger-era upgrade replaying older migrations (#6431, #6369). The Decision body above is
+unchanged except where this amendment says so.
+
+### 1. §6 adoption also settles the version floor (reverses the 2026-10-18 metadata-only ruling)
+
+**Problem found.** Pre-ledger `spec-kitty init` stamped `spec_kitty.version` and wrote
+`migrations: applied: []`; the retired version window then never selected a migration at or
+below that version. So the version stamp, not the applied list, was what settled a
+project's older migrations, and the list of a real pre-ledger project is empty or partial.
+The metadata-only backfill (closeout ruling 2026-10-18) left all those migrations pending,
+and the first ledger-era upgrade replayed them against a current project:
+`2.0.6_consistency_sweep` rewrote Mission `meta.json`, `3.0.0_canonical_context` rewrote
+`status.events.jsonl` (undoing a forced lane transition), and the upgrade auto-committed.
+
+**Decision.** On **first adoption only**, until the backfill
+(`m_4_0_0rc8_backfill_migration_ledger.py`, unreleased when amended) is itself recorded as
+applied, it also records as `success` every registered migration whose `target_version` is below
+both the recorded `spec_kitty.version` and the backfill's own `4.0.0rc8`, and that neither
+`applied_migrations` nor a ledger partition mentions. A migration AT the recorded version stays
+pending, as the retired window still selected it when its `detect()` held. Adoption is keyed on the backfill's own
+record, not on a ledger file existing: a gitignored per-clone ledger survives a checkout of a
+pre-ledger branch and is not adoption. The bound below `4.0.0rc8` exists because no CLI without
+the ledger shipped a migration at that version, while an rc8 build that predates the ledger
+stamped `4.0.0rc8`. The records are written with one atomic write per partition, so an
+interrupted adoption leaves none of them. Partition routing is the same as the listed
+records (§1): tracked unconditionally, clone-local only when its effect is present here (see
+3). A listed `skipped` or `failed` record keeps its result, so §3's "a failed migration is
+retried" still holds. An unparseable recorded version stamps nothing. This is the adoption
+counterpart of the init seed (Amendment 2026-10-18 §1), a one-time stamp. It does not revive
+the selection window: once the backfill is recorded, nothing is stamped from the version.
+
+The backfill declares the new `BaseMigration.ledger_adoption` ClassVar. While it is unsettled,
+`get_applicable` treats the ids it will settle (`adoption_settled_ids`) as already settled, so
+`upgrade --dry-run`, the plan preview, the compat planner and `migrate ledger` list exactly what
+the real run applies (§5's single pending-source promise).
+
+### 2. §3 the run's requested target stays an upper bound
+
+§3 retired the version window as the **applied** authority. Its upper bound
+(`target <= to_v`) was the scope of the run the operator asked for, not an applied fact, and
+retiring it let `spec-kitty upgrade --target X` apply migrations declared for later
+versions and then stamp the project as `X`. `MigrationRegistry.get_applicable` now selects
+only migrations whose `target_version <=` the requested target. Selection is still a
+ledger-diff, and a migration above the target is out of scope for that run: it is neither
+selected nor settled. An unparseable target caps nothing. A `ledger_adoption` migration is
+never capped: an upgrade to an older target that skipped adoption would still record the
+migrations it ran, and those records would then hide the adoption for good. A default upgrade
+(target = CLI version) is unaffected. `target_version` is therefore both the ordering cross-check (§2)
+and this cap. The lower bound stays retired.
+
+### 3. A clone-local effect is "present" only inside a git repository
+
+The init seed and the adoption backfill record a clone-local migration without running it
+only when its effect is present on this checkout. Both now ask one predicate,
+`ledger.clone_local_effect_in_place`: a git repository exists **and** `detect()` reports
+nothing to do. Without a repository, `detect()` of such a migration reports "nothing to do"
+only because there is nowhere to put the effect yet, so an `init` outside git used to seed
+the step as done, and the first upgrade after `git init` never installed it. A `detect()`
+error reads as "not in place", leaving the migration pending.
