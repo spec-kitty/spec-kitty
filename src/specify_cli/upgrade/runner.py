@@ -63,14 +63,41 @@ def project_is_inside_git_repository(project_path: Path) -> bool:
     Uses the same resolver the repository-bound migrations use
     (``charter.resolution.resolve_canonical_repo_root``), so "inside" means exactly
     what that resolver accepts, including a project in a repository subdirectory.
-    It is the one probe behind the runner's pre-detect gate for migrations that
-    declare ``requires_git_repository`` and behind the ``--dry-run --verbose`` preview.
+    It is the one probe behind :class:`RepositoryProbe`.
     """
     try:
         resolve_canonical_repo_root(project_path)
     except NotInsideRepositoryError:
         return False
     return True
+
+
+class RepositoryProbe:
+    """Lazy, memoized "is the project inside a git repository" answer (#6539).
+
+    The git probe runs on the first :meth:`inside` call only, so a run whose
+    pending migrations never declare ``requires_git_repository`` never invokes git.
+    """
+
+    def __init__(self, project_path: Path) -> None:
+        self._project_path = project_path
+        self._inside: bool | None = None
+
+    def inside(self) -> bool:
+        if self._inside is None:
+            self._inside = project_is_inside_git_repository(self._project_path)
+        return self._inside
+
+
+def migration_skipped_outside_repository(migration: BaseMigration, probe: RepositoryProbe) -> bool:
+    """The one rule for the repository gate (#6539).
+
+    True when ``migration`` declares ``requires_git_repository`` and the project is
+    not inside a repository. Both the runner's pre-detect gate and the
+    ``--dry-run --verbose`` preview ask this, so they cannot disagree. The probe is
+    consulted only for a flagged migration.
+    """
+    return migration.requires_git_repository and not probe.inside()
 
 
 def _display_version(value: str) -> str:
@@ -183,7 +210,7 @@ class MigrationRunner:
         self.kittify_dir = project_path / KITTIFY_DIR
         self.console = console or Console()
         self.detector = VersionDetector(project_path)
-        self._inside_git_repository: bool | None = None
+        self._repository_probe = RepositoryProbe(project_path)
 
     def upgrade(
         self,
@@ -391,7 +418,7 @@ class MigrationRunner:
         # A migration that needs a git repository is not applicable outside one
         # (#6539). Decide before detect() (which may itself resolve the repo
         # root), record nothing, and let a run inside a repository apply it.
-        if migration.requires_git_repository and not self._project_inside_git_repository():
+        if migration_skipped_outside_repository(migration, self._repository_probe):
             return self._not_inside_repository_skip(migration)
 
         # Check if migration is needed via detection. A symlinked
@@ -502,12 +529,6 @@ class MigrationRunner:
             )
 
         return result, ("applied" if result.success else "failed")
-
-    def _project_inside_git_repository(self) -> bool:
-        """Probe once per run whether the project is inside a git repository (#6539)."""
-        if self._inside_git_repository is None:
-            self._inside_git_repository = project_is_inside_git_repository(self.project_path)
-        return self._inside_git_repository
 
     @staticmethod
     def _not_inside_repository_skip(migration: BaseMigration) -> tuple[MigrationResult, str]:
