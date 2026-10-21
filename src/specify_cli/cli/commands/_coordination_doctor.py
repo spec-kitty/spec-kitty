@@ -1575,10 +1575,15 @@ def _apply_coordination_fixes(
 
 
 def _unified_diff(repo_root: Path, ref_a: str, ref_b: str) -> str:
-    """Return ``git diff ref_a ref_b`` output, or ``""`` when git is unreadable."""
+    """Return ``git diff ref_a ref_b`` output, or ``""`` when git is unreadable.
+
+    The refs come from ``meta.json``: ``--end-of-options`` stops one such as
+    ``--output=<path>`` being read as an option, and the closing ``--`` stops
+    git reading a branch name as a path.
+    """
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo_root), "diff", ref_a, ref_b],
+            ["git", "-C", str(repo_root), "diff", "--end-of-options", ref_a, ref_b, "--"],
             capture_output=True, text=True, check=False,
         )
     except OSError:

@@ -271,6 +271,35 @@ class TestDefensiveHelpers:
         with pytest.raises(RuntimeError, match="Failed to create"):
             _create_branch_from(repo, "kitty/mission-x", "no-such-parent-ref")
 
+    def test_create_branch_from_never_reads_a_dash_name_as_an_option(self, tmp_path):
+        """A ``meta.json`` branch value such as ``-f`` must not become ``git branch -f main``.
+
+        Without ``--end-of-options`` git parses the value as the force flag and
+        resets the local ``main`` to HEAD (Sonar S6350, #4304).
+        """
+        from specify_cli.lanes.worktree_allocator import _create_branch_from
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=str(repo), capture_output=True, check=True)
+        subprocess.run(["git", "checkout", "-b", "work"], cwd=str(repo), capture_output=True, check=True)
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "work"],
+            cwd=str(repo), capture_output=True, check=True,
+        )
+
+        def _main_tip() -> str:
+            return subprocess.run(
+                ["git", "rev-parse", "refs/heads/main"],
+                cwd=str(repo), capture_output=True, text=True, check=True,
+            ).stdout.strip()
+
+        before = _main_tip()
+        with pytest.raises(RuntimeError, match="Failed to create"):
+            _create_branch_from(repo, "-f", "main")
+        assert _main_tip() == before
+
     def test_validate_worktree_clean_raises_when_git_status_fails(self, tmp_path):
         """A non-git path makes ``git status`` fail → RuntimeError (not silent)."""
         from specify_cli.lanes.worktree_allocator import _validate_worktree_clean

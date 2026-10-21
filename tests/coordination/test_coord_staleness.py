@@ -249,6 +249,43 @@ def test_unified_diff_returns_empty_on_os_error(monkeypatch: pytest.MonkeyPatch,
     assert cd._unified_diff(tmp_path, "coord", "main") == ""
 
 
+def _diff_git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True)
+
+
+def _diff_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _diff_git(repo, "init", "-b", "main")
+    _diff_git(repo, "config", "user.email", "t@example.com")
+    _diff_git(repo, "config", "user.name", "T")
+    (repo / "f.txt").write_text("one\n", encoding="utf-8")
+    _diff_git(repo, "add", "f.txt")
+    _diff_git(repo, "commit", "-m", "one")
+    _diff_git(repo, "branch", "coord")
+    (repo / "f.txt").write_text("two\n", encoding="utf-8")
+    _diff_git(repo, "commit", "-am", "two")
+    return repo
+
+
+def test_unified_diff_never_reads_a_meta_ref_as_an_option(tmp_path: Path) -> None:
+    """A ``meta.json`` ref such as ``--output=<path>`` must stay a revision (Sonar S6350, #4304)."""
+    repo = _diff_repo(tmp_path)
+    written = tmp_path / "written.patch"
+
+    assert cd._unified_diff(repo, f"--output={written}", "main") == ""
+    assert not written.exists()
+
+
+def test_unified_diff_still_diffs_two_branches(tmp_path: Path) -> None:
+    repo = _diff_repo(tmp_path)
+
+    diff_text = cd._unified_diff(repo, "coord", "main")
+
+    assert "-one" in diff_text
+    assert "+two" in diff_text
+
+
 def test_fix_one_staleness_requires_declared_ref_postcondition(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

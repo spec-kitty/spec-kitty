@@ -1535,9 +1535,12 @@ def _create_branch_from(
 
     ``label`` only tunes the error wording (``"branch"`` vs ``"mission
     branch"``) so callers keep their historical messages.
+
+    ``--end-of-options`` keeps a name read from ``meta.json`` or ``lanes.json``
+    positional: a value such as ``-f`` would otherwise run ``git branch -f``.
     """
     result = subprocess.run(
-        ["git", "branch", branch, parent],
+        ["git", "branch", "--end-of-options", branch, parent],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
