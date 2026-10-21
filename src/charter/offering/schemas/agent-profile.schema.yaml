@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/agent-profile.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/agent-profile.schema.yaml
 $comment: 'schema-version: 2 — roles list support added; legacy 1.0 remains accepted'
 title: Agent Profile
 description: Rich agent profile schema with 6-section structure for the Spec Kitty charter offering

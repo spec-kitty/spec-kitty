@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/styleguide.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/styleguide.schema.yaml
 title: Styleguide
 description: Minimal schema for doctrine styleguides.
 type: object

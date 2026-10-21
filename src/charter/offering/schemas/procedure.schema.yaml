@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/procedure.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/procedure.schema.yaml
 title: Procedure
 description: Schema for doctrine procedures — reusable orchestrated workflows.
 type: object

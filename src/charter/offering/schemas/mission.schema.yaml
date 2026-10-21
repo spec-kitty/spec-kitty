@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/mission.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/mission.schema.yaml
 title: Mission
 description: Minimal schema for doctrine mission definitions.
 type: object

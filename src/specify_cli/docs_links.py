@@ -13,15 +13,9 @@ printing a dead link.
 
 from __future__ import annotations
 
-__all__ = [
-    "DOCS_BASE_URL",
-    "INSTALL_AND_UPGRADE_PAGE",
-    "INSTALL_AND_UPGRADE_URL",
-    "docs_url",
-]
+from kernel.site_urls import DOCS_BASE_URL
 
-#: The published documentation site (``docs/CNAME``).
-DOCS_BASE_URL = "https://docs.spec-kitty.ai"
+__all__ = ["INSTALL_AND_UPGRADE_URL"]
 
 #: Install and upgrade guide: ``docs/guides/how-to/installation/install-and-upgrade.md``.
 INSTALL_AND_UPGRADE_PAGE = "guides/how-to/installation/install-and-upgrade"

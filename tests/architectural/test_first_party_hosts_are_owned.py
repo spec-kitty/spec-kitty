@@ -10,11 +10,6 @@ the fetched ``packs/`` trees) for any host whose name carries ``spec-kitty`` and
 fails unless that host is ``spec-kitty.ai`` or one of its subdomains. Third-party
 hosts (``github.com``, harness vendors) are out of scope; ``github.com/spec-kitty``
 is owned through the organisation, not a domain.
-
-``_PENDING_SCHEMA_ID_FILES`` is a transient, shrink-only allowlist for the schema
-``$id``s whose new base the operator has yet to choose (#6468, owner
-stijn-dejongh, exit: before the #6099 charter-offering contract freeze). Every
-entry must still carry the unowned domain, so the list cannot outlive its drain.
 """
 
 from __future__ import annotations
@@ -23,6 +18,8 @@ import re
 from pathlib import Path
 
 import pytest
+
+from kernel.site_urls import OWNED_DOMAIN
 
 # ``corpus``: the scan reads the fetched ``packs/built-in`` tree.
 pytestmark = [pytest.mark.architectural, pytest.mark.corpus, pytest.mark.fast]
@@ -33,35 +30,11 @@ _SCAN_ROOTS: tuple[str, ...] = ("src", "scripts", "packs")
 _TEXT_SUFFIXES: frozenset[str] = frozenset({".py", ".md", ".yaml", ".yml", ".json", ".toml", ".txt", ".sh", ".ps1", ".j2", ".jinja", ".html", ".cfg", ".ini"})
 _SKIPPED_DIR_NAMES: frozenset[str] = frozenset({"__pycache__", ".git", "node_modules"})
 
-#: The one registrable domain Spec Kitty owns for branded hosts.
-OWNED_DOMAIN = "spec-kitty.ai"
-
 # Built from fragments so this module never matches its own scan.
 _UNOWNED_DOMAIN = "spec-kitty" + ".dev"
 
 #: A dotted host name that carries the brand, e.g. ``docs.spec-kitty.ai``.
 _BRANDED_HOST = re.compile(r"(?<![\w.-])((?:[a-z0-9-]+\.)*spec-kitty(?:\.[a-z0-9-]+)+)", re.IGNORECASE)
-
-#: Schema ``$id`` carriers awaiting the operator's choice of base (#6468).
-_PENDING_SCHEMA_ID_FILES: frozenset[str] = frozenset(
-    {
-        "scripts/generate_schemas.py",
-        "src/charter/offering/schemas/activation-preset.schema.yaml",
-        "src/charter/offering/schemas/agent-profile.schema.yaml",
-        "src/charter/offering/schemas/directive.schema.yaml",
-        "src/charter/offering/schemas/import-candidate.schema.yaml",
-        "src/charter/offering/schemas/mission.schema.yaml",
-        "src/charter/offering/schemas/model-to-task_type.schema.yaml",
-        "src/charter/offering/schemas/occurrence-map.schema.yaml",
-        "src/charter/offering/schemas/paradigm.schema.yaml",
-        "src/charter/offering/schemas/procedure.schema.yaml",
-        "src/charter/offering/schemas/skill.schema.yaml",
-        "src/charter/offering/schemas/styleguide.schema.yaml",
-        "src/charter/offering/schemas/tactic.schema.yaml",
-        "src/charter/offering/schemas/toolguide.schema.yaml",
-        "src/specify_cli/skills/data/skills-manifest.schema.json",
-    }
-)
 
 
 def is_owned_host(host: str) -> bool:
@@ -85,25 +58,19 @@ def unowned_branded_hosts(text: str) -> list[str]:
     return hosts
 
 
+#: Last labels that make a bare ``spec-kitty.<x>`` a domain rather than a
+#: ``spec-kitty.<command>`` command or file name.
+_HOST_TLDS: frozenset[str] = frozenset({"ai", "app", "cloud", "co", "com", "dev", "io", "net", "org", "xyz"})
+
+
 def _looks_like_host(text: str, match: re.Match[str]) -> bool:
     start = match.start(1)
-    prefix = text[max(0, start - 3) : start]
-    if prefix.endswith("://") or prefix.endswith("//"):
+    if text[max(0, start - 2) : start] == "//":
         return True
-    # Bare host mentions (``spec-kitty.dev``) count when they end at a boundary
-    # that a URL or prose would put there, not mid-identifier.
-    end = match.end(1)
-    following = text[end : end + 1]
-    return following in {"", "/", " ", "\n", '"', "'", ")", "`", ",", ";", ":"} and match.group(1).lower().split(".")[-1] in {
-        "dev",
-        "ai",
-        "io",
-        "com",
-        "org",
-        "net",
-        "app",
-        "co",
-    }
+    # A bare mention counts when its last label is a TLD and the next character
+    # cannot continue an identifier (end of sentence, quote, port, path, ...).
+    following = text[match.end(1) : match.end(1) + 1]
+    return not (following.isalnum() or following in {"_", "-"}) and match.group(1).lower().rsplit(".", 1)[-1] in _HOST_TLDS
 
 
 def _scanned_files() -> list[Path]:
@@ -149,6 +116,11 @@ def test_scan_is_not_vacuous() -> None:
         ("https://github.com/spec-kitty/spec-kitty", []),
         ("run /spec-kitty.implement then spec-kitty.review.md", []),
         ("https://spec-kitty-dev.fly.dev", []),
+        ("see " + _UNOWNED_DOMAIN + ".", [_UNOWNED_DOMAIN]),
+        (_UNOWNED_DOMAIN + ":443/x", [_UNOWNED_DOMAIN]),
+        ("HTTPS://SPEC-KITTY.DEV/x", ["SPEC-KITTY.DEV"]),
+        ("url: " + _UNOWNED_DOMAIN + "\r\n", [_UNOWNED_DOMAIN]),
+        ("[docs](//spec-kitty.cloud)", ["spec-kitty.cloud"]),
     ],
 )
 def test_detector_self_mutation(text: str, expected: list[str]) -> None:
@@ -156,15 +128,16 @@ def test_detector_self_mutation(text: str, expected: list[str]) -> None:
     assert unowned_branded_hosts(text) == expected
 
 
-def test_no_unowned_branded_host_outside_pending_schema_ids() -> None:
-    violations = {rel: hosts for rel, hosts in _violations().items() if rel not in _PENDING_SCHEMA_ID_FILES}
+def test_no_unowned_branded_host_is_shipped() -> None:
+    violations = _violations()
     assert violations == {}, (
-        f"Branded hosts outside the owned domain {OWNED_DOMAIN!r} (#6468). Point user-facing links at specify_cli.docs_links instead: {violations}"
+        f"Branded hosts outside the owned domain {OWNED_DOMAIN!r} (#6468). Build first-party "
+        "URLs from kernel.site_urls (docs links through specify_cli.docs_links): "
+        f"{violations}"
     )
 
 
-def test_pending_schema_id_allowlist_only_shrinks() -> None:
-    """Every allowlisted file still needs its entry; a drained one must be removed."""
-    violations = _violations()
-    stale = sorted(rel for rel in _PENDING_SCHEMA_ID_FILES if rel not in violations)
-    assert stale == [], f"Remove drained entries from _PENDING_SCHEMA_ID_FILES: {stale}"
+def test_unowned_domain_is_gone_from_the_scanned_tree() -> None:
+    """The domain #6468 retired is named nowhere we ship, not even outside a URL."""
+    hits = [path.relative_to(REPO_ROOT).as_posix() for path in _scanned_files() if _UNOWNED_DOMAIN in path.read_text(encoding="utf-8", errors="replace")]
+    assert hits == []

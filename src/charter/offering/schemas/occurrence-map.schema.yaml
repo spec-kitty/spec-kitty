@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/occurrence-map.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/occurrence-map.schema.yaml
 title: OccurrenceMap
 description: >-
   Schema for `occurrence_map.yaml` — the per-mission classification artifact

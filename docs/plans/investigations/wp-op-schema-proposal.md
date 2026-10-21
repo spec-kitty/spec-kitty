@@ -319,7 +319,7 @@ they emit as `definitions/*` inside their parent (same as `tactic_step`).
 
 ```yaml
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/work-package-spec.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/work-package-spec.schema.yaml
 title: Work Package Spec
 description: Canonical YAML-authoritative work-package record; tasks/WP##.md is derived.
 type: object
@@ -405,7 +405,7 @@ definitions:
 
 ```yaml
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/op-completed-event.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/op-completed-event.schema.yaml
 title: Op Completed Event
 description: Op completion event carrying the mandatory structured debrief (why/what).
 type: object

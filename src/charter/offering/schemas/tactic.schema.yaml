@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/tactic.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/tactic.schema.yaml
 title: Tactic
 description: Minimal schema for reusable behavior tactics.
 type: object

@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/toolguide.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/toolguide.schema.yaml
 title: Toolguide
 description: Minimal schema for doctrine toolguides.
 type: object

@@ -15,7 +15,7 @@
 #  - when activated_kinds is present it includes the plural of every kind the
 #    preset lists ids for.
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/activation-preset.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/activation-preset.schema.yaml
 title: Activation preset
 description: >-
   A named, replace-semantics set of activation keys a charter pack ships under

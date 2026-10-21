@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/model-to-task_type.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/model-to-task_type.schema.yaml
 title: Model-to-Task Type Mapping
 description: Catalog of model capabilities, costs, and routing policy for task assignment.
 type: object

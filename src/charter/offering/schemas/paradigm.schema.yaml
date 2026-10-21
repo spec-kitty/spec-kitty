@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://spec-kitty.dev/schemas/doctrine/paradigm.schema.yaml
+$id: https://spec-kitty.ai/schemas/doctrine/paradigm.schema.yaml
 title: Paradigm
 description: Minimal schema for doctrine paradigms.
 type: object

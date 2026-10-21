@@ -27,6 +27,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from kernel.site_urls import OWNED_DOMAIN
+
 # ---------------------------------------------------------------------------
 # Registry: maps schema filename stem → (model class path, metadata, overrides)
 # ---------------------------------------------------------------------------
@@ -103,8 +105,12 @@ _REFERENCE_KINDS_BY_SCHEMA: dict[str, list[str]] = {
 _CONTRADICTION_KINDS = ["directive", "tactic", "paradigm"]
 
 
+#: Base of every generated schema ``$id`` (#6468). An identifier, not fetched today.
+SCHEMA_ID_BASE = f"https://{OWNED_DOMAIN}/schemas"
+
+
 def _schema_id(stem: str) -> str:
-    return f"https://spec-kitty.dev/schemas/doctrine/{stem}.schema.yaml"
+    return f"{SCHEMA_ID_BASE}/doctrine/{stem}.schema.yaml"
 
 
 # Each entry: (module_path, class_name, title, description, extra_transforms,
