@@ -15,7 +15,7 @@ Every writer and verifier of a ``SKILL.md`` goes through this module:
   (``user-invocable``, ``argument-hint``, ``disable-model-invocation``) at the
   top level, lifting them back out of ``metadata`` when the source is already
   spec-only (the Claude plugin bundle, A-M4);
-* :func:`validate_skill_frontmatter` mirrors the ``skills-ref`` 0.1.1
+* :func:`_validate_skill_frontmatter` mirrors the ``skills-ref`` 0.1.1
   validator (research R-1) for tests and the CI check.
 
 The emitted YAML is block style only: ``skills-ref`` parses frontmatter with
@@ -36,17 +36,11 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.offering.pack_skills.models import MAX_SKILL_DESCRIPTION_LENGTH, MAX_SKILL_NAME_LENGTH
+from charter.activation.skill_preparation import MAX_SKILL_DESCRIPTION_LENGTH, MAX_SKILL_NAME_LENGTH
 from kernel.text_decode import normalize_newlines
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_NATIVE
 
 __all__ = [
-    "ALLOWED_FIELDS",
-    "MAX_COMPATIBILITY_LENGTH",
-    "MAX_SKILL_DESCRIPTION_LENGTH",
-    "MAX_SKILL_NAME_LENGTH",
-    "NATIVE_ONLY_FIELDS",
-    "NATIVE_SKILL_ROOTS",
     "SKILL_FILENAME",
     "command_skill_fields",
     "ensure_skill_frontmatter",
@@ -56,8 +50,6 @@ __all__ = [
     "project_skill_bytes",
     "render_frontmatter",
     "root_of_installed_path",
-    "validate_skill_frontmatter",
-    "yaml_scalar",
 ]
 
 SKILL_FILENAME = "SKILL.md"
@@ -419,7 +411,7 @@ def _frontmatter_errors(data: dict[str, Any], skill_dir: Path, *, native: bool) 
     return errors
 
 
-def validate_skill_frontmatter(skill_dir: Path, *, native: bool = False) -> list[str]:
+def _validate_skill_frontmatter(skill_dir: Path, *, native: bool = False) -> list[str]:
     """Return the specification violations of ``skill_dir/SKILL.md`` (empty when valid).
 
     ``native=True`` is the native-root allowance (FR-013): the Claude-style keys in

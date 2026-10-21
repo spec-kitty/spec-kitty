@@ -12,7 +12,7 @@ non-conformant ``SKILL.md`` fails the PR. The script
 3. validates each **shared-root** folder with the reference validator
    ``skills-ref==0.1.1`` (PyPI, anthropics/agentskills; run through ``uvx``,
    never a project dependency, research R-4) *and* with the in-repo mirror
-   :func:`~specify_cli.skills.skill_frontmatter.validate_skill_frontmatter`,
+   :func:`~specify_cli.skills.skill_frontmatter._validate_skill_frontmatter`,
    and fails when either reports a violation or the two disagree;
 4. validates each **native-root** folder (``.claude/skills`` and the other
    :data:`~specify_cli.skills.skill_frontmatter.NATIVE_SKILL_ROOTS`) with the
@@ -42,7 +42,7 @@ from specify_cli.skills.skill_frontmatter import (
     SKILL_FILENAME,
     is_shared_root,
     project_skill_bytes,
-    validate_skill_frontmatter,
+    _validate_skill_frontmatter,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -200,7 +200,7 @@ def evaluate(targets: Sequence[SkillTarget], run: CommandRunner) -> list[SkillVe
     return [
         SkillVerdict(
             target=target,
-            in_repo=tuple(validate_skill_frontmatter(target.skill_dir, native=not target.shared)),
+            in_repo=tuple(_validate_skill_frontmatter(target.skill_dir, native=not target.shared)),
             reference=reference[target.skill_dir] if target.shared else None,
         )
         for target in targets
@@ -215,7 +215,7 @@ def evaluate(targets: Sequence[SkillTarget], run: CommandRunner) -> list[SkillVe
 def _verdict_lines(verdict: SkillVerdict) -> list[str]:
     lines = [f"FAIL {verdict.target.label}"]
     if verdict.disagreement:
-        lines.append("  validators disagree (in-repo mirror vs skills-ref): fix skill_frontmatter.validate_skill_frontmatter")
+        lines.append("  validators disagree (in-repo mirror vs skills-ref): fix skill_frontmatter._validate_skill_frontmatter")
     lines.extend(f"  in-repo: {error}" for error in verdict.in_repo)
     lines.extend(f"  skills-ref: {error}" for error in verdict.reference or ())
     return lines

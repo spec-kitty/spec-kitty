@@ -21,7 +21,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
-from specify_cli.skills.skill_frontmatter import validate_skill_frontmatter
+from specify_cli.skills.skill_frontmatter import _validate_skill_frontmatter
 from specify_cli.tool_surface.bundles._builder import MIN_SKILL_COUNT, BuildError
 from specify_cli.tool_surface.bundles.codex import CodexBundleProjector
 
@@ -616,7 +616,7 @@ class TestSkillsCopy:
             frontmatter = YAML(typ="safe").load((skill_dir / "SKILL.md").read_text(encoding="utf-8").split("---\n", 2)[1])
             assert list(frontmatter) == ["name", "description", "metadata"], skill_dir
             assert frontmatter["metadata"] == {"user-invocable": "true"}
-            assert validate_skill_frontmatter(skill_dir) == []
+            assert _validate_skill_frontmatter(skill_dir) == []
 
     def test_skills_dir_uses_spec_kitty_prefix(self, tmp_path: Path) -> None:
         """All skill subdirectories must follow the spec-kitty-<cmd> naming (#6475)."""

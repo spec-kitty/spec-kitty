@@ -69,7 +69,6 @@ from specify_cli.skills.command_skill_names import (
     command_skill_name,
     command_skill_rel_path,
     legacy_command_skill_name,
-    legacy_command_skill_names,
     legacy_command_skill_rel_path,
     parse_command_skill_rel_path,
     parse_legacy_command_skill_rel_path,
@@ -125,15 +124,10 @@ CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted((*PROMPT_BACKED_COMMANDS, *CL
 
 assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer must cover every consumer command"
 
-#: The pre-#6475 dotted folder names of the canonical commands (read/retire only).
-LEGACY_COMMAND_SKILL_NAMES: frozenset[str] = legacy_command_skill_names(CANONICAL_COMMANDS)
-
 #: Disposition state of an edited legacy dotted skill kept on disk but no longer managed.
 LEGACY_KEPT = "legacy_kept"
 #: Disposition state of a canonical path occupied by content Spec Kitty does not own.
 COLLISION = "collision"
-#: Dispositions that skip one path with a warning instead of failing the batch (FR-019/FR-020).
-WARNING_DISPOSITIONS = frozenset({LEGACY_KEPT, COLLISION})
 
 _CLI_WRAPPER_DESCRIPTIONS: dict[str, str] = {
     "consolidate": "Consolidate an accepted mission",
