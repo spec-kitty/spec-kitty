@@ -1,0 +1,493 @@
+{
+  "event_count": 113,
+  "last_event_id": "01M5E46441E26HHR6SCB2BMDRJ",
+  "materialized_at": "2026-10-21T02:21:01.441721+00:00",
+  "mission_number": "",
+  "mission_slug": "persistent-deactivation-ledger-01M59YAA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 12,
+    "blocked": 0,
+    "canceled": 3,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5A9S52W51Q7CW3ZNBHYG008",
+      "last_transition_at": "2026-10-19T14:41:50.172870+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T14:15:19Z – claude – shell_pid=17347 – Docs checks: test_no_legacy_terminology 96 passed; check_spelling 0 findings; check_docs_freshness errors=0 (link-probe 403 warnings only); tests/docs -k 'adr or inventory or glossary' 492 passed; description_length 0 violations. Glossary-pack YAML edit left to WP15.",
+        "Ready for review",
+        "Review cycle 1 addressed",
+        "Review passed (cycle 2): cycle-1 findings resolved in eca4be30; terminology 96 passed, tests/docs adr/inventory/glossary 492 passed, spelling 0, freshness exit 0 errors=0"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12822,
+      "shell_pid_created_at": "1792420501.41",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5AGEDT4JY6K0S0Y0R18W5AT",
+      "last_transition_at": "2026-10-19T16:38:18.692643+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: kernel floor, ledger seam, deny guard, factory, swept-prefix hooks; make test-fast 2385 passed 8 skipped",
+        "Review cycle 1 fixed: issues 1-4 each red-first then fixed; make test-fast 2385 passed 8 skipped",
+        "Review passed (cycle 2): all 4 cycle-1 findings resolved with red-first regressions (155b565d: 16 red -> 3e6ed5fa green). Empty-ledger-as-{} accepted (deleting would flip strict stray keys to UNMIGRATED). Targeted 133 passed; gates+tests/charter/activation 846 passed; ruff/format/mypy clean on touched modules. Carry-forward: WP03 removes the config.yaml read duplicate (seam _load_config_yaml vs pack_context._load_config)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 13722,
+      "shell_pid_created_at": "1792427259.6",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5AMSMR5PADNFK0WRDCKDXSE",
+      "last_transition_at": "2026-10-19T17:54:20.549202+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata). Golden texts byte-identical in tolerant mode (pack_context, pack_manager:658, list_activated, SPDD dangling/invalid). Red verified 21F/50P at 8e79a055. Gates 162p, targeted 78p, T015 list grep-complete 719p, charter+offering+kernel 9312p, test-fast 2385p. Non-blocking: (L1) consistency_check corrupt-input finding texts converge on the seam's (gain Remediation line; non-list now a verification_error) - record in design-decisions; (L2) SPDD _LEGACY_ACTIVATION_KEYS has no pin test vs LEDGER_KEYS - WP06 add; (L3) tests/kernel/test_activation_ledger_store.py:386 sed-mangled name testlegacy_save_... - WP14 rename; (L4) consistency_check.py:385 else-branch now unreachable; (L5) rendering_inputs uses full load_activation_ledger for source only. Shared files (pack_context/pack_manager/charter_yaml_io/consistency_check/bundle/SPDD/kernel store) coordinate with WP04/05/06/09/14 per dependency order."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21622,
+      "shell_pid_created_at": "1792431110.65",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5B05FK57MEQMK608XAQXT9A",
+      "last_transition_at": "2026-10-19T21:13:02.822035+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-19T19:24:10Z – claude – shell_pid=8391 – Red-first 01e7f221: test_deactivate_records_exclusion.py 13 failed; test_deny_planning.py and test_required_floor_provenance.py failed collection (ImportError). Cascade acceptance tests switched parent to agent-profile randy-reducer after red (no built-in directive has an exclusive tactic child).",
+        "Ready for review",
+        "Review cycle 1 addressed",
+        "Review passed (cycle 2): all cycle-1 items resolved by 1d86d573; activate.py ActiveCharterConfigError render fix accepted and tested (shared file, WP07 owner to note); pack_manager 524-554 covered; targeted surface 763 passed, 2 failed = #6424"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261019",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 8263,
+      "shell_pid_created_at": "1792443768.42",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5BAPF89FPHJCTCX0QD4JN5F",
+      "last_transition_at": "2026-10-20T00:17:05.289392+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: identity-space deny on every charter-side reader; gate with 6 temporary WP06 entries",
+        "Review cycle 1 fixed: include identity-space + artifact gate, promotion via _effective_deny, parity test, gate or-fallback",
+        "Review cycle 2 passed: --include identity-space + artifact: gate verified (all spellings render the deactivated note); _promotion_denied deleted, promotion via _effective_deny; or-fallback gate; parity test. Red at 2ed97a1e 8 failed; HEAD 8937 passed/32 skipped (-n4 charter+charter_offering+gates+interview/synth), timing 1 passed. Residual LOW: identity-less promote_activations callers (shipped migration m_unify_charter_activation, reach_only) spell verbatim; they disagree only on a hand-edited declared-id deny entry and readers still net it."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25821,
+      "shell_pid_created_at": "1792454650.33",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5BFM6CBTRD73C32DSXYMNE9",
+      "last_transition_at": "2026-10-20T01:43:13.547985+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: fail-open callers (gate_bindings, executor, preflight) propagate ActiveCharterConfigError with same-fixture positive controls; executor gates the pick on both spellings before any invoke; CLI readers on PackContext accessors; raw-membership allowlist empty+pinned; SPDD allow-and-not-deny via _is_directive_038, key-set pin, no charter.activation import. Red-first verified at 1bf1a0ad (20 failed/11 passed). Lows carried forward: pin generic-error None fallback for gate_bindings/executor; pin registry resolve/resolve_local refusal (verified manually); document charter list JSON 'deactivated' key in --json help + WP15 docs/changelog; legacy .kittify/profiles overlay serves a denied id (pre-existing ungated design, ADR residual via WP15); preflight error rendering (WP08/WP14). Accepted unowned edit to test_charter_resynthesis_preflight.py (double contract only)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25741,
+      "shell_pid_created_at": "1792458814.48",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5C41EGQR06Y3RVCQP6JTBKG",
+      "last_transition_at": "2026-10-20T07:39:59.384038+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 2: review fixes, FR-022, #6423, WP06 facade fix",
+        "Review cycle 2 passed: cycle-1 MEDIUM fixed (deny set reused from validated PackContext; 7 timing pairs vs 7f73590c noise-level), LOWs folded, FR-022 mission-type cascade source incl. deactivate-side C-005 sharing, #6423 lazy identity index, oracle updates legitimate, boundary fix verified red-before. Out-of-map edits (deactivate.py FR-022 step 5, api.py re-export, pack_manager.py operator fold) recorded in traces."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 11290,
+      "shell_pid_created_at": "1792478453.65",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5CNDSJMWKM2J48W5NA8Q89A",
+      "last_transition_at": "2026-10-20T12:43:49.716754+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: rc8 ledger migration, upgrade-only scope wrapper, migrate activation-ledger, dogfood committed",
+        "Cycle 2: stamp-before-strip, no lag heuristic; LOWs fixed",
+        "Review passed (cycle 2): restamp_pending removed, stamp-before-strip; hand-edit repro noop/zero bytes/detect False; 4 crash boundaries green; both LOWs fixed; dogfood bytes reproduced; 1431 passed targeted+gates"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 9560,
+      "shell_pid_created_at": "1792499322.36",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP09": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5D4CZNCZB4K1EAMESB0F9NH",
+      "last_transition_at": "2026-10-20T17:05:31.820513+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 1 feedback addressed: negative controls (mutants a/b now fail), single floor read, kernel legacy_keys_present, lineage comment",
+        "Review cycle 2 passed: F1 negative controls kill both mutants (a: 2 failed, b: 1 failed); F2 floors read once (pinned); F3 kernel legacy_keys_present is a public wrapper over the resolver's own scan (one rule, layer-correct); F4 lineage comment added. Targeted tests + gates 322 passed, 1 known WP08 json-contract red; ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26976,
+      "shell_pid_created_at": "1792514745.54",
+      "subtasks": {
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
+    },
+    "WP10": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5DA3EHA1PV176PXD06YJS1R",
+      "last_transition_at": "2026-10-20T18:45:10.827098+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-014 gate (static/classifier/dynamic/self-mutation, 30 passed) and FR-015/FR-024 conformance table (49 passed); WP08 JSON contract row classified first. Red evidence: forced-empty deny fails absent-all-minus-deny, unknown-token-kept-as-its-own-stem.",
+        "Review passed (reviewer-renata). JSON class ADOPTED verified (migrate activation-ledger --json outside a project: ok:false NO_PROJECT_ROOT, exit 1). FR-014 gate non-vacuous: real migration 3.2.0rc35_unified_bundle mutated to drop a deny key fails naming it; injected deny_change=DenyListChoice.ACTIVATE in a real migration source fails static; a new DenyListChoice origin in src fails the origin pin. Deviations 1 (pin by originating function) and 2 (family placeholders + helper-import closure) accepted: they tighten, not loosen. M3: only normalize_activation_absence order-exempt (SupersededMigration, detect False proven); ten builders assert detect True + deny bytes unchanged. Conformance: six sections, 8 open divergences mirror the register (meta-tested), Activate/Deactivate excluded; real readers. LOW (fold at WP14/closeout): origin pin only matches bare DenyListChoice.X; a qualified api.DenyListChoice.ACTIVATE origin in src escapes test_the_choice_origins_and_forwards_in_src_are_exact (migrations still caught via deny_change=). Tests: gate+conformance 79 passed; json-contract/order-manifest/doctrine+activation boundary/layer_rules/dead_symbols/kind_vocab 313 passed; ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20261020",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15711,
+      "shell_pid_created_at": "1792521214.02",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done"
+      }
+    },
+    "WP11": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "cancellation_reason": "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14.",
+      "force_count": 0,
+      "lane": "canceled",
+      "last_event_id": "01M5BYFBKQXH487EGJ6NRJW6C4",
+      "last_transition_at": "2026-10-20T06:02:43.703697+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "reason_source": "operator",
+      "role": "implementer"
+    },
+    "WP12": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "cancellation_reason": "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14.",
+      "force_count": 0,
+      "lane": "canceled",
+      "last_event_id": "01M5BYFMEAH3W84F1WMDGN5XQH",
+      "last_transition_at": "2026-10-20T06:02:52.746809+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "reason_source": "operator",
+      "role": "implementer"
+    },
+    "WP13": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "cancellation_reason": "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14.",
+      "force_count": 0,
+      "lane": "canceled",
+      "last_event_id": "01M5BYFXJA0ZSWM57ABE2Q40G1",
+      "last_transition_at": "2026-10-20T06:03:02.091046+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canceled by operator ruling mission_pivot_option_b (2026-10-20): the fixture sweep moves to the charter-contract alignment epic (epic child: retire the legacy activation reader); SC-004 re-homed to WP14."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "reason_source": "operator",
+      "role": "implementer"
+    },
+    "WP14": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5E227JPKBJAXQJC3XXV0YMV",
+      "last_transition_at": "2026-10-21T01:43:56.758242+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reduced flip: one mode, holes 1-6, bounded re-seed (45 files), 0 new reds vs base",
+        "Review passed (reviewer-renata). Option B rules each mutation-killed: legacy save carrying/changing deny keys (test_activation_write_target_ledger), unmigrated flag off (3 tests), unmigrated->LEDGER widening (kernel + init_writes_ledger), legacy deny key applied (activation_ledger), bootstrap copy with a ledger (bootstrap_allow_copy), deactivate guard removed (e2e floor-ordering). Zero remnants of the strict env/SWEPT_PREFIXES/hooks/_support module; gate non-vacuous. rc8 dead-modules allowlist red on base 77ad3045 (verified), same auto-discovered category as backfill rc8. mypy 7 errors identical on base. 3/42 broad reds spot-checked red on base. Targeted: 731 passed + dead_symbols 37 passed (one load timeout rerun alone green). ruff/format clean. LOWs for closeout: #4400 cited in traces/approach.md has no issue-matrix row; deactivate _refuse_unmigrated has subprocess-only coverage; a legacy save preserves an unchanged hand-edited deny key (hole 6 reports it). Shared files (pack_manager, activation_ledger, compiler._bootstrap_charter_yaml, deactivate, conftest) are dependency-ordered shares from WP02-WP05/WP08 per the prompt; WP15 depends on WP14."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP14:20261021",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6401,
+      "shell_pid_created_at": "1792545971.94",
+      "subtasks": {
+        "T078": "done",
+        "T079": "done",
+        "T080": "done",
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done"
+      }
+    },
+    "WP15": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5E46441E26HHR6SCB2BMDRJ",
+      "last_transition_at": "2026-10-21T02:21:01.441721+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-21T02:06:28Z – claude – shell_pid=15716 – Red list (pre-edit): stale hits charter-pack-usage-journey.md:46, 06_unified_charter_bundle.md:112/176, context/charter.md:484, activation-ledger-and-charter-contract.md:311, glossary pack active charter (904); CLI parity test 2 failed. All fixed except the glossary pack: T088 blocked, packs/built-in is vendored and drift-gated (charter pack vendor --check), seed-driven parity forbids a seed-only edit; patch handed to orchestrator for spec-kitty-open-packs.",
+        "- 2026-10-21T02:08:22Z – claude – shell_pid=15716 – T088 deferred to #6562 (glossary entries land in spec-kitty-open-packs, re-vendor, sync .kittify/glossaries).",
+        "Ready for review; T088 deferred to #6562",
+        "Review passed: 14 doc claims verified against code/CLI (9 doctor codes + error/warning split, LedgerFinding fields, migrate activation-ledger JSON/result/reason values + record-only-when-migration-ledger-exists, unmigrated refusal text, required refusal text, cascade/preset/list strings and JSON keys, api exports, Decision 7 stamp-before-strip, Cascade options panel, optional_tracked_files, DenyListChoice four choices). CHANGELOG format matches; downgrade hazard explicit; terminology clean; all #NNN have issue-matrix rows; CLAUDE.md->AGENTS.md symlink; docs/context/charter.md edit justified (stale-hit). Tests: tests/docs + parity + terminology + 4 gates + glossary parity 2152 passed/8 skipped; docs freshness --ci 0 errors."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP15:20261021",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4229,
+      "shell_pid_created_at": "1792548871.22",
+      "subtasks": {
+        "T085": "done",
+        "T086": "done",
+        "T087": "done",
+        "T088": "done",
+        "T089": "done",
+        "T090": "done"
+      }
+    }
+  }
+}

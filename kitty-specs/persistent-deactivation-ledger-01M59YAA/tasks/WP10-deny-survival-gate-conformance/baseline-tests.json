@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP10",
+  "captured_at": "2026-10-20T18:22:16Z",
+  "base_branch": "dc998ae4da49df8cc9fb75e4f069955adb60d776",
+  "base_commit": "dc998ae4da49df8cc9fb75e4f069955adb60d776",
+  "test_runner": "custom",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<declared-command>",
+      "error": "baseline command timed out after 300s",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/text"
+}

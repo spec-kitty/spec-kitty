@@ -1,0 +1,31 @@
+{
+  "accept_commit": "16b86cb8f1b06cd7448938c0f947515dda97c53b",
+  "acceptance_history": [
+    {
+      "accept_commit": "16b86cb8f1b06cd7448938c0f947515dda97c53b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-21T07:18:01.464775+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "254a6b48e3012da49a12319dbade020c094f6fce"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-21T07:18:01.464775+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "254a6b48e3012da49a12319dbade020c094f6fce",
+  "created_at": "2026-10-19T11:21:31.387155+00:00",
+  "flattened": false,
+  "friendly_name": "Persistent deactivation: one activation ledger",
+  "mid8": "01M59YAA",
+  "mission_id": "01M59YAAGWG6HWFVYSZD4GGN9Y",
+  "mission_number": null,
+  "mission_slug": "persistent-deactivation-ledger-01M59YAA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Core side of spec-kitty-charter ADR-0013 (#62 #63 #64 #66 #67). Today deactivation only removes an id from an allow-list, raises when the list is absent, and is undone by cascade, upgrade resets and org required_* unions. A new .kittify/charter/activation.yaml becomes the single authority for activated_<kind> and deactivated_<kind>; cascade skips and reports excluded nodes; deactivating a required artifact is refused naming the org pack.",
+  "purpose_tldr": "A deactivated charter element stays gone: one activation ledger holds allow and deny state, and cascade, upgrade and presets honour it.",
+  "slug": "persistent-deactivation-ledger-01M59YAA",
+  "status_phase": "1",
+  "target_branch": "core-align-3-persistent-deactivation",
+  "topology": "single_branch"
+}

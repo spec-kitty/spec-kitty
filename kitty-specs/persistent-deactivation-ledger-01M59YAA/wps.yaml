@@ -1,0 +1,590 @@
+work_packages:
+- id: WP01
+  title: Core ADR and glossary (activation ledger)
+  dependencies: []
+  owned_files:
+  - docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md
+  - docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md
+  - docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md
+  - docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md
+  - docs/adr/4.x/index.md
+  - docs/development/page-inventory.yaml
+  - docs/development/docs-retrieval-index.yaml
+  - docs/context/charter.md
+  requirement_refs:
+  - C-009
+  - C-006
+  plan_concern_refs:
+  - IC-11
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  prompt_file: tasks/WP01-core-adr-and-glossary.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP02
+  title: Kernel floor, ledger seam, write guard, test factory
+  dependencies:
+  - WP01
+  owned_files:
+  - src/kernel/activation_ledger_store.py
+  - src/kernel/README.md
+  - src/charter/activation/activation_ledger.py
+  - src/charter/activation/pack_context.py
+  - src/charter/activation/pack_manager.py
+  - src/charter/activation/api.py
+  - tests/_factories/activation_ledger.py
+  - tests/conftest.py
+  - tests/kernel/test_activation_ledger_store.py
+  - tests/charter/activation/test_activation_ledger.py
+  - tests/charter/test_activation_vocabulary_setequal.py
+  - tests/architectural/test_charter_activation_api_reexport.py
+  - tests/architectural/test_charter_path_literal_authority.py
+  - tests/architectural/charter_path_literal_allowlist.yaml
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-014
+  - FR-017
+  - FR-020
+  - C-002
+  - C-003
+  - C-004
+  - NFR-003
+  - NFR-004
+  plan_concern_refs:
+  - IC-01
+  - IC-02
+  subtasks:
+  - T005
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  prompt_file: tasks/WP02-kernel-floor-ledger-seam.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP03
+  title: Re-pointed store, SPDD resolver, init and rendering writers
+  dependencies:
+  - WP02
+  owned_files:
+  - src/charter/activation/pack_context.py
+  - src/charter/activation/pack_manager.py
+  - src/charter/activation/consistency_check.py
+  - src/charter/activation/charter_yaml_io.py
+  - src/charter/bundle.py
+  - src/charter/offering/spdd_reasons/activation.py
+  - src/specify_cli/provisioning/default_charter.py
+  - src/specify_cli/core/mission_creation_scaffold.py
+  - src/specify_cli/skills/command_renderer.py
+  - src/specify_cli/skills/command_installer.py
+  - src/specify_cli/skills/installer.py
+  - src/specify_cli/upgrade/assessment.py
+  - tests/charter/activation/test_activation_write_target_ledger.py
+  - tests/charter/test_spdd_reasons_activation_parity.py
+  - tests/charter/test_mission_type_activations_seed_read_parity.py
+  - tests/specify_cli/cli/commands/test_init_writes_ledger.py
+  - tests/specify_cli/cli/commands/test_init_provisioning.py
+  - tests/specify_cli/skills/test_command_renderer.py
+  - tests/conftest.py
+  requirement_refs:
+  - FR-001
+  - FR-017
+  - FR-019
+  - C-002
+  - C-003
+  - NFR-001
+  plan_concern_refs:
+  - IC-02
+  - IC-03
+  subtasks:
+  - T011
+  - T012
+  - T013
+  - T014
+  - T015
+  prompt_file: tasks/WP03-repoint-store-init-render.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP04
+  title: Required floor, planners, manager, deactivate CLI
+  dependencies:
+  - WP03
+  owned_files:
+  - src/charter/activation/org_pack_discovery.py
+  - src/charter/activation/org_charter.py
+  - src/charter/activation/activation_engine.py
+  - src/charter/activation/pack_manager.py
+  - src/specify_cli/cli/commands/charter/deactivate.py
+  - tests/architectural/charter_activation_boundary_baseline.yaml
+  - tests/architectural/_baselines.yaml
+  - tests/charter/test_pack_manager.py
+  - tests/charter/test_skill_activation.py
+  - tests/charter/test_pack_manager_catalog.py
+  - tests/charter/test_activation_engine.py
+  - tests/charter/test_activation_preserves_effective_4253.py
+  - tests/charter/activation/test_promotion_fail_closed.py
+  - tests/charter/activation/test_required_floor_provenance.py
+  - tests/charter/activation/test_deny_planning.py
+  - tests/specify_cli/cli/commands/charter/test_charter_deactivate_commands.py
+  - tests/specify_cli/cli/commands/charter/test_deactivate_records_exclusion.py
+  - src/specify_cli/_completion_manifest.json
+  - tests/specify_cli/cli/commands/charter/test_deactivate_cli_timing.py
+  - tests/conftest.py
+  requirement_refs:
+  - FR-006
+  - FR-007
+  - FR-008
+  - FR-009
+  - FR-012
+  - FR-013
+  - C-005
+  - C-007
+  - C-008
+  - NFR-001
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T016
+  - T017
+  - T018
+  - T019
+  - T020
+  - T021
+  - T022
+  prompt_file: tasks/WP04-required-floor-planners-deactivate.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP05
+  title: Identity-space deny and charter-side readers
+  dependencies:
+  - WP04
+  owned_files:
+  - src/charter/activation/pack_context.py
+  - src/charter/activation/activation_ledger.py
+  - src/charter/activation/resolver.py
+  - src/charter/activation/drg_activation.py
+  - src/charter/activation/compiler.py
+  - src/charter/activation/action_governance_bundle.py
+  - src/charter/activation/active_charter_service_builder.py
+  - src/charter/activation/profile_resolution.py
+  - src/charter/activation/skill_preparation.py
+  - src/charter/activation/org_pack_discovery.py
+  - src/charter/activation/consistency_check.py
+  - src/charter/activation/context.py
+  - src/charter/activation/context_renderers/reference_pointers.py
+  - tests/architectural/test_no_raw_activation_membership.py
+  - tests/charter/activation/test_deny_identity_space.py
+  - tests/charter/activation/test_pack_context_deny.py
+  - tests/charter/activation/test_charter_readers_honour_deny.py
+  - tests/charter/test_context_include_activation.py
+  - tests/charter/test_context_include.py
+  - src/charter/activation/activation_engine.py
+  - tests/specify_cli/cli/commands/charter/test_context_cli_timing.py
+  - tests/charter/activation/test_skill_projection_deny.py
+  - tests/specify_cli/skills/test_skills_catalog_installer_deny.py
+  - tests/conftest.py
+  requirement_refs:
+  - FR-006
+  - FR-016
+  - NFR-003
+  - C-002
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T023
+  - T024
+  - T025
+  - T026
+  - T027
+  - T028
+  - T029
+  prompt_file: tasks/WP05-identity-space-deny-charter-readers.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP06
+  title: specify_cli readers, fail-open callers, mission-step executor, SPDD deny
+  dependencies:
+  - WP05
+  owned_files:
+  - src/specify_cli/review/gate_bindings.py
+  - src/specify_cli/mission_step_contracts/executor.py
+  - src/specify_cli/charter_runtime/preflight/runner.py
+  - src/specify_cli/invocation/registry.py
+  - src/specify_cli/invocation/empty_charter.py
+  - src/specify_cli/cli/commands/agent/workflow_executor.py
+  - src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py
+  - src/specify_cli/cli/commands/agent/tasks_status_cmd.py
+  - src/specify_cli/cli/commands/profiles_cmd.py
+  - src/specify_cli/cli/commands/charter/_synthesis.py
+  - src/specify_cli/cli/commands/charter/list_cmd.py
+  - src/charter/offering/spdd_reasons/activation.py
+  - tests/architectural/test_no_raw_activation_membership.py
+  - tests/specify_cli/test_activation_fail_closed_callers.py
+  - tests/specify_cli/test_cli_readers_honour_deny.py
+  - tests/specify_cli/mission_step_contracts/test_executor_deny.py
+  - tests/charter_offering/test_spdd_probe_deny.py
+  - src/specify_cli/cli/commands/charter/_resynthesis_preflight.py
+  - tests/conftest.py
+  requirement_refs:
+  - FR-016
+  - FR-017
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T030
+  - T031
+  - T032
+  - T033
+  - T034
+  - T035
+  prompt_file: tasks/WP06-specify-cli-readers-fail-closed.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP07
+  title: Cascade, activate CLI, presets, synthesis, interview
+  dependencies:
+  - WP06
+  owned_files:
+  - src/charter/activation/cascade.py
+  - src/charter/activation/preset_application.py
+  - src/charter/activation/synthesizer/reach_only.py
+  - src/specify_cli/cli/commands/charter/activate.py
+  - src/specify_cli/cli/commands/charter/_resynthesis_preflight.py
+  - src/specify_cli/cli/commands/charter/interview.py
+  - src/specify_cli/cli/commands/charter/synthesize.py
+  - src/specify_cli/cli/commands/charter/resynthesize.py
+  - tests/charter/test_cascade.py
+  - tests/charter/test_kind_cascade_exhaustive.py
+  - tests/charter/test_cascade_stop_at_denied.py
+  - tests/charter/presets/**
+  - tests/charter/synthesizer/test_reach_only_delivery.py
+  - tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py
+  - tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py
+  - tests/specify_cli/cli/commands/charter/test_activate_preset.py
+  - tests/specify_cli/cli/commands/charter/test_activate_only_6408.py
+  - tests/specify_cli/cli/commands/charter/test_activate_include_deactivated.py
+  - tests/specify_cli/cli/commands/test_charter_interview_promotion.py
+  - src/specify_cli/_completion_manifest.json
+  - tests/conftest.py
+  requirement_refs:
+  - FR-008
+  - FR-009
+  - FR-010
+  - FR-011
+  - FR-022
+  - C-007
+  plan_concern_refs:
+  - IC-07
+  subtasks:
+  - T036
+  - T037
+  - T038
+  - T039
+  - T040
+  - T041
+  - T042
+  prompt_file: tasks/WP07-cascade-presets-synthesis-interview.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP08
+  title: Ledger migration, upgrade-only scope, dogfood
+  dependencies:
+  - WP07
+  owned_files:
+  - src/specify_cli/upgrade/migrations/base.py
+  - src/specify_cli/upgrade/migrations/m_4_0_0rc8_activation_ledger.py
+  - src/specify_cli/upgrade/migrations/order_manifest.txt
+  - src/specify_cli/upgrade/registry.py
+  - src/specify_cli/upgrade/runner.py
+  - src/specify_cli/cli/commands/upgrade.py
+  - src/specify_cli/cli/commands/migrate_cmd.py
+  - src/charter/activation/activation_ledger.py
+  - src/charter/activation/api.py
+  - tests/architectural/test_charter_activation_api_reexport.py
+  - tests/upgrade/migrations/test_m_4_0_0rc8_activation_ledger.py
+  - tests/upgrade/test_legacy_activation_scope.py
+  - tests/upgrade/test_rc5_full_manifest_activation_ledger.py
+  - .kittify/charter/activation.yaml
+  - .kittify/charter/charter.yaml
+  - .kittify/charter/synthesis-manifest.yaml
+  - .kittify/config.yaml
+  - src/specify_cli/upgrade/assessment.py
+  - tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py
+  - tests/charter_offering/test_project_charter_single_owner.py
+  - tests/conftest.py
+  - tests/charter/test_config_stem_parity.py
+  - src/specify_cli/_completion_manifest.json
+  - tests/specify_cli/upgrade/test_migrate_activation_ledger_cmd.py
+  - src/specify_cli/upgrade/init_seed.py
+  - tests/specify_cli/upgrade/test_upgrade_keyless_project_gets_ledger.py
+  - tests/specify_cli/upgrade/test_init_reseed_keeps_rc8_pending.py
+  - src/specify_cli/cli/commands/init.py
+  requirement_refs:
+  - FR-003
+  - FR-004
+  - FR-017
+  - NFR-001
+  - NFR-002
+  - C-001
+  - SC-002
+  - FR-021
+  plan_concern_refs:
+  - IC-08
+  subtasks:
+  - T043
+  - T044
+  - T045
+  - T046
+  - T047
+  - T048
+  - T049
+  - T050
+  - T051
+  - T052
+  prompt_file: tasks/WP08-ledger-migration-upgrade-scope.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP09
+  title: Bundle membership and doctor
+  dependencies:
+  - WP08
+  owned_files:
+  - src/charter/bundle.py
+  - src/specify_cli/cli/commands/charter_bundle.py
+  - src/specify_cli/cli/commands/charter/generate.py
+  - src/specify_cli/charter_runtime/freshness/computer.py
+  - src/specify_cli/state/contract.py
+  - src/specify_cli/cli/commands/_charter_pack_collect.py
+  - src/specify_cli/cli/commands/doctor.py
+  - src/charter/activation/activation_ledger.py
+  - src/charter/activation/api.py
+  - tests/architectural/test_charter_activation_api_reexport.py
+  - tests/architectural/charter_path_literal_allowlist.yaml
+  - tests/charter/test_bundle_manifest_model.py
+  - tests/charter/test_bundle_optional_ledger_hash.py
+  - tests/specify_cli/charter_freshness/test_computer.py
+  - tests/doctor/test_doctor_activation_ledger.py
+  - .kittify/charter/synthesis-manifest.yaml
+  - tests/conftest.py
+  - src/specify_cli/cli/commands/charter/list_cmd.py
+  - tests/specify_cli/cli/commands/charter/test_list_required_omitted.py
+  - tests/specify_cli/cli/commands/charter/test_deactivate_cli_timing.py
+  - tests/specify_cli/cli/commands/charter/test_context_cli_timing.py
+  requirement_refs:
+  - FR-005
+  - FR-018
+  - FR-023
+  - NFR-003
+  plan_concern_refs:
+  - IC-09
+  subtasks:
+  - T053
+  - T054
+  - T055
+  - T056
+  - T057
+  - T058
+  prompt_file: tasks/WP09-bundle-membership-and-doctor.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP10
+  title: FR-014 deny-survival gate and FR-015 conformance table
+  dependencies:
+  - WP09
+  owned_files:
+  - tests/architectural/test_deny_list_survives_upgrade.py
+  - tests/charter/conformance/**
+  - tests/conftest.py
+  requirement_refs:
+  - FR-014
+  - FR-015
+  - SC-003
+  - FR-024
+  plan_concern_refs:
+  - IC-10
+  subtasks:
+  - T059
+  - T060
+  - T061
+  - T062
+  - T063
+  prompt_file: tasks/WP10-deny-survival-gate-conformance.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP11
+  title: 'CANCELED (mission_pivot_option_b) — Fixture sweep 1: tests/charter and tests/charter_offering'
+  dependencies:
+  - WP10
+  owned_files:
+  - kitty-specs/persistent-deactivation-ledger-01M59YAA/tasks/WP11-fixture-sweep-charter.md
+  requirement_refs:
+  - FR-017
+  plan_concern_refs:
+  - IC-12
+  subtasks:
+  - T064
+  - T065
+  - T066
+  - T067
+  - T068
+  prompt_file: tasks/WP11-fixture-sweep-charter.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP12
+  title: 'CANCELED (mission_pivot_option_b) — Fixture sweep 2: tests/specify_cli'
+  dependencies:
+  - WP11
+  owned_files:
+  - kitty-specs/persistent-deactivation-ledger-01M59YAA/tasks/WP12-fixture-sweep-specify-cli.md
+  requirement_refs:
+  - FR-017
+  plan_concern_refs:
+  - IC-12
+  subtasks:
+  - T069
+  - T070
+  - T071
+  - T072
+  prompt_file: tasks/WP12-fixture-sweep-specify-cli.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP13
+  title: 'CANCELED (mission_pivot_option_b) — Fixture sweep 3: every remaining tree and the YAML fixtures'
+  dependencies:
+  - WP12
+  owned_files:
+  - kitty-specs/persistent-deactivation-ledger-01M59YAA/tasks/WP13-fixture-sweep-remaining.md
+  requirement_refs:
+  - FR-017
+  plan_concern_refs:
+  - IC-12
+  subtasks:
+  - T073
+  - T074
+  - T075
+  - T076
+  - T077
+  prompt_file: tasks/WP13-fixture-sweep-remaining.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP14
+  title: 'The reduced flip: one mode, no deny keys off the ledger, fresh projects on the ledger'
+  dependencies:
+  - WP10
+  owned_files:
+  - src/kernel/activation_ledger_store.py
+  - src/charter/activation/activation_ledger.py
+  - src/charter/activation/pack_manager.py
+  - src/charter/activation/charter_yaml_io.py
+  - src/specify_cli/provisioning/default_charter.py
+  - src/specify_cli/cli/commands/charter/deactivate.py
+  - src/specify_cli/charter_runtime/preflight/cli.py
+  - src/specify_cli/charter_runtime/preflight/hook.py
+  - src/specify_cli/cli/commands/charter/_synthesis.py
+  - tests/conftest.py
+  - tests/_support/activation_strict_mode.py
+  - tests/_factories/activation_ledger.py
+  - tests/kernel/test_activation_ledger_store.py
+  - tests/upgrade/test_legacy_activation_scope.py
+  - tests/doctor/test_doctor_activation_ledger.py
+  - tests/charter/activation/test_activation_write_target_ledger.py
+  - tests/specify_cli/cli/commands/test_init_writes_ledger.py
+  - tests/charter/activation/test_activation_ledger.py
+  - tests/specify_cli/cli/commands/charter/test_deactivate_records_exclusion.py
+  - tests/architectural/test_no_activation_strict_env.py
+  - tests/acceptance/test_persistent_deactivation.py
+  - tests/acceptance/test_init_ledger_flow.py
+  - tests/acceptance/test_unmigrated_cli_still_runs.py
+  - tests/review/test_gate_bindings.py
+  - tests/specify_cli/mission_step_contracts/test_executor.py
+  - tests/specify_cli/invocation/**
+  - tests/charter/**
+  - tests/charter_offering/**
+  - tests/specify_cli/**
+  - tests/upgrade/**
+  - tests/integration/**
+  - tests/core/**
+  - tests/acceptance/**
+  - tests/_factories/**
+  - src/charter/activation/compiler.py
+  requirement_refs:
+  - FR-017
+  - FR-019
+  - FR-020
+  - C-003
+  - SC-001
+  - SC-004
+  plan_concern_refs:
+  - IC-13
+  subtasks:
+  - T078
+  - T079
+  - T080
+  - T081
+  - T082
+  - T083
+  - T084
+  prompt_file: tasks/WP14-the-flip.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP15
+  title: Docs, changelog, agent instructions
+  dependencies:
+  - WP14
+  owned_files:
+  - docs/changelog/CHANGELOG.md
+  - docs/api/charter-commands.md
+  - docs/architecture/charter-pack-usage-journey.md
+  - docs/architecture/06_unified_charter_bundle.md
+  - docs/context/governance.md
+  - docs/migrations/charter-pack-cutover.md
+  - CLAUDE.md
+  - AGENTS.md
+  - packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml
+  - .kittify/glossaries/spec_kitty_core.yaml
+  - docs/development/docs-retrieval-index.yaml
+  - packs/built-in/*.graph.yaml
+  - packs/built-in/pack-manifest.yaml
+  - docs/api/cli-commands.md
+  - docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md
+  - docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md
+  - docs/architecture/activation-ledger-and-charter-contract.md
+  - docs/adr/4.x/index.md
+  - docs/development/page-inventory.yaml
+  requirement_refs:
+  - C-009
+  - C-010
+  - FR-021
+  - FR-024
+  plan_concern_refs:
+  - IC-14
+  subtasks:
+  - T085
+  - T086
+  - T087
+  - T088
+  - T089
+  - T090
+  prompt_file: tasks/WP15-docs-changelog-agent-instructions.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
