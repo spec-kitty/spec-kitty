@@ -11,8 +11,8 @@ ambiguous partial counts never become invented successful surface identities.
 
 Charter skills are distinct from command skills:
 
-* Command skills are slash-command invocations rendered to
-  ``.agents/skills/spec-kitty.<command>/SKILL.md`` and tracked in
+* Command skills are the workflow commands rendered as Agent Skills to
+  ``.agents/skills/spec-kitty-<command>/SKILL.md`` and tracked in
   ``.kittify/command-skills-manifest.json``.
 * Charter skills are managed knowledge/mission-step surfaces installed by the
   skill installer and tracked in ``.kittify/skills-manifest.json``.
