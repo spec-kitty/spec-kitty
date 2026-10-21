@@ -225,6 +225,24 @@ def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
     )
 
 
+def _write_global_commands(agent_keys: list[str]) -> None:
+    """Write the global slash-command files of newly added agents (#6470).
+
+    The startup writer only covers agents configured when the command
+    started, so an agent added by this command is written here. A failure
+    is a warning: the next spec-kitty command retries, as the agent is now
+    configured.
+    """
+    if not agent_keys:
+        return
+    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+
+    try:
+        ensure_global_agent_commands(agent_keys=agent_keys)
+    except Exception as exc:  # reported, never swallowed: the config change stands
+        console.print(f"[yellow]Warning:[/yellow] could not write global commands for {', '.join(agent_keys)}: {exc}")
+
+
 def _create_project_agent_dir(repo_root: Path, config: AgentConfig, agent_key: str) -> tuple[bool, str | None]:
     """Fallback for legacy project-local command agents."""
     agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
@@ -520,6 +538,7 @@ def add_agents(
     if added:
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
+        _write_global_commands([key for key in added if key in GLOBAL_COMMAND_AGENTS])
 
     if already_configured:
         console.print(f"\n[dim]Already configured:[/dim] {', '.join(already_configured)}")

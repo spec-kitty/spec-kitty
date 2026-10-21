@@ -195,14 +195,18 @@ class TestNonRuntimeOwnerConcurrentColdHomeInterleave:
         # asset_preparation.assess_global_assets -- a different seam from the
         # agent_skills case above, deliberately, to prove the fix is generic
         # rather than accidentally reusing one working code path twice.
-        loser_stale_assessment = real_assess()
+        # WP06 (#6470) re-pin: the no-argument ensure_global_agent_commands()
+        # is now scoped to the project at the working directory, so this
+        # test names one agent explicitly on both sides; the convergence it
+        # pins does not depend on the agent set.
+        loser_stale_assessment = real_assess(agent_keys=["claude"])
         assert loser_stale_assessment.complete
         assert loser_stale_assessment.effects, (
             "a cold home must produce a non-empty create-plan; an empty-effects plan would take the warm fast-path and could never observe the race"
         )
 
         # --- Act (winner): materialize the home for real. ---
-        ensure_global_agent_commands()
+        ensure_global_agent_commands(agent_keys=["claude"])
         assert fake_home.is_dir(), "winner must have materialized the shared home"
 
         # --- Act (loser): force the deterministic interleave. ---
@@ -217,7 +221,7 @@ class TestNonRuntimeOwnerConcurrentColdHomeInterleave:
         monkeypatch.setattr(agent_commands, "assess_global_agent_commands", _fake_assess)
 
         with caplog.at_level("INFO", logger=agent_commands.logger.name):
-            ensure_global_agent_commands()  # must NOT raise
+            ensure_global_agent_commands(agent_keys=["claude"])  # must NOT raise
 
         assert calls["n"] >= 2, "the fix must re-assess under the held lock, not just once up front"
         joined = "\n".join(caplog.messages)

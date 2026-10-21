@@ -377,8 +377,11 @@ class TestVersionLockTiming:
         kittify_home = tmp_path / "kittify"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(kittify_home))
 
+        # WP06 (#6470) re-pin: the all-agent lock is a full-fleet contract and
+        # the no-argument ensure() is now project-scoped (it reads the working
+        # directory's config); the full-fleet assess is the call that writes it.
         with pytest.raises(RuntimeError, match="simulated sync failure"):
-            ac.ensure_global_agent_commands()
+            ac.assess_global_agent_commands()
 
         lock_path = kittify_home / "cache" / ac._VERSION_FILENAME
         assert not lock_path.exists(), "Lock must not be written on failure"
@@ -597,10 +600,13 @@ class TestFreshnessPrecheck:
         _home, kittify_home, templates_dir = self._isolated_project(tmp_path, monkeypatch)
         self._bootstrap_fresh_state(ac, templates_dir)
 
+        # WP06 (#6470) re-pin: the schema-2 stamp records ``healthy_keys``
+        # (coverage, not equality); dropping a requested key must still
+        # force a re-render.
         stamp_path = kittify_home / "cache" / ac._FRESHNESS_STAMP_FILENAME
         payload = json.loads(stamp_path.read_text(encoding="utf-8"))
-        assert "claude" in payload["agent_keys"], "fixture assumption: claude is a real configured agent key"
-        payload["agent_keys"] = [key for key in payload["agent_keys"] if key != "claude"]
+        assert "claude" in payload["healthy_keys"], "fixture assumption: claude is a real configured agent key"
+        payload["healthy_keys"] = [key for key in payload["healthy_keys"] if key != "claude"]
         stamp_path.write_text(json.dumps(payload), encoding="utf-8")
 
         calls = self._count_renders(ac, monkeypatch)
@@ -664,7 +670,9 @@ class TestFreshnessPrecheck:
         ac._apply_command_assessment(assessment, rebuild=lambda: ac.assess_global_agent_commands(templates_dir=templates_dir))
 
         restamped = json.loads(stamp_path.read_text(encoding="utf-8"))
-        assert set(restamped) == {"cli_version", "template_source_signature", "agent_keys"}
+        # WP06 (#6470) re-pin: the schema-2 stamp shape.
+        assert set(restamped) == {"schema", "cli_version", "template_source_signature", "healthy_keys", "retired_surfaces_cleaned"}
+        assert restamped["schema"] == ac._FRESHNESS_SCHEMA
 
     def test_legacy_plain_version_stamp_degrades_to_render_without_raising(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Unreadable/malformed, the specific legacy-shape variant: a stamp
@@ -699,6 +707,11 @@ class TestReadFreshnessStampMalformedPayload:
     ValueError`` branch already covered elsewhere) but fails one of the
     shape checks that follow, and must read back as ``None`` (absent) --
     never raise.
+
+    WP06 (#6470) re-pin: each payload carries ``schema: 2`` and the renamed
+    ``healthy_keys`` field, so the shape check under test is the only one
+    that fails (without the schema field every payload would read as absent
+    for that reason alone, making the test vacuous).
     """
 
     @staticmethod
@@ -728,7 +741,7 @@ class TestReadFreshnessStampMalformedPayload:
         _home, kittify_home, templates_dir = TestFreshnessPrecheck._isolated_project(tmp_path, monkeypatch)
         stamp_path = self._stamp_path(kittify_home, ac)
         stamp_path.write_text(
-            json.dumps({"cli_version": 123, "template_source_signature": "abc", "agent_keys": ["claude"]}),
+            json.dumps({"schema": 2, "cli_version": 123, "template_source_signature": "abc", "healthy_keys": ["claude"]}),
             encoding="utf-8",
         )
 
@@ -742,7 +755,7 @@ class TestReadFreshnessStampMalformedPayload:
         _home, kittify_home, templates_dir = TestFreshnessPrecheck._isolated_project(tmp_path, monkeypatch)
         stamp_path = self._stamp_path(kittify_home, ac)
         stamp_path.write_text(
-            json.dumps({"cli_version": "4.0.0rc5", "template_source_signature": None, "agent_keys": ["claude"]}),
+            json.dumps({"schema": 2, "cli_version": "4.0.0rc5", "template_source_signature": None, "healthy_keys": ["claude"]}),
             encoding="utf-8",
         )
 
@@ -750,7 +763,7 @@ class TestReadFreshnessStampMalformedPayload:
         assert result is None, "a non-string template_source_signature must read as absent, never raise"
 
     def test_agent_keys_not_a_list_of_strings_reads_as_absent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """``agent_keys`` present but not a list of strings fails the isinstance check.
+        """``healthy_keys`` present but not a list of strings fails the isinstance check.
 
         Covers both sub-shapes: not a list at all, and a list containing a
         non-string element.
@@ -761,16 +774,16 @@ class TestReadFreshnessStampMalformedPayload:
         stamp_path = self._stamp_path(kittify_home, ac)
 
         stamp_path.write_text(
-            json.dumps({"cli_version": "4.0.0rc5", "template_source_signature": "abc", "agent_keys": "claude"}),
+            json.dumps({"schema": 2, "cli_version": "4.0.0rc5", "template_source_signature": "abc", "healthy_keys": "claude"}),
             encoding="utf-8",
         )
-        assert ac._read_freshness_stamp(stamp_path) is None, "a non-list agent_keys must read as absent, never raise"
+        assert ac._read_freshness_stamp(stamp_path) is None, "a non-list healthy_keys must read as absent, never raise"
 
         stamp_path.write_text(
-            json.dumps({"cli_version": "4.0.0rc5", "template_source_signature": "abc", "agent_keys": ["claude", 7]}),
+            json.dumps({"schema": 2, "cli_version": "4.0.0rc5", "template_source_signature": "abc", "healthy_keys": ["claude", 7]}),
             encoding="utf-8",
         )
-        assert ac._read_freshness_stamp(stamp_path) is None, "a list agent_keys with a non-string element must read as absent, never raise"
+        assert ac._read_freshness_stamp(stamp_path) is None, "a list healthy_keys with a non-string element must read as absent, never raise"
 
 
 class TestFreshnessShortCircuitOSErrorFallthrough:
@@ -887,8 +900,11 @@ class TestFreshnessStampAppliesLast:
 
         monkeypatch.setattr(ap, "_write_asset", _flaky_write_asset)
 
+        # WP06 (#6470) re-pin: name the agent (the no-argument call is now
+        # project-scoped); scoped calls now write the stamp, so the
+        # applies-last property is pinned on the scoped call.
         with pytest.raises(RuntimeError):
-            ac.ensure_global_agent_commands()
+            ac.ensure_global_agent_commands(agent_keys=["claude"])
 
         stamp_path = kittify_home / "cache" / ac._FRESHNESS_STAMP_FILENAME
         assert not stamp_path.exists(), "a partial/failed render-and-apply cycle must never leave a freshness stamp behind"

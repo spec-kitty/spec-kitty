@@ -635,13 +635,18 @@ class TestWarmPathBuildCounts:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """The commands owner's Ruling-6 freshness pre-check short-circuits
-        the FULL-FLEET (``agent_keys=None``) call before ever constructing an
-        ``AssetPreparation`` -- 0 builds, 0 locks on the warm path."""
-        agent_commands.ensure_global_agent_commands()  # materialize (all agents)
+        the warm ``ensure_global_agent_commands`` call before ever
+        constructing an ``AssetPreparation`` -- 0 builds, 0 locks on the warm
+        path.
+
+        WP06 (#6470) re-pin: the no-argument call is now scoped to the
+        project at the working directory, so the test names its agent; a
+        scoped call now short-circuits too (per-key freshness stamp)."""
+        agent_commands.ensure_global_agent_commands(agent_keys=["claude"])  # materialize
         lock_calls = _spy_lock(monkeypatch)
         init_calls = _spy_asset_preparation_init(monkeypatch)
 
-        agent_commands.ensure_global_agent_commands()
+        agent_commands.ensure_global_agent_commands(agent_keys=["claude"])
 
         assert init_calls["n"] == 0
         assert lock_calls == []
