@@ -1,7 +1,7 @@
 {
-  "event_count": 35,
-  "last_event_id": "01M5EBYKACYT5CRDCV6Z4H9DDD",
-  "materialized_at": "2026-10-21T04:36:43.468313+00:00",
+  "event_count": 37,
+  "last_event_id": "01M5EBZ5C7TPM60P1JV3V8BVPT",
+  "materialized_at": "2026-10-21T04:37:01.803450+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -122,9 +122,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M5EBYKACYT5CRDCV6Z4H9DDD",
-      "last_transition_at": "2026-10-21T04:36:43.468313+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M5EBZ5C7TPM60P1JV3V8BVPT",
+      "last_transition_at": "2026-10-21T04:37:01.803450+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: clone-local rename migration over the installer's legacy rule, upgrade warnings + new-invocation notice, prior-release fixtures"
@@ -137,7 +137,7 @@
         "reviewer": "claude",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
