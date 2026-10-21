@@ -216,6 +216,12 @@ def test_6155_exit_code_and_outcome_kind_unchanged_by_regeneration(project: Path
     skill = project / _SKILL_REL
     canonical_bytes = skill.read_bytes()
 
+    # Settle first: the first upgrade after init applies whatever migration is
+    # still pending on this checkout, which makes it ``applied`` where a later
+    # run is ``no_op`` (#6563). The baseline and the regeneration run must
+    # differ only by the drifted projection.
+    settle_exit, settle_payload = _upgrade_yes_json(project)
+    assert settle_exit == 0, settle_payload
     baseline_exit, baseline_payload = _upgrade_yes_json(project)
 
     skill.write_bytes(canonical_bytes + _STALE_EDIT)

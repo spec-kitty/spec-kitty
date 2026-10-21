@@ -24,7 +24,8 @@ Covers:
   prove the flag calls the REAL ``generate``/``charter_synthesize`` command
   objects (identity-checked via patched call-count spies), not a duplicate.
 - T019 (behavior): ``--resynthesize`` -> signal FRESH immediately;
-  default -> signal STALE and the spy records ZERO synthesis calls;
+  default -> the spy records ZERO synthesis calls, and (since #6378) the
+  writer re-stamps the manifest hash, so the signal reads FRESH;
   ``deactivate`` symmetric; NFR-003 ``promote_activations`` migration path
   triggers no synthesis.
 - T020 (gate) is enforced by CI, not a test in this file.
@@ -45,6 +46,8 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from charter.activation.activation_engine import EffectiveSet, promote_activations
+from charter.activation.synthesizer.manifest import MANIFEST_PATH
+from charter.activation.synthesizer.manifest import load_yaml as load_manifest
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
@@ -236,6 +239,11 @@ def _synthesized_drg_state(repo: Path) -> str:
     return compute_freshness(repo).synthesized_drg.state
 
 
+def _manifest_bundle_hash(repo: Path) -> str | None:
+    stamp: str | None = load_manifest(repo / MANIFEST_PATH).bundle_content_hash
+    return stamp
+
+
 def _invoke(subcommand: str, project_root: Path, *args: str) -> Any:
     return runner.invoke(
         charter_app,
@@ -403,18 +411,26 @@ def test_activate_resynthesize_reconciles_signal_to_fresh(
     assert _synthesized_drg_state(tmp_path) == "fresh"
 
 
-def test_activate_without_resynthesize_stays_stale_and_spawns_no_synthesis(
+def test_activate_without_resynthesize_restamps_and_spawns_no_synthesis(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """CT-04: default ``charter activate`` leaves the signal STALE, zero synthesis calls."""
+    """CT-04, as amended by #6378: default ``charter activate`` re-stamps the manifest, zero synthesis calls.
+
+    The activation write changes the bundle hash, and the writer re-stamps
+    ``bundle_content_hash`` at the one hash authority (``restamp_bundle_hash``)
+    so no committed drift reaches a fresh clone (#6366). The signal therefore
+    reads ``fresh`` after the default path, without any synthesis.
+    """
     _seed_synthesized_repo(tmp_path, ref_entries=[])
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
+    stamp_before = _manifest_bundle_hash(tmp_path)
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke("activate", tmp_path, "directive", _REAL_DIRECTIVE_STEM)
 
     assert result.exit_code == 0, result.output
-    assert _synthesized_drg_state(tmp_path) == "stale"
+    assert _manifest_bundle_hash(tmp_path) != stamp_before  # the write re-stamped
+    assert _synthesized_drg_state(tmp_path) == "fresh"
     assert mock_generate.call_count == 0
     assert mock_synthesize.call_count == 0
 
@@ -450,10 +466,10 @@ def test_deactivate_resynthesize_reconciles_signal_to_fresh(
     assert _synthesized_drg_state(tmp_path) == "fresh"
 
 
-def test_deactivate_without_resynthesize_stays_stale_and_spawns_no_synthesis(
+def test_deactivate_without_resynthesize_restamps_and_spawns_no_synthesis(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Deactivate symmetric: default leaves the signal STALE, zero synthesis calls."""
+    """Deactivate symmetric: default re-stamps the manifest (#6378), zero synthesis calls."""
     _seed_synthesized_repo(
         tmp_path,
         ref_entries=[
@@ -465,12 +481,14 @@ def test_deactivate_without_resynthesize_stays_stale_and_spawns_no_synthesis(
         },
     )
     assert _synthesized_drg_state(tmp_path) == "fresh"  # baseline precondition
+    stamp_before = _manifest_bundle_hash(tmp_path)
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke("deactivate", tmp_path, "paradigm", _REAL_PARADIGM_STEM_B)
 
     assert result.exit_code == 0, result.output
-    assert _synthesized_drg_state(tmp_path) == "stale"
+    assert _manifest_bundle_hash(tmp_path) != stamp_before  # the write re-stamped
+    assert _synthesized_drg_state(tmp_path) == "fresh"
     assert mock_generate.call_count == 0
     assert mock_synthesize.call_count == 0
 
