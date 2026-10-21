@@ -180,6 +180,24 @@ def test_scoped_call_for_a_new_key_builds_and_unions(env: tuple[Path, Path, Path
     assert _stamp(kittify_home)["healthy_keys"] == ["claude", "cursor"]
 
 
+def test_rebuild_scoped_to_fewer_agents_keeps_out_of_scope_global_assets(env: tuple[Path, Path, Path]) -> None:
+    """A rebuild for {claude} must not delete or forget the gemini files an earlier run wrote."""
+    home, kittify_home, _tmp_path = env
+    ac.ensure_global_agent_commands(agent_keys=["claude", "gemini"])
+    inventory = kittify_home / "cache" / "slash_commands-assets.json"
+    gemini_files = sorted((home / ".gemini" / "commands").glob("spec-kitty.*"))
+    assert gemini_files, "fixture: the first run must have written gemini commands"
+    gemini_records = {key for key in json.loads(inventory.read_text(encoding="utf-8"))["entries"] if ".gemini" in key}
+    assert gemini_records, "fixture: the first run must have recorded gemini commands"
+
+    _force_rebuild(kittify_home)
+    ac.ensure_global_agent_commands(agent_keys=["claude"])
+
+    assert all(path.exists() for path in gemini_files)
+    surviving = {key for key in json.loads(inventory.read_text(encoding="utf-8"))["entries"] if ".gemini" in key}
+    assert surviving == gemini_records
+
+
 def test_version_change_replaces_prior_healthy_keys(env: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     _home, kittify_home, _tmp_path = env
     ac.ensure_global_agent_commands(agent_keys=["claude"])
