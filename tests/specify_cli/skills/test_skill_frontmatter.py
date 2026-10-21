@@ -195,3 +195,48 @@ def test_validator_boundaries_accept_64_and_1024() -> None:
 
 def test_validator_missing_skill_md(tmp_path: Path) -> None:
     assert validate_skill_frontmatter(tmp_path) == ["Missing required file: SKILL.md"]
+
+
+# WP07 review N1: a quoted scalar must parse back to exactly the source text.
+_LINE_BREAK_TEXTS = ("two\nlines", "cr\rhere", "nel\x85here", "ls\u2028here", "ps\u2029here", "tab\there", "bell\x07", "del\x7f", 'mixed "q" \\ and\nbreak')
+
+
+@pytest.mark.parametrize("text", _LINE_BREAK_TEXTS)
+def test_yaml_scalar_round_trips_line_breaks_and_controls(text: str) -> None:
+    emitted = yaml_scalar(text)
+    assert emitted.startswith('"') and emitted.endswith('"')
+    assert "\n" not in emitted and "\r" not in emitted
+    assert not any(char in emitted for char in "\x85\u2028\u2029\x07\x7f")
+    assert YAML(typ="safe").load(f"k: {emitted}\n") == {"k": text}
+
+
+@pytest.mark.parametrize("text", _LINE_BREAK_TEXTS)
+def test_render_frontmatter_round_trips_line_breaks_in_values_keys_and_metadata(text: str) -> None:
+    block = render_frontmatter({"name": "n", "description": text, "metadata": {text: text}})
+    assert _frontmatter(block + "\n") == {"name": "n", "description": text, "metadata": {text: text}}
+
+
+def test_yaml_scalar_bare_path_unchanged_for_printable_text() -> None:
+    """The bare-scalar path emits exactly the input for printable text (no byte change)."""
+    assert yaml_scalar("Plan a mission") == "Plan a mission"
+    assert yaml_scalar("café à la carte") == "café à la carte"
+
+
+def test_validator_normalises_crlf_before_matching_the_fence(tmp_path: Path) -> None:
+    """WP07 review N2: a CRLF SKILL.md validates like its LF twin (skills-ref accepts both)."""
+    skill_dir = tmp_path / "abc"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_bytes(b"---\r\nname: abc\r\ndescription: d\r\n---\r\nbody\r\n")
+    assert validate_skill_frontmatter(skill_dir) == []
+    (skill_dir / "SKILL.md").write_bytes(b"---\rname: abc\rdescription: d\r---\rbody\r")
+    assert validate_skill_frontmatter(skill_dir) == []
+
+
+def test_validator_native_allowance_permits_claude_keys_only(tmp_path: Path) -> None:
+    skill_dir = tmp_path / "a"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("---\nname: a\ndescription: d\nuser-invocable: true\nargument-hint: x\n---\n", encoding="utf-8")
+    assert validate_skill_frontmatter(skill_dir, native=True) == []
+    assert any("Unexpected fields" in error for error in validate_skill_frontmatter(skill_dir))
+    (skill_dir / "SKILL.md").write_text("---\nname: a\ndescription: d\nother: x\n---\n", encoding="utf-8")
+    assert any("Unexpected fields in frontmatter: other" in error for error in validate_skill_frontmatter(skill_dir, native=True))

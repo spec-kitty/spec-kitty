@@ -75,6 +75,8 @@ RUNTIME_EVIDENCE_BOUNDARY = (
 #: deterministic ratchet / census gates, run as ``--battery-part fast``: disjoint
 #: from the two code-scoped ``architectural-heavy`` legs by construction (the
 #: partition proof), so a docs-only PR still meets those gates in minutes.
+#: ``agent-skills`` (#6475, FR-015) validates every generated and shipped
+#: ``SKILL.md`` with the pinned reference validator ``skills-ref``.
 MUST_RUN_ALWAYS_ON_GATES = frozenset(
     {
         "ruff",
@@ -84,6 +86,7 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
         "layer-rules",
         "archive-freeze",
         "docs-lint",
+        "agent-skills",
         "architectural-fast",
     },
 )

@@ -246,6 +246,7 @@ _ALWAYS_ON_JOB_NAMES = (
     "layer-rules",
     "archive-freeze",
     "docs-lint",
+    "agent-skills",
     "architectural-fast",
 )
 
