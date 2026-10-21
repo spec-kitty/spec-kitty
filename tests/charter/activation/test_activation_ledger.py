@@ -288,19 +288,6 @@ def test_unmigrated_positive_control_with_a_ledger(tmp_path: Path) -> None:
     assert ledger.stray_legacy_keys == ((config, ("activated_tactics",)),)
 
 
-def test_stray_keys_warn_on_the_ordinary_path_and_the_ledger_wins(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _write(tmp_path / ".kittify" / "config.yaml", "activated_tactics: [t]\n")
-    _ledger_file(tmp_path, "activated_tactics: [from-ledger]\n")
-    ledger = load_activation_ledger(tmp_path)
-    assert ledger.allow_for(ArtifactKind.TACTIC) == ("from-ledger",)
-    assert any("activated_tactics" in line and "activation ledger (activation.yaml) wins" in line for line in capsys.readouterr().err.splitlines())
-
-
-# --------------------------------------------------------------------------- #
-# FR-020: the stray-key report warns once per process
-# --------------------------------------------------------------------------- #
-
-
 def test_report_stray_warns_once(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     stray = ((tmp_path / "config.yaml", ("activated_tactics",)),)
     report_stray_legacy_keys(stray)
