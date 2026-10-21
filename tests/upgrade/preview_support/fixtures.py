@@ -78,7 +78,11 @@ def prepare_case(sandbox: Path, checkout: Path, *, global_state: str = "G5") -> 
     if global_state != "G0":
         shutil.copytree(Path(setup_env["HOME"]), home, symlinks=True)
     if global_state == "G1":
-        for name in ("version.lock", "agent-skills.lock", "agent-commands.lock"):
+        # Startup writes slash commands only for the agents the project configures
+        # (#6470), a scoped build that never writes the all-agent
+        # ``agent-commands.lock``; the commands family's genuine marker is the
+        # freshness stamp that scoped build does write.
+        for name in ("version.lock", "agent-skills.lock", "agent-commands-freshness.lock"):
             markers = sorted(home.rglob(name))
             assert markers, f"No genuine global marker: {name}"
             for marker in markers:
