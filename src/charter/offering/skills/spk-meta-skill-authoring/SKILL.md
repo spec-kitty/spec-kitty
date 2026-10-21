@@ -10,10 +10,12 @@ Use this skill when creating or revising a Spec Kitty skill.
 ## Rules
 
 1. Name public operating skills `spk-<family>-<action-or-topic>`.
-2. Keep generated slash-command files separate from generated
-   `spec-kitty.<command>` Agent Skills.
-3. Preserve legacy `spec-kitty-*` skills when they remain useful aliases or
-   detailed workflows.
+2. Keep generated `spec-kitty.<command>` slash-command files separate from
+   generated `spec-kitty-<command>` command skills.
+3. Preserve the older `spec-kitty-<topic>` guide skills (for example
+   `spec-kitty-runtime-next`) when they remain useful aliases or detailed
+   workflows. Never give a new skill a `spec-kitty-<command>` name: those
+   names belong to the generated command skills.
 4. Keep mission behavior in doctrine mission composition, not in skill prose.
 5. Add tests when changing the public skill inventory.
 

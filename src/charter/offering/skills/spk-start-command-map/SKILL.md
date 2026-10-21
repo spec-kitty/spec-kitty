@@ -18,8 +18,11 @@ skills.
 
 ## Boundary
 
-`/spec-kitty.*` files are generated slash-command or prompt-command surfaces.
-`spec-kitty.<command>` Agent Skills are generated under `.agents/skills/` for
-skill-native hosts. `spk-*` skills are user-facing operating guides. Keep the
-surfaces distinct: dotted names are executable command surfaces; hierarchical
-`spk-*` names are operating guidance.
+`/spec-kitty.<command>` files are generated slash-command or prompt-command
+surfaces. `spec-kitty-<command>` command skills are generated under
+`.agents/skills/` for skill hosts (`$spec-kitty-<command>` in Codex,
+`/skill:spec-kitty-<command>` in Pi, `/spec-kitty-<command>` in Vibe, Letta and
+Antigravity). `spk-*` skills are user-facing operating guides. Keep the surfaces
+distinct: `spec-kitty.<command>` slash commands and `spec-kitty-<command>`
+command skills are executable command surfaces; hierarchical `spk-*` names are
+operating guidance.
