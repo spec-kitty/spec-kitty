@@ -2,7 +2,7 @@
 title: 06 — Unified Charter Bundle
 description: 'The unified charter bundle architecture: the canonical manifest, its module and JSON Schema, inverted to a single-file authoritative charter.yaml model (#2773).'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-21'
 audience: docs/context/audience/internal/system-architect.md
 ---
 # 06 — Unified Charter Bundle
@@ -34,7 +34,8 @@ declared `charter.md` as the sole tracked source and three sync-derived files
 input set. Mission `consolidate-charter-bundle-01KXSYB9` **inverted** that
 model: the git-tracked, authorable, structured charter is now
 `.kittify/charter/charter.yaml` — a single file nesting `governance`,
-`directives`, `catalog`, activation, and `overrides`. `charter.md` remains
+`directives`, `catalog`, and `overrides` (activation, once nested here too,
+moved to the activation ledger in 4.0.0rc8; see below). `charter.md` remains
 tracked as a curated companion, but nothing is derived from it any more and
 it contributes nothing to the content-hash.
 
@@ -42,6 +43,19 @@ it contributes nothing to the content-hash.
 | ----------------- | ----------------------------------------- | ------------------------------------------ |
 | tracked            | `.kittify/charter/charter.md`             | Curated companion — human-authored, never parsed for policy |
 | tracked + content-hash input | `.kittify/charter/charter.yaml` | The single authoritative structured charter |
+| optional tracked + optional content-hash input | `.kittify/charter/activation.yaml` | The activation ledger ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)); present on every project created or upgraded by 4.0.0rc8 or later |
+
+**The activation ledger is an optional member (4.0.0rc8).** The manifest
+lists it in `optional_tracked_files`, still at `SCHEMA_VERSION` 2.0.0 (an
+additive optional field). `bundle validate` reports it as present or absent
+and never fails on its absence; `--json` lists it under
+`optional_tracked_files` (`expected`, `present`, `missing`). It is hashed,
+after the required members, only when the file exists
+(`BUNDLE_OPTIONAL_CONTENT_HASH_FILES`), so a project without it keeps a
+byte-identical digest while an edit made outside the CLI changes the digest
+and reads as stale. The CLI's activation writers (`charter activate`,
+`charter deactivate`, presets and the ledger migration) re-stamp the
+synthesis manifest's `bundle_content_hash` after they write.
 
 `derived_files` is **empty** in v2.0.0 — nothing under `.kittify/charter/`
 is generated-and-gitignored any more. `content_hash_files` is a field
@@ -109,10 +123,19 @@ The active `charter.yaml` is located through a single `charter:` pointer in
 `.kittify/config.yaml` (default `.kittify/charter/charter.yaml`). The
 resolver reads the pointer, then loads that file. The pointer may redirect
 to a sibling, shared, or cross-project charter — a swap is a one-line config
-change. `config.yaml` no longer carries the flat `activated_*` /
-`mission_type_activations` keys itself; those moved to `charter.yaml`'s
-root (flat, matching `packs/built-in/presets/default.yaml`) as part of the same
-inversion — `config.yaml` keeps only the pointer plus `org_packs`.
+change. The v2.0.0 inversion moved the flat `activated_*` /
+`mission_type_activations` keys from `config.yaml` to `charter.yaml`'s root;
+4.0.0rc8 moves them again, to the activation ledger
+`.kittify/charter/activation.yaml`, through the `4.0.0rc8_activation_ledger`
+upgrade step (or `spec-kitty migrate activation-ledger`).
+
+Where activation is read from is decided by one resolver,
+`kernel.activation_ledger_store.resolve_activation_source`: the activation
+ledger when it exists or the project is fresh; the old surface (the pointed
+`charter.yaml`, else `config.yaml`) inside the upgrade scope and for an
+unmigrated project, whose allow keys are read as before and which refuses
+every exclusion until it is upgraded. Activation keys left in `charter.yaml`
+or `config.yaml` beside the activation ledger are ignored and reported.
 
 A `charter:` pointer to a missing or unreadable file fails loud; there is no
 fallback to a legacy file.
@@ -122,8 +145,9 @@ fallback to a legacy file.
 The bundle's freshness signal is content-hash driven, not sync-driven:
 
 1. `compute_bundle_content_hash` hashes exactly the files in
-   `content_hash_files` (`charter.yaml`, declared order) via the unchanged
-   per-file recipe (BOM-strip/CRLF normalization).
+   `content_hash_files` (`charter.yaml`, declared order), then the optional
+   `activation.yaml` when it exists, via the unchanged per-file recipe
+   (BOM-strip/CRLF normalization).
 2. Write-side stampers (`write_pipeline.py`, `resynthesize_pipeline.py`) and
    the freshness reader (`charter_runtime/freshness/computer.py`) all route
    through that single recipe.

@@ -2,7 +2,7 @@
 title: 'Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net'
 description: Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-21'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/context/charter-overview.md
@@ -43,7 +43,7 @@ Preset onboarding involves three distinct files, and they are not interchangeabl
 
 | Tier | Path | Written by | Role |
 |---|---|---|---|
-| **Activation write store** (the active charter) | `.kittify/config.yaml` (`activated_*` keys), or the pointed-at `charter.yaml` once a `charter:` pointer exists | `charter activate` / `charter deactivate` | Records *which* artifacts your project activated. Not read directly by governance surfaces. |
+| **Activation write store** (the active charter) | The activation ledger, `.kittify/charter/activation.yaml` ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)). A project that has not run `spec-kitty upgrade` since 4.0.0rc8 still keeps its `activated_*` keys in `.kittify/config.yaml`, or in the pointed-at `charter.yaml` once a `charter:` pointer exists, and can record no exclusion until it does | `charter activate` / `charter deactivate`, presets, `spec-kitty init` | Records *which* artifacts your project activated, and the `deactivated_*` exclusions. Not read directly by governance surfaces. |
 | **Compiled bundle** | `.kittify/charter/charter.yaml` | The compile seam — `spec-kitty charter generate` (also exposed as `compile_charter`/`write_compiled_charter`) | The **authoritative read cache**. `charter context`, `charter status`, and the dispatch-net predicate all key on this file's presence and contents. |
 | **Display companion** | `.kittify/charter/charter.md` | Seeded by `charter generate`; hand-edited afterward | Human-facing narrative. Never parsed for policy — see [How Charter Works](../context/charter-overview.md) for the full mental model of this file's role. |
 
@@ -62,7 +62,8 @@ spec-kitty charter activate --preset minimal
 This applies the preset with **replace semantics**: every activation key the preset lists is
 written (plus any ids your org packs require), and every key it governs but leaves out is removed.
 If the change would alter a key you customized by hand, the command refuses and names the key;
-pass `--force` to apply the preset anyway. `--pack <name>` picks the pack whose preset applies
+pass `--force` to apply the preset anyway. A deactivated id the preset lists stays deactivated and
+is named in the output; `--force` also clears its exclusion. `--pack <name>` picks the pack whose preset applies
 (default `built-in`), and `--json` prints the applied preset. The command does not touch
 `.kittify/charter/charter.md` at all.
 
@@ -96,8 +97,9 @@ Creating the bundle is a separate step because `generate` does more than the bar
 it requires a git working tree, seeds `charter.md` when absent, creates `library/`, writes
 `.gitignore` entries, stages files, and migrates `config.yaml` to a `charter:` pointer. Folding all
 of that into `activate` would silently change its contract from a lightweight activation write into
-a heavier, git-dependent operation, and minting the `charter:` pointer as a side effect would move
-the activation write store off `config.yaml` in the middle of an activation. Keeping the first
+a heavier, git-dependent operation, and, on a project that has not moved to the activation ledger,
+minting the `charter:` pointer as a side effect would move the activation write store off
+`config.yaml` in the middle of an activation. Keeping the first
 compile explicit keeps both contracts predictable.
 
 After compilation, `charter status` and `charter context --action <action>` report the preset's

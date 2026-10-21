@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-21'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -79,13 +79,69 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | What a project has activated: its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations`, read from `.kittify/config.yaml` or the `charter.yaml` it points to; list it with `spec-kitty charter list --json`. The activation side of the charter, resolved by `PackContext.from_config` and served by `ActiveCharterService`; an invalid shape fails with `ACTIVE_CHARTER_CONFIG_INVALID`. **The "active" guard** ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1): "active" and "inactive" alone still describe one artifact ("an active directive"); "active charter" names the project's activated set as a whole; the `.kittify/charter/` tree is never called "active". |
+| **Definition** | What a project has activated: its `activated_<kind>` keys, `activated_kinds` and `mission_type_activations` (plus the `deactivated_<kind>` exclusions), held in the [Activation ledger](#activation-ledger) `.kittify/charter/activation.yaml` ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)); list it with `spec-kitty charter list --json`. The activation side of the charter, resolved by `PackContext.from_config` and served by `ActiveCharterService`; an invalid shape fails with `ACTIVE_CHARTER_CONFIG_INVALID`. **The "active" guard** ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) §1): "active" and "inactive" alone still describe one artifact ("an active directive"); "active charter" names the project's activated set as a whole; the `.kittify/charter/` tree is never called "active". |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
-| **Location** | `.kittify/config.yaml`, `.kittify/charter/charter.yaml`, `src/charter/activation/` |
+| **Location** | `.kittify/charter/activation.yaml`, `src/charter/activation/` |
 | **Related terms** | [activated_&lt;kind&gt;](#activated_kind), [Activation preset](#activation-preset), [Charter offering](#charter-offering), [Charter-Mediated Selection](#charter-mediated-selection) |
 | **Do NOT use when** | The concept is what is offered rather than activated — use [Charter offering](#charter-offering). The concept is the materialized `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). The concept is a ready-made set of activations — use [Activation preset](#activation-preset). |
+
+---
+
+### Activation ledger
+
+| | |
+|---|---|
+| **Definition** | The git-tracked file `.kittify/charter/activation.yaml`, the single authority for what a project has activated. It holds `activated_kinds`, `mission_type_activations`, the three-state `activated_<plural>` allow state (absent = the kind's `effective_when_absent` default, `[]` = nothing, a list = that set) and the `deactivated_<plural>` deny-lists ([Exclusion](#exclusion)); an empty deny-list is omitted. The effective set of a kind is its allow state minus its [Effective deny](#effective-deny); a deny entry never subtracts a [Required floor](#required-floor) id. Read and written only through `charter.activation.activation_ledger`; `spec-kitty doctor charter-packs` reports any other surface that disagrees. `spec-kitty init` writes it; `spec-kitty upgrade` (step `4.0.0rc8_activation_ledger`) or `spec-kitty migrate activation-ledger` moves an older project's keys into it. Until then such a project is read from its old surface (allow keys only) and refuses every deactivation. Defined in [ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md). |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `.kittify/charter/activation.yaml`, `src/charter/activation/` |
+| **Related terms** | [Active charter](#active-charter), [Exclusion](#exclusion), [Effective deny](#effective-deny), [Required floor](#required-floor), [activated_&lt;kind&gt;](#activated_kind) |
+| **Do NOT use when** | The concept is the applied-migration record (`.kittify/migration-ledger.jsonl`, which says which upgrade migrations have run) — use the Migration Ledger ([ADR 2026-10-17-1](../adr/4.x/2026-10-17-1-explicit-migration-ledger.md)). The concept is the record of Decision Moments (`decisions/`) — use the decision ledger. The concept is the append-only per-Mission lane history (`status.events.jsonl`) — use the status event log. The concept is the set of artifacts a project has activated, as a whole — use [Active charter](#active-charter); the ledger is the file that stores it. |
+
+---
+
+### Exclusion
+
+| | |
+|---|---|
+| **Definition** | An artifact id a user explicitly deactivated, stored in the [Activation ledger](#activation-ledger) as a `deactivated_<plural>` entry (a deny-list entry). It survives every later command, upgrade, interview and regeneration. Only an explicit choice removes it: `charter activate <kind> <id>` (including `--only`), a cascade with `--include-deactivated`, or `charter activate --preset X --force`. Ids dropped by `--only` narrowing are not excluded. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `.kittify/charter/activation.yaml` |
+| **Related terms** | [Activation ledger](#activation-ledger), [Effective deny](#effective-deny), [Required floor](#required-floor) |
+| **Do NOT use when** | The concept is an artifact that is simply absent from an `activated_<kind>` list — that is "not in the allow state", not an exclusion. The concept is an out-of-scope skip in a cascade — say "skipped (out of scope)". The concept is the deny-list after the [Required floor](#required-floor) is taken out — use [Effective deny](#effective-deny). |
+
+---
+
+### Effective deny
+
+| | |
+|---|---|
+| **Definition** | The deny-list that actually subtracts: the ledger's [Exclusions](#exclusion) resolved in identity space (stem, declared id and DRG URN all match), minus the [Required floor](#required-floor). `D* = resolve_deny(D) - R`. A stale exclusion for a required id is therefore inert, and doctor reports it. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `src/charter/activation/`, `PackContext.denied` |
+| **Related terms** | [Exclusion](#exclusion), [Required floor](#required-floor), [Activation ledger](#activation-ledger) |
+| **Do NOT use when** | The concept is the raw `deactivated_<plural>` list as written in the file — use [Exclusion](#exclusion). The concept is the final set of artifacts in force — say "effective set" (allow state minus effective deny). |
+
+---
+
+### Required floor
+
+| | |
+|---|---|
+| **Definition** | The union of `required_<plural>` over every declared org pack and each pack's `extends:` chain, with each id attributed to the pack(s) requiring it. Precedence never decides membership. Required artifacts cannot be deactivated (`charter deactivate` refuses and names the pack) and are never subtracted by an [Exclusion](#exclusion). Read strictly: an unreadable declared pack or a broken `extends:` chain is an error, never an empty floor. |
+| **Context** | Charter |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Location** | `org-charter.yaml` (`required_<plural>`), `src/charter/activation/org_pack_discovery.py` |
+| **Related terms** | [Effective deny](#effective-deny), [Exclusion](#exclusion), [Charter Pack](#charter-pack) |
+| **Do NOT use when** | The concept is the project charter's own top-level `required_directives` list, which is not an org-pack requirement. The concept is a kind's default while its allow key is absent (`effective_when_absent`) — say "absent default". |
 
 ---
 
@@ -425,11 +481,11 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | The `.kittify/config.yaml`-resolved, three-state per-kind activation authority for a doctrine artifact kind (`activated_paradigms`, `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`, `activated_glossary_packs`). Resolved via `PackContext.from_config`'s INV-2 two-file pointer chase: read `.kittify/config.yaml` directly, unless it carries a string `charter:` pointer, in which case follow it to the pointed `.kittify/charter/charter.yaml` and read the keys there instead. Three states per kind, applied independently: an ABSENT key resolves to `None` ("all built-ins available"); an explicit empty list (`[]`) is an explicit opt-out (nothing of that kind activated); a non-empty list is the explicit activated set. This is the field the compiler (`compile_charter`) and — after mission `spdd-reasons-activation-split-brain-01M1K6VN` — `is_spdd_reasons_active`, `_load_action_doctrine_bundle`, and `resolve_project_governance` all resolve activation from: the actual mechanism behind [Charter-Mediated Selection](#charter-mediated-selection), distinct from the charter-authored [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) declaration surface. |
+| **Definition** | The three-state per-kind activation allow state for a doctrine artifact kind (`activated_paradigms`, `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`, `activated_glossary_packs`, `activated_anti_patterns`, `activated_skills`: one key per activatable `ArtifactKind`). Since 4.0.0rc8 it lives in the [Activation ledger](#activation-ledger) `.kittify/charter/activation.yaml`, beside the kind's `deactivated_<kind>` [Exclusions](#exclusion), and `PackContext.from_config` reads it through `charter.activation.activation_ledger`. A project that has not run `spec-kitty upgrade` since then still has the keys in `.kittify/config.yaml`, or in the `charter.yaml` its `charter:` pointer names, and is read from there (allow keys only) until it is upgraded. Three states per kind, applied independently: an ABSENT key resolves to `None` ("all built-ins available"); an explicit empty list (`[]`) is an explicit opt-out (nothing of that kind activated); a non-empty list is the explicit activated set. This is the field the compiler (`compile_charter`) and — after mission `spdd-reasons-activation-split-brain-01M1K6VN` — `is_spdd_reasons_active`, `_load_action_doctrine_bundle`, and `resolve_project_governance` all resolve activation from: the actual mechanism behind [Charter-Mediated Selection](#charter-mediated-selection), distinct from the charter-authored [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) declaration surface. |
 | **Context** | Doctrine |
 | **Status** | canonical |
-| **Applicable to** | `2.x` |
-| **Related terms** | [Charter-Mediated Selection](#charter-mediated-selection), [Global Selection](#global-selection), [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) |
+| **Applicable to** | `2.x`, `4.x` |
+| **Related terms** | [Activation ledger](#activation-ledger), [Exclusion](#exclusion), [Charter-Mediated Selection](#charter-mediated-selection), [Global Selection](#global-selection), [selected_&lt;kind&gt; / required_&lt;kind&gt;](#selected_kind--required_kind) |
 
 ---
 

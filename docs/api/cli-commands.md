@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-21'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -414,13 +414,19 @@ _Charter management commands_
 
  Two forms:
 
-   spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+   spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE
+ [--include-deactivated]]
 
    spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
 
  A preset replaces every activation key it governs: keys it lists are
  written (plus the org's required ids), keys it leaves out are removed.
- A change to a customised key is refused without --force.
+ A change to a customised key is refused without --force. A deactivated
+ id the preset lists stays deactivated (and is left out) unless --force,
+ which also clears its exclusion.
+
+ The cascade stops at a deactivated artifact and reports it;
+ --include-deactivated walks through and clears the exclusions.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   kind             <str>  Activation kind (e.g. directive, agent-profile).   │
@@ -478,8 +484,10 @@ _Charter management commands_
 │                                                 [default: built-in]          │
 │ --force                                         Apply the preset even when   │
 │                                                 it changes a customised      │
-│                                                 activation key. Only with    │
-│                                                 --preset.                    │
+│                                                 activation key, and clear    │
+│                                                 the exclusion of every       │
+│                                                 deactivated id the preset    │
+│                                                 lists. Only with --preset.   │
 │ --json                                          Output the applied preset as │
 │                                                 JSON. Only with --preset.    │
 │ --only                                          Replace this kind's          │
@@ -488,6 +496,13 @@ _Charter management commands_
 │                                                 (prints what stops being in  │
 │                                                 force).                      │
 │ --help          -h                              Show this message and exit.  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Cascade options ────────────────────────────────────────────────────────────╮
+│ --include-deactivated          Walk through deactivated artifacts during the │
+│                                cascade: activate them and clear their        │
+│                                exclusions. Without it the cascade stops at a │
+│                                deactivated artifact and reports it. Only     │
+│                                with --cascade.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3142,6 +3157,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            current interpreter (#254).                       │
 │ ledger                     Report the migration ledger: which setup steps    │
 │                            have run, and their state.                        │
+│ activation-ledger          Move charter activation keys into the activation  │
+│                            ledger, and nothing else.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3175,6 +3192,54 @@ _Report the migration ledger: which setup steps have run, and their state._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
+## spec-kitty migrate activation-ledger
+
+```
+ Usage: spec-kitty migrate activation-ledger [OPTIONS]
+
+ Move charter activation keys into the activation ledger, and nothing else.
+
+ Runs exactly the move of the ``4.0.0rc8_activation_ledger`` upgrade
+ migration: the ``activated_<kind>``, ``activated_kinds`` and
+ ``mission_type_activations`` keys leave the ``charter.yaml`` that
+ ``.kittify/config.yaml`` points to (or ``config.yaml`` itself, and any
+ leftover copy there) for ``.kittify/charter/activation.yaml``, verbatim,
+ and the synthesis manifest is re-stamped. Use it on a project that an
+ older CLI wrote activation keys into again, without a full upgrade.
+
+ * It refuses, writing nothing (exit 1), when the files disagree about a
+   key, or when a legacy file holds a ``deactivated_<kind>`` key.
+ * It is idempotent: a re-run reports nothing to do and writes nothing.
+ * When ``.kittify/migration-ledger.jsonl`` exists it records the
+   migration as applied (``ledger_record: written``); otherwise it records
+   nothing (``not_recorded``) and a later upgrade finds nothing to move.
+
+ Exit codes: 0 moved or nothing to do, 1 refused (nothing written), 2 usage
+ error.
+
+ Examples:
+
+     spec-kitty migrate activation-ledger --dry-run
+
+     spec-kitty migrate activation-ledger
+
+     spec-kitty migrate activation-ledger --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run            List the moves (key, from-file, to-file) and write      │
+│                      nothing.                                                │
+│ --json               Emit the result, the moves, any refusal and the         │
+│                      migration-ledger record as JSON.                        │
+│ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+> **`--json` shape.** `{"result", "moves", "refusal", "ledger_record"}`: `result` is `noop`,
+> `dry_run`, `moved` or `refused`; each move is `{key, from, to}`; a refusal is
+> `{key, files, reason}` with `reason` `divergent` or `legacy_deny_key` (exit 1, nothing
+> written); `ledger_record` is `written` or `not_recorded`. Field table and examples:
+> [Charter CLI Reference](charter-commands.md#spec-kitty-migrate-activation-ledger).
 
 ## spec-kitty migrate backfill-identity
 

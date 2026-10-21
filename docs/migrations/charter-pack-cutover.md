@@ -4,7 +4,7 @@ description: 'Runbook for the charter pack cutover (#3732): run spec-kitty upgra
 doc_status: active
 type: how-to
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-15'
+updated: '2026-10-21'
 related:
 - docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md
 - docs/context/charter.md
@@ -74,6 +74,24 @@ Reset lines are there because older releases wrote lists that silently hid every
 
 - **Collision.** When `.kittify/doctrine/` and `.kittify/charter-packs/` both hold the same path with different content, the upgrade refuses and lists every colliding path. Nothing is written. Keep the copy you want under `.kittify/charter-packs/`, delete the other, and run `spec-kitty upgrade` again.
 - **Locked file (Windows).** A file held open by an editor or another process stops the move and is named. Close it and run `spec-kitty upgrade` again; the run finishes the remaining moves.
+
+### The activation ledger move (4.0.0rc8)
+
+From 4.0.0rc8 the activation keys (`activated_<kind>`, `activated_kinds`, `mission_type_activations`) live in one file, the activation ledger `.kittify/charter/activation.yaml`, beside the `deactivated_<kind>` exclusions that `charter deactivate` records ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)).
+`spec-kitty upgrade` moves them in its `4.0.0rc8_activation_ledger` step; `spec-kitty migrate activation-ledger` runs only that step:
+
+```bash
+spec-kitty migrate activation-ledger --dry-run   # lists each move: key, from-file -> to-file
+spec-kitty migrate activation-ledger             # moves them and re-stamps the synthesis manifest
+git add .kittify/charter/ .kittify/config.yaml && git commit -m "chore: move activation keys to the activation ledger"
+```
+
+- **Until you move them**, every command still reads the old keys as before, `spec-kitty doctor charter-packs` warns `ACTIVATION_UNMIGRATED`, and `charter deactivate` refuses (exit 1, nothing written), naming `spec-kitty upgrade`.
+- **Two copies disagree.** When the `charter.yaml` your `charter:` pointer names and a leftover copy in `config.yaml` hold different values for a key, or only the copy holds it, the move names the key and both files, exits 1 and writes nothing. Keep the value you want in the pointed `charter.yaml`, delete the copy from `config.yaml`, and run the command again.
+- **A hand-written `deactivated_<kind>` key** in `charter.yaml` or `config.yaml` was never applied; the move refuses it the same way (`LEGACY_DENY_KEY` in doctor). Delete the key, run the move, then record the exclusion with `spec-kitty charter deactivate <kind> <id>`.
+- **Interrupted run.** The move writes the activation ledger first, then strips `charter.yaml`, then `config.yaml`. Run the same command again: it strips the keys that equal the activation ledger and finishes. A second run reports nothing to do.
+- **The Migration Ledger record.** `migrate activation-ledger` records the step as applied only when `.kittify/migration-ledger.jsonl` already exists (`ledger_record: written`); otherwise it records nothing (`not_recorded`), and a later `spec-kitty upgrade` selects the step, finds nothing to move and skips it.
+- **Do not downgrade.** An older CLI does not read the activation ledger: it treats every kind as unrestricted and ignores every deactivation. Activation keys it, or a branch from before the move, writes back into `charter.yaml` or `config.yaml` are ignored with a warning and reported as `LEGACY_KEYS_PRESENT`; after merging such a branch, run `spec-kitty migrate activation-ledger`.
 
 ### `LEGACY_CHARTER_STATE`: the project is not migrated yet
 

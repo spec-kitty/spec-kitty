@@ -1352,6 +1352,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -1701,6 +1707,12 @@
   current_target: true
   notes: null
 - path: docs/architecture/acceptance-scenario-contract.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/activation-ledger-and-charter-contract.md
   tag: current
   divio_type: explanation
   owning_workstream: none

@@ -20,6 +20,8 @@
   href: artifact-placement-seam.md
 - name: Post-Merge Partition Authority
   href: post-merge-partition-authority.md
+- name: The Activation Ledger and the Charter Contract
+  href: activation-ledger-and-charter-contract.md
 - name: Kanban Workflow
   href: kanban-workflow.md
 - name: Status Model

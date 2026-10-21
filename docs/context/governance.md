@@ -2,7 +2,7 @@
 title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
-updated: '2026-10-11'
+updated: '2026-10-21'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/charter.md
@@ -136,11 +136,24 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 
 | | |
 |---|---|
-| **Definition** | An **available** profile is any agent profile present in a layer of the charter offering (built-in, org pack, or project layer). An **activated** profile is an available profile that the project charter has explicitly turned on via `activated_agent_profiles`. Three-state semantics: when the key is absent, every available profile is activated; an explicit empty set activates none; an explicit set activates only the listed IDs. Only activated profiles are directly selectable by default surfaces; available-but-not-activated profiles surface only under `--all`/`--show-available`. |
+| **Definition** | An **available** profile is any agent profile present in a layer of the charter offering (built-in, org pack, or project layer). An **activated** profile is an available profile that the project charter has explicitly turned on via `activated_agent_profiles`. Three-state semantics: when the key is absent, every available profile is activated; an explicit empty set activates none; an explicit set activates only the listed IDs. Since 4.0.0rc8 a profile listed in `deactivated_agent_profiles` (an [Exclusion](./charter.md#exclusion)) is subtracted from that set unless an org pack requires it ([Effective Set](#effective-set)). Only activated profiles are directly selectable by default surfaces; available-but-not-activated profiles surface only under `--all`/`--show-available`. |
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Related terms** | [Activation Chokepoint](#activation-chokepoint), [Abstract Base Profile](#abstract-base-profile) |
+
+---
+
+### Effective Set
+
+| | |
+|---|---|
+| **Definition** | The artifacts of one kind that are actually in force: the kind's allow state minus its [Effective deny](./charter.md#effective-deny). The allow state is the `activated_<kind>` list when present, nothing for `[]`, and, when the key is absent, every available artifact (for `skill`, the org-required ones plus the built-in defaults, empty today). The effective deny is the kind's [Exclusions](./charter.md#exclusion), matched by stem, declared id or DRG URN, minus the [Required floor](./charter.md#required-floor), so a deny never removes an org-required artifact. The governance selection overlay follows the same rule: `selected_<kind>` plus the required floor, minus the effective deny. Both are computed once, in `charter.activation`, from the [Activation ledger](./charter.md#activation-ledger) ([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md) Decision 2). |
+| **Deny-writer rule** | Only four explicit choices change an exclusion list: `charter deactivate <kind> <id>` adds the id; `charter activate <kind> <id>` (also with `--only`) removes it; `charter activate ... --cascade ... --include-deactivated` removes the ids the walk reaches; `charter activate --preset <name> --force` removes the ids the preset lists. Presets without `--force`, the interview, org-required promotion, synthesis, mission-type seeding and every migration leave exclusions alone; a denied id they list stays out and is named in a warning. The activation-ledger write refuses (`DenyListWriteRefused`) any change to an exclusion list made without one of these choices. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Related terms** | [Activation ledger](./charter.md#activation-ledger), [Exclusion](./charter.md#exclusion), [Effective deny](./charter.md#effective-deny), [Required floor](./charter.md#required-floor), [Activated vs Available Profile](#activated-vs-available-profile) |
 
 ---
 

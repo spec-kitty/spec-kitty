@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-21'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -49,8 +49,10 @@ generated [`spec-kitty charter` section of the CLI Command Reference](cli-comman
 The six rows below `bundle` were added by the Charter Activation Engine; this
 page does not carry their full flag reference (kept in the canonical,
 `--help`-generated CLI Command Reference to avoid duplicated, driftable
-copies) — only `interview`/`generate`/`context`/`sync`/`status`/`synthesize`/
+copies) — only `interview`/`generate`/`context`/`status`/`synthesize`/
 `resynthesize`/`lint`/`bundle validate` get the narrative treatment below.
+What `activate`, `deactivate` and `list` do with the activation ledger, and
+what they print, is in [Activation and the activation ledger](#activation-and-the-activation-ledger).
 
 ---
 
@@ -375,6 +377,178 @@ that both tracked files (`charter.md`, `charter.yaml`) are present and correctly
 uv run spec-kitty charter bundle validate
 uv run spec-kitty charter bundle validate --json
 ```
+
+---
+
+## Activation and the activation ledger
+
+`charter activate`, `charter deactivate` and `charter list` read and write the
+**activation ledger**, `.kittify/charter/activation.yaml`
+([ADR 2026-10-19-1](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md),
+glossary: [Activation ledger](../context/charter.md#activation-ledger)). Their flags are in
+the generated [CLI Command Reference](cli-commands.md#spec-kitty-charter-activate); this
+section describes what they do with the ledger and what they print.
+
+**Where activation is read from.**
+
+| Project state | Reads | Writes |
+| --- | --- | --- |
+| The activation ledger exists | the activation ledger | the activation ledger |
+| Fresh (no activation keys anywhere, no activation ledger) | the activation ledger (absent keys) | the activation ledger; the first write creates it |
+| Unmigrated (activation keys in `charter.yaml` or `config.yaml`, no activation ledger) | the old allow keys, as before | allow keys on the old surface; every exclusion is refused |
+
+`spec-kitty init` writes the activation ledger, so a new project is never unmigrated.
+`spec-kitty upgrade`, or the narrow
+[`spec-kitty migrate activation-ledger`](#spec-kitty-migrate-activation-ledger), moves an
+unmigrated project's keys. On an unmigrated project, a `deactivated_<kind>` key written into
+`charter.yaml` or `config.yaml` by hand is never applied. Each command warns about it,
+`spec-kitty doctor charter-packs` reports it as `LEGACY_DENY_KEY`, and the move refuses it.
+A save of the old surface leaves such a key where it is. Once the activation ledger exists,
+activation keys found in `charter.yaml` or `config.yaml` are ignored with one warning per
+command and reported as `LEGACY_KEYS_PRESENT`.
+
+### `charter deactivate`
+
+- Records an **exclusion**: the id goes into `deactivated_<kind>` in the activation ledger and
+  leaves a present `activated_<kind>` list. This works when the kind has no allow list too
+  ("absent = all").
+- Refuses, exit 1, writing nothing, when an org pack requires the id. The message names the
+  requiring pack (as `'base' (via 'overlay')` when the requirement is inherited through
+  `extends:`) and the `required_<kind>` policy:
+  `Cannot deactivate directive '<id>': required by org pack 'acme' (required_directives). Nothing was recorded.`
+- Refuses, exit 1, writing nothing, on an unmigrated project, before any write and before the
+  required-floor read. A cascade is refused as a whole, so no child is unselected either:
+
+  ```text
+  Refused: activation keys <keys> in <files> have not been moved to
+  .kittify/charter/activation.yaml, and a deactivation (deactivated_<kind>) is recorded
+  only there. Run `spec-kitty upgrade` (or `spec-kitty migrate activation-ledger`) to move
+  them, then retry. Nothing was written.
+  ```
+
+  A `mission-type` deactivation records no exclusion and still runs there.
+- With `--cascade`, only the named id gets an exclusion. Exclusively referenced children
+  leave their allow list (`Cascade-deactivated: kind/id`), a child an org pack requires is
+  skipped (`Cascade: kind/id: skipped (required by <pack>)`), and under a kind with no allow
+  list a child stays in force:
+  `Cascade: kind/id: still active (no allow-list; only <id> excluded)`.
+
+### `charter activate`
+
+- Clears the artifact's own exclusion and adds it to a present allow list. `--only` does the
+  same and narrows the list; ids dropped by narrowing get no exclusion.
+- Accepts the file stem or the declared id (`024-locality-of-change` or `DIRECTIVE_024`); the
+  allow list keeps one stem spelling per artifact.
+- A mission type is a cascade source: `charter activate mission-type <id> --cascade all`
+  walks the artifacts the mission type references.
+- **The cascade stops at a deactivated artifact.** It is reported, and nothing reachable only
+  through it is activated. `--include-deactivated` (in its own *Cascade options* help panel,
+  only with `--cascade`) walks through, activates those artifacts and clears their exclusions.
+- Without `--cascade`, every referenced artifact is named in a warning, which can be long for
+  a mission type. A deactivated one reads:
+  `Warning: referenced kind/id is deactivated and was not activated.`
+
+**Cascade output**, one line per node:
+
+```text
+Skipped (out of scope): kind/id
+Skipped (out of scope): kind/id (deactivated; nothing behind it was walked)
+Skipped, deactivated: kind/id
+Skipped, deactivated: kind/id (required by <urn> — the parent no longer has this requirement)
+Unreached (behind a deactivated artifact): kind/id
+Hint: Run with --include-deactivated to activate these and clear their exclusions.
+```
+
+The `Hint` line follows when any node was skipped as deactivated or left unreached. With
+`--include-deactivated`, each target whose exclusion the walk cleared is reported as
+`Reinstated: kind/id (exclusion cleared)`.
+
+### Presets and exclusions
+
+`charter activate --preset <name>` never clears an exclusion by itself. Without `--force`, a
+deactivated id the preset lists is left out of the written list, stays excluded and is
+reported (`Kept deactivated`). `--force` has two effects: it overwrites customized keys, and it
+clears the exclusion of every deactivated id the preset lists, writing the id into the list
+(`Cleared exclusion`). `--json` adds one key for each case, present only when it is not empty:
+
+```json
+{"pack": "built-in", "preset": "minimal", "written": {"activated_directives": ["..."]}, "removed": [],
+ "target_file": ".../.kittify/charter/activation.yaml",
+ "kept_deactivated": {"activated_directives": ["024-locality-of-change"]}}
+```
+
+With `--force` the same run reports `"cleared_exclusions": {"deactivated_directives":
+["024-locality-of-change"]}` instead: `kept_deactivated` is keyed by the allow key,
+`cleared_exclusions` by the deny key.
+
+### `charter list --json`
+
+Two additions to the existing payload:
+
+- every row of `kinds` carries `deactivated`: the kind's exclusions, sorted (`[]` when none),
+  and `null` for `mission-type`, which has no exclusions;
+- a top-level `required_not_in_force` appears when an explicit allow list leaves out an
+  org-required id: `{"<plural>": [{"id": "<id>", "packs": ["<pack>"]}]}`. Core keeps such an
+  id out of force; doctor reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`.
+
+The human table gains a *Deactivated* column only when something is deactivated.
+
+### Activation ledger findings in `spec-kitty doctor charter-packs`
+
+`--json` carries `org_drg.activation_ledger = {"errors": [...], "warnings": [...]}`. Each
+finding is `{"code", "file", "key", "ids", "message"}`, and its message ends with the remedy.
+An error also lands in `org_drg.errors` and makes the report unhealthy (exit 1); warnings do
+not.
+
+| Code | Level | Meaning |
+| --- | --- | --- |
+| `ACTIVATION_STORE_ERROR` | error | The activation ledger, or an org pack's required floor, cannot be read |
+| `LEGACY_DENY_KEY` | error | A `deactivated_<kind>` key on `charter.yaml` or `config.yaml` of an unmigrated project; never applied |
+| `LEGACY_KEYS_PRESENT` | error | An activation key in `charter.yaml` or `config.yaml` beside the activation ledger; ignored |
+| `ACTIVATION_UNMIGRATED` | warning | An activation key not moved yet; reads still use the old surface |
+| `REQUIRED_OMITTED_BY_ALLOW_LIST` | warning | An explicit allow list leaves out an org-required id, so it is not in force |
+| `DENY_UNKNOWN_ID` | warning | An exclusion names an id no layer provides |
+| `DENY_REQUIRED_ID` | warning | An exclusion names an org-required id; the required floor wins, so it has no effect |
+| `DENY_SELECTED_ID` | warning | `answers.yaml` selects an excluded id; the exclusion wins |
+| `UNKNOWN_DENY_KEY` | warning | A `deactivated_<kind>` key for a kind this CLI does not know; kept and ignored |
+
+### `spec-kitty migrate activation-ledger`
+
+Runs only the move of the `4.0.0rc8_activation_ledger` upgrade step: the activation keys
+leave the pointed `charter.yaml` (or `config.yaml`, and any leftover `config.yaml` copy) for
+the activation ledger, verbatim, and the synthesis manifest is re-stamped. It refuses, exit 1,
+writing nothing, when two copies of a key disagree or a legacy file holds a
+`deactivated_<kind>` key. A re-run reports nothing to do. It records the step in the
+Migration Ledger only when `.kittify/migration-ledger.jsonl` already exists.
+
+```json
+{
+  "result": "moved",
+  "moves": [{"key": "activated_directives", "from": ".kittify/charter/charter.yaml", "to": ".kittify/charter/activation.yaml"}],
+  "refusal": null,
+  "ledger_record": "written"
+}
+```
+
+| Field | Values |
+| --- | --- |
+| `result` | `noop`, `dry_run`, `moved`, `refused` |
+| `moves` | `{key, from, to}` per key and file, paths relative to the project |
+| `refusal` | `null`, or `{key, files, reason}` with `reason` `divergent` or `legacy_deny_key` |
+| `ledger_record` | `written`, or `not_recorded` (dry run, refusal, or no `.kittify/migration-ledger.jsonl`) |
+
+A failure to read the project prints `{"ok": false, "error": {"code": ..., "message": ...}}`
+with code `NO_PROJECT_ROOT` or `ACTIVATION_LEDGER_MIGRATION_FAILED`, exit 1.
+
+### `charter.activation.api`
+
+`charter.activation.api` is the public entry point to the activation layer for code outside
+`charter`. It now also exports `ActivationLedger`, `load_activation_ledger`,
+`resolve_ledger_source`, `refuse_unmigrated_deny_write`, `DenyListChoice`,
+`DenyListWriteRefused`, `ActiveCharterConfigError`, `deny_delta`, `plan_ledger_migration`,
+`apply_ledger_migration`, `LedgerMigrationPlan`, `LedgerMove`, `LedgerMigrationRefusal`,
+`LedgerMigrationRefused`, `ledger_findings`, `LedgerFinding`, `LedgerFindings`,
+`required_not_in_force` and `RequiredOmission`.
 
 ---
 

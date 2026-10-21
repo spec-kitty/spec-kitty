@@ -60,6 +60,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Understanding the retrospective learning loop](retrospective-learning-loop.md) — the four-category model.
 - [The Artifact Placement Seam](artifact-placement-seam.md) — the layer model deciding which physical tree a mission artifact resolves to, and where callers bypass it.
 - [Post-merge partition authority](post-merge-partition-authority.md) — one model for the write half (which bytes win per artifact on squash) and the read half (which surface a post-merge reader trusts).
+- [The activation ledger and the charter contract](activation-ledger-and-charter-contract.md) — how core's activation ledger maps onto the charter service's activation contract through one seam, what diverges, and the impact on the remaining work.
 - [Branch-target routing](branch-target-routing.md) — which git branch receives each type of change.
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.

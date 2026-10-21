@@ -4218,6 +4218,14 @@ pages:
     - {slug: "spec-kitty-charter-lint", text: "spec-kitty charter lint", level: 2}
     - {slug: "spec-kitty-charter-context", text: "spec-kitty charter context", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}
+    - {slug: "activation-and-the-activation-ledger", text: "Activation and the activation ledger", level: 2}
+    - {slug: "charter-deactivate", text: "`charter deactivate`", level: 3}
+    - {slug: "charter-activate", text: "`charter activate`", level: 3}
+    - {slug: "presets-and-exclusions", text: "Presets and exclusions", level: 3}
+    - {slug: "charter-list-json", text: "`charter list --json`", level: 3}
+    - {slug: "activation-ledger-findings-in-spec-kitty-doctor-charter-packs", text: "Activation ledger findings in `spec-kitty doctor charter-packs`", level: 3}
+    - {slug: "spec-kitty-migrate-activation-ledger", text: "`spec-kitty migrate activation-ledger`", level: 3}
+    - {slug: "charter-activation-api", text: "`charter.activation.api`", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/api/cli-commands.md"
     title: "CLI Command Reference"
@@ -4323,6 +4331,7 @@ pages:
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
     - {slug: "spec-kitty-migrate-ledger", text: "spec-kitty migrate ledger", level: 2}
+    - {slug: "spec-kitty-migrate-activation-ledger", text: "spec-kitty migrate activation-ledger", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
     - {slug: "spec-kitty-migrate-backfill-merge-commit", text: "spec-kitty migrate backfill-merge-commit", level: 2}
     - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
@@ -9683,26 +9692,28 @@ pages:
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
     - {slug: "unreleased-4-0-0rc8", text: "[Unreleased] - 4.0.0rc8", level: 2}
+    - {slug: "breaking", text: "Breaking", level: 3}
+    - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "changed", text: "Changed", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "internal", text: "Internal", level: 3}
     - {slug: "4-0-0rc7-2026-10-15", text: "[4.0.0rc7] - 2026-10-15", level: 2}
-    - {slug: "breaking", text: "Breaking", level: 3}
-    - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
+    - {slug: "breaking-2", text: "Breaking", level: 3}
+    - {slug: "upgrade-notes-2", text: "Upgrade Notes", level: 3}
     - {slug: "added-2", text: "Added", level: 3}
     - {slug: "changed-2", text: "Changed", level: 3}
     - {slug: "fixed-2", text: "Fixed", level: 3}
     - {slug: "internal-2", text: "Internal", level: 3}
     - {slug: "4-0-0rc6-2026-10-08", text: "[4.0.0rc6] - 2026-10-08", level: 2}
-    - {slug: "upgrade-notes-2", text: "Upgrade Notes", level: 3}
+    - {slug: "upgrade-notes-3", text: "Upgrade Notes", level: 3}
     - {slug: "added-3", text: "Added", level: 3}
     - {slug: "changed-3", text: "Changed", level: 3}
     - {slug: "fixed-3", text: "Fixed", level: 3}
     - {slug: "internal-3", text: "Internal", level: 3}
     - {slug: "4-0-0rc5-2026-10-02", text: "[4.0.0rc5] - 2026-10-02", level: 2}
-    - {slug: "breaking-2", text: "Breaking", level: 3}
-    - {slug: "upgrade-notes-3", text: "Upgrade Notes", level: 3}
+    - {slug: "breaking-3", text: "Breaking", level: 3}
+    - {slug: "upgrade-notes-4", text: "Upgrade Notes", level: 3}
     - {slug: "added-4", text: "Added", level: 3}
     - {slug: "changed-4", text: "Changed", level: 3}
     - {slug: "fixed-4", text: "Fixed", level: 3}
@@ -9721,7 +9732,7 @@ pages:
     - {slug: "fixed-7", text: "Fixed", level: 3}
     - {slug: "changed-6", text: "Changed", level: 3}
     - {slug: "4-0-0rc1-2026-09-13", text: "[4.0.0rc1] - 2026-09-13", level: 2}
-    - {slug: "breaking-3", text: "💥 Breaking", level: 3}
+    - {slug: "breaking-4", text: "💥 Breaking", level: 3}
     - {slug: "changed-7", text: "Changed", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
     - {slug: "added-8", text: "Added", level: 3}
@@ -13356,6 +13367,7 @@ pages:
     - {slug: "read-the-upgrade-summary", text: "Read the upgrade summary", level: 3}
     - {slug: "keys-that-were-reset", text: "Keys that were reset", level: 3}
     - {slug: "refusals-during-the-upgrade", text: "Refusals during the upgrade", level: 3}
+    - {slug: "the-activation-ledger-move-4-0-0rc8", text: "The activation ledger move (4.0.0rc8)", level: 3}
     - {slug: "legacy-charter-state-the-project-is-not-migrated-yet", text: "`LEGACY_CHARTER_STATE`: the project is not migrated yet", level: 3}
     - {slug: "config-that-the-upgrade-does-not-rewrite", text: "Config that the upgrade does not rewrite", level: 3}
     - {slug: "missions-in-flight", text: "Missions in flight", level: 2}

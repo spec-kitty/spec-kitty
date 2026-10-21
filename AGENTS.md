@@ -647,6 +647,16 @@ plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx
 commit_plan(plan, project_root=Path("."))
 ```
 
+### Activation Ledger (`charter.activation.activation_ledger`)
+
+ADR [`2026-10-19-1`](docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md) (Amendment 2026-10-20). Activation lives in one git-tracked file, `.kittify/charter/activation.yaml`: `activated_kinds`, `mission_type_activations`, three-state `activated_<plural>` and the `deactivated_<plural>` exclusions. Read and write it only through that module (`charter.activation.api` from `specify_cli`); the kernel resolver `resolve_activation_source` picks the source.
+
+- **Effective set** = allow state − (exclusions resolved by stem / declared id / URN − the org required floor). A deny never removes an org-required id.
+- **Only explicit choices change a deny list** (`deny_change=DenyListChoice.*`, else `DenyListWriteRefused`): `charter deactivate` adds; `charter activate` (incl. `--only`), `--cascade ... --include-deactivated` and `--preset X --force` remove. Presets without `--force`, the interview, promotion, synthesis and migrations never do.
+- **Required refusal:** `charter deactivate` of an org-required id exits 1 naming the pack (`RequiredArtifactDeactivationError`); nothing is recorded.
+- **Unmigrated project** (legacy keys in `charter.yaml`/`config.yaml`, no ledger): reads stay on the legacy allow keys; every deny write refuses naming `spec-kitty upgrade`; a hand-written legacy `deactivated_*` key is reported, never applied. `init` and fresh projects write the ledger. The `4.0.0rc8_activation_ledger` migration (or `spec-kitty migrate activation-ledger`) moves the keys; legacy reads inside migrations go through the upgrade-only legacy scope. Retiring the legacy reader is epic child #6535.
+- **Doctor** (`doctor charter-packs`, `org_drg.activation_ledger`): errors `ACTIVATION_STORE_ERROR`, `LEGACY_DENY_KEY`, `LEGACY_KEYS_PRESENT`; warnings `ACTIVATION_UNMIGRATED`, `REQUIRED_OMITTED_BY_ALLOW_LIST`, `DENY_UNKNOWN_ID`, `DENY_REQUIRED_ID`, `DENY_SELECTED_ID`, `UNKNOWN_DENY_KEY`. Never name it bare "the ledger" beside the Migration Ledger.
+
 ### Charter Cascade (`charter.activation.cascade`)
 
 Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
@@ -655,9 +665,10 @@ Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
 charter activate mission-type research --cascade all
 charter activate mission-type research --cascade agent-profile,tactic
 charter deactivate mission-type research --cascade all
+charter activate directive <id> --cascade all --include-deactivated
 ```
 
-Without `--cascade`: warns about skipped artifacts with a suggested recovery command. **Shared-reference safety (C-005):** cascade deactivation skips artifacts still referenced by another active artifact.
+A mission type is a cascade source. The walk stops at a deactivated artifact (`Skipped, deactivated` / `Unreached (behind a deactivated artifact)` lines); `--include-deactivated` walks through and clears those exclusions. Without `--cascade`: warns about every referenced artifact (long for a mission type) with a suggested recovery command. **Shared-reference safety (C-005):** cascade deactivation skips artifacts still referenced by another active artifact.
 
 ### Canonical Kind Vocabulary
 
