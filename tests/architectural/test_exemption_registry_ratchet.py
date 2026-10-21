@@ -460,6 +460,10 @@ def test_registry_covers_every_known_mechanism() -> None:
         "_is_self_write_only_diff",
         "_is_review_lifecycle_basename",
         "_is_review_handoff_survivor_path",
+        # PR #6569: the bulk-edit gate's non-occurrence class (landing fold).
+        "_OPAQUE_SUFFIXES",
+        "_LOCKFILE_BASENAMES",
+        "_PLACEHOLDER_BASENAMES",
     }
     missing = required - rows
     assert not missing, (
