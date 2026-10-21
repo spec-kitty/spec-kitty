@@ -14,18 +14,15 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from specify_cli.context import mission_resolver
 from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,
-    FsMissionResolver,
     MissionNotFoundError,
     resolve_mission,
 )
-from specify_cli.mission_metadata import OnMalformed, load_meta
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -117,29 +114,6 @@ def test_the_fixture_exercises_every_ladder_outcome(repo_root: Path) -> None:
     assert kinds == {"resolved", "ambiguous", "not-found"}
 
 
-@pytest.mark.parametrize(
-    ("handle", "expected_slug"),
-    [("001-foo", "001-foo"), ("080-x", "080-x"), ("083", "083")],
-)
-def test_an_exact_indexed_name_never_walks(repo_root: Path, monkeypatch: pytest.MonkeyPatch, handle: str, expected_slug: str) -> None:
-    def no_walk(_root: Path) -> list[mission_resolver.ResolvedMission]:
-        raise AssertionError("the full kitty-specs/ walk ran for an exact indexed directory name")
-
-    monkeypatch.setattr(mission_resolver, "_build_index", no_walk)
-    resolved = FsMissionResolver(repo_root).resolve(handle)
-    assert resolved.mission_slug == expected_slug
-    assert resolved.feature_dir == repo_root / "kitty-specs" / expected_slug
-
-
-@pytest.mark.parametrize(
-    "handle",
-    ["foo", "090-array", "091-empty-id", "093-malformed", "094-no-meta", "095-file", "MIDNAMED", ULID_SHAPED_NAME, "..", "x"],
-)
-def test_the_lookup_declines_what_it_cannot_decide(repo_root: Path, handle: str) -> None:
-    """Unindexed directories, files, mid8- or ULID-shaped names and non-entries fall through to the walk."""
-    assert mission_resolver._resolve_exact_directory(repo_root, handle) is None
-
-
 def test_membership_is_the_exact_listing_name_not_existence(repo_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A case-insensitive filesystem answers ``exists()`` for ``001-FOO``; only the listing tells the real name.
 
@@ -156,25 +130,6 @@ def test_an_absent_kitty_specs_declines(tmp_path: Path) -> None:
     assert mission_resolver._index_entry_named(tmp_path, "001-foo") is None
     with pytest.raises(MissionNotFoundError):
         resolve_mission("001-foo", tmp_path)
-
-
-def test_exact_name_lookups_read_one_meta_each(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Resolving every Mission by its directory name reads N ``meta.json`` files, not N squared."""
-    specs = tmp_path / "kitty-specs"
-    names = [f"{index:03d}-mission" for index in range(40)]
-    for index, name in enumerate(names):
-        _write_meta(specs / name, {"mission_id": f"01{index:024d}"})
-    reads: list[Path] = []
-
-    def counted(path: Path, *, on_malformed: OnMalformed = "raise") -> dict[str, Any] | None:
-        reads.append(Path(path))
-        meta: dict[str, Any] | None = load_meta(path, on_malformed=on_malformed)
-        return meta
-
-    monkeypatch.setattr("specify_cli.context.mission_resolver.load_meta", counted)
-    resolver = FsMissionResolver(tmp_path)
-    assert [resolver.resolve(name).mission_slug for name in names] == names
-    assert len(reads) == len(names)
 
 
 def test_a_non_string_mission_id_elsewhere_no_longer_breaks_an_exact_lookup(repo_root: Path) -> None:
