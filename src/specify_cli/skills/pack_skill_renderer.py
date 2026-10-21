@@ -11,7 +11,10 @@ The renderer is pure: :func:`render_pack_skill` takes the charter-side
 :class:`~charter.activation.skill_preparation.PreparedSkill` and returns text.
 A wrapper skill's ``builtin:`` target is validated here, against the canonical
 command set the command-skill installer owns, so an unknown target is refused
-before anything is staged or written.
+before anything is staged or written. The target accepts the canonical
+``builtin:spec-kitty-<command>`` and the pre-#6475 dotted alias
+``builtin:spec-kitty.<command>``; the rendered text always names the canonical
+skill (through :mod:`specify_cli.skills.command_skill_names`).
 """
 
 from __future__ import annotations
@@ -20,11 +23,9 @@ import json
 
 from charter.activation.skill_preparation import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PreparedSkill
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+from specify_cli.skills.command_skill_names import command_skill_name, legacy_command_skill_name
 
 __all__ = ["render_pack_skill"]
-
-#: Name of the built-in command skills a ``builtin:`` target points at.
-_COMMAND_SKILL_PREFIX = "spec-kitty."
 
 #: A local edit is kept (the installer asks for exact-path consent before replacing modified managed
 #: content) and `doctor skills` reports it as drift, so the notice says that rather than "overwritten".
@@ -43,7 +44,7 @@ def render_pack_skill(prepared: PreparedSkill) -> str:
     """Return the ``SKILL.md`` text for *prepared*.
 
     Raises :class:`PackSkillRenderError` for a wrapper whose ``builtin:``
-    target is not a canonical ``spec-kitty.<command>``.
+    target is not a canonical ``spec-kitty-<command>`` (or its dotted alias).
     """
     sections = [
         _frontmatter(prepared),
@@ -120,7 +121,7 @@ def _wrapper_instruction(skill_id: str, target: str, args: str) -> str:
     arguments = f" Pass these arguments: `{args}`." if args else ""
     if target.startswith(BUILTIN_TARGET_PREFIX):
         command = _validated_command(skill_id, target.removeprefix(BUILTIN_TARGET_PREFIX))
-        return f"Invoke the `{_COMMAND_SKILL_PREFIX}{command}` command skill.{arguments}"
+        return f"Invoke the `{command_skill_name(command)}` command skill.{arguments}"
     if target.startswith(CLI_TARGET_PREFIX):
         argv = target.removeprefix(CLI_TARGET_PREFIX).strip()
         return f"Run the CLI command:\n\n```bash\n{argv}{(' ' + args) if args else ''}\n```"
@@ -128,9 +129,11 @@ def _wrapper_instruction(skill_id: str, target: str, args: str) -> str:
 
 
 def _validated_command(skill_id: str, name: str) -> str:
-    """Return the canonical command named by ``spec-kitty.<command>``."""
-    command = name.strip().removeprefix(_COMMAND_SKILL_PREFIX) if name.strip().startswith(_COMMAND_SKILL_PREFIX) else ""
-    if command not in CANONICAL_COMMANDS:
-        known = ", ".join(f"{_COMMAND_SKILL_PREFIX}{item}" for item in CANONICAL_COMMANDS)
-        raise PackSkillRenderError(f"wrapper skill {skill_id!r} targets unknown built-in command {name!r}; known commands: {known}")
-    return command
+    """Return the canonical command named by ``spec-kitty-<command>`` or ``spec-kitty.<command>``."""
+    target = name.strip()
+    commands: tuple[str, ...] = CANONICAL_COMMANDS
+    for command in commands:
+        if target in (command_skill_name(command), legacy_command_skill_name(command)):
+            return command
+    known = ", ".join(command_skill_name(item) for item in commands)
+    raise PackSkillRenderError(f"wrapper skill {skill_id!r} targets unknown built-in command {name!r}; known commands: {known}")

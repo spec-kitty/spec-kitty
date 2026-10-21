@@ -131,17 +131,38 @@ def test_prompt_body_newlines_are_normalised_and_an_empty_body_is_refused() -> N
 
 
 @pytest.mark.parametrize("command", CANONICAL_COMMANDS)
-def test_wrapper_builtin_targets_every_canonical_command(command: str) -> None:
-    text = render_pack_skill(_prepared(form="wrapper", target=f"builtin:spec-kitty.{command}", args="--flag"))
-    assert f"Invoke the `spec-kitty.{command}` command skill. Pass these arguments: `--flag`." in text
+@pytest.mark.parametrize("separator", ["-", "."], ids=["canonical", "dotted-alias"])
+def test_wrapper_builtin_targets_every_canonical_command(command: str, separator: str) -> None:
+    """Both ``builtin:`` forms are accepted; the rendered text names the canonical skill (#6475)."""
+    text = render_pack_skill(_prepared(form="wrapper", target=f"builtin:spec-kitty{separator}{command}", args="--flag"))
+    assert f"Invoke the `spec-kitty-{command}` command skill. Pass these arguments: `--flag`." in text
+    assert f"spec-kitty.{command}" not in text
 
 
 def test_wrapper_without_args_has_no_argument_sentence() -> None:
     text = render_pack_skill(_prepared(form="wrapper"))
-    assert "Invoke the `spec-kitty.review` command skill.\n" in text and "Pass these" not in text
+    assert "Invoke the `spec-kitty-review` command skill.\n" in text and "Pass these" not in text
 
 
-@pytest.mark.parametrize("target", ["builtin:spec-kitty.nope", "builtin:review", "builtin:other.review", "builtin:spec-kitty."])
+def test_unknown_builtin_target_error_lists_the_canonical_hyphen_names() -> None:
+    with pytest.raises(PackSkillRenderError, match="known commands: spec-kitty-accept, ") as excinfo:
+        render_pack_skill(_prepared(form="wrapper", target="builtin:spec-kitty-nope"))
+    assert "spec-kitty.accept" not in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "builtin:spec-kitty.nope",
+        "builtin:spec-kitty-nope",
+        "builtin:review",
+        "builtin:other.review",
+        "builtin:spec-kitty.",
+        "builtin:spec-kitty-",
+        "builtin:spec-kitty_review",
+        "builtin:spec-kitty-implement-review",
+    ],
+)
 def test_wrapper_unknown_builtin_target_is_refused(target: str) -> None:
     with pytest.raises(PackSkillRenderError, match="unknown built-in command"):
         render_pack_skill(_prepared(form="wrapper", target=target))
