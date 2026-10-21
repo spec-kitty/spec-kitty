@@ -531,9 +531,12 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
 # "spec-kitty merge" is fixed-string-matched (case-insensitive) then filtered
 # through ``_COMMAND_SURFACE_PHRASE_PATTERN`` so genuine git-plumbing compounds
 # that share the substring -- ``spec-kitty merge-driver-*``, the historical
-# ``spec-kitty merge-mission`` / ``spec-kitty merge-feature`` -- are never
+# ``spec-kitty merge-mission`` / ``spec-kitty merge-feature`` -- and prose where
+# the word runs on (``spec-kitty merges``, ``spec-kitty merged``, #6570) are never
 # false-flagged (green-on-legit): a real command name is never followed
-# immediately by ``-``. Ordinary git-merge (``git merge --no-ff``) and
+# immediately by ``-`` or a word character. ``spec-kitty-open-packs`` mirrors
+# this pattern in ``scripts/ci/check_vocabulary.py``; change both together, core
+# first. Ordinary git-merge (``git merge --no-ff``) and
 # publish-to-origin prose never contain the "spec-kitty " prefix at all, so they
 # never match the fixed-string search in the first place.
 #
@@ -546,7 +549,7 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
 # need an exemption and the ratchet stays a precise drift detector rather than a
 # blanket carve-out for anything discussing the rename.
 _COMMAND_SURFACE_PHRASE: str = "spec-kitty merge"
-_COMMAND_SURFACE_PHRASE_PATTERN = re.compile(r"spec-kitty merge(?!-)", re.IGNORECASE)
+_COMMAND_SURFACE_PHRASE_PATTERN = re.compile(r"spec-kitty merge(?![\w-])", re.IGNORECASE)
 _COMMAND_SURFACE_SCAN_ROOTS: tuple[str, ...] = ("src", "docs")
 _COMMAND_SURFACE_PACK_ROOTS: tuple[str, ...] = ("packs/built-in", "packs/internal")
 
@@ -606,9 +609,9 @@ def _is_command_surface_phrase_hit(line: str) -> bool:
 
     Filters out ``git grep``'s substring matches inside compound git-plumbing
     names (``spec-kitty merge-driver-*``, ``spec-kitty merge-mission``,
-    ``spec-kitty merge-feature``) via a negative lookahead on the character
-    immediately following "merge" -- a real command name is never followed by
-    ``-``.
+    ``spec-kitty merge-feature``) and run-on prose (``spec-kitty merges``) via a
+    negative lookahead on the character immediately following "merge" -- a real
+    command name is never followed by ``-`` or a word character.
     """
     hit = _hit_parts(line)
     content = hit[2] if hit is not None else line
@@ -702,6 +705,9 @@ def test_command_surface_guard_green_on_legit_uses() -> None:
         'src/specify_cli/cli/commands/merge_driver.py:5:    command="spec-kitty merge-driver-event-log %O %A %B"',
         "src/specify_cli/orchestrator_api/commands.py:9:    the legacy ``spec-kitty merge-mission`` command was renamed",
         "docs/migrations/feature-flag-deprecation.md:3:    the removed ``spec-kitty merge-feature`` alias",
+        # Prose where the word runs on is not an invocation (#6570).
+        "docs/explanation/lanes.md:7:    spec-kitty merges the approved lanes onto the target",
+        "docs/explanation/lanes.md:8:    once spec-kitty merged them, the lanes are gone",
     )
     for line in legit_lines:
         assert not _is_command_surface_phrase_hit(line), f"Legitimate line falsely matched the command-surface phrase: {line!r}"
