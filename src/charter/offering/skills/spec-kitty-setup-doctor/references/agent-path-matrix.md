@@ -28,7 +28,7 @@ fresh per-repo snapshots of `spec-kitty-*` skills.
 | Roo Code | `roo` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.roo/skills/` | `.roo/commands/` |
 | Amazon Q Developer CLI | `q` | wrapper-only | _(none)_ | _(none)_ | `.amazonq/prompts/` |
 | Kiro CLI | `kiro` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.kiro/skills/` | `.kiro/prompts/` |
-| Google Antigravity | `antigravity` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.agent/skills/` | `.agent/workflows/` |
+| Google Antigravity | `antigravity` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.agent/skills/` | _(none; command skills)_ |
 
 ## Installation Classes
 

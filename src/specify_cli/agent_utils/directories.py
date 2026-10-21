@@ -25,7 +25,7 @@ AGENT_DIRS: list[tuple[str, str]] = [
     # ".roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     (".amazonq", "prompts"),
     (".kiro", "prompts"),
-    (".agent", "workflows"),
+    # (".agent", "workflows") removed (#6470) — Antigravity is a command-skill agent now.
     (".llxprt", "commands"),
 ]
 
@@ -44,7 +44,7 @@ AGENT_DIR_TO_KEY = {
     # ".roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     ".amazonq": "q",  # q, not amazonq (legacy — Kiro rebrand migrates to .kiro)
     ".kiro": "kiro",
-    ".agent": "antigravity",
+    # ".agent" removed (#6470) — Antigravity has no slash-command directory any more.
     ".llxprt": "llxprt",
 }
 
@@ -71,7 +71,7 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
         >>> # Legacy project without config.yaml
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
         >>> len(dirs)
-        13  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG; roo removed)
+        12  # All command-layer agents (command-skill agents use AGENT_SKILL_CONFIG; roo removed)
     """
     try:
         from specify_cli.core.agent_config import (

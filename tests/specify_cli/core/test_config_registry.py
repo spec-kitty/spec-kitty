@@ -102,10 +102,11 @@ def test_llxprt_registered_in_agent_directories() -> None:
     assert AGENT_DIR_TO_KEY[".llxprt"] == "llxprt"
 
 
-def test_eleven_agents_still_in_command_config() -> None:
-    """NFR-005 smoke test: the eleven command-layer agents are present.
+def test_command_layer_agents_in_command_config() -> None:
+    """NFR-005 smoke test: the command-layer agents are present.
 
     "roo" was removed — Roo Code shut down on 2026-05-15 (C-007).
+    "antigravity" moved to the command-skill family (#6470).
     """
     expected = {
         "claude",
@@ -119,10 +120,33 @@ def test_eleven_agents_still_in_command_config() -> None:
         "auggie",
         # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
         "q",
-        "antigravity",
+        "kiro",
+        "llxprt",
     }
-    missing = expected - set(AGENT_COMMAND_CONFIG.keys())
-    assert not missing, f"Missing from AGENT_COMMAND_CONFIG: {missing}"
+    assert set(AGENT_COMMAND_CONFIG) == expected
+
+
+def test_antigravity_is_a_command_skill_agent_not_a_slash_agent() -> None:
+    """#6470: antigravity keeps its choice and skill rows but has no slash-command surface."""
+    from specify_cli.core.config import AGENT_SKILL_CONFIG, AI_CHOICES, IDE_AGENTS
+    from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
+
+    assert "antigravity" not in AGENT_COMMAND_CONFIG
+    assert "antigravity" in SUPPORTED_AGENTS
+    assert "antigravity" in AI_CHOICES
+    assert "antigravity" in IDE_AGENTS
+    assert AGENT_SKILL_CONFIG["antigravity"]["skill_roots"] == [".agents/skills/", ".agent/skills/"]
+    assert (".agent", "workflows") not in AGENT_DIRS
+    assert ".agent" not in AGENT_DIR_TO_KEY
+    assert not set(SUPPORTED_AGENTS) & set(AGENT_COMMAND_CONFIG)
+
+
+def test_configured_slash_agents_filters_order_and_duplicates() -> None:
+    from specify_cli.core.config import configured_slash_agents
+
+    keys = ["codex", "gemini", "antigravity", "claude", "gemini", "nope"]
+    assert configured_slash_agents(keys) == ("gemini", "claude")
+    assert configured_slash_agents(iter(())) == ()
 
 
 def test_command_agent_directory_registry_is_consistent() -> None:
@@ -144,7 +168,7 @@ def test_command_agent_directory_registry_is_consistent() -> None:
 
 
 def test_command_skill_agents_are_shared_skill_roots() -> None:
-    for key in ("codex", "vibe", "pi", "letta"):
+    for key in ("codex", "vibe", "pi", "letta", "antigravity"):
         assert key in AGENT_SKILL_CONFIG, f"{key!r} missing from AGENT_SKILL_CONFIG"
         entry = AGENT_SKILL_CONFIG[key]
         assert entry["class"] == SKILL_CLASS_SHARED, (

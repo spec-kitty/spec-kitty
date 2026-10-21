@@ -656,6 +656,9 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # #3732 (WP12): the cutover's skills step removes installed copies of removed
         # skills through guard_destructive_removal (manifest or frozen-hash proof).
         "upgrade/migrations/_charter_pack_cutover_skills.py",
+        # #6470: proven Spec Kitty .agent/workflows files are archived (copy, then
+        # remove) through the guard's backup_parent branch, never deleted.
+        "upgrade/migrations/m_4_0_0rc8_retire_antigravity_workflows.py",
     }
 )
 

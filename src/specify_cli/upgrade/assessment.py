@@ -15,7 +15,7 @@ from pathlib import Path
 from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
 
 from specify_cli.core.agent_config import load_agent_config
-from specify_cli.core.config import AGENT_COMMAND_CONFIG
+from specify_cli.core.config import configured_slash_agents
 from specify_cli.skills.command_installer import PreparedCommands, SUPPORTED_AGENTS
 from specify_cli.skills.installer import SkillInstallationAssessment, assess_skill_installation
 from specify_cli.skills.catalog import resolve_project_skill_catalog
@@ -122,7 +122,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
     """Read actual configured inventory and retain each owner's prepared bytes."""
     root = OperationRoot("project", "project", project_path.resolve())
     agents = tuple(load_agent_config(root.path).available)
-    slash_command_agents = tuple(agent for agent in agents if agent in AGENT_COMMAND_CONFIG)
+    slash_command_agents = configured_slash_agents(agents)
     command_skill_agents = tuple(agent for agent in agents if agent in SUPPORTED_AGENTS)
     provisioning = prepare_mission_type_activations(root.path)
     providers = build_providers()

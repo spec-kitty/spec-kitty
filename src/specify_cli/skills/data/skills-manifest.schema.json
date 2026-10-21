@@ -43,7 +43,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "enum": ["codex", "vibe", "pi", "letta"]
+            "enum": ["codex", "vibe", "pi", "letta", "antigravity"]
           },
           "description": "Sorted list of agent keys that installed this entry. The file is physically deleted when the list becomes empty. New shared-root agents added in later missions may extend this enum."
         },

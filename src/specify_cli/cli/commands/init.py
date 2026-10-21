@@ -1196,7 +1196,7 @@ def init(  # noqa: C901
                     if agent_skill_class == SKILL_CLASS_WRAPPER:
                         # WRAPPER agents have no installable root.
                         tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
-                    elif agent_key in ("codex", "vibe", "pi", "letta"):
+                    elif agent_key in _COMMAND_SKILL_AGENTS:
                         # Render only after config is finalized: an absent config
                         # intentionally has different REASONS activation semantics.
                         command_skill_agents.append(agent_key)

@@ -89,7 +89,7 @@ _NOT_APPLICABLE_REASONS: dict[str, str] = {
     "qwen": "No native agent primitive; use command surfaces",
     "opencode": "No native agent primitive; use command surfaces",
     "kilocode": "No native agent primitive; use workflow surfaces",
-    "antigravity": "No native agent primitive; use workflow surfaces",
+    "antigravity": "No native agent primitive; use skill surfaces",
     "vibe": "No native agent primitive; use skill surfaces",
     "pi": "No native agent primitive; use skill surfaces",
     "letta": "No native agent primitive; use skill surfaces",

@@ -66,16 +66,16 @@ __all__ = [
 def _get_slash_command_agents(project_path: Path) -> list[str]:
     """Return configured slash-command agents (excludes Agent-Skills agents)."""
     from specify_cli.core.agent_config import load_agent_config
-    from specify_cli.core.config import AGENT_COMMAND_CONFIG
-    from specify_cli.skills.command_installer import SUPPORTED_AGENTS
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG, configured_slash_agents
 
     try:
         config = load_agent_config(project_path)
-        available = set(config.available)
+        available: list[str] = list(config.available)
     except Exception:
-        available = set(AGENT_COMMAND_CONFIG.keys())
-    slash_agents = set(AGENT_COMMAND_CONFIG.keys()) - set(SUPPORTED_AGENTS)
-    return sorted(available & slash_agents)
+        available = list(AGENT_COMMAND_CONFIG)
+    # One filter (#6470): an agent without an AGENT_COMMAND_CONFIG row (every
+    # command-skill agent, antigravity included) is never a slash-command agent.
+    return sorted(configured_slash_agents(available))
 
 
 @dataclass

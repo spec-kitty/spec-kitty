@@ -226,7 +226,7 @@ def test_non_migrated_agents_count() -> None:
     in ``AGENT_COMMAND_CONFIG`` (this module's ``NON_MIGRATED_AGENTS``) must
     have exactly one slash-command directory in the canonical
     ``specify_cli.agent_utils.directories.AGENT_DIRS``/``AGENT_DIR_TO_KEY``
-    registry, and vice versa — command-skill agents (codex, vibe, pi, letta)
+    registry, and vice versa — command-skill agents (codex, vibe, pi, letta, antigravity)
     remain absent from both (they use the Agent Skills pipeline — see
     AGENT_SKILL_CONFIG). A legitimate new agent, registered consistently in
     both registries, needs 0 edits here (NFR-003).
@@ -241,6 +241,11 @@ def test_codex_not_in_agent_command_config() -> None:
     assert "codex" not in AGENT_COMMAND_CONFIG, (
         "codex was found in AGENT_COMMAND_CONFIG. Mission 083 migrated codex to the Agent Skills pipeline; it must not appear in the command-file registry."
     )
+
+
+def test_antigravity_not_in_agent_command_config() -> None:
+    """antigravity must NOT be in AGENT_COMMAND_CONFIG (command skills since #6470)."""
+    assert "antigravity" not in AGENT_COMMAND_CONFIG, "antigravity reads command skills from .agents/skills/ (#6470), not .agent/workflows."
 
 
 def test_vibe_not_in_agent_command_config() -> None:
