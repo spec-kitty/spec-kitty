@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: command-skill-names-and-antigravity-01M5DBWT
 mission_id: 01M5DBWTRXZQ3ZJWGKX0KES8JP
-generated_at: '2026-10-20T20:06:33.215017+00:00'
+generated_at: '2026-10-21T05:22:14.491208+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/command-skill-names-and-antigravity-01M5DBWT/spec.md
-    sha256: dd1dfa9ab1c75671a688d35defd67b1cdeb68e0f585cdaaf81d9d455f4255160
+    sha256: 235868b5e2c395db6f32e0003d02bcc214d9aadd42e6917096ab8368cfdfb324
   plan.md:
     path: kitty-specs/command-skill-names-and-antigravity-01M5DBWT/plan.md
     sha256: a5d92ead8ff654b93aae63d3bf867cd210eb61215f48d2c49d0733b6aad7cc21
@@ -22,8 +22,8 @@ input_artifacts:
 verdict: ready
 issue_counts:
   low: 3
-  medium: 2
   high: 0
+  medium: 2
   critical: 0
   info: 0
 findings:
@@ -89,6 +89,8 @@ findings:
 **Unmapped Tasks:** none.
 
 **Metrics:** 20 FR + 5 NFR + 6 C + 4 SC; 38 subtasks; FR coverage 100%; ambiguity 1; duplication 0; critical 0.
+
+**Re-run 2026-10-21:** spec.md US2 scenario 3 now reflects the operator ruling (unrecorded dotted folder removed only when byte-identical to Spec Kitty's render; otherwise kept with a warning). Implemented in the installer (WP03 surface, via WP04 rework); no new findings, coverage unchanged.
 
 ### Next Actions
 
