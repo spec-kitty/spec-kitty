@@ -8,7 +8,7 @@
 #   backslashes (#6277). The files themselves are checked on disk.
 # - Absorbs tests/integration/test_charter_synthesize_fresh.py (fresh seed, dry run, re-run, no
 #   charter), tests/integration/test_charter_status_freshness.py (the freshness shape, synthesis
-#   missing) and tests/integration/test_quickstart_end_to_end.py (steps 1, 3 and 5); see
+#   missing, built-in-only) and tests/integration/test_quickstart_end_to_end.py (steps 1, 3 and 5); see
 #   tests/scenarios/absorption-ledger.json.
 
 Feature: Govern a project with a charter

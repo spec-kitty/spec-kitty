@@ -5,15 +5,17 @@ Verifies the contract documented in
 ``charter.yaml`` by consolidate-charter-bundle WP06 (data-model.md
 Landmine 2, FR-003, FR-011, NFR-001, NFR-002).
 
-Covers four canonical scenarios:
+Covers the states that need crafted bundle files:
 
 1. ``fresh`` — ``charter.yaml`` parses, bundle present, DRG content-hash
    matches.
 2. ``invalid`` — ``charter.yaml`` present but unparseable (the retired
    ``charter.md``-hash-mismatch ``"stale"`` mechanism no longer exists at
    this layer — see ``computer.py``'s module docstring).
-3. ``missing`` — no synthesis manifest, no graph.yaml.
-4. ``built_in_only`` — manifest declares built-in-only, no graph.yaml.
+3. the ``missing`` detail of no charter against a legacy bundle.
+
+The synthesis-missing and ``built_in_only`` states are checked from a real
+CLI run in ``tests/scenarios/charter/charter.feature`` (absorption ledger).
 """
 
 from __future__ import annotations
@@ -270,16 +272,3 @@ def test_freshness_missing_detail_distinguishes_no_charter_from_legacy_bundle(
     # Both remain the same non-blocking-eligible state; only detail differs.
     assert payload_f1["freshness"]["charter_source"]["state"] == "missing"
     assert payload_f2["freshness"]["charter_source"]["state"] == "missing"
-
-
-def test_freshness_state_built_in_only_when_manifest_marks_it(tmp_path: Path) -> None:
-    """Preserved by the #2681 fix — ``built_in_only`` short-circuits BEFORE
-    the content-hash comparison. A regress here means T015 touched a branch
-    it should not have."""
-    _seed_minimum_repo(tmp_path)
-    _write_charter_and_metadata(tmp_path)
-    _write_manifest(tmp_path, built_in_only=True)
-    payload = _invoke_status_json(tmp_path)
-    freshness = payload["freshness"]
-    assert freshness["synthesized_drg"]["state"] == "built_in_only"
-    assert freshness["synthesized_drg"]["remediation"] is None

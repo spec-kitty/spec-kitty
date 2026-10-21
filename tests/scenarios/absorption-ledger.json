@@ -815,6 +815,14 @@
       ],
       "issue": 6101,
       "note": "Same assertions with the lane order reversed: lane-a = [WP01, WP02] and the started worktree keeps its work."
+    },
+    {
+      "retired": "tests/integration/test_charter_status_freshness.py::test_freshness_state_built_in_only_when_manifest_marks_it",
+      "replaced_by": [
+        "tests/scenarios/charter/charter.feature::After synthesis a built-in-only charter is reported as such, with nothing left to run"
+      ],
+      "issue": 6101,
+      "note": "Same assertions (exit 0, synthesized_drg state built_in_only with a null remediation) after a real charter interview, generate and synthesize, instead of a hand-written synthesis-manifest.yaml (built_in_only true, null bundle hash, no graph.yaml) and patched repo-root and bundle-freshness helpers. The built_in_only check still runs before the hash comparison because a fresh synthesize writes no graph. The scenario also asserts the output never says 'shipped'. Missed by wave 1c; its sibling in test_quickstart_end_to_end.py was retired into the same scenario."
     }
   ]
 }

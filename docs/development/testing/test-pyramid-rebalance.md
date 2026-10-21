@@ -75,6 +75,12 @@ unit tests moved to their module's tree (where they now run on every pull reques
 test functions moved into scenarios from files that stay. `tests/scenarios/absorption-ledger.json`
 holds one row for each (75 rows). The scenarios run four at a time.
 
+A duplicate sweep on 2026-10-21 checked every baseline test still on disk against the gating
+scenarios, including the 26 added after the waves (charter governance, init, Mission status, upgrade
+and the migration ledger). It found one more duplicate, the charter `built_in_only` freshness test
+(ledger row 76). The newer scenarios are new coverage: every Python test near them needs internals,
+asserts more than the scenario, or is kept by a decision recorded in the inventory.
+
 The [inventory](integration-e2e-inventory.md) classifies every baseline file:
 
 | Bucket | `tests/integration` | `tests/e2e` |

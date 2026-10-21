@@ -52,7 +52,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `test_branch_strategy_gate.py` | unit | D (done) | Pure `evaluate_branch_strategy`. |
 | `test_catalog_miss_cli_visibility.py` | scenario | 3 (blocked on #6267) | Unknown styleguide warns in `charter context`; registering the org pack today means writing `.kittify/config.yaml`. |
 | `test_charter_lint_lints_all_layers.py` | scenario | 3 (blocked on #6267) | Lint names every layer; registering the org pack today means writing `.kittify/config.yaml`. |
-| `test_charter_status_freshness.py` | partly | 1c (done) | The freshness shape and synthesis-missing cases moved to `charter/charter.feature`; the all-fresh, invalid and legacy-bundle states need crafted bundle files and stay. |
+| `test_charter_status_freshness.py` | partly | 1c (done) | The freshness shape, synthesis-missing and built-in-only cases moved to `charter/charter.feature` (built-in-only in a later pass, after wave 1c missed it); the all-fresh, invalid and legacy-bundle states need crafted bundle files and stay. |
 | `test_charter_status_reports_three_layers.py` | scenario | 3 (blocked on #6267) | Same org-pack arrange as lint. |
 | `test_charter_synthesize_built_in_only.py` | unit | D (done) | Post-condition helper on temporary files. |
 | `test_charter_synthesize_fresh.py` | partly | 1c (done) | The fresh seed, dry run, re-run and missing-charter cases moved to `charter/charter.feature`; the stale-graph unlink and registered-artifact cases need crafted files under `.kittify/` and stay. |
