@@ -128,7 +128,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: clone-local rename migration over the installer's legacy rule, upgrade warnings + new-invocation notice, prior-release fixtures",
-        "Rework cycle 1 done"
+        "Rework cycle 1 done",
+        "Review cycle 2 passed: unrecorded exact-render ruling in installer, two-clone test, e2e depends on migration, refusals warn"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
