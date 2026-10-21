@@ -26,7 +26,13 @@ def test_shipped_charter_skills_do_not_dispatch_codex_with_full_auto() -> None:
     assert violations == []
 
 
-def test_implement_review_codex_dispatch_uses_explicit_git_capable_sandbox() -> None:
+def test_implement_review_codex_dispatch_stays_sandboxed_with_repo_root_writable() -> None:
+    """Codex keeps workspace-write and adds the repository root as a writable root (#6477).
+
+    ``move-task`` writes git/status locks in the shared ``.git`` directory and the
+    coordination worktree, outside the lane worktree; ``--add-dir`` covers them
+    without dropping the sandbox the way ``danger-full-access`` did.
+    """
     skill_path = OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
     matrix_path = (
         OFFERING_SOURCE_ROOT
@@ -41,5 +47,11 @@ def test_implement_review_codex_dispatch_uses_explicit_git_capable_sandbox() -> 
 
     assert "codex exec --full-auto" not in skill
     assert "codex exec --full-auto" not in matrix
-    assert skill.count("codex exec --sandbox danger-full-access") == 3
-    assert matrix.count("codex exec --sandbox danger-full-access") == 1
+    assert "danger-full-access" not in skill
+    assert "danger-full-access" not in matrix
+    dispatches = [line for line in (skill + matrix).splitlines() if "codex exec --sandbox" in line]
+    assert len(dispatches) == 4
+    assert all("codex exec --sandbox workspace-write" in line for line in dispatches)
+    assert skill.count('--add-dir "$REPO_ROOT" -C "$WORKSPACE" -') == 1
+    assert skill.count('--add-dir "$(git rev-parse --show-toplevel)"') == 1
+    assert matrix.count("--add-dir <repo-root>") == 1

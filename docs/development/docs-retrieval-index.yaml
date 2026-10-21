@@ -12249,6 +12249,14 @@ pages:
     - {slug: "common-errors-and-remediations", text: "Common errors and remediations", level: 2}
     - {slug: "verifying-your-install", text: "Verifying your install", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/guides/how-to/harnesses/agent-dispatch-permissions.md"
+    title: "Set Agent Dispatch Permissions"
+    divio_type: "how-to"
+    abstract: "How Spec Kitty dispatches implementer and reviewer agents with their sandbox and approvals on, how to allow the git and spec-kitty commands they need, and what choosing elevated dispatch means."
+    anchors:
+    - {slug: "what-the-dispatched-agent-may-do-by-default", text: "What the dispatched agent may do by default", level: 2}
+    - {slug: "allow-only-the-commands-the-agent-needs", text: "Allow only the commands the agent needs", level: 2}
+    - {slug: "elevated-dispatch-is-your-decision", text: "Elevated dispatch is your decision", level: 2}
   - path: "docs/guides/how-to/harnesses/amazon-q.md"
     title: "Use Spec Kitty in Amazon Q CLI"
     divio_type: "how-to"

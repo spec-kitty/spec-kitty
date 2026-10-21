@@ -60,6 +60,8 @@
           href: how-to/harnesses/setup-lint-hooks.md
         - name: "Set Up Codex for Spec Kitty"
           href: how-to/harnesses/setup-codex-spec-kitty-launcher.md
+        - name: "Set Agent Dispatch Permissions"
+          href: how-to/harnesses/agent-dispatch-permissions.md
         - name: "Use Spec Kitty in Claude Code"
           href: how-to/harnesses/claude-code.md
         - name: "Use Spec Kitty in Codex CLI"
