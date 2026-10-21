@@ -6,9 +6,9 @@ delivery mechanism was NOT changed by mission 083-agent-skills-codex-vibe.
 
 The non-migrated agents are the keys of ``AGENT_COMMAND_CONFIG``:
 claude, gemini, copilot, cursor, qwen, opencode, windsurf, kilocode,
-auggie, q, kiro, antigravity, llxprt.
+auggie, q, kiro, llxprt (antigravity moved to command skills in #6470).
 
-Command-skill agents such as Codex, Vibe, Pi, and Letta are excluded
+Command-skill agents such as Codex, Vibe, Pi, Letta and Antigravity are excluded
 because they use the Agent Skills pipeline (``.agents/skills/``) instead
 of per-agent command files.  Representative renderer snapshots live under
 ``tests/specify_cli/skills/__snapshots__/``.

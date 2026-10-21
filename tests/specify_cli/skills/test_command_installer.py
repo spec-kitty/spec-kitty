@@ -1057,7 +1057,7 @@ class TestVerifyOrphans:
 
 class TestConstants:
     def test_supported_agents_contains_command_skill_agents(self) -> None:
-        assert set(SUPPORTED_AGENTS) == {"codex", "vibe", "pi", "letta"}
+        assert set(SUPPORTED_AGENTS) == {"codex", "vibe", "pi", "letta", "antigravity"}
 
     def test_command_layer_agents_are_not_command_skill_agents(self) -> None:
         """Agents in AGENT_COMMAND_CONFIG get command files, never skill packages.

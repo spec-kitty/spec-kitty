@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
     "claude": "Claude Code",
@@ -65,9 +67,23 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "kiro": {"dir": ".kiro/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
+    # "antigravity" removed (#6470) — Antigravity stopped reading .agent/workflows on
+    # 2026-10-19; it is a command-skill agent (skills._agent_roster) served from
+    # .agents/skills/ and keeps its AI_CHOICES / IDE_AGENTS / AGENT_SKILL_CONFIG rows.
     "llxprt": {"dir": ".llxprt/commands", "ext": "toml", "arg_format": "{{args}}"},
 }
+
+
+def configured_slash_agents(agent_keys: Iterable[str]) -> tuple[str, ...]:
+    """Return the slash-command agents among *agent_keys*, in input order, without duplicates.
+
+    A slash-command agent is one with an :data:`AGENT_COMMAND_CONFIG` row. This is
+    the one filter every consumer uses to split a configured agent list into its
+    slash-command half (#6470: ``antigravity`` is configured but has no row, so it
+    is never routed to a command-file writer). Unknown keys are dropped.
+    """
+    return tuple(dict.fromkeys(key for key in agent_keys if key in AGENT_COMMAND_CONFIG))
+
 
 # Skill installation classes (PRD section 6)
 SKILL_CLASS_SHARED: str = "shared-root-capable"
@@ -134,6 +150,7 @@ __all__ = [
     "SCRIPT_TYPE_CHOICES",
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
+    "configured_slash_agents",
     "IDE_AGENTS",
     "SKILL_CLASS_SHARED",
     "SKILL_CLASS_NATIVE",

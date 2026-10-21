@@ -141,3 +141,4 @@ charter_pack_cutover
 4.0.0rc8_project_intent_directive_rename
 4.0.0rc8_activation_ledger  # tie: shares target_version 4.0.0rc8; runs after the project-intent rename so the stem tokens it rewrites in the legacy activation keys are what move into the ledger
 4.0.0rc8_command_skill_hyphen_names  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_project_intent_directive_rename; runs after it
+4.0.0rc8_retire_antigravity_workflows  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_command_skill_hyphen_names; runs after it so legacy dotted skills are renamed before Antigravity is installed

@@ -31,7 +31,7 @@ pytestmark = pytest.mark.fast
 
 def test_leaf_roster_is_the_expected_tuple() -> None:
     """The leaf authority pins the canonical, ordered roster."""
-    assert _agent_roster.SUPPORTED_AGENTS == ("codex", "vibe", "pi", "letta")
+    assert _agent_roster.SUPPORTED_AGENTS == ("codex", "vibe", "pi", "letta", "antigravity")
 
 
 def test_installer_roster_is_the_leaf_authority() -> None:

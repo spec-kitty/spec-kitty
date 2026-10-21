@@ -1,7 +1,7 @@
 """Single-source authority for the skill-only agent roster (#1941).
 
 Historically the tuple of command-skill agents (``codex``, ``vibe``, ``pi``,
-``letta``) was duplicated as three byte-identical literals:
+``letta``; ``antigravity`` since #6470) was duplicated as three byte-identical literals:
 
 * ``skills/command_installer.py``  ``SUPPORTED_AGENTS``
 * ``skills/command_renderer.py``   ``SUPPORTED_AGENTS``
@@ -26,6 +26,11 @@ from __future__ import annotations
 #: ``command_renderer.SUPPORTED_AGENTS`` and
 #: ``cli.commands.agent.config.SKILL_ONLY_AGENTS`` are all derived from it; do
 #: not reintroduce an independent literal anywhere else.
-SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta")
+#:
+#: ``antigravity`` joined in #6470: Google Antigravity stopped reading its legacy
+#: ``.agent/workflows`` slash-command files on 2026-10-19 and reads command
+#: skills from the shared ``.agents/skills/`` root, so it is a command-skill agent
+#: and no longer has an ``AGENT_COMMAND_CONFIG`` row.
+SUPPORTED_AGENTS: tuple[str, ...] = ("codex", "vibe", "pi", "letta", "antigravity")
 
 __all__ = ["SUPPORTED_AGENTS"]
