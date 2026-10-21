@@ -91,6 +91,21 @@ def test_ledger_save_without_a_choice_refuses_a_deny_change(tmp_path: Path) -> N
     assert ledger.read_bytes() == before
 
 
+def test_ledger_save_refuses_when_the_ledger_changed_since_the_triple_loaded_it(tmp_path: Path) -> None:
+    """A concurrent deactivation between load and save is not read as a removal and dropped."""
+    ledger = seed_activation_ledger(tmp_path, activated_tactics=["t1", "t2"])
+    target, data, save = resolve_activation_write_target(tmp_path)
+    ledger.write_text("activated_tactics:\n- t1\n- t2\ndeactivated_directives:\n- x\n", encoding="utf-8")
+    concurrent = ledger.read_bytes()
+
+    data["activated_tactics"] = ["t1"]
+    data["deactivated_tactics"] = ["t2"]
+    with pytest.raises(ValueError, match="precondition_changed"):
+        save(target, data, deny_change=DenyListChoice.DEACTIVATE)
+
+    assert ledger.read_bytes() == concurrent
+
+
 def test_fresh_project_writes_the_ledger(tmp_path: Path) -> None:
     config = _write(tmp_path / _CONFIG, "vcs:\n  type: git\n")
     before = config.read_bytes()

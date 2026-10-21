@@ -750,29 +750,45 @@ def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any], *, d
         update_charter_yaml_section(charter_path, "activation", values)
 
 
-def _save_ledger(path: Path, data: Mapping[str, Any], *, repo_root: Path, deny_change: DenyListChoice | None = None) -> None:
+def _save_ledger(
+    path: Path,
+    data: Mapping[str, Any],
+    *,
+    repo_root: Path,
+    loaded: list[bytes | None],
+    deny_change: DenyListChoice | None = None,
+) -> None:
     """The ledger save behind the write-target triple: *data* is the whole ledger mapping.
 
     Accepts ``commit_plan``'s positional ``(path, data)`` call; a key of
     :data:`LEDGER_KEYS` absent from *data* is removed. The write goes through
     the seam's one writer, so the deny guard applies (*deny_change*). An empty
-    mapping for a project with no ledger yet writes nothing.
+    mapping for a project with no ledger yet writes nothing. *loaded* holds the
+    ledger's bytes as this triple last saw them (its read, then each of its own
+    writes): a ledger that changed otherwise is a ``precondition_changed``
+    refusal (as the legacy path), because the removals derived from *data*
+    would otherwise drop a concurrent write.
     """
     del path  # the ledger path is repo_root's; the triple hands it back unchanged
+    ledger_path = activation_ledger_path(repo_root)
+    if observe_yaml_input(ledger_path).content != loaded[0]:
+        raise ValueError(f"precondition_changed: {ledger_path}")
     values = {key: data[key] for key in LEDGER_KEYS if key in data}
     if not values and not activation_ledger_path(repo_root).is_file():
         return  # nothing to record: never create an empty ledger for a fresh project
     removals = tuple(key for key in LEDGER_KEYS if key not in data)
     apply_yaml_write(prepare_ledger_write(repo_root, values, remove=removals, deny_change=deny_change))
+    loaded[0] = observe_yaml_input(ledger_path).content  # the triple's own write is the next baseline
 
 
 def _ledger_write_target(repo_root: Path) -> tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]:
     """The ledger triple: path, round-trip mapping (``{}`` before the first write), save."""
     load_activation_ledger(repo_root)  # validates the ledger (L1/L2) with the seam's texts
     path = activation_ledger_path(repo_root)
-    document = YAML().load(path.read_bytes()) if path.is_file() else None
+    loaded = observe_yaml_input(path).content
+    document = YAML().load(loaded) if loaded is not None else None
     data: dict[str, Any] = document if isinstance(document, dict) else {}
-    return path, data, functools.partial(_save_ledger, repo_root=repo_root)
+    return path, data, functools.partial(_save_ledger, repo_root=repo_root, loaded=[loaded])
 
 
 def resolve_activation_write_target(
