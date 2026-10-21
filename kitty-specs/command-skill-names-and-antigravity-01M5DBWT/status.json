@@ -117,7 +117,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -130,6 +130,7 @@
         "Ready for review: clone-local rename migration over the installer's legacy rule, upgrade warnings + new-invocation notice, prior-release fixtures"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/command-skill-names-and-antigravity-01M5DBWT/tasks/WP04-rename-migration/review-cycle-1.md",
         "reference": "review-cycle://command-skill-names-and-antigravity-01M5DBWT/WP04-rename-migration/review-cycle-1.md",
@@ -137,12 +138,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 7347,
-      "shell_pid_created_at": "1792540853.93",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP05": {
