@@ -30,7 +30,7 @@ from specify_cli.core.no_follow import chmod_fd, fd_relative_dir_ops_supported
 from specify_cli.tool_surface.operations import FileState, InputObservation
 
 from ..content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
-from ..invocation import LEGACY_SPECIFY_INVOCATION, invocation_for_writer
+from ..invocation import LEGACY_SPECIFY_INVOCATION
 
 __all__ = ["MarkdownRulesWriter"]
 
@@ -162,7 +162,6 @@ class MarkdownRulesWriter:
 
     def prepare(self, project_root: Path, content: SessionPresenceContent) -> PreparedPresenceFile:
         """Render only the proven managed region, preserving foreign bytes."""
-        content = replace(content, specify_invocation=invocation_for_writer(self.harness_key, self.rules_path))
         observations = observe_presence_path(project_root, self.rules_path)
         before = presence_state(observations[-1])
         if before.kind not in ("file", "absent"):
@@ -357,7 +356,7 @@ def _invocation_line(content: SessionPresenceContent) -> str:
 def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
     """Prove the entire old block using the canonical renderer, not a suffix.
 
-    The block may carry this harness's invocation or the pre-#6475 slash form
+    The block may carry today's invocation line or the pre-#6475 slash-only form
     every harness used to render, so an older block is still refreshed.
     """
     return any(

@@ -6,7 +6,7 @@ All harness writers consume this module.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 SECTION_OPEN = "<!-- spec-kitty:orientation -->"
@@ -17,6 +17,12 @@ __all__ = [
     "SECTION_CLOSE",
     "SessionPresenceContent",
 ]
+
+
+def _default_specify_invocation() -> str:
+    from .invocation import orientation_invocation
+
+    return orientation_invocation()
 
 
 @dataclass(frozen=True)
@@ -34,9 +40,8 @@ class SessionPresenceContent:
     project_slug: str
     health: Literal["healthy", "upgrade-available", "migration-required"]
     available_version: str | None  # None when cache not yet populated
-    #: How the harness starts a full Mission (``invocation.invocation_for_writer``);
-    #: writers set it per harness, the default is the slash-command form.
-    specify_invocation: str = "`/spec-kitty.specify`"
+    #: How to start a full Mission in every harness (``invocation.orientation_invocation``).
+    specify_invocation: str = field(default_factory=_default_specify_invocation)
 
     def render(self) -> str:
         """Render the orientation block text.
