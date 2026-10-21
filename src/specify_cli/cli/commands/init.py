@@ -67,36 +67,6 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 # =============================================================================
 
 _logger = logging.getLogger(__name__)
-_EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
-# coord-write-placement-closure-01KYCF83 WP06: decisions.events.jsonl reuses
-# the SAME event-log union driver (structurally identical append-only JSONL
-# envelope) -- see specify_cli/lanes/consolidation.py's _MERGE_DRIVERS comment.
-_DECISION_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
-# C-006 (#2709): the meta.json field-merge and traces union drivers register on
-# the same surfaces as the event-log driver.
-_META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
-_TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-traces"
-# C-006 (#2804): the coord gate artifacts are filled on the target at accept time
-# and scaffolded on the mission branch, so the squash integration needs a driver
-# to keep the filled side (without one the squash would conflict on it).
-_ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
-# WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
-# artifact to structured JSON (C-008); the .md pattern is inert on new repos.
-_ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
-# review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): review-cycle
-# verdict artifacts become genuinely two-sided during the create-window
-# migration (ADR 2026-08-03-1) -- a refuse-fail-closed driver (never a union)
-# keeps a genuine two-verdict collision from being silently clobbered.
-# Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
-# and `tasks/WP*.md` are unaffected.
-_REVIEW_CYCLE_GITATTRIBUTES_ENTRY = "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
-# coord-artifact-single-home-01M3V4BE WP11 (FR-009b / D13 / #5023): once the
-# decisions/index.json ledger becomes a PRIMARY-partition record (WP12), it
-# travels with lane/mission branches like the other bookkeeping artifacts
-# above, so it needs the same union-merge wiring. ``DM-<ulid>.md`` artifacts
-# get no driver: they are ULID-named, one file per decision, so they cannot
-# collide.
-_DECISION_INDEX_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions/index.json merge=spec-kitty-decision-index"
 #: Command-skill agents, derived from the one roster (``skills._agent_roster``) so a newly
 #: added skill agent flows into init without a second list.
 _COMMAND_SKILL_AGENTS = frozenset(_SKILL_AGENT_ROSTER)
@@ -538,17 +508,11 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
     lines: list[str] = []
     if attributes_path.exists():
         lines = attributes_path.read_text(encoding="utf-8").splitlines()
-    required_entries = (
-        _EVENT_LOG_GITATTRIBUTES_ENTRY,
-        _DECISION_LOG_GITATTRIBUTES_ENTRY,
-        _META_GITATTRIBUTES_ENTRY,
-        _TRACES_GITATTRIBUTES_ENTRY,
-        _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
-        _ISSUE_MATRIX_GITATTRIBUTES_ENTRY,
-        _REVIEW_CYCLE_GITATTRIBUTES_ENTRY,
-        _DECISION_INDEX_GITATTRIBUTES_ENTRY,
-        *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
-    )
+    # The merge-driver lines come from the one seed authority an upgrade also
+    # seeds from, so the first upgrade of a fresh project adds none (#6416).
+    from specify_cli.upgrade.init_seed import merge_attribute_seed_lines
+
+    required_entries = (*merge_attribute_seed_lines(), *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES)
     missing = [entry for entry in required_entries if entry not in lines]
     if not missing:
         return False

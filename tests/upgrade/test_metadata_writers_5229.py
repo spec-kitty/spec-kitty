@@ -296,6 +296,30 @@ def test_stamp_is_idempotent_and_does_not_touch_the_file(tmp_path: Path) -> None
     assert path.stat().st_mtime_ns == 1_000_000_000
 
 
+def test_stamp_leaves_an_init_written_file_byte_identical(tmp_path: Path) -> None:
+    """#6416: a stamp that changes no value does not re-serialize another emitter's YAML.
+
+    Kills: a byte compare against this dump's rendering, which rewrote init's
+    empty ``last_upgraded_at:`` as ``last_upgraded_at: null``.
+    """
+    from specify_cli.cli.commands.init import _stamp_schema_metadata
+
+    kdir = tmp_path / ".kittify"
+    kdir.mkdir()
+    path = kdir / "metadata.yaml"
+    path.write_text(
+        "spec_kitty:\n  version: 2.1.0\n  initialized_at: '2026-01-01T00:00:00'\n  last_upgraded_at:\n",
+        encoding="utf-8",
+    )
+    _stamp_schema_metadata(kdir)
+    before = path.read_bytes()
+    assert b"last_upgraded_at:\n" in before
+
+    _stamp(kdir)
+
+    assert path.read_bytes() == before
+
+
 def test_stamp_derives_the_map_from_the_schema_module_at_call_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Kills: a hard-coded or import-time copy of the capability set (the #840 drift)."""
     monkeypatch.setattr(schema_version_module, "CURRENT_SCHEMA_CAPABILITIES", {**CURRENT_SCHEMA_CAPABILITIES, "probe_cap": True})

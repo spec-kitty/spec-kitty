@@ -366,9 +366,9 @@ def test_init_fails_for_tracked_worktrees_content_without_mutating_index(
     ledger = yaml.safe_load(project.joinpath(".kittify", "charter", "activation.yaml").read_text(encoding="utf-8"))
     assert ledger["mission_type_activations"]
     assert project.joinpath(".kittify", "metadata.yaml").exists()
-    assert init_module._EVENT_LOG_GITATTRIBUTES_ENTRY in project.joinpath(".gitattributes").read_text(
-        encoding="utf-8"
-    )
+    assert "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log" in project.joinpath(
+        ".gitattributes"
+    ).read_text(encoding="utf-8")
     assert (
         subprocess.run(
             ["git", "check-ignore", "--quiet", ".worktrees/demo/file.txt"],

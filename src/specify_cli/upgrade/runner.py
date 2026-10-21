@@ -1020,25 +1020,24 @@ class MigrationRunner:
         if not isinstance(data, dict):
             return
 
-        if "spec_kitty" not in data or not isinstance(data["spec_kitty"], dict):
-            data["spec_kitty"] = {}
+        spec_kitty = data.get("spec_kitty")
+        stamped = dict(spec_kitty) if isinstance(spec_kitty, dict) else {}
+        stamped["schema_version"] = schema_version
+        stamped["schema_capabilities"] = canonical_schema_capabilities(stamped.get("schema_capabilities"))
 
-        data["spec_kitty"]["schema_version"] = schema_version
-        data["spec_kitty"]["schema_capabilities"] = canonical_schema_capabilities(data["spec_kitty"].get("schema_capabilities"))
+        # Compare-before-write (issue #1871): skip the re-dump when the stamp
+        # changes no value, so a no-op upgrade does not reformat or mtime-churn
+        # metadata.yaml. The comparison is on parsed values, not bytes: init
+        # writes the file with a different YAML emitter (an empty
+        # ``last_upgraded_at:`` where this dump writes ``null``), and a byte
+        # compare re-serialized a just-initialized project's file (#6416).
+        if stamped == spec_kitty:
+            return
+        data["spec_kitty"] = stamped
 
         buf = io.StringIO()
         buf.write(_METADATA_HEADER)
         yaml.dump(data, buf, default_flow_style=False, sort_keys=False)
         rendered = buf.getvalue()
-
-        # Compare-before-write (issue #1871): skip the re-dump when the rendered
-        # bytes already match the file on disk, so a no-op upgrade does not
-        # reformat or mtime-churn an already-stamped metadata.yaml.
-        try:
-            current = metadata_path.read_text(encoding="utf-8-sig")
-        except OSError:
-            current = None
-        if current == rendered:
-            return
 
         atomic_write(metadata_path, rendered, mkdir=True)

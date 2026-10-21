@@ -496,6 +496,11 @@ def _set_local_git_config(repo_root: Path, key: str, value: str) -> None:
     )
 
 
+def merge_driver_attribute_lines() -> tuple[str, ...]:
+    """The ``<pattern> merge=<key>`` line of every registered driver, in registry order (#6416)."""
+    return tuple(dict.fromkeys(spec.attributes_line for spec in _MERGE_DRIVERS))
+
+
 def _ensure_info_attributes(repo_root: Path) -> list[str]:
     """Map the driver patterns in the shared ``.git/info/attributes``.
 

@@ -48,6 +48,30 @@ from .registry import MigrationRegistry, migration_settled
 _SEED_RESULT = "success"
 
 
+def merge_attribute_seed_lines() -> tuple[str, ...]:
+    """Every ``.gitattributes`` merge-driver line ``init`` writes: the lines an upgrade seeds (#6416).
+
+    The union of the canonical driver registry and the ``drivers`` of every
+    registered merge-driver seeding migration, registry order first. A
+    historical migration may still seed a line the registry has since moved
+    away from (``3.2.6_gate_artifact_merge_drivers`` keeps the inert
+    ``issue-matrix.md`` mapping, DIRECTIVE_044 forbids editing it); writing that
+    line at init keeps the first ``upgrade`` on a just-initialized project from
+    committing it.
+    """
+    from specify_cli.lanes.consolidation import merge_driver_attribute_lines
+
+    from .migrations import auto_discover_migrations
+    from .migrations._merge_driver_seeding import MergeDriverSeedingMigration
+
+    auto_discover_migrations()
+    lines = dict.fromkeys(merge_driver_attribute_lines())
+    for migration in MigrationRegistry.get_all():
+        if isinstance(migration, MergeDriverSeedingMigration):
+            lines.update(dict.fromkeys(driver.attributes_entry for driver in migration.drivers))
+    return tuple(lines)
+
+
 def seed_migration_ledger_for_init(project_root: Path) -> list[str]:
     """Seed the two-partition ledger for a freshly-created project.
 

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import ast
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -610,15 +611,15 @@ def _registry_attribute_lines() -> set[str]:
 def _init_seed_attribute_lines() -> set[str]:
     """Every gitattributes ``merge=`` line the ``init`` command seeds for new repos.
 
-    Scanned from the init module namespace (any ``<pattern> merge=<key>`` string
-    constant), NOT a hardcoded list — a NEW driver constant is picked up
-    automatically, and a registry driver with NO init constant trips the lint.
+    Read from what ``init``'s own writer puts into an empty project's
+    ``.gitattributes`` (#6416), NOT from a list or the seed function it is meant
+    to call: a writer reverted to hand-copied lines still trips the lints.
     """
-    return {
-        value
-        for value in vars(_init_command).values()
-        if isinstance(value, str) and _MERGE_ATTRIBUTES_LINE.match(value)
-    }
+    with tempfile.TemporaryDirectory() as scratch:
+        project = Path(scratch)
+        _init_command._ensure_event_log_merge_attributes(project)
+        written = (project / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    return {line for line in written if _MERGE_ATTRIBUTES_LINE.match(line)}
 
 
 def _migration_seed_attribute_lines() -> set[str]:
@@ -650,8 +651,20 @@ def test_init_seed_is_superset_of_registry_merge_drivers() -> None:
     assert not missing, (
         "Merge driver(s) declared in specify_cli.lanes.consolidation._MERGE_DRIVERS but NOT "
         "seeded by the init command (fresh repos re-inherit #2709 — no .gitattributes "
-        f"mapping). Add the entry in specify_cli/cli/commands/init.py: {sorted(missing)}"
+        "mapping). init writes the lines of "
+        f"specify_cli.upgrade.init_seed.merge_attribute_seed_lines: {sorted(missing)}"
     )
+
+
+def test_init_seed_matches_the_upgrade_seed_exactly() -> None:
+    """#6416: ``init`` seeds exactly the merge lines an upgrade would, no more, no fewer.
+
+    A line an upgrade migration seeds but ``init`` does not is committed by the
+    first ``upgrade`` of a just-initialized project; a line ``init`` seeds that no
+    registry driver or migration declares is an unowned mapping.
+    """
+    upgrade_seed = _migration_seed_attribute_lines() | _registry_attribute_lines()
+    assert _init_seed_attribute_lines() == upgrade_seed
 
 
 def test_migration_seed_is_superset_of_registry_merge_drivers() -> None:

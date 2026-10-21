@@ -22,8 +22,8 @@
 #       the declared-but-not-recorded work (a stranded step is picked up). The
 #       project is set up before it has a git repository, so its local git setup
 #       cannot be in place yet and must stay pending (#6431). The first upgrade may
-#       commit (#6416 still adds a .gitattributes line there); only the re-run must
-#       commit nothing, so the repository state is recorded between the two runs.
+#       commit (it applies the stranded step); only the re-run must commit nothing,
+#       so the repository state is recorded between the two runs.
 #     * The "I can ask what ran" / "tells me whether a local-only step is in place
 #       here" / drift scenarios restate the operator-visibility and drift promises.
 #     * "keeps its already-done work recognized" restates the backfill promise:
@@ -49,11 +49,11 @@ Feature: Upgrade runs exactly the setup work a project still needs
   So that re-running is safe, a teammate's fresh clone gains its own local setup, and I can
   see and trust what has been done
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6416
   Scenario: Upgrading a project that is already current changes nothing
     Given an existing git repository with commit history
     And a project already set up with Spec Kitty for the agents "claude"
     And every change in the project is committed
+    And the folder ".claude/skills" is present
     And the repository has at least one commit
     When I run "spec-kitty upgrade --yes"
     And I run "spec-kitty upgrade --yes"
@@ -63,12 +63,12 @@ Feature: Upgrade runs exactly the setup work a project still needs
     And the folder ".claude/skills" is unchanged
     And the folder ".claude/skills" is not empty
 
-  @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6416
   Scenario: A tracked refresh that already arrived with the pull is not redone
     Given an existing git repository with commit history
     And a project already set up with Spec Kitty for the agents "claude"
     And the file ".gitignore" is present
     And every change in the project is committed
+    And the repository has at least one commit
     When I run "spec-kitty upgrade --yes"
     Then the command succeeds
     And the file ".gitignore" is unchanged
@@ -143,12 +143,12 @@ Feature: Upgrade runs exactly the setup work a project still needs
     Then the command succeeds
     And the report flags a setup step whose content changed since it ran
 
-# - The first two scenarios are @wip @defect:6416 (#6369): they landed gating without ever
-#   running and were red on the 2026-10-18 nightly. A just-initialized project's first upgrade
-#   commits a .gitattributes merge-driver line init never wrote. "A tracked refresh ..." also
-#   never records the repository state before it acts, so "the repository has no new commits"
-#   cannot pass as written; fix that Arrange too before dropping @wip.
-# The acceptance-jvm steps these scenarios bind (eight gate the nightly; two are @wip, above):
+# - The first two scenarios were @wip @defect:6416 (#6369): they landed gating without ever
+#   running and were red on the 2026-10-18 nightly, because a just-initialized project's first
+#   upgrade committed a .gitattributes merge-driver line init never wrote. #6416 made init write
+#   every merge-driver line an upgrade seeds, and gave both scenarios the Arrange steps their
+#   Asserts compare against: the recorded repository state, and the ".claude/skills" folder.
+# The acceptance-jvm steps these scenarios bind (all ten gate the nightly):
 #   Arrange (Given):
 #     - "a setup step the project declares but has not recorded as run"
 #     - "a freshly pulled clone whose shared records show its local git setup ran
