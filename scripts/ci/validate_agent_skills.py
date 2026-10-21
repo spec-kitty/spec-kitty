@@ -52,6 +52,8 @@ REFERENCE_SPEC = "skills-ref==0.1.1"
 
 #: Runs ``skills_ref.validate`` (the function behind ``agentskills validate``) over every
 #: folder passed as an argument in ONE process and prints ``{folder: [errors]}`` as JSON.
+#: Keep it in step with skills-ref's CLI (``skills_ref.cli.validate_cmd`` in 0.1.1): the CLI
+#: takes one folder per process, which would cost one interpreter start per skill.
 _REFERENCE_PROGRAM = "import json, pathlib, sys\nfrom skills_ref import validate\nprint(json.dumps({d: list(validate(pathlib.Path(d))) for d in sys.argv[1:]}))\n"
 
 #: The agents a fresh ``init`` is run for: one shared-root agent and one native-root agent.
@@ -242,7 +244,12 @@ def collect_targets(workdir: Path, shipped_root: Path) -> list[SkillTarget]:
     generated = discover_skill_dirs(project, "project") + discover_skill_dirs(home, "home")
     if not generated:
         raise EnvironmentPreparationError("`spec-kitty init` wrote no skill folder")
-    return generated + project_shipped_skills(shipped_root, workdir / "shipped")
+    if not any(target.shared for target in generated):
+        raise EnvironmentPreparationError("`spec-kitty init` wrote no shared-root skill folder, so the reference validator would check none")
+    shipped = project_shipped_skills(shipped_root, workdir / "shipped")
+    if not shipped:
+        raise EnvironmentPreparationError(f"no shipped skill found under {shipped_root}")
+    return generated + shipped
 
 
 def main(argv: Sequence[str] | None = None) -> int:

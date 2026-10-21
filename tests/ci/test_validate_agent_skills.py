@@ -249,6 +249,26 @@ def test_collect_targets_refuses_an_init_that_wrote_no_skill(monkeypatch: pytest
         vas.collect_targets(tmp_path, tmp_path / "shipped")
 
 
+def test_collect_targets_refuses_when_no_generated_skill_is_in_a_shared_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    project, home = tmp_path / "p", tmp_path / "h"
+    _skill(home / ".claude" / "skills", "b", _GOOD.format(name="b"))
+    shipped = tmp_path / "src"
+    _skill(shipped, "c", _GOOD.format(name="c"))
+    monkeypatch.setattr(vas, "generate_project", lambda _workdir: (project, home))
+    with pytest.raises(vas.EnvironmentPreparationError, match="no shared-root skill folder"):
+        vas.collect_targets(tmp_path / "w", shipped)
+
+
+def test_collect_targets_refuses_an_empty_shipped_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    project, home = tmp_path / "p", tmp_path / "h"
+    _skill(project / ".agents" / "skills", "a", _GOOD.format(name="a"))
+    empty = tmp_path / "moved"
+    empty.mkdir()
+    monkeypatch.setattr(vas, "generate_project", lambda _workdir: (project, home))
+    with pytest.raises(vas.EnvironmentPreparationError, match="no shipped skill found"):
+        vas.collect_targets(tmp_path / "w", empty)
+
+
 def test_collect_targets_orders_generated_before_shipped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     project, home = tmp_path / "p", tmp_path / "h"
     _skill(project / ".agents" / "skills", "a", _GOOD.format(name="a"))
