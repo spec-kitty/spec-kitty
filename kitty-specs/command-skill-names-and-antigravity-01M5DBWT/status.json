@@ -221,7 +221,8 @@
       "last_transition_at": "2026-10-21T09:48:32.706245+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: one SKILL.md frontmatter authority (skill_frontmatter.py) projecting per root (shared = spec-only + metadata strings, native .claude/.qwen/.kilocode keep Claude keys), command skills spec-only, Claude bundle native, pack name<=64/description<=1024 limits, #6475 repro unmarked; skills-ref 0.1.1 104/104 valid"
+        "Ready for review: one SKILL.md frontmatter authority (skill_frontmatter.py) projecting per root (shared = spec-only + metadata strings, native .claude/.qwen/.kilocode keep Claude keys), command skills spec-only, Claude bundle native, pack name<=64/description<=1024 limits, #6475 repro unmarked; skills-ref 0.1.1 104/104 valid",
+        "Review passed: 104/104 skills-ref valid across 5 agents, upgrade regenerates cleanly; N1/N2 carried to WP08"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
