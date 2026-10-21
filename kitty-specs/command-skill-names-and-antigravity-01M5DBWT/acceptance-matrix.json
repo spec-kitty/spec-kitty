@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/runtime/test_agent_commands_scope.py, test_agent_commands.py (scoped writer, ~/.agent/workflows owned cleanup) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:02.962538+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
