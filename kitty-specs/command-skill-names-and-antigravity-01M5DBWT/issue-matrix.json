@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#1646": {
+      "evidence_ref": "context only: Antigravity install-target spike",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3048": {
+      "evidence_ref": "home slash-command writer scoped to configured agents (WP06); global skills fan-out stays open in #3048",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    },
+    "#4609": {
+      "evidence_ref": "context-only citation in WP prompts (existing behaviour to preserve)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4998": {
+      "evidence_ref": "context-only citation in WP prompts (existing behaviour to preserve)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6469": {
+      "evidence_ref": "context only: skills.sh listing; this mission removes the dotted name it mangles",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6470": {
+      "evidence_ref": "red-first repro WP01; fix WP05-WP06",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6471": {
+      "evidence_ref": "out of scope (C-001): slash-command files unchanged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6475": {
+      "evidence_ref": "red-first repro WP01; fix WP02-WP07",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

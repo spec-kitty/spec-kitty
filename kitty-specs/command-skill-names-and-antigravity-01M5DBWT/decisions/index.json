@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-20T19:16:54.917142Z",
+      "decision_id": "01M5DBXJ05DSF4322SXVPNPZZ1",
+      "final_answer": "Operator rulings (confirmed 2026-10-20): 1) name spec-kitty-<cmd>, one naming authority constant, uniqueness check vs built-in charter skills and RETIRED_CANONICAL_SKILL_NAMES, orphan detection keyed on manifest/explicit command set never the prefix. 2) Clean break: migration renames installed skills (install new, remove manifest-owned unmodified spec-kitty.<cmd>/, keep hand-edited with warning, rewrite manifest keys, idempotent, config-aware, never mkdir, order_manifest entry); release note + init/upgrade banner; doctor skills flags leftover dotted dirs; 13 command-agent slash-command files out of scope (#6471). 3) Antigravity: stop .agent/workflows project+global; migration removes owned spec-kitty.*.md from project .agent/workflows (never dir, never foreign); global writer stops writing ~/.agent/workflows, removes only owned files there on startup, stops fanning out to unconfigured agents. 4) Spec-conformant frontmatter per target, name<=64 description<=1024, skills-ref validator in CI. 5) open-packs PR replacing /spec-kitty.<cmd> and $spec-kitty. invocations, then pin bump. Red-first p0_repro tests; new ADR amending 2026-04-07-1; stop and ask on uncovered cases.",
+      "input_key": "operator_rulings",
+      "mission_id": "01M5DBWTRXZQ3ZJWGKX0KES8JP",
+      "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the mission scope and design rulings (naming, migration, Antigravity, frontmatter, open-packs, out-of-scope)?",
+      "rationale": null,
+      "resolved_at": "2026-10-20T19:17:06.124084Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.operator-rulings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5DBWTRXZQ3ZJWGKX0KES8JP",
+  "version": 1
+}

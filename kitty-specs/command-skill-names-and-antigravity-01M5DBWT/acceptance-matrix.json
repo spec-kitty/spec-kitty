@@ -1,0 +1,209 @@
+{
+  "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_p0_6475_command_skill_names.py (red-first d6276c33, green now) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:53:41.845899+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_skill_names.py; tests/architectural/test_command_skill_name_authority.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:53:49.505042+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_skill_names.py uniqueness vs charter/retired/legacy sets (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:53:57.875817+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_installer.py, test_manifest_store.py (orphan scan keyed on manifest + explicit command set) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:06.364802+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_command_skill_hyphen_names.py; order_manifest gate (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:15.059052+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/init/test_init_next_steps.py; docs/changelog/CHANGELOG.md Unreleased; docs/migrations/command-skill-hyphen-names.md (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:23.153420+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_skills.py (legacy + collisions) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:30.865115+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_p0_6470_antigravity_command_skills.py; tests/specify_cli/cli/commands/test_agent_config.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:39.503015+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_p0_6470_antigravity_command_skills.py; tests/specify_cli/core/test_config_registry.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:46.808043+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_retire_antigravity_workflows.py (archive, symlink refusal, foreign files kept) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:54.784869+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/runtime/test_agent_commands_scope.py, test_agent_commands.py (scoped writer, ~/.agent/workflows owned cleanup) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:02.962538+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_skill_frontmatter.py; tests/architectural/test_single_frontmatter_authority.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:10.585114+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_skill_frontmatter.py; tests/specify_cli/tool_surface/providers/test_plugin_bundle.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:17.997867+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/pack_skills/test_skill_name_limits.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:25.510409+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/validate_agent_skills.py; tests/ci/test_validate_agent_skills.py, tests/ci/test_ci_module_wiring.py; ci-router agent-skills job (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:33.302373+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "render-time rewrite (operator ruling): tests/specify_cli/skills/test_command_renderer.py; open-packs #61 merged, internal pin ecda7b0 (f5da9c2a) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:41.347846+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_skill_names.py (LEGACY names in the naming authority only) (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:49.231514+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "manual_inspection",
+      "evidence": "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md; AGENTS.md/CLAUDE.md agent tables; docs/migrations/command-skill-hyphen-names.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:57.659432+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_installer_legacy.py; tests/scenarios/init/command-skill-collision.feature (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:56:05.066378+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Verify FR-020 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_surface_repair_wiring.py, providers/test_command_skills.py, test_command_installer_legacy.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:56:12.333793+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

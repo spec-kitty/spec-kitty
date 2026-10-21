@@ -1,0 +1,36 @@
+# Occurrence map for mission command-skill-names-and-antigravity-01M5DBWT (DIRECTIVE_035).
+# The same token `spec-kitty.` means four different things; see plan.md Engineering Alignment.
+#   (a) command-skill folder/name  -> RENAME to spec-kitty-<cmd> (via skills/command_skill_names.py)
+#   (b) slash-command file names of the 13 command agents (spec-kitty.<cmd>.md) -> KEEP (C-001, #6471)
+#   (c) prose invocations /spec-kitty.<cmd> -> KEEP in sources for slash agents; skill bodies are
+#       rewritten at render time; $spec-kitty.<cmd> and /skill:spec-kitty.<cmd> (skill-only forms) -> RENAME
+#   (d) unrelated (spec-kitty.ai URLs, spec-kitty.analysis-report artifact type, .cursor/rules/spec-kitty.mdc) -> KEEP
+
+target:
+  term: "spec-kitty."
+  replacement: "spec-kitty-"
+  operation: rename
+
+categories:
+  code_symbols:         { action: manual_review }          # only command-skill name/path producers change; legacy constant kept for migration/doctor
+  import_paths:         { action: do_not_change }          # no module is renamed
+  filesystem_paths:     { action: manual_review }          # .agents/skills/spec-kitty.<cmd>/ changes; spec-kitty.<cmd>.md slash files do not
+  serialized_keys:      { action: manual_review }          # command-skills manifest keys are rewritten by migration; schema accepts both during transition
+  cli_commands:         { action: rename_if_user_visible } # $spec-kitty./skill: tokens for skill agents rename; /spec-kitty.<cmd> slash invocations stay
+  user_facing_strings:  { action: rename_if_user_visible } # docs/help that name the command SKILL rename; slash-command docs stay
+  tests_fixtures:       { action: manual_review }          # many tests pin the old path on purpose (legacy fixtures for the migration)
+  logs_telemetry:       { action: do_not_change }
+
+exceptions:
+  - path: "src/specify_cli/upgrade/migrations/m_[0-3]_*.py"
+    action: manual_review
+    reason: "Historical migrations: edit only where a dotted command-skill path lookup would make a settled migration misbehave after the rename; never change their recorded behaviour otherwise"
+  - path: "docs/changelog/[123]*"
+    action: do_not_change
+    reason: "Historical release notes are immutable snapshots"
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Other missions' artifacts are historical records (this mission's own files excepted by authorship)"
+  - path: "docs/adr/**"
+    action: manual_review
+    reason: "Accepted ADRs are amended by a new ADR; the amended ADR only gains an 'Amended by' pointer, its body is not rewritten"
