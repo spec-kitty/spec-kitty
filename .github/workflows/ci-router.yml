@@ -881,6 +881,29 @@ jobs:
           uv run --frozen python -m scripts.docs.check_spelling
           uv run --frozen python -m scripts.docs.check_changelog_style
 
+  # Agent Skills conformance (#6475, FR-015 / SC-001): every skill a fresh
+  # `spec-kitty init` writes and every shipped skill (projected for the shared
+  # root) is validated with the reference validator skills-ref (PyPI,
+  # anthropics/agentskills), pinned to one version and run through uvx: CI-only,
+  # never a project dependency. Always-on because its inputs span src/**,
+  # packs/** and the generated output, which no single path group covers. Packs
+  # are synced first because `init` reads them. Runs no pytest.
+  agent-skills:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: agent skills (skills-ref validate, always-on)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen
+          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+          uvx --from skills-ref==0.1.1 agentskills --help
+          uv run --frozen python scripts/ci/validate_agent_skills.py
+
   layer-rules:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: layer rules / import direction (fast, always-on)
@@ -1403,6 +1426,7 @@ jobs:
       - regen-check
       - terminology
       - docs-lint
+      - agent-skills
       - layer-rules
       - archive-freeze
       - architectural-fast

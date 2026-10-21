@@ -378,6 +378,7 @@ def test_router_always_on_lanes_are_unaffected_by_a_skip() -> None:
         "regen-check",
         "terminology",
         "docs-lint",
+        "agent-skills",
         "layer-rules",
         "archive-freeze",
         "architectural-fast",

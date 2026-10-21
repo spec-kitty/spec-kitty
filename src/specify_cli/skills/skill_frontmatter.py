@@ -86,6 +86,11 @@ _RE_FRONTMATTER_BLOCK = re.compile(r"\A---\n(?P<inner>.*?\n)?---(?=\n|\Z)", re.D
 _RE_TOP_LEVEL_KEY = re.compile(r"^(?P<key>[^\s#\-][^:]*?)\s*:(?:\s|$)")
 # Characters that force quoting in a YAML bare scalar.
 _YAML_UNSAFE_RE = re.compile(r'[:#\[\]{},&*?|<>=!%@`"\'\n\r\t]')
+# Characters YAML cannot carry raw: C0 controls other than tab/LF/CR, DEL and the C1
+# block, the YAML-only line breaks (NEL U+0085, LS U+2028, PS U+2029), surrogates and
+# the two non-characters. JSON leaves all but the C0 block unescaped, so they are
+# escaped as ``\uXXXX`` (a valid YAML double-quoted escape) on top of ``json.dumps``.
+_YAML_NON_PRINTABLE_RE = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u2028\u2029\ud800-\udfff\ufffe\uffff]")
 # A bare key that needs no quoting.
 _SAFE_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 # YAML 1.1 boolean/null keywords that must not appear as bare scalars.
@@ -130,7 +135,7 @@ def root_of_installed_path(installed_path: str, skill_name: str, source_file: st
 
 def _is_safe_bare_scalar(text: str) -> bool:
     """Return True if *text* can be emitted as an unquoted YAML scalar."""
-    if not text or text != text.strip() or text in _YAML_KEYWORDS or _YAML_UNSAFE_RE.search(text):
+    if not text or text != text.strip() or text in _YAML_KEYWORDS or _YAML_UNSAFE_RE.search(text) or _YAML_NON_PRINTABLE_RE.search(text):
         return False
     # Guard against strings that look like numbers or start with YAML sigils.
     return text[0] not in "-+.0123456789"
@@ -140,7 +145,8 @@ def yaml_scalar(value: object) -> str:
     """Emit a YAML scalar that is safe, unquoted when possible, and stable.
 
     Booleans are lowercase ``true`` / ``false``; numbers are bare; a safe string
-    is bare; everything else is double-quoted with ``"`` and ``\\`` escaped.
+    is bare; everything else is double-quoted through :func:`_double_quoted`, so a
+    line break or control character is escaped rather than emitted raw.
     """
     if isinstance(value, bool):
         return _TRUE if value else _FALSE
@@ -149,12 +155,22 @@ def yaml_scalar(value: object) -> str:
     text = str(value)
     if _is_safe_bare_scalar(text):
         return text
-    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    return _double_quoted(text)
+
+
+def _double_quoted(text: str) -> str:
+    """*text* as a YAML double-quoted scalar that parses back to exactly *text*.
+
+    ``json.dumps`` escapes ``"``, ``\\`` and the C0 controls (``\\n``, ``\\t``, ...);
+    the characters YAML treats as line breaks or cannot carry raw but JSON leaves
+    alone are escaped on top (:data:`_YAML_NON_PRINTABLE_RE`).
+    """
+    quoted = json.dumps(text, ensure_ascii=False)
+    return _YAML_NON_PRINTABLE_RE.sub(lambda match: f"\\u{ord(match.group()):04x}", quoted)
 
 
 def _key(key: str) -> str:
-    return key if _SAFE_KEY_RE.fullmatch(key) else json.dumps(key, ensure_ascii=False)
+    return key if _SAFE_KEY_RE.fullmatch(key) else _double_quoted(key)
 
 
 def _metadata_string(value: object) -> str:
@@ -173,7 +189,7 @@ def _metadata_string(value: object) -> str:
 def _metadata_lines(entries: Mapping[str, object]) -> list[str]:
     """A block-style ``metadata:`` mapping whose values are double-quoted strings."""
     lines = [f"{_METADATA}:"]
-    lines.extend(f"{_INDENT}{_key(key)}: {json.dumps(_metadata_string(value), ensure_ascii=False)}" for key, value in entries.items())
+    lines.extend(f"{_INDENT}{_key(key)}: {_double_quoted(_metadata_string(value))}" for key, value in entries.items())
     return lines
 
 
@@ -385,11 +401,12 @@ def _flow_style_errors(inner: str) -> list[str]:
     return [f"Flow-style YAML is not allowed: {line.strip()}" for line in inner.splitlines() if flow.match(line)]
 
 
-def _frontmatter_errors(data: dict[str, Any], skill_dir: Path) -> list[str]:
+def _frontmatter_errors(data: dict[str, Any], skill_dir: Path, *, native: bool) -> list[str]:
     errors = []
-    extra = sorted(str(key) for key in data if key not in ALLOWED_FIELDS)
+    allowed = ALLOWED_FIELDS.union(NATIVE_ONLY_FIELDS) if native else ALLOWED_FIELDS
+    extra = sorted(str(key) for key in data if key not in allowed)
     if extra:
-        errors.append(f"Unexpected fields in frontmatter: {', '.join(extra)}. Only {sorted(ALLOWED_FIELDS)} are allowed.")
+        errors.append(f"Unexpected fields in frontmatter: {', '.join(extra)}. Only {sorted(allowed)} are allowed.")
     errors.extend(_name_errors(data.get("name"), skill_dir) if "name" in data else ["Missing required field in frontmatter: name"])
     if "description" in data:
         errors.extend(_length_error("description", data["description"], MAX_SKILL_DESCRIPTION_LENGTH))
@@ -402,12 +419,19 @@ def _frontmatter_errors(data: dict[str, Any], skill_dir: Path) -> list[str]:
     return errors
 
 
-def validate_skill_frontmatter(skill_dir: Path) -> list[str]:
-    """Return the specification violations of ``skill_dir/SKILL.md`` (empty when valid)."""
+def validate_skill_frontmatter(skill_dir: Path, *, native: bool = False) -> list[str]:
+    """Return the specification violations of ``skill_dir/SKILL.md`` (empty when valid).
+
+    ``native=True`` is the native-root allowance (FR-013): the Claude-style keys in
+    :data:`NATIVE_ONLY_FIELDS` may stand at the top level; every other rule is the
+    same. CRLF and lone CR line endings are normalised before the fence is matched.
+    """
     skill_md = skill_dir / SKILL_FILENAME
     if not skill_md.is_file():
         return [f"Missing required file: {SKILL_FILENAME}"]
-    content = skill_md.read_text(encoding="utf-8")
+    # Decoded from bytes (no universal-newline translation), so the normalisation
+    # below is the one place line endings are settled.
+    content = normalize_newlines(skill_md.read_bytes().decode("utf-8"))
     match = _RE_FRONTMATTER_BLOCK.match(content)
     if match is None:
         return [f"{SKILL_FILENAME} must start with a closed YAML frontmatter block (---)"]
@@ -418,4 +442,4 @@ def validate_skill_frontmatter(skill_dir: Path) -> list[str]:
         return [f"Invalid YAML in frontmatter: {exc}"]
     if not isinstance(data, dict):
         return [f"{SKILL_FILENAME} frontmatter must be a YAML mapping"]
-    return _flow_style_errors(inner) + _frontmatter_errors(data, skill_dir)
+    return _flow_style_errors(inner) + _frontmatter_errors(data, skill_dir, native=native)
