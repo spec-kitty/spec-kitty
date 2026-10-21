@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01M5EEJ9RP8DET66VKDJXMCD8C",
-  "materialized_at": "2026-10-21T05:22:26.039119+00:00",
+  "event_count": 43,
+  "last_event_id": "01M5EHV5M994D3P1A80JXA5ZDE",
+  "materialized_at": "2026-10-21T06:19:42.601913+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 5
   },
@@ -154,14 +154,20 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5EEJ9RP8DET66VKDJXMCD8C",
-      "last_transition_at": "2026-10-21T05:22:26.039119+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5EHV5M994D3P1A80JXA5ZDE",
+      "last_transition_at": "2026-10-21T06:19:42.601913+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 23661,
-      "shell_pid_created_at": "1792560129.68"
+      "shell_pid_created_at": "1792560129.68",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
