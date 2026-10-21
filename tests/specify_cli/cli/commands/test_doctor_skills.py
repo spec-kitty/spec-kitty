@@ -570,6 +570,28 @@ def test_skills_still_managed_legacy_entries_need_fix(tmp_path: Path, monkeypatc
     assert _payload(result.output)["legacy"] == [rel]
 
 
+def test_skills_still_managed_legacy_entry_human_output_names_the_fix_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP09 review cycle 1 item 1: a dotted skill the manifest still records is retired by ``--fix``,
+    so the human output names that remedy, never the kept-edits wording."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _write_config(tmp_path, "codex")
+    rel = legacy_command_skill_rel_path("plan")
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_text("old plan\n", encoding="utf-8")
+    entry = manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), ("codex",), "2026-01-01T00:00:00+00:00", "3.2.0")
+    manifest_store.save(tmp_path, manifest_store.SkillsManifest(entries=[entry]))
+
+    result = _invoke(tmp_path, monkeypatch)
+
+    assert result.exit_code == 1
+    text = " ".join(result.output.split())
+    assert f"Legacy dotted command skill (still recorded by Spec Kitty): {rel} — run `spec-kitty doctor skills --fix` to retire it" in text
+    assert "no longer need your edits" not in text
+    assert "_legacy_recorded" not in _payload(_invoke(tmp_path, monkeypatch, "--json").output)
+
+
 def test_skills_unrecorded_exact_legacy_render_needs_fix_and_fix_retires_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Operator ruling 2026-10-21: an unrecorded dotted skill with exactly the legacy bytes is Spec Kitty's,
     so doctor reports it as repairable (exit 1) and ``--fix`` retires it, like a recorded one."""

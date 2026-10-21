@@ -134,6 +134,9 @@ invocation names once, when the rename did something.
   wrong; keeping it is the user's choice.
 - **Dotted skill the manifest still records**, or an unrecorded one that is Spec Kitty's exact
   render: a failure (exit 1) with the remedy `spec-kitty doctor skills --fix`, which retires it.
+  A recorded one is labelled "still recorded by Spec Kitty", whether or not it was edited:
+  `--fix` applies the legacy rule, so an edited copy is kept and released, and is then
+  reported as a kept edited dotted skill.
 - **Collision at a canonical path**: a failure (exit 1). The command skill is not installed
   until the user renames or removes the folder and runs `spec-kitty doctor skills --fix`.
 
