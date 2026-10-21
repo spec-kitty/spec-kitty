@@ -1,8 +1,9 @@
-"""Bootstrap user-global canonical slash commands for all configured agents.
+"""Bootstrap user-global canonical slash commands for the configured agents.
 
-On every CLI startup, ``ensure_global_agent_commands()`` installs all 15
-consumer-facing command files (8 prompt-driven + 7 CLI-driven shims) into the
-user-global agent command roots:
+On every CLI startup, ``ensure_global_agent_commands()`` installs the
+consumer-facing command files (prompt-driven + CLI-driven shims) into the
+user-global command roots of the slash-command agents configured in the
+current project (none outside a project, #6470):
 
     ~/.claude/commands/
     ~/.gemini/commands/
@@ -28,6 +29,7 @@ import sys
 from dataclasses import dataclass, replace
 from importlib.util import find_spec
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN, is_windows
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
@@ -36,6 +38,9 @@ from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
 from specify_cli.tool_surface.operations import ApplyConsent, Disposition, FileState, OperationRoot, OwnerAssessment, OwnershipProof
+
+if TYPE_CHECKING:
+    from specify_cli.runtime.asset_preparation import AssetPreparation
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +90,24 @@ _VERSION_MARKER_HEAD_LINES = 20
 #: proof (temporarily reverting this suffix back to ``.json`` reproduces the
 #: pre-fix ordering hazard and fails that test).
 _FRESHNESS_STAMP_FILENAME = "agent-commands-freshness.lock"
+
+#: Freshness stamp schema (#6470, WP06). Schema 2 records the agent keys
+#: proven healthy at (cli_version, template_source_signature) instead of the
+#: one full-fleet key set, so a scoped call can short-circuit, and it records
+#: that the retired ``~/.agent/workflows`` cleanup ran. A stamp without it
+#: (schema 1, written before this change) reads as absent: the first run on
+#: new code builds once, and that build runs the cleanup.
+_FRESHNESS_SCHEMA = 2
+
+#: The retired Antigravity slash-command row, frozen here for ONE purpose:
+#: re-rendering what the old writer put in ``~/.agent/workflows`` so a file
+#: with no inventory record can be proven ours by byte equality before it is
+#: removed (#6470). Antigravity no longer has an ``AGENT_COMMAND_CONFIG`` row
+#: (it is a command-skill agent), so ``get_global_command_dir("antigravity")``
+#: raises ``KeyError``; nothing else may read this constant.
+_RETIRED_ANTIGRAVITY_KEY = "antigravity"
+_RETIRED_ANTIGRAVITY_ROW: dict[str, str] = {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"}
+_COMMAND_FILE_PREFIX = "spec-kitty."
 
 
 # ---------------------------------------------------------------------------
@@ -391,17 +414,19 @@ def _command_effect_owners(path: Path, roots: dict[str, Path]) -> tuple[str, ...
 
 @dataclass(frozen=True)
 class _FreshnessStamp:
-    """The three SOURCE-side fields ``data-model.md``'s stamp contract names.
+    """The SOURCE-side fields of the schema-2 freshness stamp.
 
-    Deliberately excludes any DESTINATION-side fact (see PLAN-ARCH-001 in
-    ``data-model.md``) -- destination health is verified separately via
-    ``_all_global_agent_commands_healthy()``, the stamp's contract's fourth,
-    independent condition.
+    ``healthy_keys`` names the agents a completed build rendered at this
+    ``cli_version`` and ``template_source_signature``. It is a claim about
+    the source side only (PLAN-ARCH-001 in ``data-model.md``): destination
+    health is still verified separately, for the requested keys, via
+    ``_all_global_agent_commands_healthy()``. Only schema-2 stamps are read,
+    and schema 2 means the retired ``~/.agent/workflows`` cleanup has run.
     """
 
     cli_version: str
     template_source_signature: str
-    agent_keys: tuple[str, ...]
+    healthy_keys: tuple[str, ...]
 
 
 def _rendering_pipeline_signature() -> bytes:
@@ -481,7 +506,10 @@ def _read_freshness_stamp(path: Path) -> _FreshnessStamp | None:
     REQUIRED regardless of filename choice (see the module-level comment on
     ``_FRESHNESS_STAMP_FILENAME``): the very first read of a freshly
     introduced stamp file is also just "absent", handled by the same path.
-    Render/write errors are handled separately and must NOT be caught here.
+    A schema-1 stamp (no ``schema`` field, one ``agent_keys`` list) is such
+    an unrecognised schema: it forces one build, which also runs the retired
+    ``~/.agent/workflows`` cleanup (#6470). Render/write errors are handled
+    separately and must NOT be caught here.
     """
     try:
         raw = path.read_text(encoding="utf-8")
@@ -491,38 +519,43 @@ def _read_freshness_stamp(path: Path) -> _FreshnessStamp | None:
         payload = json.loads(raw)
     except ValueError:
         return None
-    if not isinstance(payload, dict):
+    if not isinstance(payload, dict) or payload.get("schema") != _FRESHNESS_SCHEMA:
         return None
     cli_version = payload.get("cli_version")
     signature = payload.get("template_source_signature")
-    agent_keys = payload.get("agent_keys")
+    healthy_keys = payload.get("healthy_keys")
     if not isinstance(cli_version, str) or not isinstance(signature, str):
         return None
-    if not isinstance(agent_keys, list) or not all(isinstance(key, str) for key in agent_keys):
+    if not isinstance(healthy_keys, list) or not all(isinstance(key, str) for key in healthy_keys):
         return None
-    return _FreshnessStamp(cli_version, signature, tuple(agent_keys))
+    return _FreshnessStamp(cli_version, signature, tuple(healthy_keys))
 
 
 def _freshness_stamp_matches(stamp: _FreshnessStamp | None, *, cli_version: str, template_source_signature: str, agent_keys: tuple[str, ...]) -> bool:
-    """Return True when *stamp*'s three source-side fields all match current state.
+    """Return True when *stamp* matches current sources and covers every requested key.
 
-    All three conditions are required (data-model.md's four-condition
-    contract, conditions 1-3); the fourth, destination-health condition is
-    checked separately by the caller so this function stays pure/testable.
+    Conditions 1-3 of data-model.md's four-condition contract, with the key
+    condition widened from equality to coverage (#6470, WP06): a scoped call
+    is fresh when each of its *agent_keys* is among the stamp's
+    ``healthy_keys``. An empty request is covered by any matching stamp.
+    The fourth, destination-health condition is checked separately by the
+    caller so this function stays pure/testable.
     """
     return (
-        stamp is not None and stamp.cli_version == cli_version and stamp.template_source_signature == template_source_signature and stamp.agent_keys == agent_keys
+        stamp is not None
+        and stamp.cli_version == cli_version
+        and stamp.template_source_signature == template_source_signature
+        and set(agent_keys) <= set(stamp.healthy_keys)
     )
 
 
 def _freshness_short_circuit(
-    agent_keys: list[str] | None,
     batch: _GlobalAssetPreparation | None,
     home: Path,
     root: OperationRoot,
     templates_dir: Path | None,
     consent: ApplyConsent,
-    current_agent_keys: tuple[str, ...],
+    requested_keys: tuple[str, ...],
 ) -> OwnerAssessment | None:
     """Return the short-circuit assessment when fresh+healthy; else ``None``.
 
@@ -535,11 +568,15 @@ def _freshness_short_circuit(
     constructing an ``AssetPreparation`` -- see
     ``assess_global_agent_commands``'s docstring for the SK-243 rationale.
 
-    Only applies to the full-fleet, non-batched call shape (``agent_keys is
-    None`` and ``batch is None``) -- every other shape returns ``None``
-    unconditionally, deferring to the render path exactly as before this WP.
+    The caller decides eligibility (``assess_global_agent_commands``: a
+    full-fleet call or one that opts in); *requested_keys* is the resolved
+    key set, full-fleet or scoped. A batched call
+    (``batch is not None``) returns ``None`` unconditionally, deferring to
+    the render path exactly as before. Destination health is checked for the
+    requested keys only; the retired ``~/.agent/workflows`` folder is never
+    looked at here (a schema-2 stamp records that its cleanup already ran).
     """
-    if agent_keys is not None or batch is not None:
+    if batch is not None:
         return None
     resolved_templates_dir = _get_command_templates_dir() if templates_dir is None else templates_dir
     cli_version = _get_cli_version()
@@ -548,15 +585,175 @@ def _freshness_short_circuit(
     except OSError:
         return None
     stamp = _read_freshness_stamp(home / "cache" / _FRESHNESS_STAMP_FILENAME)
-    if not _freshness_stamp_matches(stamp, cli_version=cli_version, template_source_signature=signature, agent_keys=current_agent_keys):
+    if not _freshness_stamp_matches(stamp, cli_version=cli_version, template_source_signature=signature, agent_keys=requested_keys):
         return None
     try:
-        healthy = _all_global_agent_commands_healthy(resolved_templates_dir, cli_version, list(current_agent_keys))
+        healthy = _all_global_agent_commands_healthy(resolved_templates_dir, cli_version, list(requested_keys))
     except OSError:
         return None
     if not healthy:
         return None
     return OwnerAssessment("slash_commands", root, consent=consent)
+
+
+def _stamp_payload(home: Path, templates: Path, built_keys: tuple[str, ...]) -> bytes:
+    """Return the schema-2 stamp bytes a successful build of *built_keys* certifies.
+
+    Prior ``healthy_keys`` are kept when the prior stamp names the same
+    ``cli_version`` and signature (a scoped build adds to the fleet another
+    scope already proved); otherwise only *built_keys* are claimed.
+    """
+    cli_version = _get_cli_version()
+    signature = _template_source_signature(templates)
+    prior = _read_freshness_stamp(home / "cache" / _FRESHNESS_STAMP_FILENAME)
+    healthy = set(built_keys)
+    if prior is not None and prior.cli_version == cli_version and prior.template_source_signature == signature:
+        healthy.update(prior.healthy_keys)
+    return json.dumps(
+        {
+            "schema": _FRESHNESS_SCHEMA,
+            "cli_version": cli_version,
+            "template_source_signature": signature,
+            "healthy_keys": sorted(healthy),
+            "retired_surfaces_cleaned": True,
+        },
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Retired ``~/.agent/workflows`` cleanup (#6470, WP06)
+# ---------------------------------------------------------------------------
+
+
+def _retired_workflows_dir() -> Path:
+    """Return the retired Antigravity global workflows folder (hard-coded, never via the config row)."""
+    return Path.home() / _RETIRED_ANTIGRAVITY_ROW["dir"]
+
+
+def _is_real_directory_below_home(path: Path) -> bool:
+    """Return True when every component of *path* below the home folder is a real directory.
+
+    A symlink anywhere below home (``~/.agent`` or ``~/.agent/workflows``),
+    a non-directory, or an absent component returns False: the cleanup is
+    refused, so it can never follow a link out of the home folder.
+    """
+    current = Path.home()
+    for part in path.relative_to(current).parts:
+        current = current / part
+        if current.is_symlink() or not current.is_dir():
+            return False
+    return True
+
+
+def _with_agent_upgrade_check(rendered: str) -> str:
+    """Re-insert the agent upgrade-check block the old Antigravity render carried.
+
+    ``render_command_template`` prepends that block only for agents with an
+    ``AGENT_COMMAND_CONFIG`` row, which Antigravity no longer has. The old
+    writer's Markdown output was frontmatter, marker line, blank line, body, the
+    body starting with the block, so it is re-applied to the text after the
+    first marker line and its blank separator.
+    """
+    from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
+
+    match = re.search(r"(?m)^<!-- spec-kitty-command-version: [^\n]+ -->\n\n", rendered)
+    if match is None:
+        return rendered
+    # Typed pin: ``specify_cli.*`` is ``follow_imports = "skip"``, so the helper reads as ``Any``.
+    body: str = prepend_agent_upgrade_check(rendered[match.end() :])
+    return rendered[: match.end()] + body
+
+
+def _retired_antigravity_command_bytes(command: str, templates: Path, script_type: str) -> bytes | None:
+    """Return what the old writer rendered into ``~/.agent/workflows`` for *command* at this version.
+
+    ``None`` for a name that is not a current command (it cannot be proven
+    by a current render and is kept).
+    """
+    from specify_cli.shims.generator import generate_shim_content
+    from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+    from specify_cli.template.asset_generator import render_command_template
+
+    row = _RETIRED_ANTIGRAVITY_ROW
+    if command in PROMPT_DRIVEN_COMMANDS:
+        rendered = render_command_template(
+            template_path=templates / command / "prompt.md",
+            script_type=script_type,
+            agent_key=_RETIRED_ANTIGRAVITY_KEY,
+            arg_format=row["arg_format"],
+            extension=row["ext"],
+        )
+        return _with_agent_upgrade_check(rendered).encode("utf-8")
+    if command in CLI_DRIVEN_COMMANDS:
+        shim: str = generate_shim_content(command, _RETIRED_ANTIGRAVITY_KEY, row["arg_format"])
+        return shim.encode("utf-8")
+    return None
+
+
+def _retire_antigravity_workflows(prepared: AssetPreparation, templates: Path, script_type: str) -> None:
+    """Stage removal of Spec Kitty's own ``spec-kitty.*.md`` files in ``~/.agent/workflows``.
+
+    Proof is one of two, never a name or a marker alone (plan A-M8):
+
+    * an inventory record (``prepared.retire``, which also keeps an edited
+      recorded file), or
+    * for a file with no record, the exact CURRENT-version marker line AND
+      byte equality with a render from the frozen retired row. A marker
+      naming another version is never deletion proof (R-M5): the
+      ``_is_canonical_predecessor`` different-version branch is for in-place
+      upgrades, not removal.
+
+    Other files and the folder itself are never touched; a symlinked or
+    non-directory component refuses the whole cleanup.
+    """
+    workflows = _retired_workflows_dir()
+    if not _is_real_directory_below_home(workflows):
+        return
+    if prepared.observe(workflows, members=True, role="destination_probe").kind != "directory":
+        return
+    cli_version = _get_cli_version()
+    suffix = "." + _RETIRED_ANTIGRAVITY_ROW["ext"]
+    for name in sorted(child.name for child in workflows.iterdir()):
+        if not (name.startswith(_COMMAND_FILE_PREFIX) and name.endswith(suffix)):
+            continue
+        child = workflows / name
+        if child.relative_to(prepared.root.path).as_posix() in prepared.previous:
+            prepared.retire(child)
+            continue
+        if prepared.observe(child, role="destination_probe").kind != "file" or not _file_has_current_version_marker(child, cli_version):
+            continue
+        canonical = _retired_antigravity_command_bytes(name[len(_COMMAND_FILE_PREFIX) : -len(suffix)], templates, script_type)
+        if canonical is not None:
+            prepared.retire_canonical(child, canonical, "retired-antigravity-render")
+
+
+# ---------------------------------------------------------------------------
+# Startup scope (#6470, #3048 context)
+# ---------------------------------------------------------------------------
+
+
+def _project_slash_agent_scope() -> list[str]:
+    """Return the slash-command agents configured in the project at the working directory.
+
+    Outside a project, without ``.kittify/config.yaml``, or with an
+    unreadable config, the scope is empty: nothing is written. An empty list
+    never means "all agents".
+    """
+    from specify_cli.core.paths import locate_project_root
+
+    project_root = locate_project_root()
+    if project_root is None or not (project_root / ".kittify" / "config.yaml").is_file():
+        return []
+    from specify_cli.core.agent_config import AgentConfigError, get_configured_agents
+    from specify_cli.core.config import configured_slash_agents
+
+    try:
+        configured = get_configured_agents(project_root)
+    except AgentConfigError as exc:
+        logger.debug("global command scope: unreadable agent config, writing none: %s", exc)
+        return []
+    return list(configured_slash_agents(configured))
 
 
 def assess_global_agent_commands(
@@ -566,23 +763,32 @@ def assess_global_agent_commands(
     templates_dir: Path | None = None,
     script_type: str | None = None,
     _batch: _GlobalAssetPreparation | None = None,
+    _short_circuit: bool = False,
 ) -> OwnerAssessment:
     """Read/render the entire selected agent bundle without installing sources.
 
-    A scoped call never updates the all-agent stamp. Unknown prefixed paths
+    ``agent_keys=None`` selects every slash-command agent; a list (including
+    an empty one, which selects none) selects exactly those agents. A scoped
+    call never updates the all-agent version stamp. Unknown prefixed paths
     and edited generated files are preserved, independent of marker freshness;
     a managed marker naming a *different* CLI version proves canonical
     provenance and migrates in place even when the content changed between
     releases (#4609). Canonical command files that still cannot be migrated
     are never silent: one warning names them.
 
-    **Freshness pre-check (Lever C primary, operator Ruling 6).** For the
-    full-fleet, non-batched call shape (``agent_keys=None``, ``_batch=None``
-    -- exactly what ``ensure_global_agent_commands()`` calls on every
-    non-fast-pathed CLI startup), this reads a small on-disk stamp and,
-    only when ALL of (cli_version, template_source_signature, agent_keys)
-    match AND every configured agent's rendered destination is independently
-    verified healthy, returns immediately with an empty assessment -- no
+    Every build also stages removal of Spec Kitty's own files from the
+    retired ``~/.agent/workflows`` folder (``_retire_antigravity_workflows``,
+    #6470) and writes the schema-2 freshness stamp for the keys it built.
+
+    **Freshness pre-check (Lever C primary, operator Ruling 6).** For a
+    non-batched call (``_batch=None``) that is either full-fleet
+    (``agent_keys=None``) or opts in with ``_short_circuit=True`` -- what
+    ``ensure_global_agent_commands()`` passes, scoped or project-scoped, on
+    every non-fast-pathed CLI startup -- this reads a small on-disk stamp and,
+    only when (cli_version, template_source_signature) match, every
+    requested key is among the stamp's ``healthy_keys``, AND every requested
+    agent's rendered destination is independently verified healthy, returns
+    immediately with an empty assessment -- no
     render, no ``AssetPreparation`` construction at all. Both checks run
     strictly before any ``AssetPreparation`` object exists (data-model.md's
     SK-243 immunity property: this path never calls ``observe()`` on an
@@ -591,7 +797,9 @@ def assess_global_agent_commands(
     stamp, a source tree that cannot be walked, an unhealthy destination --
     falls through to the unconditional render-then-diff path below, never to
     a skip; a missed refresh must never be silent (Ruling 6's binding
-    condition).
+    condition). A scoped call that does not opt in always builds: its
+    callers (the tool-surface provider) recheck and apply the returned
+    assessment, which needs the retained preparation a build carries.
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
@@ -601,16 +809,19 @@ def assess_global_agent_commands(
     all_roots = tuple(get_global_command_dir(key) for key in AGENT_COMMAND_CONFIG)
     root = global_asset_root("slash_commands", (home, *all_roots))
 
-    short_circuit = _freshness_short_circuit(agent_keys, _batch, home, root, templates_dir, consent, tuple(sorted(AGENT_COMMAND_CONFIG)))
+    requested_keys = tuple(sorted(set(AGENT_COMMAND_CONFIG if agent_keys is None else agent_keys)))
+    eligible = agent_keys is None or _short_circuit
+    short_circuit = _freshness_short_circuit(_batch, home, root, templates_dir, consent, requested_keys) if eligible else None
     if short_circuit is not None:
         return short_circuit
 
     def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
-        keys = tuple(sorted(set(AGENT_COMMAND_CONFIG if agent_keys is None else agent_keys)))
+        keys = requested_keys
         selected_roots: dict[str, Path] = {}
         canonical_names: set[str] = set()
         templates = _get_command_templates_dir() if templates_dir is None else templates_dir
+        resolved_script_type = _resolve_script_type() if script_type is None else script_type
         prepared.observe(templates, members=True)
         for command in sorted(PROMPT_DRIVEN_COMMANDS):
             prepared.source(templates / command / "prompt.md")
@@ -632,7 +843,7 @@ def assess_global_agent_commands(
             if state.kind not in {"directory", "absent"}:
                 prepared.preserve(output, "Unproven command directory replacement")
                 continue
-            rendered = _render_agent_commands(key, templates, _resolve_script_type() if script_type is None else script_type)
+            rendered = _render_agent_commands(key, templates, resolved_script_type)
             canonical = {name for name, _content in rendered}
             canonical_names.update(canonical)
             for name, content in rendered:
@@ -662,53 +873,51 @@ def assess_global_agent_commands(
                 for existing in output.iterdir():
                     if existing.name not in canonical:
                         prepared.retire(existing)
-        if agent_keys is None:
-            # Written into the SAME AssetPreparation batch as the rendered
-            # command files above, staged, locked and applied atomically
-            # together with the render it describes (data-model.md's "write
-            # only after a full, successful render-and-apply cycle
-            # completes" contract): a partial/failed run never reaches here
-            # with a *different* set of effects than what actually gets
-            # applied, and a torn write cannot poison the stamp into
-            # claiming freshness the destination files don't back up.
-            #
-            # Deliberately ``prepared.overwrite_internal()`` (the public
-            # counterpart of the same primitive ``finish()`` uses for
-            # ``_VERSION_FILENAME`` below -- PR-BOUNDARY-001), NEVER
-            # ``prepared.asset()``: ``asset()``'s drift-preservation logic
-            # is correct for USER-facing command files (never clobber an
-            # edit it cannot prove is unowned) but wrong for this internal
-            # cache-only bookkeeping file -- a hand-corrupted or torn-write
-            # stamp is never "owned" by the prior inventory entry, so
-            # ``asset()`` would PRESERVE it forever (a verified failure mode:
-            # every subsequent read stays malformed, degrading this whole
-            # mechanism back to "always slow" permanently instead of
-            # self-healing on the very next successful render, contradicting
-            # data-model.md's explicit "overwrite with a fresh,
-            # correctly-shaped stamp on success" requirement).
-            freshness_path = home / "cache" / _FRESHNESS_STAMP_FILENAME
-            prepared.parents(freshness_path)
-            freshness_payload = json.dumps(
-                {
-                    "cli_version": _get_cli_version(),
-                    "template_source_signature": _template_source_signature(templates),
-                    "agent_keys": list(keys),
-                },
-                sort_keys=True,
-            ).encode("utf-8")
-            prepared.overwrite_internal(
-                freshness_path,
-                FileState("file", sha256=digest(freshness_payload), mode=0o644),
-                freshness_payload,
-                OwnershipProof("managed_path", f"{prepared.owner}:freshness-stamp"),
-            )
+        _retire_antigravity_workflows(prepared, templates, resolved_script_type)
+        # Written into the SAME AssetPreparation batch as the rendered
+        # command files above, staged, locked and applied atomically
+        # together with the render it describes (data-model.md's "write
+        # only after a full, successful render-and-apply cycle
+        # completes" contract): a partial/failed run never reaches here
+        # with a *different* set of effects than what actually gets
+        # applied, and a torn write cannot poison the stamp into
+        # claiming freshness the destination files don't back up.
+        #
+        # Deliberately ``prepared.overwrite_internal()`` (the public
+        # counterpart of the same primitive ``finish()`` uses for
+        # ``_VERSION_FILENAME`` below -- PR-BOUNDARY-001), NEVER
+        # ``prepared.asset()``: ``asset()``'s drift-preservation logic
+        # is correct for USER-facing command files (never clobber an
+        # edit it cannot prove is unowned) but wrong for this internal
+        # cache-only bookkeeping file -- a hand-corrupted or torn-write
+        # stamp is never "owned" by the prior inventory entry, so
+        # ``asset()`` would PRESERVE it forever (a verified failure mode:
+        # every subsequent read stays malformed, degrading this whole
+        # mechanism back to "always slow" permanently instead of
+        # self-healing on the very next successful render, contradicting
+        # data-model.md's explicit "overwrite with a fresh,
+        # correctly-shaped stamp on success" requirement).
+        freshness_path = home / "cache" / _FRESHNESS_STAMP_FILENAME
+        prepared.parents(freshness_path)
+        freshness_payload = _stamp_payload(home, templates, keys)
+        prepared.overwrite_internal(
+            freshness_path,
+            FileState("file", sha256=digest(freshness_payload), mode=0o644),
+            freshness_payload,
+            OwnershipProof("managed_path", f"{prepared.owner}:freshness-stamp"),
+        )
         stamp = home / "cache" / _VERSION_FILENAME if agent_keys is None else None
         assessment = prepared.finish(stamp, _get_cli_version())
-        assessment = replace(
-            assessment,
-            effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
-        )
-        _warn_unmigrated_commands(assessment.dispositions, canonical_names)
+        if selected_roots:
+            # With no agent selected (a project-scoped startup outside a
+            # project) the effects keep the owner itself as logical owner:
+            # an empty owner tuple is not a valid effect.
+            assessment = replace(
+                assessment,
+                effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
+            )
+        retired_prefix = _retired_workflows_dir().relative_to(root.path).as_posix() + "/"
+        _warn_unmigrated_commands(tuple(d for d in assessment.dispositions if not (d.path or "").startswith(retired_prefix)), canonical_names)
         return prepared, assessment
 
     try:
@@ -782,8 +991,15 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
 
 
 def ensure_global_agent_commands(*, agent_keys: list[str] | None = None) -> None:
-    """Ensure actual global command health, retaining unchanged bytes and mtimes."""
+    """Ensure actual global command health, retaining unchanged bytes and mtimes.
+
+    Without *agent_keys* (the CLI startup call) the scope is the slash-command
+    agents configured in the project at the working directory, and none
+    outside a project (#6470, #3048 context): an unconfigured agent's home
+    folder is never written. Pass *agent_keys* to name the agents explicitly.
+    """
+    keys = _project_slash_agent_scope() if agent_keys is None else agent_keys
     _apply_command_assessment(
-        assess_global_agent_commands(agent_keys=agent_keys),
-        rebuild=lambda: assess_global_agent_commands(agent_keys=agent_keys),
+        assess_global_agent_commands(agent_keys=keys, _short_circuit=True),
+        rebuild=lambda: assess_global_agent_commands(agent_keys=keys),
     )

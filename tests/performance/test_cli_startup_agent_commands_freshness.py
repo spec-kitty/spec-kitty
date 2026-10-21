@@ -67,7 +67,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # surfaces by #6164), so it pays
 # `ensure_global_agent_commands()`'s cost exactly like every ordinary
 # command. Cheap and side-effect-light: `context list --json` only reads
-# workspace-context state and never mutates the project.
+# workspace-context state and never mutates the project. Since WP06 (#6470)
+# that startup call is scoped to the working directory's project, so from
+# this test's project-less cwd it selects no agent: the warm path measured
+# here is the schema-2 stamp read plus the template signature, with no
+# destination health check (recorded base vs head in the mission's
+# traces/approach.md).
 _LEAF_COMMAND: tuple[str, ...] = ("context", "list", "--json")
 
 

@@ -418,6 +418,23 @@ class AssetPreparation:
         self.entries.pop(relative, None)
         return True
 
+    def retire_canonical(self, path: Path, canonical: bytes, reference: str) -> bool:
+        """Remove a regular file proven by byte equality with *canonical*; never anything else.
+
+        The proof for a retired file that no inventory entry records (it was
+        written before the inventory existed): its bytes are exactly what this
+        owner renders for it. A symlink, a directory, an absent node or any
+        other bytes is left in place with no effect and no disposition. The
+        caller owns the decision that *canonical* is a faithful render.
+        """
+        before = self.observe(path, role="destination_probe")
+        if before.kind != "file" or before.sha256 != digest(canonical):
+            return False
+        relative = path.relative_to(self.root.path).as_posix()
+        self._effect(path, FileState("absent"), None, OwnershipProof("canonical_content", f"{self.owner}:{relative}:{reference}"))
+        self.entries.pop(relative, None)
+        return True
+
     def prune_missing(self, destination: Path) -> None:
         """Inspect recorded descendants absent from this complete source tree."""
         if self._prune_candidates is None:

@@ -233,7 +233,12 @@ def test_current_version_lock_does_not_mask_partial_global_commands(
             encoding="utf-8",
         )
 
-    ensure_global_agent_commands()
+    # WP06 (#6470) re-pin: the all-agent version lock is a full-fleet
+    # contract, and the no-argument ensure_global_agent_commands() is now
+    # scoped to the working directory's project; drive the full-fleet call.
+    from specify_cli.runtime.agent_commands import _apply_command_assessment, assess_global_agent_commands
+
+    _apply_command_assessment(assess_global_agent_commands(), rebuild=assess_global_agent_commands)
 
     actual = sorted(path.name for path in claude_commands.glob("spec-kitty.*.md"))
     assert actual == [
@@ -274,8 +279,11 @@ def test_partial_global_command_sync_does_not_write_current_lock(
     monkeypatch.delenv("OPENCODE_CONFIG_DIR", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
 
+    # WP06 (#6470) re-pin: name the agent; the no-argument call now reads
+    # the working directory's project config.
     with pytest.raises(RuntimeError):
-        ensure_global_agent_commands()
+        ensure_global_agent_commands(agent_keys=["claude"])
 
     assert not (kittify_home / "cache" / "agent-commands.lock").exists()
+    assert not (kittify_home / "cache" / "agent-commands-freshness.lock").exists()
     assert not (home / ".claude/commands").exists()

@@ -1,4 +1,4 @@
-"""Red-first P0 repro for #6470: Antigravity gets command skills, not workflows.
+"""Regression guard for #6470 (formerly its red-first P0 repro): Antigravity gets command skills, not workflows.
 
 ``spec-kitty init --ai antigravity`` must install the command skills under
 ``.agents/skills/spec-kitty-<command>/`` and must not write
@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app as root_app
 
-pytestmark = [pytest.mark.integration, pytest.mark.slow, pytest.mark.p0_repro(issue=6470)]
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 _COMMANDS = (
     "accept",
