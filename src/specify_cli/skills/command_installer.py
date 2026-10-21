@@ -74,6 +74,7 @@ from specify_cli.skills.command_skill_names import (
     parse_command_skill_rel_path,
     parse_legacy_command_skill_rel_path,
 )
+from specify_cli.skills.skill_frontmatter import command_skill_fields, project_for_root, render_frontmatter
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
 from kernel.no_follow import chmod_fd
@@ -432,7 +433,7 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
         "prints.\n"
     )
     body = prepend_agent_upgrade_check(body)
-    frontmatter = f"---\nname: {command_skill_name(command)}\ndescription: {description}\nuser-invocable: true\n---\n"
+    frontmatter = render_frontmatter(command_skill_fields(command_skill_name(command), description)) + "\n"
     skill_md = frontmatter + (body if body.startswith("\n") else "\n" + body)
     return skill_md.encode("utf-8")
 
@@ -445,11 +446,13 @@ def legacy_rendering(content: bytes, command: str) -> bytes:
     """Reconstruct *content* (today's render of *command*) as a release before #6475 wrote it.
 
     Before the rename the frontmatter ``name`` and every invocation token used the dotted
-    ``spec-kitty.<command>`` form (A-M1). Restoring the name, reversing the invocation rewrite
+    ``spec-kitty.<command>`` form (A-M1), and ``user-invocable`` was a top-level key (the
+    native projection of today's spec-only frontmatter, FR-013). Restoring those, reversing the invocation rewrite
     and the User Input block example yields the bytes that release would write from today's
     templates, so an unedited legacy file whose recorded hash went stale is still proven ours.
     """
-    text = content.decode("utf-8")
+    # Releases before #6475 wrote ``user-invocable: true`` at the top level: the native projection.
+    text = project_for_root(content.decode("utf-8"), shared=False, skill_name=command_skill_name(command))
     text = text.replace(f"name: {command_skill_name(command)}\n", f"name: {legacy_command_skill_name(command)}\n", 1)
     text = _HYPHEN_TOKEN.sub(lambda m: f"{m['sigil']}{legacy_command_skill_name(m['name'].removeprefix(COMMAND_SKILL_PREFIX))}", text)
     return text.replace(*_USER_INPUT_TOKENS).encode("utf-8")

@@ -30,7 +30,7 @@ from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.catalog import resolve_project_skill_catalog
-from specify_cli.skills.command_renderer import ensure_skill_frontmatter
+from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -701,8 +701,9 @@ def _expected_project_entries(
                 relative = source.relative_to(skill.skill_dir).as_posix()
                 path = (Path(root) / skill.name / relative).as_posix()
                 source_content = source.read_bytes()
-                if relative == "SKILL.md":
-                    source_content = ensure_skill_frontmatter(source_content.decode("utf-8"), skill.name).encode("utf-8")
+                if relative == SKILL_FILENAME:
+                    # One byte form per path, keyed on the root, never the agent (A-M3).
+                    source_content = project_skill_bytes(source_content, shared=is_shared_root(root), skill_name=skill.name)
                 state = _skill_bytes_state(source_content, stat.S_IMODE(source.stat().st_mode) & ~0o222)
                 entry = ManagedFileEntry(
                     skill.name,

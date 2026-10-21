@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 
 from charter.activation.skill_preparation import BUILTIN_TARGET_PREFIX, CLI_TARGET_PREFIX, PreparedSkill
+from charter.offering.pack_skills.validation import rendered_description
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.skills.command_skill_names import command_skill_name, legacy_command_skill_name
 
@@ -77,11 +78,7 @@ def _frontmatter(prepared: PreparedSkill) -> str:
 
 
 def _description(prepared: PreparedSkill) -> str:
-    skill = prepared.skill
-    description = " ".join(skill.description.split())
-    if skill.triggers:
-        description = f"{description} Triggers: {', '.join(skill.triggers)}."
-    return description
+    return rendered_description(prepared.skill)
 
 
 def _context_preamble(requires: tuple[str, ...]) -> str:

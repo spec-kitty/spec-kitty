@@ -1,7 +1,8 @@
 ---
 name: spec-kitty-specify
 description: Create a mission specification
-user-invocable: true
+metadata:
+  user-invocable: "true"
 ---
 ## Startup Upgrade Check
 

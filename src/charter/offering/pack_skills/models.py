@@ -35,6 +35,14 @@ SKILL_NAMESPACE_PATTERN = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 
 #: Longest accepted namespace; ``<namespace>-<id>`` stays far below a 255-byte file name.
 SKILL_NAMESPACE_MAX_LENGTH = 32
+
+#: Longest rendered skill name the Agent Skills specification accepts (skills-ref 0.1.1,
+#: #6475 FR-014). A longer ``<namespace>-<id>`` is refused, never truncated. Charter owns the
+#: constant because it may not import ``specify_cli``; the frontmatter authority imports it.
+MAX_SKILL_NAME_LENGTH = 64
+
+#: Longest rendered skill description (after the ``Triggers:`` suffix) the specification accepts.
+MAX_SKILL_DESCRIPTION_LENGTH = 1024
 BUILTIN_TARGET_PREFIX = "builtin:"
 CLI_TARGET_PREFIX = "cli:"
 CLI_ALLOWED_PROGRAM = "spec-kitty"
@@ -175,6 +183,8 @@ class PackSkill(BaseModel):
 
 
 __all__ = [
+    "MAX_SKILL_DESCRIPTION_LENGTH",
+    "MAX_SKILL_NAME_LENGTH",
     "PackSkill",
     "SkillExpansion",
     "SkillInvocation",

@@ -16,7 +16,7 @@ from specify_cli.skills.paths import get_primary_global_skill_root as get_primar
 from specify_cli.skills.paths import skill_path_observations
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.skills.command_renderer import ensure_skill_frontmatter
+from specify_cli.skills.skill_frontmatter import is_shared_root, project_skill_bytes, root_of_installed_path
 from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
 
 logger = logging.getLogger(__name__)
@@ -169,13 +169,16 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
     if source_path is None:
         return None
 
-    return _expected_content_hash(source_path, entry.skill_name, entry.source_file)
+    return _expected_content_hash(source_path, entry.skill_name, entry.source_file, installed_path=entry.installed_path)
 
 
-def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:
-    """Return the hash that install/repair should produce for a source file."""
+def _expected_content_hash(source: Path, skill_name: str, source_file: str, *, installed_path: str) -> str:
+    """Return the hash that install/repair should produce for a source file at *installed_path*.
+
+    ``SKILL.md`` goes through the same per-root projection the installer applies
+    (plan A-M2): the root is read from the entry's installed path, never its agent.
+    """
     if source_file != SKILL_MANIFEST_FILENAME:
         return compute_content_hash(source)
-    content = source.read_text(encoding="utf-8")
-    normalized = ensure_skill_frontmatter(content, skill_name).encode("utf-8")
-    return sha256_digest(normalized)
+    root = root_of_installed_path(installed_path, skill_name, source_file)
+    return sha256_digest(project_skill_bytes(source.read_bytes(), shared=is_shared_root(root), skill_name=skill_name))

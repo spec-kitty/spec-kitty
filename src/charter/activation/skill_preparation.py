@@ -36,7 +36,7 @@ from charter.offering.pack_skills.models import (
     SkillExpansion,
     skill_namespace_violation,
 )
-from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name
+from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name, skill_limit_violation
 
 __all__ = [
     # Wrapper-target prefixes, re-exported so specify_cli reaches them through
@@ -121,7 +121,8 @@ def _prepare_skill_activations(
     an activated id is not loadable from any pack tier (*load_problems* carries
     what the loader reported, so the refusal says why), when an org/project
     skill has no namespace to render under, when its rendered name uses a
-    prefix reserved for built-in skills, or when two skills render to the same
+    prefix reserved for built-in skills, when its rendered name or description
+    exceeds the Agent Skills limits, or when two skills render to the same
     name.
     """
     prepared = [_prepare_one(source, skill_id, graph, org_namespace, project_namespace, load_problems) for skill_id in sorted(set(activated_ids))]
@@ -144,6 +145,10 @@ def _prepare_one(
         raise SkillPreparationError(f"activated skill {skill_id!r} is not available in any pack tier{reasons}")
     tier = _tier(source.provenance_of(skill_id), skill_id)
     name = _name_for(skill_id, tier, org_namespace, project_namespace)
+    # The effective (possibly enhanced) record under its tier's namespace (FR-014).
+    limit = skill_limit_violation(skill, name)
+    if limit is not None:
+        raise SkillPreparationError(limit)
     body = source.body_text(skill_id)
     requires = _requires(graph, skill_id)
     return PreparedSkill(

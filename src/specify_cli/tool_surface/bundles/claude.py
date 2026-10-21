@@ -222,7 +222,7 @@ class ClaudeBundleProjector:
         inputs = AssessmentInputs(root, consent=consent)
         try:
             version = get_cli_version()
-            files, commands = command_members(directory / "skills", root)
+            files, commands = command_members(directory / "skills", root, native=True)
             profiles, observations = self._profile_members(directory, root)
             files += profiles
             hooks_path = directory / "hooks/hooks.json"

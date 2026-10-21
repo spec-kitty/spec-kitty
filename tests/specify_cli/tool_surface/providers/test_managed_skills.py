@@ -304,7 +304,7 @@ def test_managed_provisioning_package_three_families_retains_bytes(
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("Apply must not reprepare or rerender")
     monkeypatch.setattr(installer, "prepare_mission_type_activations", forbidden)
-    monkeypatch.setattr(installer, "ensure_skill_frontmatter", forbidden)
+    monkeypatch.setattr(installer, "project_skill_bytes", forbidden)
     monkeypatch.setattr(SkillRegistry, "snapshot_catalog", forbidden)
     provider = ManagedSkillsProvider()
     with provider.preflight_installation(installation, consent) as errors:
