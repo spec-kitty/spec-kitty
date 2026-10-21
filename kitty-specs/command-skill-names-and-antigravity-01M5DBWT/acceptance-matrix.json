@@ -177,11 +177,11 @@
     {
       "criterion_id": "FR-018",
       "description": "Verify FR-018 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "manual_inspection",
+      "evidence": "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md; AGENTS.md/CLAUDE.md agent tables; docs/migrations/command-skill-hyphen-names.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:57.659432+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
