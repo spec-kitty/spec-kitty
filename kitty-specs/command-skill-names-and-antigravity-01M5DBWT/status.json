@@ -126,6 +126,9 @@
       "last_event_id": "01M5DW43JDDBR59QQ5K8MRK0RF",
       "last_transition_at": "2026-10-21T00:00:06.733371+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: clone-local rename migration over the installer's legacy rule, upgrade warnings + new-invocation notice, prior-release fixtures"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 7002,
