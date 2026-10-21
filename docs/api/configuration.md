@@ -354,7 +354,7 @@ VCS Backend: git
 
 ## Agent Configuration
 
-Spec Kitty supports AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands. Slash-command agents use user-global command roots; Codex, Vibe, Pi, and Letta Code use project-local command skills under `.agents/skills/`.
+Spec Kitty supports AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands. Slash-command agents use user-global command roots; Codex, Vibe, Pi, Letta Code, and Antigravity use project-local command skills under `.agents/skills/`.
 
 ### Supported Agents
 
@@ -399,8 +399,8 @@ Starting in spec-kitty 0.12.0, agent configuration follows a config-driven model
 
 **Key principles**:
 - Active agents are derived from `config.yaml`
-- Slash-command files are installed globally at CLI startup
-- Codex, Vibe, Pi, and Letta command skills are project-local under `.agents/skills/`
+- Global slash-command files are written for the slash-command agents configured in the current project (at `agent config add` and at CLI startup inside the project)
+- Codex, Vibe, Pi, Letta, and Antigravity command skills are project-local under `.agents/skills/`
 - Migrations respect `config.yaml` - only process configured agents
 - Use `spec-kitty agent config` commands to manage agents (not manual editing)
 
@@ -449,7 +449,7 @@ spec-kitty agent config add claude codex
 
 This command:
 1. Registers slash-command agents against their global command roots
-2. Installs project-local command skills for Codex, Vibe, Pi, and Letta
+2. Installs project-local command skills for Codex, Vibe, Pi, Letta, and Antigravity
 3. Updates `config.yaml` to include new agents
 
 #### Remove Agents
