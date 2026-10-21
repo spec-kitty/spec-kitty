@@ -284,7 +284,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: ADR 2026-10-20-1 (amends 2026-04-07-1), upgrade note docs/migrations/command-skill-hyphen-names.md, agent tables (12 slash, 5 skills), harness/api docs, changelog, carried code-text nits",
-        "Rework cycle 1 done"
+        "Rework cycle 1 done",
+        "Rework verified: 8 review items + boundary blockers folded; four gates green (3/37/51/39)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
