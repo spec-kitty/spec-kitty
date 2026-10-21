@@ -34,6 +34,9 @@ class SessionPresenceContent:
     project_slug: str
     health: Literal["healthy", "upgrade-available", "migration-required"]
     available_version: str | None  # None when cache not yet populated
+    #: How the harness starts a full Mission (``invocation.invocation_for_writer``);
+    #: writers set it per harness, the default is the slash-command form.
+    specify_invocation: str = "`/spec-kitty.specify`"
 
     def render(self) -> str:
         """Render the orientation block text.
@@ -52,7 +55,7 @@ class SessionPresenceContent:
             "Two usage patterns:\n"
             "- **Full mission** (spec → plan → tasks → implement → review → merge):\n"
             '  trigger: "spec out", "create a mission", "write a spec", "plan this"\n'
-            "  → run `/spec-kitty.specify`\n"
+            f"  → run {self.specify_invocation}\n"
             "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
             '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty <anything>"\n'
             '  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**\n'

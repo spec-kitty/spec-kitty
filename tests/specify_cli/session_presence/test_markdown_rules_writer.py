@@ -6,12 +6,14 @@ idempotency, removal, and atomicity invariants.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from specify_cli.session_presence.content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
+from specify_cli.session_presence.invocation import invocation_for_writer
 from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -33,7 +35,9 @@ def test_wp07_mixed_markdown_preserves_exact_prefix_suffix(tmp_path: Path) -> No
     target = tmp_path / "AGENTS.md"
     target.write_bytes(prefix + old.render().strip().replace("\n", "\r\n").encode() + suffix)
     writer.write(tmp_path, new)
-    assert target.read_bytes() == prefix + new.render().strip().replace("\n", "\r\n").encode() + suffix
+    # AGENTS.md is shared, so the refreshed block names every agent's invocation (#6475).
+    shared = replace(new, specify_invocation=invocation_for_writer("codex", "AGENTS.md"))
+    assert target.read_bytes() == prefix + shared.render().strip().replace("\n", "\r\n").encode() + suffix
 
 
 def test_wp07_same_version_health_difference_has_no_churn(tmp_path: Path) -> None:

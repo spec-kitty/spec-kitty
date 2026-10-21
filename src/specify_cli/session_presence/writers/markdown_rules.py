@@ -30,6 +30,7 @@ from specify_cli.core.no_follow import chmod_fd, fd_relative_dir_ops_supported
 from specify_cli.tool_surface.operations import FileState, InputObservation
 
 from ..content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
+from ..invocation import LEGACY_SPECIFY_INVOCATION, invocation_for_writer
 
 __all__ = ["MarkdownRulesWriter"]
 
@@ -161,6 +162,7 @@ class MarkdownRulesWriter:
 
     def prepare(self, project_root: Path, content: SessionPresenceContent) -> PreparedPresenceFile:
         """Render only the proven managed region, preserving foreign bytes."""
+        content = replace(content, specify_invocation=invocation_for_writer(self.harness_key, self.rules_path))
         observations = observe_presence_path(project_root, self.rules_path)
         before = presence_state(observations[-1])
         if before.kind not in ("file", "absent"):
@@ -176,7 +178,7 @@ class MarkdownRulesWriter:
             block = existing[start:end]
             if not _canonical_section(block, content):
                 return replace(prepared, disposition="preserve", reason="Edited managed orientation")
-            if f"**Spec Kitty v{content.version}**" in block:
+            if f"**Spec Kitty v{content.version}**" in block and _invocation_line(content) in block.replace("\r\n", "\n"):
                 return prepared
             desired = existing[:start] + rendered.rstrip("\r\n") + existing[end:]
         elif existing and not self.append_mode:
@@ -348,8 +350,23 @@ def _section_bounds(text: str) -> tuple[int, int]:
     return start, end + len(SECTION_CLOSE)
 
 
+def _invocation_line(content: SessionPresenceContent) -> str:
+    return f"  → run {content.specify_invocation}\n"
+
+
 def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
-    """Prove the entire old block using the canonical renderer, not a suffix."""
+    """Prove the entire old block using the canonical renderer, not a suffix.
+
+    The block may carry this harness's invocation or the pre-#6475 slash form
+    every harness used to render, so an older block is still refreshed.
+    """
+    return any(
+        _canonical_for(block, replace(content, specify_invocation=invocation))
+        for invocation in dict.fromkeys((content.specify_invocation, LEGACY_SPECIFY_INVOCATION))
+    )
+
+
+def _canonical_for(block: str, content: SessionPresenceContent) -> bool:
     normalized = block.replace("\r\n", "\n")
     header = re.search(r"^\*\*Spec Kitty v([^\n]+?)\*\* — project: ([^\n]+?) \((healthy|upgrade-available|migration-required)\)$", normalized, re.MULTILINE)
     if header is None:
