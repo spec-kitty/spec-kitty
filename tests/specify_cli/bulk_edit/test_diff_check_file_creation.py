@@ -25,7 +25,6 @@ import pytest
 from specify_cli.bulk_edit.diff_check import (
     assess_file,
     check_diff_compliance,
-    classify_path,
 )
 from specify_cli.bulk_edit.gate import check_review_diff_compliance
 from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
@@ -110,16 +109,26 @@ class TestCreationIsNotModification:
         """``R100`` reaches assess_file as ``R`` (see gate._git_diff_files)."""
         assert assess_file("bin/deploy", _map(), None, "R").violation is True
 
-    def test_creation_is_warned_not_silent(self) -> None:
-        result = check_diff_compliance(
-            ["db/migrate/0001_init.rb"],
-            _map([{"path": "db/migrate/**", "action": "do_not_change", "reason": "history"}]),
-            None,
-            {"db/migrate/0001_init.rb": "A"},
-        )
+
+class TestExemptionsAreWarnedNotSilent:
+    """Each exemption must still name the file for a reviewer."""
+
+    @pytest.mark.parametrize(
+        "path,status,exceptions,marker",
+        [
+            (
+                "db/migrate/0001_init.rb",
+                "A",
+                [{"path": "db/migrate/**", "action": "do_not_change", "reason": "history"}],
+                "created by this diff",
+            ),
+            ("app/assets/fonts/x.woff2", "M", [], "x.woff2"),
+        ],
+    )
+    def test_exemption_names_the_file(self, path: str, status: str, exceptions: list[dict[str, str]], marker: str) -> None:
+        result = check_diff_compliance([path], _map(exceptions), None, {path: status})
         assert result.passed is True
-        assert any("created by this diff" in w for w in result.warnings)
-        assert any("db/migrate/0001_init.rb" in w for w in result.warnings)
+        assert any(path in w and marker in w for w in result.warnings)
 
 
 class TestCrossMissionWritesStillBlock:
@@ -215,41 +224,12 @@ class TestNonOccurrenceFiles:
         assert a.violation is True
         assert a.source == "exception"
 
-    def test_exemption_is_warned_not_silent(self) -> None:
-        result = check_diff_compliance(["app/assets/fonts/x.woff2"], _map(), None, {"app/assets/fonts/x.woff2": "M"})
-        assert result.passed is True
-        assert any("x.woff2" in w for w in result.warnings)
-
 
 class TestWebAndBuildSurfacesAreClassified:
-    """A Rails/Phoenix/Laravel app was largely invisible to the classifier."""
+    """A Rails/Phoenix/Laravel app was largely invisible to the classifier.
 
-    @pytest.mark.parametrize(
-        "path,expected",
-        [
-            ("app/views/press/manuscripts/show.html.erb", "code_symbols"),
-            ("app/views/layouts/application.html.erb", "code_symbols"),
-            ("app/assets/stylesheets/base.css", "code_symbols"),
-            ("assets/app.scss", "code_symbols"),
-            ("lib/tasks/import.rake", "code_symbols"),
-            ("Rakefile", "code_symbols"),
-            ("Gemfile", "code_symbols"),
-            ("my_gem.gemspec", "code_symbols"),
-            ("templates/page.haml", "code_symbols"),
-            ("components/Thing.vue", "code_symbols"),
-            ("lib/web/live/page.heex", "code_symbols"),
-            ("Dockerfile", "filesystem_paths"),
-            ("services/aligneur/Dockerfile", "filesystem_paths"),
-            ("Dockerfile.staging", "filesystem_paths"),
-            ("docker-compose.yml", "filesystem_paths"),
-        ],
-    )
-    def test_classified(self, path: str, expected: str) -> None:
-        assert classify_path(path) == expected
-
-    def test_docs_still_win_over_the_template_rule(self) -> None:
-        """A template under docs/ is documentation, not source."""
-        assert classify_path("docs/example.erb") == "user_facing_strings"
+    The extension table itself lives in ``test_diff_check.py::TestClassifyPath``.
+    """
 
     def test_a_modified_template_no_longer_blocks_as_unclassified(self) -> None:
         a = assess_file("app/views/layouts/application.html.erb", _map(), None, "M")

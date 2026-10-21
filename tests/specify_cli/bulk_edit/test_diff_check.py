@@ -89,6 +89,22 @@ class TestClassifyPath:
             # code_symbols
             ("src/pkg/module.py", "code_symbols"),
             ("src/app.ts", "code_symbols"),
+            # web and build surfaces (Rails/Phoenix/Laravel layouts)
+            ("app/views/layouts/application.html.erb", "code_symbols"),
+            ("app/assets/stylesheets/base.css", "code_symbols"),
+            ("assets/app.scss", "code_symbols"),
+            ("lib/tasks/import.rake", "code_symbols"),
+            ("Rakefile", "code_symbols"),
+            ("Gemfile", "code_symbols"),
+            ("my_gem.gemspec", "code_symbols"),
+            ("templates/page.haml", "code_symbols"),
+            ("components/Thing.vue", "code_symbols"),
+            ("lib/web/live/page.heex", "code_symbols"),
+            ("docs/example.erb", "user_facing_strings"),  # docs beat the template rule
+            ("Dockerfile", "filesystem_paths"),
+            ("services/aligneur/Dockerfile", "filesystem_paths"),
+            ("Dockerfile.staging", "filesystem_paths"),
+            ("docker-compose.yml", "filesystem_paths"),
             # unclassified
             ("binary.dat", None),
             ("Makefile", None),

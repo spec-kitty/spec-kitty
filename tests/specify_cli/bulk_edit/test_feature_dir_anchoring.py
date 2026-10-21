@@ -27,28 +27,23 @@ REPO = Path("/repo")
 
 
 class TestCanonicalisation:
-    def test_plain_layout_is_unchanged(self) -> None:
-        assert _feature_dir_rel(REPO / "kitty-specs/m-01XYZ", REPO) == "kitty-specs/m-01XYZ"
-
-    def test_coord_husk_is_reduced_to_the_canonical_path(self) -> None:
-        husk = REPO / ".worktrees/m-01XYZ-coord/kitty-specs/m-01XYZ"
-        assert _feature_dir_rel(husk, REPO) == "kitty-specs/m-01XYZ"
-
-    def test_lane_worktree_is_reduced_too(self) -> None:
-        lane = REPO / ".worktrees/m-01XYZ-lane-a/kitty-specs/m-01XYZ"
-        assert _feature_dir_rel(lane, REPO) == "kitty-specs/m-01XYZ"
-
-    def test_the_rightmost_kitty_specs_wins(self) -> None:
-        """A worktree nested under kitty-specs must not resolve to the outer one."""
-        nested = REPO / "kitty-specs/outer/.worktrees/w/kitty-specs/m-01XYZ"
-        assert _feature_dir_rel(nested, REPO) == "kitty-specs/m-01XYZ"
-
-    def test_a_path_with_no_kitty_specs_is_passed_through(self) -> None:
-        assert _feature_dir_rel(REPO / "some/other/dir", REPO) == "some/other/dir"
+    @pytest.mark.parametrize(
+        "feature_dir,expected",
+        [
+            # plain layout is unchanged
+            (REPO / "kitty-specs/m-01XYZ", "kitty-specs/m-01XYZ"),
+            # coord husk and lane worktree reduce to the canonical path
+            (REPO / ".worktrees/m-01XYZ-coord/kitty-specs/m-01XYZ", "kitty-specs/m-01XYZ"),
+            (REPO / ".worktrees/m-01XYZ-lane-a/kitty-specs/m-01XYZ", "kitty-specs/m-01XYZ"),
+            # the rightmost kitty-specs wins
+            (REPO / "kitty-specs/outer/.worktrees/w/kitty-specs/m-01XYZ", "kitty-specs/m-01XYZ"),
+            # nothing to canonicalise: passed through
+            (REPO / "some/other/dir", "some/other/dir"),
+            (REPO / "kitty-specs", "kitty-specs"),
+        ],
+    )
+    def test_reduced_to_the_canonical_path(self, feature_dir: Path, expected: str) -> None:
+        assert _feature_dir_rel(feature_dir, REPO) == expected
 
     def test_outside_the_repo_is_none(self) -> None:
         assert _feature_dir_rel(Path("/elsewhere/kitty-specs/m"), REPO) is None
-
-    def test_a_bare_kitty_specs_dir_is_passed_through(self) -> None:
-        """No slug component to pair with, so there is nothing to canonicalise."""
-        assert _feature_dir_rel(REPO / "kitty-specs", REPO) == "kitty-specs"
