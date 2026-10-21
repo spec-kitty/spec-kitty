@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/skills/test_p0_6470_antigravity_command_skills.py; tests/specify_cli/cli/commands/test_agent_config.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:39.503015+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
