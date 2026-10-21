@@ -220,6 +220,9 @@
       "last_event_id": "01M5EVRBW5TA2JRFH3A0WNFHTM",
       "last_transition_at": "2026-10-21T09:12:56.453954+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: one SKILL.md frontmatter authority (skill_frontmatter.py) projecting per root (shared = spec-only + metadata strings, native .claude/.qwen/.kilocode keep Claude keys), command skills spec-only, Claude bundle native, pack name<=64/description<=1024 limits, #6475 repro unmarked; skills-ref 0.1.1 104/104 valid"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 32072,
