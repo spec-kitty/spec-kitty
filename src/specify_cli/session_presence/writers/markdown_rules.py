@@ -365,12 +365,48 @@ def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
     )
 
 
+_HEADER_PREFIX = "**Spec Kitty v"
+_HEADER_SEPARATOR = "** — project: "
+_HEADER_HEALTHS = ("healthy", "upgrade-available", "migration-required")
+
+
+def _parse_header_line(line: str) -> tuple[str, str, str] | None:
+    """Parse ``**Spec Kitty v<version>** — project: <slug> (<health>)`` from one line.
+
+    Plain string scanning, linear in the line length. It returns what the former
+    regex ``^\\*\\*Spec Kitty v([^\\n]+?)\\*\\* — project: ([^\\n]+?) \\((healthy|…)\\)$``
+    captured: the version runs to the first separator, and the version and the
+    slug are non-empty. That regex backtracked quadratically on a long line
+    repeating the separator (Sonar S8786, #4696).
+    """
+    if not line.startswith(_HEADER_PREFIX):
+        return None
+    health = next((h for h in _HEADER_HEALTHS if line.endswith(f" ({h})")), None)
+    if health is None:
+        return None
+    slug_end = len(line) - len(f" ({health})")
+    separator = line.find(_HEADER_SEPARATOR, len(_HEADER_PREFIX) + 1)
+    slug_start = separator + len(_HEADER_SEPARATOR)
+    if separator == -1 or slug_start >= slug_end:
+        return None
+    return line[len(_HEADER_PREFIX) : separator], line[slug_start:slug_end], health
+
+
+def _parse_header(text: str) -> tuple[str, str, str] | None:
+    """Return the first line of *text* that :func:`_parse_header_line` accepts, parsed."""
+    for line in text.split("\n"):
+        parsed = _parse_header_line(line)
+        if parsed is not None:
+            return parsed
+    return None
+
+
 def _canonical_for(block: str, content: SessionPresenceContent) -> bool:
     normalized = block.replace("\r\n", "\n")
-    header = re.search(r"^\*\*Spec Kitty v([^\n]+?)\*\* — project: ([^\n]+?) \((healthy|upgrade-available|migration-required)\)$", normalized, re.MULTILINE)
+    header = _parse_header(normalized)
     if header is None:
         return False
-    version, slug, health = header.groups()
+    version, slug, health = header
     old = replace(content, version=version, project_slug=slug)
     if health == "healthy":
         old = replace(old, health="healthy", available_version=None)

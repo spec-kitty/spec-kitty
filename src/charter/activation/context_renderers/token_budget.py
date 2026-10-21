@@ -318,27 +318,20 @@ def _split_profile_blocks(text: str) -> list[tuple[str, str]]:
     return [_split_leading_header(chunk) for chunk in text.split("\n\n") if chunk]
 
 
-_HEADING_LINE_RE = re.compile(r"^###\s+(\S.*?)\s*$")
-"""Match a ``### <heading>`` marker line, capturing the heading text.
+def _heading_text(line: str) -> str | None:
+    """Return the heading text of a ``### <heading>`` marker line, else ``None``.
 
-Sonar ``S8786`` flagged the original ``(.+?)\\s*$`` capture group: ``.`` and
-``\\s`` overlap in what they can match, so the engine can partition a run of
-trailing whitespace between the lazy ``.+?`` and the greedy ``\\s*`` in more
-than one way (ambiguous backtracking shape) even though this particular
-worst case is empirically linear/quadratic, not exponential — the real
-input is always a single short heading line (see
-``tests/charter/context_renderers/test_token_budget_sonar.py`` for the
-match-equivalence proof and timing note). Requiring the capture to *start*
-with a non-space character (``\\S.*?``) removes the overlap: the boundary
-between "leading run captured by group 1" and "trailing ``\\s*``" is no
-longer ambiguous, because a space can never be the first captured
-character. The only behavioural difference from the old pattern is on the
-degenerate whitespace-only body ``"###    "`` (marker + only spaces): the
-old pattern captured a single trailing space; the new pattern requires a
-non-space first character that does not exist there, so the whole match
-fails and ``.match(...)`` returns ``None`` — an intentionally-dropped dead
-input, since no real ``### <heading>`` line is whitespace-only.
-"""
+    Plain string handling, linear in the line length. It returns what the former
+    ``^###\\s+(\\S.*?)\\s*$`` match captured: ``###``, at least one whitespace
+    character, then the heading with surrounding whitespace removed; a marker
+    followed only by whitespace is not a heading. That regex backtracked
+    quadratically on a heading with a long inner run of spaces, because the lazy
+    ``.*?`` and the trailing ``\\s*`` both match a space (Sonar S8786, #4696).
+    *line* is one line (no ``\\n``), as :func:`_split_critical_sections` passes it.
+    """
+    if not line.startswith("###") or not line[3:4].isspace():
+        return None
+    return line[3:].strip() or None
 
 
 def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
@@ -385,13 +378,13 @@ def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
         if not chunk:
             continue
         first_line, _, remainder = chunk.partition("\n")
-        match = _HEADING_LINE_RE.match(first_line)
-        if match is None:
+        heading = _heading_text(first_line)
+        if heading is None:
             # The block's own outer header (e.g. "Action-Critical Charter
             # Sections (implement):") precedes the first "### " heading and
             # carries no such prefix — not a headed sub-block to split.
             continue
-        result.append((first_line, remainder, match.group(1)))
+        result.append((first_line, remainder, heading))
     return result
 
 

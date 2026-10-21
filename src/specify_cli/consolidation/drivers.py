@@ -541,9 +541,25 @@ def _match_trace_fence(line: str) -> tuple[str, int] | None:
     return run[0], len(run)
 
 
-# The id captured from a block's opening ``<!-- section:ID -->`` delimiter,
-# when its first line is one -- see :func:`_trace_block_key`.
-_TRACE_SECTION_ID = re.compile(r"^<!--\s*section:(.*?)\s*-->\s*$")
+def _trace_section_id(line: str) -> str | None:
+    """The id of a block's opening ``<!-- section:ID -->`` delimiter line, else ``None``.
+
+    See :func:`_trace_block_key`. Plain string handling, linear in the line
+    length. It returns what the former ``^<!--\\s*section:(.*?)\\s*-->\\s*$`` match
+    captured: the text up to the last ``-->``, trailing whitespace removed. That
+    regex backtracked quadratically on a long run of spaces, because the lazy
+    ``.*?`` and the ``\\s*`` after it both match a space (Sonar S8786, #4696).
+    *line* is one line, as :meth:`str.splitlines` yields it.
+    """
+    if not line.startswith("<!--"):
+        return None
+    rest = line[len("<!--") :].lstrip()
+    if not rest.startswith("section:"):
+        return None
+    body = rest[len("section:") :].rstrip()
+    if not body.endswith("-->"):
+        return None
+    return body[: -len("-->")].rstrip()
 
 
 def _split_trace_blocks(text: str) -> list[tuple[str, ...]]:
@@ -646,9 +662,9 @@ def _trace_block_key(block: tuple[str, ...], occurrence_ordinal: int) -> _TraceB
     block content.
     """
     first_line = block[0] if block else ""
-    section_id = _TRACE_SECTION_ID.match(first_line)
-    if section_id:
-        return ("id", section_id.group(1), occurrence_ordinal)
+    section_id = _trace_section_id(first_line)
+    if section_id is not None:
+        return ("id", section_id, occurrence_ordinal)
     return ("line", first_line, occurrence_ordinal)
 
 
@@ -658,8 +674,8 @@ def _trace_block_dedup_key(block: tuple[str, ...]) -> str:
     :func:`_iter_trace_blocks_with_ordinal`.
     """
     first_line = block[0] if block else ""
-    section_id = _TRACE_SECTION_ID.match(first_line)
-    return f"id:{section_id.group(1)}" if section_id else f"line:{first_line}"
+    section_id = _trace_section_id(first_line)
+    return f"id:{section_id}" if section_id is not None else f"line:{first_line}"
 
 
 def _iter_trace_blocks_with_ordinal(
@@ -1020,19 +1036,31 @@ def _reconcile_keyed_rows(
 # issue-matrix.json (FR-008): rows keyed by canonicalized issue_ref
 # ---------------------------------------------------------------------------
 
-# Matches a trailing run of 1+ digits, optionally preceded by ``#``/``GH-``/
-# ``gh#`` — the shapes ``#1726`` / ``GH-1726`` / ``1726`` all normalize to.
-_ISSUE_REF_DIGITS = re.compile(r"(\d+)\s*$")
+
+def _trailing_digits(text: str) -> str:
+    """The run of decimal digits that ends *text* (``""`` when it ends in none).
+
+    A linear scan from the end. It replaces the former ``(\\d+)\\s*$`` search,
+    which retried every start position inside a long digit run that did not end
+    the text, quadratic backtracking (Sonar S8786, #4696). ``str.isdecimal`` and
+    the regex ``\\d`` both accept exactly Unicode category Nd.
+    """
+    start = len(text)
+    while start and text[start - 1].isdecimal():
+        start -= 1
+    return text[start:]
 
 
 def _canonicalize_issue_ref(raw_ref: str) -> str:
     """Normalize ``#1726`` / ``GH-1726`` / ``1726`` to the one canonical form.
 
-    A ref with no trailing digits (a non-numeric key) is returned stripped,
-    unchanged — it is already its own canonical form.
+    The canonical form is ``#`` plus the trailing run of digits, whatever
+    precedes it (``#``, ``GH-``, ``gh#``). A ref with no trailing digits (a
+    non-numeric key) is returned stripped, unchanged; it is already its own
+    canonical form.
     """
-    match = _ISSUE_REF_DIGITS.search(raw_ref.strip())
-    return f"#{match.group(1)}" if match else raw_ref.strip()
+    digits = _trailing_digits(raw_ref.strip())
+    return f"#{digits}" if digits else raw_ref.strip()
 
 
 def _issue_row_key(raw_ref: Any, _row: Mapping[str, Any]) -> str:
