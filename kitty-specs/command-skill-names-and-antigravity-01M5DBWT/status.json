@@ -189,6 +189,9 @@
       "last_event_id": "01M5EPAQ6ABM8GE14KZRYW4PHT",
       "last_transition_at": "2026-10-21T07:38:06.411060+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: startup writer scoped to configured slash agents (none outside a project), schema-2 per-key freshness stamp, ~/.agent/workflows cleanup with inventory or current-marker+bytes proof, agent config add writes added agents, 6470 repro unmarked; warm startup 3.455s base vs 3.476s head"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 31652,
