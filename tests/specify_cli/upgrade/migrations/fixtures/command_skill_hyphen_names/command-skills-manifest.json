@@ -1,0 +1,32 @@
+{
+  "entries": [
+    {
+      "agents": [
+        "codex"
+      ],
+      "content_hash": "ce341b81bf997e57c44c16693b169889aba1565f355e7d12ec9c5a12e1e734bf",
+      "installed_at": "2026-10-20T23:33:38+00:00",
+      "path": ".agents/skills/spec-kitty.plan/SKILL.md",
+      "spec_kitty_version": "4.0.0rc8"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "content_hash": "f592e441568197b5a97d89197340cd2ee1a0b2b793f1d8e7731e540ba40909ac",
+      "installed_at": "2026-10-20T23:33:38+00:00",
+      "path": ".agents/skills/spec-kitty.specify/SKILL.md",
+      "spec_kitty_version": "4.0.0rc8"
+    },
+    {
+      "agents": [
+        "codex"
+      ],
+      "content_hash": "92da5ec247818c494ac9a75f3e3b789e7da9fbf0ebf38e2f94995cfb03e0351c",
+      "installed_at": "2026-10-20T23:33:38+00:00",
+      "path": ".agents/skills/spec-kitty.status/SKILL.md",
+      "spec_kitty_version": "4.0.0rc8"
+    }
+  ],
+  "schema_version": 1
+}

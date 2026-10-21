@@ -20,7 +20,11 @@ manifest, and the manifest only ever references files in
 :mod:`specify_cli.skills.command_skill_names`). A manifest written before #6475
 may still record the legacy dotted ``spec-kitty.<command>/SKILL.md`` form; every
 preparation retires such an entry with one rule (FR-020): an unmodified file is
-deleted, an edited one is kept and no longer managed.
+deleted, an edited one is kept and no longer managed. A dotted ``SKILL.md`` the
+manifest does *not* record (a clone that pulled a teammate's already-migrated
+manifest) is Spec Kitty's only when its bytes are exactly the legacy rendering
+(operator ruling 2026-10-21); every installing preparation retires it by the same
+rule, and anything else stays on disk with a warning.
 
 No call to :func:`shutil.rmtree` or any recursive deletion exists in this
 module.  The only directory removal is a targeted
@@ -239,6 +243,10 @@ class InstallReport:
         absent file's manifest entry was dropped.
     legacy_kept:
         Edited legacy dotted command skills kept on disk and no longer managed.
+    legacy_unrecorded:
+        Dotted command-skill paths the manifest does not record and whose bytes are
+        not Spec Kitty's legacy rendering (or a dotted folder holding other files),
+        left on disk with a warning (operator ruling 2026-10-21).
     """
 
     added: list[str] = field(default_factory=list)
@@ -249,6 +257,7 @@ class InstallReport:
     collisions: list[str] = field(default_factory=list)
     legacy_removed: list[str] = field(default_factory=list)
     legacy_kept: list[str] = field(default_factory=list)
+    legacy_unrecorded: list[str] = field(default_factory=list)
 
     @property
     def installed_count(self) -> int:
@@ -271,7 +280,7 @@ class RemoveReport:
     kept:
         Subset of ``deref`` whose ``agents`` list is still non-empty — the
         file remains on disk, owned by the remaining agents.
-    legacy_removed / legacy_kept:
+    legacy_removed / legacy_kept / legacy_unrecorded:
         Legacy dotted entries retired by the same pass (see :class:`InstallReport`);
         never part of ``deref``.
     """
@@ -281,6 +290,7 @@ class RemoveReport:
     kept: list[str] = field(default_factory=list)
     legacy_removed: list[str] = field(default_factory=list)
     legacy_kept: list[str] = field(default_factory=list)
+    legacy_unrecorded: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -306,6 +316,10 @@ class VerifyReport:
     legacy:
         Legacy dotted ``spec-kitty.<command>/SKILL.md`` paths: manifest
         entries still recorded and folders still on disk (pre-#6475).
+    legacy_owned:
+        The subset of ``legacy`` the manifest does not record but whose bytes are
+        exactly Spec Kitty's legacy rendering: the next installing preparation
+        retires them (operator ruling 2026-10-21), so they are repairable.
     collisions:
         Canonical ``SKILL.md`` paths occupied by content the manifest does not
         own and that is not today's canonical rendering (FR-019).
@@ -317,6 +331,7 @@ class VerifyReport:
     stale: list[str] = field(default_factory=list)
     unsafe: list[str] = field(default_factory=list)
     legacy: list[str] = field(default_factory=list)
+    legacy_owned: list[str] = field(default_factory=list)
     collisions: list[str] = field(default_factory=list)
 
 
@@ -335,10 +350,36 @@ def legacy_kept_warning(path: str) -> str:
     return f"Legacy dotted command skill {path} has your edits, so it was kept; it is no longer managed — remove it when you no longer need your edits"
 
 
+def unrecorded_legacy_warning(path: str) -> str:
+    """The one wording for a dotted command-skill path left in place that the manifest does not record."""
+    return (
+        f"Legacy dotted command skill {path} is not recorded in the command-skill manifest and is not "
+        "Spec Kitty's unmodified rendering, so it was left in place; it is not managed — remove it when you "
+        "no longer need it (`spec-kitty doctor skills` lists it)"
+    )
+
+
 def install_warnings(report: InstallReport | RemoveReport) -> list[str]:
     """Return the per-path warnings an install or remove report carries, collisions first."""
     collisions = report.collisions if isinstance(report, InstallReport) else []
-    return [collision_warning(path) for path in collisions] + [legacy_kept_warning(path) for path in report.legacy_kept]
+    return (
+        [collision_warning(path) for path in collisions]
+        + [legacy_kept_warning(path) for path in report.legacy_kept]
+        + [unrecorded_legacy_warning(path) for path in report.legacy_unrecorded]
+    )
+
+
+def disposition_warning(state: str, path: str | None, reason: str) -> str | None:
+    """The user-facing warning of a ``collision`` / ``legacy_kept`` disposition, else ``None``."""
+    if path is None:
+        return None
+    if state == COLLISION:
+        return collision_warning(path)
+    if state == LEGACY_KEPT:
+        if reason == _LEGACY_FOLDER_REASON:
+            return unrecorded_legacy_warning(f"{path}/")
+        return unrecorded_legacy_warning(path) if reason == _LEGACY_UNRECORDED_REASON else legacy_kept_warning(path)
+    return None
 
 
 def _resolve_template(repo_root: Path, command: str) -> Path:
@@ -507,10 +548,14 @@ def _shared_skills_projection_regenerable() -> bool:
 # ---------------------------------------------------------------------------
 
 _OWNER = "command_skills"
-_LEGACY_REPORT_KINDS = frozenset({"legacy_removed", LEGACY_KEPT})
+_LEGACY_REPORT_KINDS = frozenset({"legacy_removed", LEGACY_KEPT, "legacy_unrecorded"})  # never part of ``deref``
 _MANIFEST = ".kittify/command-skills-manifest.json"
 _COLLISION_REASON = "Content Spec Kitty does not own occupies this command skill path; skipped"
 _LEGACY_KEPT_REASON = "Edited legacy dotted command skill kept on disk; it is no longer managed"
+_LEGACY_UNRECORDED_REASON = "Unrecorded dotted command skill is not Spec Kitty's legacy rendering; left in place"
+_LEGACY_FOLDER_REASON = "Dotted command-skill folder holds other files; left in place"
+#: Report kind of a dotted path left in place that the manifest does not record.
+_LEGACY_UNRECORDED = "legacy_unrecorded"
 
 
 @dataclass(frozen=True)
@@ -965,17 +1010,62 @@ class _CommandBatch:
         self.manifest.remove_path(entry.path)
         if before is not None and before.kind == "absent":
             self.commands.append(PreparedCommand(entry.path, None, None, "legacy_removed"))
+            self.legacy_folder_left(Path(entry.path).parent.as_posix())
             return
         if before is None or before.kind != "file" or not self.owned_legacy_bytes(entry, before):
             self.commands.append(PreparedCommand(entry.path, None, None, LEGACY_KEPT))
             self.disposition(entry.path, LEGACY_KEPT, _LEGACY_KEPT_REASON)
             return
         proof = OwnershipProof("manifest", f"{_MANIFEST}#{entry.path}")
-        self.effect(entry.path, FileState("absent"), entry.agents, proof)
-        parent = (self.root / entry.path).parent
+        self.retire_legacy_file(entry.path, entry.agents, proof)
+
+    def retire_legacy_file(self, rel: str, owners: tuple[str, ...], proof: OwnershipProof) -> None:
+        """Delete an owned dotted ``SKILL.md``; remove its folder only when then empty, else warn."""
+        self.effect(rel, FileState("absent"), owners, proof)
+        parent = (self.root / rel).parent
         if self.observe(parent, children=True).kind == "directory" and self.observations[parent].children == ("SKILL.md",):
-            self.effect(parent.relative_to(self.root).as_posix(), FileState("absent"), entry.agents, proof)
-        self.commands.append(PreparedCommand(entry.path, None, None, "legacy_removed", proof))
+            self.effect(parent.relative_to(self.root).as_posix(), FileState("absent"), owners, proof)
+        else:
+            self.legacy_folder_left(parent.relative_to(self.root).as_posix())
+        self.commands.append(PreparedCommand(rel, None, None, "legacy_removed", proof))
+
+    def legacy_folder_left(self, folder: str) -> None:
+        """Warn about a dotted folder that stays on disk because it holds files other than ``SKILL.md``."""
+        path = self.root / folder
+        if self.observe(path, children=True).kind != "directory" or not set(self.observations[path].children or ()) - {"SKILL.md"}:
+            return
+        self.commands.append(PreparedCommand(f"{folder}/", None, None, _LEGACY_UNRECORDED))
+        self.disposition(folder, LEGACY_KEPT, _LEGACY_FOLDER_REASON)
+
+    def retire_unrecorded_legacy(self, command: str, content: bytes) -> None:
+        """Apply the legacy rule to a dotted skill the manifest does not record (operator ruling 2026-10-21).
+
+        Spec Kitty owns such a file only when it is a regular file, not behind a link, whose bytes
+        are exactly :func:`legacy_rendering` of today's render *content*: it is deleted (its folder
+        only when then empty). Anything else -- other bytes, a link, a directory, a symlinked
+        parent -- stays on disk with an unrecorded-legacy warning. Every input is observed, so the
+        apply-time recheck refuses if any of them changed.
+        """
+        rel = legacy_command_skill_rel_path(command)
+        folder = Path(rel).parent.as_posix()
+        try:
+            folder_state = self.observe_destination(folder)
+            before = self.observe_destination(rel) if folder_state.kind == "directory" else None
+        except InstallerError as exc:
+            if exc.code != "unsafe_path":
+                raise
+            folder_state, before = FileState("symlink"), None  # Behind a non-directory parent: not ours.
+        if folder_state.kind == "absent":
+            return
+        if before is not None and before.kind == "absent":
+            self.legacy_folder_left(folder)
+            return
+        legacy_digest = manifest_store.fingerprint(legacy_rendering(content, command))
+        if before is None or before.kind != "file" or before.sha256 != legacy_digest:
+            self.commands.append(PreparedCommand(rel, None, None, _LEGACY_UNRECORDED))
+            self.disposition(rel, LEGACY_KEPT, _LEGACY_UNRECORDED_REASON)
+            return
+        self.retire_legacy_file(rel, self.agents, OwnershipProof("canonical_content", f"legacy_rendering:{command}:{legacy_digest}"))
 
     def remove_entry(self, entry: ManifestEntry, remaining: tuple[str, ...], *, retired: bool = False) -> None:
         before = self.observe_destination(entry.path)
@@ -1128,6 +1218,21 @@ def canonical_digest(project_root: Path, command: str) -> str | None:
     not canonical, no command-skill agent is configured, rendering failed, or
     the agents render different bytes. Nothing is written.
     """
+    rendered = _canonical_render(project_root, command)
+    return None if rendered is None else manifest_store.fingerprint(rendered)
+
+
+def legacy_digest(project_root: Path, command: str) -> str | None:
+    """Return the SHA-256 of :func:`legacy_rendering` of today's canonical render, read-only.
+
+    ``None`` exactly when :func:`canonical_digest` is ``None``.
+    """
+    rendered = _canonical_render(project_root, command)
+    return None if rendered is None else manifest_store.fingerprint(legacy_rendering(rendered, command))
+
+
+def _canonical_render(project_root: Path, command: str) -> bytes | None:
+    """Today's single canonical rendering of *command* for the configured agents, else ``None``."""
     from specify_cli.core.agent_config import get_configured_agents
 
     if command not in CANONICAL_COMMANDS:
@@ -1138,10 +1243,7 @@ def canonical_digest(project_root: Path, command: str) -> str | None:
         variants = {_render_command_skill(project_root, command, agent, version) for agent in agents}
     except (OSError, ValueError, AgentConfigError, InstallerError, command_renderer.SkillRenderError):
         return None
-    if len(variants) != 1:
-        return None
-    digest: str = manifest_store.fingerprint(next(iter(variants)))
-    return digest
+    return next(iter(variants)) if len(variants) == 1 else None
 
 
 def prepare_commands(
@@ -1159,13 +1261,17 @@ def prepare_commands(
     links and directories are preserved; existing manifest owners survive
     shared reuse. Unless *adopt_only*, every legacy dotted manifest entry is
     retired first by :meth:`_CommandBatch.migrate_legacy_entry` (FR-020), so
-    install, prune, remove and provider repair share one legacy rule.
+    install, prune, remove and provider repair share one legacy rule. An
+    installing preparation (non-empty *agents*, not *adopt_only*) also retires a
+    dotted ``SKILL.md`` the manifest does not record when its bytes are exactly
+    the legacy rendering (:meth:`_CommandBatch.retire_unrecorded_legacy`).
     """
     try:
         if any(a not in SUPPORTED_AGENTS for a in agents + remove_agents):
             raise InstallerError("unsupported_agent", agents=agents + remove_agents)
         batch = _CommandBatch(inputs, agents)
         legacy = tuple(entry for entry in batch.original_entries if is_legacy_rel_path(entry.path))
+        recorded = {entry.path for entry in batch.original_entries}
         for entry in () if adopt_only else legacy:
             if remove_agents and not agents:
                 batch.release_legacy_entry(entry, remove_agents)
@@ -1186,6 +1292,8 @@ def prepare_commands(
             if len(set(variants)) != 1:
                 raise InstallerError("shared_content_conflict", command=command)
             batch.install_command(command, variants[0], adopt_only=adopt_only)
+            if not adopt_only and legacy_command_skill_rel_path(command) not in recorded:
+                batch.retire_unrecorded_legacy(command, variants[0])
         for entry in batch.original_entries:
             if entry in legacy:
                 continue  # Retired above by the legacy rule (FR-020), or left alone when adopting only.
@@ -1343,7 +1451,9 @@ def apply_commands(assessment: OwnerAssessment, consent: ApplyConsent) -> OwnerA
     return OwnerApplyResult(_OWNER, tuple(succeeded))
 
 
-def _direct_assessment(repo_root: Path, agents: tuple[str, ...], *, prune: bool = False, remove_agents: tuple[str, ...] = ()) -> OwnerAssessment:
+def _direct_assessment(
+    repo_root: Path, agents: tuple[str, ...], *, prune: bool = False, remove_agents: tuple[str, ...] = (), dry_run: bool = False
+) -> OwnerAssessment:
     inputs = AssessmentInputs(OperationRoot("project", "project", repo_root.absolute()), consent=ApplyConsent(automatic=True))
     assessment = prepare_commands(inputs, agents, prune=prune, remove_agents=remove_agents)
     if not assessment.complete:
@@ -1353,15 +1463,20 @@ def _direct_assessment(repo_root: Path, agents: tuple[str, ...], *, prune: bool 
             if disposition.path is not None:
                 _ensure_project_confined(repo_root, disposition.path, repo_root / disposition.path)
             raise InstallerError("file_mutation_detected" if remove_agents or prune else "unexpected_collision", path=disposition.path)
+    if dry_run:
+        return assessment
     result = apply_commands(assessment, inputs.consent)
     if result.outcome != "applied":
         raise InstallerError(result.outcome, diagnostics=result.diagnostics)
     return assessment
 
 
-def install(repo_root: Path, agent_key: str) -> InstallReport:
-    """Install the complete canonical batch; preserve the public logical report."""
-    assessment = _direct_assessment(repo_root, (agent_key,))
+def install(repo_root: Path, agent_key: str, *, dry_run: bool = False) -> InstallReport:
+    """Install the complete canonical batch; preserve the public logical report.
+
+    *dry_run* prepares the same batch and reports what an install would do, writing nothing.
+    """
+    assessment = _direct_assessment(repo_root, (agent_key,), dry_run=dry_run)
     payload = assessment.prepared
     assert isinstance(payload, PreparedCommands)
     report = InstallReport()
@@ -1438,7 +1553,7 @@ def verify(repo_root: Path) -> VerifyReport:
 
     report = VerifyReport()
     _verify_entries(repo_root, manifest, report)
-    _verify_legacy_folders(repo_root, report)
+    _verify_legacy_folders(repo_root, {e.path for e in manifest.entries}, report)
     _verify_canonical_folders(repo_root, {e.path for e in manifest.entries}, report)
     return report
 
@@ -1467,11 +1582,13 @@ def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, re
             report.drift.append(entry.path)
 
 
-def _verify_legacy_folders(repo_root: Path, report: VerifyReport) -> None:
+def _verify_legacy_folders(repo_root: Path, manifest_paths: set[str], report: VerifyReport) -> None:
     """Report on-disk legacy dotted leftovers of the canonical commands (explicit set only).
 
     The ``SKILL.md`` path when it still exists; otherwise the folder itself
     (``.agents/skills/spec-kitty.<command>/``) when only other files remain in it.
+    An unrecorded ``SKILL.md`` the installer would retire (exact legacy rendering,
+    regular file, no linked parent) is also listed in ``legacy_owned``.
     """
     for command in CANONICAL_COMMANDS:
         rel = legacy_command_skill_rel_path(command)
@@ -1479,6 +1596,8 @@ def _verify_legacy_folders(repo_root: Path, report: VerifyReport) -> None:
             continue
         if os.path.lexists(repo_root / rel):
             report.legacy.append(rel)
+            if rel not in manifest_paths and _is_unrecorded_legacy_render(repo_root, command, rel):
+                report.legacy_owned.append(rel)
         elif os.path.lexists((repo_root / rel).parent):
             report.legacy.append(f"{Path(rel).parent.as_posix()}/")
 
@@ -1504,6 +1623,15 @@ def _verify_canonical_folders(repo_root: Path, manifest_paths: set[str], report:
                 continue
             if file_rel not in manifest_paths:
                 report.orphans.append(file_rel)
+
+
+def _is_unrecorded_legacy_render(repo_root: Path, command: str, rel: str) -> bool:
+    """Mirror :meth:`_CommandBatch.retire_unrecorded_legacy`: a plain file, no linked parent, exact legacy bytes."""
+    path = repo_root / rel
+    chain = [path, *(parent for parent in path.parents if parent.is_relative_to(repo_root) and parent != repo_root)]
+    if any(node.is_symlink() for node in chain) or not path.is_file():
+        return False
+    return bool(manifest_store.fingerprint_file(path) == legacy_digest(repo_root, command))
 
 
 def _is_collision(repo_root: Path, command: str, skill_md: Path, folder: Path) -> bool:

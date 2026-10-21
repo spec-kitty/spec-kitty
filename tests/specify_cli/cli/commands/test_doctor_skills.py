@@ -568,3 +568,26 @@ def test_skills_still_managed_legacy_entries_need_fix(tmp_path: Path, monkeypatc
 
     assert result.exit_code == 1
     assert _payload(result.output)["legacy"] == [rel]
+
+
+def test_skills_unrecorded_exact_legacy_render_needs_fix_and_fix_retires_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Operator ruling 2026-10-21: an unrecorded dotted skill with exactly the legacy bytes is Spec Kitty's,
+    so doctor reports it as repairable (exit 1) and ``--fix`` retires it, like a recorded one."""
+    _write_config(tmp_path, "codex")
+    command_installer.install(tmp_path, "codex")
+    today = (tmp_path / ".agents/skills/spec-kitty-tasks/SKILL.md").read_bytes()
+    dotted = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    dotted.parent.mkdir(parents=True)
+    dotted.write_bytes(command_installer.legacy_rendering(today, "tasks"))
+
+    report = _invoke(tmp_path, monkeypatch)
+    assert report.exit_code == 1
+    text = " ".join(report.output.split())
+    assert "Legacy dotted command skill (Spec Kitty's unmodified rendering): .agents/skills/spec-kitty.tasks/SKILL.md" in text
+    assert "_legacy_owned" not in _payload(_invoke(tmp_path, monkeypatch, "--json").output)
+
+    fixed = _invoke(tmp_path, monkeypatch, "--fix", "--json")
+
+    assert fixed.exit_code == 0, fixed.output
+    assert _payload(fixed.output)["legacy"] == []
+    assert not dotted.parent.exists()

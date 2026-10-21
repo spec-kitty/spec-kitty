@@ -309,6 +309,11 @@ def _manifest_has_legacy_entries(manifest: SkillsManifest) -> bool:
     return any(command_installer.is_legacy_rel_path(entry.path) for entry in manifest.entries)
 
 
+def _legacy_still_managed(manifest: SkillsManifest, report: VerifyReport) -> bool:
+    """Whether a legacy dotted skill awaits retirement: still recorded, or an unrecorded exact legacy render."""
+    return _manifest_has_legacy_entries(manifest) or bool(report.legacy_owned)
+
+
 def _repair_refusal(report: VerifyReport) -> str | None:
     """Return a refusal reason if the repair must be blocked, else None.
 
@@ -361,7 +366,8 @@ def _repair_command_skill_state(
 ) -> tuple[list[str], list[str], list[str], bool]:
     """Repair missing command-skill files unless edited-file drift is present.
 
-    *legacy_managed* (the manifest still records legacy dotted entries) is a repair
+    *legacy_managed* (the manifest still records legacy dotted entries, or an unrecorded
+    dotted skill is exactly the legacy rendering) is a repair
     trigger of its own: the install pass retires those entries by the legacy rule
     (FR-020) and installs the canonical names.
     """
@@ -420,7 +426,7 @@ def _command_skill_payload(
         or report.orphans
         or report.stale
         or report.unsafe
-        or _manifest_has_legacy_entries(manifest)
+        or _legacy_still_managed(manifest, report)
         or report.collisions
         or uninstalled_agents
         or vibe_config_missing
@@ -437,6 +443,7 @@ def _command_skill_payload(
         "stale": sorted(report.stale),
         "unsafe": sorted(report.unsafe),
         "legacy": sorted(report.legacy),
+        _LEGACY_OWNED_KEY: sorted(report.legacy_owned),
         "collisions": sorted(report.collisions),
         "uninstalled_agents": uninstalled_agents,
         "vibe_config_missing": vibe_config_missing,
@@ -458,11 +465,18 @@ def _print_command_skill_paths(title: str, paths: list[str]) -> None:
 
 
 _LEGACY_LEFTOVER_PREFIX = "Legacy dotted command skills (no longer managed): "
+_LEGACY_OWNED_PREFIX = "Legacy dotted command skill (Spec Kitty's unmodified rendering): "
+#: Human-render-only payload key: the frozen ``doctor skills --json`` envelope (#1965) never carries it.
+_LEGACY_OWNED_KEY = "_legacy_owned"
 
 
 def _print_command_skill_guidance(payload: dict[str, object]) -> None:
     """Name each legacy leftover and collision with the action to take (read-only, R-m5)."""
+    owned = set(cast(list[str], payload.get(_LEGACY_OWNED_KEY, [])))
     for path in cast(list[str], payload["legacy"]):
+        if path in owned:
+            console.print(f"\n  [yellow]![/yellow] {_LEGACY_OWNED_PREFIX}{path} — run `spec-kitty doctor skills --fix` to retire it", highlight=False)
+            continue
         console.print(f"\n  [yellow]![/yellow] {_LEGACY_LEFTOVER_PREFIX}{path} — remove it when you no longer need your edits", highlight=False)
     for path in cast(list[str], payload["collisions"]):
         console.print(f"\n  [yellow]![/yellow] {_collision_line(path)}", highlight=False)
@@ -666,7 +680,7 @@ def run_skills_audit(
         payload = _assemble_skills_payload(project_path, fix, state)
 
     if json_output:
-        console.print_json(json.dumps(payload, indent=2))
+        console.print_json(json.dumps({key: value for key, value in payload.items() if key != _LEGACY_OWNED_KEY}, indent=2))
         raise typer.Exit(0 if payload["ok"] else 1)
 
     _print_command_skill_report(payload, fix)
@@ -718,7 +732,7 @@ def _assemble_skills_payload(
             uninstalled_agents,
             report,
             vibe_config_missing,
-            legacy_managed=_manifest_has_legacy_entries(manifest),
+            legacy_managed=_legacy_still_managed(manifest, report),
         )
         if (repaired or pruned or repaired_vibe_config) and not repair_errors:
             try:

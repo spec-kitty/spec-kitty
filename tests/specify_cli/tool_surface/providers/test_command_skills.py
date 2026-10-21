@@ -1059,3 +1059,23 @@ def test_warning_message_ignores_other_dispositions() -> None:
     assert warning_message(Disposition("command_skills", "project", "a/SKILL.md", "preserve", "r")) is None
     assert warning_message(Disposition("command_skills", "project", None, "not_applicable", "r")) is None
     assert "a/SKILL.md" in str(warning_message(Disposition("command_skills", "project", "a/SKILL.md", "collision", "r")))
+
+
+def test_unrecorded_exact_legacy_render_probes_stale_and_repair_retires_it(tmp_path: Path) -> None:
+    """Operator ruling 2026-10-21: a pulled migrated manifest leaves a clone's dotted copy unrecorded;
+    when it is exactly the legacy rendering it is repairable, and the repair deletes it."""
+    provider, _, _ = _installed_codex_project(tmp_path)
+    today = (tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md").read_bytes()
+    dotted = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    dotted.parent.mkdir(parents=True)
+    dotted.write_bytes(command_installer.legacy_rendering(today, "plan"))
+
+    statuses = _probe_all(provider, tmp_path)
+    [status] = [s for s in statuses if s.instance.path == dotted]
+    assert status.state == STATE_STALE
+
+    result = provider.repair(tmp_path, statuses)
+
+    assert result.failed == ()
+    assert _surface_id(status.instance) in result.repaired
+    assert not dotted.parent.exists()
