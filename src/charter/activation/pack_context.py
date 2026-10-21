@@ -32,6 +32,7 @@ from kernel.errors import KittyInternalConsistencyError
 from ruamel.yaml import YAML
 
 from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.bundle import CHARTER_YAML
 from charter.activation.org_pack_discovery import read_org_required_ids
 from charter.offering.artifact_kinds import ArtifactKind
 
@@ -61,7 +62,6 @@ _ACTIVATION_KEY_PREFIX = "activated_"
 _CHARTER_POINTER_KEY = "charter"
 
 #: Repo-root-relative default location of ``charter.yaml`` (no pointer set).
-_DEFAULT_CHARTER_YAML = Path(".kittify/charter/charter.yaml")
 
 
 class ActiveCharterConfigError(KittyInternalConsistencyError):
@@ -613,7 +613,7 @@ def load_charter_yaml_mapping(repo_root: Path, *, remediation: str | None = None
     marks the refusal as having written nothing. Returns ``(path, mapping)``.
     """
     pointer = resolve_charter_yaml_pointer(repo_root, _load_config(repo_root))
-    charter_path = pointer if pointer is not None else repo_root / _DEFAULT_CHARTER_YAML
+    charter_path = pointer if pointer is not None else repo_root / CHARTER_YAML
     try:
         display = charter_path.relative_to(repo_root).as_posix()
     except ValueError:
