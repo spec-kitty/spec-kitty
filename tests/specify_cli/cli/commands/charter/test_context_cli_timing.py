@@ -31,7 +31,7 @@ from typer.testing import CliRunner
 from specify_cli import app
 from tests._factories.activation_ledger import seed_activation_ledger
 
-pytestmark = [pytest.mark.timing]
+pytestmark = [pytest.mark.timing, pytest.mark.performance]
 
 _RUNNER = CliRunner()
 _RUNS = 5
