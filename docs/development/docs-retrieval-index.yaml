@@ -3882,6 +3882,29 @@ pages:
     - {slug: "the-divergence-register", text: "The divergence register", level: 3}
     - {slug: "decision-7-corrected", text: "Decision 7, corrected", level: 3}
     - {slug: "residuals", text: "Residuals", level: 3}
+  - path: "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md"
+    title: "ADR: command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills"
+    divio_type: "none"
+    abstract: "Command skills are renamed spec-kitty-<command> by one naming authority, Antigravity becomes a command-skill agent, and the home writer is scoped to configured agents."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-the-name-is-spec-kitty-produced-by-one-authority", text: "1. The name is `spec-kitty-<command>`, produced by one authority", level: 3}
+    - {slug: "2-invocations-are-rewritten-at-render-time-slash-files-are-unchanged", text: "2. Invocations are rewritten at render time; slash files are unchanged", level: 3}
+    - {slug: "3-every-repair-path-applies-one-legacy-rule", text: "3. Every repair path applies one legacy rule", level: 3}
+    - {slug: "4-the-rename-migration-is-per-clone", text: "4. The rename migration is per clone", level: 3}
+    - {slug: "5-doctor-skills-reports-leftovers-and-collisions", text: "5. `doctor skills` reports leftovers and collisions", level: 3}
+    - {slug: "6-antigravity-is-a-command-skill-agent", text: "6. Antigravity is a command-skill agent", level: 3}
+    - {slug: "7-antigravity-workflow-files-are-archived-not-deleted", text: "7. Antigravity workflow files are archived, not deleted", level: 3}
+    - {slug: "8-the-home-folder-writer-is-scoped-to-configured-agents-amends-2026-04-07-1", text: "8. The home-folder writer is scoped to configured agents (amends 2026-04-07-1)", level: 3}
+    - {slug: "9-frontmatter-is-projected-per-root", text: "9. Frontmatter is projected per root", level: 3}
+    - {slug: "10-the-reference-validator-runs-in-ci", text: "10. The reference validator runs in CI", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -12240,12 +12263,13 @@ pages:
   - path: "docs/guides/how-to/harnesses/antigravity.md"
     title: "Use Spec Kitty in Google Antigravity"
     divio_type: "how-to"
-    abstract: "Configure the Google Antigravity harness for Spec Kitty 3.2 workflows, partial-tier verification, and generated workflow files."
+    abstract: "Use Spec Kitty in Google Antigravity through the shared .agents/skills/ command skills: install, invocation, partial-tier status and the archived workflow files."
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
-    - {slug: "verification-status", text: "Verification status", level: 2}
     - {slug: "where-spec-kitty-installs-files", text: "Where Spec Kitty installs files", level: 2}
     - {slug: "canonical-invocation", text: "Canonical invocation", level: 2}
+    - {slug: "upgrading-from-the-workflow-files", text: "Upgrading from the workflow files", level: 2}
+    - {slug: "verification-status", text: "Verification status", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
   - path: "docs/guides/how-to/harnesses/augment.md"
     title: "Use Spec Kitty in Augment Code (Auggie)"
@@ -13441,6 +13465,20 @@ pages:
     - {slug: "config-keys-and-paths", text: "Config keys and paths", level: 3}
     - {slug: "error-codes", text: "Error codes", level: 3}
     - {slug: "python-callers", text: "Python callers", level: 3}
+  - path: "docs/migrations/command-skill-hyphen-names.md"
+    title: "Migration: Command Skills Renamed for the Agent Skills Specification"
+    divio_type: "how-to"
+    abstract: "Upgrade to the spec-kitty-<command> skill names: new invocations per harness, kept edited copies, doctor skills remedies and the Antigravity workflows archive."
+    anchors:
+    - {slug: "what-changed", text: "What changed", level: 2}
+    - {slug: "how-to-invoke-a-command-now", text: "How to invoke a command now", level: 2}
+    - {slug: "upgrade-your-project", text: "Upgrade your project", level: 2}
+    - {slug: "what-happens-to-your-existing-dotted-skills", text: "What happens to your existing dotted skills", level: 2}
+    - {slug: "doctor-skills-messages-and-what-to-do", text: "`doctor skills` messages and what to do", level: 2}
+    - {slug: "antigravity-workflow-files", text: "Antigravity workflow files", level: 2}
+    - {slug: "home-folder-command-files", text: "Home-folder command files", level: 2}
+    - {slug: "downgrading", text: "Downgrading", level: 2}
+    - {slug: "known-follow-ups", text: "Known follow-ups", level: 2}
   - path: "docs/migrations/cross-repo-e2e-gate.md"
     title: "Cross-Repo E2E Gate — Operator Migration Guide"
     divio_type: "none"
