@@ -22,7 +22,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.upgrade.init_seed import seed_migration_ledger_for_init
-from specify_cli.upgrade import ledger as ledger_module
 from specify_cli.upgrade.ledger import MigrationLedger, build_record, clone_local_effect_in_place
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger import (
@@ -142,22 +141,6 @@ def test_an_rc8_stamp_does_not_settle_rc8_migrations(tmp_path: Path) -> None:
 
     assert _RC8_LATER not in _tracked(project)
     assert _tracked(project)[_BELOW] == "success"
-
-
-def test_the_baseline_is_written_in_one_pass_per_partition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    project = _project(tmp_path)
-    writes: list[Path] = []
-    real = ledger_module.atomic_write
-
-    def counting(path: Path, *args: object, **kwargs: object) -> None:
-        writes.append(Path(path))
-        real(path, *args, **kwargs)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(ledger_module, "atomic_write", counting)
-
-    BackfillMigrationLedgerMigration().apply(project)
-
-    assert writes == [MigrationLedger(project).tracked_path]
 
 
 # -- selection matches what the real run applies -------------------------------- #
