@@ -390,13 +390,20 @@ def test_orphan_in_a_canonical_folder_is_still_reported(repo: Path) -> None:
     assert verify(repo).orphans == [".agents/skills/spec-kitty-plan/notes.md"]
 
 
-def test_is_projected_accepts_legacy_paths_only_for_deletion() -> None:
+def test_is_projected_is_a_deletion_predicate_for_canonical_commands_only() -> None:
     legacy = legacy_command_skill_rel_path("plan")
-    assert is_projected_skills_path(command_skill_rel_path("plan"), set(), for_deletion=False)
-    assert not is_projected_skills_path(legacy, set(), for_deletion=False)
+    assert is_projected_skills_path(command_skill_rel_path("plan"), set())
     assert is_projected_skills_path(legacy, set())  # both shipped callers untrack (deletion)
     assert not is_projected_skills_path(".agents/skills/spec-kitty.mine/SKILL.md", set())
-    assert is_projected_skills_path(legacy, {legacy}, for_deletion=False)
+    assert not is_projected_skills_path(".agents/skills/team-skill/SKILL.md", set())
+    assert is_projected_skills_path(".agents/skills/team-skill/SKILL.md", {".agents/skills/team-skill/SKILL.md"})
+
+
+def test_is_projected_has_no_for_deletion_switch() -> None:
+    """Squad m2: no default that silently admits legacy paths for a write/keep caller."""
+    import inspect
+
+    assert "for_deletion" not in inspect.signature(is_projected_skills_path).parameters
 
 
 @pytest.mark.parametrize("state", [COLLISION, LEGACY_KEPT])
