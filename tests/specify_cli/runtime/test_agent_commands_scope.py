@@ -27,6 +27,7 @@ from typer.testing import CliRunner
 import specify_cli.runtime.agent_commands as ac
 from specify_cli.core import config as core_config
 from specify_cli.runtime.asset_preparation import AssetPreparation
+from specify_cli.runtime.bootstrap import _get_cli_version
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -69,7 +70,7 @@ def _count_preparations(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
 
     def _counting(self: AssetPreparation, *args: object, **kwargs: object) -> None:
         calls["n"] += 1
-        original(self, *args, **kwargs)  # type: ignore[arg-type]  # forwarding the real signature
+        original(self, *args, **kwargs)
 
     monkeypatch.setattr(AssetPreparation, "__init__", _counting)
     return calls
@@ -288,7 +289,7 @@ def test_pre_inventory_file_removed_only_on_current_marker_and_bytes(env: tuple[
     # canonical body under a DIFFERENT version marker: kept (R-M5, never the predecessor branch)
     other_version = workflows / "spec-kitty.specify.md"
     other_version.chmod(0o644)
-    current_marker = f"<!-- spec-kitty-command-version: {ac._get_cli_version()} -->"
+    current_marker = f"<!-- spec-kitty-command-version: {_get_cli_version()} -->"
     other_version.write_text(other_version.read_text(encoding="utf-8").replace(current_marker, "<!-- spec-kitty-command-version: 0.0.1 -->"), encoding="utf-8")
     # current marker, but not a current command name: kept (no render can prove it)
     (workflows / "spec-kitty.retired-cmd.md").write_text(f"{current_marker}\nold command\n", encoding="utf-8")
