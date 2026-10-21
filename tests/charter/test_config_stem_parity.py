@@ -31,7 +31,6 @@ import re
 from pathlib import Path
 
 import pytest
-from ruamel.yaml import YAML
 
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import (
@@ -69,26 +68,17 @@ def _find_repo_root() -> Path:
 
 
 def _load_config(repo_root: Path) -> dict[str, object]:
-    """Load the *resolved activation store* (WP07/T036 repoint, FR-017).
+    """Load this repository's activation keys through the activation seam (WP08 T052).
 
-    Activation lives in the store resolved through the ``.kittify/config.yaml``
-    ``charter:`` pointer — ``charter.yaml`` when the pointer is present (the
-    migrated state), else the legacy config.yaml. The retired config.yaml
-    ``activated_*`` mirror is no longer consulted. The function name is kept
-    for call-site stability; every consumer reads ``activated_*`` keys.
+    Activation lives in the activation ledger (``.kittify/charter/activation.yaml``,
+    ADR 2026-10-19-1) since this repository was migrated onto it; the seam's
+    ``load_activation_ledger`` reads whichever source the resolver names. The
+    function name is kept for call-site stability; every consumer reads
+    ``activated_*`` keys.
     """
-    from charter.activation.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.api import load_activation_ledger
 
-    yaml = YAML(typ="safe")
-    config_path = repo_root / ".kittify" / "config.yaml"
-    config_data = yaml.load(config_path.read_text(encoding="utf-8"))
-    assert isinstance(config_data, dict)
-    charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
-    if charter_path is None:
-        return config_data
-    store = yaml.load(charter_path.read_text(encoding="utf-8"))
-    assert isinstance(store, dict)
-    return store
+    return dict(load_activation_ledger(repo_root).raw())
 
 
 @pytest.fixture(scope="module")

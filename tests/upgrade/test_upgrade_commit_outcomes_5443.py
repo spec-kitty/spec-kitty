@@ -112,8 +112,12 @@ def test_failed_upgrade_commits_nothing_and_cleans_up(tmp_path: Path, ignore_set
     # (``.kittify/migrations/clone-local.jsonl``, ADR 2026-10-17-1): a clone-local
     # migration that applied its effect before the failing step legitimately
     # records it there, and that record is local-only (never committed), so it is
-    # an expected runtime artifact of a failed run, not debris.
-    assert after <= before | {"skills-manifest.json", "migrations"}
+    # an expected runtime artifact of a failed run, not debris. ``charter`` holds the
+    # activation ledger the finalizer's provisioning writes for this keyless project
+    # (pass-8 M3, FR-019), as it wrote ``config.yaml``'s mission types before the ledger.
+    assert after <= before | {"skills-manifest.json", "migrations", "charter"}
+    if "charter" in after - before:
+        assert {entry.name for entry in (project / ".kittify" / "charter").iterdir()} == {"activation.yaml"}
 
 
 @pytest.mark.regression

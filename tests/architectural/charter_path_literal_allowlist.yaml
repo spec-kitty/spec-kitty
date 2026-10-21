@@ -406,3 +406,9 @@ charter_path_literals:
   clause: "b"
   token: "if ( repo_root / _CHARTER_DIR / _READABLE_CHARTER_FILENAME ) . exists ( ) :"
   rationale: "MESSAGE SELECTION, never presence: this branch only picks F1 vs F2 wording for a state already decided as missing by the charter.yaml authority above. #2831's reporter has charter.md alone and was told 'this project has no charter at all'; test_charter_source_missing_detail_names_charter_md_for_the_2831_shape pins that the verdict stays missing and the remediation unchanged, so this can never drift into a presence decision."
+
+# Activation ledger filename (persistent-deactivation-ledger WP02, D2 / M5).
+# "activation.yaml" may be spelled only in src/kernel/activation_ledger_store.py
+# (ACTIVATION_LEDGER); every other module derives it from that constant.
+# Same entry shape as above with clause "c". Shrink-only; empty at birth.
+activation_ledger_path_literals: []

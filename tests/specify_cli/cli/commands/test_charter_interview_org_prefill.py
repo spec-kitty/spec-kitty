@@ -215,7 +215,8 @@ def test_interview_narrow_activation_keeps_org_required_directive(
     )
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
-    config = YAML(typ="safe").load((tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
+    # A project whose config.yaml holds no activation key is fresh: the promotion writes the ledger (FR-019).
+    config = YAML(typ="safe").load((tmp_path / ".kittify" / "charter" / "activation.yaml").read_text(encoding="utf-8"))
     committed = config["activated_directives"]
     assert set(committed) == {"001-architectural-integrity-standard", "010-specification-fidelity-requirement"}
     assert "010-specification-fidelity-requirement" not in payload["narrowed"]["activated_directives"]

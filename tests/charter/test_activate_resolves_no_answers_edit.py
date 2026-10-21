@@ -16,6 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
+from tests._factories.activation_ledger import seed_activation_ledger
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -64,19 +66,10 @@ def project_root(tmp_path: Path) -> Path:
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text(
-        "activated_directives: []\n"
-        "activated_tactics: []\n"
-        "activated_styleguides: []\n"
-        "activated_toolguides: []\n"
-        "activated_paradigms: []\n"
-        "activated_procedures: []\n"
-        "activated_agent_profiles: []\n"
-        "activated_mission_step_contracts: []\n"
-        "mission_type_activations:\n"
-        "  - software-dev\n",
-        encoding="utf-8",
-    )
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    # The activation ledger is the authority (a deactivation records a deny entry there, FR-017).
+    narrowed = ("directives", "tactics", "styleguides", "toolguides", "paradigms", "procedures", "agent_profiles", "mission_step_contracts")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], **{f"activated_{kind}": [] for kind in narrowed})
     return tmp_path
 
 

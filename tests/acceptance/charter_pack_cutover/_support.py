@@ -105,7 +105,10 @@ def load_yaml(path: Path) -> Any:
 
 
 def activation_store(project: Path) -> Path:
-    """The file holding the active charter: ``config.yaml`` or its ``charter:`` pointer target."""
+    """The file holding the activation: the ledger when it exists, else ``config.yaml`` or its ``charter:`` pointer target."""
+    ledger = project / ".kittify" / "charter" / "activation.yaml"
+    if ledger.is_file():
+        return ledger
     config = project / ".kittify" / "config.yaml"
     data = load_yaml(config) if config.is_file() else None
     pointer = data.get("charter") if isinstance(data, dict) else None

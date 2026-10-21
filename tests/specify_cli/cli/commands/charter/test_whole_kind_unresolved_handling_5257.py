@@ -15,7 +15,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from ruamel.yaml import YAML
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -48,18 +49,18 @@ def _project_with_unresolvable_toolguide(project_root: Path, *directives: str) -
     _git_init(project_root)
     # EXPLICIT directive set: activating into an absent one would first expand
     # it to every effective built-in.
-    listed = "".join(f"- {stem}\n" for stem in directives)
     # ``activated_tactics: []`` keeps the built-in packs from seeding tactics
-    # (their closures reach real toolguides).
-    kittify = _write_config(project_root, f"activated_directives:\n{listed}activated_tactics: []\n")
+    # (their closures reach real toolguides). The activation lives in the ledger:
+    # a deactivation records a deny entry, which only the ledger holds (FR-017).
+    kittify = _write_config(project_root, "# no activation keys\n")
+    seed_activation_ledger(project_root, activated_directives=list(directives), activated_tactics=[])
     _write_established_catalog(kittify)
     _write_project_drg_overlay(project_root, kind="toolguide", ghost_id=_GHOST_ID)
     return kittify / "charter" / "charter.yaml"
 
 
 def _activated_key(project_root: Path, key: str) -> list[str]:
-    loaded = YAML(typ="safe").load((project_root / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
-    return list(loaded.get(key, []))
+    return list(read_activation_ledger(project_root).get(key, []))
 
 
 def test_activate_keeps_config_write_and_prints_notice_when_whole_kind_unresolved(tmp_path: Path) -> None:

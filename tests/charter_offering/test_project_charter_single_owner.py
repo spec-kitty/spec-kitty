@@ -22,7 +22,9 @@ from pathlib import Path
 
 import pytest
 
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.glossary_packs.repository import GlossaryPackRepository
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 
 from tests.charter_offering._single_owner_detectors import (
     has_headcount_language,
@@ -108,6 +110,7 @@ def test_no_retired_doctrine_id_remains_activated_under_kittify() -> None:
     surfaces = [
         kittify_dir / "config.yaml",
         kittify_dir / "charter" / "charter.yaml",
+        _REPO_ROOT / ACTIVATION_LEDGER,
         kittify_dir / "charter" / "references.yaml",
         kittify_dir / "charter" / "interview" / "answers.yaml",
     ]
@@ -126,11 +129,11 @@ def test_boring_code_review_tactic_is_retired_its_successor_styleguide_is_not() 
     ``activated_styleguides`` entry of the same name is the expected,
     correct post-migration state, not a leftover.
     """
-    charter_yaml = _read(_REPO_ROOT / ".kittify" / "charter" / "charter.yaml")
-    tactics_block = _section(charter_yaml, "activated_tactics:\n", "\nactivated_styleguides:")
-    styleguides_block = _section(charter_yaml, "activated_styleguides:\n", "\nactivated_toolguides:")
-    assert "- boring-code-review" not in tactics_block
-    assert "- boring-code-review" in styleguides_block
+    from charter.activation.api import load_activation_ledger
+
+    ledger = load_activation_ledger(_REPO_ROOT)
+    assert "boring-code-review" not in (ledger.allow_for(ArtifactKind.TACTIC) or ())
+    assert "boring-code-review" in (ledger.allow_for(ArtifactKind.STYLEGUIDE) or ())
 
 
 def test_charter_compiles_against_the_projects_own_answers_without_unknown_artifact_error() -> None:

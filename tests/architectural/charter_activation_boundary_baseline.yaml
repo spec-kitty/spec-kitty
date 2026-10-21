@@ -240,8 +240,6 @@
 - file: src/specify_cli/cli/commands/charter/deactivate.py
   module: charter.activation._drg_helpers
 - file: src/specify_cli/cli/commands/charter/deactivate.py
-  module: charter.activation.activation_engine
-- file: src/specify_cli/cli/commands/charter/deactivate.py
   module: charter.activation.cascade
 - file: src/specify_cli/cli/commands/charter/deactivate.py
   module: charter.activation.catalog

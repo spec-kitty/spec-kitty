@@ -29,6 +29,7 @@ from specify_cli.core.mission_creation import (
 from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 
 from tests._factories import provision_test_charter
+from tests._factories.activation_ledger import seed_activation_ledger
 from tests._factories.coord_mission import COORD_TOPOLOGIES, make_coord_mission
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -205,8 +206,8 @@ def test_invalid_purpose_summary_raises(repo: Path) -> None:
 def test_empty_activation_set_raises_and_leaves_no_scaffold(repo: Path) -> None:
     from charter.activation.pack_context import ActiveCharterConfigError
 
-    config_path = repo / ".kittify" / "config.yaml"
-    config_path.write_text("mission_type_activations: []\n")
+    # Activation lives in the activation ledger: an explicit empty mission-type set there.
+    seed_activation_ledger(repo, mission_type_activations=[])
     with pytest.raises(ActiveCharterConfigError):
         create_mission_core(repo, "no-activation", **_summary("no-activation"))
     assert not (repo / "kitty-specs" / "no-activation").exists()

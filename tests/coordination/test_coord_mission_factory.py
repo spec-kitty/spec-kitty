@@ -173,7 +173,9 @@ def test_make_coord_mission_default_writes_no_protection_config(tmp_path: Path) 
     """
     coord = make_coord_mission(tmp_path, MissionTopology.COORD)
 
-    config_text = (coord.repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+    config_path = coord.repo_root / ".kittify" / "config.yaml"
+    # The provisioner seeds activation into the activation ledger, so config.yaml may not exist.
+    config_text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     assert "protection" not in config_text
 
 

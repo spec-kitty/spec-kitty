@@ -70,6 +70,14 @@ def _mission(root: Path, *, coord: bool, mission_type: str = "software-dev") -> 
     return primary, status
 
 
+def _unactivate(root: Path) -> None:
+    """No mission type in force: an empty ``config.yaml`` and, when the fixture provisioned one, an emptied ledger."""
+    (root / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    ledger = root / ".kittify" / "charter" / "activation.yaml"
+    if ledger.exists():
+        ledger.write_text("{}\n", encoding="utf-8")
+
+
 def _state(root: Path, status: Path) -> _MoveTaskState:
     return _MoveTaskState(
         task_id="WP01",
@@ -165,7 +173,7 @@ def test_invalid_primary_never_uses_valid_coord_decoy(tmp_path: Path, primary_st
 def test_unactivated_primary_retains_no_coverage(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     _, status = _mission(root, coord=True)
-    (root / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    _unactivate(root)
     result = _mt_resolve_active_gate_bindings(_state(root, status))
     assert result.coverage is GateCoverage.NOT_ACTIVATED, result.reason
     assert result.owning_contract_urn == "mission_step_contract:software-dev/review"
@@ -181,7 +189,7 @@ def test_owned_identity_and_activation_stay_on_selected_root(tmp_path: Path, own
     st = _state(root, status)
     st.owned = mint_test_fact(repository_root=root, owned_root=owned_root, mission_dir=primary, mission_slug=_MISSION, write_branch="topic")
     if owned_state == "unactivated":
-        (owned_root / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+        _unactivate(owned_root)
     elif owned_state == "missing":
         (primary / "meta.json").unlink()
     elif owned_state == "corrupt":

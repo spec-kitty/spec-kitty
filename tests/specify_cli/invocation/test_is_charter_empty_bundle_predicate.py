@@ -194,7 +194,8 @@ def test_journey2_apply_minimal_without_compile_still_falls_back_not_router_no_m
     apply_result = _apply_minimal_via_real_cli(tmp_path)
     assert apply_result.exit_code == 0, apply_result.output
 
-    config_path = tmp_path / ".kittify" / "config.yaml"
+    # An empty project is fresh: the preset lands in the activation ledger (FR-019).
+    config_path = tmp_path / ".kittify" / "charter" / "activation.yaml"
     written = YAML(typ="safe").load(config_path.read_text(encoding="utf-8"))
     # Fixture-realism guard: the real `minimal` preset declares no
     # `activated_agent_profiles` key at all (packs/built-in/presets/minimal.yaml) --

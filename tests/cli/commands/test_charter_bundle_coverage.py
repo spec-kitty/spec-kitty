@@ -45,6 +45,7 @@ def _make_minimal_report() -> dict[str, Any]:
         "manifest_schema_version": "1.0.0",
         "bundle_compliant": True,
         "tracked_files": {"expected": [".kittify/charter/charter.md"], "present": [".kittify/charter/charter.md"], "missing": []},
+        "optional_tracked_files": {"expected": [".kittify/charter/activation.yaml"], "present": [], "missing": [".kittify/charter/activation.yaml"]},
         "derived_files": {"expected": [".kittify/charter/governance.yaml"], "present": [], "missing": []},
         "gitignore": {"expected_entries": [".kittify/charter/governance.yaml"], "present_entries": [".kittify/charter/governance.yaml"], "missing_entries": []},
         "out_of_scope_files": [],

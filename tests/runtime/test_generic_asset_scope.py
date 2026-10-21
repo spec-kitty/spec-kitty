@@ -427,10 +427,16 @@ class TestRecheckCommandCompletionConcurrentPeerVerdict:
         with pytest.raises(ValueError) as exc_info:
             _recheck_command_completion(composition_loser, {})
 
+        # The loser's provisioning now creates the activation ledger
+        # (``.kittify/charter/activation.yaml``, absent on a cold project), so
+        # its never-applied YAML write is rechecked first and refuses for want
+        # of a completion receipt; before the ledger it rewrote the existing
+        # ``config.yaml`` and the command-output check refused instead. Either
+        # refusal is the loser failing closed against the peer's landing; the
+        # manifest-content gap itself is pinned by the root-cause check below.
         message = str(exc_info.value)
-        assert "Completed command output changed" in message, (
-            f"expected the manifest-timestamp mismatch to surface as a completed-output change (confirming the race), got: {message!r}"
-        )
+        race_signatures = ("Completed command output changed", "precondition_changed: YAML write has no completion receipt")
+        assert message.startswith(race_signatures), f"expected the loser to refuse against the peer's landing (confirming the race), got: {message!r}"
 
         # Root-cause confirmation: the two sides' own planned manifest bytes
         # for the identical logical outcome genuinely differ (not a filesystem

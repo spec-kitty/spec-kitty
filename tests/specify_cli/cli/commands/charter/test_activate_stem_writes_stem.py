@@ -53,7 +53,6 @@ def test_activate_tactic_by_stem_writes_stem(tactic_pack_project: Path) -> None:
     # by declared id (narrowed by WP06); the contract here is the stem is written.
 
 
-@pytest.mark.xfail(strict=True, reason="#6423: charter activate refuses a declared id")
 def test_activate_tactic_by_declared_id_writes_stem(tactic_pack_project: Path) -> None:
     result = runner.invoke(charter_app, ["activate", "--repo-root", str(tactic_pack_project), "--no-compile", "tactic", "qa-seven"])
     assert result.exit_code == 0, result.output

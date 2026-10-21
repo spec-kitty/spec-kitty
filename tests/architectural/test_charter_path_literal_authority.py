@@ -191,7 +191,7 @@ def _reject_glob_shaped(rel_path: str, context: str) -> None:
         raise AllowlistEntryError(f"allow-list entry {context} file {rel_path!r} is not a .py module path")
 
 
-def load_allowlist(path: Path) -> list[CharterPathKey]:
+def load_allowlist(path: Path, *, section: str = "charter_path_literals", clauses: tuple[str, ...] = ("a", "b")) -> list[CharterPathKey]:
     """Load the governance YAML's ``charter_path_literals`` entries.
 
     Each entry carries ``file:``/``qualname:``/``token:`` (the composite key)
@@ -202,10 +202,10 @@ def load_allowlist(path: Path) -> list[CharterPathKey]:
     if not path.exists():
         return []
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    entries = raw.get("charter_path_literals") or []
+    entries = raw.get(section) or []
     keys: list[CharterPathKey] = []
     for idx, entry in enumerate(entries):
-        context = f"charter_path_literals[{idx}]"
+        context = f"{section}[{idx}]"
         if not isinstance(entry, dict):
             raise AllowlistEntryError(f"{context} is not a mapping (got {entry!r})")
         rel_path = _require_str(entry, "file", context)
@@ -215,8 +215,8 @@ def load_allowlist(path: Path) -> list[CharterPathKey]:
         literal = _require_str(entry, "literal", context)
         clause = _require_str(entry, "clause", context)
         _require_str(entry, "rationale", context)
-        if clause not in ("a", "b"):
-            raise AllowlistEntryError(f"{context} has clause {clause!r}; expected 'a' or 'b'")
+        if clause not in clauses:
+            raise AllowlistEntryError(f"{context} has clause {clause!r}; expected one of {clauses}")
         line = entry.get("line")
         if line is not None and not isinstance(line, int):
             raise AllowlistEntryError(f"{context} ({qualname!r}) has a non-integer line locator {line!r}")
@@ -745,3 +745,90 @@ def test_allowlist_entries_are_still_live() -> None:
     """Twin-guard: every seeded entry matches a live site (no masking leftovers)."""
     stale = staleness_twin_guard(set(load_allowlist(ALLOWLIST_PATH)), _live_keys())
     assert stale == [], f"stale charter path-literal allow-list entries: {stale}"
+
+
+# =========================================================================== #
+# Clause (c) -- the activation ledger filename (persistent-deactivation-ledger
+# WP02, D2 / M5). ``"activation.yaml"`` may be spelled only in
+# ``src/kernel/activation_ledger_store.py`` (``ACTIVATION_LEDGER``); every other
+# module derives the name from that constant. Stricter than clause (a): any
+# non-docstring string constant whose final path segment is the filename counts,
+# whatever its context, so a call argument or a dict value cannot slip past.
+# =========================================================================== #
+LEDGER_FILENAME = "activation.yaml"
+LEDGER_AUTHORITY_REL_PATH = "src/kernel/activation_ledger_store.py"
+LEDGER_ALLOWLIST_SECTION = "activation_ledger_path_literals"
+
+
+def _is_docstring(parent: ast.AST | None, node: ast.Constant) -> bool:
+    return isinstance(parent, ast.Expr) and parent.value is node
+
+
+def scan_ledger_path_literals(src_root: Path) -> list[CharterPathSite]:
+    """Every ``"activation.yaml"`` literal under *src_root* outside the kernel authority."""
+    sites: list[CharterPathSite] = []
+    for path in _iter_source_files(src_root):
+        rel = _rel(path)
+        if rel == LEDGER_AUTHORITY_REL_PATH:
+            continue
+        source, tree = read_and_parse(path, display=rel)
+        parents = _parent_map(tree)
+        token_map = code_tokens_by_line(source)
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            if node.value.split("/")[-1] != LEDGER_FILENAME or _is_docstring(parents.get(id(node)), node):
+                continue
+            key = CharterPathKey(rel, _qualname_from_parents(parents, node), token_map.get(node.lineno, ""), LEDGER_FILENAME, "c")
+            sites.append(CharterPathSite(rel, key, node.lineno, "c"))
+    return sites
+
+
+def _ledger_allowlist() -> set[CharterPathKey]:
+    return set(load_allowlist(ALLOWLIST_PATH, section=LEDGER_ALLOWLIST_SECTION, clauses=("c",)))
+
+
+def _ledger_violations(src_root: Path, allowlist: set[CharterPathKey]) -> list[str]:
+    return sorted(
+        f"{site.rel_path}:{site.lineno} ({site.key.enclosing_qualname}) spells {LEDGER_FILENAME!r}; "
+        f"derive it from kernel.activation_ledger_store.ACTIVATION_LEDGER instead (clause c)"
+        for site in scan_ledger_path_literals(src_root)
+        if site.key not in allowlist
+    )
+
+
+def test_ledger_filename_is_spelled_only_by_the_kernel_authority() -> None:
+    violations = _ledger_violations(SRC_ROOT, _ledger_allowlist())
+    assert violations == [], "\n".join(violations)
+
+
+def test_ledger_authority_declares_the_filename() -> None:
+    """Non-vacuity: the authority really spells the literal the gate excludes it for.
+
+    Matched by the scanner's own rule (the last ``/`` segment of a string
+    literal), so the authority may spell it as one ``.kittify``-relative path.
+    """
+    _, tree = read_and_parse(_REPO_ROOT / LEDGER_AUTHORITY_REL_PATH, display=LEDGER_AUTHORITY_REL_PATH)
+    literals = [node.value for node in ast.walk(tree) if isinstance(node, ast.Constant) and isinstance(node.value, str)]
+    assert any(value.split("/")[-1] == LEDGER_FILENAME for value in literals)
+
+
+def test_injected_ledger_literal_is_flagged(tmp_path: Path) -> None:
+    """Self-mutation: a second spelling of the ledger filename goes RED, docstrings do not."""
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "regressed.py").write_text(
+        '"""Mentions activation.yaml in prose only."""\n'
+        "def load(root):\n"
+        '    """Reads activation.yaml."""\n'
+        '    return open(root / ".kittify/charter/activation.yaml")\n',
+        encoding="utf-8",
+    )
+    sites = scan_ledger_path_literals(tmp_path / "src")
+    assert [(site.key.enclosing_qualname, site.clause) for site in sites] == [("load", "c")]
+    assert _ledger_violations(tmp_path / "src", _ledger_allowlist())
+
+
+def test_ledger_allowlist_entries_are_still_live() -> None:
+    live = {site.key for site in scan_ledger_path_literals(SRC_ROOT)}
+    assert staleness_twin_guard(_ledger_allowlist(), live) == []

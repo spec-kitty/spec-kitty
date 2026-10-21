@@ -102,11 +102,14 @@ def test_same_version_provisioning_owner_matches_prepared_bytes(tmp_path: Path, 
 
     _provision_missing_mission_type_activations(tmp_path, dry_run=False)
 
-    assert target.read_bytes() == prepared.write.desired_bytes
-    assert target.read_bytes().startswith(authored)
-    assert {(e.path, e.action) for e in net_delta(before, snapshot({"project": tmp_path}))} == {
-        (".kittify/charter/charter.yaml" if pointer else ".kittify/config.yaml", "update")
-    }
+    # A keyless pre-ledger project is fresh outside the upgrade scope: the finalizer's provisioning
+    # creates the activation ledger (pass-8 M3, FR-019) and leaves the authored file byte-identical.
+    ledger = tmp_path / ".kittify/charter/activation.yaml"
+    assert prepared.write.target == ledger
+    assert ledger.read_bytes() == prepared.write.desired_bytes
+    assert target.read_bytes() == authored
+    created = {(".kittify/charter/activation.yaml", "create")} | (set() if pointer else {(".kittify/charter", "create")})
+    assert {(e.path, e.action) for e in net_delta(before, snapshot({"project": tmp_path}))} == created
     after = snapshot({"project": tmp_path})
     _provision_missing_mission_type_activations(tmp_path, dry_run=False)
     assert_unchanged(after, snapshot({"project": tmp_path}))
@@ -268,7 +271,9 @@ def test_upgrade_heals_stranded_project_and_unblocks_mission_creation(tmp_path: 
     )
     assert result.exit_code == 0, result.output
 
-    config_data = _load_config(project / ".kittify" / "config.yaml")
+    # The keyless pre-ledger project gets the ledger from the finalizer's provisioning (pass-8 M3).
+    assert "mission_type_activations" not in _load_config(project / ".kittify" / "config.yaml")
+    config_data = _load_config(project / ".kittify" / "charter" / "activation.yaml")
     activations = config_data.get("mission_type_activations")
     assert activations, f"mission_type_activations still absent/empty after upgrade: {config_data}"
 
@@ -346,14 +351,15 @@ def test_upgrade_heals_pointer_charter_activation(tmp_path: Path, monkeypatch: p
     )
     assert result.exit_code == 0, result.output
 
-    # The pointer-resolved charter.yaml is the write authority -- config.yaml
-    # (the legacy shape) must NOT gain the key.
+    # The keyless pointer project is fresh outside the upgrade scope: the finalizer's provisioning
+    # writes the activation ledger (pass-8 M3) -- neither config.yaml nor charter.yaml gains the key.
     config_data = _load_config(project / ".kittify" / "config.yaml")
     assert "mission_type_activations" not in config_data
+    assert "mission_type_activations" not in _load_config(charter_path)
 
-    charter_data = _load_config(charter_path)
-    activations = charter_data.get("mission_type_activations")
-    assert activations, f"mission_type_activations still absent/empty in charter.yaml: {charter_data}"
+    ledger_data = _load_config(project / ".kittify" / "charter" / "activation.yaml")
+    activations = ledger_data.get("mission_type_activations")
+    assert activations, f"mission_type_activations still absent/empty in the ledger: {ledger_data}"
 
     ctx = PackContext.from_config(project)
     assert ctx.activated_mission_types
@@ -527,3 +533,36 @@ def test_upgrade_plan_json_carries_the_default_preset_missing_body(tmp_path: Pat
     assert diagnostic["code"] == "assessment_failed"
     assert diagnostic["message"].startswith("Error (DEFAULT_PRESET_MISSING): ")
     assert str(preset) in diagnostic["message"]
+
+
+def _unrecord(project: Path, migration_id: str) -> None:
+    """Drop *migration_id*'s record from the seeded tracked ledger so the next upgrade selects it."""
+    tracked = project / ".kittify" / "migration-ledger.jsonl"
+    lines = [line for line in tracked.read_text(encoding="utf-8").splitlines() if json.loads(line)["id"] != migration_id]
+    tracked.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_legacy_project_provisioning_runs_after_the_ledger_migration(tmp_path: Path) -> None:
+    """WP08 T049 (m6): the provisioning write is prepared after the migrations ran.
+
+    ``4.0.0rc8_activation_ledger`` moves the legacy keys into the ledger first;
+    the finalizer then resolves its target afresh and seeds
+    ``mission_type_activations`` into that ledger. A write prepared before the
+    move would name the legacy ``charter.yaml`` and fail its compare-and-swap.
+    """
+    project = tmp_path / "legacy"
+    project.mkdir()
+    charter = _write_pointer_charter_project(project, charter_body=_CHARTER_YAML_WITHOUT_KEY + "activated_tactics:\n- custom-tactic\n")
+    _unrecord(project, "4.0.0rc8_activation_ledger")
+    _init_git_repo(project)
+
+    result = _run_upgrade(["--force", "--no-worktrees"], cwd=project)
+
+    assert result.exit_code == 0, result.output
+    assert "precondition_changed" not in result.output
+    ledger = _load_config(project / ".kittify" / "charter" / "activation.yaml")
+    assert ledger["activated_tactics"] == ["custom-tactic"]
+    assert ledger["mission_type_activations"]
+    charter_data = _load_config(charter)
+    assert "activated_tactics" not in charter_data
+    assert "mission_type_activations" not in charter_data

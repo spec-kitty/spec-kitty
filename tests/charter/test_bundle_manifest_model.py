@@ -17,6 +17,7 @@ import pytest
 from pydantic import ValidationError
 
 from charter.bundle import (
+    ACTIVATION_YAML,
     BUNDLE_CONTENT_HASH_FILES,
     CANONICAL_MANIFEST,
     CHARTER_MD,
@@ -132,3 +133,40 @@ def test_content_hash_files_accepts_arbitrary_paths_independent_of_tracked() -> 
         gitignore_required_entries=[],
     )
     assert manifest.content_hash_files == [Path("a.md")]
+
+
+# ---------------------------------------------------------------------------
+# persistent-deactivation-ledger WP09 (FR-018, data-model.md §10): the ledger is
+# an OPTIONAL tracked member, so ``tracked_files`` (required presence) is unchanged.
+# ---------------------------------------------------------------------------
+
+
+def test_canonical_manifest_lists_the_ledger_as_optional_tracked() -> None:
+    assert CANONICAL_MANIFEST.optional_tracked_files == [ACTIVATION_YAML]
+    assert ACTIVATION_YAML not in CANONICAL_MANIFEST.tracked_files
+    assert ACTIVATION_YAML not in CANONICAL_MANIFEST.derived_files
+
+
+def test_optional_tracked_files_defaults_to_empty() -> None:
+    manifest = CharterBundleManifest(
+        schema_version="2.0.0",
+        tracked_files=[Path("a.md")],
+        derived_files=[],
+        derivation_sources={},
+        gitignore_required_entries=[],
+    )
+    assert manifest.optional_tracked_files == []
+
+
+@pytest.mark.parametrize("field", ["tracked_files", "derived_files"])
+def test_validator_rejects_optional_overlap(field: str) -> None:
+    lists: dict[str, list[Path]] = {"tracked_files": [Path("a.md")], "derived_files": []}
+    lists[field] = [*lists[field], Path("opt.yaml")]
+    with pytest.raises(ValidationError, match="optional"):
+        CharterBundleManifest(
+            schema_version="2.0.0",
+            derivation_sources={},
+            optional_tracked_files=[Path("opt.yaml")],
+            gitignore_required_entries=[],
+            **lists,
+        )

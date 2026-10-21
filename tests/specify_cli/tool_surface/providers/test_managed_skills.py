@@ -43,6 +43,7 @@ from specify_cli.tool_surface.status import (
     STATE_MISSING,
     STATE_PRESENT,
 )
+from tests._factories.activation_ledger import legacy_target_scope
 from tests.upgrade.preview_support.snapshot import Snapshot
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -213,8 +214,10 @@ def test_managed_provisioning_original_pair_refuses_before_writes(
     provisioning, installation, _ = _provisioning_installation(tmp_path, monkeypatch)
     consent = installation.project_skills.consent
     if changed == "config":
-        assert provisioning.write.before_bytes is not None
-        provisioning.write.target.write_bytes(provisioning.write.before_bytes + b"# changed\n")
+        # A keyless project is fresh: the provisioning target is the activation ledger, absent before the write (FR-019).
+        target = provisioning.write.target
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((provisioning.write.before_bytes or b"") + b"# changed\n")
     elif changed == "already-provisioned":
         assert provisioning.apply()
     elif changed == "source":
@@ -454,10 +457,12 @@ def test_managed_provisioning_rejects_skill_authority_overlap(
     config = project / ".kittify/config.yaml"
     config.write_text(config.read_text() + f"charter: {target.relative_to(project).as_posix()}\n")
     before = snapshot({"sandbox": tmp_path})
-    provisioning = prepare_mission_type_activations(project)
-    assessment = assess_project_skills(
-        AssessmentInputs(original.project_skills.root, projected=provisioning), SkillRegistry(source), ("codex",),
-    )
+    # The overlap is a legacy pointer target's; a keyless project is fresh (the ledger) outside the upgrade scope.
+    with legacy_target_scope(project):
+        provisioning = prepare_mission_type_activations(project)
+        assessment = assess_project_skills(
+            AssessmentInputs(original.project_skills.root, projected=provisioning), SkillRegistry(source), ("codex",),
+        )
     assert not assessment.complete and any("overlaps" in item.message for item in assessment.diagnostics)
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
@@ -1518,7 +1523,7 @@ def test_absent_authority_paired_owners_require_canonical_creation(
         assert not errors, errors
         if damage != "unapplied":
             assert provisioning.apply()
-        target = project / ".kittify/config.yaml"
+        target = provisioning.write.target  # the activation ledger of this fresh project (FR-019)
         if damage == "replace":
             alternate = project / "replacement"
             alternate.write_bytes(target.read_bytes())
@@ -1528,7 +1533,7 @@ def test_absent_authority_paired_owners_require_canonical_creation(
         elif damage == "parent":
             target.parent.rename(project / "old")
             target.parent.mkdir()
-            (project / "old/config.yaml").rename(target)
+            (project / "old" / target.name).rename(target)
         elif damage == "source":
             target.write_bytes(target.read_bytes() + b"agents: {available: []}\n")
         results = provider.apply_composition(composition, consent)

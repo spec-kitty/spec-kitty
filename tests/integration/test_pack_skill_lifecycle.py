@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -157,6 +158,9 @@ def test_pack_skill_lifecycle_survives_every_retiring_path(project: Path, home: 
     assert manifest is not None and not [entry for entry in manifest.entries if entry.origin == ORIGIN_PACK]
 
     after = _snapshot(project, ignore=(PACK_SKILL_STAGING.as_posix(), ".kittify/skills-manifest.json"))
+    # The deactivation records an exclusion (ADR 2026-10-19-1); every other byte is back where it started.
+    config = ".kittify/config.yaml"
+    assert yaml.safe_load(after.pop(config)) == {**yaml.safe_load(before.pop(config)), "deactivated_skills": [SKILL_ID]}
     assert _without_empty_runtime(after) == _without_empty_runtime(before)
     assert _snapshot(home) == home_before or all(RENDERED not in key for key in _snapshot(home))
 

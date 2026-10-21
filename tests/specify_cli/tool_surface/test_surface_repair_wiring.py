@@ -356,14 +356,17 @@ main()
     assert "REAL_CONFIG_SAVE_INTERRUPTED" in first.stdout
     assert str(lane / "src/specify_cli/cli/commands/init.py") in first.stdout
     config = project / ".kittify/config.yaml"
+    ledger = project / ".kittify/charter/activation.yaml"
     assert config.is_file()
     if authored_after_fault:
-        # An interruption token must not authorize replacing later authored input.
-        config.write_text(
-            "# Authored after interruption\nagents:\n  available: [codex]\nactivated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
+        # An interruption token must not authorize replacing later authored input. The fresh
+        # init's activation lives in the ledger (FR-019), so the authored activation goes there.
+        config.write_text("# Authored after interruption\nagents:\n  available: [codex]\n", encoding="utf-8")
+        ledger.write_text(
+            ledger.read_text(encoding="utf-8") + "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
             encoding="utf-8",
         )
-    before = snapshot({"config": config})
+    before = snapshot({"config": config, "ledger": ledger})
     log = tmp_path / "retry-writes.jsonl"
     retry = run_process(
         [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
@@ -380,7 +383,7 @@ main()
     for entry in entries:
         assert entry["agents"] == owners
         assert entry["content_hash"] == hashlib.sha256((project / entry["path"]).read_bytes()).hexdigest()  # noqa: TID251 -- independent checksum
-    assert_unchanged(before, snapshot({"config": config}))
+    assert_unchanged(before, snapshot({"config": config, "ledger": ledger}))
     assert is_spdd_reasons_active(project) is not authored_after_fault
     plan = (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes()
     assert (b"### REASONS Guidance" in plan) is not authored_after_fault

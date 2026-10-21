@@ -458,7 +458,7 @@ class TestBuildPromptTemplate:
         # `git rev-parse --git-common-dir`; initialise a minimal git repo.
         subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
         charter_dir = repo_root / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True)
+        charter_dir.mkdir(parents=True, exist_ok=True)
         (charter_dir / "charter.md").write_text(
             """# Project Charter
 

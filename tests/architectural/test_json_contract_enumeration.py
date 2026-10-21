@@ -131,6 +131,7 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "glossary list": ((), 1, "outside"),
     "glossary validate": (("missing",), 2, "outside"),
     "materialize": ((), 1, "outside"),
+    "migrate activation-ledger": ((), 1, "outside"),
     "mission close": ((), 1, "outside"),
     "mission follow-up": (("missing", "--pr", "1"), 1, "outside"),
     "mission list": ((), 1, "badconfig"),

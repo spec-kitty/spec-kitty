@@ -23,7 +23,7 @@ test_layer_rules:
 test_runtime_charter_doctrine_boundary:
   lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
 test_runtime_charter_activation_boundary:
-  boundary_baseline: 236  # justification: #6188 introduces the charter.activation entry-point seam; freeze the 236 pre-existing external-consumer reaches into charter.activation internals as a shrink-only baseline drained onto charter.activation.api (owner epic #6099). New reaches and stale rows fail. Drain target: 4.0.0 GA (charter extraction precondition, #6099).
+  boundary_baseline: 235  # justification: #6188 introduces the charter.activation entry-point seam; freeze the 235 pre-existing external-consumer reaches into charter.activation internals as a shrink-only baseline drained onto charter.activation.api (owner epic #6099). New reaches and stale rows fail. Drain target: 4.0.0 GA (charter extraction precondition, #6099).
 test_doctrine_census:
   orphan_reached_exceptions: 10  # justification: the two runtime_bridge pairs plus the unchanged reaches of git-mv successors of WP05-owned files the frozen 01KZPDSR owner list cannot name (#3732: charter/pack_asset.py 1 and charter/pack_tooling.py 1 from WP15, _charter_pack_collect.py 6 from WP21); no new reach.
 

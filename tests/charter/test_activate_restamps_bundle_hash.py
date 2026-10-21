@@ -28,6 +28,7 @@ from charter.activation.synthesizer.manifest import (
 )
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.bundle import compute_bundle_content_hash
+from tests._factories.activation_ledger import seed_activation_ledger
 
 pytestmark = pytest.mark.unit
 
@@ -103,6 +104,9 @@ def test_activate_restamps_manifest(tmp_path: Path) -> None:
 
 def test_deactivate_restamps_manifest(tmp_path: Path) -> None:
     repo = _project(tmp_path)
+    # A deactivation records a deny entry, which only the ledger holds (FR-017): move the
+    # fixture's activation there first (the ledger is a hashed bundle member, FR-018).
+    seed_activation_ledger(repo, activated_directives=["001-architectural-integrity-standard"])
 
     ActiveCharterManager().deactivate(ProjectContext(repo_root=repo), kind="directive", artifact_id="001-architectural-integrity-standard")
 

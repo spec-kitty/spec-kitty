@@ -55,8 +55,13 @@ def _init(parent: Path, name: str = "p") -> tuple[Result, Path]:
 
 
 def _config(project: Path) -> dict[str, Any]:
-    path = project / ".kittify" / "config.yaml"
+    """The activation state of these fresh projects: the activation ledger (FR-019)."""
+    path = _ledger(project)
     return (_SAFE_YAML.load(path) or {}) if path.exists() else {}
+
+
+def _ledger(project: Path) -> Path:
+    return project / ".kittify" / "charter" / "activation.yaml"
 
 
 def _describe(result: Result) -> str:
@@ -101,7 +106,7 @@ def test_init_equals_activating_the_default_preset(tmp_path: Path) -> None:
     assert config["mission_type_activations"] == _SHIPPED_TYPES
     assert not [key for key in config if key.startswith("activated_")], "the default preset lists no per-kind keys and no kind gate"
 
-    config_file = project / ".kittify" / "config.yaml"
+    config_file = _ledger(project)
     before = config_file.read_bytes()
     applied = _cli(["charter", "activate", "--preset", "default"], project)
 

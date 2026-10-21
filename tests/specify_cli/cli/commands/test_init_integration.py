@@ -362,8 +362,9 @@ def test_init_fails_for_tracked_worktrees_content_without_mutating_index(
     recovered = _run(app, ["init", ".", "--ai", "claude", "--non-interactive"])
 
     assert recovered.exit_code == 0, recovered.output
-    config = yaml.safe_load(project.joinpath(".kittify", "config.yaml").read_text(encoding="utf-8"))
-    assert config["mission_type_activations"]
+    # A fresh init provisions its mission types into the activation ledger (FR-019).
+    ledger = yaml.safe_load(project.joinpath(".kittify", "charter", "activation.yaml").read_text(encoding="utf-8"))
+    assert ledger["mission_type_activations"]
     assert project.joinpath(".kittify", "metadata.yaml").exists()
     assert init_module._EVENT_LOG_GITATTRIBUTES_ENTRY in project.joinpath(".gitattributes").read_text(
         encoding="utf-8"

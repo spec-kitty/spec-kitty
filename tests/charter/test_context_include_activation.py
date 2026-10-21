@@ -293,3 +293,38 @@ class TestScopedToAgentProfileOnly:
         build_charter_context_include(tmp_path, "paradigm:tdd")
 
         assert plain_calls == [tmp_path]
+
+
+# ---------------------------------------------------------------------------
+# WP05 (FR-016, D-21): every include kind honours the effective deny
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("selector", "deny_key", "stem", "note"),
+    [
+        (
+            "directive:DIRECTIVE_010",
+            "deactivated_directives",
+            "010-specification-fidelity-requirement",
+            "directive:DIRECTIVE_010 is deactivated in this project (charter activate directive DIRECTIVE_010 restores it)",
+        ),
+        (
+            "agent-profile:python-pedro",
+            "deactivated_agent_profiles",
+            "python-pedro",
+            "agent-profile:python-pedro is deactivated in this project (charter activate agent-profile python-pedro restores it)",
+        ),
+    ],
+)
+def test_a_denied_selector_renders_the_deactivated_note(tmp_path: Path, selector: str, deny_key: str, stem: str, note: str) -> None:
+    """Ledger-seeded (correct in both transition modes): served before the deny, a note after."""
+    from tests._factories.activation_ledger import seed_activation_ledger
+
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
+    assert "is deactivated" not in build_charter_context_include(tmp_path, selector)
+
+    seed_activation_ledger(tmp_path, **{deny_key: [stem]})
+    assert build_charter_context_include(tmp_path, selector) == note

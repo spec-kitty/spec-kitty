@@ -1,0 +1,461 @@
+# Activation ledger conformance table (FR-015, FR-024; data-model.md section 8).
+#
+# The portable corpus of core's fixed activation answers, for spec-kitty-charter
+# and open-packs to port. There is no export script: this file is the corpus.
+#
+# Rules:
+# * Plain data only. No expressions, and no repository path except the legacy
+#   surface names (charter_yaml, config_yaml, ledger).
+# * Every case lists each artifact it names under `artifacts`, in both
+#   spellings: {kind, stem, declared_id}. `declared_id == stem` when the
+#   artifact has no distinct declared id. Ids such as A, B, D are synthetic;
+#   ids such as 003-decision-documentation-requirement are built-in artifacts.
+#   The charter harness maps (kind, declared_id) to a contract URN.
+# * `readers`: action_bundle is the implement-action governance bundle;
+#   charter_service is ActiveCharterService (the profile registry and the
+#   tactic catalogue).
+# * `required` maps an org pack name to its `required_<plural>` lists.
+# * `ledger` is the activation ledger the case starts from (absent keys are absent).
+# * `expect` holds exactly the answer; the runner fails a row on an unknown key.
+# * `divergences` lists every difference from the proposed charter contract
+#   that is not aligned, mirroring the register in
+#   docs/architecture/activation-ledger-and-charter-contract.md: `status: open`
+#   with `ruling: null` while the register has no ruling, otherwise `ruled` (or
+#   `logged`) with the register's ruling (ADR 2026-10-19-1, Amendment
+#   2026-10-20). Aligned rows (Activate, Deactivate: charter #125) stay on
+#   that page only.
+schema: activation-ledger-conformance/1
+
+effective_set:
+  - id: absent-all-minus-deny
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: B, declared_id: B}
+      - {kind: directive, stem: D, declared_id: D}
+    available: [A, B, D]
+    required: {}
+    ledger: {deactivated_directives: [D]}
+    expect: {effective: [A, B]}
+  - id: present-allow-minus-deny
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: B, declared_id: B}
+      - {kind: directive, stem: D, declared_id: D}
+    available: [A, B, D]
+    required: {}
+    ledger: {activated_directives: [A, D], deactivated_directives: [D]}
+    expect: {effective: [A]}
+  - id: empty-allow-serves-nothing
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: D, declared_id: D}
+    available: [A, D]
+    required: {}
+    ledger: {activated_directives: [], deactivated_directives: [D]}
+    expect: {effective: []}
+  - id: stale-required-deny-inert
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: B, declared_id: B}
+      - {kind: directive, stem: D, declared_id: D}
+    available: [A, B, D]
+    required: {acme: {required_directives: [D]}}
+    ledger: {deactivated_directives: [D]}
+    expect: {effective: [A, B, D]}
+  - id: absent-required-kind-serves-the-floor
+    kind: skill
+    artifacts:
+      - {kind: skill, stem: R1, declared_id: R1}
+      - {kind: skill, stem: S, declared_id: S}
+      - {kind: skill, stem: X, declared_id: X}
+    available: [R1, S, X]
+    required: {acme: {required_skills: [R1]}}
+    ledger: {deactivated_skills: [S]}
+    expect: {effective: [R1]}
+  - id: explicit-allow-omits-required
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: R1, declared_id: R1}
+    available: [A, R1]
+    required: {acme: {required_directives: [R1]}}
+    ledger: {activated_directives: [A]}
+    expect: {effective: [A]}
+  - id: promotion-writes-the-required-floor
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+      - {kind: directive, stem: R1, declared_id: R1}
+    available: [A, R1]
+    required: {acme: {required_directives: [R1]}}
+    ledger: {activated_directives: [A]}
+    promote_required: true
+    expect: {allow_after: [A, R1], effective: [A, R1]}
+
+identity:
+  - id: declared-id-allow-stem-deny
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+    available: [DIRECTIVE_003, 003-decision-documentation-requirement]
+    ledger: {activated_directives: [DIRECTIVE_003], deactivated_directives: [003-decision-documentation-requirement]}
+    expect: {effective: []}
+  - id: stem-allow-declared-id-deny
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+    available: [DIRECTIVE_003, 003-decision-documentation-requirement]
+    ledger: {activated_directives: [003-decision-documentation-requirement], deactivated_directives: [DIRECTIVE_003]}
+    expect: {effective: []}
+  - id: unknown-token-kept-as-its-own-stem
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 001-architectural-integrity-standard, declared_id: DIRECTIVE_001}
+      - {kind: directive, stem: ghost-directive, declared_id: ghost-directive}
+    available: [001-architectural-integrity-standard, ghost-directive]
+    ledger: {deactivated_directives: [ghost-directive]}
+    expect: {effective: [001-architectural-integrity-standard]}
+
+readers:
+  - id: action-bundle-serves-an-allowed-tactic
+    reader: action_bundle
+    kind: tactic
+    artifacts:
+      - {kind: tactic, stem: acceptance-test-first, declared_id: acceptance-test-first}
+    artifact_id: acceptance-test-first
+    ledger: {mission_type_activations: [software-dev]}
+    expect: {served: true}
+  - id: action-bundle-omits-a-denied-tactic
+    reader: action_bundle
+    kind: tactic
+    artifacts:
+      - {kind: tactic, stem: acceptance-test-first, declared_id: acceptance-test-first}
+    artifact_id: acceptance-test-first
+    ledger: {mission_type_activations: [software-dev], deactivated_tactics: [acceptance-test-first]}
+    expect: {served: false}
+  - id: action-bundle-omits-a-denied-agent-profile
+    reader: action_bundle
+    kind: agent_profile
+    artifacts:
+      - {kind: agent_profile, stem: python-pedro, declared_id: python-pedro}
+    artifact_id: python-pedro
+    ledger: {mission_type_activations: [software-dev], deactivated_agent_profiles: [python-pedro]}
+    expect: {served: false}
+  - id: charter-service-serves-an-allowed-agent-profile
+    reader: charter_service
+    kind: agent_profile
+    artifacts:
+      - {kind: agent_profile, stem: python-pedro, declared_id: python-pedro}
+    artifact_id: python-pedro
+    ledger: {mission_type_activations: [software-dev]}
+    expect: {served: true}
+  - id: charter-service-omits-a-denied-agent-profile
+    reader: charter_service
+    kind: agent_profile
+    artifacts:
+      - {kind: agent_profile, stem: python-pedro, declared_id: python-pedro}
+    artifact_id: python-pedro
+    ledger: {mission_type_activations: [software-dev], deactivated_agent_profiles: [python-pedro]}
+    expect: {served: false}
+  - id: charter-service-omits-a-denied-tactic
+    reader: charter_service
+    kind: tactic
+    artifacts:
+      - {kind: tactic, stem: acceptance-test-first, declared_id: acceptance-test-first}
+    artifact_id: acceptance-test-first
+    ledger: {mission_type_activations: [software-dev], deactivated_tactics: [acceptance-test-first]}
+    expect: {served: false}
+
+cascade:
+  - id: stop-at-denied
+    artifacts:
+      - {kind: directive, stem: P, declared_id: P}
+      - {kind: tactic, stem: C, declared_id: C}
+      - {kind: procedure, stem: G, declared_id: G}
+    graph: {edges: [[directive:P, tactic:C, requires], [tactic:C, procedure:G, requires]]}
+    source: directive:P
+    scope: all
+    deactivated: [tactic:C]
+    include_deactivated: false
+    expect:
+      activated: {}
+      skipped_deactivated: {tactic: [{id: C, via_requires: true, required_by: [directive:P]}]}
+      unreached_behind_deactivated: {procedure: [G]}
+  - id: second-path-reaches
+    artifacts:
+      - {kind: directive, stem: P, declared_id: P}
+      - {kind: tactic, stem: C, declared_id: C}
+      - {kind: procedure, stem: G, declared_id: G}
+    graph: {edges: [[directive:P, tactic:C, requires], [tactic:C, procedure:G, requires], [directive:P, procedure:G, suggests]]}
+    source: directive:P
+    scope: all
+    deactivated: [tactic:C]
+    include_deactivated: false
+    expect:
+      activated: {procedure: [G]}
+      skipped_deactivated: {tactic: [{id: C, via_requires: true, required_by: [directive:P]}]}
+      unreached_behind_deactivated: {}
+  - id: suggested-denied-node-is-not-flagged-required
+    artifacts:
+      - {kind: directive, stem: P, declared_id: P}
+      - {kind: tactic, stem: C, declared_id: C}
+    graph: {edges: [[directive:P, tactic:C, suggests]]}
+    source: directive:P
+    scope: all
+    deactivated: [tactic:C]
+    include_deactivated: false
+    expect:
+      activated: {}
+      skipped_deactivated: {tactic: [{id: C, via_requires: false, required_by: []}]}
+      unreached_behind_deactivated: {}
+  - id: out-of-scope-denied-is-scope-skipped
+    artifacts:
+      - {kind: directive, stem: P, declared_id: P}
+      - {kind: tactic, stem: C, declared_id: C}
+      - {kind: procedure, stem: G, declared_id: G}
+      - {kind: styleguide, stem: S, declared_id: S}
+    graph: {edges: [[directive:P, tactic:C, requires], [tactic:C, procedure:G, requires], [directive:P, styleguide:S, suggests]]}
+    source: directive:P
+    scope: [styleguide, procedure]
+    deactivated: [tactic:C]
+    include_deactivated: false
+    expect:
+      activated: {styleguide: [S]}
+      skipped_by_scope: {tactic: [C]}
+      skipped_deactivated: {}
+      unreached_behind_deactivated: {procedure: [G]}
+  - id: include-deactivated-walks-through
+    artifacts:
+      - {kind: directive, stem: P, declared_id: P}
+      - {kind: tactic, stem: C, declared_id: C}
+      - {kind: procedure, stem: G, declared_id: G}
+    graph: {edges: [[directive:P, tactic:C, requires], [tactic:C, procedure:G, requires]]}
+    source: directive:P
+    scope: all
+    deactivated: [tactic:C]
+    include_deactivated: true
+    expect:
+      activated: {procedure: [G], tactic: [C]}
+      skipped_deactivated: {}
+      unreached_behind_deactivated: {}
+
+deactivation:
+  - id: absent-allow-records-an-exclusion
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+    artifact_id: 003-decision-documentation-requirement
+    required: {}
+    ledger: {}
+    expect: {refused: null, ledger_after: {deactivated_directives: [003-decision-documentation-requirement]}}
+  - id: declared-id-is-recorded-as-the-stem
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+      - {kind: directive, stem: 001-architectural-integrity-standard, declared_id: DIRECTIVE_001}
+    artifact_id: DIRECTIVE_003
+    required: {}
+    ledger: {activated_directives: [DIRECTIVE_003, 001-architectural-integrity-standard]}
+    expect:
+      refused: null
+      ledger_after:
+        activated_directives: [001-architectural-integrity-standard]
+        deactivated_directives: [003-decision-documentation-requirement]
+  - id: required-refused
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+    artifact_id: 003-decision-documentation-requirement
+    required: {acme: {required_directives: [DIRECTIVE_003]}}
+    ledger: {}
+    expect: {refused: {reason: required, packs: [acme], policy_key: required_directives}, ledger_after: {}}
+  - id: already-denied-is-a-no-op
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+    artifact_id: 003-decision-documentation-requirement
+    required: {}
+    ledger: {deactivated_directives: [003-decision-documentation-requirement]}
+    expect: {refused: null, deactivated: [], ledger_after: {deactivated_directives: [003-decision-documentation-requirement]}}
+  - id: unknown-id-refused
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: no-such-directive, declared_id: no-such-directive}
+    artifact_id: no-such-directive
+    required: {}
+    ledger: {}
+    expect: {refused: {reason: unknown}, ledger_after: {}}
+  - id: unknown-deny-key-preserved
+    op: deactivate
+    kind: directive
+    artifacts:
+      - {kind: directive, stem: 003-decision-documentation-requirement, declared_id: DIRECTIVE_003}
+      - {kind: widget, stem: w1, declared_id: w1}
+    artifact_id: 003-decision-documentation-requirement
+    required: {}
+    ledger: {deactivated_widgets: [w1]}
+    expect:
+      refused: null
+      ledger_after:
+        deactivated_directives: [003-decision-documentation-requirement]
+        deactivated_widgets: [w1]
+  - id: cascade-child-absent-allow
+    op: cascade_deactivate
+    kind: agent_profile
+    artifacts:
+      - {kind: agent_profile, stem: randy-reducer, declared_id: randy-reducer}
+      - {kind: tactic, stem: semantic-compression-semantic-consolidation, declared_id: semantic-compression-semantic-consolidation}
+    artifact_id: randy-reducer
+    required: {}
+    ledger: {}
+    expect:
+      ledger_after: {deactivated_agent_profiles: [randy-reducer]}
+      children: {tactic: [{id: semantic-compression-semantic-consolidation, state: still-active-no-allow-list}]}
+  - id: cascade-required-child-skipped
+    op: cascade_deactivate
+    kind: agent_profile
+    artifacts:
+      - {kind: agent_profile, stem: randy-reducer, declared_id: randy-reducer}
+      - {kind: tactic, stem: semantic-compression-semantic-consolidation, declared_id: semantic-compression-semantic-consolidation}
+    artifact_id: randy-reducer
+    required: {acme: {required_tactics: [semantic-compression-semantic-consolidation]}}
+    ledger: {activated_tactics: [semantic-compression-semantic-consolidation]}
+    expect:
+      ledger_after:
+        activated_tactics: [semantic-compression-semantic-consolidation]
+        deactivated_agent_profiles: [randy-reducer]
+      children: {tactic: [{id: semantic-compression-semantic-consolidation, state: skipped-required, packs: [acme]}]}
+  - id: preset-force-clears-exclusions
+    op: preset_force
+    kind: directive
+    preset: minimal
+    artifacts:
+      - {kind: directive, stem: 001-architectural-integrity-standard, declared_id: DIRECTIVE_001}
+    artifact_id: 001-architectural-integrity-standard
+    required: {}
+    ledger: {deactivated_directives: [001-architectural-integrity-standard]}
+    expect: {cleared: {deactivated_directives: [001-architectural-integrity-standard]}, deny_after: {}}
+  - id: preset-without-force-keeps-exclusions
+    op: preset
+    kind: directive
+    preset: minimal
+    artifacts:
+      - {kind: directive, stem: 001-architectural-integrity-standard, declared_id: DIRECTIVE_001}
+    artifact_id: 001-architectural-integrity-standard
+    required: {}
+    ledger: {deactivated_directives: [001-architectural-integrity-standard]}
+    expect:
+      kept_deactivated: {activated_directives: [001-architectural-integrity-standard]}
+      deny_after: {deactivated_directives: [001-architectural-integrity-standard]}
+
+ledger_migration:
+  - id: pointer-charter-yaml-moves
+    artifacts:
+      - {kind: directive, stem: A, declared_id: A}
+    surfaces: {charter_yaml: {activated_directives: [A]}, config_yaml: {charter: .kittify/charter/charter.yaml}}
+    expect: {refused: null, ledger: {activated_directives: [A]}, keys_left: {charter_yaml: [], config_yaml: [charter]}}
+  - id: no-pointer-config-yaml-moves
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+    surfaces: {config_yaml: {activated_tactics: [T]}}
+    expect: {refused: null, ledger: {activated_tactics: [T]}, keys_left: {config_yaml: []}}
+  - id: equal-leftover-copy-is-stripped
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+    surfaces: {charter_yaml: {activated_tactics: [T]}, config_yaml: {charter: .kittify/charter/charter.yaml, activated_tactics: [T]}}
+    expect: {refused: null, ledger: {activated_tactics: [T]}, keys_left: {charter_yaml: [], config_yaml: [charter]}}
+  - id: differing-copy-refused
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+      - {kind: tactic, stem: U, declared_id: U}
+    surfaces: {charter_yaml: {activated_tactics: [T]}, config_yaml: {charter: .kittify/charter/charter.yaml, activated_tactics: [U]}}
+    expect: {refused: {key: activated_tactics, reason: divergent}, ledger: null}
+  - id: stray-copy-authority-lacks-key
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+    surfaces: {charter_yaml: {}, config_yaml: {charter: .kittify/charter/charter.yaml, activated_tactics: [T]}}
+    expect: {refused: {key: activated_tactics, reason: divergent}, ledger: null}
+  - id: ledger-differs-refused
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+      - {kind: tactic, stem: U, declared_id: U}
+    surfaces: {ledger: {activated_tactics: [T]}, charter_yaml: {activated_tactics: [U]}, config_yaml: {charter: .kittify/charter/charter.yaml}}
+    expect: {refused: {key: activated_tactics, reason: divergent}, ledger: {activated_tactics: [T]}}
+  - id: legacy-deny-key-refused
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+      - {kind: tactic, stem: X, declared_id: X}
+    surfaces: {charter_yaml: {activated_tactics: [T], deactivated_tactics: [X]}, config_yaml: {charter: .kittify/charter/charter.yaml}}
+    expect: {refused: {key: deactivated_tactics, reason: legacy_deny_key}, ledger: null}
+  - id: rerun-after-crash-strips-equal
+    artifacts:
+      - {kind: tactic, stem: T, declared_id: T}
+    surfaces: {ledger: {activated_tactics: [T]}, charter_yaml: {activated_tactics: [T]}, config_yaml: {charter: .kittify/charter/charter.yaml}}
+    expect: {refused: null, ledger: {activated_tactics: [T]}, keys_left: {charter_yaml: [], config_yaml: [charter]}}
+  - id: empty-list-preserved
+    artifacts: []
+    surfaces: {config_yaml: {activated_directives: []}}
+    expect: {refused: null, ledger: {activated_directives: []}, keys_left: {config_yaml: []}}
+  - id: ledger-holds-no-contract-keys
+    artifacts: []
+    surfaces: {ledger: {languages: [python]}, config_yaml: {}}
+    expect: {error: unknown_ledger_key}
+
+divergences:
+  - id: required-on-read
+    core: "A required artifact is not served when an explicit allow list omits it; the floor applies on writes only, and a deny never subtracts it."
+    contract: "Required and locked artifacts are always active on read."
+    status: logged
+    ruling: required_always_active_divergence
+    cases: [explicit-allow-omits-required, stale-required-deny-inert]
+  - id: write-time-floor
+    core: "promote_activations writes the required ids into a present allow list at write time."
+    contract: "Required is derived on read and never stored."
+    status: open
+    ruling: null
+    cases: [promotion-writes-the-required-floor]
+  - id: preset-force-clears-exclusions
+    core: "charter activate --preset --force clears the exclusions of the ids the preset lists; without --force they stay excluded."
+    contract: "A preset never removes a deny entry; there is no force."
+    status: ruled
+    ruling: "R7: logged as a divergence; the contract preset maps to the no-force path."
+    cases: [preset-force-clears-exclusions, preset-without-force-keeps-exclusions]
+  - id: unknown-deny-key-preserved
+    core: "A deactivated_<kind> key of an unknown kind is preserved verbatim and ignored."
+    contract: "The schema is closed; an unknown key is refused (422)."
+    status: ruled
+    ruling: "R5: kept inert in core, dropped on export."
+    cases: [unknown-deny-key-preserved]
+  - id: stale-required-deny-inert
+    core: "A deny entry for a required id is kept on disk and inert on read."
+    contract: "A write that excludes a required id is refused (409)."
+    status: ruled
+    ruling: "R5: kept inert in core, dropped on export."
+    cases: [stale-required-deny-inert, required-refused]
+  - id: languages-authored-vs-derived
+    core: "Languages are not part of the activation ledger; they live in charter.yaml and are partly derived (compiler stamp, inference)."
+    contract: "languages is an authored field of ActivationConfig."
+    status: ruled
+    ruling: "R10: export emits authored languages only."
+    cases: [ledger-holds-no-contract-keys]
+  - id: id-spelling
+    core: "Deny entries are stored as stems; allow entries keep the spelling written; membership is tested in identity space."
+    contract: "The canonical spelling is the offering's declared id."
+    status: ruled
+    ruling: "R11: store stems, emit declared ids via IdentityIndex."
+    cases: [declared-id-is-recorded-as-the-stem, declared-id-allow-stem-deny, stem-allow-declared-id-deny]
+  - id: unknown-token
+    core: "An unknown deny token is kept as its own stem and matches nothing available."
+    contract: "An unknown id is refused (422)."
+    status: ruled
+    ruling: "R11: refused on export."
+    cases: [unknown-token-kept-as-its-own-stem]

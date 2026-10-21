@@ -22,7 +22,8 @@ import textwrap
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from typer.main import get_command
 from typer.testing import CliRunner
 
@@ -53,8 +54,8 @@ def project_root(tmp_path: Path) -> Path:
 
 
 def _config(project_root: Path) -> dict:
-    raw = (project_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
-    return yaml.safe_load(raw) or {}
+    """The activation state these keyless projects write: the activation ledger (a fresh project, FR-019)."""
+    return read_activation_ledger(project_root)
 
 
 def _activate(project_root: Path, *args: str) -> object:
@@ -357,26 +358,24 @@ class TestMissionTypeGeneralized:
 
 
 class TestDeactivate:
-    def test_none_state_exits_1_with_guidance(self, project_root: Path) -> None:
-        """A None-state kind surfaces the engine error as a clean exit-1 (WP12).
+    def test_none_state_records_an_exclusion(self, project_root: Path) -> None:
+        """A None-state kind records an exclusion and keeps "absent = all" (ADR 2026-10-19-1)."""
+        result = _deactivate(project_root, "directive", "001-architectural-integrity-standard")
+        assert result.exit_code == 0, result.output
+        data = _config(project_root)
+        assert "activated_directives" not in data
+        assert data["deactivated_directives"] == ["001-architectural-integrity-standard"]
 
-        The remedy names the action that materialises the list (activate one
-        artifact of the kind, or set the list explicitly), never ``spec-kitty
-        upgrade``, which no longer initialises a default pack (WP06, FR-015).
-        """
+    def test_none_state_unknown_id_exits_1(self, project_root: Path) -> None:
         result = _deactivate(project_root, "directive", "some-directive")
         assert result.exit_code == 1
-        output = " ".join(result.output.split())
-        assert "has no explicit activation set" in output
-        assert "spec-kitty charter activate directive <id>" in output
-        assert "spec-kitty upgrade" not in output
+        assert "Unknown directive ID 'some-directive'" in " ".join(result.output.split())
 
     def test_deactivate_removes_from_config(self, tmp_path: Path) -> None:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
-        (kittify / "config.yaml").write_text(
-            "activated_directives:\n  - some-directive\n", encoding="utf-8"
-        )
+        (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+        seed_activation_ledger(tmp_path, activated_directives=["some-directive"])
         result = _deactivate(tmp_path, "directive", "some-directive")
         assert result.exit_code == 0, result.output
         data = _config(tmp_path)

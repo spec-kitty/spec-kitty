@@ -95,7 +95,7 @@ def test_synthesize_established_store_via_activated_directives_does_not_seed(tmp
     short-circuit to the minimal-doctrine seed, even though
     ``.kittify/charter/generated/`` is still absent.
     """
-    from charter.activation.charter_yaml_io import update_charter_yaml_section
+    from tests._factories.activation_ledger import seed_activation_ledger
 
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)
@@ -104,11 +104,10 @@ def test_synthesize_established_store_via_activated_directives_does_not_seed(tmp
     charter_yaml = tmp_path / ".kittify" / "charter" / "charter.yaml"
     assert charter_yaml.is_file(), "test pre-condition: charter generate must have produced charter.yaml"
 
-    # Canonical writer (charter_yaml_io.update_charter_yaml_section) -- the
-    # ONLY writer path `activate`/`deactivate`/`compile_charter` use (INV-9).
-    # Simulates the real state `charter activate` would leave without
-    # depending on the built-in doctrine corpus's exact id vocabulary.
-    update_charter_yaml_section(charter_yaml, "activation", {"activated_directives": ["PROJECT_PROBE_DIRECTIVE"]})
+    # A fresh project lives on the activation ledger (FR-019), so the state
+    # `charter activate` would leave is written there, through the seam's one
+    # writer, without depending on the built-in corpus's exact id vocabulary.
+    seed_activation_ledger(tmp_path, activated_directives=["PROJECT_PROBE_DIRECTIVE"])
 
     _assert_no_generated_dir(tmp_path)
     doctrine_dir = tmp_path / ".kittify" / "charter-packs"

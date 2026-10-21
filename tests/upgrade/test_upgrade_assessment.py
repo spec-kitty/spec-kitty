@@ -33,6 +33,9 @@ def test_real_composer_retains_descriptor_and_applies_cold_owners(tmp_path: Path
     if key_present:
         config["mission_type_activations"] = []
     config_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    # The fresh init wrote the activation ledger (FR-019); drop it so the variant's config.yaml decides
+    # the target: a missing key is a fresh project (the ledger), an explicit [] an unmigrated one (config.yaml).
+    (project / ".kittify/charter/activation.yaml").unlink()
     missing = project / ".agents/skills/spec-kitty.plan/SKILL.md"
     expected_command = missing.read_bytes()
     missing.unlink()
@@ -55,7 +58,8 @@ def test_real_composer_retains_descriptor_and_applies_cold_owners(tmp_path: Path
         results = apply_upgrade_repairs(prepared)
     assert all(result.outcome in {"applied", "skipped"} for result in results), results
     assert missing.read_bytes() == expected_command
-    assert config_path.read_bytes() == prepared.provisioning.write.desired_bytes
+    assert prepared.provisioning.write.target == (config_path if key_present else project / ".kittify/charter/activation.yaml")
+    assert prepared.provisioning.write.target.read_bytes() == prepared.provisioning.write.desired_bytes
     expected = {(effect.destination, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode) for effect in prepared.effects}
     actual = {
         (roots[effect.root] / effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode)

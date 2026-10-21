@@ -819,7 +819,8 @@
             "status_log": {},
             "working_tree": [
               ".kittify/",
-              ".kittify/config.yaml",
+              ".kittify/charter/",
+              ".kittify/charter/activation.yaml",
               "README.md"
             ],
             "worktrees": [
@@ -845,7 +846,8 @@
             "status_log": {},
             "working_tree": [
               ".kittify/",
-              ".kittify/config.yaml",
+              ".kittify/charter/",
+              ".kittify/charter/activation.yaml",
               "README.md"
             ],
             "worktrees": [
@@ -1224,7 +1226,7 @@
         "new_commits": {},
         "porcelain": {
           "repo": [
-            "?? .kittify/config.yaml"
+            "?? .kittify/charter/activation.yaml"
           ]
         },
         "status_log": {},
@@ -1244,7 +1246,7 @@
         "new_commits": {},
         "porcelain": {
           "repo": [
-            "?? .kittify/config.yaml"
+            "?? .kittify/charter/activation.yaml"
           ]
         },
         "status_log": {},

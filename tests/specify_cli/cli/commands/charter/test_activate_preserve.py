@@ -43,6 +43,8 @@ from typing import Any, cast
 from unittest.mock import Mock, patch
 
 import pytest
+
+from tests._factories.activation_ledger import seed_activation_ledger
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
@@ -359,11 +361,9 @@ def test_activate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) 
 def test_deactivate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) -> None:
     """``deactivate --resynthesize`` is symmetric: preserves backed content too."""
     project_root = _minimal_project(tmp_path)
-    (project_root / ".kittify" / "config.yaml").write_text(
-        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
-        "mission_type_activations:\n  - software-dev\n",
-        encoding="utf-8",
-    )
+    # A deactivation records a deny entry, which lives only in the activation ledger (FR-017).
+    (project_root / ".kittify" / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(project_root, activated_directives=[_REAL_DIRECTIVE_STEM], mission_type_activations=["software-dev"])
     _seed_complete_bundle(project_root)
     _seed_generated_marker(project_root)
     _seed_baseline_overlay(project_root)
@@ -490,11 +490,9 @@ def test_deactivate_resynthesize_call_site_passes_prune_false_explicitly(
 ) -> None:
     """T023b (#3270): the ``deactivate`` --resynthesize call site is symmetric."""
     project_root = _minimal_project(tmp_path)
-    (project_root / ".kittify" / "config.yaml").write_text(
-        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
-        "mission_type_activations:\n  - software-dev\n",
-        encoding="utf-8",
-    )
+    # A deactivation records a deny entry, which lives only in the activation ledger (FR-017).
+    (project_root / ".kittify" / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(project_root, activated_directives=[_REAL_DIRECTIVE_STEM], mission_type_activations=["software-dev"])
     synthesize_module = importlib.import_module("specify_cli.cli.commands.charter.synthesize")
     mock_generate = Mock(return_value=None)
     mock_synthesize = Mock(return_value=None)
@@ -555,11 +553,9 @@ def test_activate_resynthesize_never_enters_prune_mode(tmp_path: Path) -> None:
 def test_deactivate_resynthesize_never_enters_prune_mode(tmp_path: Path) -> None:
     """Behavioral corroboration: ``deactivate --resynthesize`` synthesizes in preserve mode."""
     project_root = _minimal_project(tmp_path)
-    (project_root / ".kittify" / "config.yaml").write_text(
-        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
-        "mission_type_activations:\n  - software-dev\n",
-        encoding="utf-8",
-    )
+    # A deactivation records a deny entry, which lives only in the activation ledger (FR-017).
+    (project_root / ".kittify" / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(project_root, activated_directives=[_REAL_DIRECTIVE_STEM], mission_type_activations=["software-dev"])
     _seed_complete_bundle(project_root)
     _seed_generated_marker(project_root)
     _seed_baseline_overlay(project_root)

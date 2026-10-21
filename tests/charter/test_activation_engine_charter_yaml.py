@@ -27,6 +27,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
+from tests._factories.activation_ledger import legacy_target_scope
 import yaml as pyyaml
 
 from charter.activation.activation_engine import ActivationPlan, commit_plan
@@ -102,7 +104,9 @@ class TestResolveActivationWriteTargetLegacy:
     def test_no_pointer_targets_config_yaml(self, tmp_path: Path) -> None:
         config_path = _write_config(tmp_path, "vcs:\n  type: git\n")
 
-        target_path, data, save = resolve_activation_write_target(tmp_path)
+        # A keyless project is fresh (the ledger) outside the upgrade scope (FR-019); the legacy branch is its subject.
+        with legacy_target_scope(tmp_path):
+            target_path, data, save = resolve_activation_write_target(tmp_path)
 
         assert target_path == config_path
         assert isinstance(data, dict)
@@ -111,7 +115,8 @@ class TestResolveActivationWriteTargetLegacy:
     def test_no_config_yaml_at_all_targets_config_yaml_empty_dict(
         self, tmp_path: Path
     ) -> None:
-        target_path, data, _save = resolve_activation_write_target(tmp_path)
+        with legacy_target_scope(tmp_path):
+            target_path, data, _save = resolve_activation_write_target(tmp_path)
 
         assert target_path == tmp_path / ".kittify" / "config.yaml"
         assert data == {}
@@ -270,13 +275,20 @@ class TestDeactivateAgainstMigratedProject:
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)
+        charter_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+        before = charter_path.read_bytes()
 
+        # Its activation keys are not in the ledger: a deactivation that records an exclusion refuses (FR-017).
+        with pytest.raises(ActiveCharterConfigError):
+            manager.deactivate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
+        assert charter_path.read_bytes() == before
+
+        # The allow-entry removal alone (a cascade child, D-11) still lands in charter.yaml.
         result = manager.deactivate(
-            ctx, kind="directive", artifact_id="001-architectural-integrity-standard"
+            ctx, kind="directive", artifact_id="001-architectural-integrity-standard", record_exclusion=False
         )
 
         assert result.deactivated == ["001-architectural-integrity-standard"]
-        charter_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
         charter_data = pyyaml.safe_load(charter_path.read_text(encoding="utf-8"))
         assert charter_data["activated_directives"] == []
 

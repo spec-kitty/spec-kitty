@@ -26,9 +26,23 @@ from ruamel.yaml import YAML
 
 from charter.activation.compiler import CompiledCharter, compile_charter, write_compiled_charter
 from charter.activation.interview import default_interview
+from tests._factories.activation_ledger import legacy_target_scope
 from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(autouse=True)
+def _legacy_target(tmp_path: Path) -> Iterator[None]:
+    """The provisioning tests' subject is the legacy target's byte round trip (``config.yaml`` / a pointed file).
+
+    Their keyless fixtures are fresh projects, which write the activation ledger
+    outside the upgrade scope (FR-019, WP14); inside it the legacy target
+    applies, so the same writer is exercised byte for byte.
+    """
+    with legacy_target_scope(tmp_path, tmp_path / "project"):
+        yield
+
 
 _PRESET_HEADER = "name: default\ndescription: fixture\n"
 

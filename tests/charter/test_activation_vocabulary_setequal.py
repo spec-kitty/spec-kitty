@@ -45,6 +45,33 @@ def _authority() -> frozenset[str]:
     return frozenset(ACTIVATION_YAML_KEYS)
 
 
+#: ``pack_manager.ACTIVATION_YAML_KEYS`` as captured on the mission base
+#: (persistent-deactivation-ledger WP02). The live order differs from the
+#: activation ledger's ``LEDGER_KEYS``, so it is pinned by tuple equality.
+_ACTIVATION_YAML_KEYS_ON_BASE: tuple[str, ...] = (
+    "activated_kinds",
+    "activated_directives",
+    "activated_tactics",
+    "activated_styleguides",
+    "activated_toolguides",
+    "activated_paradigms",
+    "activated_procedures",
+    "activated_agent_profiles",
+    "activated_mission_step_contracts",
+    "activated_glossary_packs",
+    "activated_skills",
+    "mission_type_activations",
+    "activated_anti_patterns",
+)
+
+
+def test_activation_yaml_keys_keep_their_live_order() -> None:
+    """The ledger vocabulary must not reorder the live write vocabulary (WP02 / D2)."""
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS
+
+    assert ACTIVATION_YAML_KEYS == _ACTIVATION_YAML_KEYS_ON_BASE
+
+
 # ---------------------------------------------------------------------------
 # T019 -- set-equality guard
 # ---------------------------------------------------------------------------

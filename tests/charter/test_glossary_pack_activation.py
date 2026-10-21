@@ -21,7 +21,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -154,11 +155,11 @@ class TestGlossaryPackCascadeIsGeneric:
 
     @pytest.fixture()
     def project_root(self, tmp_path: Path) -> Path:
+        """A ledger project: a deactivation records a deny entry, which only the ledger holds (FR-017)."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
-        (kittify / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+        seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
         return tmp_path
 
     def test_activate_glossary_pack_with_cascade_all_writes_config(
@@ -174,8 +175,7 @@ class TestGlossaryPackCascadeIsGeneric:
         )
         assert result.exit_code == 0, result.output
 
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root)
         assert "spec-kitty-core" in data["activated_glossary_packs"]
 
     def test_deactivate_glossary_pack_with_cascade_all_removes_from_config(
@@ -199,8 +199,7 @@ class TestGlossaryPackCascadeIsGeneric:
         )
         assert result.exit_code == 0, result.output
 
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root)
         assert "spec-kitty-core" not in data.get("activated_glossary_packs", [])
 
     def test_activate_unknown_glossary_pack_id_exits_1_without_mutating(
@@ -221,6 +220,5 @@ class TestGlossaryPackCascadeIsGeneric:
         assert result.exit_code == 1
         assert "Unknown glossary-pack ID" in result.output
 
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text()) or {}
+        data = read_activation_ledger(project_root)
         assert "activated_glossary_packs" not in data

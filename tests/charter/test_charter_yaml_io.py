@@ -65,6 +65,7 @@ def test_reused_document_preserves_key_comments(tmp_path: Path, newline: str, re
 @pytest.mark.parametrize("body", ["null\n", "metadata: {}\n"])
 def test_version_directive_saver_preserves_document_frame(tmp_path: Path, newline: str, pointer: bool, body: str) -> None:
     from charter.activation.pack_manager import resolve_activation_write_target
+    from tests._factories.activation_ledger import legacy_target_scope
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
     config = tmp_path / ".kittify/config.yaml"
@@ -75,7 +76,9 @@ def test_version_directive_saver_preserves_document_frame(tmp_path: Path, newlin
     prefix = "%YAML 1.2\n---\n".replace("\n", newline).encode()
     suffix = "... # end\n".replace("\n", newline).encode()
     target.write_bytes(prefix + body.replace("\n", newline).encode() + suffix)
-    path, document, save = resolve_activation_write_target(tmp_path)
+    # The subject is the legacy target's document frame; a keyless project is fresh outside the upgrade scope.
+    with legacy_target_scope(tmp_path):
+        path, document, save = resolve_activation_write_target(tmp_path)
     assert path == target
     document["activated_directives"] = ["new"]
     save(path, document)

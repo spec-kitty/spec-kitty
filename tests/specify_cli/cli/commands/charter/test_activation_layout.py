@@ -27,7 +27,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -83,21 +84,19 @@ def _write_flat_directive(pack_root: Path, stem: str, declared_id: str) -> None:
 def _write_config_with_org_pack(project_root: Path, pack_local_path: str) -> None:
     """Point ``.kittify/config.yaml`` at a single org pack via the canonical schema.
 
-    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned charter
-    is the sole mission-type activation authority, so ``PackContext.from_config``
-    fails closed when the key is absent from the activation source -- these
-    fixtures must provision it like a real ``spec-kitty init``/``upgrade`` would.
+    Provisions ``mission_type_activations`` (WP04, C-A1) into the activation
+    ledger, like a real ``spec-kitty init`` of a fresh project (FR-019):
+    ``PackContext.from_config`` fails closed without it.
     """
     (project_root / ".kittify" / "config.yaml").write_text(
         "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: orgzilla\n"
-        f"        local_path: {pack_local_path}\n"
-        "mission_type_activations:\n"
-        "  - software-dev\n",
+        f"        local_path: {pack_local_path}\n",
         encoding="utf-8",
     )
+    seed_activation_ledger(project_root, mission_type_activations=["software-dev"])
 
 
 @pytest.fixture()
@@ -147,7 +146,7 @@ class TestFlatLayoutActivation:
         assert result.exit_code == 0, result.output
         assert "Unknown agent-profile ID" not in result.output
         assert "Unknown agent_profile ID" not in result.output
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "orgzilla-org-analyst" in data["activated_agent_profiles"]
 
     def test_flat_org_profile_listed_with_org_layer(self, project_root: Path) -> None:
@@ -177,13 +176,13 @@ class TestMultiKindFlatLayout:
         # activate
         activate = _invoke(project_root, "activate", "directive", "900-orgzilla-rule")
         assert activate.exit_code == 0, activate.output
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "900-orgzilla-rule" in data["activated_directives"]
 
         # deactivate round-trips
         deactivate = _invoke(project_root, "deactivate", "directive", "900-orgzilla-rule")
         assert deactivate.exit_code == 0, deactivate.output
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "900-orgzilla-rule" not in (data.get("activated_directives") or [])
 
     def test_agent_profile_flat_org_pack_round_trip(self, project_root: Path) -> None:
@@ -199,7 +198,7 @@ class TestMultiKindFlatLayout:
             project_root, "deactivate", "agent-profile", "orgzilla-org-analyst"
         )
         assert deactivate.exit_code == 0, deactivate.output
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "orgzilla-org-analyst" not in (
             data.get("activated_agent_profiles") or []
         )
@@ -239,5 +238,5 @@ class TestNestedLayoutBackwardCompat:
         result = _invoke(project_root, "activate", "directive", "950-legacy-rule")
 
         assert result.exit_code == 0, result.output
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "950-legacy-rule" in data["activated_directives"]

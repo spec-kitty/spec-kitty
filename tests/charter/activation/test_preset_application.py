@@ -113,13 +113,16 @@ def test_minimal_on_an_empty_project_writes_exactly_its_keys(tmp_path: Path) -> 
 
     plan = _apply(root, "built-in", "minimal")
 
-    assert plan.target_file == root / ".kittify" / "config.yaml"
+    # An empty project is fresh: the preset lands in the activation ledger (FR-019); config.yaml keeps its own keys.
+    assert plan.target_file == root / ".kittify" / "charter" / "activation.yaml"
     assert plan.written == {key: _MINIMAL[key] for key in ("mission_type_activations", "activated_directives", "activated_tactics")}
     assert plan.removed == []
     assert plan.customised_changes == ()
+    ledger = _load(plan.target_file)
+    assert {k: v for k, v in ledger.items() if k in GOVERNED_KEYS} == plan.written
     config = _load(root / ".kittify" / "config.yaml")
-    assert {k: v for k, v in config.items() if k in GOVERNED_KEYS} == plan.written
     assert config["vcs"] == {"type": "git"}
+    assert not set(config) & set(GOVERNED_KEYS)
 
 
 def test_default_after_minimal_removes_every_per_kind_key_and_kind_gate(tmp_path: Path) -> None:

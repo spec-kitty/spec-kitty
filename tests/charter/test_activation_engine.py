@@ -10,9 +10,9 @@ Covers the pure plan/commit seam:
   exactly once with the appended ID.
 - T046/FR-021: a project with no explicit activation restrictions behaves as
   before PR #1535 (default-pack materialization in the plan, then append).
-- Deactivation mirror: ``plan_deactivation`` removes from the list, no-ops with a
-  warning when absent, and raises ``NoActivationRestrictionsError`` on the
-  no-restrictions state.
+- Deactivation mirror: ``plan_deactivation`` removes from the list and records
+  an exclusion, also on the no-restrictions state (ADR 2026-10-19-1); a cascade
+  child that is not listed is a no-op with a warning.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from ruamel.yaml import YAML
 
 from charter.activation.activation_engine import (
     ActivationPlan,
-    NoActivationRestrictionsError,
     UnknownActivationIdError,
     commit_plan,
     plan_activation,
@@ -259,10 +258,14 @@ def test_plan_deactivation_removes_id(config_path: Path) -> None:
         "001-foo",
         yaml_key="activated_directives",
         config_data=data,
+        available_ids={"001-foo"},
+        required_by={},
+        deny_key="deactivated_directives",
     )
 
     assert plan.new_list == []
     assert plan.deactivated == ["001-foo"]
+    assert plan.new_deny_list == ["001-foo"]
 
 
 def test_plan_deactivation_absent_id_is_noop_with_warning(config_path: Path) -> None:
@@ -273,32 +276,40 @@ def test_plan_deactivation_absent_id_is_noop_with_warning(config_path: Path) -> 
         "002-bar",
         yaml_key="activated_directives",
         config_data=data,
+        available_ids={"001-foo", "002-bar"},
+        required_by={},
+        deny_key="deactivated_directives",
+        record_exclusion=False,
     )
 
+    assert plan.noop
     assert plan.new_list == ["001-foo"]
     assert plan.deactivated == []
     assert any("Nothing to deactivate" in w for w in plan.warnings)
 
 
-def test_plan_deactivation_no_restrictions_raises(tmp_path: Path) -> None:
-    """No baseline => structured error, never a fabricated list."""
+def test_plan_deactivation_no_restrictions_records_an_exclusion(tmp_path: Path) -> None:
+    """No allow-list ("absent = all") => the exclusion is recorded; the allow state stays absent."""
     path = tmp_path / ".kittify" / "config.yaml"
     path.parent.mkdir(parents=True)
     path.write_text("# no activation keys\n", encoding="utf-8")
     before = path.read_bytes()
     data, _ = _load(path)
 
-    with pytest.raises(NoActivationRestrictionsError) as exc_info:
-        plan_deactivation(
-            "directive",
-            "001-foo",
-            yaml_key="activated_directives",
-            config_data=data,
-        )
+    plan = plan_deactivation(
+        "directive",
+        "001-foo",
+        yaml_key="activated_directives",
+        config_data=data,
+        available_ids={"001-foo"},
+        required_by={},
+        deny_key="deactivated_directives",
+    )
 
-    assert exc_info.value.kind == "directive"
-    assert "spec-kitty charter activate directive <id>" in str(exc_info.value)
-    assert path.read_bytes() == before
+    assert plan.new_list is None
+    assert plan.new_deny_list == ["001-foo"]
+    assert plan.deactivated == ["001-foo"]
+    assert path.read_bytes() == before  # planning is pure
 
 
 def test_malformed_list_fails_closed(tmp_path: Path) -> None:

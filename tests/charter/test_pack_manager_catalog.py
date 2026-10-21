@@ -19,10 +19,10 @@ import inspect
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
 from charter.activation.activation_engine import (
-    NoActivationRestrictionsError,
     UnknownActivationIdError,
 )
 from charter.activation.invocation_context import ProjectContext
@@ -259,7 +259,7 @@ class TestActivationDelegation:
         """
         result = manager.activate(ctx, kind="directive", artifact_id="025-boy-scout-rule")
         assert any("already effective" in w for w in result.warnings)
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)  # a fresh project writes the ledger (FR-019)
         assert "025-boy-scout-rule" in data["activated_directives"]
         available = manager.list_available(ctx, "directive")
         assert not set(available) - set(data["activated_directives"]), (
@@ -288,7 +288,7 @@ class TestActivationDelegation:
         )
 
         assert "900-org-rule" in result.activated
-        data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
+        data = read_activation_ledger(project_root)
         assert "900-org-rule" in data["activated_directives"]
 
     def test_activate_unknown_id_raises_typed_error_no_write(
@@ -304,22 +304,19 @@ class TestActivationDelegation:
     def test_deactivate_removes_via_engine(
         self, manager: ActiveCharterManager, project_root: Path
     ) -> None:
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - keep-me\n  - drop-me\n", encoding="utf-8"
-        )
+        seed_activation_ledger(project_root, activated_directives=["keep-me", "drop-me"])
         ctx = ProjectContext(repo_root=project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="drop-me")
         assert "drop-me" in result.deactivated
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root)
         assert data["activated_directives"] == ["keep-me"]
 
-    def test_deactivate_none_state_raises_typed_error_not_sysexit(
+    def test_deactivate_none_state_records_an_exclusion_not_sysexit(
         self, manager: ActiveCharterManager, ctx: ProjectContext
     ) -> None:
-        """T042: no sys.exit — the engine raises NoActivationRestrictionsError."""
-        with pytest.raises(NoActivationRestrictionsError):
-            manager.deactivate(ctx, kind="directive", artifact_id="anything")
+        """T042: no sys.exit — a None-state kind records an exclusion (ADR 2026-10-19-1)."""
+        result = manager.deactivate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
+        assert result.deactivated == ["001-architectural-integrity-standard"]
 
     def test_no_sys_exit_call_in_module(self) -> None:
         """T042 validation: ``pack_manager`` makes no ``sys.exit`` call.

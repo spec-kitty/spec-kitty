@@ -226,10 +226,15 @@ def test_bundle_file_lists_stay_in_sync() -> None:
     different file sets — is caught, honoring the single-canonical-authority
     principle without inverting the import direction.
     """
-    from specify_cli.charter_runtime.freshness.computer import _BUNDLE_FILES
+    from charter.bundle import BUNDLE_OPTIONAL_CONTENT_HASH_FILES
+    from kernel.activation_ledger_store import ACTIVATION_LEDGER
+    from specify_cli.charter_runtime.freshness.computer import _BUNDLE_FILES, _OPTIONAL_BUNDLE_FILES
 
     assert tuple(_BUNDLE_FILES) == tuple(BUNDLE_CONTENT_HASH_FILES)
     assert tuple(_BUNDLE_FILES) == ("charter.yaml",)
+    # persistent-deactivation-ledger WP09: the optional pair (the activation ledger).
+    assert tuple(_OPTIONAL_BUNDLE_FILES) == tuple(BUNDLE_OPTIONAL_CONTENT_HASH_FILES)
+    assert tuple(_OPTIONAL_BUNDLE_FILES) == (ACTIVATION_LEDGER.name,)
 
 
 def test_legacy_bundle_file_lists_stay_in_sync() -> None:
@@ -550,6 +555,30 @@ def test_synced_bundle_stale_when_charter_source_invalid(tmp_path: Path) -> None
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "invalid"
     assert result.synced_bundle.state == "stale"
+
+
+def test_synced_bundle_fresh_without_the_optional_ledger(tmp_path: Path) -> None:
+    """The activation ledger is optional: its absence never degrades the bundle (WP09)."""
+    _seed_charter_yaml(tmp_path)
+    assert compute_freshness(tmp_path).synced_bundle.state == "fresh"
+
+
+def test_synced_bundle_fresh_with_a_parseable_ledger(tmp_path: Path) -> None:
+    _seed_charter_yaml(tmp_path)
+    (tmp_path / ".kittify" / "charter" / "activation.yaml").write_text("activated_directives: []\n", encoding="utf-8")
+    assert compute_freshness(tmp_path).synced_bundle.state == "fresh"
+
+
+@pytest.mark.parametrize("body", ["activated_directives: [\n", "- not\n- a mapping\n"])
+def test_synced_bundle_stale_when_the_ledger_does_not_parse(tmp_path: Path, body: str) -> None:
+    """An unparseable ledger is reported where the bundle is (parse check, WP09 T055)."""
+    _seed_charter_yaml(tmp_path)
+    (tmp_path / ".kittify" / "charter" / "activation.yaml").write_text(body, encoding="utf-8")
+
+    synced = compute_freshness(tmp_path).synced_bundle
+
+    assert synced.state == "stale"
+    assert synced.detail is not None and "activation.yaml" in synced.detail
 
 
 def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> None:

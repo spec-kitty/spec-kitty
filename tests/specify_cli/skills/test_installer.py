@@ -72,9 +72,10 @@ def _make_skill(
 
 
 @pytest.mark.parametrize("tamper", ["opaque", "tuple", "bytes", "reason", "values", "observations", "target", "hardlink"])
-def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: Path, tamper: str) -> None:
+def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: Path, tamper: str, request: pytest.FixtureRequest) -> None:
     from dataclasses import replace
     import os
+    from tests._factories.activation_ledger import enter_legacy_target_scope
     from charter.activation.compiler import prepare_mission_type_activations
     from specify_cli.skills.installer import assess_project_skills
     from specify_cli.tool_surface.operations import AssessmentInputs, OperationRoot
@@ -84,6 +85,8 @@ def test_skill_provisioning_admission_rejects_noncanonical_descriptor(tmp_path: 
     config = project / ".kittify/config.yaml"
     config.parent.mkdir(parents=True)
     config.write_text("agents:\n  available: [codex]\n")
+    # The subject is the legacy config.yaml target's admission; a keyless project is fresh outside the upgrade scope.
+    enter_legacy_target_scope(request, project)
     if tamper == "hardlink":
         os.link(config, tmp_path / "alias")
     descriptor = prepare_mission_type_activations(project)

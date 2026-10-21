@@ -171,7 +171,10 @@ class TestOrgRequiredPromotedIntoConfig:
         consumer = tmp_path / "consumer"
         consumer.mkdir()
         yaml_key = f"activated_{kind}"
-        _write_consumer_config(consumer, [("pack", pack)], preseed={yaml_key: ["project-pinned"]})
+        # An unmigrated consumer (legacy activation keys, no ledger) keeps config.yaml as the target
+        # (FR-017). ``activated_assets`` alone is not an activation key, so the mission types make
+        # every variant unmigrated rather than fresh.
+        _write_consumer_config(consumer, [("pack", pack)], preseed={yaml_key: ["project-pinned"], "mission_type_activations": ["software-dev"]})
 
         interview = _Interview()
         messages = apply_org_charter_to_interview(interview, consumer)

@@ -112,7 +112,9 @@ def test_branch_exists_mint_refusal_leaves_no_scaffold(tmp_path: Path) -> None:
 def test_target_without_commit_mint_refusal_leaves_no_scaffold(tmp_path: Path) -> None:
     repo = _protected_repo(tmp_path)
     config = repo / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8") + "\nprotection:\n  protected_branches: [release]\n", encoding="utf-8")
+    # Activation lives in the activation ledger, so the provisioner may leave no config.yaml.
+    existing = config.read_text(encoding="utf-8") if config.exists() else ""
+    config.write_text(existing + "\nprotection:\n  protected_branches: [release]\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "protect release")
 

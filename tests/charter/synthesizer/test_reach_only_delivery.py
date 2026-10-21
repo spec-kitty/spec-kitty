@@ -334,3 +334,33 @@ def test_operator_removed_reach_only_tactic_is_not_delivered_through_its_directi
 
     assert _REACH_ONLY not in removed
     assert _REACH_ONLY in kept
+
+
+# --- FR-009: synthesis never re-adds a denied tactic, even on first creation (ledger-seeded, mode-independent) ---
+
+
+def test_synthesis_never_adds_a_denied_tactic_even_on_first_creation(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, append_synthesized_activations
+    from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(
+        tmp_path, mission_type_activations=["software-dev"], activated_tactics=["adversarial-qa-handoff"], deactivated_tactics=[_REACH_ONLY, "how-we-apply-other"]
+    )
+
+    warnings = append_synthesized_activations(tmp_path, {"tactic": [_REACH_ONLY, "how-we-apply-fresh"]})
+
+    ledger = read_activation_ledger(tmp_path)
+    assert ledger["activated_tactics"] == ["adversarial-qa-handoff", "how-we-apply-fresh"]
+    assert ledger["deactivated_tactics"] == sorted([_REACH_ONLY, "how-we-apply-other"])
+    assert f"kept deactivated: tactic {_REACH_ONLY}" in warnings
+    assert _REACH_ONLY in (tmp_path / CREATED_ARTIFACTS_PATH).read_text(encoding="utf-8")
+
+
+def test_kept_deactivated_warning_names_the_kind_of_every_skipped_key() -> None:
+    from charter.activation.synthesizer.reach_only import _kept_deactivated
+
+    warnings = _kept_deactivated({"activated_tactics": ["t1"], "activated_styleguides": ["s1", "s2"]})
+
+    assert warnings == ["kept deactivated: tactic t1", "kept deactivated: styleguide s1", "kept deactivated: styleguide s2"]

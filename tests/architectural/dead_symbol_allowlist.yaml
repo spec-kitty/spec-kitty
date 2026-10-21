@@ -902,9 +902,6 @@ entries:
   rationale: The public return type of ``deactivation_plan()``, consumed by the CLI layer and tests; still
     no src/ importer.
 - module: charter.activation.cascade
-  name: ReferencedArtifact
-  category: category_c_org_doctrine_closeout
-- module: charter.activation.cascade
   name: SharedSkip
   category: category_c_org_doctrine_closeout
 - module: charter.offering.drg.org_pack_loader

@@ -5,7 +5,9 @@ Proves the wiring between the `charter interview` command and
 ``charter.activation.kind_vocabulary.resolve_selected_id_to_stem`` and the
 effective-set seam ``charter.activation.effective_set``) — the captured
 `selected_paradigms` / `selected_directives` must be append-promoted into
-``.kittify/config.yaml``'s ``activated_*`` keys after every interview run,
+the ``activated_*`` keys of the activation authority (the activation ledger,
+``.kittify/charter/activation.yaml``, for these fresh projects; FR-019) after
+every interview run,
 without dropping anything that was effective while the key was absent
 (FR-015 / #4400, exercised here at the live CLI call site).
 """
@@ -21,6 +23,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
 from charter.activation.effective_set import resolve_effective_sets
+from kernel.activation_ledger_store import activation_ledger_path
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -45,9 +48,17 @@ def _git_init(repo: Path) -> None:
         subprocess.run(["git", "config", key, value], cwd=repo, check=True, capture_output=True)
 
 
+def _read_config_yaml(repo_root: Path) -> dict[str, object]:
+    """The legacy ``config.yaml`` of an unmigrated fixture (legacy keys, no ledger): its writes keep that target."""
+    loaded = YAML(typ="safe").load((repo_root / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict)
+    return loaded
+
+
 def _read_config(repo_root: Path) -> dict[str, object]:
-    config_path = repo_root / ".kittify" / "config.yaml"
-    assert config_path.exists(), f"config.yaml not written at {config_path}"
+    """The promoted activation state: a fresh project writes the activation ledger (FR-019)."""
+    config_path = activation_ledger_path(repo_root)
+    assert config_path.exists(), f"activation ledger not written at {config_path}"
     yaml = YAML(typ="safe")
     loaded = yaml.load(config_path.read_text(encoding="utf-8"))
     assert isinstance(loaded, dict)
@@ -172,11 +183,11 @@ def test_interview_with_no_selections_leaves_config_untouched(
     )
     assert result.exit_code == 0, result.stdout
 
-    config_path = tmp_path / ".kittify" / "config.yaml"
-    if config_path.exists():
-        data = YAML(typ="safe").load(config_path.read_text(encoding="utf-8")) or {}
-        assert "activated_directives" not in data
-        assert "activated_paradigms" not in data
+    for config_path in (tmp_path / ".kittify" / "config.yaml", activation_ledger_path(tmp_path)):
+        if config_path.exists():
+            data = YAML(typ="safe").load(config_path.read_text(encoding="utf-8")) or {}
+            assert "activated_directives" not in data
+            assert "activated_paradigms" not in data
 
 
 # --- #6408: opt-in --narrow-activation -------------------------------------
@@ -304,8 +315,8 @@ def test_interview_narrow_with_org_pack_keeps_org_required_stem_spelled_tactic(t
 
     warnings, narrowed = _promote_interview_selections(tmp_path, interview_data, narrow=True)
 
-    assert _read_config(tmp_path)["activated_tactics"][0] == "qa-tactic-seven"
-    assert "qa-tactic-seven" in _read_config(tmp_path)["activated_tactics"]
+    assert _read_config_yaml(tmp_path)["activated_tactics"][0] == "qa-tactic-seven"
+    assert "qa-tactic-seven" in _read_config_yaml(tmp_path)["activated_tactics"]
     dropped = narrowed.get("activated_tactics", [])
     assert "qa-seven" not in dropped and "qa-tactic-seven" not in dropped
     assert set(dropped) == {item for item in effective if item not in {"qa-seven"}} - {"qa-tactic-seven"}
@@ -380,4 +391,157 @@ def test_interview_narrow_activation_compares_a_present_declared_id_list_by_stem
     )
 
     assert "activated_directives" not in payload["narrowed"], payload["narrowed"]
-    assert _read_config(tmp_path)["activated_directives"] == ["003-decision-documentation-requirement"]
+    assert _read_config_yaml(tmp_path)["activated_directives"] == ["003-decision-documentation-requirement"]
+
+
+# --- FR-009: the interview never re-adds an excluded id (ledger-seeded, mode-independent) ---
+
+
+def test_interview_reselecting_a_denied_directive_keeps_it_excluded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(
+        tmp_path,
+        mission_type_activations=["software-dev"],
+        activated_directives=[_DIRECTIVE_001_STEM],
+        deactivated_directives=[_DIRECTIVE_010_STEM],
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", _DIRECTIVE_010_CANONICAL],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    ledger = read_activation_ledger(tmp_path)
+    assert ledger["activated_directives"] == [_DIRECTIVE_001_STEM]
+    assert ledger["deactivated_directives"] == [_DIRECTIVE_010_STEM]
+    assert f"kept deactivated: directive {_DIRECTIVE_010_STEM}" in " ".join(result.stdout.split())
+
+
+# --- F1/F2: promotion reads the effective deny only through the activation ledger seam ---
+
+
+def _org_pack_project(tmp_path: Path, required_directives: list[str]) -> None:
+    pack = tmp_path / "org-packs" / "acme"
+    pack.mkdir(parents=True)
+    listed = "".join(f"  - {item}\n" for item in required_directives)
+    (pack / "org-charter.yaml").write_text(f"schema_version: 1\norg_name: Acme\nrequired_directives:\n{listed}", encoding="utf-8")
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: org-packs/acme\n", encoding="utf-8"
+    )
+
+
+def test_promotion_seeding_keeps_an_org_required_id_a_stale_deny_names(tmp_path: Path) -> None:
+    """F1 (FR-006/FR-009): a stale deny of an org-required id is inert, so the seeded list keeps it."""
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.charter.interview import _promote_interview_selections
+    from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+    _git_init(tmp_path)
+    _org_pack_project(tmp_path, [_DIRECTIVE_010_STEM])
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], deactivated_directives=[_DIRECTIVE_010_STEM])
+    data = SimpleNamespace(selected_directives=[_DIRECTIVE_001_STEM], selected_tactics=[], selected_paradigms=[])
+
+    warnings, _narrowed = _promote_interview_selections(tmp_path, data)
+
+    assert _DIRECTIVE_010_STEM in read_activation_ledger(tmp_path)["activated_directives"]
+    assert not [warning for warning in warnings if warning.startswith("kept deactivated")]
+
+
+def test_promotion_on_an_unmigrated_project_never_applies_a_legacy_deny_key(tmp_path: Path) -> None:
+    """F2 (FR-017, Option B): a hand-written legacy ``deactivated_<kind>`` key is reported, never applied."""
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.charter.interview import _promote_interview_selections
+
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        f"mission_type_activations:\n- software-dev\ndeactivated_directives:\n- {_DIRECTIVE_010_STEM}\n", encoding="utf-8"
+    )
+    data = SimpleNamespace(selected_directives=[_DIRECTIVE_001_STEM], selected_tactics=[], selected_paradigms=[])
+
+    warnings, _narrowed = _promote_interview_selections(tmp_path, data)
+
+    config = _read_config_yaml(tmp_path)
+    assert _DIRECTIVE_010_STEM in config["activated_directives"]
+    assert config["deactivated_directives"] == [_DIRECTIVE_010_STEM]  # left on disk, untouched
+    assert not activation_ledger_path(tmp_path).exists()
+    assert not [warning for warning in warnings if warning.startswith("kept deactivated")]
+
+
+# --- F7: a promotion that writes the activation ledger restamps the bundle hash (the ledger is hashed, FR-018) ---
+
+
+def _stamp_manifest(root: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, finalize_manifest
+    from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+    from charter.bundle import compute_bundle_content_hash
+
+    charter = root / ".kittify" / "charter"
+    charter.mkdir(parents=True, exist_ok=True)
+    (charter / "charter.yaml").write_text('schema_version: "2.0.0"\n', encoding="utf-8")
+    stamped = finalize_manifest(
+        SynthesisManifest(
+            created_at="2026-10-21T00:00:00Z",
+            run_id="01TESTRUN",
+            adapter_id="project-direct-write",
+            adapter_version="1",
+            synthesizer_version="1",
+            manifest_hash="0" * 64,
+            built_in_only=False,
+            bundle_content_hash=compute_bundle_content_hash(root),
+        )
+    )
+    (root / MANIFEST_PATH).write_text(canonical_yaml(stamped.model_dump(mode="python")).decode("utf-8"), encoding="utf-8")
+
+
+def _stamp_is_current(root: Path) -> bool:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml
+    from charter.bundle import compute_bundle_content_hash
+
+    return bool(load_yaml(root / MANIFEST_PATH).bundle_content_hash == compute_bundle_content_hash(root))
+
+
+def test_interview_promotion_restamps_the_bundle_hash(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands.charter.interview import _promote_interview_selections
+    from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_directives=[_DIRECTIVE_001_STEM])
+    _stamp_manifest(tmp_path)
+    assert _stamp_is_current(tmp_path), "control: the stamp starts current"
+
+    _promote_interview_selections(tmp_path, SimpleNamespace(selected_directives=[_DIRECTIVE_010_STEM], selected_tactics=[], selected_paradigms=[]))
+
+    assert _DIRECTIVE_010_STEM in read_activation_ledger(tmp_path)["activated_directives"]
+    assert _stamp_is_current(tmp_path)
+
+
+def test_org_required_promotion_restamps_the_bundle_hash(tmp_path: Path) -> None:
+    from charter.activation.org_charter import OrgCharterPolicy, _promote_org_required_to_config
+    from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_directives=[_DIRECTIVE_001_STEM])
+    _stamp_manifest(tmp_path)
+
+    _promote_org_required_to_config(OrgCharterPolicy(required_directives=[_DIRECTIVE_010_STEM]), tmp_path)
+
+    assert _DIRECTIVE_010_STEM in read_activation_ledger(tmp_path)["activated_directives"]
+    assert _stamp_is_current(tmp_path)

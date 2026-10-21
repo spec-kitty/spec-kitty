@@ -308,3 +308,52 @@ def test_non_list_activated_value_raises(tmp_path: Path, key: str) -> None:
 
     with pytest.raises(ValueError, match=key):
         is_spdd_reasons_active(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# WP03 (persistent-deactivation-ledger): the probe resolves through the kernel
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("pointer", [False, True], ids=["no-pointer", "pointer"])
+def test_probe_reads_the_ledger_like_pack_context(tmp_path: Path, pointer: bool) -> None:
+    """The probe resolves its source through ``kernel.activation_ledger_store``.
+
+    A ledger beside a ``config.yaml`` (with or without a ``charter:`` pointer to
+    an empty ``charter.yaml``) is the activation source: the probe and
+    ``PackContext.from_config`` agree, in either transition mode. RED before
+    WP03: the probe read only ``config.yaml`` / the pointed ``charter.yaml`` and
+    so saw every kind absent (``True``).
+    """
+    from tests._factories.activation_ledger import seed_activation_ledger
+
+    _write_activation_fixture(tmp_path, "activated_paradigms", None, pointer=pointer)
+    legacy = tmp_path / ".kittify" / ("charter/charter.yaml" if pointer else "config.yaml")
+    legacy.write_text("{}\n" if pointer else "vcs:\n  type: git\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, activated_paradigms=[], activated_tactics=[], activated_directives=[])
+
+    assert is_spdd_reasons_active(tmp_path) is False
+    assert _expected_active(PackContext.from_config(tmp_path)) is False
+
+    seed_activation_ledger(tmp_path, activated_paradigms=[PARADIGM_ID])
+    assert is_spdd_reasons_active(tmp_path) is True
+    assert _expected_active(PackContext.from_config(tmp_path)) is True
+
+
+def test_dangling_pointer_text_is_pinned(tmp_path: Path) -> None:
+    """The probe keeps its own ``_SpddActivationConfigError`` dangling-pointer text, byte for byte.
+
+    The legacy surface is read inside the upgrade scope (where a pointer is
+    still followed in either transition mode).
+    """
+    from charter.offering.spdd_reasons.activation import _SpddActivationConfigError
+    from kernel.activation_ledger_store import legacy_activation_scope
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text("charter: .kittify/charter/missing.yaml\n", encoding="utf-8")
+    missing = tmp_path / ".kittify" / "charter" / "missing.yaml"
+
+    with legacy_activation_scope(tmp_path), pytest.raises(_SpddActivationConfigError) as caught:
+        is_spdd_reasons_active(tmp_path)
+    assert str(caught.value) == f".kittify/config.yaml 'charter:' pointer names {missing}, which does not exist."

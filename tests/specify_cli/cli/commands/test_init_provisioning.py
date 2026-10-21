@@ -131,7 +131,7 @@ def test_fresh_init_writes_mission_type_activations_from_default_preset(
     result = _run(app, ["init", "fresh-provision", "--ai", "claude", "--non-interactive"])
     assert result.exit_code == 0, result.output
 
-    config_file = tmp_path / "fresh-provision" / ".kittify" / "config.yaml"
+    config_file = tmp_path / "fresh-provision" / ".kittify" / "charter" / "activation.yaml"  # a fresh init's ledger (FR-019)
     assert config_file.exists()
     config_data = _load_config(config_file)
 
@@ -157,6 +157,7 @@ def test_provision_raises_when_default_preset_missing(
 
     assert caught.value.code == "DEFAULT_PRESET_MISSING"
     assert not (tmp_path / "project" / ".kittify" / "config.yaml").exists()
+    assert not (tmp_path / "project" / ".kittify" / "charter" / "activation.yaml").exists()
 
 
 def test_provision_raises_when_preset_lacks_mission_type_key(
@@ -219,7 +220,7 @@ def test_provision_copies_fixture_pack_verbatim_not_disk_roster(
     changed = provision_default_mission_type_activations(project)
     assert changed is True
 
-    config_file = project / ".kittify" / "config.yaml"
+    config_file = project / ".kittify" / "charter" / "activation.yaml"  # a fresh project's ledger (FR-019)
     data = _load_config(config_file)
     assert data["mission_type_activations"] == fixture_types
 
@@ -251,7 +252,7 @@ def test_provision_is_idempotent_and_preserves_custom_entry(
     first = provision_default_mission_type_activations(project)
     assert first is True
 
-    config_file = project / ".kittify" / "config.yaml"
+    config_file = project / ".kittify" / "charter" / "activation.yaml"  # a fresh project's ledger (FR-019)
 
     # Simulate a hand-added custom mission type alongside the built-ins.
     round_trip_yaml = YAML()

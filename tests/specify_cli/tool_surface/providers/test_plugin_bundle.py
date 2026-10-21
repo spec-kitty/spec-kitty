@@ -721,6 +721,8 @@ def _selected_skill_project(
     elif key_present:
         config["mission_type_activations"] = []
     config_path.write_text(yaml.safe_dump(config, sort_keys=False))
+    # The seed's init wrote the activation ledger (FR-019); drop it so the variant's own keys decide the target.
+    (project / ".kittify/charter/activation.yaml").unlink(missing_ok=True)
     assert config["agents"]["available"] == ["codex"]
     if dist_present:
         (project / "dist").mkdir()

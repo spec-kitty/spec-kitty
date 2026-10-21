@@ -3,7 +3,7 @@
 Covers FR-005, FR-006, FR-007, FR-010:
 - Happy path: deactivate an activated artifact
 - Unknown kind: exits 1 with "Unknown kind" in output
-- None-state: exits 1 with "activate one first" guidance
+- None-state: records an exclusion (``deactivated_<kind>``); an unknown id exits 1
 - Cascade flag: accepted and processed
 - Shared artifact protection: skipped with appropriate message
 """
@@ -13,11 +13,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
 from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
 runner = CliRunner()
 
@@ -31,19 +31,16 @@ pytestmark = [pytest.mark.fast]
 
 @pytest.fixture()
 def project_root_with_directive(tmp_path: Path) -> Path:
-    """A project with activated_directives: [some-directive] in config.yaml.
+    """A ledger project with activated_directives: [some-directive].
 
-    Also carries ``mission_type_activations`` (WP04, C-A1): the provisioned
-    charter is the sole mission-type activation authority, so
-    ``PackContext.from_config`` fails closed when the key is absent.
+    Also carries ``mission_type_activations`` (WP04, C-A1). A deactivation
+    records a deny entry, which lives only in the activation ledger, so the
+    fixture is on the ledger (an unmigrated project refuses, FR-017).
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    config_data = (
-        "activated_directives:\n  - some-directive\n"
-        "mission_type_activations:\n  - software-dev\n"
-    )
-    (kittify / "config.yaml").write_text(config_data, encoding="utf-8")
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, activated_directives=["some-directive"], mission_type_activations=["software-dev"])
     return tmp_path
 
 
@@ -66,9 +63,8 @@ def project_root(tmp_path: Path) -> Path:
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
     return tmp_path
 
 
@@ -104,11 +100,10 @@ def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> 
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")
-    lines.append("mission_type_activations:")
-    lines.append("  - software-dev")
     config_path = project_root / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    seed_activation_ledger(project_root, mission_type_activations=["software-dev"])
 
 
 def _write_artifact(pack_root: Path, plural_dir: str, kind_singular: str, stem: str, declared_id: str) -> None:
@@ -160,11 +155,10 @@ def _write_graph_fragment(
 
 class TestDeactivateHappyPath:
     def test_deactivate_directive_removes_from_config(self, project_root_with_directive: Path) -> None:
-        """Deactivating a directive removes it from config.yaml."""
+        """Deactivating a directive removes it from the allow list."""
         result = _invoke_deactivate(project_root_with_directive, "directive", "some-directive")
         assert result.exit_code == 0, result.output
-        config = project_root_with_directive / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root_with_directive)
         assert "some-directive" not in (data.get("activated_directives") or [])
 
     def test_deactivate_happy_path_prints_deactivated(self, project_root_with_directive: Path) -> None:
@@ -196,23 +190,24 @@ class TestDeactivateUnknownKind:
 
 
 class TestDeactivateNoneState:
-    def test_none_state_exits_one_with_upgrade_guidance(self, empty_project_root: Path) -> None:
-        """Deactivating from None-state exits 1 with rendered upgrade guidance (WP12/T054).
+    def test_none_state_records_an_exclusion(self, empty_project_root: Path) -> None:
+        """Deactivating from None-state records an exclusion; the allow list stays absent (ADR 2026-10-19-1)."""
+        result = runner.invoke(
+            charter_app,
+            ["deactivate", "--repo-root", str(empty_project_root), "--no-compile", "directive", "001-architectural-integrity-standard"],
+        )
+        assert result.exit_code == 0, result.output
+        data = read_activation_ledger(empty_project_root)  # a fresh project writes the ledger (FR-019)
+        assert "activated_directives" not in data
+        assert data["deactivated_directives"] == ["001-architectural-integrity-standard"]
 
-        WP09 replaced the legacy ``sys.exit(1)`` in ``ActiveCharterManager.deactivate``
-        with the engine's typed ``NoActivationRestrictionsError`` (carrying the
-        "activate one first" guidance). WP12 now **catches** that error in the CLI and
-        renders it as a clean exit-1 with guidance (no propagated exception) — the
-        behavior previously deferred to WP12. Assert the WP12 contract here.
-        """
+    def test_none_state_unknown_id_exits_one(self, empty_project_root: Path) -> None:
         result = runner.invoke(
             charter_app,
             ["deactivate", "--repo-root", str(empty_project_root), "directive", "some-directive"],
         )
         assert result.exit_code == 1
-        output = " ".join(result.output.split())
-        assert "spec-kitty charter activate directive <id>" in output
-        assert "spec-kitty upgrade" not in output
+        assert "Unknown directive ID 'some-directive'" in " ".join(result.output.split())
 
 
 # ---------------------------------------------------------------------------
@@ -283,12 +278,14 @@ class TestDeactivateCascade:
 
 
 class TestDeactivateSharedArtifactSkipped:
-    def test_not_in_activation_set_emits_warning(self, project_root_with_directive: Path) -> None:
-        """Deactivating an artifact not in the set emits a warning and exits 0."""
+    def test_unknown_id_not_in_activation_set_is_refused(self, project_root_with_directive: Path) -> None:
+        """An id neither available nor in the set is refused (exit 1) and nothing is written."""
+        config = project_root_with_directive / ".kittify" / "charter" / "activation.yaml"
+        before = config.read_bytes()
         result = _invoke_deactivate(project_root_with_directive, "directive", "nonexistent-directive")
-        # Not in set → warning, exit 0
-        assert result.exit_code == 0, result.output
-        assert "Warning" in result.output or "not in" in result.output.lower()
+        assert result.exit_code == 1
+        assert "Unknown directive ID 'nonexistent-directive'" in " ".join(result.output.split())
+        assert config.read_bytes() == before
 
 
 # ---------------------------------------------------------------------------
@@ -351,8 +348,7 @@ class TestDeactivateCascadeOutputAbsence:
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
-        config = project_root_with_directive / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root_with_directive)
         assert "some-directive" not in (data.get("activated_directives") or [])
 
 
@@ -460,11 +456,8 @@ def test_deactivate_agent_profile_warns_when_mission_step_default(tmp_path: Path
     silently while every built-in mission heads for a blocked composition."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text(
-        "activated_agent_profiles:\n  - researcher-robbie\n"
-        "mission_type_activations:\n  - software-dev\n",
-        encoding="utf-8",
-    )
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, activated_agent_profiles=["researcher-robbie"], mission_type_activations=["software-dev"])
 
     result = _invoke_deactivate(tmp_path, "agent-profile", "researcher-robbie")
 
@@ -480,11 +473,8 @@ def test_deactivate_agent_profile_no_warning_for_ordinary_profile(tmp_path: Path
     pre-#4115 output and no mission warning."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text(
-        "activated_agent_profiles:\n  - scribe-sally\n"
-        "mission_type_activations:\n  - software-dev\n",
-        encoding="utf-8",
-    )
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, activated_agent_profiles=["scribe-sally"], mission_type_activations=["software-dev"])
 
     result = _invoke_deactivate(tmp_path, "agent-profile", "scribe-sally")
 

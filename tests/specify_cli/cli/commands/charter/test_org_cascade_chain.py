@@ -30,7 +30,8 @@ import logging
 from pathlib import Path
 
 import pytest
-import yaml
+
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -53,18 +54,18 @@ pytestmark = [pytest.mark.integration]
 def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> None:
     """Write ``.kittify/config.yaml`` with a declaration-ordered org-pack chain.
 
-    Carries ``mission_type_activations`` (WP04, C-A1): ``PackContext.from_config``
-    fails closed without it.
+    Seeds ``mission_type_activations`` (WP04, C-A1) into the activation ledger:
+    ``PackContext.from_config`` fails closed without it, and a deactivation
+    records a deny entry, which only the ledger holds (FR-017).
     """
     lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")
-    lines.append("mission_type_activations:")
-    lines.append("  - software-dev")
     config_path = project_root / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    seed_activation_ledger(project_root, mission_type_activations=["software-dev"])
 
 
 def _write_directive(pack_root: Path, stem: str, declared_id: str) -> None:
@@ -123,15 +124,14 @@ def project_root(tmp_path: Path) -> Path:
     """A minimal project with an empty ``.kittify/config.yaml`` (no org packs)."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (kittify / "config.yaml").write_text("# no activation keys\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
     return tmp_path
 
 
 def _config(project_root: Path) -> dict:
-    raw = (project_root / ".kittify" / "config.yaml").read_text(encoding="utf-8")
-    return yaml.safe_load(raw) or {}
+    """The activation state: the ledger these fixtures are seeded on."""
+    return read_activation_ledger(project_root)
 
 
 def _activate(project_root: Path, *args: str, catch_exceptions: bool = False) -> Result:
@@ -332,20 +332,22 @@ class TestIdMappingWideningNonVacuous:
         # the console. The reverted ID mapping must make the pack-2 target FAIL
         # to cascade-activate: NO ``Cascade-activated`` line is emitted (the
         # positive two-pack test prints ``Cascade-activated: directive/
-        # c-directive`` here). If this assertion fails, the two-pack test above
-        # is vacuous w.r.t. the ID-mapping widening.
-        assert "Cascade-activated" not in result.output, (
-            "expected the pack-2 target to FAIL to cascade-activate once ID "
-            "mapping is reverted to pre-T008 (layer_roots-only) behaviour;\n"
+        # c-directive`` here). Since #6423 (ruling R3) activation accepts a
+        # declared id and writes its stem, so the reverted mapping no longer
+        # fails the activation; it still mis-maps the id, which surfaces as the
+        # raw DRG id instead of the config stem on the console. If this
+        # assertion fails, the two-pack test above is vacuous w.r.t. the
+        # ID-mapping widening.
+        assert "Cascade-activated: directive/c-directive" not in result.output, (
+            "expected the pack-2 target to be mis-mapped once ID mapping is "
+            "reverted to pre-T008 (layer_roots-only) behaviour;\n"
             f"output:\n{result.output}"
         )
         # The DRG-visibility half (T009) is still intact -- the cascade
-        # engine still reached pack 2 and tried (and failed) to map its raw
-        # DRG id back, surfaced as a cascade warning naming the raw id.
-        assert "could not cascade-activate" in result.output, result.output
-        assert "DIRECTIVE_C" in result.output, (
-            "expected the raw DRG id to surface in a cascade warning, proving "
-            f"the DRG walk (T009) still reached pack 2 on its own; output:\n{result.output}"
+        # engine still reached pack 2 and reported its raw DRG id.
+        assert "Cascade-activated: directive/DIRECTIVE_C" in result.output, (
+            "expected the raw DRG id to surface, proving the DRG walk (T009) "
+            f"still reached pack 2 on its own; output:\n{result.output}"
         )
 
 

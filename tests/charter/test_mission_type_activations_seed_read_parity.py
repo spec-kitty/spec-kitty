@@ -89,11 +89,12 @@ def test_both_provisioners_seed_identical_set_from_the_default_preset(tmp_path: 
     """init and charter-generate write the SAME activation list, the preset's."""
     init_project = tmp_path / "init-project"
     assert provision_default_mission_type_activations(init_project) is True
-    init_config = _load_config(init_project / ".kittify" / "config.yaml")
+    # Both projects are keyless, hence fresh: both provisioners write the activation ledger (FR-019).
+    init_config = _load_config(init_project / ".kittify" / "charter" / "activation.yaml")
 
     gen_project = _legacy_project(tmp_path / "gen-project")
     assert provision_mission_type_activations(gen_project) is True
-    gen_config = _load_config(gen_project / ".kittify" / "config.yaml")
+    gen_config = _load_config(gen_project / ".kittify" / "charter" / "activation.yaml")
 
     shared = default_preset_mission_types()
 

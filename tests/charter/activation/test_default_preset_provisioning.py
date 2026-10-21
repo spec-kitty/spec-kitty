@@ -105,7 +105,8 @@ def test_prepare_seeds_the_preset_list_and_observes_the_preset_file(default_pres
     assert prepared.mission_type_activations == ("software-dev", "research")
     assert default_preset in {observation.path for observation in prepared.write.observations}
     assert prepared.apply() is True
-    assert _SAFE_YAML.load(project / ".kittify" / "config.yaml")["mission_type_activations"] == ["software-dev", "research"]
+    assert prepared.write.target == project / ".kittify" / "charter" / "activation.yaml"  # a keyless project is fresh (FR-019)
+    assert _SAFE_YAML.load(prepared.write.target)["mission_type_activations"] == ["software-dev", "research"]
 
 
 def test_prepared_write_refuses_after_the_preset_changed(default_preset: Path, tmp_path: Path) -> None:

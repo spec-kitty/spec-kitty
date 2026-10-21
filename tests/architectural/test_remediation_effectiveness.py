@@ -673,17 +673,20 @@ class _EffectivenessCase:
 #: Re-pinned once more by charter-pack-cutover WP03 (#3732), whose
 #: ``computer.py`` change shifted every row up by 8 lines (525 -> 517,
 #: 531 -> 523, 612 -> 604, 618 -> 610, 723 -> 715, 754 -> 746, 767 -> 759).
-#: Re-pinned by #6415: the bundle-not-fresh `synthesized_drg` row (746) is
-#: gone (that branch now echoes upstream and is exempt, see `_EXEMPT_STATES`)
-#: and the hash-mismatch row moved 759 -> 775 (the extracted helper sits
-#: above it). Re-derived with `_discover_remediation_emitting_states_full()`.
+#: Re-pinned by #6415 and persistent-deactivation-ledger WP09 (merged landing). #6415
+#: removed the bundle-not-fresh `synthesized_drg` row (that branch now echoes upstream
+#: and is exempt, see `_EXEMPT_STATES`) and added an extracted helper above the
+#: hash-mismatch row; WP09's ``computer.py`` change (the optional-ledger import, list
+#: and parse check, and a mypy fix) shifted the rows down. Final pins: 517 -> 528,
+#: 523 -> 534, 604 -> 618, 610 -> 624, 715 -> 750, 759 -> 810. Re-derived with
+#: `_discover_remediation_emitting_states_full()`, never by hand-counting.
 _CASES: tuple[_EffectivenessCase, ...] = (
-    _EffectivenessCase("charter_source", 517, _fixture_charter_source_missing),
-    _EffectivenessCase("charter_source", 523, _fixture_charter_source_missing_f1),
-    _EffectivenessCase("synced_bundle", 604, _fixture_charter_source_missing),
-    _EffectivenessCase("synced_bundle", 610, _fixture_charter_source_missing_f1),
-    _EffectivenessCase("synthesized_drg", 715, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 775, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("charter_source", 528, _fixture_charter_source_missing),
+    _EffectivenessCase("charter_source", 534, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synced_bundle", 618, _fixture_charter_source_missing),
+    _EffectivenessCase("synced_bundle", 624, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synthesized_drg", 750, _fixture_drg_missing),
+    _EffectivenessCase("synthesized_drg", 810, _fixture_drg_stale_hash_mismatch),
 )
 
 

@@ -20,6 +20,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
+from tests._factories.activation_ledger import legacy_target_scope
 from ruamel.yaml import YAML
 
 from charter.activation.compiler import default_preset_mission_types, provision_mission_type_activations
@@ -121,12 +123,17 @@ def test_provision_respects_explicit_empty_optout(tmp_path: Path) -> None:
 
 
 def test_provision_writes_config_for_legacy_project(tmp_path: Path) -> None:
-    """No ``charter:`` pointer -> the authority is ``config.yaml`` itself."""
+    """No ``charter:`` pointer -> the legacy authority is ``config.yaml`` itself.
+
+    A keyless project is fresh (the ledger) outside the upgrade scope (FR-019),
+    so the legacy target is exercised inside it.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True)
     (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
 
-    written = provision_mission_type_activations(tmp_path)
+    with legacy_target_scope(tmp_path):
+        written = provision_mission_type_activations(tmp_path)
 
     assert written is True
     doc = _load(kittify / "config.yaml")

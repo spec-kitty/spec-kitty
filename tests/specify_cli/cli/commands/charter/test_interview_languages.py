@@ -16,6 +16,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
+from tests._factories.activation_ledger import read_activation_ledger
 
 pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
 
@@ -249,7 +250,8 @@ def test_a_completed_run_stores_the_answers_and_the_languages_and_promotion_keep
     assert payload["languages"] == ["python"]
     assert payload["languages_source"] == "detected"
     assert "DETECTED, not confirmed" in payload["languages_notice"]
-    assert "activated_directives" in _config(root), "promotion ran and its write sits beside the languages"
+    assert "activated_directives" in read_activation_ledger(root), "promotion ran and wrote the activation ledger"
+    assert "activated_directives" not in _config(root), "activation never lands beside the languages after the ledger flip"
 
 
 def test_a_detected_store_that_loses_the_race_to_a_set_key_reports_the_kept_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

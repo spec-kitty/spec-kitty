@@ -30,9 +30,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.mark.parametrize("pointer", [False, True], ids=["legacy", "pointer"])
 @pytest.mark.parametrize("missing", [True, False], ids=["missing-key", "explicit-empty"])
-def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool, missing: bool) -> None:
+def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool, missing: bool, request: pytest.FixtureRequest) -> None:
     import os
     import sys
+    from tests._factories.activation_ledger import enter_legacy_target_scope
     from charter.activation.compiler import prepare_mission_type_activations
     from specify_cli.tool_surface.model import SurfaceSelection
     from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
@@ -52,6 +53,9 @@ def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool,
     if not missing:
         target.write_text(target.read_text() + "mission_type_activations: []\n", encoding="utf-8")
     target.chmod(0o640)
+    # The subject is the legacy target's composition (config.yaml or the pointed file); a keyless
+    # project is fresh (the ledger) outside the upgrade scope.
+    enter_legacy_target_scope(request, project)
     before = snapshot({"project": project})
     activation = prepare_mission_type_activations(project)
     consent = ApplyConsent(automatic=True)
@@ -314,7 +318,8 @@ def test_provisioning_projection_absent_authority_requires_canonical_apply(tmp_p
     assert prepared.apply()
     applied = SurfaceRepairService([provider]).apply_assessments((assessment,), assessment.consent)[0]
     assert applied.outcome == "applied", applied.diagnostics
-    assert (project / ".kittify/config.yaml").read_bytes() == prepared.write.desired_bytes
+    assert prepared.write.target == project / ".kittify/charter/activation.yaml"  # a fresh project's authority (FR-019)
+    assert prepared.write.target.read_bytes() == prepared.write.desired_bytes
     assert (project / ".kittify/command-skills-manifest.json").exists()
 
 

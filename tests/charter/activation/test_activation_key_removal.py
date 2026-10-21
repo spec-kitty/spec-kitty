@@ -112,7 +112,9 @@ def test_activation_write_writes_anti_patterns(tmp_path: Path) -> None:
 
     apply_yaml_write(prepare_activation_write(tmp_path, {"activated_anti_patterns": ["smell-a"]}))
 
-    assert "activated_anti_patterns:\n- smell-a" in config.read_text(encoding="utf-8")
+    # A keyless project is fresh: the write lands in the activation ledger (FR-019), never config.yaml.
+    assert "activated_anti_patterns:\n- smell-a" in (tmp_path / ".kittify" / "charter" / "activation.yaml").read_text(encoding="utf-8")
+    assert config.read_text(encoding="utf-8") == "vcs:\n  type: git\n"
 
 
 def test_activation_write_removes_from_pointed_charter_yaml(tmp_path: Path) -> None:

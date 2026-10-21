@@ -501,8 +501,10 @@ def test_coord_identity_runs_selected_gate_against_real_failure(tmp_path: Path, 
     _seed_baseline(primary, wp.stem, failed=0)
     config_path = repo / ".kittify" / "config.yaml"
     command = f"{shlex.quote(sys.executable)} -m pytest tests/git -q --junitxml={{output_file}}"
+    # provision_test_charter seeds the activation ledger, so config.yaml may not exist yet.
+    existing = config_path.read_text() if config_path.exists() else ""
     config_path.write_text(
-        config_path.read_text() + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit_xml\n",
+        existing + f"\nreview:\n  test_command: {json.dumps(command)}\n  test_output_format: junit_xml\n",
         encoding="utf-8",
     )
     _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")

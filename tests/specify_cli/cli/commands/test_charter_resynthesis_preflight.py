@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.activation.pack_context import PackContext
+from charter.offering.api import ArtifactKind
 from specify_cli.cli.commands.charter import app
 from tests.charter.test_project_registration import author_guidance
 
@@ -36,11 +37,16 @@ def test_resynthesis_missing_interview_preserves_activation(tmp_path: Path, monk
 
 
 class _Context:
-    """The two activation attributes ``_future_selections`` reads."""
+    """The two activation states ``_future_selections`` reads, through ``allow_for``."""
 
     def __init__(self, *, directives: frozenset[str] | None = None, skills: frozenset[str] | None = None) -> None:
         self.activated_directives = directives
         self.activated_skills = skills
+
+    def allow_for(self, kind: ArtifactKind) -> frozenset[str] | None:
+        """The ``PackContext.allow_for`` accessor ``_future_selections`` reads (WP06)."""
+        value: frozenset[str] | None = getattr(self, f"activated_{kind.plural}")
+        return value
 
 
 def _context(*, directives: frozenset[str] | None = None) -> PackContext:

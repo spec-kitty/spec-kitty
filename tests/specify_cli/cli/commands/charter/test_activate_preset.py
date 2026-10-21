@@ -333,3 +333,61 @@ def test_positional_activate_resolves_the_default_repo_root_per_invocation(tmp_p
 
     for root in roots:
         assert "001-architectural-integrity-standard" in _load(_config(root)).get("activated_directives", []), root
+
+
+# ---------------------------------------------------------------------------
+# Exclusions (FR-009, FR-014, US5.4): ledger-seeded, mode-independent
+# ---------------------------------------------------------------------------
+
+_DENIED = "024-locality-of-change"
+
+
+def _ledger_project(tmp_path: Path) -> Path:
+    from tests._factories.activation_ledger import seed_activation_ledger
+
+    (tmp_path / ".kittify").mkdir(parents=True, exist_ok=True)
+    _config(tmp_path).write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], deactivated_directives=[_DENIED])
+    return tmp_path
+
+
+def _ledger(root: Path) -> dict[str, Any]:
+    from tests._factories.activation_ledger import read_activation_ledger
+
+    return read_activation_ledger(root)
+
+
+def test_preset_without_force_keeps_a_listed_exclusion_and_warns(tmp_path: Path) -> None:
+    root = _ledger_project(tmp_path)
+
+    result = _activate(root, "--preset", "minimal", "--no-compile")
+
+    assert result.exit_code == 0, result.output
+    ledger = _ledger(root)
+    assert ledger["deactivated_directives"] == [_DENIED]
+    assert ledger["activated_directives"] == [item for item in _MINIMAL["activated_directives"] if item != _DENIED]
+    flat = " ".join(result.output.split())
+    assert f"Kept deactivated: activated_directives: {_DENIED}" in flat
+    assert "--force" in flat
+
+
+def test_preset_with_force_clears_the_listed_exclusion_and_reports_it(tmp_path: Path) -> None:
+    root = _ledger_project(tmp_path)
+
+    result = _activate(root, "--preset", "minimal", "--no-compile", "--force")
+
+    assert result.exit_code == 0, result.output
+    ledger = _ledger(root)
+    assert "deactivated_directives" not in ledger
+    assert ledger["activated_directives"] == _MINIMAL["activated_directives"]
+    assert f"Cleared exclusion: deactivated_directives: {_DENIED}" in " ".join(result.output.split())
+
+
+def test_preset_json_reports_kept_and_cleared_exclusions(tmp_path: Path) -> None:
+    kept = json.loads(_activate(_ledger_project(tmp_path / "kept"), "--preset", "minimal", "--json").output)
+    cleared = json.loads(_activate(_ledger_project(tmp_path / "cleared"), "--preset", "minimal", "--json", "--force").output)
+
+    assert kept["kept_deactivated"] == {"activated_directives": [_DENIED]}
+    assert "cleared_exclusions" not in kept
+    assert cleared["cleared_exclusions"] == {"deactivated_directives": [_DENIED]}
+    assert "kept_deactivated" not in cleared

@@ -13,7 +13,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from charter.activation.activation_engine import NoActivationRestrictionsError, plan_activation
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
+
+from charter.activation.activation_engine import RequiredArtifactDeactivationError, plan_activation
 from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.activation.drg_activation import _SINGULAR_TO_PER_KIND_FIELD
 from charter.activation.invocation_context import ProjectContext
@@ -35,8 +37,18 @@ def _skill_ids_in_force(project: Path) -> set[str]:
     return set(build_active_charter_service(project).skills)
 
 
+def _on_the_ledger(project: Path) -> Path:
+    """Move the fixture's activation into the ledger: a deactivation records a deny entry, which only the ledger holds (FR-017)."""
+    config = project / ".kittify" / "config.yaml"
+    data = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
+    mission_types = data.pop("mission_type_activations")
+    config.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    seed_activation_ledger(project, mission_type_activations=mission_types)
+    return project
+
+
 def _activated(project: Path, key: str) -> list[str] | None:
-    data = yaml.safe_load((project / ".kittify" / "config.yaml").read_text(encoding="utf-8")) or {}
+    data = read_activation_ledger(project)
     value = data.get(key)
     return None if value is None else list(value)
 
@@ -62,7 +74,7 @@ def project(tmp_path: Path) -> Path:
         support.write_skill(pack, skill_id)
     support.write_org_charter(pack, required_skills=["required-one"])
     support.write_config(tmp_path, pack)
-    return tmp_path
+    return _on_the_ledger(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -131,13 +143,13 @@ def test_absent_key_without_required_skills_means_no_skills(tmp_path: Path) -> N
 
 
 def test_explicit_empty_list_is_nothing_even_with_required_skills(project: Path) -> None:
-    support.write_config(project, project / "pack", extra="activated_skills: []\n")
+    seed_activation_ledger(project, activated_skills=[])
     assert PackContext.from_config(project).activated_skills == frozenset()
     assert _skill_ids_in_force(project) == set()
 
 
 def test_explicit_list_is_exactly_that_list(project: Path) -> None:
-    support.write_config(project, project / "pack", extra="activated_skills: [y]\n")
+    seed_activation_ledger(project, activated_skills=["y"])
     assert PackContext.from_config(project).activated_skills == frozenset({"y"})
     assert _skill_ids_in_force(project) == {"y"}
 
@@ -204,21 +216,23 @@ def test_deactivate_skill_removes_only_that_skill(project: Path) -> None:
     assert _activated(project, "activated_skills") == ["required-one", "y"]
 
 
-def test_deactivate_skill_from_absent_key_is_refused_with_guidance(project: Path) -> None:
-    with pytest.raises(NoActivationRestrictionsError) as excinfo:
+def test_deactivate_skill_from_absent_key_records_an_exclusion(project: Path) -> None:
+    """Absent ``activated_skills`` (required-only in force): a non-required skill is excluded, the list stays absent."""
+    result = ActiveCharterManager().deactivate(ProjectContext(repo_root=project), "skill", "x")
+
+    assert result.deactivated == ["x"]
+    assert _activated(project, "activated_skills") is None
+    assert _activated(project, "deactivated_skills") == ["x"]
+
+
+def test_deactivating_an_org_required_skill_is_refused(project: Path) -> None:
+    before = (project / ".kittify" / "config.yaml").read_bytes()
+
+    with pytest.raises(RequiredArtifactDeactivationError) as excinfo:
         ActiveCharterManager().deactivate(ProjectContext(repo_root=project), "skill", "required-one")
-    message = str(excinfo.value)
-    assert "spec-kitty charter activate skill <id>" in message
-    assert "spec-kitty upgrade" not in message
 
-
-def test_absent_key_remedy_for_all_kinds_points_at_one_activation_not_upgrade() -> None:
-    """``spec-kitty upgrade`` never seeds an absent key, so that remedy would loop (#4400)."""
-    for kind in ("tactic", "not-a-kind"):
-        message = str(NoActivationRestrictionsError(kind))
-        assert f"spec-kitty charter activate {kind} <id>" in message
-        assert "spec-kitty upgrade" not in message
-    assert "org-required" not in str(NoActivationRestrictionsError("tactic"))
+    assert excinfo.value.policy_key == "required_skills"
+    assert (project / ".kittify" / "config.yaml").read_bytes() == before
 
 
 def test_activating_a_skill_leaves_other_kinds_untouched(project: Path) -> None:
@@ -260,7 +274,7 @@ def cascade_project(tmp_path: Path) -> Path:
         ],
     )
     support.write_config(tmp_path, pack)
-    return tmp_path
+    return _on_the_ledger(tmp_path)
 
 
 def test_activate_skill_cascades_to_what_it_requires(cascade_project: Path) -> None:

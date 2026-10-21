@@ -217,11 +217,16 @@ def test_refused_mint_orphan_retry(tmp_path: Path) -> None:
     assert_golden(_FAMILY, "refused_mint_orphan_retry", observed)
 
 
+def _config_text(config: Path) -> str:
+    """The provisioned ``config.yaml``, or ``""``: activation lives in the activation ledger, so it may not exist."""
+    return config.read_text(encoding="utf-8") if config.exists() else ""
+
+
 def test_malformed_config_invalid_yaml(tmp_path: Path) -> None:
     slug = "ref-malformed-yaml"
     repo = build_repo(tmp_path)
     config = repo / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8") + "\nprotection: [unclosed\n", encoding="utf-8")
+    config.write_text(_config_text(config) + "\nprotection: [unclosed\n", encoding="utf-8")
     commit_kittify(repo, "chore(fixture): break the config")
     observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.SINGLE_BRANCH), slugs=[slug])
     assert_golden(_FAMILY, "malformed_config_invalid_yaml", observed)
@@ -231,7 +236,7 @@ def test_malformed_config_protection_shape(tmp_path: Path) -> None:
     slug = "ref-malformed-protection"
     repo = build_repo(tmp_path, target=PRIMARY_BRANCH)
     config = repo / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8") + "\nprotection:\n  protected_branches: main\n", encoding="utf-8")
+    config.write_text(_config_text(config) + "\nprotection:\n  protected_branches: main\n", encoding="utf-8")
     commit_kittify(repo, "chore(fixture): wrong-shape protection")
     observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.SINGLE_BRANCH), slugs=[slug])
     assert_golden(_FAMILY, "malformed_config_protection_shape", observed)

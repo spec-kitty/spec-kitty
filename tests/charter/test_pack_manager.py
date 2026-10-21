@@ -23,12 +23,15 @@ from pathlib import Path
 import pytest
 import yaml
 
+from charter.activation.pack_context import ActiveCharterConfigError
+from tests._factories.activation_ledger import legacy_target_scope, read_activation_ledger, seed_activation_ledger
 from tests._support.eacces import deny_path_method
 from charter.activation.activation_engine import UnknownActivationIdError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import (
     ActiveCharterManager,
     YAML_KEY_MAP,
+    resolve_activation_write_target,
 )
 
 pytestmark = pytest.mark.unit
@@ -56,17 +59,24 @@ def test_deactivate_preserves_entry_boundaries(tmp_path: Path, pointer: bool, ne
     before = snapshot({"project": tmp_path})
     manager = ActiveCharterManager()
     context = ProjectContext(repo_root=tmp_path)
-    result = manager.deactivate(context, kind="directive", artifact_id="old")
+    # A deactivation that records an exclusion refuses on a legacy surface (FR-017, C-003) and writes nothing.
+    with pytest.raises(ActiveCharterConfigError):
+        manager.deactivate(context, kind="directive", artifact_id="old")
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    # The allow-entry removal alone (a cascade child, D-11) keeps the legacy target's entry boundaries.
+    result = manager.deactivate(context, kind="directive", artifact_id="old", record_exclusion=False)
     assert result.deactivated == ["old"]
     raw = target.read_bytes()
     assert yaml.safe_load(raw)["activated_directives"] == []
-    assert raw.endswith(tail)
+    assert "deactivated_directives" not in yaml.safe_load(raw)
+    assert tail in raw
     if "# key detail" in body:
         assert raw.count(b"# rationale") == raw.count(b"# key detail") == 1
     if pointer:
         assert snapshot({"project": tmp_path})[("project", ".kittify/config.yaml")] == before[("project", ".kittify/config.yaml")]
     after = snapshot({"project": tmp_path})
-    assert manager.deactivate(context, kind="directive", artifact_id="old").deactivated == []
+    with pytest.raises(UnknownActivationIdError):  # neither listed nor available any more: refused, nothing written
+        manager.deactivate(context, kind="directive", artifact_id="old", record_exclusion=False)
     assert_unchanged(after, snapshot({"project": tmp_path}))
 
 
@@ -84,7 +94,9 @@ def test_preparation_preserves_target_policy(tmp_path: Path, pointer: object) ->
     if target != config:
         target.write_text('# policy\nmetadata: {label: "keep"}\n', encoding="utf-8")
     before = snapshot({"project": tmp_path})
-    prepared = prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
+    # The subject is the legacy target policy; a keyless project is fresh (the ledger) outside the upgrade scope.
+    with legacy_target_scope(tmp_path):
+        prepared = prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
     assert prepared.target == target
     assert_unchanged(before, snapshot({"project": tmp_path}))
     assert apply_yaml_write(prepared)
@@ -95,6 +107,12 @@ def test_preparation_preserves_target_policy(tmp_path: Path, pointer: object) ->
 
 @pytest.mark.parametrize("problem", ["dangling", "malformed", "scalar", "unreadable", "config", "link"])
 def test_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The subject is the legacy target's input refusal; a keyless project is fresh outside the upgrade scope."""
+    with legacy_target_scope(tmp_path):
+        _assert_preparation_refuses_broken_required_inputs(tmp_path, problem, monkeypatch)
+
+
+def _assert_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str, monkeypatch: pytest.MonkeyPatch) -> None:
     from ruamel.yaml.error import YAMLError
     from charter.activation.pack_context import ActiveCharterConfigError
     from charter.activation.pack_manager import prepare_activation_write
@@ -220,9 +238,8 @@ class TestActivateNoneState:
         )
         assert result.activated == ["001-architectural-integrity-standard"]
         assert any("already effective" in w for w in result.warnings)
-        # config.yaml must now contain the key
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
+        # A fresh project writes the activation ledger (FR-019).
+        data = read_activation_ledger(project_root)
         assert "001-architectural-integrity-standard" in data["activated_directives"]
 
     def test_warns_about_initializing_from_the_effective_set(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
@@ -279,12 +296,15 @@ class TestActivateExistingSet:
         before = config.read_text(encoding="utf-8")
         ctx = ProjectContext(repo_root=project_root)
 
-        with pytest.raises(ValueError, match="activated_directives.*must be a list"):
+        # The activation ledger seam reads the legacy allow keys first and refuses the scalar.
+        with pytest.raises(ActiveCharterConfigError) as refused:
             manager.activate(
                 ctx,
                 kind="directive",
                 artifact_id="001-architectural-integrity-standard",
             )
+
+        assert re.search(r"activated_directives.*must be a list", refused.value.body)
 
         assert config.read_text(encoding="utf-8") == before
 
@@ -324,21 +344,25 @@ class TestActivateInvalidKind:
 
 
 class TestDeactivateNoneState:
-    def test_raises_typed_error_when_no_activation_set(
+    def test_records_an_exclusion_when_no_activation_set(
         self,
         manager: ActiveCharterManager,
         ctx: ProjectContext,
     ) -> None:
-        """deactivate() on a None-state kind raises the typed engine error.
+        """deactivate() on a None-state kind records an exclusion (ADR 2026-10-19-1).
 
-        WP09/T042: the legacy ``sys.exit(1)`` is gone — the activation engine
-        raises NoActivationRestrictionsError (carrying the "activate one first"
-        guidance) for the CLI (WP12) to surface, so the engine/manager never
-        touch process state.
+        The allow list stays absent ("absent = all"); the id lands in
+        ``deactivated_directives`` instead of raising.
         """
-        from charter.activation.activation_engine import NoActivationRestrictionsError
+        result = manager.deactivate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
 
-        with pytest.raises(NoActivationRestrictionsError, match="Activate one first"):
+        assert result.deactivated == ["001-architectural-integrity-standard"]
+        _target, data, _save = resolve_activation_write_target(ctx.require_repo_root())
+        assert "activated_directives" not in data
+        assert list(data["deactivated_directives"]) == ["001-architectural-integrity-standard"]
+
+    def test_unknown_id_is_refused(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
+        with pytest.raises(UnknownActivationIdError):
             manager.deactivate(ctx, kind="directive", artifact_id="something")
 
 
@@ -349,36 +373,36 @@ class TestDeactivateNoneState:
 
 class TestDeactivateExistingSet:
     def test_removes_artifact_from_list(self, manager: ActiveCharterManager, project_root: Path) -> None:
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - keep-me\n  - remove-me\n",
-            encoding="utf-8",
-        )
+        seed_activation_ledger(project_root, activated_directives=["keep-me", "remove-me"])
         ctx = ProjectContext(repo_root=project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="remove-me")
         assert "remove-me" in result.deactivated
-        data = yaml.safe_load(config.read_text())
+        data = read_activation_ledger(project_root)
         assert "remove-me" not in data["activated_directives"]
         assert "keep-me" in data["activated_directives"]
 
-    def test_warns_when_artifact_not_in_set(self, manager: ActiveCharterManager, project_root: Path) -> None:
+    def test_refuses_an_id_neither_available_nor_listed(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
             "activated_directives:\n  - something-else\n",
             encoding="utf-8",
         )
         ctx = ProjectContext(repo_root=project_root)
-        result = manager.deactivate(ctx, kind="directive", artifact_id="not-present")
-        assert result.deactivated == []
-        assert any("not in the activation set" in w for w in result.warnings)
+        before = config.read_bytes()
+        # Neither available nor listed: the unknown-id refusal, nothing written (data-model.md §3).
+        with pytest.raises(UnknownActivationIdError):
+            manager.deactivate(ctx, kind="directive", artifact_id="not-present")
+        assert config.read_bytes() == before
 
     def test_rejects_malformed_existing_activation_set(self, manager: ActiveCharterManager, project_root: Path) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives: not-a-list\n", encoding="utf-8")
         ctx = ProjectContext(repo_root=project_root)
 
-        with pytest.raises(ValueError, match="activated_directives.*must be a list"):
+        with pytest.raises(ActiveCharterConfigError) as refused:
             manager.deactivate(ctx, kind="directive", artifact_id="x")
+
+        assert re.search(r"activated_directives.*must be a list", refused.value.body)
 
 
 # ---------------------------------------------------------------------------

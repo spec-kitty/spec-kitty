@@ -297,7 +297,8 @@ def _fb_project(tmp_path: Path, packs: list[str]) -> Path:
 
 
 def _fb_config(root: Path) -> dict[str, object]:
-    data = YAML(typ="safe").load((root / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
+    """The written activation: these keyless projects are fresh, so writes land in the ledger (FR-019)."""
+    data = YAML(typ="safe").load((root / ".kittify" / "charter" / "activation.yaml").read_text(encoding="utf-8"))
     assert isinstance(data, dict)
     return data
 
