@@ -1,20 +1,20 @@
 {
-  "event_count": 59,
-  "last_event_id": "01M5F0CPYD8WFE8AX65MVWC0D9",
-  "materialized_at": "2026-10-21T10:33:57.453177+00:00",
+  "event_count": 60,
+  "last_event_id": "01M5F0X4HAE93YW9JWZTAKG2S5",
+  "materialized_at": "2026-10-21T10:42:55.658956+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 7,
+    "approved": 8,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 2
   },
   "work_packages": {
@@ -248,14 +248,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M5F0CPYD8WFE8AX65MVWC0D9",
-      "last_transition_at": "2026-10-21T10:33:57.453177+00:00",
+      "lane": "approved",
+      "last_event_id": "01M5F0X4HAE93YW9JWZTAKG2S5",
+      "last_transition_at": "2026-10-21T10:42:55.658956+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: agent-skills CI job + scripts/ci/validate_agent_skills.py (329 skills valid locally, seeded failures proven), WP07 N1/N2 folded"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261021",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 13180,
       "shell_pid_created_at": "1792578828.55",
