@@ -24,11 +24,6 @@ merge:
 # The gate substitutes an absolute JUnit path for {output_file} on each run.
 review:
   test_command: 'PYTEST_ADDOPTS="--junitxml={output_file}" make test-fast'
-mission_type_activations:
-- software-dev
-- documentation
-- research
-- plan
 # Internal (maintainer-only) org-tier charter pack — catfooding the pack approach.
 # Repo-local; loaded as an overlay on built-in. NOT shipped to consumers (the wheel
 # force-include is scoped to packs/built-in — see pyproject.toml).
