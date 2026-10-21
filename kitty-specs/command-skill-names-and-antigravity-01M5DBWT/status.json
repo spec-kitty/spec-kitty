@@ -283,7 +283,8 @@
       "last_transition_at": "2026-10-21T12:56:38.715040+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: ADR 2026-10-20-1 (amends 2026-04-07-1), upgrade note docs/migrations/command-skill-hyphen-names.md, agent tables (12 slash, 5 skills), harness/api docs, changelog, carried code-text nits"
+        "Ready for review: ADR 2026-10-20-1 (amends 2026-04-07-1), upgrade note docs/migrations/command-skill-hyphen-names.md, agent tables (12 slash, 5 skills), harness/api docs, changelog, carried code-text nits",
+        "Rework cycle 1 done"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
