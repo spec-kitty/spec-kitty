@@ -26,12 +26,13 @@ def test_shipped_charter_skills_do_not_dispatch_codex_with_full_auto() -> None:
     assert violations == []
 
 
-def test_implement_review_codex_dispatch_stays_sandboxed_with_repo_root_writable() -> None:
-    """Codex keeps workspace-write and adds the repository root as a writable root (#6477).
+def test_implement_review_codex_dispatch_stays_sandboxed() -> None:
+    """Codex dispatches keep ``workspace-write`` with no extra writable root (#6477).
 
-    ``move-task`` writes git/status locks in the shared ``.git`` directory and the
-    coordination worktree, outside the lane worktree; ``--add-dir`` covers them
-    without dropping the sandbox the way ``danger-full-access`` did.
+    Its sandbox keeps ``.git`` read-only under every writable root, so widening
+    the roots buys no commit ability; the orchestrator commits and runs the
+    lifecycle commands instead of dropping the sandbox the way
+    ``danger-full-access`` did.
     """
     skill_path = OFFERING_SOURCE_ROOT / "skills" / "spec-kitty-implement-review" / "SKILL.md"
     matrix_path = (
@@ -52,6 +53,4 @@ def test_implement_review_codex_dispatch_stays_sandboxed_with_repo_root_writable
     dispatches = [line for line in (skill + matrix).splitlines() if "codex exec --sandbox" in line]
     assert len(dispatches) == 4
     assert all("codex exec --sandbox workspace-write" in line for line in dispatches)
-    assert skill.count('--add-dir "$REPO_ROOT" -C "$WORKSPACE" -') == 1
-    assert skill.count('--add-dir "$(git rev-parse --show-toplevel)"') == 1
-    assert matrix.count("--add-dir <repo-root>") == 1
+    assert "--add-dir" not in skill + matrix

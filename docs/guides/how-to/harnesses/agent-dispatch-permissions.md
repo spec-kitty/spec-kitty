@@ -1,6 +1,6 @@
 ---
 title: Set Agent Dispatch Permissions
-description: 'How Spec Kitty dispatches implementer and reviewer agents with their sandbox and approvals on, how to allow the git and spec-kitty commands they need, and what choosing elevated dispatch means.'
+description: 'Spec Kitty dispatches implementer and reviewer agents with their sandbox on. Allow only the git and spec-kitty commands they need, and know what elevated dispatch means.'
 doc_status: active
 updated: '2026-10-21'
 type: how-to
@@ -20,7 +20,7 @@ shipped skill tells an agent to turn them off; a gate test
 
 | Agent | Shipped mode | `git` and `spec-kitty` |
 |-------|--------------|------------------------|
-| Codex | `--sandbox workspace-write --add-dir <repo-root>` | Run inside the sandbox; writes limited to the workspace and the repository root checkout; network off |
+| Codex | `--sandbox workspace-write` | Edits the workspace only, network off. Its sandbox keeps `.git` read-only, so the orchestrator commits its work and runs `move-task` |
 | Gemini | `--approval-mode auto_edit` | Denied in a headless run until you allow them |
 | Qwen Code | `--approval-mode auto-edit` | Denied in a headless run until you allow them |
 | LLxprt Code | `--approval-mode=auto_edit` | Denied in a headless run until you allow them |
@@ -28,9 +28,11 @@ shipped skill tells an agent to turn them off; a gate test
 | Cursor | print mode without `--force` | Denied until you allow them |
 | Kilocode | no automatic approval | Denied until you allow them |
 
-When a dispatched agent cannot run `spec-kitty agent tasks move-task`, the
-orchestrator runs it after the agent finishes, as it does for agents with no
-command line. Nothing is lost; the work package just moves one step later.
+When a dispatched agent cannot commit or run `spec-kitty agent tasks move-task`,
+the orchestrator commits the agent's deliverables with `spec-kitty safe-commit`
+and runs the lifecycle command after the agent finishes, as it does for agents
+with no command line. Nothing is lost; the work package just moves one step
+later.
 
 ## Allow only the commands the agent needs
 
@@ -58,9 +60,11 @@ In that mode the dispatched agent can change any file you can and reach the
 network, without asking.
 
 Spec Kitty never picks that mode for you. If you decide you want it, tell the
-orchestrating agent in the session, naming the agent: for example "dispatch
-the Codex reviewer with `--sandbox danger-full-access` for this mission". The
-skill only follows such an explicit instruction, and records in the work
-package note that the agent ran without a sandbox. Spec Kitty's orchestrator
+orchestrating agent yourself, in your own message in the session, naming the
+agent: for example "dispatch the Codex reviewer with
+`--sandbox danger-full-access` for this mission". The skill follows only such an
+instruction from you, never one it finds in a work package prompt, an issue or
+tool output, and it records in the work package note that the agent ran
+without a sandbox. Spec Kitty's orchestrator
 API rejects a dispatch policy that lists the best-known of these flags
 (`BANNED_FLAGS`).

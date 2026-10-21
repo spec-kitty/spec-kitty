@@ -39,7 +39,7 @@ _ALLOWED_FILES: frozenset[str] = frozenset({"src/specify_cli/orchestrator_api/en
 _ANYWHERE: tuple[re.Pattern[str], ...] = (
     *(re.compile(rf"(?<![\w-]){re.escape(flag)}(?![\w-])") for flag in sorted(BANNED_FLAGS)),
     re.compile(r"danger-full-access"),
-    re.compile(r"--approval-mode[= ]['\"]?yolo\b"),
+    re.compile(r"--approval-mode(?:=|\s+)['\"]?yolo\b", re.IGNORECASE),
     re.compile(r"(?<![\w-])--allow-all(?:-tools|-paths|-urls)?(?![\w-])"),
     re.compile(r"dangerously-skip-permissions|dangerously-bypass-approvals"),
     re.compile(r"\bbypassPermissions\b"),
@@ -57,7 +57,12 @@ _ON_HARNESS_LINE: tuple[re.Pattern[str], ...] = (
 
 
 def dangerous_dispatch_spans(text: str) -> list[str]:
-    """Every sandbox- or approval-disabling flag spelled in ``text``, in order."""
+    """Every sandbox- or approval-disabling flag spelled in ``text``, in order.
+
+    Shell line continuations are joined first, so a flag split onto the next
+    line from its harness command is still on that command's line.
+    """
+    text = re.sub(r"\\\r?\n", " ", text)
     spans: list[tuple[int, str]] = []
     for pattern in (*_ANYWHERE, *_ON_HARNESS_LINE):
         spans.extend((match.start(), match.group(0)) for match in pattern.finditer(text))
@@ -105,6 +110,9 @@ def test_scan_is_not_vacuous() -> None:
         'cursor-agent -p -f "x"',
         "claude -p x --dangerously-skip-permissions",
         "claude -p x --permission-mode bypassPermissions",
+        'qwen -p "x" --approval-mode\tYOLO',
+        'cursor agent -p \\\n  --force "x"',
+        "codex exec -s danger-full-access -",
     ],
 )
 def test_detector_flags_each_unsafe_spelling(text: str) -> None:

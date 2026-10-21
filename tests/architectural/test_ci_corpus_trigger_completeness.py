@@ -118,6 +118,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/acceptance/charter_pack_cutover/test_traceability.py",
         "tests/architectural/test_bare_prose_corpus_ratchet.py",
         "tests/architectural/test_first_party_hosts_are_owned.py",
+        "tests/architectural/test_no_unsandboxed_agent_dispatch.py",
         "tests/architectural/test_transition_guard_shrink_only.py",
         "tests/charter/synthesizer/test_manifest.py",
         "tests/charter/test_action_gate_single_load.py",
