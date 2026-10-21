@@ -2390,6 +2390,7 @@ pages:
     - {slug: "option-z-keep-2773-bounded-invert-separately", text: "Option Z — keep #2773 bounded; invert separately", level: 3}
     - {slug: "option-b-charter-md-fully-generated-from-charter-yaml-rationale-fields", text: "Option (b) — charter.md fully generated from charter.yaml rationale fields", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-19-decision-2-is-superseded-for-activation-keys", text: "Amendment 2026-10-19: Decision 2 is superseded for activation keys", level: 2}
   - path: "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md"
     title: "ADR: Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event"
     divio_type: "none"
@@ -3458,6 +3459,7 @@ pages:
     - {slug: "scope-of-this-record-spec-kitty-charter-adr-0010", text: "Scope of this record (spec-kitty-charter ADR-0010)", level: 3}
     - {slug: "service-boundary-spec-kitty-charter-adr-0011", text: "Service boundary (spec-kitty-charter ADR-0011)", level: 3}
     - {slug: "why-a-cli-started-daemon-when-the-dashboard-daemon-was-rejected", text: "Why a CLI-started daemon, when the dashboard daemon was rejected", level: 3}
+    - {slug: "amendment-2026-10-19-the-activation-write-target-is-the-ledger-seam", text: "Amendment 2026-10-19: the activation write target is the ledger seam", level: 2}
     - {slug: "amendment-2026-10-20-accepted-language-tokens-joins-the-frozen-seam-6541", text: "Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)", level: 2}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
@@ -3599,6 +3601,7 @@ pages:
     - {slug: "execution", text: "Execution", level: 2}
     - {slug: "amendment-2026-10-06-rulings-from-the-mission-specification", text: "Amendment 2026-10-06: rulings from the mission specification", level: 2}
     - {slug: "amendment-2026-10-19-synthesized-tactics-and-activation-lists", text: "Amendment 2026-10-19: synthesized tactics and activation lists", level: 2}
+    - {slug: "amendment-2026-10-19-presets-and-synthesis-under-the-activation-ledger", text: "Amendment 2026-10-19: presets and synthesis under the activation ledger", level: 2}
   - path: "docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md"
     title: "ADR: evidence gates check origin freshness before they trust local evidence"
     divio_type: "none"
@@ -3818,6 +3821,7 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-19-p4-is-replaced-the-offering-is-replaced-in-place-not-extracted", text: "Amendment 2026-10-19: P4 is replaced; the offering is replaced in place, not extracted", level: 2}
+    - {slug: "amendment-2026-10-20-the-charter-service-becomes-authoritative-for-activation", text: "Amendment 2026-10-20: the charter service becomes authoritative for activation", level: 2}
   - path: "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md"
     title: "ADR: the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run"
     divio_type: "none"
@@ -3846,6 +3850,38 @@ pages:
     - {slug: "1-6-adoption-also-settles-the-version-floor-reverses-the-2026-10-18-metadata-only-ruling", text: "1. §6 adoption also settles the version floor (reverses the 2026-10-18 metadata-only ruling)", level: 3}
     - {slug: "2-3-the-run-s-requested-target-stays-an-upper-bound", text: "2. §3 the run's requested target stays an upper bound", level: 3}
     - {slug: "3-a-clone-local-effect-is-present-only-inside-a-git-repository", text: "3. A clone-local effect is \"present\" only inside a git repository", level: 3}
+  - path: "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md"
+    title: "ADR: one activation ledger persists deactivation, and nothing silently reinstalls it"
+    divio_type: "none"
+    abstract: "Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "decision-1-one-ledger", text: "Decision 1: one ledger", level: 3}
+    - {slug: "decision-2-the-effective-set-algebra", text: "Decision 2: the effective-set algebra", level: 3}
+    - {slug: "decision-3-source-resolution", text: "Decision 3: source resolution", level: 3}
+    - {slug: "decision-4-only-explicit-choices-change-a-deny-list", text: "Decision 4: only explicit choices change a deny-list", level: 3}
+    - {slug: "decision-5-the-cascade-stops-at-a-denied-node", text: "Decision 5: the cascade stops at a denied node", level: 3}
+    - {slug: "decision-6-a-required-artifact-cannot-be-deactivated", text: "Decision 6: a required artifact cannot be deactivated", level: 3}
+    - {slug: "decision-7-the-migration", text: "Decision 7: the migration", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "revisit-triggers", text: "Revisit Triggers", level: 2}
+    - {slug: "out-of-scope", text: "Out of Scope", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-20-the-reduced-flip-option-b-and-the-charter-contract-rulings", text: "Amendment 2026-10-20: the reduced flip (Option B) and the charter-contract rulings", level: 2}
+    - {slug: "mission-pivot-option-b-the-reduced-flip", text: "`mission_pivot_option_b`: the reduced flip", level: 3}
+    - {slug: "contract-document-scope", text: "`contract_document_scope`", level: 3}
+    - {slug: "required-always-active-divergence", text: "`required_always_active_divergence`", level: 3}
+    - {slug: "contract-rulings-r2-r12", text: "`contract_rulings_r2_r12`", level: 3}
+    - {slug: "contract-epic-ga-milestone", text: "`contract_epic_ga_milestone`", level: 3}
+    - {slug: "mission-type-cascade-source", text: "`mission_type_cascade_source`", level: 3}
+    - {slug: "replies-to-spec-kitty-charter-adr-0020-requests-to-core", text: "Replies to spec-kitty-charter ADR-0020 \"Requests to core\"", level: 3}
+    - {slug: "the-divergence-register", text: "The divergence register", level: 3}
+    - {slug: "decision-7-corrected", text: "Decision 7, corrected", level: 3}
+    - {slug: "residuals", text: "Residuals", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -5035,6 +5071,26 @@ pages:
     - {slug: "c-the-evidence-bundle-built", text: "C. The evidence bundle (built)", level: 2}
     - {slug: "d-fixture-builders-built", text: "D. Fixture builders (built)", level: 2}
     - {slug: "what-this-design-does-not-cover", text: "What this design does not cover", level: 2}
+  - path: "docs/architecture/activation-ledger-and-charter-contract.md"
+    title: "Activation Ledger and the Charter Contract"
+    divio_type: "explanation"
+    abstract: "Impact assessment of the proposed charter activation contract on core's activation ledger: the ACL seam, content alignment, divergences, rc8 gaps and remaining work."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "what-core-has-built", text: "What core has built", level: 2}
+    - {slug: "the-acl-seam", text: "The ACL seam", level: 2}
+    - {slug: "content-alignment", text: "Content alignment", level: 2}
+    - {slug: "operations-mapping", text: "Operations mapping", level: 2}
+    - {slug: "divergence-register", text: "Divergence register", level: 2}
+    - {slug: "rc8-gaps", text: "rc8 gaps", level: 2}
+    - {slug: "declared-ids-written-by-a-preset-the-evd-003-class", text: "Declared ids written by a preset (the `EVD_003` class)", level: 3}
+    - {slug: "status-json", text: "`status --json`", level: 3}
+    - {slug: "refusals", text: "Refusals", level: 3}
+    - {slug: "cascade-report", text: "Cascade report", level: 3}
+    - {slug: "open-questions-for-the-charter-contract", text: "Open questions for the charter contract", level: 2}
+    - {slug: "impact-on-the-remaining-mission-work", text: "Impact on the remaining Mission work", level: 2}
+    - {slug: "options-for-the-remaining-scope", text: "Options for the remaining scope", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/architecture/adr-template.md"
     title: "[Short descriptive title]"
     divio_type: "none"
@@ -10628,6 +10684,10 @@ pages:
     - {slug: "charter-pack", text: "Charter Pack", level: 3}
     - {slug: "activation-preset", text: "Activation preset", level: 3}
     - {slug: "active-charter", text: "Active charter", level: 3}
+    - {slug: "activation-ledger", text: "Activation ledger", level: 3}
+    - {slug: "exclusion", text: "Exclusion", level: 3}
+    - {slug: "effective-deny", text: "Effective deny", level: 3}
+    - {slug: "required-floor", text: "Required floor", level: 3}
     - {slug: "project-layer", text: "Project layer", level: 3}
     - {slug: "charter-bundle", text: "Charter Bundle", level: 3}
     - {slug: "doctrine-domain", text: "Doctrine Domain", level: 3}
@@ -10800,6 +10860,7 @@ pages:
     - {slug: "governance-resolution", text: "Governance Resolution", level: 3}
     - {slug: "activation-chokepoint", text: "Activation Chokepoint", level: 3}
     - {slug: "activated-vs-available-profile", text: "Activated vs Available Profile", level: 3}
+    - {slug: "effective-set", text: "Effective Set", level: 3}
     - {slug: "abstract-base-profile", text: "Abstract Base Profile", level: 3}
   - path: "docs/context/historical-terms.md"
     title: "Historical Terms and Mappings"
