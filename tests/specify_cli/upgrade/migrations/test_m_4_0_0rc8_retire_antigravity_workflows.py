@@ -26,6 +26,7 @@ from specify_cli.skills.command_installer import CANONICAL_COMMANDS, InstallerEr
 from specify_cli.skills.command_skill_names import command_skill_rel_path
 from specify_cli.template.asset_generator import render_command_template
 from specify_cli.upgrade.migrations import m_4_0_0rc8_retire_antigravity_workflows as migration_module
+from specify_cli.upgrade.migrations.base import MigrationResult
 from specify_cli.upgrade.migrations.m_4_0_0rc8_retire_antigravity_workflows import (
     ARCHIVE_REL,
     HISTORICAL_COMMANDS,
@@ -474,3 +475,25 @@ def test_installer_collisions_are_reported(project: Path, monkeypatch: pytest.Mo
 
     assert result.warnings == [command_installer.collision_warning(rel)]
     assert result.preserved_paths == [rel]
+
+
+@pytest.mark.parametrize(
+    ("migration_result", "dry_run", "expected"),
+    [
+        (MigrationResult(success=True, changes_made=["Archived .agent/workflows/spec-kitty.plan.md to .kittify/backups/x"]), False, True),
+        (MigrationResult(success=True, preserved_paths=[".agent/workflows/spec-kitty.plan.md"]), False, True),
+        (MigrationResult(success=True, changes_made=["Installed command skill .agents/skills/spec-kitty-plan/SKILL.md"]), False, False),
+        (MigrationResult(success=True, preserved_paths=[".agents/skills/spec-kitty.plan/SKILL.md"]), False, False),
+        (MigrationResult(success=False, changes_made=["Archived x"]), False, False),
+        (MigrationResult(success=True, changes_made=["Archived x"]), True, False),
+    ],
+)
+def test_antigravity_only_upgrade_shows_the_rename_notice(migration_result: MigrationResult, dry_run: bool, expected: bool) -> None:
+    """WP09 review cycle 1 item 7 (FR-006): archiving legacy workflows is enough to print the new-invocation notice."""
+    from specify_cli.cli.commands import upgrade as upgrade_cmd
+    from specify_cli.upgrade.runner import UpgradeResult
+
+    result = UpgradeResult(success=True, from_version="4.0.0rc7", to_version="4.0.0rc8", dry_run=dry_run)
+    result.migration_results["4.0.0rc8_retire_antigravity_workflows"] = migration_result
+
+    assert upgrade_cmd._rename_migration_ran(result) is expected
