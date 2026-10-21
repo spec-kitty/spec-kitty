@@ -400,6 +400,46 @@ def test_vibe_and_codex_share_one_batch(tmp_path: Path) -> None:
     assert all(set(entry.agents) == {"codex", "vibe"} for entry in entries)
 
 
+def test_kept_edited_skill_warns_once_with_several_agents(tmp_path: Path) -> None:
+    """WP09 review cycle 1 item 6: one batch for every agent, so a kept skill is one "has your edits" warning,
+    not one per agent with the later ones reading "is not recorded"."""
+    root = _project(tmp_path / "p", agents=("codex", "vibe", "pi"))
+    _seed_prior_release(root)
+    rel = legacy_command_skill_rel_path("plan")
+    (root / rel).write_bytes(_EDITED)
+
+    result = CommandSkillHyphenNamesMigration().apply(root)
+
+    assert result.warnings == [legacy_kept_warning(rel)]
+    assert result.preserved_paths == [rel]
+
+
+def test_dedupe_kept_path_warnings_prefers_the_kept_wording_per_path() -> None:
+    plan, tasks = legacy_command_skill_rel_path("plan"), legacy_command_skill_rel_path("tasks")
+    other = "Something else happened"
+    warnings = [
+        unrecorded_legacy_warning(plan),
+        other,
+        legacy_kept_warning(plan),
+        unrecorded_legacy_warning(tasks),
+        unrecorded_legacy_warning(tasks),
+        unrecorded_legacy_warning(plan),
+        other,
+    ]
+
+    assert command_installer.dedupe_kept_path_warnings(warnings) == [legacy_kept_warning(plan), other, unrecorded_legacy_warning(tasks), other]
+
+
+def test_upgrade_outcome_warnings_name_each_kept_path_once() -> None:
+    from specify_cli.upgrade.outcome import UpgradeOutcome
+
+    rel = legacy_command_skill_rel_path("plan")
+    result = _upgrade_result(None)
+    result.warnings.extend([legacy_kept_warning(rel), unrecorded_legacy_warning(rel), unrecorded_legacy_warning(rel)])
+
+    assert UpgradeOutcome(result=result).warnings() == [legacy_kept_warning(rel)]
+
+
 def test_lane_worktree_copy_is_migrated(project: Path) -> None:
     """``runs_on_worktrees``: a lane worktree holds its own git-ignored copy."""
     lane = project / ".worktrees" / "demo-lane-a"

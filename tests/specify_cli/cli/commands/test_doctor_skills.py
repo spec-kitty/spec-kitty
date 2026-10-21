@@ -613,3 +613,23 @@ def test_skills_unrecorded_exact_legacy_render_needs_fix_and_fix_retires_it(tmp_
     assert fixed.exit_code == 0, fixed.output
     assert _payload(fixed.output)["legacy"] == []
     assert not dotted.parent.exists()
+
+
+def test_tool_surface_human_output_names_a_shared_finding_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP09 review cycle 1 item 6: a kept dotted skill probed for every command-skill agent is one line."""
+    import io
+    from types import SimpleNamespace
+
+    from rich.console import Console
+
+    from specify_cli.tool_surface.findings import SurfaceFinding
+    from specify_cli.tool_surface.service import ToolSurfaceOutcome
+
+    message = command_installer.legacy_kept_warning(".agents/skills/spec-kitty.plan/SKILL.md")
+    findings = tuple(SurfaceFinding("legacy_kept", "warning", message, tool_key=agent) for agent in ("codex", "pi", "vibe"))
+    buffer = io.StringIO()
+    monkeypatch.setattr(doctor_surface, "console", Console(file=buffer, width=400))
+
+    doctor_surface._print_tool_surface_human(ToolSurfaceOutcome(report=SimpleNamespace(ok=False, findings=findings)))  # type: ignore[arg-type]  # a report stand-in: only ok/findings are read
+
+    assert buffer.getvalue().count("has your edits") == 1

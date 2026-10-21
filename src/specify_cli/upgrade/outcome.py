@@ -285,10 +285,13 @@ class UpgradeOutcome:
 
     def warnings(self) -> list[str]:
         """Non-fatal messages: the run's warnings plus a mission-state repair failure the gate did not show."""
+        from specify_cli.skills.command_installer import dedupe_kept_path_warnings
+
         warnings = list(self.result.warnings)
         if self.repair.failed and self.repair.surface_message and self.repair.message:
             warnings.append(self.repair.message)
-        return warnings
+        # Each step reports a kept dotted skill; the report names each path once (#6475).
+        return dedupe_kept_path_warnings(warnings)
 
     def notices(self) -> list[str]:
         """Informational one-liners (not warnings): only what this run changed, so a re-run prints none."""

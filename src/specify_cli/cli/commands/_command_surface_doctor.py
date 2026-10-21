@@ -878,7 +878,8 @@ def _print_tool_surface_human(outcome: object) -> None:
         )
         return
     console.print("\n[bold]Tool Surfaces[/bold] - issue(s) found\n")
-    for finding in report.findings:
+    # A shared path (e.g. a kept dotted skill of every command-skill agent) is one line, not one per agent.
+    for finding in {(f.code, f.message): f for f in report.findings}.values():
         colour = "red" if finding.severity == "error" else "yellow"
         console.print(f"  [{colour}]![/{colour}] [{finding.code}] {finding.message}")
     if outcome.repair is not None and outcome.repair.repaired:

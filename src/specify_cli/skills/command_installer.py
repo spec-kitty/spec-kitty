@@ -34,7 +34,7 @@ module.  The only directory removal is a targeted
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextvars import ContextVar
 import os
 import re
@@ -358,6 +358,50 @@ def unrecorded_legacy_warning(path: str) -> str:
         "Spec Kitty's unmodified rendering, so it was left in place; it is not managed — remove it when you "
         "no longer need it (`spec-kitty doctor skills` lists it)"
     )
+
+
+_PATH_SLOT = "\x00"
+
+
+def _kept_path_shapes() -> tuple[tuple[str, str], ...]:
+    """(head, tail) of each per-path kept wording, best first: one authority for the text and the dedupe."""
+    shapes = (collision_warning(_PATH_SLOT), legacy_kept_warning(_PATH_SLOT), unrecorded_legacy_warning(_PATH_SLOT))
+    return tuple((head, tail) for head, tail in (shape.split(_PATH_SLOT) for shape in shapes))
+
+
+def _kept_path(message: str) -> tuple[str, int] | None:
+    """``(path, rank)`` when *message* is a per-path kept warning (lower rank wins), else ``None``."""
+    for rank, (head, tail) in enumerate(_kept_path_shapes()):
+        if message.startswith(head) and message.endswith(tail) and len(message) > len(head) + len(tail):
+            return message[len(head) : len(message) - len(tail)], rank
+    return None
+
+
+def dedupe_kept_path_warnings(warnings: Iterable[str]) -> list[str]:
+    """One warning per kept path across a whole report, in first-seen order.
+
+    Several steps of one upgrade (the rename migration, the Antigravity migration, the
+    surface repair) can each report the same kept dotted skill; a path released this run
+    first reads "has your edits, so it was kept" and later "is not recorded". The best
+    wording (collision, then kept-with-edits, then not-recorded) wins for each path; every
+    other warning passes through unchanged.
+    """
+    result: list[str] = []
+    seen: dict[str, tuple[int, int]] = {}
+    for message in warnings:
+        kept = _kept_path(message)
+        if kept is None:
+            result.append(message)
+            continue
+        path, rank = kept
+        if path not in seen:
+            seen[path] = (len(result), rank)
+            result.append(message)
+        elif rank < seen[path][1]:
+            position = seen[path][0]
+            result[position] = message
+            seen[path] = (position, rank)
+    return result
 
 
 def install_warnings(report: InstallReport | RemoveReport) -> list[str]:
@@ -1479,7 +1523,16 @@ def install(repo_root: Path, agent_key: str, *, dry_run: bool = False) -> Instal
 
     *dry_run* prepares the same batch and reports what an install would do, writing nothing.
     """
-    assessment = _direct_assessment(repo_root, (agent_key,), dry_run=dry_run)
+    return install_agents(repo_root, (agent_key,), dry_run=dry_run)
+
+
+def install_agents(repo_root: Path, agent_keys: tuple[str, ...], *, dry_run: bool = False) -> InstallReport:
+    """Install the canonical batch for several agents as ONE preparation.
+
+    The legacy rule runs once for all of them, so a kept dotted skill is reported once
+    (as kept with the user's edits), not once per agent with changing wording.
+    """
+    assessment = _direct_assessment(repo_root, agent_keys, dry_run=dry_run)
     payload = assessment.prepared
     assert isinstance(payload, PreparedCommands)
     report = InstallReport()
