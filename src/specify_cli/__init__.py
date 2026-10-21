@@ -148,11 +148,13 @@ def main_callback(
         from specify_cli.runtime.agent_commands import ensure_global_agent_commands
         from specify_cli.runtime.agent_skills import ensure_global_agent_skills
         from specify_cli.runtime.bootstrap import ensure_runtime
+        from specify_cli.runtime.startup_assets import prepare_startup_assets
 
-        ensure_runtime()
-        ensure_global_agent_skills()
+        # #6473: an unwritable home folder warns and lets the command run.
+        owners: list[tuple[str, Callable[[], None]]] = [("runtime assets", ensure_runtime), ("agent skills", ensure_global_agent_skills)]
         if not _is_doctor_skills_invocation(sys.argv):
-            ensure_global_agent_commands()
+            owners.append(("agent commands", ensure_global_agent_commands))
+        prepare_startup_assets(owners)
 
     if not live_work_hook_path and not session_start_path:
         # The live-work hook is passive capture on the harness's per-tool-call

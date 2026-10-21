@@ -11,6 +11,7 @@ from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
+import errno
 import hashlib
 import json
 import logging
@@ -512,15 +513,41 @@ class AssetPreparation:
         )
 
 
+#: Diagnostic code for a home folder this process may not write (#6473): a
+#: read-only mount or a sandbox that only allows writes to the workspace.
+UNWRITABLE_HOME_CODE = "global_assets_unwritable"
+_UNWRITABLE_ERRNOS = frozenset({errno.EACCES, errno.EPERM, errno.EROFS})
+UNWRITABLE_HOME_HINT = (
+    "a home-folder location could not be written or read (permission denied or a read-only file system) -- "
+    "fix its permissions, or run spec-kitty once where the home folder is writable, "
+    "to install the runtime assets and the global agent commands and skills"
+)
+
+
+def is_unwritable_home_error(error: BaseException) -> bool:
+    """True when *error* says the location is not writable (#6473).
+
+    Routes on type and ``errno`` only, never message text (research D-3).
+    ``EACCES``/``EPERM`` also cover a refused *read* (an unreadable file left
+    by a ``sudo`` run, a Windows sharing violation or a Windows lock path that
+    is a directory), so the hint names both. Other ``OSError``s (a full disk,
+    a POSIX lock path that is a directory) keep their existing handling.
+    """
+    return isinstance(error, PermissionError) or (isinstance(error, OSError) and error.errno in _UNWRITABLE_ERRNOS)
+
+
 def _diagnostic_code(error: Exception) -> str:
     """Route on type, never message text (research D-3): a destination-role
     ``TornReadError`` is ``asset_torn_read`` (whether it recurred under the
     serialization point or re-entrantly), a source-role one is
-    ``asset_source_drift``, and everything else keeps the existing
+    ``asset_source_drift``, an unwritable location is
+    ``UNWRITABLE_HOME_CODE``, and everything else keeps the existing
     ``global_assets_unavailable`` code.
     """
     if isinstance(error, TornReadError):
         return "asset_source_drift" if error.role == "source_read" else "asset_torn_read"
+    if is_unwritable_home_error(error):
+        return UNWRITABLE_HOME_CODE
     return "global_assets_unavailable"
 
 
@@ -583,6 +610,8 @@ def _startup_asset_error_hint(code: str) -> str:
         return "another spec-kitty process (possibly a different version) is writing the same Spec Kitty home -- let it finish or stop it, then re-run the command"
     if code == "asset_source_drift":
         return "the installed package's assets changed while this command was running -- re-run the command, and if it persists reinstall spec-kitty"
+    if code == UNWRITABLE_HOME_CODE:
+        return UNWRITABLE_HOME_HINT
     return "re-run the command; if it persists, run `spec-kitty doctor --help` to find the right diagnostic"
 
 
@@ -1170,6 +1199,30 @@ def apply_with_reassess(
     genuinely has none of its own.
     """
     log = logger if logger is not None else logging.getLogger(__name__)
+    try:
+        return _reassess_and_apply(assessment, rebuild, consent, converged_log_message, log)
+    except OSError as exc:
+        # #6473: the serialization point itself (the cold-install sentinel or
+        # an existing owner lock) cannot be opened in a read-only home. Report
+        # it as this owner's failed apply, not a raw traceback.
+        if not is_unwritable_home_error(exc):
+            raise
+        return OwnerApplyResult(
+            assessment.owner_key,
+            skipped=tuple(effect.id for effect in assessment.effects),
+            outcome="failed",
+            diagnostics=(Diagnostic(UNWRITABLE_HOME_CODE, assessment.owner_key, "error", str(exc)),),
+        )
+
+
+def _reassess_and_apply(
+    assessment: OwnerAssessment,
+    rebuild: Callable[[], OwnerAssessment],
+    consent: ApplyConsent,
+    converged_log_message: str,
+    log: logging.Logger,
+) -> OwnerApplyResult:
+    """``apply_with_reassess``'s body: recheck under the lock, then converge or apply."""
     with recheck_assets(assessment) as diagnostics:
         if diagnostics:
             return OwnerApplyResult(
@@ -1322,12 +1375,13 @@ def _apply_retained_assets(assessment: OwnerAssessment) -> OwnerApplyResult:
                 else:
                     _write_asset(write)
             except (OSError, ValueError, UnicodeError) as exc:
+                code = UNWRITABLE_HOME_CODE if is_unwritable_home_error(exc) else "global_asset_write_failed"
                 return OwnerApplyResult(
                     assessment.owner_key,
                     tuple(succeeded),
                     (write.effect.id,),
                     tuple(w.effect.id for w in ordered[index + 1 :]),
-                    (Diagnostic("global_asset_write_failed", assessment.owner_key, "error", str(exc)),),
+                    (Diagnostic(code, assessment.owner_key, "error", str(exc)),),
                     "partial" if succeeded else "failed",
                 )
             succeeded.append(write.effect.id)

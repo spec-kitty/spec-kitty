@@ -30,6 +30,9 @@ from pathlib import Path
 
 import pytest
 
+from kernel.locks import SyncMachineFileLock
+from kernel.locks import machine_file_lock as _REAL_MACHINE_FILE_LOCK
+
 import specify_cli
 import specify_cli.runtime.agent_commands as agent_commands
 import specify_cli.runtime.agent_skills as agent_skills
@@ -38,6 +41,7 @@ import specify_cli.runtime.bootstrap as bootstrap
 from specify_cli.runtime.asset_preparation import UNWRITABLE_HOME_CODE, StartupAssetError, is_unwritable_home_error
 from specify_cli.runtime.startup_assets import prepare_startup_assets
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.tool_surface.operations import Diagnostic, FileState, OwnerAssessment
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -46,7 +50,11 @@ _ENTRY_POINTS: dict[str, Callable[[], None]] = {
     "commands": lambda: agent_commands.ensure_global_agent_commands(agent_keys=["claude"]),
     "skills": agent_skills.ensure_global_agent_skills,
 }
-_OWNER_KEYS = {"runtime": "runtime_bootstrap", "commands": "slash_commands", "skills": "global_skills"}
+_ASSESSMENTS: dict[str, Callable[[], OwnerAssessment]] = {
+    "runtime": bootstrap.assess_runtime,
+    "commands": lambda: agent_commands.assess_global_agent_commands(agent_keys=["claude"]),
+    "skills": lambda: asset_preparation.assess_global_assets(runtime=False, commands=False),
+}
 
 
 @pytest.fixture()
@@ -88,24 +96,28 @@ def fake_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(agent_skills, "_discover_registry", lambda: registry)
 
 
-def _make_home_read_only(home: Path, monkeypatch: pytest.MonkeyPatch, err: int = errno.EROFS) -> None:
-    """Fail every lock and asset write under *home* the way a read-only mount does."""
-    real_lock = asset_preparation.machine_file_lock
+def _make_home_read_only(home: Path, monkeypatch: pytest.MonkeyPatch, err: int = errno.EROFS, *, locks: bool = True) -> None:
+    """Fail asset writes under *home* the way a read-only mount does.
+
+    With ``locks=False`` only the destinations refuse, as when ``~/.kittify``
+    is writable but an agent folder such as ``~/.claude`` is not.
+    """
     real_write = asset_preparation._write_asset
 
     def _refuse(path: Path) -> None:
         if path == home or home in path.parents:
             raise OSError(err, os.strerror(err), str(path))
 
-    def fake_lock(path: Path, *args: object, **kwargs: object) -> object:
+    def fake_lock(path: Path, *, blocking: bool = False, timeout_s: float | None = None, reentrant: bool = False) -> SyncMachineFileLock:
         _refuse(Path(path))
-        return real_lock(path, *args, **kwargs)
+        return _REAL_MACHINE_FILE_LOCK(path, blocking=blocking, timeout_s=timeout_s, reentrant=reentrant)
 
     def fake_write(write: asset_preparation.AssetWrite) -> None:
         _refuse(write.effect.destination)
         real_write(write)
 
-    monkeypatch.setattr(asset_preparation, "machine_file_lock", fake_lock)
+    if locks:
+        monkeypatch.setattr(asset_preparation, "machine_file_lock", fake_lock)
     monkeypatch.setattr(asset_preparation, "_write_asset", fake_write)
 
 
@@ -121,39 +133,56 @@ class TestOwnersNameTheUnwritableHome:
     """Each startup owner reports an unwritable home as one named error code."""
 
     @pytest.mark.parametrize("owner", sorted(_ENTRY_POINTS))
-    def test_empty_read_only_home_raises_named_error_not_traceback(
-        self, owner: str, fake_home: Path, fake_assets: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_empty_read_only_home_raises_named_error_not_traceback(self, owner: str, fake_home: Path, fake_assets: None, monkeypatch: pytest.MonkeyPatch) -> None:
         _make_home_read_only(fake_home, monkeypatch)
 
         with pytest.raises(StartupAssetError) as exc_info:
             _ENTRY_POINTS[owner]()
 
         assert exc_info.value.code == UNWRITABLE_HOME_CODE
-        assert exc_info.value.owner_key == _OWNER_KEYS[owner]
 
     @pytest.mark.parametrize("owner", sorted(_ENTRY_POINTS))
+    @pytest.mark.parametrize("locks", [True, False], ids=["read-only-mount", "destination-only"])
     def test_set_up_home_with_something_to_refresh_raises_named_error(
-        self, owner: str, fake_home: Path, fake_assets: None, monkeypatch: pytest.MonkeyPatch
+        self, owner: str, locks: bool, fake_home: Path, fake_assets: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _ENTRY_POINTS[owner]()  # set the home up while it is writable
-        inventory = fake_home / ".kittify" / "cache" / f"{_OWNER_KEYS[owner]}-assets.json"
-        managed = sorted(json.loads(inventory.read_text())["entries"])
-        target = next(p for p in (Path(e) for e in managed) if p.is_file() and p.suffix != ".lock")
-        target.unlink()  # a deleted copy: the next start has something to write
-        _make_home_read_only(fake_home, monkeypatch, err=errno.EACCES)
+        managed = sorted(p for p in fake_home.rglob("*") if p.is_file() and p.suffix != ".lock" and "cache" not in p.parts)
+        assert managed, "the writable run installed nothing to delete"
+        managed[0].unlink()  # a deleted copy: the next start has something to write
+        _make_home_read_only(fake_home, monkeypatch, err=errno.EACCES, locks=locks)
 
         with pytest.raises(StartupAssetError) as exc_info:
             _ENTRY_POINTS[owner]()
 
         assert exc_info.value.code == UNWRITABLE_HOME_CODE
 
+    @pytest.mark.parametrize("owner", sorted(_ENTRY_POINTS))
+    def test_refused_read_during_assessment_is_named(self, owner: str, fake_home: Path, fake_assets: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An assessment-time refusal (a root-owned file left by a ``sudo`` run).
+
+        Asserted on each owner's assessment, because the startup commands
+        owner short-circuits on a fresh stamp without assessing.
+        """
+        _ENTRY_POINTS[owner]()
+        real_node_state = asset_preparation.node_state
+
+        def refusing_node_state(path: Path, *, read_content: bool = True) -> FileState:
+            if read_content and fake_home in path.parents and path.suffix != ".lock":
+                raise PermissionError(errno.EACCES, "Permission denied", str(path))
+            return real_node_state(path, read_content=read_content)
+
+        monkeypatch.setattr(asset_preparation, "node_state", refusing_node_state)
+
+        assessment = _ASSESSMENTS[owner]()
+
+        assert not assessment.complete
+        assert assessment.diagnostics[0].code == UNWRITABLE_HOME_CODE
+
     def test_unwritable_error_hint_names_the_remedy(self) -> None:
-        error = asset_preparation.startup_asset_error(
-            "global_skills", (asset_preparation.Diagnostic(UNWRITABLE_HOME_CODE, "global_skills", "error", "denied"),)
-        )
-        assert "not writable" in str(error)
-        assert error.owner_key == "global_skills"
+        error = asset_preparation.startup_asset_error("global_skills", (Diagnostic(UNWRITABLE_HOME_CODE, "global_skills", "error", "denied"),))
+        assert "could not be written or read" in str(error)
+        assert error.code == UNWRITABLE_HOME_CODE
 
 
 class TestIsUnwritableHomeError:
@@ -172,9 +201,10 @@ class TestIsUnwritableHomeError:
 class TestPrepareStartupAssets:
     """The startup driver degrades only the unwritable-home class."""
 
-    def _unwritable(self, owner_key: str) -> Callable[[], None]:
+    @staticmethod
+    def _unwritable(owner_key: str) -> Callable[[], None]:
         def fail() -> None:
-            raise StartupAssetError(f"{owner_key}: denied", path=None, code=UNWRITABLE_HOME_CODE, owner_key=owner_key)
+            raise StartupAssetError(f"{owner_key}: denied", path=None, code=UNWRITABLE_HOME_CODE)
 
         return fail
 
@@ -184,9 +214,9 @@ class TestPrepareStartupAssets:
 
         prepare_startup_assets(
             [
-                self._unwritable("runtime_bootstrap"),
-                lambda: ran.append("skills"),
-                self._unwritable("slash_commands"),
+                ("runtime assets", self._unwritable("runtime_bootstrap")),
+                ("agent skills", lambda: ran.append("skills")),
+                ("agent commands", self._unwritable("slash_commands")),
             ]
         )
 
@@ -194,8 +224,7 @@ class TestPrepareStartupAssets:
         warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
         assert len(warnings) == 1
         message = warnings[0].getMessage()
-        assert "runtime assets" in message
-        assert "agent commands" in message
+        assert "runtime assets and agent commands" in message
         assert "agent skills" not in message
         assert "runtime_bootstrap: denied" in message
 
@@ -204,26 +233,27 @@ class TestPrepareStartupAssets:
             raise PermissionError(errno.EACCES, "Permission denied", "/home/x/.spec-kitty-cold-install")
 
         caplog.set_level(logging.WARNING)
-        prepare_startup_assets([fail])
+        prepare_startup_assets([("runtime assets", fail)])
         assert "Permission denied" in caplog.text
+        assert "could not be written or read" in caplog.text
 
     def test_other_startup_asset_errors_stay_fatal(self) -> None:
         def torn() -> None:
             raise StartupAssetError("torn", path=None, code="asset_torn_read")
 
         with pytest.raises(StartupAssetError):
-            prepare_startup_assets([torn])
+            prepare_startup_assets([("runtime assets", torn)])
 
     def test_other_os_errors_stay_fatal(self) -> None:
         def full() -> None:
             raise OSError(errno.ENOSPC, "No space left on device")
 
-        with pytest.raises(OSError):
-            prepare_startup_assets([full])
+        with pytest.raises(OSError, match="No space left"):
+            prepare_startup_assets([("runtime assets", full)])
 
     def test_no_failure_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.WARNING)
-        prepare_startup_assets([lambda: None])
+        prepare_startup_assets([("runtime assets", lambda: None)])
         assert caplog.records == []
 
 
@@ -259,7 +289,7 @@ class TestCliRunsWithReadOnlyHome:
         captured = capsys.readouterr()
         assert "Usage:" in captured.out
         assert "Traceback" not in captured.out + captured.err
-        unwritable = [r for r in caplog.records if "not writable" in r.getMessage()]
+        unwritable = [r for r in caplog.records if "could not be written or read" in r.getMessage()]
         assert len(unwritable) == 1
 
     def test_json_command_runs_and_keeps_stdout_json(
@@ -279,13 +309,18 @@ class TestCliRunsWithReadOnlyHome:
 
         payload = json.loads(capsys.readouterr().out)
         assert payload.get("kind") != "StartupAssetError"
-        assert payload["error"]["code"] == "mission_required"
+        assert payload["error"] == {"code": "status_failed", "message": "Not in a spec-kitty project"}, payload
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX directory permissions")
 @pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="chmod does not bind uid 0")
 class TestReadOnlyHomeSubprocess:
-    """A real ``chmod 0o555`` empty home, driving the installed console entry."""
+    """A real ``chmod 0o555`` empty home, driving the CLI in a subprocess.
+
+    ``--version`` and the root ``--help`` exit before the startup assets are
+    prepared; they are controls. ``agent --help`` and the ``--json`` command
+    go through the root callback.
+    """
 
     @pytest.mark.parametrize(
         ("args", "expect_exit"),
@@ -293,7 +328,7 @@ class TestReadOnlyHomeSubprocess:
             (["--version"], 0),
             (["--help"], 0),
             (["agent", "--help"], 0),
-            (["agent", "tasks", "status", "--json"], 1),  # the command's own mission_required
+            (["agent", "tasks", "status", "--json"], 1),  # the command's own "not in a project" result
         ],
     )
     def test_command_runs(self, args: list[str], expect_exit: int, tmp_path: Path) -> None:
@@ -319,4 +354,4 @@ class TestReadOnlyHomeSubprocess:
         assert "Traceback" not in result.stderr, result.stderr
         assert result.returncode == expect_exit, result.stdout + result.stderr
         if args[-1] == "--json":
-            assert json.loads(result.stdout)["error"]["code"] == "mission_required"
+            assert json.loads(result.stdout)["error"]["code"] == "status_failed"
