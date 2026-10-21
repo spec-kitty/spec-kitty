@@ -381,17 +381,17 @@ For project configuration, use `spec-kitty agent config add <agent>` rather than
 
 ## Slash Commands
 
-All agents support the same 13 slash commands:
+All 12 slash-command agents get the same workflow commands. The main ones:
 
 | Command | Purpose |
 |---------|---------|
-| `/spec-kitty.specify` | Create feature specification |
+| `/spec-kitty.specify` | Create a mission specification |
 | `/spec-kitty.plan` | Create implementation plan |
 | `/spec-kitty.tasks` | Generate work packages |
 | `/spec-kitty.implement` | Start WP implementation |
 | `/spec-kitty.review` | Review completed work |
 | `/spec-kitty.accept` | Validate an approved mission before merge |
-| `/spec-kitty.merge` | Merge an accepted mission to its target branch |
+| `/spec-kitty.consolidate` | Consolidate an accepted mission |
 | `/spec-kitty.status` | Show kanban status |
 | `/spec-kitty.charter` | Create project principles |
 | `/spec-kitty.research` | Conduct research |

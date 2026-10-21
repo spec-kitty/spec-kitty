@@ -75,10 +75,12 @@ Families:
 - `spk-integrate-*`: orchestrator API, CI, external automation.
 - `spk-meta-*`: skill discovery and future skill authoring.
 
-Generated slash-command skills keep their command names
-(`spec-kitty.<command>`) for slash-command compatibility. Existing
-`spec-kitty-*` skills remain legacy aliases or detailed workflow guides while
-the public user-facing hierarchy moves to `spk-*`.
+Generated slash-command files keep their command names
+(`spec-kitty.<command>`); generated command skills are named
+`spec-kitty-<command>` (for example `spec-kitty-plan`). The older
+`spec-kitty-<topic>` guide skills (for example `spec-kitty-runtime-next`) remain
+legacy aliases or detailed workflow guides while the public user-facing
+hierarchy moves to `spk-*`; none of them uses a command name.
 
 ## Public `spk-*` Inventory
 

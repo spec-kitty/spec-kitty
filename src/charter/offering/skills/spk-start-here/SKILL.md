@@ -13,8 +13,10 @@ harness.
 - Command-line users run `spec-kitty` CLI commands. `spk-*` skills are not CLI
   commands.
 - Agent-harness users invoke installed command surfaces:
-  `/spec-kitty.*` in slash-command hosts, `$spec-kitty.<command>` in Codex, or
-  the host's skill syntax for skill hosts.
+  `/spec-kitty.<command>` in slash-command hosts, or the `spec-kitty-<command>`
+  command skill in skill hosts (`$spec-kitty-<command>` in Codex,
+  `/skill:spec-kitty-<command>` in Pi, `/spec-kitty-<command>` in Vibe, Letta
+  and Antigravity).
 - Public `spk-*` skills are agent operating guides. Use them by name in a
   skill-aware harness or let natural-language intent trigger them.
 - If commands or skills are missing, route to `spk-admin-setup-doctor`.

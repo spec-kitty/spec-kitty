@@ -21,10 +21,9 @@ directory, C-001) are not caught by path allowlist but by not matching:
 Shipped historical migrations (``upgrade/migrations/m_[0-3]_*``) are frozen
 (DIRECTIVE_044, drift is audit-only) and excluded.
 
-``_PENDING`` named the files WP03 of mission
-``command-skill-names-and-antigravity-01M5DBWT`` had to route through the
-authority; it is now empty. It may only shrink: every entry must still offend
-(remove it once fixed) and must stay inside ``_PENDING_CEILING``.
+There is no pending list: WP03 of mission
+``command-skill-names-and-antigravity-01M5DBWT`` routed every former offender
+through the authority, so the offender set must be empty.
 """
 
 from __future__ import annotations
@@ -45,18 +44,6 @@ _AUTHORITY = "src/specify_cli/skills/command_skill_names.py"
 
 #: Frozen historical migrations (pre-4.x): never edited, so never scanned.
 _FROZEN_MIGRATION = re.compile(r"^src/specify_cli/upgrade/migrations/m_[0-3]_[^/]*\.py$")
-
-#: Files still composing the command-skill name themselves (emptied by WP03).
-_PENDING: frozenset[str] = frozenset()
-
-#: The set ``_PENDING`` started from; it may never grow past this.
-_PENDING_CEILING: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/cli/commands/init.py",
-        "src/specify_cli/skills/command_installer.py",
-        "src/specify_cli/tool_surface/providers/command_skills.py",
-    }
-)
 
 _PLACEHOLDER = "{}"
 _TEXT_SHAPES: tuple[re.Pattern[str], ...] = (
@@ -145,18 +132,11 @@ def _offending_files() -> dict[str, list[int]]:
 
 
 def test_no_module_outside_the_authority_composes_the_command_skill_name() -> None:
-    unexpected = {rel: lines for rel, lines in _offending_files().items() if rel not in _PENDING}
+    unexpected = _offending_files()
     assert not unexpected, (
         "Compose command-skill names, paths and skill-agent invocation tokens through "
         f"specify_cli.skills.command_skill_names only; offenders (file: lines): {unexpected}"
     )
-
-
-def test_pending_set_only_shrinks() -> None:
-    offending = _offending_files()
-    stale = sorted(rel for rel in _PENDING if rel not in offending)
-    assert not stale, f"_PENDING entries no longer offend; remove them: {stale}"
-    assert _PENDING <= _PENDING_CEILING, f"_PENDING may only shrink; new entries: {sorted(_PENDING - _PENDING_CEILING)}"
 
 
 def test_scan_covers_real_source() -> None:

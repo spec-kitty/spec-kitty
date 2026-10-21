@@ -77,10 +77,12 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
 def configured_slash_agents(agent_keys: Iterable[str]) -> tuple[str, ...]:
     """Return the slash-command agents among *agent_keys*, in input order, without duplicates.
 
-    A slash-command agent is one with an :data:`AGENT_COMMAND_CONFIG` row. This is
-    the one filter every consumer uses to split a configured agent list into its
-    slash-command half (#6470: ``antigravity`` is configured but has no row, so it
-    is never routed to a command-file writer). Unknown keys are dropped.
+    A slash-command agent is one with an :data:`AGENT_COMMAND_CONFIG` row. Use it to
+    split a configured agent *list* into its slash-command half (#6470:
+    ``antigravity`` is configured but has no row, so it is never routed to a
+    command-file writer). Code that asks about a single key (a lookup, a guard that
+    raises, a render branch) tests membership in ``AGENT_COMMAND_CONFIG`` directly,
+    which is the same rule. Unknown keys are dropped.
     """
     return tuple(dict.fromkeys(key for key in agent_keys if key in AGENT_COMMAND_CONFIG))
 

@@ -384,6 +384,8 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # charter.activation.api); verified by
         # tests/upgrade/migrations/test_m_4_0_0rc8_activation_ledger.py.
         "specify_cli.upgrade.migrations.m_4_0_0rc8_activation_ledger",
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_command_skill_hyphen_names",  # #6475: auto-discovered command-skill rename, never statically imported
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_antigravity_workflows",  # #6470: auto-discovered workflows archive, never statically imported
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via

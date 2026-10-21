@@ -5,7 +5,7 @@ description: "Set a Spec Kitty work-package review verdict through the determini
 
 # spk-run-verdict-capture
 
-Use this skill whenever an agent (any of the 13 slash-command harnesses or the shared
+Use this skill whenever an agent (any of the 12 slash-command harnesses or the shared
 Agent-Skill harnesses) needs to **record the outcome of a WP review** — approve, reject, or
 otherwise. It documents the single deterministic seam so verdicts never diverge by harness.
 

@@ -39,23 +39,24 @@ def manifest_owned_skills_paths(project_path: Path) -> set[str]:
     return owned
 
 
-def is_projected_skills_path(rel_posix: str, manifest_owned: set[str], *, for_deletion: bool = True) -> bool:
-    """Whether a ``.agents/skills/`` path is spec-kitty-projected (safe to untrack).
+def is_projected_skills_path(rel_posix: str, manifest_owned: set[str]) -> bool:
+    """Whether a ``.agents/skills/`` path is spec-kitty-projected and safe to *untrack*.
 
-    Projected means either the stable canonical command-skill pattern
+    A deletion predicate only: projected means the stable canonical command-skill pattern
     ``.agents/skills/spec-kitty-<command>/SKILL.md`` (the single authority is
-    :func:`~specify_cli.skills.command_installer.is_canonical_rel_path`) or a path a skills
-    manifest records as installed. Everything else is a team's own committed skill sharing
-    the prefix, and must stay tracked.
-
-    *for_deletion* also accepts the pre-#6475 dotted path
+    :func:`~specify_cli.skills.command_installer.is_canonical_rel_path`), a path a skills
+    manifest records as installed, or the pre-#6475 dotted path
     ``.agents/skills/spec-kitty.<command>/SKILL.md`` of a canonical command (never another
-    dotted name). Both callers today remove a path from the index -- the shipped 3.2.5
-    gitignore backfill (``git rm --cached``, frozen, so it cannot pass a keyword) and the
-    upgrade commit that carries that untrack (``upgrade/autocommit.py``) -- and both were
-    written for the dotted form, so the default keeps them unchanged. A caller asking whether
-    a path is spec-kitty's to *write or keep managing* passes ``for_deletion=False``.
+    dotted name). Everything else is a team's own committed skill sharing the prefix, and
+    must stay tracked.
+
+    Both callers remove a path from the index: the shipped 3.2.5 gitignore backfill
+    (``git rm --cached``, frozen, so its call cannot change) and the upgrade commit that
+    carries that untrack (``upgrade/autocommit.py``). There is deliberately no
+    ``for_deletion`` switch (WP09 rework, squad m2): a dotted path is never spec-kitty's to
+    *write or keep managing*, so a future caller asking that question needs its own predicate
+    that excludes legacy paths, rather than a default that silently admits them.
     """
     if is_canonical_rel_path(rel_posix) or rel_posix in manifest_owned:
         return True
-    return for_deletion and bool(is_legacy_rel_path(rel_posix))
+    return bool(is_legacy_rel_path(rel_posix))

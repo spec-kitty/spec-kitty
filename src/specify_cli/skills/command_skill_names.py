@@ -38,13 +38,9 @@ from collections.abc import Iterable
 __all__ = [
     "COMMAND_SKILLS_ROOT",
     "COMMAND_SKILL_PREFIX",
-    "LEGACY_COMMAND_SKILL_PREFIX",
-    "CommandSkillNameCollisionError",
-    "assert_unique_command_skill_names",
     "command_skill_name",
     "command_skill_rel_path",
     "legacy_command_skill_name",
-    "legacy_command_skill_names",
     "legacy_command_skill_rel_path",
     "parse_command_skill_rel_path",
     "parse_legacy_command_skill_rel_path",
@@ -71,10 +67,6 @@ _INVOCATION_SIGILS = ("/skill:", "/", "$")
 _SKILL_AGENT_SIGILS = {"codex": "$", "pi": "/skill:"}
 
 
-class CommandSkillNameCollisionError(ValueError):
-    """A command-skill name collides with another command or a reserved skill name."""
-
-
 def command_skill_name(command: str) -> str:
     """Return the canonical skill name ``spec-kitty-<command>``."""
     return f"{COMMAND_SKILL_PREFIX}{command}"
@@ -83,11 +75,6 @@ def command_skill_name(command: str) -> str:
 def legacy_command_skill_name(command: str) -> str:
     """Return the pre-#6475 dotted skill name ``spec-kitty.<command>``."""
     return f"{LEGACY_COMMAND_SKILL_PREFIX}{command}"
-
-
-def legacy_command_skill_names(commands: Iterable[str]) -> frozenset[str]:
-    """Return the dotted legacy names of *commands* (the old folder names)."""
-    return frozenset(legacy_command_skill_name(command) for command in commands)
 
 
 def _rel_path(skill_name: str) -> str:
@@ -117,24 +104,6 @@ def parse_command_skill_rel_path(rel_path: str, commands: Iterable[str]) -> str 
 def parse_legacy_command_skill_rel_path(rel_path: str, commands: Iterable[str]) -> str | None:
     """Return the command whose legacy dotted ``SKILL.md`` path is *rel_path*, else ``None``."""
     return next((command for command in commands if legacy_command_skill_rel_path(command) == rel_path), None)
-
-
-def assert_unique_command_skill_names(commands: Iterable[str], reserved: Iterable[str]) -> None:
-    """Raise :class:`CommandSkillNameCollisionError` on any command-skill name collision.
-
-    A collision is a command whose canonical name is in *reserved* (shipped
-    charter skills, built-in pack skills, retired skill names), or two commands
-    mapping to one name.
-    """
-    reserved_names = frozenset(reserved)
-    seen: dict[str, str] = {}
-    for command in commands:
-        name = command_skill_name(command)
-        if name in reserved_names:
-            raise CommandSkillNameCollisionError(f"command skill {name!r} (command {command!r}) collides with a reserved skill name")
-        if name in seen:
-            raise CommandSkillNameCollisionError(f"commands {seen[name]!r} and {command!r} both map to skill name {name!r}")
-        seen[name] = command
 
 
 def _invocation_pattern(commands: Iterable[str]) -> re.Pattern[str] | None:

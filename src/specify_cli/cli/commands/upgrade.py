@@ -114,6 +114,9 @@ _REPAIR_NOT_PREPARED_MESSAGE = "Tool-surface repair was not prepared; re-run 'sp
 _AUTO_COMMITTED_LINE = "[cyan]→ Auto-committed upgrade changes ({count} files)[/cyan]"
 _AUTO_COMMITTED_UNLISTED_LINE = "[cyan]→ Auto-committed upgrade changes[/cyan]"
 _COMMAND_SKILL_RENAME_MIGRATION_ID = "4.0.0rc8_command_skill_hyphen_names"
+_ANTIGRAVITY_MIGRATION_ID = "4.0.0rc8_retire_antigravity_workflows"
+_ARCHIVED_PREFIX = "Archived "
+_ANTIGRAVITY_WORKFLOWS_PREFIX = ".agent/workflows/"
 #: FR-006: the one line naming the new command-skill invocation after the #6475 rename.
 _COMMAND_SKILL_RENAME_NOTICE = (
     "Command skills are now named spec-kitty-<command> (for example `{codex}` in Codex, `{slash}` in Vibe, Letta and Antigravity, `{pi}` in Pi)."
@@ -132,11 +135,25 @@ def command_skill_rename_notice() -> str:
 
 
 def _rename_migration_ran(result: UpgradeResult) -> bool:
-    """True when this (real) run's rename migration retired or installed command skills."""
-    migration_result = result.migration_results.get(_COMMAND_SKILL_RENAME_MIGRATION_ID)
-    if result.dry_run or migration_result is None or not migration_result.success:
+    """True when this (real) run's rename migration retired or installed command skills,
+    or the Antigravity migration found legacy workflow files (FR-006: an Antigravity-only
+    project has no dotted skill for the rename migration to touch)."""
+    if result.dry_run:
         return False
-    return bool(migration_result.changes_made or migration_result.preserved_paths)
+    migration_result = result.migration_results.get(_COMMAND_SKILL_RENAME_MIGRATION_ID)
+    if migration_result is not None and migration_result.success and (migration_result.changes_made or migration_result.preserved_paths):
+        return True
+    return _antigravity_workflows_retired(result)
+
+
+def _antigravity_workflows_retired(result: UpgradeResult) -> bool:
+    """True when the Antigravity migration archived, or kept, a legacy ``.agent/workflows`` file."""
+    migration_result = result.migration_results.get(_ANTIGRAVITY_MIGRATION_ID)
+    if migration_result is None or not migration_result.success:
+        return False
+    archived = any(change.startswith(_ARCHIVED_PREFIX) for change in migration_result.changes_made)
+    kept = any(path.startswith(_ANTIGRAVITY_WORKFLOWS_PREFIX) for path in migration_result.preserved_paths)
+    return archived or kept
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:

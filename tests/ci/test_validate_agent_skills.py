@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from scripts.ci import validate_agent_skills as vas
-from specify_cli.skills.skill_frontmatter import validate_skill_frontmatter
+from specify_cli.skills.skill_frontmatter import _validate_skill_frontmatter
 
 pytestmark = pytest.mark.fast
 
@@ -58,7 +58,7 @@ class _Mirror(_FakeReference):
     def __call__(self, argv: Sequence[str]) -> tuple[int, str, str]:
         self.calls.append(list(argv))
         folders = list(argv[list(argv).index(vas._REFERENCE_PROGRAM) + 1 :])
-        return 0, json.dumps({folder: validate_skill_frontmatter(Path(folder)) for folder in folders}), ""
+        return 0, json.dumps({folder: _validate_skill_frontmatter(Path(folder)) for folder in folders}), ""
 
 
 # --- collection ------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ def test_shipped_skills_are_projected_for_the_shared_root(tmp_path: Path) -> Non
     assert [(t.label, t.shared) for t in targets] == [("shipped:spk-load", True)]
     projected = (tmp_path / "out" / "spk-load" / "SKILL.md").read_text(encoding="utf-8")
     assert "\nargument-hint" not in projected and "metadata:" in projected
-    assert validate_skill_frontmatter(targets[0].skill_dir) == []
+    assert _validate_skill_frontmatter(targets[0].skill_dir) == []
 
 
 def test_isolated_env_points_home_and_xdg_into_scratch(tmp_path: Path) -> None:

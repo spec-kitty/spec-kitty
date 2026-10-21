@@ -75,10 +75,11 @@ their command files and `/spec-kitty.<command>` invocations stay as they were.
 | --- | --- | --- |
 | `Legacy dotted command skills (no longer managed): <path> — remove it when you no longer need your edits` | 0 when nothing else is wrong | Keep it as long as you need your edits, then delete the folder. |
 | `Legacy dotted command skill (Spec Kitty's unmodified rendering): <path> — run spec-kitty doctor skills --fix to retire it` | 1 | Run `spec-kitty doctor skills --fix`. |
+| `Legacy dotted command skill (still recorded by Spec Kitty): <path> — run spec-kitty doctor skills --fix to retire it` | 1 | Run `spec-kitty doctor skills --fix`. An unedited copy is removed; an edited one is kept and then reported as no longer managed. |
 | `Your own folder blocks command skill <path> — rename or remove it, then run spec-kitty doctor skills --fix` | 1 | Move your folder, then run `spec-kitty doctor skills --fix`. |
 
-A manifest that still records a dotted skill also fails the check until
-`spec-kitty doctor skills --fix` (or `spec-kitty upgrade`) retires it. `doctor skills` never
+The "still recorded" message means the manifest has not been migrated yet; the check fails
+until `spec-kitty doctor skills --fix` (or `spec-kitty upgrade`) retires the entry. `doctor skills` never
 deletes a path it lists. `doctor skills --json` reports these paths under the `legacy` and
 `collisions` keys.
 
@@ -106,7 +107,10 @@ configured in the current project. Outside a project it writes nothing.
 
 An older Spec Kitty CLI cannot read the command-skill manifest this release writes. If you go
 back to an older CLI, or a teammate on an older CLI pulls the manifest where your project commits it, that CLI
-refuses the manifest. Upgrade the older CLI instead.
+refuses the manifest with a schema error: its schema expects the dotted skill names and does not
+know the `antigravity` agent. Nothing is deleted; the error stops that CLI's command-skill
+commands until it is upgraded. Upgrade the older CLI instead, and ask teammates to upgrade
+before you commit the migrated manifest.
 
 ## Known follow-ups
 

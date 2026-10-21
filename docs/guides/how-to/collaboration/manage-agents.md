@@ -19,7 +19,7 @@ Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, LLxprt
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../../tutorials/getting-started.md) guide.
 
-Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth for which agents are active in the project. Slash-command agents use user-global command roots such as `~/.opencode/command/`; Codex, Vibe, Pi, and Letta use project-local command skills under `.agents/skills/`.
+Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth for which agents are active in the project. Slash-command agents use user-global command roots such as `~/.opencode/command/`; Codex, Vibe, Pi, Letta, and Antigravity use project-local command skills under `.agents/skills/`.
 
 This guide shows you how to add agents to enable multi-agent workflows, remove agents you don't use, list configured agents, check sync status, and synchronize your filesystem with the config file.
 
@@ -58,7 +58,7 @@ Before using agent config commands, ensure:
 
 `.kittify/config.yaml` is the single source of truth for agent configuration. All agent management commands read from and write to this file, and the filesystem is automatically synchronized to match it.
 
-This means the config records active agents, while the command surface depends on the agent class. For slash-command agents such as Claude, Gemini, OpenCode, and Kiro, commands are installed globally at CLI startup. When you add one of these agents using `spec-kitty agent config add`, the command updates the config and points at the global command root. For Codex, Vibe, Pi, and Letta, Spec Kitty writes project-local command skills under `.agents/skills/`.
+This means the config records active agents, while the command surface depends on the agent class. For slash-command agents such as Claude, Gemini, OpenCode, and Kiro, global slash-command files are written for the slash-command agents configured in the current project: `agent config add` writes them for the added agent at once, and normal CLI startup refreshes them inside the project. For Codex, Vibe, Pi, Letta, and Antigravity, Spec Kitty writes project-local command skills under `.agents/skills/`.
 
 Do not manually edit agent directories or config.yaml directly - use the `spec-kitty agent config` commands instead. This ensures consistency and prevents sync issues.
 
@@ -153,7 +153,7 @@ spec-kitty agent config add codex gemini cursor
 
 When you add an agent, spec-kitty:
 1. Registers slash-command agents against their global command root
-2. Installs project-local command skills for Codex, Vibe, Pi, and Letta
+2. Installs project-local command skills for Codex, Vibe, Pi, Letta, and Antigravity
 3. Adds the agent key to `.kittify/config.yaml` under `agents.available`
 4. Displays success message for each agent added
 
@@ -329,7 +329,7 @@ Use `status` to:
 - Audit your agent configuration for inconsistencies
 - Detect orphaned directories (present but not configured)
 - Identify missing directories (configured but not present)
-- See all 13 slash-command agents at a glance
+- See all 12 slash-command agents at a glance
 
 ### Taking Action Based on Status
 

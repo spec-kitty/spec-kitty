@@ -304,9 +304,7 @@ def _load_command_skill_state(
 
 def _manifest_has_legacy_entries(manifest: SkillsManifest) -> bool:
     """Whether the manifest still records a legacy dotted command skill (pre-#6475)."""
-    from specify_cli.skills import command_installer
-
-    return any(command_installer.is_legacy_rel_path(entry.path) for entry in manifest.entries)
+    return bool(_recorded_legacy_paths(manifest))
 
 
 def _legacy_still_managed(manifest: SkillsManifest, report: VerifyReport) -> bool:
@@ -444,6 +442,7 @@ def _command_skill_payload(
         "unsafe": sorted(report.unsafe),
         "legacy": sorted(report.legacy),
         _LEGACY_OWNED_KEY: sorted(report.legacy_owned),
+        _LEGACY_RECORDED_KEY: _recorded_legacy_paths(manifest),
         "collisions": sorted(report.collisions),
         "uninstalled_agents": uninstalled_agents,
         "vibe_config_missing": vibe_config_missing,
@@ -466,16 +465,32 @@ def _print_command_skill_paths(title: str, paths: list[str]) -> None:
 
 _LEGACY_LEFTOVER_PREFIX = "Legacy dotted command skills (no longer managed): "
 _LEGACY_OWNED_PREFIX = "Legacy dotted command skill (Spec Kitty's unmodified rendering): "
-#: Human-render-only payload key: the frozen ``doctor skills --json`` envelope (#1965) never carries it.
+_LEGACY_RECORDED_PREFIX = "Legacy dotted command skill (still recorded by Spec Kitty): "
+_LEGACY_FIX_REMEDY = " — run `spec-kitty doctor skills --fix` to retire it"
+#: Human-render-only payload keys: the frozen ``doctor skills --json`` envelope (#1965) never carries them.
 _LEGACY_OWNED_KEY = "_legacy_owned"
+_LEGACY_RECORDED_KEY = "_legacy_recorded"
+_HUMAN_ONLY_KEYS = frozenset({_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY})
+
+
+def _recorded_legacy_paths(manifest: SkillsManifest) -> list[str]:
+    """Legacy dotted paths the manifest still records: ``--fix`` (or ``upgrade``) retires them."""
+    from specify_cli.skills import command_installer
+
+    return sorted(entry.path for entry in manifest.entries if command_installer.is_legacy_rel_path(entry.path))
 
 
 def _print_command_skill_guidance(payload: dict[str, object]) -> None:
     """Name each legacy leftover and collision with the action to take (read-only, R-m5)."""
     owned = set(cast(list[str], payload.get(_LEGACY_OWNED_KEY, [])))
+    recorded = set(cast(list[str], payload.get(_LEGACY_RECORDED_KEY, [])))
     for path in cast(list[str], payload["legacy"]):
+        if path in recorded:
+            # Still in the manifest: the installer's legacy rule retires it (an edited copy is kept).
+            console.print(f"\n  [yellow]![/yellow] {_LEGACY_RECORDED_PREFIX}{path}{_LEGACY_FIX_REMEDY}", highlight=False)
+            continue
         if path in owned:
-            console.print(f"\n  [yellow]![/yellow] {_LEGACY_OWNED_PREFIX}{path} — run `spec-kitty doctor skills --fix` to retire it", highlight=False)
+            console.print(f"\n  [yellow]![/yellow] {_LEGACY_OWNED_PREFIX}{path}{_LEGACY_FIX_REMEDY}", highlight=False)
             continue
         console.print(f"\n  [yellow]![/yellow] {_LEGACY_LEFTOVER_PREFIX}{path} — remove it when you no longer need your edits", highlight=False)
     for path in cast(list[str], payload["collisions"]):
@@ -680,7 +695,7 @@ def run_skills_audit(
         payload = _assemble_skills_payload(project_path, fix, state)
 
     if json_output:
-        console.print_json(json.dumps({key: value for key, value in payload.items() if key != _LEGACY_OWNED_KEY}, indent=2))
+        console.print_json(json.dumps({key: value for key, value in payload.items() if key not in _HUMAN_ONLY_KEYS}, indent=2))
         raise typer.Exit(0 if payload["ok"] else 1)
 
     _print_command_skill_report(payload, fix)
@@ -863,7 +878,8 @@ def _print_tool_surface_human(outcome: object) -> None:
         )
         return
     console.print("\n[bold]Tool Surfaces[/bold] - issue(s) found\n")
-    for finding in report.findings:
+    # A shared path (e.g. a kept dotted skill of every command-skill agent) is one line, not one per agent.
+    for finding in {(f.code, f.message): f for f in report.findings}.values():
         colour = "red" if finding.severity == "error" else "yellow"
         console.print(f"  [{colour}]![/{colour}] [{finding.code}] {finding.message}")
     if outcome.repair is not None and outcome.repair.repaired:

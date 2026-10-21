@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
@@ -11,12 +12,9 @@ import pytest
 from specify_cli.skills import command_skill_names as names
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.skills.command_skill_names import (
-    CommandSkillNameCollisionError,
-    assert_unique_command_skill_names,
     command_skill_name,
     command_skill_rel_path,
     legacy_command_skill_name,
-    legacy_command_skill_names,
     legacy_command_skill_rel_path,
     parse_command_skill_rel_path,
     parse_legacy_command_skill_rel_path,
@@ -25,6 +23,29 @@ from specify_cli.skills.command_skill_names import (
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+class CommandSkillNameCollisionError(ValueError):
+    """A command-skill name collides with another command or a reserved skill name."""
+
+
+def assert_unique_command_skill_names(commands: Iterable[str], reserved: Iterable[str]) -> None:
+    """Raise :class:`CommandSkillNameCollisionError` on any command-skill name collision.
+
+    A collision is a command whose canonical name is in *reserved* (shipped
+    charter skills, built-in pack skills, retired skill names), or two commands
+    mapping to one name.
+    """
+    reserved_names = frozenset(reserved)
+    seen: dict[str, str] = {}
+    for command in commands:
+        name = command_skill_name(command)
+        if name in reserved_names:
+            raise CommandSkillNameCollisionError(f"command skill {name!r} (command {command!r}) collides with a reserved skill name")
+        if name in seen:
+            raise CommandSkillNameCollisionError(f"commands {seen[name]!r} and {command!r} both map to skill name {name!r}")
+        seen[name] = command
+
 
 #: The Agent Skills ``name`` grammar (lowercase alphanumerics and single hyphens, ≤64).
 _SPEC_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -35,7 +56,6 @@ def test_names_and_paths() -> None:
     assert legacy_command_skill_name("plan") == "spec-kitty.plan"
     assert command_skill_rel_path("tasks-outline") == ".agents/skills/spec-kitty-tasks-outline/SKILL.md"
     assert legacy_command_skill_rel_path("plan") == ".agents/skills/spec-kitty.plan/SKILL.md"
-    assert legacy_command_skill_names(("plan", "review")) == frozenset({"spec-kitty.plan", "spec-kitty.review"})
 
 
 @pytest.mark.parametrize("command", CANONICAL_COMMANDS)
@@ -109,7 +129,7 @@ def test_legacy_names_are_not_in_the_retired_sets() -> None:
     """Plan A-M6: dotted names live here, never in ``skills/retired.py`` (would re-arm retire paths)."""
     from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
-    assert not legacy_command_skill_names(CANONICAL_COMMANDS) & RETIRED_CANONICAL_SKILL_NAMES
+    assert not {legacy_command_skill_name(command) for command in CANONICAL_COMMANDS} & RETIRED_CANONICAL_SKILL_NAMES
 
 
 _COMMANDS = ("tasks", "tasks-outline", "plan", "review", "analyze", "implement")

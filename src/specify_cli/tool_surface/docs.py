@@ -1,7 +1,7 @@
 """Docs contract lint for the tool surface contract bounded context.
 
 Documentation files reference generated/native tool surface paths such as
-``.agents/skills/spec-kitty.plan/SKILL.md`` or ``.claude/agents/architect.md``.
+``.agents/skills/spec-kitty-plan/SKILL.md`` or ``.claude/agents/architect.md``.
 These paths are derived from the :class:`ToolSurfaceRegistry` path patterns. If a
 pattern changes, the doc references silently drift and mislead operators.
 

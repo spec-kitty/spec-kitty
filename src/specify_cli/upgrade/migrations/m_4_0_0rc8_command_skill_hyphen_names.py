@@ -160,15 +160,14 @@ class CommandSkillHyphenNamesMigration(BaseMigration):
 
     @staticmethod
     def _install(project_path: Path, agents: tuple[str, ...]) -> MigrationResult:
-        """Install the canonical batch per agent; the first install retires every legacy skill."""
+        """Install the canonical batch for every configured agent at once; it retires every legacy skill once."""
         result = MigrationResult(success=True)
-        for agent in agents:
-            try:
-                report = command_installer.install(project_path, agent)
-            except InstallerError as exc:
-                result.warnings.append(install_refused_warning(agent, str(exc)))
-                return result
-            _merge_report(result, report)
+        try:
+            report = command_installer.install_agents(project_path, agents)
+        except InstallerError as exc:
+            result.warnings.append(install_refused_warning(", ".join(agents), str(exc)))
+            return result
+        _merge_report(result, report)
         return result
 
     @staticmethod

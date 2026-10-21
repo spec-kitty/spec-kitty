@@ -53,7 +53,7 @@ Empty at init time. Populated by `/spec-kitty.specify`, `/spec-kitty.plan`, and 
 
 ### Agent command directories
 
-One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total — 13 command-surface agents and 4 command-skill agents. (Roo Code shut down on 2026-05-15 and can no longer be selected; existing `.roo/` directories are preserved on upgrade.)
+One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total — 12 command-surface agents and 5 command-skill agents. (Roo Code shut down on 2026-05-15 and can no longer be selected; existing `.roo/` directories are preserved on upgrade.)
 
 | Agent key | Directory created | Command surface |
 |---|---|---|
@@ -69,11 +69,11 @@ One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total
 | `q` | `.amazonq/prompts/` | `/spec-kitty.*` |
 | `kiro` | `.kiro/prompts/` | `/spec-kitty.*` |
 | `llxprt` | `.llxprt/commands/` | `/spec-kitty.*` |
-| `codex` | `.agents/skills/spec-kitty-*/` | `$spec-kitty-<command>` |
-| `vibe` | `.agents/skills/spec-kitty-*/` plus `.vibe/config.toml` | `/spec-kitty-<command>` |
-| `pi` | `.agents/skills/spec-kitty-*/` | `/skill:spec-kitty-<command>` |
-| `letta` | `.agents/skills/spec-kitty-*/` | `/spec-kitty-<command>` |
-| `antigravity` | `.agents/skills/spec-kitty-*/` | `/spec-kitty-<command>` |
+| `codex` | `.agents/skills/spec-kitty-<command>/` | `$spec-kitty-<command>` |
+| `vibe` | `.agents/skills/spec-kitty-<command>/` plus `.vibe/config.toml` | `/spec-kitty-<command>` |
+| `pi` | `.agents/skills/spec-kitty-<command>/` | `/skill:spec-kitty-<command>` |
+| `letta` | `.agents/skills/spec-kitty-<command>/` | `/spec-kitty-<command>` |
+| `antigravity` | `.agents/skills/spec-kitty-<command>/` | `/spec-kitty-<command>` |
 
 Codex, Vibe, Pi, Letta, and Antigravity share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
 

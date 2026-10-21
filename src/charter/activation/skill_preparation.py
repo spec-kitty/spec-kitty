@@ -32,17 +32,24 @@ from charter.drg import DRGGraph, Relation
 from charter.offering.pack_skills.models import (
     BUILTIN_TARGET_PREFIX,
     CLI_TARGET_PREFIX,
+    MAX_SKILL_DESCRIPTION_LENGTH,
+    MAX_SKILL_NAME_LENGTH,
     PackSkill,
     SkillExpansion,
     skill_namespace_violation,
 )
-from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_name, skill_limit_violation
+from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_description, rendered_name, skill_limit_violation
 
 __all__ = [
     # Wrapper-target prefixes, re-exported so specify_cli reaches them through
     # charter rather than importing charter.offering directly.
     "BUILTIN_TARGET_PREFIX",
     "CLI_TARGET_PREFIX",
+    # Agent Skills limits and the one description composer, re-exported for the
+    # same reason (skill_frontmatter, pack_skill_renderer).
+    "MAX_SKILL_DESCRIPTION_LENGTH",
+    "MAX_SKILL_NAME_LENGTH",
+    "rendered_description",
     "InForceSkills",
     "PreparedSkill",
     "SkillPreparationError",

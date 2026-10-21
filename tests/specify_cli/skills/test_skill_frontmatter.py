@@ -18,7 +18,7 @@ from specify_cli.skills.skill_frontmatter import (
     project_skill_bytes,
     render_frontmatter,
     root_of_installed_path,
-    validate_skill_frontmatter,
+    _validate_skill_frontmatter,
     yaml_scalar,
 )
 
@@ -153,7 +153,7 @@ def _validate_text(text: str, folder: str) -> list[str]:
         skill_dir = Path(directory) / folder
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(text, encoding="utf-8")
-        return validate_skill_frontmatter(skill_dir)
+        return _validate_skill_frontmatter(skill_dir)
 
 
 def test_validator_accepts_projected_command_skill() -> None:
@@ -194,7 +194,7 @@ def test_validator_boundaries_accept_64_and_1024() -> None:
 
 
 def test_validator_missing_skill_md(tmp_path: Path) -> None:
-    assert validate_skill_frontmatter(tmp_path) == ["Missing required file: SKILL.md"]
+    assert _validate_skill_frontmatter(tmp_path) == ["Missing required file: SKILL.md"]
 
 
 # WP07 review N1: a quoted scalar must parse back to exactly the source text.
@@ -227,16 +227,16 @@ def test_validator_normalises_crlf_before_matching_the_fence(tmp_path: Path) -> 
     skill_dir = tmp_path / "abc"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_bytes(b"---\r\nname: abc\r\ndescription: d\r\n---\r\nbody\r\n")
-    assert validate_skill_frontmatter(skill_dir) == []
+    assert _validate_skill_frontmatter(skill_dir) == []
     (skill_dir / "SKILL.md").write_bytes(b"---\rname: abc\rdescription: d\r---\rbody\r")
-    assert validate_skill_frontmatter(skill_dir) == []
+    assert _validate_skill_frontmatter(skill_dir) == []
 
 
 def test_validator_native_allowance_permits_claude_keys_only(tmp_path: Path) -> None:
     skill_dir = tmp_path / "a"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text("---\nname: a\ndescription: d\nuser-invocable: true\nargument-hint: x\n---\n", encoding="utf-8")
-    assert validate_skill_frontmatter(skill_dir, native=True) == []
-    assert any("Unexpected fields" in error for error in validate_skill_frontmatter(skill_dir))
+    assert _validate_skill_frontmatter(skill_dir, native=True) == []
+    assert any("Unexpected fields" in error for error in _validate_skill_frontmatter(skill_dir))
     (skill_dir / "SKILL.md").write_text("---\nname: a\ndescription: d\nother: x\n---\n", encoding="utf-8")
-    assert any("Unexpected fields in frontmatter: other" in error for error in validate_skill_frontmatter(skill_dir, native=True))
+    assert any("Unexpected fields in frontmatter: other" in error for error in _validate_skill_frontmatter(skill_dir, native=True))
