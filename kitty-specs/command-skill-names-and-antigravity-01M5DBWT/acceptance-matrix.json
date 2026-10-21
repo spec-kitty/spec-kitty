@@ -118,10 +118,10 @@
       "criterion_id": "FR-012",
       "description": "Verify FR-012 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/skills/test_skill_frontmatter.py; tests/architectural/test_single_frontmatter_authority.py (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:55:10.585114+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
