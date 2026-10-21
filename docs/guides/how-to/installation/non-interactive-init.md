@@ -2,7 +2,7 @@
 title: Non-Interactive Init Mode
 description: 'How to non-interactive init mode with Spec Kitty 3.2: ✅ spec-kitty init IS fully non-interactive when --non-interactive (or the environment variable) is set.'
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-21'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -168,7 +168,7 @@ When you specify agents with `--ai`, spec-kitty creates:
 
 ### For `--ai codex`
 
-- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.agents/skills/spec-kitty-*/SKILL.md` (command-skill packages)
 - `.kittify/command-skills-manifest.json` (records Codex as a skill package consumer)
 - `.kittify/AGENTS.md` (project guidance used by Spec Kitty worktrees)
 
@@ -235,23 +235,25 @@ When you specify agents with `--ai`, spec-kitty creates:
 
 ### For `--ai antigravity`
 
-- `.agent/workflows/spec-kitty.*.md` (workflow files)
+- `.agents/skills/spec-kitty-*/SKILL.md` (command-skill packages)
+- `.kittify/command-skills-manifest.json` (records Antigravity as a skill package consumer)
 - `.kittify/AGENTS.md`
+- No `.agent/workflows/` files: Antigravity stopped reading that folder on 2026-10-19
 
 ### For `--ai vibe`
 
-- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.agents/skills/spec-kitty-*/SKILL.md` (command-skill packages)
 - `.vibe/config.toml` with a `skill_paths` entry pointing at `.agents/skills/`
 - `.kittify/command-skills-manifest.json` (records Vibe as a skill package consumer)
 
 ### For `--ai pi`
 
-- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.agents/skills/spec-kitty-*/SKILL.md` (command-skill packages)
 - `.kittify/command-skills-manifest.json` (records Pi as a skill package consumer)
 
 ### For `--ai letta`
 
-- `.agents/skills/spec-kitty.*/SKILL.md` (command-skill packages)
+- `.agents/skills/spec-kitty-*/SKILL.md` (command-skill packages)
 - `.kittify/command-skills-manifest.json` (records Letta as a skill package consumer)
 
 ## Always Created (Regardless of Agent Selection)

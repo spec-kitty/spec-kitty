@@ -2,16 +2,16 @@
 title: Set Up Codex for Spec Kitty
 description: Configure Codex CLI to load Spec Kitty project-local agent skills from `.agents/skills/`.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-21'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 ---
 # Set Up Codex for Spec Kitty
 
 Codex CLI uses Spec Kitty's project-local agent skills. Spec Kitty installs one
-skill package per command under `.agents/skills/spec-kitty.<command>/SKILL.md`.
+skill package per command under `.agents/skills/spec-kitty-<command>/SKILL.md`.
 
-Use this guide when an existing project does not show `$spec-kitty.*` skills in
+Use this guide when an existing project does not show `$spec-kitty-*` skills in
 Codex, or when you want a small launcher that enters the repo and activates the
 local Python environment before starting Codex.
 
@@ -34,16 +34,16 @@ Confirm the generated skills exist:
 
 ```bash
 ls .agents/skills/
-ls .agents/skills/spec-kitty.specify/SKILL.md
+ls .agents/skills/spec-kitty-specify/SKILL.md
 ```
 
-Codex should expose these as `$spec-kitty.<command>` skills, for example:
+Codex should expose these as `$spec-kitty-<command>` skills, for example:
 
 ```text
-$spec-kitty.specify
-$spec-kitty.plan
-$spec-kitty.tasks
-$spec-kitty.implement
+$spec-kitty-specify
+$spec-kitty-plan
+$spec-kitty-tasks
+$spec-kitty-implement
 ```
 
 If the packages are missing, regenerate them:
@@ -131,8 +131,8 @@ Reload your profile:
 
 ## Troubleshooting
 
-- **Codex does not show `$spec-kitty.*` skills.**
-  Run `spec-kitty agent config sync`, confirm `.agents/skills/spec-kitty.*/SKILL.md`
+- **Codex does not show `$spec-kitty-*` skills.**
+  Run `spec-kitty agent config sync`, confirm `.agents/skills/spec-kitty-*/SKILL.md`
   exists, and restart Codex.
 - **Only old prompt-style commands appear.**
   Refresh the project with `spec-kitty upgrade --project` and re-run

@@ -1930,7 +1930,7 @@ _Project health diagnostics_
 │                         break on copy/move (#5390).                          │
 │ command-files           Check all agent command files for correctness.       │
 │ skills                  Check command-skill manifest drift for Codex, Vibe,  │
-│                         Pi, and Letta.                                       │
+│                         Pi, Letta, and Antigravity.                          │
 │ tool-surfaces           Audit (and optionally repair) every configured tool  │
 │                         surface.                                             │
 │ state-roots             Show state roots, surface classification, and safety │
@@ -2517,7 +2517,7 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor skills [OPTIONS]
 
- Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.
+ Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --fix             Repair missing command-skill files                         │

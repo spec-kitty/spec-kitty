@@ -298,7 +298,7 @@ def skills(
         typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
 ) -> None:
-    """Check command-skill manifest drift for Codex, Vibe, Pi, and Letta."""
+    """Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity."""
     project_path = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=2)
     run_skills_audit(fix, json_output, project_path)
 

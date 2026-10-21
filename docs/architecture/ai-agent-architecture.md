@@ -2,7 +2,7 @@
 title: AI Agent Architecture Explained
 description: "How Spec Kitty stays agent-agnostic: slash commands and Agent Skills rendered from one shared command-template source, per agent format, driving the same lane workflow."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-21'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
@@ -61,19 +61,19 @@ These agents run inside an IDE or editor, so Spec Kitty does not check for a CLI
 | Cursor | `.cursor/commands/` | Markdown |
 | Windsurf | `.windsurf/workflows/` | Markdown |
 | Kilo Code | `.kilocode/workflows/` | Markdown |
-| Google Antigravity | `.agent/workflows/` | Markdown |
 
 ### Agent Skills agents
 
-These agents share one skills root, `.agents/skills/spec-kitty.<command>/SKILL.md`,
+These agents share one skills root, `.agents/skills/spec-kitty-<command>/SKILL.md`,
 tracked in `.kittify/command-skills-manifest.json`:
 
 | Agent | How commands are invoked |
 |-------|--------------------------|
-| Codex CLI | `$spec-kitty.<command>` |
-| Mistral Vibe | `/spec-kitty.<command>` (via `.vibe/config.toml`) |
-| Pi | `/skill:spec-kitty.<command>` |
-| Letta Code | Agent Skills |
+| Codex CLI | `$spec-kitty-<command>` |
+| Mistral Vibe | `/spec-kitty-<command>` (via `.vibe/config.toml`) |
+| Pi | `/skill:spec-kitty-<command>` |
+| Letta Code | `/spec-kitty-<command>` |
+| Google Antigravity | `/spec-kitty-<command>` |
 
 ## Agent-Specific Directories
 

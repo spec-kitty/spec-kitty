@@ -666,7 +666,7 @@
      "deprecated": false
     },
     "skills": {
-     "help": "Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.",
+     "help": "Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity.",
      "hidden": false,
      "deprecated": false
     },

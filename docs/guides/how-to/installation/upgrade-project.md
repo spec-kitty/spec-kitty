@@ -2,7 +2,7 @@
 title: Upgrade an existing Spec Kitty project
 description: Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-10-21'
 type: how-to
 related:
 - docs/guides/how-to/installation/install-and-upgrade.md
@@ -72,12 +72,14 @@ The project upgrade runs **config-aware migrations** that bring your `.kittify/`
 
 1. Reads `.kittify/config.yaml` to learn which agents you have configured.
 2. Walks pending migrations in version order.
-3. **Updates agent command directories** for configured agents only (`.claude/commands/`, `.agents/skills/spec-kitty.<command>/`, `.amazonq/prompts/`, etc.). Agents you removed stay removed — migrations never recreate them.
+3. **Updates agent command directories** for configured agents only (`.claude/commands/`, `.agents/skills/spec-kitty-<command>/`, `.amazonq/prompts/`, etc.). Agents you removed stay removed — migrations never recreate them.
 4. **Refreshes templates and skill packages** under those agent directories from the CLI's bundled source templates.
 5. **Bumps `.kittify/metadata.yaml`** to record the new schema version.
 6. **Leaves your data alone**: `kitty-specs/`, `architecture/`, and any other content you authored is not touched.
 
 Migrations are idempotent — running `spec-kitty upgrade` twice on the same project is safe.
+
+If your project uses an Agent Skills harness (Codex, Vibe, Pi, Letta or Antigravity), the upgrade to 4.0.0rc8 renames the command skills from `spec-kitty.<command>` to `spec-kitty-<command>` and archives Antigravity's old `.agent/workflows/` files. Run it in every clone. See [Command skills renamed for the Agent Skills specification](../../../migrations/command-skill-hyphen-names.md).
 
 ## Common follow-ups
 
