@@ -159,7 +159,8 @@
       "last_transition_at": "2026-10-21T06:44:18.961433+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: antigravity moved to the command-skill roster (no AGENT_COMMAND_CONFIG/AGENT_DIRS rows), configured_slash_agents filter, init installs its command skills, clone-local 4.0.0rc8_retire_antigravity_workflows archives proven .agent/workflows files via the guard and installs skills"
+        "Ready for review: antigravity moved to the command-skill roster (no AGENT_COMMAND_CONFIG/AGENT_DIRS rows), configured_slash_agents filter, init installs its command skills, clone-local 4.0.0rc8_retire_antigravity_workflows archives proven .agent/workflows files via the guard and installs skills",
+        "Review passed: antigravity as skill agent, archive migration strict and safe"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
