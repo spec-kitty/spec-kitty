@@ -107,7 +107,10 @@ configured in the current project. Outside a project it writes nothing.
 
 An older Spec Kitty CLI cannot read the command-skill manifest this release writes. If you go
 back to an older CLI, or a teammate on an older CLI pulls the manifest where your project commits it, that CLI
-refuses the manifest. Upgrade the older CLI instead.
+refuses the manifest with a schema error: its schema expects the dotted skill names and does not
+know the `antigravity` agent. Nothing is deleted; the error stops that CLI's command-skill
+commands until it is upgraded. Upgrade the older CLI instead, and ask teammates to upgrade
+before you commit the migrated manifest.
 
 ## Known follow-ups
 
