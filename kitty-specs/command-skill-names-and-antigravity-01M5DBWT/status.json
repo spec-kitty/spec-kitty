@@ -252,6 +252,9 @@
       "last_event_id": "01M5F0AQ4V55ESYHQBXXQ7Q71H",
       "last_transition_at": "2026-10-21T10:32:52.123986+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: agent-skills CI job + scripts/ci/validate_agent_skills.py (329 skills valid locally, seeded failures proven), WP07 N1/N2 folded"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 12608,
