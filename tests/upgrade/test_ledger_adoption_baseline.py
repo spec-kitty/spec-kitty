@@ -146,13 +146,20 @@ def test_an_rc8_stamp_does_not_settle_rc8_migrations(tmp_path: Path) -> None:
 # -- selection matches what the real run applies -------------------------------- #
 
 
-def test_selection_on_a_pre_ledger_project_skips_what_adoption_will_settle(tmp_path: Path) -> None:
-    """A preview or dry run lists only what the real run applies (no ~120 replays, then skips)."""
+@pytest.mark.parametrize("adopted", [False, True], ids=["before-apply", "after-apply"])
+def test_selection_on_a_pre_ledger_project_skips_what_adoption_will_settle(tmp_path: Path, adopted: bool) -> None:
+    """A preview or dry run lists only what the real run applies (no ~120 replays, then skips).
+
+    After the real apply, the same migrations are settled and newer ones stay pending.
+    """
     project = _project(tmp_path)
+    if adopted:
+        BackfillMigrationLedgerMigration().apply(project)
 
     selected = {m.migration_id for m in MigrationRegistry.get_applicable(_RECORDED_VERSION, "99.0.0", project)}
 
-    assert BackfillMigrationLedgerMigration.migration_id in selected
+    if not adopted:
+        assert BackfillMigrationLedgerMigration.migration_id in selected
     assert _BELOW not in selected
     assert _ABOVE in selected
 
@@ -183,16 +190,6 @@ def test_backfill_is_idempotent_after_the_baseline(tmp_path: Path) -> None:
     migration.apply(project)
 
     assert MigrationLedger(project).tracked_path.read_text(encoding="utf-8") == before
-
-
-def test_newer_migrations_stay_pending_after_the_baseline(tmp_path: Path) -> None:
-    project = _project(tmp_path)
-    BackfillMigrationLedgerMigration().apply(project)
-
-    selected = {m.migration_id for m in MigrationRegistry.get_applicable(_RECORDED_VERSION, "99.0.0", project)}
-
-    assert _ABOVE in selected
-    assert _BELOW not in selected
 
 
 def test_clone_local_below_the_version_is_not_baselined_without_git(tmp_path: Path) -> None:
