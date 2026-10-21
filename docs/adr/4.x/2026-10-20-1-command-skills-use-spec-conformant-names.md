@@ -148,8 +148,14 @@ changes.
 `antigravity` joins `SUPPORTED_AGENTS` in `skills/_agent_roster.py`. Its `AGENT_COMMAND_CONFIG`
 row and its `.agent/workflows` entries in `AGENT_DIRS` are removed. `init`, `upgrade` and
 `agent config add antigravity` install the 14 command skills into `.agents/skills/`.
-`core.config.configured_slash_agents()` is the one filter that splits a configured agent list
-into its slash-command half.
+`core.config.configured_slash_agents()` splits a configured agent list into its slash-command
+half; single-key checks test membership in `AGENT_COMMAND_CONFIG`, the same rule.
+
+Removing the `.agent/workflows` entries from `AGENT_DIRS` also changes the historical
+migrations that iterate `get_agent_dirs_for_project()`: they no longer visit
+`.agent/workflows`. That is intended. Those files are dead (Antigravity stopped reading them),
+and the one step that still has to handle them is `4.0.0rc8_retire_antigravity_workflows`,
+which reaches the retired path directly (section 7). The frozen migrations are not edited.
 
 ### 7. Antigravity workflow files are archived, not deleted
 
@@ -171,6 +177,12 @@ Operator ruling 2026-10-20: archive, never delete.
   only when its inventory records it unedited, or, with no record, when it carries the current
   version marker and equals the frozen render byte for byte. A symlinked `~/.agent` or
   `~/.agent/workflows` refuses. The folder itself is never removed.
+
+The two proofs differ on purpose. The project copy can be committed, shared and edited by a
+team, so its proof is a marker check and the file is archived, never deleted. The home copy
+belongs to one person and Spec Kitty's own inventory records what it wrote there, so its proof
+is the inventory record (or an exact byte match with the frozen render) and an unedited file is
+removed without a backup. Both refuse on a symlinked path component and both keep the folders.
 
 ### 8. The home-folder writer is scoped to configured agents (amends 2026-04-07-1)
 
