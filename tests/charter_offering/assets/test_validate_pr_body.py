@@ -69,8 +69,13 @@ def validator() -> Iterator[ModuleType]:
 
 
 def _check(validator: ModuleType, body: str) -> list[str]:
-    result: list[str] = validator.validate(body)
-    return result
+    problems: list[str] = validator.validate(body)[0]
+    return problems
+
+
+def _warnings(validator: ModuleType, body: str) -> list[str]:
+    warnings: list[str] = validator.validate(body)[1]
+    return warnings
 
 
 def test_valid_body_has_no_violations(validator: ModuleType) -> None:
@@ -107,14 +112,18 @@ def test_level_three_headings_and_fenced_headings_are_not_sections(validator: Mo
     assert _check(validator, body) == []
 
 
-@pytest.mark.parametrize("text", ["closes #7", "CLOSES #7", "Closes #7"])
+@pytest.mark.parametrize("text", ["closes #7", "CLOSES #7", "Closes #7", "fixes #7"])
 def test_closes_link_is_case_insensitive(validator: ModuleType, text: str) -> None:
-    assert _check(validator, _VALID.replace("Closes #42", text)) == []
+    body = _VALID.replace("Closes #42", text)
+    assert _check(validator, body) == []
+    assert _warnings(validator, body) == []
 
 
-@pytest.mark.parametrize("text", ["see #42", "closes 42", "fixes #42", "closes #"])
-def test_missing_closes_link_is_reported(validator: ModuleType, text: str) -> None:
-    assert _check(validator, _VALID.replace("Closes #42", text)) == ["Issue: missing `closes #<n>` link"]
+@pytest.mark.parametrize("text", ["see #42", "closes 42", "closes #"])
+def test_missing_closes_link_is_a_warning_not_a_problem(validator: ModuleType, text: str) -> None:
+    body = _VALID.replace("Closes #42", text)
+    assert _check(validator, body) == []
+    assert _warnings(validator, body) == ["Issue: no `closes #<n>` / `fixes #<n>` link (fine if this PR closes no issue)"]
 
 
 def test_missing_self_review_is_reported(validator: ModuleType) -> None:
@@ -174,13 +183,17 @@ def test_empty_files_list_is_reported(validator: ModuleType) -> None:
 def test_cli_exit_codes_and_output(validator: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     good = tmp_path / "good.md"
     good.write_text(_VALID, encoding="utf-8")
+    unlinked = tmp_path / "unlinked.md"
+    unlinked.write_text(_VALID.replace("Closes #42", "nope"), encoding="utf-8")
     bad = tmp_path / "bad.md"
-    bad.write_text(_VALID.replace("Closes #42", "nope"), encoding="utf-8")
+    bad.write_text(_VALID.replace("Does a thing.\n", ""), encoding="utf-8")
 
     assert validator.main([str(good)]) == 0
     assert capsys.readouterr().out == ""
+    assert validator.main([str(unlinked)]) == 0
+    assert capsys.readouterr().out == ("warning: Issue: no `closes #<n>` / `fixes #<n>` link (fine if this PR closes no issue)\n")
     assert validator.main([str(bad)]) == 1
-    assert capsys.readouterr().out == "Issue: missing `closes #<n>` link\n"
+    assert capsys.readouterr().out == "Change: section is empty\n"
 
 
 def test_cli_reads_stdin(validator: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -259,7 +272,7 @@ def test_verify_discovery_accepts_abbreviated_head(verify: Callable[..., int], r
 def test_verify_discovery_reports_missing_and_extra(validator: ModuleType, repo: Path) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("- `sub/b.txt`", "- ghost.txt")
-    problems = validator.validate(body, expected_head=sha, repo=repo)
+    problems = validator.validate(body, expected_head=sha, repo=repo)[0]
     assert problems == [
         "Blast radius: Files lists `ghost.txt` but Discovery does not find it",
         "Blast radius: Discovery finds `sub/b.txt` missing from Files",
@@ -267,7 +280,7 @@ def test_verify_discovery_reports_missing_and_extra(validator: ModuleType, repo:
 
 
 def test_verify_discovery_rejects_wrong_head(validator: ModuleType, repo: Path) -> None:
-    problems = validator.validate(_VALID, expected_head="deadbeef", repo=repo)
+    problems = validator.validate(_VALID, expected_head="deadbeef", repo=repo)[0]
     assert len(problems) == 1
     assert "!= expected head deadbeef" in problems[0]
 
@@ -275,13 +288,13 @@ def test_verify_discovery_rejects_wrong_head(validator: ModuleType, repo: Path) 
 def test_verify_discovery_handles_content_grep_output(validator: ModuleType, repo: Path) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("git grep -l needle", "git grep needle")
-    assert validator.validate(body, expected_head=sha, repo=repo) == []
+    assert validator.validate(body, expected_head=sha, repo=repo)[0] == []
 
 
 def test_verify_discovery_no_matches_means_empty_fresh_set(validator: ModuleType, repo: Path) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("git grep -l needle", "git grep -l absent")
-    problems = validator.validate(body, expected_head=sha, repo=repo)
+    problems = validator.validate(body, expected_head=sha, repo=repo)[0]
     assert problems == [
         "Blast radius: Files lists `a.txt` but Discovery does not find it",
         "Blast radius: Files lists `sub/b.txt` but Discovery does not find it",
@@ -292,7 +305,7 @@ def test_verify_discovery_no_matches_means_empty_fresh_set(validator: ModuleType
 def test_verify_discovery_refuses_non_git_grep(validator: ModuleType, repo: Path, command: str) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("git grep -l needle", command)
-    problems = validator.validate(body, expected_head=sha, repo=repo)
+    problems = validator.validate(body, expected_head=sha, repo=repo)[0]
     assert len(problems) == 1
     assert "refusing to run" in problems[0]
 
@@ -301,7 +314,7 @@ def test_verify_discovery_refuses_non_git_grep(validator: ModuleType, repo: Path
 def test_verify_discovery_refuses_shell_operators(validator: ModuleType, repo: Path, command: str) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("git grep -l needle", command)
-    problems = validator.validate(body, expected_head=sha, repo=repo)
+    problems = validator.validate(body, expected_head=sha, repo=repo)[0]
     assert len(problems) == 1
     assert "refusing to run" in problems[0]
     assert not (repo / "pwned").exists()
@@ -311,7 +324,7 @@ def test_verify_discovery_refuses_shell_operators(validator: ModuleType, repo: P
 def test_verify_discovery_reports_git_failure(validator: ModuleType, repo: Path) -> None:
     sha = _git(repo, "rev-parse", "HEAD")
     body = _VALID.replace("git grep -l needle", "git grep --bogus-flag needle")
-    problems = validator.validate(body, expected_head=sha, repo=repo)
+    problems = validator.validate(body, expected_head=sha, repo=repo)[0]
     assert len(problems) == 1
     assert problems[0].startswith("Blast radius: Discovery command failed")
 
@@ -319,7 +332,7 @@ def test_verify_discovery_reports_git_failure(validator: ModuleType, repo: Path)
 def test_verify_discovery_outside_git_repo_is_reported(validator: ModuleType, tmp_path: Path) -> None:
     empty = tmp_path / "plain"
     empty.mkdir()
-    problems = validator.validate(_VALID, expected_head="abc", repo=empty)
+    problems = validator.validate(_VALID, expected_head="abc", repo=empty)[0]
     assert problems == ["Blast radius: cannot read `git rev-parse HEAD` in the checkout"]
 
 
@@ -329,9 +342,10 @@ _TEMPLATE = Path(__file__).resolve().parents[3] / ".github" / "PULL_REQUEST_TEMP
 
 
 def test_unmodified_template_is_rejected_for_its_placeholders(validator: ModuleType) -> None:
-    problems = _check(validator, _TEMPLATE.read_text(encoding="utf-8"))
+    body = _TEMPLATE.read_text(encoding="utf-8")
+    problems = _check(validator, body)
 
-    assert "Issue: missing `closes #<n>` link" in problems
+    assert any(w.startswith("Issue: no `closes #<n>`") for w in _warnings(validator, body))
     assert "Change: section is empty" in problems
     assert any(p.startswith("Tests run: template placeholder left in command `<command>") for p in problems)
     assert "Tests run: `Self-review:` block still holds the template placeholder" in problems
