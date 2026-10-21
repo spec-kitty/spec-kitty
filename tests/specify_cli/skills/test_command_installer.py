@@ -58,10 +58,11 @@ def test_wp04_install_does_not_adopt_unknown_content(repo: Path) -> None:
     manifest = manifest_store.load(repo)
     manifest.remove_path(victim.relative_to(repo).as_posix())
     manifest_store.save(repo, manifest)
-    with contextlib.suppress(InstallerError):
-        install(repo, "codex")
+    report = install(repo, "codex")
     assert victim.read_bytes() == b"operator custom canonical-path content\n"
     assert manifest_store.load(repo).find(victim.relative_to(repo).as_posix()) is None
+    assert report.collisions == [victim.relative_to(repo).as_posix()]
+    assert missing.is_file(), "FR-019: the rest of the batch installs past a collision"
 
 
 def test_wp04_late_collision_rechecked_before_any_write(repo: Path) -> None:
@@ -69,14 +70,15 @@ def test_wp04_late_collision_rechecked_before_any_write(repo: Path) -> None:
     missing = _skill_path(repo, CANONICAL_COMMANDS[0])
     missing.unlink()
     # A genuine late collision still blocks the whole batch before any write. An *owned*
-    # drifted projection now regenerates (#702), so it is no longer a collision; drop the
-    # manifest entry first so the path is unowned, then plant foreign non-manifest bytes
-    # (the surviving `preserve` collision).
+    # drifted projection now regenerates (#702) and unowned foreign bytes are a skipped
+    # collision (FR-019), so the surviving `preserve` refusal is a directory planted at an
+    # unowned SKILL.md path.
     victim = _skill_path(repo, CANONICAL_COMMANDS[-1])
     manifest = manifest_store.load(repo)
     manifest.remove_path(victim.relative_to(repo).as_posix())
     manifest_store.save(repo, manifest)
-    victim.write_bytes(b"foreign non-manifest content")
+    victim.unlink()
+    victim.mkdir()
     with pytest.raises(InstallerError):
         install(repo, "codex")
     assert not missing.exists(), "Installer wrote before checking the whole batch"
@@ -211,7 +213,7 @@ def test_wp04_changed_batch_refuses_zero_writes(repo: Path, changed: str) -> Non
 
 def test_wp04_owned_drift_regenerated_and_unknown_preserved_while_gap_repaired(repo: Path) -> None:
     # #702: a manifest-owned DERIVED projection that drifted is regenerated to the canonical
-    # render (never consent_required); an *unowned* file at a canonical path stays preserved
+    # render (never consent_required); an *unowned* file at a canonical path is a skipped collision
     # (NFR-002); an absent manifest-owned file (gap) is repaired.
     from specify_cli.skills import command_installer as owner
 
@@ -233,7 +235,7 @@ def test_wp04_owned_drift_regenerated_and_unknown_preserved_while_gap_repaired(r
     assessment = _wp04_assess(repo)
     assert assessment.complete
     assert "consent_required" not in {d.state for d in assessment.dispositions if d.path == drift_rel}
-    assert any(d.state == "preserve" for d in assessment.dispositions)  # the unowned custom file
+    assert any(d.state == "collision" for d in assessment.dispositions)  # the unowned custom file (FR-019)
     assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
     assert missing.is_file()  # gap repaired
     assert drift.read_bytes() == canonical_plan  # owned drift regenerated, not kept
@@ -486,7 +488,7 @@ def _write_config(repo_root: Path) -> None:
 
 
 def _skill_path(repo_root: Path, command: str) -> Path:
-    return repo_root / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+    return repo_root / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md"
 
 
 # ---------------------------------------------------------------------------
@@ -557,7 +559,7 @@ class TestHappyPathInstall:
 
         manifest = manifest_store.load(repo)
         paths = {e.path for e in manifest.entries}
-        expected = {f".agents/skills/spec-kitty.{cmd}/SKILL.md" for cmd in CANONICAL_COMMANDS}
+        expected = {f".agents/skills/spec-kitty-{cmd}/SKILL.md" for cmd in CANONICAL_COMMANDS}
         assert paths == expected
 
     def test_content_hash_matches_disk(self, repo: Path) -> None:
@@ -637,7 +639,7 @@ class TestIdempotentInstall:
     def test_second_call_repairs_missing_manifest_entry_file(self, repo: Path) -> None:
         install(repo, "vibe")
         skill_path = _skill_path(repo, "tasks")
-        rel_path = ".agents/skills/spec-kitty.tasks/SKILL.md"
+        rel_path = ".agents/skills/spec-kitty-tasks/SKILL.md"
         skill_path.unlink()
 
         report = install(repo, "vibe")
@@ -771,8 +773,8 @@ class TestThreeTenantCoexistence:
 
         skills_root = repo / ".agents" / "skills"
         if skills_root.exists():
-            remaining = [d.name for d in skills_root.iterdir() if d.is_dir() and d.name.startswith("spec-kitty.")]
-            assert remaining == [], f"spec-kitty.* directories should be gone, found: {remaining!r}"
+            remaining = [d.name for d in skills_root.iterdir() if d.is_dir() and d.name.removeprefix("spec-kitty-") in CANONICAL_COMMANDS]
+            assert remaining == [], f"spec-kitty-* directories should be gone, found: {remaining!r}"
 
     def test_third_party_dirs_still_present_after_full_remove(self, repo: Path) -> None:
         self._setup_third_party_files(repo)
@@ -793,15 +795,15 @@ class TestThreeTenantCoexistence:
 
 
 class TestParentDirPreservation:
-    """When a third-party file exists inside a spec-kitty.* dir, remove()
+    """When a third-party file exists inside a spec-kitty-<cmd> dir, remove()
     must delete SKILL.md (if agents empties) but leave the dir and the
     third-party file intact."""
 
     def test_remove_deletes_skill_md_but_keeps_extra_file(self, repo: Path) -> None:
         install(repo, "vibe")
 
-        # Place a third-party file inside a spec-kitty.specify dir.
-        specify_dir = repo / ".agents" / "skills" / "spec-kitty.specify"
+        # Place a third-party file inside a spec-kitty-specify dir.
+        specify_dir = repo / ".agents" / "skills" / "spec-kitty-specify"
         extra_file = specify_dir / "extra.txt"
         extra_file.write_bytes(b"User-authored content.\n")
         extra_hash = _sha256_file(extra_file)
@@ -824,13 +826,13 @@ class TestParentDirPreservation:
         install(repo, "vibe")
 
         # Verify SKILL.md and its parent exist before remove.
-        specify_dir = repo / ".agents" / "skills" / "spec-kitty.specify"
+        specify_dir = repo / ".agents" / "skills" / "spec-kitty-specify"
         assert specify_dir.exists()
 
         remove(repo, "vibe")
 
         # The parent dir should be gone (it was empty after SKILL.md deletion).
-        assert not specify_dir.exists(), "Empty spec-kitty.specify/ dir should be removed"
+        assert not specify_dir.exists(), "Empty spec-kitty-specify/ dir should be removed"
 
 
 # ---------------------------------------------------------------------------
@@ -844,10 +846,10 @@ class TestCollisionError:
         skill_path.parent.mkdir(parents=True, exist_ok=True)
         skill_path.write_bytes(b"CUSTOM LOCAL SKILL\n")
 
-        with pytest.raises(InstallerError) as exc_info:
-            install(repo, "codex")
+        # FR-019: the unowned path is skipped with a collision; the batch still installs.
+        report = install(repo, "codex")
 
-        assert exc_info.value.code == "unexpected_collision"
+        assert report.collisions == [skill_path.relative_to(repo).as_posix()]
         assert skill_path.read_bytes() == b"CUSTOM LOCAL SKILL\n"
 
     def test_owned_drift_with_stale_hash_regenerates(self, repo: Path) -> None:
@@ -858,7 +860,7 @@ class TestCollisionError:
         and git-IGNORED (state/contract shared_skills_projection), so it is always regenerable.
         """
         install(repo, "vibe")
-        rel_path = ".agents/skills/spec-kitty.specify/SKILL.md"
+        rel_path = ".agents/skills/spec-kitty-specify/SKILL.md"
         abs_path = repo / rel_path
         canonical = abs_path.read_bytes()
         abs_path.write_bytes(b"# stale content from another checkout\n")
@@ -895,7 +897,7 @@ class TestFileMutationOnRemove:
             remove(repo, "vibe")
 
         assert exc_info.value.code == "file_mutation_detected"
-        assert ".agents/skills/spec-kitty.specify/SKILL.md" in (exc_info.value.context.get("path", ""))
+        assert ".agents/skills/spec-kitty-specify/SKILL.md" in (exc_info.value.context.get("path", ""))
 
     def test_manifest_unchanged_when_mutation_detected(self, repo: Path) -> None:
         install(repo, "vibe")
@@ -922,7 +924,7 @@ class TestPathConfinement:
         protected.write_bytes(b"DO_NOT_OVERWRITE\n")
         skills_root = repo / ".agents" / "skills"
         skills_root.mkdir(parents=True)
-        (skills_root / "spec-kitty.analyze").symlink_to(outside, target_is_directory=True)
+        (skills_root / "spec-kitty-analyze").symlink_to(outside, target_is_directory=True)
 
         with pytest.raises(InstallerError) as exc_info:
             install(repo, "codex")
@@ -972,7 +974,7 @@ class TestVerifyDrift:
 
         report = verify(repo)
 
-        assert ".agents/skills/spec-kitty.specify/SKILL.md" in report.drift
+        assert ".agents/skills/spec-kitty-specify/SKILL.md" in report.drift
         assert report.gaps == []
         assert report.orphans == []
 
@@ -997,7 +999,7 @@ class TestVerifyGaps:
 
         report = verify(repo)
 
-        assert ".agents/skills/spec-kitty.tasks/SKILL.md" in report.gaps
+        assert ".agents/skills/spec-kitty-tasks/SKILL.md" in report.gaps
         assert report.drift == []
         assert report.orphans == []
 
@@ -1012,15 +1014,24 @@ class TestVerifyGaps:
 
 
 class TestVerifyOrphans:
-    def test_unregistered_spec_kitty_file_is_orphan(self, repo: Path) -> None:
-        # Write a spec-kitty.* file without registering it in the manifest.
-        orphan_path = repo / ".agents" / "skills" / "spec-kitty.unknown" / "SKILL.md"
-        orphan_path.parent.mkdir(parents=True, exist_ok=True)
-        orphan_path.write_bytes(b"# unknown skill\n")
+    def test_unregistered_file_in_a_command_folder_is_orphan(self, repo: Path) -> None:
+        # A file Spec Kitty did not record, inside a canonical command folder.
+        install(repo, "codex")
+        orphan_path = repo / ".agents" / "skills" / "spec-kitty-plan" / "notes.md"
+        orphan_path.write_bytes(b"# unknown\n")
 
         report = verify(repo)
 
-        assert ".agents/skills/spec-kitty.unknown/SKILL.md" in report.orphans
+        assert ".agents/skills/spec-kitty-plan/notes.md" in report.orphans
+
+    def test_prefix_sharing_folder_outside_the_command_set_is_not_an_orphan(self, repo: Path) -> None:
+        # FR-004: ownership is the explicit command set, never the ``spec-kitty`` prefix.
+        for name in ("spec-kitty-unknown", "spec-kitty.unknown"):
+            path = repo / ".agents" / "skills" / name / "SKILL.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"# unknown skill\n")
+
+        assert verify(repo).orphans == []
 
     def test_third_party_file_is_not_an_orphan(self, repo: Path) -> None:
         """Files in non-spec-kitty dirs must not appear in orphans."""
@@ -1299,7 +1310,7 @@ def test_5575_drift_regenerates_regardless_of_named_consent_path(repo: Path) -> 
 
 
 def _entry(content_hash: str, agents: tuple[str, ...] = ("codex",)) -> ManifestEntry:
-    return ManifestEntry(".agents/skills/spec-kitty.plan/SKILL.md", content_hash, agents, "2026-01-01T00:00:00+00:00", "3.2.0")
+    return ManifestEntry(".agents/skills/spec-kitty-plan/SKILL.md", content_hash, agents, "2026-01-01T00:00:00+00:00", "3.2.0")
 
 
 _DIGEST = "d" * 64

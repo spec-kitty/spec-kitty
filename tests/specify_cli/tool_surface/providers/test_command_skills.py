@@ -19,6 +19,7 @@ from specify_cli.tool_surface.status import (
     STATE_DRIFTED,
     STATE_MISSING,
     STATE_PRESENT,
+    STATE_STALE,
     SurfaceStatus,
     _surface_id,
 )
@@ -101,7 +102,7 @@ def test_provisioning_projection_real_composition(tmp_path: Path, pointer: bool,
         (ordinary / "authored.yaml").write_bytes(target.read_bytes())
     command_installer.install(ordinary, "codex")
     for command in command_installer.CANONICAL_COMMANDS:
-        rel = f".agents/skills/spec-kitty.{command}/SKILL.md"
+        rel = f".agents/skills/spec-kitty-{command}/SKILL.md"
         assert (project / rel).read_bytes() == (ordinary / rel).read_bytes()
     repeat = provider.assess(
         AssessmentInputs(OperationRoot("project", "project", project), projected=prepare_mission_type_activations(project), consent=consent),
@@ -584,7 +585,7 @@ def test_wp04_provider_preserves_status_identity_and_shared_batch(tmp_path: Path
 def test_explicit_repair_overwrites_drift_and_repairs_missing(tmp_path: Path) -> None:
     """``repair`` is the explicit path: a drifted status is consent to overwrite (#5575)."""
     provider, drift, canonical = _installed_codex_project(tmp_path)
-    missing = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    missing = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     missing.unlink()
     drift.write_bytes(b"custom edited command")
     statuses = _probe_all(provider, tmp_path)
@@ -616,20 +617,20 @@ def _capture_consents(monkeypatch: pytest.MonkeyPatch) -> list[ApplyConsent]:
 
 def test_repair_consent_lists_only_drifted_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     provider, drift, _ = _installed_codex_project(tmp_path)
-    (tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md").unlink()
+    (tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md").unlink()
     drift.write_bytes(b"custom edited command")
     statuses = _probe_all(provider, tmp_path)
     consents = _capture_consents(monkeypatch)
 
     provider.repair(tmp_path, statuses)
 
-    assert [c.overwrite_paths for c in consents] == [(".agents/skills/spec-kitty.accept/SKILL.md",)]
+    assert [c.overwrite_paths for c in consents] == [(".agents/skills/spec-kitty-accept/SKILL.md",)]
     assert consents[0].automatic is True
 
 
 def test_repair_of_missing_only_passes_empty_overwrite_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     provider, _, _ = _installed_codex_project(tmp_path)
-    missing = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    missing = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     missing.unlink()
     statuses = _probe_all(provider, tmp_path)
     assert STATE_DRIFTED not in {s.state for s in statuses}
@@ -673,7 +674,7 @@ def test_repair_dry_run_reports_consented_drift_without_writing(tmp_path: Path) 
 
 def test_repair_leaves_present_statuses_untouched(tmp_path: Path) -> None:
     provider, drift, _ = _installed_codex_project(tmp_path)
-    present = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    present = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     before = present.read_bytes()
     drift.write_bytes(b"custom edited command")
 
@@ -802,7 +803,7 @@ def _configured_project(project: Path) -> None:
 def _installed_codex_project(project: Path) -> tuple[CommandSkillsProvider, Path, bytes]:
     _configured_project(project)
     command_installer.install(project, "codex")
-    skill = project / ".agents/skills/spec-kitty.accept/SKILL.md"
+    skill = project / ".agents/skills/spec-kitty-accept/SKILL.md"
     return CommandSkillsProvider(), skill, skill.read_bytes()
 
 
@@ -871,7 +872,7 @@ def test_5574_divergent_agent_renders_make_upgrade_and_probe_agree(tmp_path: Pat
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - codex\n    - vibe\n", encoding="utf-8")
     command_installer.install(tmp_path, "codex")
     command_installer.install(tmp_path, "vibe")
-    skill = tmp_path / ".agents/skills/spec-kitty.accept/SKILL.md"
+    skill = tmp_path / ".agents/skills/spec-kitty-accept/SKILL.md"
     _set_recorded_hash(tmp_path, skill, "0" * 64)
     stale_manifest = manifest_store.load(tmp_path)
     original_render = command_installer._render_command_skill
@@ -891,10 +892,11 @@ def test_5574_divergent_agent_renders_make_upgrade_and_probe_agree(tmp_path: Pat
 @pytest.mark.parametrize(
     ("rel", "expected"),
     [
-        (".agents/skills/spec-kitty.accept/SKILL.md", "accept"),
-        (".agents/skills/spec-kitty./SKILL.md", None),
+        (".agents/skills/spec-kitty-accept/SKILL.md", "accept"),
+        (".agents/skills/spec-kitty.accept/SKILL.md", None),  # legacy dotted form is not canonical
+        (".agents/skills/spec-kitty-/SKILL.md", None),
         (".agents/skills/other/SKILL.md", None),
-        (".agents/skills/spec-kitty.accept/README.md", None),
+        (".agents/skills/spec-kitty-accept/README.md", None),
     ],
 )
 def test_command_from_rel(rel: str, expected: str | None) -> None:
@@ -906,7 +908,7 @@ def test_command_from_rel(rel: str, expected: str | None) -> None:
 def test_is_canonical_bytes_without_project_root_is_false() -> None:
     from specify_cli.tool_surface.providers.command_skills import _is_canonical_bytes
 
-    assert _is_canonical_bytes(None, ".agents/skills/spec-kitty.accept/SKILL.md", "x") is False
+    assert _is_canonical_bytes(None, ".agents/skills/spec-kitty-accept/SKILL.md", "x") is False
     assert _is_canonical_bytes(Path("."), None, "x") is False
 
 
@@ -937,7 +939,7 @@ def test_repair_dry_run_reports_without_install(tmp_path: Path) -> None:
 
 def test_expand_reports_unmanaged_spec_kitty_orphan(tmp_path: Path) -> None:
     _empty_manifest(tmp_path)
-    orphan = tmp_path / ".agents" / "skills" / "spec-kitty.fake" / "SKILL.md"
+    orphan = tmp_path / ".agents" / "skills" / "spec-kitty-plan" / "notes.md"
     orphan.parent.mkdir(parents=True, exist_ok=True)
     orphan.write_text("orphan", encoding="utf-8")
     provider = CommandSkillsProvider()
@@ -969,3 +971,91 @@ def test_expand_reports_stale_manifest_command(tmp_path: Path) -> None:
     statuses = [provider.probe(i) for i in provider.expand(command_skill_definition(), "codex", tmp_path)]
 
     assert any(f.code == "stale-generated-surface" for status in statuses for f in status.findings)
+
+
+# ---------------------------------------------------------------------------
+# #6475: collisions and legacy dotted skills are warnings (FR-019 / FR-020)
+# ---------------------------------------------------------------------------
+
+
+def _legacy_project(project: Path, *, edited: str) -> Path:
+    """A pre-#6475 install: dotted folders recorded in the manifest, one of them edited."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _configured_project(project)
+    entries = []
+    for command in command_installer.CANONICAL_COMMANDS:
+        rel = legacy_command_skill_rel_path(command)
+        path = project / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"old {command}\n", encoding="utf-8")
+        entries.append(manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), ("codex",), "2026-01-01T00:00:00+00:00", "3.2.0"))
+    manifest_store.save(project, manifest_store.SkillsManifest(entries=entries))
+    edited_path = project / legacy_command_skill_rel_path(edited)
+    edited_path.write_text("my edits\n", encoding="utf-8")
+    return edited_path
+
+
+def test_collision_probe_is_a_present_warning_naming_the_remedy(tmp_path: Path) -> None:
+    _configured_project(tmp_path)
+    mine = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
+    mine.parent.mkdir(parents=True)
+    mine.write_text("my own plan skill\n", encoding="utf-8")
+
+    status = _probe_skill(CommandSkillsProvider(), tmp_path, mine)
+
+    assert status.state == STATE_PRESENT
+    [finding] = status.findings
+    assert "Your own folder blocks command skill" in finding.message
+    assert "spec-kitty doctor skills --fix" in finding.message
+
+
+def test_repair_retires_legacy_skills_and_reports_the_kept_one_as_skipped(tmp_path: Path) -> None:
+    edited = _legacy_project(tmp_path, edited="plan")
+    provider = CommandSkillsProvider()
+    statuses = _probe_all(provider, tmp_path)
+    by_rel = {s.instance.path.relative_to(tmp_path).as_posix(): s for s in statuses}
+    kept_rel = ".agents/skills/spec-kitty.plan/SKILL.md"
+    assert {s.state for rel, s in by_rel.items() if "spec-kitty." in rel} == {STATE_STALE}
+
+    result = provider.repair(tmp_path, statuses)
+
+    kept_id = _surface_id(by_rel[kept_rel].instance)
+    assert result.failed == ()
+    assert result.skipped == (kept_id,)  # surface ids, never sentences
+    assert kept_id not in result.repaired
+    assert _surface_id(by_rel[".agents/skills/spec-kitty.tasks/SKILL.md"].instance) in result.repaired
+    assert edited.read_text(encoding="utf-8") == "my edits\n"
+    assert not (tmp_path / ".agents/skills/spec-kitty.tasks").exists()
+    assert {e.path for e in manifest_store.load(tmp_path).entries} == {f".agents/skills/spec-kitty-{c}/SKILL.md" for c in command_installer.CANONICAL_COMMANDS}
+
+    # A later --fix: the kept file is a present warning naming it, never "repaired" again.
+    later = _probe_all(provider, tmp_path)
+    [kept] = [s for s in later if s.instance.path == tmp_path / kept_rel]
+    assert kept.state == STATE_PRESENT
+    [finding] = kept.findings
+    assert kept_rel in finding.message and "no longer managed" in finding.message
+    again = provider.repair(tmp_path, later)
+    assert _surface_id(kept.instance) not in again.repaired
+
+
+def test_leftover_legacy_folder_probe_is_a_present_warning(tmp_path: Path) -> None:
+    _configured_project(tmp_path)
+    folder = tmp_path / ".agents/skills/spec-kitty.plan"
+    folder.mkdir(parents=True)
+    (folder / "notes.md").write_text("mine\n", encoding="utf-8")
+    provider = CommandSkillsProvider()
+
+    [status] = [s for s in _probe_all(provider, tmp_path) if s.instance.path == folder]
+
+    assert status.state == STATE_PRESENT
+    assert ".agents/skills/spec-kitty.plan/" in status.findings[0].message
+
+
+def test_warning_message_ignores_other_dispositions() -> None:
+    from specify_cli.tool_surface.operations import Disposition
+    from specify_cli.tool_surface.providers.command_skills import warning_message
+
+    assert warning_message(Disposition("command_skills", "project", "a/SKILL.md", "preserve", "r")) is None
+    assert warning_message(Disposition("command_skills", "project", None, "not_applicable", "r")) is None
+    assert "a/SKILL.md" in str(warning_message(Disposition("command_skills", "project", "a/SKILL.md", "collision", "r")))

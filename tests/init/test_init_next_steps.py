@@ -89,12 +89,14 @@ def test_init_next_steps_names_spec_kitty_next(
         f"Actual console output:\n{output}"
     )
 
-    assert "$spec-kitty.specify" in output, (
+    assert "$spec-kitty-specify" in output, (
         "Codex init next steps must use Codex skill invocation syntax.\n"
         f"Actual console output:\n{output}"
     )
-    assert "$spec-kitty.plan" in output
-    assert "$spec-kitty.tasks" in output
+    assert "$spec-kitty-plan" in output
+    assert "$spec-kitty-tasks" in output
+    # FR-006 (init half, #6475): one line names the rename for skill agents.
+    assert "Spec Kitty command skills are now named spec-kitty-<command>" in " ".join(output.split())
     assert "Required:" in output
     assert "git init" in output
     assert "4. Run the mission loop" in output
@@ -119,7 +121,7 @@ def test_init_next_steps_names_spec_kitty_next(
         f"Actual console output:\n{output}"
     )
 
-    assert "/spec-kitty.dashboard" not in output, (
+    assert "spec-kitty-dashboard" not in output, (
         "Codex init next steps must not list slash commands that are not installed as command skills.\n"
         f"Actual console output:\n{output}"
     )
@@ -148,8 +150,8 @@ def test_init_letta_next_steps_use_slash_skill_syntax(
     assert result.exit_code == 0, f"init failed (exit_code={result.exit_code})"
 
     output = buf.getvalue()
-    assert "/spec-kitty.specify" in output
-    assert "Use spec-kitty.specify" not in output
+    assert "/spec-kitty-specify" in output
+    assert "Use spec-kitty-specify" not in output
 
 
 def test_init_vibe_next_steps_list_only_installed_command_skills(
@@ -168,12 +170,12 @@ def test_init_vibe_next_steps_list_only_installed_command_skills(
 
     output = buf.getvalue()
     assert "Build with command skills" in output
-    assert "/spec-kitty.specify" in output
-    assert "/spec-kitty.plan" in output
-    assert "/spec-kitty.tasks" in output
-    assert "/spec-kitty.dashboard" not in output
-    assert "/spec-kitty.accept" not in output
-    assert "/spec-kitty.merge" not in output
+    assert "/spec-kitty-specify" in output
+    assert "/spec-kitty-plan" in output
+    assert "/spec-kitty-tasks" in output
+    assert "/spec-kitty-dashboard" not in output
+    assert "/spec-kitty-accept" not in output
+    assert "/spec-kitty-merge" not in output
 
 
 # ---------------------------------------------------------------------------

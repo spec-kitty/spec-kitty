@@ -499,7 +499,7 @@ def _drifted_shared_projection(tmp_path: Path) -> tuple[str, int]:
     _write_project(tmp_path, ["codex", "vibe"])
     command_installer.install(tmp_path, "codex")
     entries = manifest_store.load(tmp_path).entries
-    skill = tmp_path / ".agents" / "skills" / "spec-kitty.plan" / "SKILL.md"
+    skill = tmp_path / ".agents" / "skills" / "spec-kitty-plan" / "SKILL.md"
     skill.write_bytes(skill.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
     return skill.relative_to(tmp_path).as_posix(), len(entries)
 

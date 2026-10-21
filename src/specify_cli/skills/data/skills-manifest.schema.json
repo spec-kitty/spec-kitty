@@ -26,8 +26,11 @@
       "properties": {
         "path": {
           "type": "string",
-          "pattern": "^\\.agents/skills/spec-kitty\\.[a-z0-9][a-z0-9-]*/SKILL\\.md$",
-          "description": "Path relative to repo root, POSIX-style. Must live under .agents/skills/spec-kitty.<command>/SKILL.md."
+          "anyOf": [
+            { "pattern": "^\\.agents/skills/spec-kitty-[a-z0-9]+(-[a-z0-9]+)*/SKILL\\.md$" },
+            { "pattern": "^\\.agents/skills/spec-kitty\\.[a-z0-9][a-z0-9-]*/SKILL\\.md$" }
+          ],
+          "description": "Path relative to repo root, POSIX-style. New entries live under .agents/skills/spec-kitty-<command>/SKILL.md; the legacy dotted .agents/skills/spec-kitty.<command>/SKILL.md form (before #6475) is still accepted so an older manifest loads and its entries can be retired."
         },
         "content_hash": {
           "type": "string",

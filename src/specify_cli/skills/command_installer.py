@@ -16,7 +16,11 @@ NFR-002 (shared-root coexistence)
 Third-party directories and files under ``.agents/skills/`` are **never**
 touched.  The installer only creates or deletes paths that appear in the
 manifest, and the manifest only ever references files in
-``spec-kitty.<command>/SKILL.md`` subdirectories.
+``spec-kitty-<command>/SKILL.md`` subdirectories (names composed by
+:mod:`specify_cli.skills.command_skill_names`). A manifest written before #6475
+may still record the legacy dotted ``spec-kitty.<command>/SKILL.md`` form; every
+preparation retires such an entry with one rule (FR-020): an unmodified file is
+deleted, an edited one is kept and no longer managed.
 
 No call to :func:`shutil.rmtree` or any recursive deletion exists in this
 module.  The only directory removal is a targeted
@@ -29,6 +33,7 @@ import contextlib
 from collections.abc import Iterator
 from contextvars import ContextVar
 import os
+import re
 import stat
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -55,6 +60,16 @@ from specify_cli.skills.manifest_errors import ManifestError
 from specify_cli.skills import command_renderer
 from specify_cli.skills.paths import SkillPathObservation, observe_skill_path
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
+from specify_cli.skills.command_skill_names import (
+    COMMAND_SKILL_PREFIX,
+    command_skill_name,
+    command_skill_rel_path,
+    legacy_command_skill_name,
+    legacy_command_skill_names,
+    legacy_command_skill_rel_path,
+    parse_command_skill_rel_path,
+    parse_legacy_command_skill_rel_path,
+)
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
 from kernel.no_follow import chmod_fd
@@ -104,6 +119,16 @@ CLI_WRAPPER_COMMANDS: tuple[str, ...] = (
 CANONICAL_COMMANDS: tuple[str, ...] = tuple(sorted((*PROMPT_BACKED_COMMANDS, *CLI_WRAPPER_COMMANDS)))
 
 assert set(CANONICAL_COMMANDS) == set(CONSUMER_SKILLS), "Command-skill installer must cover every consumer command"
+
+#: The pre-#6475 dotted folder names of the canonical commands (read/retire only).
+LEGACY_COMMAND_SKILL_NAMES: frozenset[str] = legacy_command_skill_names(CANONICAL_COMMANDS)
+
+#: Disposition state of an edited legacy dotted skill kept on disk but no longer managed.
+LEGACY_KEPT = "legacy_kept"
+#: Disposition state of a canonical path occupied by content Spec Kitty does not own.
+COLLISION = "collision"
+#: Dispositions that skip one path with a warning instead of failing the batch (FR-019/FR-020).
+WARNING_DISPOSITIONS = frozenset({LEGACY_KEPT, COLLISION})
 
 _CLI_WRAPPER_DESCRIPTIONS: dict[str, str] = {
     "consolidate": "Consolidate an accepted mission",
@@ -206,6 +231,14 @@ class InstallReport:
         Human-readable error strings for non-fatal issues (empty unless a
         caller uses the error-collection path, which is reserved for future
         use).
+    collisions:
+        Canonical paths skipped because content Spec Kitty does not own
+        occupies them (FR-019); not counted as installed.
+    legacy_removed:
+        Unmodified legacy dotted command skills (pre-#6475) deleted, or whose
+        absent file's manifest entry was dropped.
+    legacy_kept:
+        Edited legacy dotted command skills kept on disk and no longer managed.
     """
 
     added: list[str] = field(default_factory=list)
@@ -213,6 +246,9 @@ class InstallReport:
     reused_shared: list[str] = field(default_factory=list)
     regenerated: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    collisions: list[str] = field(default_factory=list)
+    legacy_removed: list[str] = field(default_factory=list)
+    legacy_kept: list[str] = field(default_factory=list)
 
     @property
     def installed_count(self) -> int:
@@ -235,11 +271,16 @@ class RemoveReport:
     kept:
         Subset of ``deref`` whose ``agents`` list is still non-empty — the
         file remains on disk, owned by the remaining agents.
+    legacy_removed / legacy_kept:
+        Legacy dotted entries retired by the same pass (see :class:`InstallReport`);
+        never part of ``deref``.
     """
 
     deref: list[str] = field(default_factory=list)
     deleted: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
+    legacy_removed: list[str] = field(default_factory=list)
+    legacy_kept: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -251,15 +292,23 @@ class VerifyReport:
     drift:
         Paths whose on-disk SHA-256 no longer matches the stored hash.
     orphans:
-        Files under ``.agents/skills/spec-kitty.*/`` that are not in the
-        manifest.
+        Files under a canonical ``.agents/skills/spec-kitty-<command>/``
+        folder (explicit command set only, FR-004) that are not in the
+        manifest and are not a collision.
     gaps:
         Manifest entries whose files are missing from disk.
     stale:
-        Manifest entries for command skills that are no longer canonical.
+        Manifest entries for command skills that are no longer canonical
+        (legacy dotted entries excluded; see ``legacy``).
     unsafe:
         Manifest entries or orphan candidates that resolve outside
         ``repo_root`` through symlinks.
+    legacy:
+        Legacy dotted ``spec-kitty.<command>/SKILL.md`` paths: manifest
+        entries still recorded and folders still on disk (pre-#6475).
+    collisions:
+        Canonical ``SKILL.md`` paths occupied by content the manifest does not
+        own and that is not today's canonical rendering (FR-019).
     """
 
     drift: list[str] = field(default_factory=list)
@@ -267,11 +316,29 @@ class VerifyReport:
     gaps: list[str] = field(default_factory=list)
     stale: list[str] = field(default_factory=list)
     unsafe: list[str] = field(default_factory=list)
+    legacy: list[str] = field(default_factory=list)
+    collisions: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def collision_warning(path: str) -> str:
+    """The one wording for a canonical path skipped because the user's own content occupies it (FR-019)."""
+    return f"Your own folder blocks command skill {path} — rename or remove it, then run `spec-kitty doctor skills --fix`"
+
+
+def legacy_kept_warning(path: str) -> str:
+    """The one wording for an edited legacy dotted command skill that was kept (FR-020)."""
+    return f"Legacy dotted command skill {path} has your edits, so it was kept; it is no longer managed — remove it when you no longer need your edits"
+
+
+def install_warnings(report: InstallReport | RemoveReport) -> list[str]:
+    """Return the per-path warnings an install or remove report carries, collisions first."""
+    collisions = report.collisions if isinstance(report, InstallReport) else []
+    return [collision_warning(path) for path in collisions] + [legacy_kept_warning(path) for path in report.legacy_kept]
 
 
 def _resolve_template(repo_root: Path, command: str) -> Path:
@@ -303,7 +370,7 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
     description = _CLI_WRAPPER_DESCRIPTIONS[command]
     cli_command = _CLI_WRAPPER_COMMANDS[command]
     body = (
-        f"# /spec-kitty.{command} - {description}\n\n"
+        f"# /{command_skill_name(command)} - {description}\n\n"
         "## Purpose\n\n"
         "Run the canonical Spec Kitty CLI command for this workflow and treat "
         "its output as authoritative.\n\n"
@@ -324,8 +391,36 @@ def _render_command_skill(repo_root: Path, command: str, agent_key: str, version
         "prints.\n"
     )
     body = prepend_agent_upgrade_check(body)
-    skill_md = f"---\nname: spec-kitty.{command}\ndescription: {description}\nuser-invocable: true\n---\n{body if body.startswith(chr(10)) else chr(10) + body}"
+    frontmatter = f"---\nname: {command_skill_name(command)}\ndescription: {description}\nuser-invocable: true\n---\n"
+    skill_md = frontmatter + (body if body.startswith("\n") else "\n" + body)
     return skill_md.encode("utf-8")
+
+
+#: The User Input block's token example as WP02 rewrote it, and as releases before #6475 wrote it.
+_USER_INPUT_TOKENS = ("spec-kitty-<command>`", "spec-kitty.<command>`")
+
+
+def legacy_rendering(content: bytes, command: str) -> bytes:
+    """Reconstruct *content* (today's render of *command*) as a release before #6475 wrote it.
+
+    Before the rename the frontmatter ``name`` and every invocation token used the dotted
+    ``spec-kitty.<command>`` form (A-M1). Restoring the name, reversing the invocation rewrite
+    and the User Input block example yields the bytes that release would write from today's
+    templates, so an unedited legacy file whose recorded hash went stale is still proven ours.
+    """
+    text = content.decode("utf-8")
+    text = text.replace(f"name: {command_skill_name(command)}\n", f"name: {legacy_command_skill_name(command)}\n", 1)
+    text = _HYPHEN_TOKEN.sub(lambda m: f"{m['sigil']}{legacy_command_skill_name(m['name'].removeprefix(COMMAND_SKILL_PREFIX))}", text)
+    return text.replace(*_USER_INPUT_TOKENS).encode("utf-8")
+
+
+def _hyphen_token_pattern() -> re.Pattern[str]:
+    """Match ``/``, ``$`` or ``/skill:`` + a canonical skill name, on the rewrite's token boundary."""
+    names = "|".join(re.escape(command_skill_name(c)) for c in sorted(CANONICAL_COMMANDS, key=lambda c: (-len(c), c)))
+    return re.compile(rf"(?<![A-Za-z0-9_.:/$-])(?P<sigil>/skill:|/|\$)(?P<name>{names})(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
+
+
+_HYPHEN_TOKEN = _hyphen_token_pattern()
 
 
 def _atomic_write(path: Path, content: bytes, *, mode: int = 0o644) -> None:
@@ -372,17 +467,14 @@ def _ensure_project_confined(repo_root: Path, rel_path: str, abs_path: Path) -> 
         )
 
 
-def _command_from_rel_path(rel_path: str) -> str | None:
-    prefix = ".agents/skills/spec-kitty."
-    suffix = "/SKILL.md"
-    if not rel_path.startswith(prefix) or not rel_path.endswith(suffix):
-        return None
-    return rel_path[len(prefix) : -len(suffix)]
-
-
 def is_canonical_rel_path(rel_path: str) -> bool:
-    command = _command_from_rel_path(rel_path)
-    return command in CANONICAL_COMMANDS
+    """Whether *rel_path* is ``.agents/skills/spec-kitty-<command>/SKILL.md`` for a canonical command."""
+    return parse_command_skill_rel_path(rel_path, CANONICAL_COMMANDS) is not None
+
+
+def is_legacy_rel_path(rel_path: str) -> bool:
+    """Whether *rel_path* is the pre-#6475 dotted ``SKILL.md`` path of a canonical command."""
+    return parse_legacy_command_skill_rel_path(rel_path, CANONICAL_COMMANDS) is not None
 
 
 def _get_version() -> str:
@@ -400,7 +492,7 @@ def _shared_skills_projection_regenerable() -> bool:
 
     The single authority for this surface's class is the ``shared_skills_projection`` entry of
     ``specify_cli.state.contract.STATE_SURFACES``: the regenerate/prune of a drifted
-    manifest-owned ``.agents/skills/spec-kitty.<cmd>/SKILL.md`` is sound ONLY while that surface
+    manifest-owned ``.agents/skills/spec-kitty-<cmd>/SKILL.md`` is sound ONLY while that surface
     is DERIVED (never authoritative) and git-IGNORED (never a committed edit). Reading the
     contract here, rather than hard-coding the premise, makes the regenerate self-checking: if
     the surface were ever reclassified the installer stops clobbering and falls through to the
@@ -415,7 +507,10 @@ def _shared_skills_projection_regenerable() -> bool:
 # ---------------------------------------------------------------------------
 
 _OWNER = "command_skills"
+_LEGACY_REPORT_KINDS = frozenset({"legacy_removed", LEGACY_KEPT})
 _MANIFEST = ".kittify/command-skills-manifest.json"
+_COLLISION_REASON = "Content Spec Kitty does not own occupies this command skill path; skipped"
+_LEGACY_KEPT_REASON = "Edited legacy dotted command skill kept on disk; it is no longer managed"
 
 
 @dataclass(frozen=True)
@@ -707,7 +802,7 @@ class _CommandBatch:
         self.artifacts.append(CommandExecutionArtifact(temporary.parent.as_posix(), temporary.name))
 
     def install_command(self, command: str, content: bytes, *, adopt_only: bool = False) -> None:
-        rel = f".agents/skills/spec-kitty.{command}/SKILL.md"
+        rel = command_skill_rel_path(command)
         existing = self.manifest.find(rel)
         parent = Path(rel).parent.as_posix()
         try:
@@ -722,6 +817,8 @@ class _CommandBatch:
             self.disposition(rel, "preserve", "Unknown package link is not command ownership")
             return
         before = FileState("absent") if package_link else self.observe_destination(rel)
+        if existing is None and before.kind == "absent" and self.foreign_folder(parent, parent_state):
+            return
         digest = manifest_store.fingerprint(content)
         if self.preserve(rel, before, existing, digest, adopt_only=adopt_only):
             return
@@ -775,7 +872,7 @@ class _CommandBatch:
         if existing is not None and before.sha256 not in (existing.content_hash, digest):
             if not adopt_only and self._regenerate_derived:
                 # RUNTIME GATE (#6155, item 2). The shared command-skill projection
-                # (.agents/skills/spec-kitty.<cmd>/SKILL.md) is regenerated on drift ONLY while
+                # (.agents/skills/spec-kitty-<cmd>/SKILL.md) is regenerated on drift ONLY while
                 # `_regenerate_derived` holds -- i.e. while `shared_skills_projection`
                 # (state/contract.py) is read at runtime as DERIVED authority and git-IGNORED.
                 # On that surface a manifest-owned projection whose on-disk bytes match neither
@@ -797,9 +894,88 @@ class _CommandBatch:
             self.disposition(rel, "consent_required", "Managed command content has drifted")
             return True
         if existing is None and before.sha256 != digest:
-            self.disposition(rel, "preserve", "Unknown content does not equal canonical rendered bytes")
+            # FR-019 (operator ruling 2026-10-20): a file the manifest does not own and whose bytes are
+            # not the canonical rendering is the user's own; skip this one path with a warning and let
+            # the rest of the batch install.
+            self.disposition(rel, COLLISION, _COLLISION_REASON)
             return True
         return False
+
+    def foreign_folder(self, parent: str, parent_state: FileState) -> bool:
+        """Skip a canonical folder that holds someone else's files but no ``SKILL.md`` (FR-019)."""
+        if parent_state.kind != "directory":
+            return False
+        self.observe(self.root / parent, children=True)
+        if not self.observations[self.root / parent].children:
+            return False  # An empty leftover folder is safe to fill.
+        self.disposition(f"{parent}/SKILL.md", COLLISION, _COLLISION_REASON)
+        return True
+
+    def owned_legacy_bytes(self, entry: ManifestEntry, before: FileState) -> bool:
+        """Whether a legacy file holds the recorded bytes, or today's render under the legacy name (A-M1)."""
+        if before.sha256 == entry.content_hash:
+            return True
+        command = parse_legacy_command_skill_rel_path(entry.path, CANONICAL_COMMANDS)
+        agents = tuple(a for a in (self.agents or entry.agents) if a in SUPPORTED_AGENTS)
+        if command is None or not agents:
+            return False
+        if command in PROMPT_BACKED_COMMANDS:
+            template = _resolve_template(self.root, command)
+            self.observe(template)
+            self.observe(_resolve_observed_input(template))
+        try:
+            rendered = _render_command_skill(self.root, command, agents[0], self.version)
+        except (OSError, ValueError, InstallerError, command_renderer.SkillRenderError):
+            return False  # No proof of ownership: keep the file (the safe direction).
+        return bool(manifest_store.fingerprint(legacy_rendering(rendered, command)) == before.sha256)
+
+    def release_legacy_entry(self, entry: ManifestEntry, remove_agents: tuple[str, ...]) -> None:
+        """Release *remove_agents* from a legacy entry in a remove-only preparation (FR-020).
+
+        Nothing is installed in such a pass, so the remaining owners keep their dotted skill
+        (their next install or upgrade migrates it). Only when a removed agent was the last
+        owner does the legacy rule run: delete if unmodified, otherwise keep with a warning.
+        """
+        if not set(remove_agents) & set(entry.agents):
+            return
+        remaining = tuple(agent for agent in entry.agents if agent not in remove_agents)
+        if not remaining:
+            self.migrate_legacy_entry(entry)
+            return
+        updated = replace(entry, agents=remaining)
+        self.manifest.upsert(updated)
+        self.commands.append(PreparedCommand(entry.path, None, updated, "kept"))
+
+    def migrate_legacy_entry(self, entry: ManifestEntry) -> None:
+        """Retire one legacy dotted manifest entry with the single legacy rule (FR-020).
+
+        Owned and unmodified (on-disk hash equals the recorded hash, or today's rendering under
+        the legacy name, :func:`legacy_rendering`): delete the file, and the
+        folder only when it is then empty. Absent: drop the entry. Anything else (edited bytes,
+        a directory, a link, an unsafe parent): keep it on disk, drop the entry, and record a
+        ``legacy_kept`` disposition so callers warn that the path is no longer managed. Never the
+        DERIVED drift-delete branch of :meth:`remove_entry`.
+        """
+        try:
+            before = self.observe_destination(entry.path)
+        except InstallerError as exc:
+            if exc.code != "unsafe_path":
+                raise
+            before = None
+        self.manifest.remove_path(entry.path)
+        if before is not None and before.kind == "absent":
+            self.commands.append(PreparedCommand(entry.path, None, None, "legacy_removed"))
+            return
+        if before is None or before.kind != "file" or not self.owned_legacy_bytes(entry, before):
+            self.commands.append(PreparedCommand(entry.path, None, None, LEGACY_KEPT))
+            self.disposition(entry.path, LEGACY_KEPT, _LEGACY_KEPT_REASON)
+            return
+        proof = OwnershipProof("manifest", f"{_MANIFEST}#{entry.path}")
+        self.effect(entry.path, FileState("absent"), entry.agents, proof)
+        parent = (self.root / entry.path).parent
+        if self.observe(parent, children=True).kind == "directory" and self.observations[parent].children == ("SKILL.md",):
+            self.effect(parent.relative_to(self.root).as_posix(), FileState("absent"), entry.agents, proof)
+        self.commands.append(PreparedCommand(entry.path, None, None, "legacy_removed", proof))
 
     def remove_entry(self, entry: ManifestEntry, remaining: tuple[str, ...], *, retired: bool = False) -> None:
         before = self.observe_destination(entry.path)
@@ -964,7 +1140,8 @@ def canonical_digest(project_root: Path, command: str) -> str | None:
         return None
     if len(variants) != 1:
         return None
-    return manifest_store.fingerprint(next(iter(variants)))
+    digest: str = manifest_store.fingerprint(next(iter(variants)))
+    return digest
 
 
 def prepare_commands(
@@ -978,12 +1155,22 @@ def prepare_commands(
     """Prepare the complete selected command batch without writes or normalization.
 
     Exact canonical bytes alone permit unowned regular-file adoption. Unknown
-    bytes and links are preserved; existing manifest owners survive shared reuse.
+    bytes at a canonical path are skipped as a ``collision`` (FR-019); unknown
+    links and directories are preserved; existing manifest owners survive
+    shared reuse. Unless *adopt_only*, every legacy dotted manifest entry is
+    retired first by :meth:`_CommandBatch.migrate_legacy_entry` (FR-020), so
+    install, prune, remove and provider repair share one legacy rule.
     """
     try:
         if any(a not in SUPPORTED_AGENTS for a in agents + remove_agents):
             raise InstallerError("unsupported_agent", agents=agents + remove_agents)
         batch = _CommandBatch(inputs, agents)
+        legacy = tuple(entry for entry in batch.original_entries if is_legacy_rel_path(entry.path))
+        for entry in () if adopt_only else legacy:
+            if remove_agents and not agents:
+                batch.release_legacy_entry(entry, remove_agents)
+            else:
+                batch.migrate_legacy_entry(entry)
         for path in command_renderer.rendering_inputs(inputs.root.path):
             batch.observe(path)
             resolved = _resolve_observed_input(path)
@@ -1000,6 +1187,8 @@ def prepare_commands(
                 raise InstallerError("shared_content_conflict", command=command)
             batch.install_command(command, variants[0], adopt_only=adopt_only)
         for entry in batch.original_entries:
+            if entry in legacy:
+                continue  # Retired above by the legacy rule (FR-020), or left alone when adopting only.
             retired = bool(prune and not is_canonical_rel_path(entry.path))
             if remove_agents or retired:
                 selected = set(remove_agents or agents or entry.agents)
@@ -1178,6 +1367,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
     report = InstallReport()
     for command in payload.commands:
         getattr(report, command.report_kind).append(command.path)
+    report.collisions.extend(d.path for d in assessment.dispositions if d.state == COLLISION and d.path is not None)
     return report
 
 
@@ -1188,21 +1378,33 @@ def remove(repo_root: Path, agent_key: str) -> RemoveReport:
     assert isinstance(payload, PreparedCommands)
     report = RemoveReport()
     for command in payload.commands:
-        report.deref.append(command.path)
+        if command.report_kind not in _LEGACY_REPORT_KINDS:
+            report.deref.append(command.path)
         getattr(report, command.report_kind).append(command.path)
     return report
 
 
 def prune_stale(repo_root: Path) -> list[str]:
-    """Prune exact manifest-owned retired commands, preserving edited candidates."""
+    """Prune manifest entries of retired commands and legacy dotted entries; return deleted paths.
+
+    * A retired command's entry (a path not in :data:`CANONICAL_COMMANDS`, not legacy) is pruned
+      through :meth:`_CommandBatch.remove_entry`. While the projection surface is DERIVED and
+      git-IGNORED (#6155), that includes a *drifted* file: it is deleted, not preserved. A
+      directory at the path is refused (``file_mutation_detected``).
+    * A legacy dotted entry follows the legacy rule (FR-020): an unmodified file is deleted, an
+      edited one is kept on disk and only its entry is dropped (never deleted here).
+
+    Returns the deleted paths: retired ones, then legacy ones (an absent legacy file's dropped
+    entry included).
+    """
     assessment = _direct_assessment(repo_root, (), prune=True, remove_agents=())
     payload = assessment.prepared
     assert isinstance(payload, PreparedCommands)
-    return [command.path for command in payload.commands if command.report_kind == "deleted"]
+    return [command.path for command in payload.commands if command.report_kind in {"deleted", "legacy_removed"}]
 
 
 def verify(repo_root: Path) -> VerifyReport:
-    """Scan for drift, orphans, and gaps without mutating anything.
+    """Scan for drift, orphans, gaps, legacy leftovers and collisions without mutating anything.
 
     This function is read-only.  It never writes to the manifest or to the
     filesystem.
@@ -1215,11 +1417,14 @@ def verify(repo_root: Path) -> VerifyReport:
     Returns
     -------
     VerifyReport
-        * ``drift``: entries whose on-disk SHA-256 no longer matches the
-          stored hash.
-        * ``orphans``: files under ``.agents/skills/spec-kitty.*/`` that are
-          not recorded in the manifest.
-        * ``gaps``: manifest entries whose files are absent from disk.
+        * ``drift`` / ``gaps``: canonical or retired entries whose on-disk
+          SHA-256 no longer matches the stored hash / whose files are absent.
+        * ``legacy``: legacy dotted entries and on-disk dotted folders of the
+          canonical commands (reported, never repaired by name; R-m5).
+        * ``collisions`` / ``orphans``: content under a canonical
+          ``spec-kitty-<command>/`` folder that the manifest does not record.
+          Only the explicit command set is scanned (FR-004): a user's own
+          ``spec-kitty-mine/`` is never reported.
 
     Raises
     ------
@@ -1232,10 +1437,20 @@ def verify(repo_root: Path) -> VerifyReport:
         raise InstallerError("manifest_parse_failed", detail=str(exc)) from exc
 
     report = VerifyReport()
-    manifest_paths = {e.path for e in manifest.entries}
+    _verify_entries(repo_root, manifest, report)
+    _verify_legacy_folders(repo_root, report)
+    _verify_canonical_folders(repo_root, {e.path for e in manifest.entries}, report)
+    return report
 
-    # --- Drift and gaps -------------------------------------------------------
+
+def _verify_entries(repo_root: Path, manifest: manifest_store.SkillsManifest, report: VerifyReport) -> None:
+    """Classify each manifest entry as unsafe, legacy, stale, gap or drift."""
     for entry in manifest.entries:
+        if is_legacy_rel_path(entry.path):
+            # Retired by the legacy rule on the next preparation, which never follows a link
+            # out of the project; reported read-only here, never as drift/unsafe (R-m5).
+            report.legacy.append(entry.path)
+            continue
         abs_path = repo_root / entry.path
         try:
             _ensure_project_confined(repo_root, entry.path, abs_path)
@@ -1251,23 +1466,53 @@ def verify(repo_root: Path) -> VerifyReport:
         if on_disk != entry.content_hash:
             report.drift.append(entry.path)
 
-    # --- Orphan scan ----------------------------------------------------------
-    # Only examine spec-kitty.* subdirectories under .agents/skills/.
-    skills_root = repo_root / ".agents" / "skills"
-    if skills_root.exists():
-        for subdir in skills_root.iterdir():
-            if not subdir.is_dir() or not subdir.name.startswith("spec-kitty."):
-                continue
-            for file in subdir.rglob("*"):
-                if not file.is_file():
-                    continue
-                rel = to_posix(file.relative_to(repo_root))
-                try:
-                    _ensure_project_confined(repo_root, rel, file)
-                except InstallerError:
-                    report.unsafe.append(rel)
-                    continue
-                if rel not in manifest_paths:
-                    report.orphans.append(rel)
 
-    return report
+def _verify_legacy_folders(repo_root: Path, report: VerifyReport) -> None:
+    """Report on-disk legacy dotted leftovers of the canonical commands (explicit set only).
+
+    The ``SKILL.md`` path when it still exists; otherwise the folder itself
+    (``.agents/skills/spec-kitty.<command>/``) when only other files remain in it.
+    """
+    for command in CANONICAL_COMMANDS:
+        rel = legacy_command_skill_rel_path(command)
+        if rel in report.legacy:
+            continue
+        if os.path.lexists(repo_root / rel):
+            report.legacy.append(rel)
+        elif os.path.lexists((repo_root / rel).parent):
+            report.legacy.append(f"{Path(rel).parent.as_posix()}/")
+
+
+def _verify_canonical_folders(repo_root: Path, manifest_paths: set[str], report: VerifyReport) -> None:
+    """Report unowned content in canonical command folders as collisions or orphans."""
+    for command in CANONICAL_COMMANDS:
+        rel = command_skill_rel_path(command)
+        folder = (repo_root / rel).parent
+        if not folder.is_dir():
+            continue
+        if rel not in manifest_paths and _is_collision(repo_root, command, repo_root / rel, folder):
+            report.collisions.append(rel)
+            continue
+        for file in sorted(folder.rglob("*")):
+            if not file.is_file():
+                continue
+            file_rel = to_posix(file.relative_to(repo_root))
+            try:
+                _ensure_project_confined(repo_root, file_rel, file)
+            except InstallerError:
+                report.unsafe.append(file_rel)
+                continue
+            if file_rel not in manifest_paths:
+                report.orphans.append(file_rel)
+
+
+def _is_collision(repo_root: Path, command: str, skill_md: Path, folder: Path) -> bool:
+    """Mirror the installer's FR-019 skip: unowned non-canonical ``SKILL.md``, or a foreign folder."""
+    if folder.is_symlink():
+        return False  # A package link is the installer's ``preserve`` case, reported as before.
+    if not os.path.lexists(skill_md):
+        return any(folder.iterdir())
+    if skill_md.is_symlink() or not skill_md.is_file():
+        return False
+    on_disk: str = manifest_store.fingerprint_file(skill_md)
+    return on_disk != canonical_digest(repo_root, command)

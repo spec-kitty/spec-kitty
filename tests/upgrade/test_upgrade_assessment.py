@@ -36,7 +36,7 @@ def test_real_composer_retains_descriptor_and_applies_cold_owners(tmp_path: Path
     # The fresh init wrote the activation ledger (FR-019); drop it so the variant's config.yaml decides
     # the target: a missing key is a fresh project (the ledger), an explicit [] an unmigrated one (config.yaml).
     (project / ".kittify/charter/activation.yaml").unlink()
-    missing = project / ".agents/skills/spec-kitty.plan/SKILL.md"
+    missing = project / ".agents/skills/spec-kitty-plan/SKILL.md"
     expected_command = missing.read_bytes()
     missing.unlink()
     home = tmp_path / "cold-home"

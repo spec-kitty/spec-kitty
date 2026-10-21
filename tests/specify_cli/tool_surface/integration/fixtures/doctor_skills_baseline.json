@@ -1,11 +1,13 @@
 {
   "canonical_commands": "int",
+  "collisions": [],
   "configured_agents": [
     "str"
   ],
   "drift": [],
   "entries": "int",
   "gaps": [],
+  "legacy": [],
   "manifest_agents": [],
   "ok": "bool",
   "orphans": [],

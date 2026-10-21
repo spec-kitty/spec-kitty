@@ -409,7 +409,7 @@ def _assert_clean_first_init_skill_installation(result: subprocess.CompletedProc
     assert global_skill_docs, f"no global canonical skills under the fresh HOME: {home}"
     # Project command skills for the selected agent, with delivery complete
     # (no pending record left behind claiming otherwise).
-    project_skill_docs = sorted((repo / ".agents" / "skills").glob("spec-kitty.*/SKILL.md"))
+    project_skill_docs = sorted((repo / ".agents" / "skills").glob("spec-kitty-plan/SKILL.md"))
     assert project_skill_docs, f"no command skills installed into the project: {repo}"
     assert (repo / ".kittify" / "command-skills-manifest.json").is_file()
     assert not (repo / ".kittify" / "init-command-skills.pending.json").exists()

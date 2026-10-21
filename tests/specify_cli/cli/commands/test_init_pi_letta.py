@@ -48,8 +48,8 @@ def _fake_copy_package(project_path: Path) -> TemplateCopyResult:
 @pytest.mark.parametrize(
     ("agent_key", "agent_dir", "install_snippet", "usage_snippet"),
     [
-        ("pi", ".pi/", "https://pi.dev/install.sh", "/skill:spec-kitty.specify"),
-        ("letta", ".letta/", "@letta-ai/letta-code", "/spec-kitty.specify"),
+        ("pi", ".pi/", "https://pi.dev/install.sh", "/skill:spec-kitty-specify"),
+        ("letta", ".letta/", "@letta-ai/letta-code", "/spec-kitty-specify"),
     ],
 )
 def test_init_pi_letta_installs_command_skills_and_prints_next_steps(
@@ -73,7 +73,7 @@ def test_init_pi_letta_installs_command_skills_and_prints_next_steps(
 
     skills_root = project_path / ".agents" / "skills"
     for command in CANONICAL_COMMANDS:
-        assert (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file()
+        assert (skills_root / f"spec-kitty-{command}" / "SKILL.md").is_file()
 
     manifest = json.loads(
         (project_path / ".kittify" / "command-skills-manifest.json").read_text(

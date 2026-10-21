@@ -6,7 +6,7 @@ installer places under agent-specific roots like .claude/skills/).
 
 The new `SkillsManifest` writes to `.kittify/command-skills-manifest.json`
 (tracking the Spec Kitty command-skill packages that command_installer
-places under .agents/skills/spec-kitty.<command>/).
+places under .agents/skills/spec-kitty-<command>/).
 
 These two manifests previously collided because both used the same filename
 constant (`skills-manifest.json`). After renaming the new manifest, a
@@ -40,7 +40,7 @@ def _new_manifest_path(project: Path) -> Path:
 
 def _expected_command_skill_paths() -> set[str]:
     return {
-        f".agents/skills/spec-kitty.{command}/SKILL.md"
+        f".agents/skills/spec-kitty-{command}/SKILL.md"
         for command in command_installer.CANONICAL_COMMANDS
     }
 

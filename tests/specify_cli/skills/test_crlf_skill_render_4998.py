@@ -689,7 +689,7 @@ def test_doctrine_skill_repair_converges_via_install_all_skills(tmp_path: Path) 
 
 
 def _seed_self_consistent_command_skill_drift(tmp_path: Path) -> tuple[Path, Path, str]:
-    """Install a CRLF-corrupted ``spec-kitty.accept`` command skill whose
+    """Install a CRLF-corrupted ``spec-kitty-accept`` command skill whose
     manifest records the corrupted hash (a self-consistent drift).
 
     Returns ``(project, installed SKILL.md path, correct SKILL.md text)``.
@@ -702,7 +702,7 @@ def _seed_self_consistent_command_skill_drift(tmp_path: Path) -> tuple[Path, Pat
     corrupted = correct_skill_md.replace("\n", "\r\n").encode("utf-8")
     assert b"\r" in corrupted
 
-    installed_path = ".agents/skills/spec-kitty.accept/SKILL.md"
+    installed_path = ".agents/skills/spec-kitty-accept/SKILL.md"
     dest = project / installed_path
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(corrupted)

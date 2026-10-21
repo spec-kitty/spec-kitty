@@ -46,7 +46,7 @@ def test_skills_reports_missing_manifest_files(tmp_path: Path, monkeypatch: pyte
     _write_config(tmp_path, "codex")
     command_installer.install(tmp_path, "codex")
 
-    deleted = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    deleted = tmp_path / ".agents" / "skills" / "spec-kitty-tasks" / "SKILL.md"
     deleted.unlink()
 
     result = _invoke(tmp_path, monkeypatch, "--json")
@@ -54,7 +54,7 @@ def test_skills_reports_missing_manifest_files(tmp_path: Path, monkeypatch: pyte
     assert result.exit_code == 1
     data = _payload(result.output)
     assert data["ok"] is False
-    assert data["gaps"] == [".agents/skills/spec-kitty.tasks/SKILL.md"]
+    assert data["gaps"] == [".agents/skills/spec-kitty-tasks/SKILL.md"]
     assert data["uninstalled_agents"] == []
 
 
@@ -65,7 +65,7 @@ def test_skills_fix_repairs_partial_codex_install(tmp_path: Path, monkeypatch: p
     for command in command_installer.CANONICAL_COMMANDS:
         if command == "specify":
             continue
-        skill_md = tmp_path / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+        skill_md = tmp_path / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md"
         skill_md.unlink()
 
     result = _invoke(tmp_path, monkeypatch, "--fix", "--json")
@@ -78,7 +78,7 @@ def test_skills_fix_repairs_partial_codex_install(tmp_path: Path, monkeypatch: p
     manifest = manifest_store.load(tmp_path)
     assert len(manifest.entries) == len(command_installer.CANONICAL_COMMANDS)
     for command in command_installer.CANONICAL_COMMANDS:
-        assert (tmp_path / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md").is_file()
+        assert (tmp_path / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md").is_file()
 
 
 def test_skills_fix_installs_configured_command_agent_without_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,9 +97,10 @@ def test_skills_fix_installs_configured_command_agent_without_manifest(tmp_path:
     assert data["entries"] == len(command_installer.CANONICAL_COMMANDS)
 
 
-def test_skills_fix_refuses_unmanaged_canonical_orphan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_skills_fix_skips_a_canonical_collision_and_installs_the_rest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-019 (#6475): the user's own file at a canonical path is reported and skipped, not a refusal."""
     _write_config(tmp_path, "codex")
-    custom = tmp_path / ".agents" / "skills" / "spec-kitty.specify" / "SKILL.md"
+    custom = tmp_path / ".agents" / "skills" / "spec-kitty-specify" / "SKILL.md"
     custom.parent.mkdir(parents=True, exist_ok=True)
     custom.write_text("CUSTOM LOCAL SKILL\n", encoding="utf-8")
 
@@ -108,28 +109,81 @@ def test_skills_fix_refuses_unmanaged_canonical_orphan(tmp_path: Path, monkeypat
     assert result.exit_code == 1
     data = _payload(result.output)
     assert data["ok"] is False
-    assert ".agents/skills/spec-kitty.specify/SKILL.md" in data["orphans"]
-    assert data["repair_errors"] == ["Refusing --fix while unmanaged spec-kitty skill files exist."]
+    assert data["collisions"] == [".agents/skills/spec-kitty-specify/SKILL.md"]
+    assert data["orphans"] == []
+    assert data["repair_errors"] == []
+    assert data["repaired_agents"] == ["codex"]
     assert custom.read_text(encoding="utf-8") == "CUSTOM LOCAL SKILL\n"
+    assert (tmp_path / ".agents" / "skills" / "spec-kitty-plan" / "SKILL.md").is_file()
+
+
+def test_skills_human_output_names_collision_and_legacy_remedies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_config(tmp_path, "codex")
+    command_installer.install(tmp_path, "codex")
+    custom = tmp_path / ".agents" / "skills" / "spec-kitty-plan" / "SKILL.md"
+    custom.write_text("mine\n", encoding="utf-8")
+    manifest = manifest_store.load(tmp_path)
+    manifest.remove_path(".agents/skills/spec-kitty-plan/SKILL.md")
+    manifest_store.save(tmp_path, manifest)
+    leftover = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    leftover.parent.mkdir(parents=True)
+    leftover.write_text("my edited dotted skill\n", encoding="utf-8")
+
+    result = _invoke(tmp_path, monkeypatch)
+
+    assert result.exit_code == 1
+    text = " ".join(result.output.split())
+    assert "Legacy dotted command skills (no longer managed): .agents/skills/spec-kitty.tasks/SKILL.md" in text
+    assert "Your own folder blocks command skill .agents/skills/spec-kitty-plan/SKILL.md" in text
+
+
+def test_skills_fix_retires_owned_legacy_skills_and_keeps_edited_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-020: ``doctor skills --fix`` applies the installer's legacy rule before ``upgrade`` runs."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _write_config(tmp_path, "codex")
+    entries = []
+    for command in command_installer.CANONICAL_COMMANDS:
+        rel = legacy_command_skill_rel_path(command)
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"old {command}\n", encoding="utf-8")
+        entries.append(manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), ("codex",), "2026-01-01T00:00:00+00:00", "3.2.0"))
+    manifest_store.save(tmp_path, manifest_store.SkillsManifest(entries=entries))
+    edited = tmp_path / legacy_command_skill_rel_path("plan")
+    edited.write_text("my edits\n", encoding="utf-8")
+
+    result = _invoke(tmp_path, monkeypatch, "--fix", "--json")
+
+    data = _payload(result.output)
+    assert data["repair_errors"] == []
+    assert data["repaired_agents"] == ["codex"]
+    assert data["legacy"] == [legacy_command_skill_rel_path("plan")]  # the kept one, read-only
+    # A kept edited legacy skill is the user's choice: a warning, not a failure.
+    assert data["ok"] is True
+    assert result.exit_code == 0
+    assert edited.read_text(encoding="utf-8") == "my edits\n"
+    assert not (tmp_path / legacy_command_skill_rel_path("tasks")).exists()
+    assert all(not command_installer.is_legacy_rel_path(e.path) for e in manifest_store.load(tmp_path).entries)
 
 
 def test_skills_fix_refuses_when_managed_file_drifted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_config(tmp_path, "codex")
     command_installer.install(tmp_path, "codex")
-    drifted = tmp_path / ".agents" / "skills" / "spec-kitty.specify" / "SKILL.md"
+    drifted = tmp_path / ".agents" / "skills" / "spec-kitty-specify" / "SKILL.md"
     drifted.write_text(
         drifted.read_text(encoding="utf-8") + "\n# local edit\n",
         encoding="utf-8",
     )
-    missing = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    missing = tmp_path / ".agents" / "skills" / "spec-kitty-tasks" / "SKILL.md"
     missing.unlink()
 
     result = _invoke(tmp_path, monkeypatch, "--fix", "--json")
 
     assert result.exit_code == 1
     data = _payload(result.output)
-    assert data["gaps"] == [".agents/skills/spec-kitty.tasks/SKILL.md"]
-    assert data["drift"] == [".agents/skills/spec-kitty.specify/SKILL.md"]
+    assert data["gaps"] == [".agents/skills/spec-kitty-tasks/SKILL.md"]
+    assert data["drift"] == [".agents/skills/spec-kitty-specify/SKILL.md"]
     assert data["repaired_agents"] == []
     assert data["repair_errors"] == ["Refusing --fix while managed skill files have edited-file drift."]
     assert not missing.exists()
@@ -139,7 +193,7 @@ def test_skills_fix_repairs_stale_twelve_skill_manifest(tmp_path: Path, monkeypa
     _write_config(tmp_path, "codex")
     command_installer.install(tmp_path, "codex")
     for command in command_installer.CANONICAL_COMMANDS:
-        (tmp_path / ".agents" / "skills" / f"spec-kitty.{command}" / "SKILL.md").unlink()
+        (tmp_path / ".agents" / "skills" / f"spec-kitty-{command}" / "SKILL.md").unlink()
 
     stale_package = "spec-kitty.legacy-opener"
     stale = tmp_path / ".agents" / "skills" / stale_package / "SKILL.md"
@@ -242,14 +296,14 @@ def test_skills_fix_refuses_symlinked_skill_path(tmp_path: Path, monkeypatch: py
     protected.write_text("DO_NOT_OVERWRITE\n", encoding="utf-8")
     skills_root = tmp_path / ".agents" / "skills"
     skills_root.mkdir(parents=True)
-    (skills_root / "spec-kitty.analyze").symlink_to(outside, target_is_directory=True)
+    (skills_root / "spec-kitty-analyze").symlink_to(outside, target_is_directory=True)
 
     result = _invoke(tmp_path, monkeypatch, "--fix", "--json")
 
     assert result.exit_code == 1
     data = _payload(result.output)
     assert data["repair_errors"]
-    assert data["unsafe"] == [".agents/skills/spec-kitty.analyze/SKILL.md"]
+    assert data["unsafe"] == [".agents/skills/spec-kitty-analyze/SKILL.md"]
     assert protected.read_text(encoding="utf-8") == "DO_NOT_OVERWRITE\n"
 
 
@@ -301,6 +355,9 @@ def test_doctor_skills_json_error_schema_stable(tmp_path: Path, monkeypatch: pyt
         "orphans": [],
         "stale": [],
         "unsafe": [],
+        # Additive (#6475): legacy dotted leftovers and canonical-path collisions.
+        "legacy": [],
+        "collisions": [],
         "uninstalled_agents": [],
         "vibe_config_missing": False,
         "repaired_agents": [],
@@ -478,3 +535,36 @@ def test_repair_pack_skills_skips_projection_without_missing_findings(monkeypatc
     errors: list[str] = []
     assert doctor_surface._repair_pack_skills(tmp_path, findings, repaired, errors) == findings
     assert repaired == [] and errors == []
+
+
+def test_skills_kept_legacy_skill_is_a_warning_with_exit_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Orchestrator decision (review cycle 1): an unmanaged legacy leftover warns, exit 0."""
+    _write_config(tmp_path, "codex")
+    command_installer.install(tmp_path, "codex")
+    leftover = tmp_path / ".agents" / "skills" / "spec-kitty.tasks" / "SKILL.md"
+    leftover.parent.mkdir(parents=True)
+    leftover.write_text("my edited dotted skill\n", encoding="utf-8")
+
+    result = _invoke(tmp_path, monkeypatch)
+
+    assert result.exit_code == 0, result.output
+    text = " ".join(result.output.split())
+    assert "Legacy dotted command skills (no longer managed): .agents/skills/spec-kitty.tasks/SKILL.md" in text
+
+
+def test_skills_still_managed_legacy_entries_need_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A manifest that still records dotted entries is not migrated yet: exit 1 until --fix."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _write_config(tmp_path, "codex")
+    rel = legacy_command_skill_rel_path("plan")
+    path = tmp_path / rel
+    path.parent.mkdir(parents=True)
+    path.write_text("old plan\n", encoding="utf-8")
+    entry = manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), ("codex",), "2026-01-01T00:00:00+00:00", "3.2.0")
+    manifest_store.save(tmp_path, manifest_store.SkillsManifest(entries=[entry]))
+
+    result = _invoke(tmp_path, monkeypatch, "--json")
+
+    assert result.exit_code == 1
+    assert _payload(result.output)["legacy"] == [rel]

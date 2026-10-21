@@ -53,6 +53,8 @@ from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
 from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as _SKILL_AGENT_ROSTER
+from specify_cli.skills.command_skill_names import command_skill_rel_path, skill_invocation_token
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -95,7 +97,11 @@ _REVIEW_CYCLE_GITATTRIBUTES_ENTRY = "kitty-specs/**/tasks/*/review-cycle-*.md me
 # get no driver: they are ULID-named, one file per decision, so they cannot
 # collide.
 _DECISION_INDEX_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions/index.json merge=spec-kitty-decision-index"
-_COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
+#: Command-skill agents, derived from the one roster (``skills._agent_roster``) so a newly
+#: added skill agent flows into init without a second list.
+_COMMAND_SKILL_AGENTS = frozenset(_SKILL_AGENT_ROSTER)
+#: FR-006 (init half): the one line naming the #6475 rename.
+_COMMAND_SKILL_RENAME_NOTICE = "Spec Kitty command skills are now named spec-kitty-<command> (for example spec-kitty-specify)."
 _PENDING_COMMAND_SKILLS = ".kittify/init-command-skills.pending.json"
 
 
@@ -160,6 +166,9 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
             # #6155: name each drifted DERIVED command-skill projection regenerated here.
             for line in render_regenerated_surface_lines(report.regenerated):
                 _console.print(line, style="dim", markup=False, highlight=False)
+            # FR-019 / FR-020: a skipped path or a kept legacy skill is a warning, never a failure.
+            for warning in command_installer.install_warnings(report):
+                _console.print(f"Warning: {warning}", style="yellow", markup=False, highlight=False)
         except Exception as exc:
             complete = False
             _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")
@@ -179,8 +188,7 @@ def _repair_requested_command_skills(project: Path, agents: list[str]) -> bool:
     from specify_cli.skills.command_installer import CANONICAL_COMMANDS
     from specify_cli.skills.vibe_config import ensure_project_skill_path, skill_path_configured
 
-    skills_root = project / ".agents" / "skills"
-    missing_skills = any(not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file() for command in CANONICAL_COMMANDS)
+    missing_skills = any(not (project / command_skill_rel_path(command)).is_file() for command in CANONICAL_COMMANDS)
     # #4433: the vibe pointer is part of vibe's command surface, so an
     # explicitly requested vibe gets it restored too — surgically, without
     # re-running the installer over present (possibly user-edited) skills.
@@ -247,7 +255,7 @@ def _check_initialized_command_skills(project: Path, requested: str | None) -> l
         return selected
     missing = []
     for command in CANONICAL_COMMANDS:
-        path = project / f".agents/skills/spec-kitty.{command}/SKILL.md"
+        path = project / command_skill_rel_path(command)
         observations = skill_path_observations(project, path)
         if observations[-1].state.kind != "file" or path.stat().st_size == 0:
             missing.append(command)
@@ -727,14 +735,26 @@ def _primary_next_step_agent(selected_agents: list[str]) -> str:
 
 
 def _agent_command_token(agent_key: str, command: str) -> str:
-    """Render the command token visible inside the selected harness."""
-    if agent_key == "codex":
-        return f"$spec-kitty.{command}"
-    if agent_key == "pi":
-        return f"/skill:spec-kitty.{command}"
-    if agent_key == "letta":
-        return f"/spec-kitty.{command}"
-    return f"/spec-kitty.{command}"
+    """Render the command token visible inside the selected harness (naming authority, #6475)."""
+    token: str = skill_invocation_token(agent_key, command, is_skill_agent=agent_key in _COMMAND_SKILL_AGENTS)
+    return token
+
+
+def _print_skill_agent_panel(title: str, setup_lines: list[str], launch: tuple[str, str], invoke_hint: str, agent_key: str) -> None:
+    """Print one skill agent's "Next Steps" panel: install (step 1), launch, first workflow.
+
+    The first-workflow token comes from the naming authority (#6475).
+    """
+    assert _console is not None
+    lines = [
+        *setup_lines,
+        f"2. Launch {launch[0]} in this project:",
+        f"     [cyan]{launch[1]}[/cyan]",
+        f"3. {invoke_hint}:",
+        f"     [cyan]{_agent_command_token(agent_key, 'specify')} <describe what you want to build>[/cyan]",
+    ]
+    _console.print()
+    _console.print(Panel("\n".join(lines), title=title, border_style="cyan", padding=(1, 2)))
 
 
 def _workflow_lines_for_agent(agent_key: str) -> tuple[str, list[str]]:
@@ -1371,62 +1391,39 @@ def init(  # noqa: C901
     _console.print()
     _console.print(steps_panel)
 
-    # Vibe-specific next steps (shown when vibe is among selected agents)
+    # Skill-agent next steps (shown per selected skill agent).
     if "vibe" in selected_agents:
-        vibe_steps_lines = [
-            "1. Install Vibe if you haven't already:",
-            "     [cyan]curl -LsSf https://mistral.ai/vibe/install.sh | bash[/cyan]",
-            "   or",
-            "     [cyan]uv tool install mistral-vibe[/cyan]",
-            "2. Launch Vibe in this project:",
-            "     [cyan]vibe[/cyan]",
-            "3. Inside Vibe, invoke your first workflow:",
-            "     [cyan]/spec-kitty.specify <describe what you want to build>[/cyan]",
-        ]
-        vibe_panel = Panel(
-            "\n".join(vibe_steps_lines),
-            title="Next Steps for Mistral Vibe",
-            border_style="cyan",
-            padding=(1, 2),
+        _print_skill_agent_panel(
+            "Next Steps for Mistral Vibe",
+            [
+                "1. Install Vibe if you haven't already:",
+                "     [cyan]curl -LsSf https://mistral.ai/vibe/install.sh | bash[/cyan]",
+                "   or",
+                "     [cyan]uv tool install mistral-vibe[/cyan]",
+            ],
+            ("Vibe", "vibe"),
+            "Inside Vibe, invoke your first workflow",
+            "vibe",
         )
-        _console.print()
-        _console.print(vibe_panel)
-
     if "pi" in selected_agents:
-        pi_steps_lines = [
-            "1. Install Pi if you haven't already:",
-            "     [cyan]curl -fsSL https://pi.dev/install.sh | sh[/cyan]",
-            "2. Launch Pi in this project:",
-            "     [cyan]pi[/cyan]",
-            "3. Invoke your first Spec Kitty command skill:",
-            "     [cyan]/skill:spec-kitty.specify <describe what you want to build>[/cyan]",
-        ]
-        pi_panel = Panel(
-            "\n".join(pi_steps_lines),
-            title="Next Steps for Pi",
-            border_style="cyan",
-            padding=(1, 2),
+        _print_skill_agent_panel(
+            "Next Steps for Pi",
+            ["1. Install Pi if you haven't already:", "     [cyan]curl -fsSL https://pi.dev/install.sh | sh[/cyan]"],
+            ("Pi", "pi"),
+            "Invoke your first Spec Kitty command skill",
+            "pi",
         )
-        _console.print()
-        _console.print(pi_panel)
-
     if "letta" in selected_agents:
-        letta_steps_lines = [
-            "1. Install Letta Code if you haven't already:",
-            "     [cyan]npm install -g @letta-ai/letta-code[/cyan]",
-            "2. Launch Letta Code in this project:",
-            "     [cyan]letta[/cyan]",
-            "3. Ask Letta Code to use the Spec Kitty specify skill:",
-            "     [cyan]/spec-kitty.specify <describe what you want to build>[/cyan]",
-        ]
-        letta_panel = Panel(
-            "\n".join(letta_steps_lines),
-            title="Next Steps for Letta Code",
-            border_style="cyan",
-            padding=(1, 2),
+        _print_skill_agent_panel(
+            "Next Steps for Letta Code",
+            ["1. Install Letta Code if you haven't already:", "     [cyan]npm install -g @letta-ai/letta-code[/cyan]"],
+            ("Letta Code", "letta"),
+            "Ask Letta Code to use the Spec Kitty specify skill",
+            "letta",
         )
+    if _COMMAND_SKILL_AGENTS.intersection(selected_agents):
         _console.print()
-        _console.print(letta_panel)
+        _console.print(_COMMAND_SKILL_RENAME_NOTICE, markup=False, highlight=False)
 
     enhancement_lines = [
         "Optional quality checks.",

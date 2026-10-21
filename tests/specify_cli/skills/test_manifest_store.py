@@ -39,9 +39,9 @@ from specify_cli.skills.manifest_store import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-_VALID_PATH_1 = ".agents/skills/spec-kitty.specify/SKILL.md"
-_VALID_PATH_2 = ".agents/skills/spec-kitty.plan/SKILL.md"
-_VALID_PATH_3 = ".agents/skills/spec-kitty.tasks/SKILL.md"
+_VALID_PATH_1 = ".agents/skills/spec-kitty-specify/SKILL.md"
+_VALID_PATH_2 = ".agents/skills/spec-kitty-plan/SKILL.md"
+_VALID_PATH_3 = ".agents/skills/spec-kitty-tasks/SKILL.md"
 _VALID_HASH = "a" * 64  # 64 lowercase hex chars
 _VALID_TS = "2026-01-01T00:00:00+00:00"
 _VALID_VERSION = "3.2.0"

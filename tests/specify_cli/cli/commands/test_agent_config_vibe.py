@@ -31,7 +31,7 @@ def _write_config(tmp_path: Path, agents: list[str]) -> None:
 
 def _expected_command_skill_paths() -> set[str]:
     return {
-        f".agents/skills/spec-kitty.{command}/SKILL.md"
+        f".agents/skills/spec-kitty-{command}/SKILL.md"
         for command in command_installer.CANONICAL_COMMANDS
     }
 
@@ -121,7 +121,7 @@ def test_remove_vibe_only(tmp_path: Path) -> None:
     # Skill dirs must be gone
     skills_root = tmp_path / ".agents" / "skills"
     if skills_root.exists():
-        remaining = list(skills_root.glob("spec-kitty.*/SKILL.md"))
+        remaining = [p for p in skills_root.glob("spec-kitty-*/SKILL.md") if p.parent.name.removeprefix("spec-kitty-") in command_installer.CANONICAL_COMMANDS]
         assert len(remaining) == 0, f"Unexpected SKILL.md files remain: {remaining}"
 
     # Config must not contain vibe
@@ -186,3 +186,39 @@ def test_remove_vibe_leaves_codex_entries(tmp_path: Path) -> None:
     config = load_agent_config(tmp_path)
     assert "vibe" not in config.available
     assert "codex" in config.available
+
+
+# ---------------------------------------------------------------------------
+# #6475 review: removing one agent from a legacy (dotted) layout
+# ---------------------------------------------------------------------------
+
+
+def test_remove_vibe_from_legacy_layout_keeps_codex_skills_and_warns(tmp_path: Path) -> None:
+    """FR-020: ``agent config remove vibe`` never strips codex's dotted skills; an edited
+    skill whose last owner was vibe is kept with the "no longer managed" warning."""
+    from specify_cli.skills.command_skill_names import legacy_command_skill_rel_path
+
+    _write_config(tmp_path, ["codex", "vibe"])
+    entries = []
+    for command in command_installer.CANONICAL_COMMANDS:
+        rel = legacy_command_skill_rel_path(command)
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"old {command}\n", encoding="utf-8")
+        agents = ("vibe",) if command == "plan" else ("codex", "vibe")
+        entries.append(manifest_store.ManifestEntry(rel, manifest_store.fingerprint_file(path), agents, "2026-01-01T00:00:00+00:00", "3.2.0"))
+    manifest_store.save(tmp_path, manifest_store.SkillsManifest(entries=entries))
+    edited = tmp_path / legacy_command_skill_rel_path("plan")
+    edited.write_text("my edits\n", encoding="utf-8")
+
+    with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+        result = runner.invoke(app, ["remove", "vibe"])
+
+    assert result.exit_code == 0, result.output
+    after = {entry.path: entry.agents for entry in manifest_store.load(tmp_path).entries}
+    codex_paths = {legacy_command_skill_rel_path(c) for c in command_installer.CANONICAL_COMMANDS if c != "plan"}
+    assert after == dict.fromkeys(codex_paths, ("codex",))
+    assert all((tmp_path / path).is_file() for path in codex_paths)
+    assert edited.read_text(encoding="utf-8") == "my edits\n"
+    text = " ".join(result.output.split())
+    assert "no longer managed" in text and legacy_command_skill_rel_path("plan") in text

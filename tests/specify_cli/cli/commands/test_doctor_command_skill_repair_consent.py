@@ -1,7 +1,7 @@
 """Entry-point tests for #5575: the explicit repair replaces a real command-skill edit.
 
 Drives the real ``spec-kitty doctor tool-surfaces`` CLI (through ``CliRunner``)
-against a project whose ``.agents/skills/spec-kitty.<command>/SKILL.md`` was
+against a project whose ``.agents/skills/spec-kitty-<command>/SKILL.md`` was
 installed by the real command installer and then edited by the operator.
 
 Contract: ``kitty-specs/upgrade-windows-drift-01M40959/contracts/command-skill-drift.md``.
@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _runner = CliRunner()
 _COMMAND = "accept"
-_SKILL_REL = f".agents/skills/spec-kitty.{_COMMAND}/SKILL.md"
+_SKILL_REL = f".agents/skills/spec-kitty-{_COMMAND}/SKILL.md"
 _REPAIR_COMMAND = "spec-kitty doctor tool-surfaces --fix"
 _AUDIT_ARGS = ["tool-surfaces", "--kind", "command-skill", "--json"]
 _FIX_ARGS = ["tool-surfaces", "--kind", "command-skill", "--fix", "--json"]

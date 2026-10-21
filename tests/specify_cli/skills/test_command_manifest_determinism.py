@@ -25,7 +25,7 @@ from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-_PATH = ".agents/skills/spec-kitty.plan/SKILL.md"
+_PATH = ".agents/skills/spec-kitty-plan/SKILL.md"
 _HASH = "a" * 64
 
 

@@ -179,7 +179,7 @@ def test_build_docs_linter_indexes_builtin_patterns(tmp_path: Path) -> None:
     linter = build_docs_linter()
     # A concrete command-skill path with a valid {command} segment is registered.
     ok = tmp_path / "ok.md"
-    ok.write_text("`.agents/skills/spec-kitty.plan/SKILL.md`\n", encoding="utf-8")
+    ok.write_text("`.agents/skills/spec-kitty-plan/SKILL.md`\n", encoding="utf-8")
     assert linter.lint_file(ok) == []
     # An unregistered shape is flagged.
     bad = tmp_path / "bad.md"
@@ -225,7 +225,7 @@ def test_docs_contract_lint_discriminates_drift_from_noise(tmp_path: Path) -> No
     """
     registered = tmp_path / "registered.md"
     registered.write_text(
-        "Existing surface at `.agents/skills/spec-kitty.plan/SKILL.md`.\n",
+        "Existing surface at `.agents/skills/spec-kitty-plan/SKILL.md`.\n",
         encoding="utf-8",
     )
     assert lint_docs_directory(tmp_path) == []

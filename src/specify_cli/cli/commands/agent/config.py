@@ -206,6 +206,10 @@ def _register_skill_agent(
         else:
             for line in render_regenerated_surface_lines(report.regenerated):
                 console.print(line, style="dim", markup=False, highlight=False)
+            # FR-019 / FR-020: a skipped collision or a kept legacy skill is a warning, never a
+            # failure (human output only; ``sync --json`` keeps stdout to the JSON payload).
+            for warning in command_installer.install_warnings(report):
+                console.print(f"Warning: {warning}", style="yellow", markup=False, highlight=False)
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"
@@ -570,7 +574,10 @@ def remove_agents(
             try:
                 report = command_installer.remove(repo_root, agent_key)
                 removed.append(agent_key)
-                console.print(f"[green]✓[/green] Removed skills for {agent_key} ({len(report.deleted)} files deleted)")
+                deleted = len(report.deleted) + len(report.legacy_removed)
+                console.print(f"[green]✓[/green] Removed skills for {agent_key} ({deleted} files deleted)")
+                for warning in command_installer.install_warnings(report):
+                    console.print(f"Warning: {warning}", style="yellow", markup=False, highlight=False)
             except Exception as e:
                 errors.append(f"Failed to remove skills for {agent_key}: {e}")
             # Update config (unless --keep-config)

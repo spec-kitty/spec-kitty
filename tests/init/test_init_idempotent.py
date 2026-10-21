@@ -48,7 +48,7 @@ def test_initialized_clone_diagnoses_missing_codex_skills(monkeypatch, tmp_path)
     result = _run(app, ["init", "--non-interactive"])
     assert result.exit_code == 1
     assert "spec-kitty agent config sync --create-missing --keep-orphaned" in " ".join(buf.getvalue().split())
-    assert not (tmp_path / ".agents/skills/spec-kitty.specify").exists()
+    assert not (tmp_path / ".agents/skills/spec-kitty-specify").exists()
     assert config.read_text() == "agents:\n  available: [codex]\n"
     assert mission.read_text() == "Keep existing mission"
     assert third_party.read_text() == "Keep custom skill"
@@ -97,7 +97,7 @@ def test_initialized_clone_manual_recovery_and_repeat(monkeypatch, tmp_path):
     recovered = CliRunner().invoke(config_app, ["sync", "--create-missing", "--keep-orphaned"])
     assert recovered.exit_code == 0, recovered.output
     for command in ("specify", "plan", "tasks"):
-        assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
+        assert (tmp_path / f".agents/skills/spec-kitty-{command}/SKILL.md").stat().st_size > 0
     before = _tree(tmp_path)
     for _ in range(2):
         assert _run(app, ["init", "--non-interactive"]).exit_code == 0
@@ -117,7 +117,7 @@ def test_initialized_clone_explicit_selection_repairs_and_repeats(monkeypatch, t
     app, _ = _make_app_with_buf()
     assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 0
     for command in ("specify", "plan", "tasks"):
-        assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
+        assert (tmp_path / f".agents/skills/spec-kitty-{command}/SKILL.md").stat().st_size > 0
     before = _tree(tmp_path)
     for _ in range(2):
         assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 0
@@ -155,10 +155,10 @@ def test_initialized_clone_rejects_unusable_skills(monkeypatch, tmp_path, agent,
     config.parent.mkdir()
     config.write_text(f"agents:\n  available: [{agent}]\n")
     for command in CANONICAL_COMMANDS:
-        path = tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md"
+        path = tmp_path / f".agents/skills/spec-kitty-{command}/SKILL.md"
         path.parent.mkdir(parents=True)
         path.write_text("Preserve user-edited skill")
-    target = tmp_path / ".agents/skills/spec-kitty.specify/SKILL.md"
+    target = tmp_path / ".agents/skills/spec-kitty-specify/SKILL.md"
     target.unlink()
     if broken == "empty":
         target.touch()
@@ -170,7 +170,7 @@ def test_initialized_clone_rejects_unusable_skills(monkeypatch, tmp_path, agent,
     app, buf = _make_app_with_buf()
     assert _run(app, ["init", "--non-interactive"]).exit_code == 1
     assert "config sync" in " ".join(buf.getvalue().split())
-    assert (tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md").read_text() == "Preserve user-edited skill"
+    assert (tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md").read_text() == "Preserve user-edited skill"
     assert config.read_text() == f"agents:\n  available: [{agent}]\n"
 
 
@@ -212,7 +212,7 @@ def test_initialized_clone_diagnoses_missing_vibe_skill_path_pointer(monkeypatch
     assert "spec-kitty agent config sync --create-missing --keep-orphaned" in flattened
     # Diagnosis only — the missing pointer and project state are untouched.
     assert not (tmp_path / ".vibe/config.toml").exists()
-    assert (tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md").is_file()
+    assert (tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md").is_file()
     assert (tmp_path / ".kittify/config.yaml").read_text() == "agents:\n  available: [vibe]\n"
 
 
@@ -551,7 +551,7 @@ def test_init_repairs_requested_command_skills_in_initialized_clone(
     result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])
 
     assert result2.exit_code == 0, result2.output
-    assert (skills_root / "spec-kitty.plan" / "SKILL.md").is_file()
+    assert (skills_root / "spec-kitty-plan" / "SKILL.md").is_file()
     assert "command skills installed" in buf2.getvalue().lower()
     assert config_path.read_text(encoding="utf-8") == config_before
 
@@ -571,9 +571,9 @@ def test_6155_init_rerun_names_regenerated_skill_once_and_counts_it(
     app1, _ = _make_app_with_buf()
     assert _run(app1, ["init", "--ai", "codex", "--non-interactive"]).exit_code == 0
     skills_root = tmp_path / ".agents" / "skills"
-    drifted = skills_root / "spec-kitty.plan" / "SKILL.md"
+    drifted = skills_root / "spec-kitty-plan" / "SKILL.md"
     drifted.write_bytes(drifted.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
-    (skills_root / "spec-kitty.tasks" / "SKILL.md").unlink()  # a missing skill triggers the repair
+    (skills_root / "spec-kitty-tasks" / "SKILL.md").unlink()  # a missing skill triggers the repair
 
     app2, buf2 = _make_app_with_buf()
     result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])

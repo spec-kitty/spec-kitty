@@ -89,7 +89,7 @@ class TestPluginJson:
         assert not missing, f"plugin.json missing keys: {missing}"
         assert payload["name"] == "spec-kitty"
         assert payload["skills"] == sorted(
-            f"./skills/spec-kitty.{command}" for command in CANONICAL_COMMANDS
+            f"./skills/spec-kitty-{command}" for command in CANONICAL_COMMANDS
         )
         assert all(str(path).startswith("./agents/") for path in payload["agents"])
 
@@ -121,7 +121,7 @@ class TestSkillsCopy:
     def test_all_canonical_commands_present(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
         for command in CANONICAL_COMMANDS:
-            skill_file = bundle_dir / "skills" / f"spec-kitty.{command}" / "SKILL.md"
+            skill_file = bundle_dir / "skills" / f"spec-kitty-{command}" / "SKILL.md"
             assert skill_file.is_file(), (
                 f"Missing SKILL.md for canonical command: {command}"
             )
