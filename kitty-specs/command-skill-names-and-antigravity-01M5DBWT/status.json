@@ -273,7 +273,7 @@
     },
     "WP09": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -286,6 +286,7 @@
         "Ready for review: ADR 2026-10-20-1 (amends 2026-04-07-1), upgrade note docs/migrations/command-skill-hyphen-names.md, agent tables (12 slash, 5 skills), harness/api docs, changelog, carried code-text nits"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/command-skill-names-and-antigravity-01M5DBWT/tasks/WP09-docs-adr-changelog/review-cycle-1.md",
         "reference": "review-cycle://command-skill-names-and-antigravity-01M5DBWT/WP09-docs-adr-changelog/review-cycle-1.md",
@@ -293,12 +294,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 32572,
-      "shell_pid_created_at": "1792581591.4",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T034": "done",
-        "T035": "done",
-        "T036": "done"
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned"
       }
     },
     "WP10": {
