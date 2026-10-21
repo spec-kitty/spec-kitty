@@ -1,7 +1,7 @@
 {
-  "event_count": 64,
-  "last_event_id": "01M5F311T8G1SG2SNRSZPWZA88",
-  "materialized_at": "2026-10-21T11:20:01.096856+00:00",
+  "event_count": 65,
+  "last_event_id": "01M5F41CBWTNW3JD4JZ96F9ZSC",
+  "materialized_at": "2026-10-21T11:37:40.476205+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -276,16 +276,22 @@
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M5F311T8G1SG2SNRSZPWZA88",
-      "last_transition_at": "2026-10-21T11:20:01.096856+00:00",
+      "lane": "planned",
+      "last_event_id": "01M5F41CBWTNW3JD4JZ96F9ZSC",
+      "last_transition_at": "2026-10-21T11:37:40.476205+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: ADR 2026-10-20-1 (amends 2026-04-07-1), upgrade note docs/migrations/command-skill-hyphen-names.md, agent tables (12 slash, 5 skills), harness/api docs, changelog, carried code-text nits"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/command-skill-names-and-antigravity-01M5DBWT/tasks/WP09-docs-adr-changelog/review-cycle-1.md",
+        "reference": "review-cycle://command-skill-names-and-antigravity-01M5DBWT/WP09-docs-adr-changelog/review-cycle-1.md",
+        "reviewer": "claude",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 32572,
       "shell_pid_created_at": "1792581591.4",
