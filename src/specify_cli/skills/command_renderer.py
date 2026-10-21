@@ -519,7 +519,22 @@ def rendering_inputs(repo_root: Path) -> tuple[Path, ...]:
 
     Pointer identity comes from the existing charter resolver. Render still owns
     activation semantics; observing both files lets apply detect changed inputs.
+    When the activation ledger seam resolves ``LEDGER`` (FR-017), the ledger
+    path is appended last: it is then the rendering authority provisioning
+    writes (``validate_mission_provisioning`` compares against ``[-1]``).
     """
+    from charter.activation.api import resolve_ledger_source
+    from kernel.activation_ledger_store import ActivationSource, activation_ledger_path
+
+    inputs = _legacy_rendering_inputs(repo_root)
+    # Only the source is needed: resolving it never parses the activation values,
+    # so a malformed (non-list) key cannot raise here (L5).
+    source = resolve_ledger_source(repo_root).source
+    return (*inputs, activation_ledger_path(repo_root)) if source is ActivationSource.LEDGER else inputs
+
+
+def _legacy_rendering_inputs(repo_root: Path) -> tuple[Path, ...]:
+    """``config.yaml`` and, when its ``charter:`` pointer names one, the pointed ``charter.yaml``."""
     from charter.activation.pack_context import resolve_charter_yaml_pointer
     from ruamel.yaml import YAML
     from specify_cli.core.agent_config import load_agent_config

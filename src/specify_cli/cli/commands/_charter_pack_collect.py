@@ -73,6 +73,7 @@ __all__ = [
     "_run_operating_procedures_check",
     "_run_retired_governance_key_check",
     "_run_retired_layout_check",
+    "_run_activation_ledger_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_layer_collisions",
@@ -1132,6 +1133,30 @@ def _run_retired_governance_key_check(report: CharterPackHealthReport, repo_root
         errors.append(exc.body)
         org_drg["errors"] = errors
         org_drg["retired_governance_key"] = {"file": str(charter_yaml), "key": _RETIRED_GOVERNANCE_KEY, "message": exc.body}
+
+
+def _run_activation_ledger_check(report: CharterPackHealthReport, repo_root: Path) -> None:
+    """Report activation drift (FR-005, FR-023, data-model.md §9; persistent-deactivation-ledger WP09).
+
+    Mirrors :func:`_run_retired_governance_key_check`: the structured findings go
+    to ``org_drg["activation_ledger"] = {"errors": [...], "warnings": [...]}``
+    and every error message is appended to ``org_drg["errors"]``, so any error
+    turns the report unhealthy (RC=1) while warnings alone do not. The findings
+    come from ``charter.activation.api.ledger_findings``, which reads stray keys
+    as data and never raises an activation error (read-only).
+    """
+    from charter.activation.api import ledger_findings
+
+    org_drg = report.org_drg
+    if not isinstance(org_drg, dict):
+        return
+    findings = ledger_findings(repo_root)
+    org_drg["activation_ledger"] = findings.to_dict()
+    if findings.errors:
+        existing = org_drg.get("errors")
+        errors = list(existing) if isinstance(existing, list) else []
+        errors.extend(finding.message for finding in findings.errors)
+        org_drg["errors"] = errors
 
 
 def _read_org_required(repo_root: Path) -> dict[str, list[str]]:

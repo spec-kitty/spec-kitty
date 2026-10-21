@@ -24,6 +24,9 @@ WP11 scoped cascade engine into the CLI surface:
 from __future__ import annotations
 
 import contextlib
+import dataclasses
+from collections.abc import Callable
+from dataclasses import dataclass
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
@@ -33,12 +36,15 @@ from rich.markup import escape
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import parameter_source_name
 
+from charter.activation.api import DenyListChoice, deny_delta
 from charter.activation.cascade import (
+    CascadeActivationResult,
     CascadeScope,
+    ReferencedArtifact,
     cascade_activation_targets,
     referenced_but_not_cascaded,
 )
-from charter.drg import DRGLoadError
+from charter.drg import DRGLoadError, NodeKind
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
@@ -49,11 +55,12 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import ActiveCharterConfigError, PackContext
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext, load_denied
 from charter.activation.api import ActivationResult
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.preset_application import (
     PresetApplicationError,
+    PresetOutcome,
     PresetPlan,
     apply_preset_plan,
     plan_preset_application,
@@ -92,6 +99,17 @@ RESYNTHESIZE_HELP = (
     "the freshness signal to fresh immediately (NFR-001)."
 )
 
+INCLUDE_DEACTIVATED_HELP = (
+    "Walk through deactivated artifacts during the cascade: activate them and "
+    "clear their exclusions. Without it the cascade stops at a deactivated "
+    "artifact and reports it. Only with --cascade."
+)
+
+PRESET_FORCE_HELP = (
+    "Apply the preset even when it changes a customised activation key, and "
+    "clear the exclusion of every deactivated id the preset lists. Only with --preset."
+)
+
 NO_COMPILE_HELP = (
     "Skip the default post-activation catalog recompile (FR-003): the fast "
     "config-only write from before issue #4785's fix. `catalog.references` "
@@ -122,15 +140,16 @@ def render_pack_config_error(exc: ActiveCharterConfigError, console: Console) ->
     console.print(f"[red]Error[/red] ({exc.code}): {exc.body}")
 
 
-def validate_pack_config(repo_root: Path) -> None:
+def validate_pack_config(repo_root: Path) -> PackContext:
     """Load the project pack context to fail closed on invalid config (FR-035).
 
     :meth:`PackContext.from_config` raises :class:`ActiveCharterConfigError` when
     ``.kittify/config.yaml`` has an invalid charter-pack shape. Calling it here
     — *before* any mutation — gives that previously dead-ended error type a live
     external caller and guarantees no write happens on a malformed config (C1.5).
+    Returns the context, so a caller reuses it (its deny set) instead of re-reading.
     """
-    PackContext.from_config(repo_root)
+    return PackContext.from_config(repo_root)
 
 
 def _source_urn(
@@ -141,9 +160,9 @@ def _source_urn(
 ) -> str | None:
     """Resolve the DRG source URN for ``(kind, config-stem artifact_id)``.
 
-    Returns ``None`` when the kind has no DRG artifact-node representation
-    (``mission-type``) or the artifact has no resolvable DRG node — cascade is a
-    no-op in those cases rather than an error.
+    A mission type resolves to its ``mission_type:<id>`` node (FR-022). Returns
+    ``None`` when the artifact has no resolvable DRG node — cascade is a no-op
+    then rather than an error (a mission type with no node simply reaches nothing).
 
     ``org_roots`` (T008/T009, mission ``cascade-org-inert-01M07E9P``): the
     full declaration-ordered org-pack chain, additive to ``layer_roots``'s
@@ -153,7 +172,7 @@ def _source_urn(
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
     except MissionTypeNotAnArtifactKind:
-        return None
+        return mission_type_urn(artifact_id)
     try:
         resolved: str = resolve_artifact_urn(
             kind_enum,
@@ -234,6 +253,143 @@ def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: P
     validate_activatable_mission_type(artifact_id, repo_root=repo_root)
 
 
+#: Line prefixes of the cascade report (data-model.md §7), shared by the cascade and no-cascade renders.
+SKIPPED_OUT_OF_SCOPE = "Skipped (out of scope)"
+SKIPPED_DEACTIVATED = "Skipped, deactivated"
+UNREACHED_BEHIND_DEACTIVATED = "Unreached (behind a deactivated artifact)"
+INCLUDE_DEACTIVATED_HINT = "Run with --include-deactivated to activate these and clear their exclusions."
+_REQUIREMENT_NOTE = "the parent no longer has this requirement"
+_OUT_OF_SCOPE_DEACTIVATED_NOTE = "(deactivated; nothing behind it was walked)"
+
+
+@dataclass(frozen=True)
+class _CascadeIds:
+    """What the cascade renders need to map DRG ids back to config-stem ids."""
+
+    offering_root: Path
+    layer_roots: dict[str, Path] | None
+    org_roots: list[Path]
+    render_pass: ResolutionPass | None = None
+
+    def config_id(self, urn: str) -> str:
+        config_id: str = drg_urn_to_config_id(urn, self.offering_root, self.layer_roots, self.org_roots, self.render_pass)
+        return config_id
+
+
+def _deactivated_urns(repo_root: Path, org_roots: list[Path]) -> frozenset[str]:
+    """Every denied DRG URN, read now (after the cascade activations, for the reinstated report).
+
+    Goes through :func:`~charter.activation.pack_context.load_denied`, which
+    returns at once when no deny list exists (NFR-003), not a whole ``PackContext``.
+    """
+    return frozenset().union(*(deny.urns for _plural, deny in load_denied(repo_root, org_roots=org_roots)))
+
+
+def mission_type_urn(artifact_id: str) -> str:
+    """The DRG node of a mission type (FR-022): its ``requires``/``scope``/``instantiates`` edges are the cascade."""
+    return f"{NodeKind.MISSION_TYPE.value}:{artifact_id}"
+
+
+def _activate_cascade_targets(
+    manager: ActiveCharterManager,
+    ctx_project: ProjectContext,
+    activated: dict[str, list[str]],
+    ids: _CascadeIds,
+    *,
+    reinstate: bool,
+) -> dict[str, str]:
+    """Activate every in-scope target; return activated URN -> ``kind/config-id`` label.
+
+    With *reinstate* (``--include-deactivated``) each activation carries
+    :attr:`DenyListChoice.CASCADE_INCLUDE_DEACTIVATED`, so a denied target's
+    exclusion is cleared; the caller reports what the deny delta shows.
+    """
+    done: dict[str, str] = {}
+    for kind_value in sorted(activated):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for cascade_drg_id in activated[kind_value]:
+            urn = f"{kind_value}:{cascade_drg_id}"
+            # The cascade engine reports DRG bare IDs; activation lists use
+            # config-stem IDs. Resolve back through the kind-vocabulary bridge.
+            config_id = ids.config_id(urn)
+            try:
+                manager.activate(
+                    ctx_project,
+                    kind_token,
+                    config_id,
+                    layer_roots=ids.layer_roots,
+                    org_root_chain=ids.org_roots,
+                    reinstate=DenyListChoice.CASCADE_INCLUDE_DEACTIVATED if reinstate else DenyListChoice.ACTIVATE,
+                )
+            except ValueError as exc:
+                console.print(f"[yellow]Warning[/yellow]: could not cascade-activate {kind_token}/{config_id}: {exc}")
+                continue
+            console.print(f"[cyan]Cascade-activated[/cyan]: {kind_token}/{config_id}")
+            done[urn] = f"{kind_token}/{config_id}"
+    return done
+
+
+def _render_reinstated(before: frozenset[str], after: frozenset[str], activated: dict[str, str]) -> None:
+    """One "Reinstated" line per cascade target whose exclusion the walk cleared (from :func:`deny_delta`, R11)."""
+    _added, cleared = deny_delta(before, after)
+    for urn in cleared:
+        if urn in activated:
+            console.print(f"[green]Reinstated[/green]: {activated[urn]} (exclusion cleared)")
+
+
+def _render_out_of_scope(result: CascadeActivationResult, ids: _CascadeIds, deactivated: frozenset[str]) -> None:
+    """The "Skipped (out of scope)" lines; a deactivated one says it blocked the walk (its children may be unreached)."""
+    for kind_value in sorted(result.skipped_by_scope):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for drg_id in result.skipped_by_scope[kind_value]:
+            urn = f"{kind_value}:{drg_id}"
+            note = f" {_OUT_OF_SCOPE_DEACTIVATED_NOTE}" if urn in deactivated else ""
+            console.print(f"[dim]{SKIPPED_OUT_OF_SCOPE}[/dim]: {kind_token}/{ids.config_id(urn)}{note}")
+
+
+def _required_note(ref: ReferencedArtifact) -> str:
+    """`` (required by <parents> — the parent no longer has this requirement)`` for a required child, else ``""``."""
+    if not ref.via_requires:
+        return ""
+    return f" (required by {', '.join(ref.required_by)} — {_REQUIREMENT_NOTE})"
+
+
+def _render_deactivated_skips(result: CascadeActivationResult, ids: _CascadeIds) -> None:
+    """The "Skipped, deactivated" and "Unreached" lines, plus the ``--include-deactivated`` hint (FR-010/FR-011)."""
+    for kind_value in sorted(result.skipped_deactivated):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for ref in result.skipped_deactivated[kind_value]:
+            console.print(f"[yellow]{SKIPPED_DEACTIVATED}[/yellow]: {kind_token}/{ids.config_id(ref.urn)}{escape(_required_note(ref))}")
+    for kind_value in sorted(result.unreached_behind_deactivated):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for unreached_id in result.unreached_behind_deactivated[kind_value]:
+            config_id = ids.config_id(f"{kind_value}:{unreached_id}")
+            console.print(f"[yellow]{UNREACHED_BEHIND_DEACTIVATED}[/yellow]: {kind_token}/{config_id}")
+    if result.skipped_deactivated or result.unreached_behind_deactivated:
+        console.print(f"[yellow]Hint[/yellow]: {INCLUDE_DEACTIVATED_HINT}")
+
+
+def _render_bucket(bucket: dict[str, list[str]], ids: _CascadeIds, render: Callable[[str, str], None]) -> None:
+    """Call *render(kind_token, config_id)* for every entry of a kind → bare-id bucket, sorted."""
+    for kind_value in sorted(bucket):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for drg_id in bucket[kind_value]:
+            render(kind_token, ids.config_id(f"{kind_value}:{drg_id}"))
+
+
+def _zero_activatable_targets(result: CascadeActivationResult) -> bool:
+    """FR-004: nothing activatable was resolved and every referenced node was kind-filtered.
+
+    Never for a source with zero referenced nodes at all, and never when any
+    referenced node was scope-narrowed, deactivated or left unreached behind a
+    deactivated node: the lines for those already tell the story (SC-007), and
+    the "every referenced node was kind-filtered" summary would be false.
+    Deliberately NOT the broader "zero landed in ``activated``" condition.
+    """
+    others = result.activated or result.skipped_by_scope or result.skipped_deactivated or result.unreached_behind_deactivated
+    return not others and bool(result.not_cascaded_kind_filtered)
+
+
 def _render_cascade_activation(
     manager: ActiveCharterManager,
     ctx_project: ProjectContext,
@@ -241,6 +397,9 @@ def _render_cascade_activation(
     scope: CascadeScope,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
+    *,
+    include_deactivated: bool = False,
+    deactivated: frozenset[str] = frozenset(),
 ) -> None:
     """Activate scoped cascade targets and render the outcome (FR-014).
 
@@ -248,6 +407,18 @@ def _render_cascade_activation(
     only the kinds the scope selects, and activates each in-scope target through
     the same activation seam. Skipped-by-scope kinds are reported so the operator
     sees exactly what the explicit scope excluded.
+
+    *deactivated* is the denied DRG URNs (the pre-activation ``PackContext``'s;
+    the engine never treats the source itself as denied, so the direct
+    activation's own reinstatement cannot make it stale). Only with
+    ``--include-deactivated`` is the deny set read again, after the walk, to
+    report what the deny delta cleared.
+
+    Deactivated artifacts (FR-010/FR-011): the walk stops at a denied node; it
+    is reported as "Skipped, deactivated" (flagged when a reached parent
+    requires it) and what is reachable only through it as "Unreached".
+    ``include_deactivated`` walks through and clears those exclusions with
+    :attr:`DenyListChoice.CASCADE_INCLUDE_DEACTIVATED`.
 
     T009 (mission ``cascade-org-inert-01M07E9P``): threads the full,
     declaration-ordered org-pack chain into both the DRG load (so
@@ -265,79 +436,25 @@ def _render_cascade_activation(
         org_roots=org_roots,
         org_fragments=load_org_drg(repo_root, strict=False),
     )
-    result = cascade_activation_targets(graph, source_urn, scope)
-    offering_root = resolve_offering_root()
-
-    for kind_value in sorted(result.activated):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for cascade_drg_id in result.activated[kind_value]:
-            # The cascade engine reports DRG bare IDs; activation lists use
-            # config-stem IDs. Resolve back through the kind-vocabulary bridge.
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{cascade_drg_id}", offering_root, layer_roots, org_roots
-            )
-            try:
-                manager.activate(
-                    ctx_project,
-                    kind_token,
-                    config_id,
-                    layer_roots=layer_roots,
-                    org_root_chain=org_roots,
-                )
-            except ValueError as exc:
-                console.print(
-                    f"[yellow]Warning[/yellow]: could not cascade-activate "
-                    f"{kind_token}/{config_id}: {exc}"
-                )
-                continue
-            console.print(
-                f"[cyan]Cascade-activated[/cyan]: {kind_token}/{config_id}"
-            )
+    result = cascade_activation_targets(graph, source_urn, scope, deactivated_urns=deactivated, include_deactivated=include_deactivated)
+    ids = _CascadeIds(resolve_offering_root(), layer_roots, org_roots)
+    activated = _activate_cascade_targets(manager, ctx_project, result.activated, ids, reinstate=include_deactivated)
+    if include_deactivated and deactivated:
+        _render_reinstated(deactivated, _deactivated_urns(repo_root, org_roots), activated)
 
     # The activations above are done; everything below only reads, so one
     # resolution pass parses each artifact file once for all remaining lines.
-    render_pass = ResolutionPass()
-    for kind_value in sorted(result.skipped_by_scope):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for skipped_id in result.skipped_by_scope[kind_value]:
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_id}", offering_root, layer_roots, org_roots, render_pass
-            )
-            console.print(
-                f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
-            )
+    ids = dataclasses.replace(ids, render_pass=ResolutionPass())
+    _render_out_of_scope(result, ids, frozenset() if include_deactivated else deactivated)
+    _render_deactivated_skips(result, ids)
 
-    # FR-003/FR-008 (issue #3705): render the kind-filtered nodes WP01's
-    # shared `_referenced_artifacts` seam collected instead of silently
-    # dropping them -- resolving each bare DRG id to its config-stem id
-    # FIRST, the same call the `activated`/`skipped_by_scope` loops above
-    # already make (an org-pack-2..N node's bare id and config-stem id can
-    # differ; every other line in this function already prints the
-    # operator-facing config-stem id).
-    for kind_value in sorted(result.not_cascaded_kind_filtered):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
-            )
-            render_kind_filtered_line(kind_token, config_id)
+    # FR-003/FR-008 (issue #3705): render the kind-filtered nodes the shared
+    # `_referenced_artifacts` seam collected instead of silently dropping
+    # them, by config-stem id (an org-pack-2..N node's bare id and
+    # config-stem id can differ).
+    _render_bucket(result.not_cascaded_kind_filtered, ids, render_kind_filtered_line)
 
-    # FR-004: fires ONLY when the cascade resolved zero activatable targets
-    # AND at least one referenced node was specifically kind-filtered --
-    # never for a source with zero referenced nodes at all, and never when any
-    # referenced node was scope-narrowed. The `not result.skipped_by_scope`
-    # clause covers both the pure scope-narrowing case (every referenced node
-    # is activatable-kind but excluded by a narrow --cascade <scope>) AND the
-    # mixed case (some scope-narrowed, some kind-filtered): in either the
-    # `Skipped (out of scope)` lines above already tell the full story (SC-007),
-    # and the "every referenced node was kind-filtered" summary would be a
-    # falsehood the moment a scope-skipped node exists. Deliberately NOT the
-    # broader "zero landed in `activated`" condition.
-    if (
-        not result.activated
-        and not result.skipped_by_scope
-        and result.not_cascaded_kind_filtered
-    ):
+    if _zero_activatable_targets(result):
         console.print(CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE)
 
 
@@ -387,6 +504,7 @@ def _render_no_cascade_warning(
     source_urn: str,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
+    deactivated: frozenset[str] = frozenset(),
 ) -> None:
     """Warn about referenced-but-not-cascaded artifacts (FR-013, Contract C3.2).
 
@@ -403,7 +521,7 @@ def _render_no_cascade_warning(
         org_roots=org_roots,
         org_fragments=load_org_drg(repo_root, strict=False),
     )
-    report = referenced_but_not_cascaded(graph, source_urn)
+    report = referenced_but_not_cascaded(graph, source_urn, deactivated_urns=deactivated)
     if not report.has_skipped:
         return
     offering_root = resolve_offering_root()
@@ -420,6 +538,12 @@ def _render_no_cascade_warning(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
                 f"was not activated (no --cascade)."
             )
+    ids = _CascadeIds(offering_root, layer_roots, org_roots, render_pass)
+    _render_bucket(
+        report.deactivated,
+        ids,
+        lambda kind, config_id: console.print(f"[yellow]Warning[/yellow]: referenced {kind}/{config_id} is deactivated and was not activated."),
+    )
     # FR-005a: gated on `report.skipped` specifically (not the broader
     # `has_skipped`) -- `recovery_hint` literally says "to activate the
     # referenced artifacts", which is only true of `skipped` entries.
@@ -787,28 +911,52 @@ def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: b
         ctx.fail(f"{', '.join(given)} only {'applies' if len(given) == 1 else 'apply'} with --preset.")
 
 
-def _render_preset_plan(plan: PresetPlan) -> None:
-    if plan.is_noop:
+def _render_preset_exclusions(outcome: PresetOutcome) -> None:
+    """Name the listed ids a preset left deactivated, or whose exclusion ``--force`` cleared (FR-009, FR-014)."""
+    for key, ids in outcome.kept_deactivated.items():
+        console.print(
+            f"  [yellow]Kept deactivated[/yellow]: {key}: {escape(', '.join(ids))} "
+            "(listed by the preset; left out; --force clears the exclusion)"
+        )
+    for key, ids in outcome.cleared.items():
+        console.print(f"  [green]Cleared exclusion[/green]: {key}: {escape(', '.join(ids))}")
+
+
+def _render_preset_plan(plan: PresetPlan, outcome: PresetOutcome) -> None:
+    if plan.is_noop and not outcome.cleared:
         console.print(f"Preset '{escape(plan.preset)}' of pack '{escape(plan.pack)}' is already in force in {plan.target_file}; nothing changed.")
+        _render_preset_exclusions(outcome)
         return
     console.print(f"[green]Applied preset[/green] '{escape(plan.preset)}' of pack '{escape(plan.pack)}' to {plan.target_file}")
-    for key, ids in plan.written.items():
+    for key, ids in outcome.written.items():
         console.print(f"  [green]Wrote[/green] {key}: {escape(', '.join(ids)) or '(none)'}")
     for key in plan.removed:
         console.print(f"  [yellow]Removed[/yellow] {key} (unrestricted)")
+    _render_preset_exclusions(outcome)
 
 
-def _preset_payload(plan: PresetPlan) -> dict[str, object]:
-    """The ``--json`` shape of an applied preset (contracts/cli.md)."""
-    return {"pack": plan.pack, "preset": plan.preset, "written": plan.written, "removed": plan.removed, "target_file": str(plan.target_file)}
+def _preset_payload(plan: PresetPlan, outcome: PresetOutcome) -> dict[str, object]:
+    """The ``--json`` shape of an applied preset (contracts/cli.md); the exclusion fields appear only when non-empty."""
+    payload: dict[str, object] = {
+        "pack": plan.pack,
+        "preset": plan.preset,
+        "written": outcome.written,
+        "removed": plan.removed,
+        "target_file": str(plan.target_file),
+    }
+    if outcome.kept_deactivated:
+        payload["kept_deactivated"] = outcome.kept_deactivated
+    if outcome.cleared:
+        payload["cleared_exclusions"] = outcome.cleared
+    return payload
 
 
-def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool) -> PresetPlan:
+def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool) -> tuple[PresetPlan, PresetOutcome]:
     """Validate the config, plan and apply the preset; render a refusal and exit(1) on failure."""
     try:
         validate_pack_config(repo_root)
         plan = plan_preset_application(repo_root, pack, preset)
-        apply_preset_plan(repo_root, plan, force=force)
+        outcome = apply_preset_plan(repo_root, plan, force=force)
     except PresetApplicationError as exc:
         render_coded_error(exc.code, str(exc), details=exc.detail_lines(), payload=exc.payload(), json_output=json_output)
         raise typer.Exit(1) from exc
@@ -818,7 +966,7 @@ def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bo
     except PresetFormatError as exc:
         render_preset_format_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
-    return plan
+    return plan, outcome
 
 
 def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool, compile_catalog: bool, resynthesize: bool) -> None:
@@ -833,9 +981,9 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     preflight is per ``(kind, id)`` and has no whole-preset form.
     """
     repo_root = resolve_write_root_or_exit(repo_root)
-    plan = _plan_and_apply_preset(repo_root, pack, preset, force=force, json_output=json_output)
+    plan, outcome = _plan_and_apply_preset(repo_root, pack, preset, force=force, json_output=json_output)
     if not json_output:
-        _render_preset_plan(plan)
+        _render_preset_plan(plan, outcome)
         recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
         return
     try:
@@ -848,9 +996,9 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
             f"preset {plan.preset!r} of pack {plan.pack!r} was applied to {plan.target_file}, "
             f"but the resynthesis failed (exit {exc.exit_code}); re-run `spec-kitty charter synthesize`."
         )
-        render_coded_error(_RESYNTHESIS_FAILED, message, payload=_preset_payload(plan), json_output=True)
+        render_coded_error(_RESYNTHESIS_FAILED, message, payload=_preset_payload(plan, outcome), json_output=True)
         raise typer.Exit(1) from exc
-    console.emit_json(_preset_payload(plan))
+    console.emit_json(_preset_payload(plan, outcome))
 
 
 def _render_activation_result(result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool) -> None:
@@ -876,6 +1024,14 @@ def activate_cmd(
             "Omit to skip cascade (referenced artifacts are reported as a warning)."
         ),
     ),
+    include_deactivated: bool = typer.Option(
+        False,
+        "--include-deactivated",
+        help=INCLUDE_DEACTIVATED_HELP,
+        # Own panel: the long flag name would widen the main options table's
+        # first column and wrap other options' printed defaults.
+        rich_help_panel="Cascade options",
+    ),
     resynthesize: bool = typer.Option(
         False,
         "--resynthesize/--no-resynthesize",
@@ -899,7 +1055,7 @@ def activate_cmd(
     force: bool = typer.Option(
         False,
         "--force",
-        help="Apply the preset even when it changes a customised activation key. Only with --preset.",
+        help=PRESET_FORCE_HELP,
     ),
     json_output: bool = typer.Option(False, "--json", help="Output the applied preset as JSON. Only with --preset."),
     only: bool = typer.Option(
@@ -913,16 +1069,23 @@ def activate_cmd(
 
     Two forms:
 
-      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]]
 
       spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
 
     A preset replaces every activation key it governs: keys it lists are
     written (plus the org's required ids), keys it leaves out are removed.
-    A change to a customised key is refused without --force.
+    A change to a customised key is refused without --force. A deactivated
+    id the preset lists stays deactivated (and is left out) unless --force,
+    which also clears its exclusion.
+
+    The cascade stops at a deactivated artifact and reports it;
+    --include-deactivated walks through and clears the exclusions.
     """
     if ctx.invoked_subcommand is not None:
         return
+    if include_deactivated and cascade is None:
+        ctx.fail("--include-deactivated only applies with --cascade.")
     _check_preset_flags(ctx, preset=preset, positional=kind is not None or artifact_id is not None, cascade=cascade, only=only)
     if preset is not None:
         _activate_preset(repo_root, pack, preset, force=force, json_output=json_output, compile_catalog=compile_catalog, resynthesize=resynthesize)
@@ -952,7 +1115,9 @@ def activate_cmd(
 
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
-        validate_pack_config(repo_root)
+        # Its deny set is the cascade's: the direct activation below can only clear
+        # the source's own entry, which the cascade engine never treats as denied.
+        deactivated = validate_pack_config(repo_root).deactivated_urns
     except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
@@ -996,7 +1161,7 @@ def activate_cmd(
         if resynthesize:
             from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
 
-            preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph)
+            preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph, include_deactivated=include_deactivated)
         # #5779/#6006: one availability scan across the whole org-pack chain
         # (fail-closed on a declared-but-unfetched pack, #4984).
         result = manager.activate(
@@ -1008,6 +1173,10 @@ def activate_cmd(
             org_root_chain=resolve_pack_chain(repo_root, strict=True),
             only=only,
         )
+    except ActiveCharterConfigError as exc:
+        # FR-013: the strict required floor (read when a deny list exists) or the ledger cannot be read; nothing written.
+        render_pack_config_error(exc, console)
+        raise typer.Exit(1) from exc
     except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -1027,10 +1196,10 @@ def activate_cmd(
     source_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
     if source_urn is not None:
         if scope is None:
-            _render_no_cascade_warning(source_urn, repo_root, layer_roots)
+            _render_no_cascade_warning(source_urn, repo_root, layer_roots, deactivated - {source_urn})
         else:
             _render_cascade_activation(
-                manager, ctx_project, source_urn, scope, repo_root, layer_roots
+                manager, ctx_project, source_urn, scope, repo_root, layer_roots, include_deactivated=include_deactivated, deactivated=deactivated
             )
 
     # FR-001/FR-003/FR-007: default catalog recompile keeps activation

@@ -47,9 +47,9 @@ from __future__ import annotations
 
 import json
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
 import click
 import typer
@@ -59,12 +59,16 @@ from specify_cli.cli.console import console
 from specify_cli.cli.helpers import _with_ignored_mission_option, parameter_source_name
 from specify_cli.cli.console import err_console
 
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 from kernel.paths import is_windows
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
 from specify_cli.paths.windows_migrate import MigrationOutcome
 from specify_cli.runtime.bootstrap import ensure_runtime
 from specify_cli.runtime.migrate import ConflictReason, MigrationReport, execute_migration
+
+if TYPE_CHECKING:
+    from charter.activation.api import LedgerMove
 
 app = typer.Typer(
     name="migrate",
@@ -114,6 +118,7 @@ _CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this
 #: and this WP's new ``backfill-mission-type`` command) now shares this one
 #: constant.
 _NO_PROJECT_ROOT = "Could not locate project root. No .kittify/ directory found in any parent directory."
+_NO_PROJECT_ROOT_CODE = "NO_PROJECT_ROOT"
 
 #: WP02 (campsite M2): ``backfill-mission-type`` reuses the hoisted
 #: ``_DRY_RUN_FLAG``/``_MISSION_FLAG``/``_MISSION_METAVAR``/``_JSON_FLAG``
@@ -1538,7 +1543,7 @@ def backfill_wp_status_cmd(
     if repo_root is None:
         if json_output:
             # Keep the --json stream parseable on failure (JSON-contract inventory).
-            console.emit_json({"success": False, "error_code": "NO_PROJECT_ROOT", "error": _NO_PROJECT_ROOT})
+            console.emit_json({"success": False, "error_code": _NO_PROJECT_ROOT_CODE, "error": _NO_PROJECT_ROOT})
         else:
             _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
@@ -1809,21 +1814,178 @@ def ledger(
         # (the JSON-contract census asserts every --json command parses, even on
         # a non-zero exit); the human path keeps the plain stderr error.
         if json_output:
-            print(json.dumps({"ok": False, "error": {"code": "NO_PROJECT_ROOT", "message": _NO_PROJECT_ROOT}}, indent=2))
+            print(json.dumps({"ok": False, "error": {"code": _NO_PROJECT_ROOT_CODE, "message": _NO_PROJECT_ROOT}}, indent=2))
         else:
             _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
+    from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
+
     auto_discover_migrations()
     declared = MigrationRegistry.get_all()
-    rows = assemble_report(declared, repo_root)
-    pending_ids = {m.migration_id for m in VersionDetector(repo_root).applicable_migrations(__version__)}
+    # The report runs migrations' detect() and the selection: both read the
+    # legacy activation surface the shipped migrations expect (FR-017).
+    with legacy_upgrade_scope(repo_root):
+        rows = assemble_report(declared, repo_root)
+        pending_ids = {m.migration_id for m in VersionDetector(repo_root).applicable_migrations(__version__)}
     payload = _ledger_payload(rows, pending_ids)
 
     if json_output:
         print(json.dumps(payload, indent=2))
     else:
         _print_ledger_summary(payload)
+
+
+# --------------------------------------------------------------------------- #
+# migrate activation-ledger (FR-021, ADR 2026-10-19-1)
+# --------------------------------------------------------------------------- #
+
+_ACTIVATION_LEDGER_MIGRATION_ID = "4.0.0rc8_activation_ledger"
+_RECORD_WRITTEN = "written"
+_RECORD_NOT_RECORDED = "not_recorded"
+_ACTIVATION_LEDGER_DRY_RUN_HELP = "List the moves (key, from-file, to-file) and write nothing."
+_ACTIVATION_LEDGER_JSON_HELP = "Emit the result, the moves, any refusal and the migration-ledger record as JSON."
+_ACTIVATION_LEDGER_REL = ACTIVATION_LEDGER.as_posix()
+
+
+def _project_relative(repo_root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def _activation_moves(repo_root: Path, moves: Iterable[LedgerMove]) -> list[dict[str, str]]:
+    return [{"key": move.key, "from": _project_relative(repo_root, move.source), "to": _project_relative(repo_root, move.target)} for move in moves]
+
+
+def _activation_refusal(repo_root: Path, refusal: Any) -> dict[str, Any]:
+    return {"key": refusal.key, "files": [_project_relative(repo_root, path) for path in refusal.files], "reason": refusal.reason}
+
+
+def _record_activation_ledger_success(repo_root: Path) -> str:
+    """Record ``4.0.0rc8_activation_ledger`` as applied, only in a ledger-adopted project (T051.2).
+
+    Creating ``.kittify/migration-ledger.jsonl`` would mark the project
+    ledger-adopted, and the next ``metadata.yaml`` save would drop its
+    ``migrations:`` history before the backfill reads it. So with no migration
+    ledger nothing is recorded; a later ``spec-kitty upgrade`` then selects the
+    migration, finds nothing to move and records it skipped.
+    """
+    from specify_cli.upgrade.ledger import SETTLED_RESULT, TRACKED_LEDGER_RELPATH, MigrationLedger, build_record
+    from specify_cli.upgrade.migrations import auto_discover_migrations
+    from specify_cli.upgrade.registry import MigrationRegistry, migration_settled
+
+    if not (repo_root / TRACKED_LEDGER_RELPATH).is_file():
+        return _RECORD_NOT_RECORDED
+    auto_discover_migrations()
+    migration = MigrationRegistry.get_by_id(_ACTIVATION_LEDGER_MIGRATION_ID)
+    if migration is None:
+        raise RuntimeError(f"migration {_ACTIVATION_LEDGER_MIGRATION_ID} is not registered")
+    ledger = MigrationLedger(repo_root)
+    if not migration_settled(ledger, migration):
+        ledger.append(build_record(migration, SETTLED_RESULT))
+    return _RECORD_WRITTEN
+
+
+def _activation_ledger_payload(repo_root: Path, *, dry_run: bool) -> tuple[dict[str, Any], str | None]:
+    """Plan, and unless refused or a dry run, apply the move.
+
+    Returns the one JSON shape (data-model.md §11) and, for a refusal, its
+    operator-facing message.
+    """
+    from charter.activation.api import apply_ledger_migration, plan_ledger_migration
+
+    plan = plan_ledger_migration(repo_root)
+    payload: dict[str, Any] = {"result": "noop", "moves": [], "refusal": None, "ledger_record": _RECORD_NOT_RECORDED}
+    if plan.refusal is not None:
+        payload.update(result="refused", refusal=_activation_refusal(repo_root, plan.refusal))
+        return payload, plan.refusal.message
+    payload["moves"] = _activation_moves(repo_root, plan.moves)
+    if dry_run:
+        payload["result"] = "noop" if plan.noop else "dry_run"
+        return payload, None
+    if not plan.noop:
+        apply_ledger_migration(repo_root, plan)
+        payload["result"] = "moved"
+    payload["ledger_record"] = _record_activation_ledger_success(repo_root)
+    return payload, None
+
+
+def _print_activation_ledger(payload: dict[str, Any], refusal_message: str | None) -> None:
+    if refusal_message is not None:
+        console.print(f"[red]Refused:[/red] {refusal_message}")
+        return
+    verb = {"dry_run": "Would move", "moved": "Moved"}.get(payload["result"])
+    if verb is None or not payload["moves"]:
+        console.print(f"Nothing to do: no activation key is left outside {_ACTIVATION_LEDGER_REL}.")
+        return
+    for move in payload["moves"]:
+        console.print(f"  {verb} {move['key']}: {move['from']} -> {move['to']}")
+    if payload["result"] == "moved":
+        console.print(f"[green]Moved the activation keys into {_ACTIVATION_LEDGER_REL}.[/green] Migration-ledger record: {payload['ledger_record']}.")
+
+
+@app.command(name="activation-ledger")
+def activation_ledger(
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_ACTIVATION_LEDGER_DRY_RUN_HELP)] = False,
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_ACTIVATION_LEDGER_JSON_HELP)] = False,
+) -> None:
+    """Move charter activation keys into the activation ledger, and nothing else.
+
+    Runs exactly the move of the ``4.0.0rc8_activation_ledger`` upgrade
+    migration: the ``activated_<kind>``, ``activated_kinds`` and
+    ``mission_type_activations`` keys leave the ``charter.yaml`` that
+    ``.kittify/config.yaml`` points to (or ``config.yaml`` itself, and any
+    leftover copy there) for ``.kittify/charter/activation.yaml``, verbatim,
+    and the synthesis manifest is re-stamped. Use it on a project that an
+    older CLI wrote activation keys into again, without a full upgrade.
+
+    \b
+    * It refuses, writing nothing (exit 1), when the files disagree about a
+      key, or when a legacy file holds a ``deactivated_<kind>`` key.
+    * It is idempotent: a re-run reports nothing to do and writes nothing.
+    * When ``.kittify/migration-ledger.jsonl`` exists it records the
+      migration as applied (``ledger_record: written``); otherwise it records
+      nothing (``not_recorded``) and a later upgrade finds nothing to move.
+
+    Exit codes: 0 moved or nothing to do, 1 refused (nothing written), 2 usage error.
+
+    Examples:
+
+        spec-kitty migrate activation-ledger --dry-run
+
+        spec-kitty migrate activation-ledger
+
+        spec-kitty migrate activation-ledger --json
+    """
+    from charter.activation.api import ActiveCharterConfigError
+    from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _activation_ledger_error(_NO_PROJECT_ROOT_CODE, _NO_PROJECT_ROOT, json_output=json_output)
+    try:
+        with legacy_upgrade_scope(repo_root):
+            payload, refusal_message = _activation_ledger_payload(repo_root, dry_run=dry_run)
+    except (ActiveCharterConfigError, ValueError) as exc:
+        message = exc.body if isinstance(exc, ActiveCharterConfigError) else str(exc)
+        _activation_ledger_error("ACTIVATION_LEDGER_MIGRATION_FAILED", message, json_output=json_output)
+    if json_output:
+        print(json.dumps(payload, indent=2))
+    else:
+        _print_activation_ledger(payload, refusal_message)
+    if refusal_message is not None:
+        raise typer.Exit(1)
+
+
+def _activation_ledger_error(code: str, message: str, *, json_output: bool) -> NoReturn:
+    """Report a failure (no project, unreadable surface, files changed meanwhile) and exit 1."""
+    if json_output:
+        print(json.dumps({"ok": False, "error": {"code": code, "message": message}}, indent=2))
+    else:
+        _error(message)
+    raise typer.Exit(1)
 
 
 def _error(message: str) -> None:

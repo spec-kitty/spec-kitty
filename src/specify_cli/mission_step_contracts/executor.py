@@ -70,6 +70,20 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
 }
 
 
+def _contract_admitted(pack_context: PackContext, contract: MissionStepContract) -> bool:
+    """Whether *contract* is in the effective mission-step-contract set (D-21).
+
+    A contract has two spellings: its ``id`` (the resolver's key) and the
+    ``<mission>/<action>`` DRG id. A deny of either spelling excludes it; an
+    allow list admits it when it names either one.
+    """
+    kind = ArtifactKind.MISSION_STEP_CONTRACT
+    spellings = frozenset({contract.id, f"{contract.mission}/{contract.action}"})
+    if not all(pack_context.denied_for(kind).admits(spelling) for spelling in spellings):
+        return False
+    return any(pack_context.admits(kind, spelling, available=spellings) for spelling in spellings)
+
+
 class StepContractExecutionError(RuntimeError):
     """Raised when a step contract run cannot be composed."""
 
@@ -186,6 +200,14 @@ class StepContractExecutor:
             raise StepContractExecutionError(
                 f"No step contract found for mission/action {context.mission}/{context.action}"
             )
+        # FR-031, FR-033 (WP08): the activation filter; D-21: it also gates the pick.
+        pack_context = self._resolve_pack_context(context.repo_root)
+        if pack_context is not None and not _contract_admitted(pack_context, selected_contract):
+            raise StepContractExecutionError(
+                f"Step contract {selected_contract.id!r} ({selected_contract.mission}/{selected_contract.action}) "
+                "is not runnable: it is not in the effective mission-step-contract set. "
+                f"Run: spec-kitty charter activate mission-step-contract {selected_contract.id}"
+            )
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
         # #3525 Fold B: resolve the FULL declaration-ordered org-pack chain
@@ -195,8 +217,6 @@ class StepContractExecutor:
         graph = self._graph or self._load_graph_degrading_malformed_org_pack(
             context.repo_root, effective_org_roots
         )
-        # FR-031, FR-033 (WP08): apply activation filter before resolving context.
-        pack_context = self._resolve_pack_context(context.repo_root)
         if pack_context is not None:
             graph = filter_graph_by_activation(graph, pack_context)
         action_urn = f"action:{selected_contract.mission}/{selected_contract.action}"
@@ -595,22 +615,23 @@ class StepContractExecutor:
 
         FR-031, FR-033 (WP08): Obtain pack_context from project config so the
         activation filter can narrow the DRG before context resolution.
-        Returns ``None`` on any error so the filter is always optional.
+        Returns ``None`` on any other error so the filter stays optional; an
+        activation-store error (``ActiveCharterConfigError``) propagates (D-20).
         """
         from charter.drg import (
             OrgPackEnvVarUnsetError,
             OrgPackSubdirEscapeError,
         )
+        from charter.activation.pack_context import ActiveCharterConfigError, PackContext  # noqa: PLC0415 — lazy: the profile filter is optional, so the activation layer loads only when it runs
 
         try:
-            from charter.activation.pack_context import PackContext  # noqa: PLC0415
-
             return PackContext.from_config(repo_root)
-        except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):
-            # Fail closed (FR-003): an unset env var or a symlink-escape is
-            # operator-actionable, not "activation filter unavailable" —
-            # silently degrading here would run the mission-step DRG
-            # unfiltered instead of surfacing the real config problem.
+        except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError, ActiveCharterConfigError):
+            # Fail closed (FR-003, D-20): an unset env var, a symlink-escape or
+            # a malformed activation store is operator-actionable, not
+            # "activation filter unavailable" — silently degrading here would
+            # run the mission-step DRG unfiltered (serving denied artifacts)
+            # instead of surfacing the real config problem.
             raise
         except Exception:  # noqa: BLE001 — defensive; activation filter is optional
             return None

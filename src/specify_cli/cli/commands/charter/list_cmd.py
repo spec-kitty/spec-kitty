@@ -11,7 +11,7 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.activation.api import IdentityIndex
+from charter.activation.api import IdentityIndex, RequiredOmission, load_activation_ledger, required_not_in_force
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
@@ -50,6 +50,9 @@ _KIND_ORDER: list[str] = list(CHARTER_KIND_TOKENS)
 #: are not a charter activation kind (no ``config.yaml`` activation list); they
 #: are surfaced here as an availability-only row (FR-025).
 _TEMPLATE_KIND = "template"
+
+#: An empty table cell.
+_EMPTY_CELL = "[dim]—[/dim]"
 
 
 def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[TierRoot]:
@@ -140,6 +143,55 @@ def _available_over_chain(
     return entries
 
 
+def _deactivated_by_kind(repo_root: Path) -> dict[str, list[str]]:
+    """Per operator kind token, the ledger's deny-list (``ActivationLedger.deny_for``, R12).
+
+    ``mission-type`` is not an artifact kind and has no deny-list, so it has no entry.
+    """
+    ledger = load_activation_ledger(repo_root)
+    deactivated: dict[str, list[str]] = {}
+    for kind in _KIND_ORDER:
+        try:
+            artifact_kind = ArtifactKind.from_operator_token(kind)
+        except ValueError:  # ``mission-type``
+            continue
+        deactivated[kind] = sorted(ledger.deny_for(artifact_kind))
+    return deactivated
+
+
+#: How the table marks an org-required id an explicit allow list leaves out (FR-023).
+_REQUIRED_NOT_IN_FORCE = "required (not in force: explicit allow list omits it)"
+
+
+def _required_not_in_force_by_kind(repo_root: Path) -> dict[str, list[RequiredOmission]]:
+    """Per operator kind token, the org-required ids an explicit allow list omits (FR-023, R12).
+
+    Read leniently (``strict=False``): a listing never fails because an org
+    pack's required floor is unreadable; ``doctor charter-packs`` reports that.
+    """
+    by_kind: dict[str, list[RequiredOmission]] = {}
+    for omission in required_not_in_force(repo_root, strict=False):
+        by_kind.setdefault(omission.kind.operator_token, []).append(omission)
+    return by_kind
+
+
+def _required_not_in_force_json(by_kind: dict[str, list[RequiredOmission]]) -> dict[str, Any]:
+    """The additive ``--json`` key ``required_not_in_force: {<plural>: [{id, packs}]}``; ``{}`` when nothing is omitted."""
+    if not by_kind:
+        return {}
+    return {
+        "required_not_in_force": {
+            items[0].kind.plural: [{"id": item.artifact_id, "packs": list(item.pack_names)} for item in items] for items in by_kind.values()
+        }
+    }
+
+
+def _with_required_not_in_force(activated_str: str, omissions: list[RequiredOmission], identity: _KindIdentity) -> str:
+    """Append the FR-023 marker for each omitted required id to a kind's Activated cell."""
+    marks = [f"[yellow]{identity.label(item.artifact_id)} — {_REQUIRED_NOT_IN_FORCE}; required by {item.describe_packs()}[/yellow]" for item in omissions]
+    return "\n".join([activated_str, *marks]) if marks else activated_str
+
+
 class _KindIdentity:
     """Stem <-> declared-id view of one kind, so ``stem (declared_id)`` and activation agree (FR-007).
 
@@ -165,10 +217,11 @@ class _KindIdentity:
         if self._kind is None:
             return None
         if layer is not None:
-            own = self._index.declared_id_in_layer(self._kind, stem, layer)
+            own: str | None = self._index.declared_id_in_layer(self._kind, stem, layer)
             if own is not None:
                 return own
-        return self._index.declared_id(self._kind, stem)
+        declared: str | None = self._index.declared_id(self._kind, stem)
+        return declared
 
     def is_activated(self, stem: str, activated: frozenset[str], layer: str | None = None) -> bool:
         """Whether *stem* is activated under either of its spellings."""
@@ -180,6 +233,13 @@ class _KindIdentity:
         declared = self.declared_id(token, layer)
         stem = (self._index.stem(self._kind, token) if self._kind is not None else None) or token
         return f"{stem} ({declared})" if declared is not None and declared != stem else stem
+
+
+def _deactivated_cells(identity: _KindIdentity, tokens: list[str] | None, *, show: bool) -> list[str]:
+    """The Deactivated column cell of one row (none when the column is hidden)."""
+    if not show:
+        return []
+    return [", ".join(identity.label(token) for token in tokens or []) or _EMPTY_CELL]
 
 
 def _render_available(entries: list[AvailableArtifact], activated: frozenset[str], identity: _KindIdentity) -> str:
@@ -195,14 +255,14 @@ def _render_available(entries: list[AvailableArtifact], activated: frozenset[str
         key=lambda pair: (pair[0], pair[1]),
     )
     if not not_activated:
-        return "[dim]—[/dim]"
+        return _EMPTY_CELL
     return ", ".join(f"{identity.label(aid, layer)} [dim]({layer})[/dim]" for aid, layer in not_activated)
 
 
 def _render_templates(refs: list[TemplateRef]) -> str:
     """Render discovered templates with mission-qualified IDs and source tier."""
     if not refs:
-        return "[dim]—[/dim]"
+        return _EMPTY_CELL
     return ", ".join(
         f"{ref.template_id} [dim]({ref.tier.value})[/dim]" for ref in refs
     )
@@ -269,6 +329,11 @@ def list_cmd(
         manager = ActiveCharterManager()
         activated_map = manager.list_activated(ctx)
         identity_index = IdentityIndex.build(repo_root)
+        deactivated_map = _deactivated_by_kind(repo_root)
+        required_omitted = _required_not_in_force_by_kind(repo_root)
+        # The column appears only when something is deactivated, so a project
+        # without a deny-list keeps its byte-identical table.
+        show_deactivated = any(deactivated_map.values())
 
         # Resolve org/project roots once when we need the layer-aware view (C-008).
         layer_roots = resolve_layer_roots(repo_root) if all_layers else None
@@ -280,6 +345,8 @@ def list_cmd(
         if show_available:
             header = "Available (all layers)" if all_layers else "Available (not activated)"
             table.add_column(header, style="dim")
+        if show_deactivated:
+            table.add_column("Deactivated", style="yellow")
 
         # ``--json`` rows mirror the table rows exactly, built from the same
         # manager calls in the same loop -- serialization, not re-derivation.
@@ -294,6 +361,7 @@ def list_cmd(
                 activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
             else:
                 activated_str = ", ".join(identity.label(token) for token in sorted(value))
+            activated_str = _with_required_not_in_force(activated_str, required_omitted.get(kind, []), identity)
 
             json_row: dict[str, Any] = {
                 "kind": kind,
@@ -302,7 +370,10 @@ def list_cmd(
                 # null (not merely unset) when --show-available/--all wasn't
                 # passed, so callers can rely on key presence.
                 "available": None,
+                # Always present: the deny-list of the kind; null for mission-type.
+                "deactivated": deactivated_map.get(kind),
             }
+            deactivated_cells = _deactivated_cells(identity, deactivated_map.get(kind), show=show_deactivated)
 
             if show_available:
                 activated_set = value or frozenset()
@@ -348,12 +419,12 @@ def list_cmd(
                     available = manager.list_available(ctx, kind)
                     not_activated = sorted(s for s in available if not identity.is_activated(s, activated_set)) if available else []
                     available_str = (
-                        ", ".join(identity.label(s) for s in not_activated) if not_activated else "[dim]—[/dim]"
+                        ", ".join(identity.label(s) for s in not_activated) if not_activated else _EMPTY_CELL
                     )
                     json_row["available"] = not_activated
-                table.add_row(kind, activated_str, available_str)
+                table.add_row(kind, activated_str, available_str, *deactivated_cells)
             else:
-                table.add_row(kind, activated_str)
+                table.add_row(kind, activated_str, *deactivated_cells)
 
             json_rows.append(json_row)
 
@@ -365,6 +436,8 @@ def list_cmd(
             "kinds": json_rows,
             "templates": None,
         }
+        # FR-023: additive, present only when an explicit allow list omits a required id.
+        payload.update(_required_not_in_force_json(required_omitted))
 
         # FR-025: the template kind is mission-scoped and has no activation list, so
         # it only appears in the layer-aware (--all) availability view.

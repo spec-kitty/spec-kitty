@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import functools
+import inspect
+import os
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
+
+from kernel.activation_ledger_store import in_legacy_activation_scope, legacy_activation_scope
 
 
 class ClaudeignorePathError(Exception):
@@ -36,6 +43,105 @@ class MigrationStateUnreadableError(Exception):
     ``GitignorePathError``. Lives in ``base.py`` so its identity survives the
     ``importlib.reload()`` in ``auto_discover_migrations()``.
     """
+
+
+# --------------------------------------------------------------------------- #
+# The upgrade-only legacy activation scope (ADR 2026-10-19-1, FR-017, C-001)
+# --------------------------------------------------------------------------- #
+
+#: Marks a method this module already wrapped, so a subclass never wraps it twice.
+_SCOPE_WRAPPED = "__legacy_activation_scope_wrapped__"
+
+
+def _canonical_root(project_path: Path) -> Path | None:
+    """The main-checkout root of *project_path*, or ``None`` outside a git repository.
+
+    The scope is entered on every wrapped migration call, so the answer is
+    cached per process. The cache key includes whether ``<project>/.git``
+    exists, so a ``None`` cached for a directory that is not yet a repository
+    is not reused after a ``git init`` there.
+    """
+    return _resolve_canonical_root(project_path, (project_path / ".git").exists())
+
+
+@functools.lru_cache(maxsize=256)
+def _resolve_canonical_root(project_path: Path, has_git: bool) -> Path | None:
+    from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError, resolve_canonical_repo_root
+
+    del has_git  # part of the cache key only
+    try:
+        root: Path = resolve_canonical_repo_root(project_path)
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError):
+        # No repository: the project itself is the only root the scope needs.
+        return None
+    return root
+
+
+@contextmanager
+def legacy_upgrade_scope(project_path: Path) -> Iterator[None]:
+    """Enter the kernel's legacy activation scope for *project_path* and its canonical root (M3).
+
+    Inside it a project without an activation ledger still reads (and the
+    shipped migrations still write) its legacy activation surface, as every
+    upgrade before the ledger did. A lane worktree's scope also covers the main
+    checkout, because a migration run in the worktree may read the canonical
+    root's charter. Re-entrant: inside an open scope for *project_path* it
+    resolves nothing and adds nothing.
+    """
+    path = Path(project_path)
+    if in_legacy_activation_scope(path):
+        yield
+        return
+    # The canonical root is resolved lazily: only a query about another path (a lane
+    # worktree reading the main checkout) runs the git probe behind it, so a migration
+    # that never asks does not reach ``resolve_canonical_repo_root`` (#6539 audit).
+    with legacy_activation_scope(path, canonical_root=functools.partial(_canonical_root, path.resolve())):
+        yield
+
+
+def _project_parameter(fn: Callable[..., Any]) -> str | None:
+    """The name of *fn*'s first positional parameter after ``self``, or ``None``."""
+    try:
+        parameters = list(inspect.signature(fn).parameters.values())
+    except (TypeError, ValueError):
+        return None
+    positional = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    if len(parameters) < 2 or parameters[1].kind not in positional:
+        return None
+    return parameters[1].name
+
+
+def _wraps_project_method(fn: object) -> bool:
+    """Whether :meth:`BaseMigration.__init_subclass__` wraps *fn* in the legacy scope.
+
+    The rule: a plain function (not a ``staticmethod``/``classmethod`` object),
+    with a public name, not already wrapped, whose first positional parameter
+    after ``self`` exists. That parameter is taken as the project path by its
+    POSITION, never by its name, so a renamed parameter is still covered.
+    """
+    if not inspect.isfunction(fn) or fn.__name__.startswith("_") or getattr(fn, _SCOPE_WRAPPED, False):
+        return False
+    return _project_parameter(fn) is not None
+
+
+def _as_path(value: object) -> Path | None:
+    return Path(value) if isinstance(value, (str, os.PathLike)) else None
+
+
+def _in_upgrade_scope(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap *fn* so it runs inside :func:`legacy_upgrade_scope` of its project-path argument."""
+    name = _project_parameter(fn)
+
+    @functools.wraps(fn)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        project = _as_path(args[0] if args else kwargs.get(name or ""))
+        if project is None:
+            return fn(self, *args, **kwargs)
+        with legacy_upgrade_scope(project):
+            return fn(self, *args, **kwargs)
+
+    setattr(wrapper, _SCOPE_WRAPPED, True)
+    return wrapper
 
 
 @dataclass(frozen=True)
@@ -79,7 +185,23 @@ class BaseMigration(ABC):
     2. Check preconditions before applying
     3. Report what changes were made
     4. Handle dry-run mode
+
+    Every public method a subclass defines in its own class body whose first
+    positional parameter after ``self`` is the project path (``detect``,
+    ``can_apply``, ``apply``, ``structural_detect``, ...) runs inside the
+    upgrade-only legacy activation scope (:func:`legacy_upgrade_scope`), so a
+    shipped migration keeps reading and writing the pre-ledger activation
+    surface without being edited (DIRECTIVE_044). Static and class methods
+    and private (``_``-prefixed) names are not wrapped; the project path is
+    matched by position, never by parameter name. The wrapper lives here, so
+    no migration module's bytes (its ``content_hash``) change.
     """
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        for name, member in list(vars(cls).items()):
+            if _wraps_project_method(member):
+                setattr(cls, name, _in_upgrade_scope(member))
 
     # Migration identifier (e.g., "0.6.5_commands_rename")
     # Format: {version}_{short_description}

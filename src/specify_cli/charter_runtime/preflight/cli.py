@@ -26,6 +26,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from charter.activation.api import ActiveCharterConfigError
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -80,6 +81,14 @@ def charter_preflight(
             auto_refresh=auto_refresh,
             strict=strict,
         )
+    except ActiveCharterConfigError as exc:
+        # The activation store cannot be read (e.g. a malformed ledger): render
+        # the code and the body, which names the file and the remediation.
+        # Deferred import: the charter command package imports this module at load time.
+        from specify_cli.cli.commands.charter.activate import render_pack_config_error
+
+        render_pack_config_error(exc, _err_console)
+        raise typer.Exit(code=2) from exc
     except Exception as exc:  # noqa: BLE001 — defence in depth; runner is documented as non-raising.
         _err_console.print(f"[red]Error:[/red] preflight aborted: {exc}")
         raise typer.Exit(code=2) from exc

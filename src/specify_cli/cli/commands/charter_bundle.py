@@ -48,6 +48,8 @@ app = typer.Typer(
 _KITTIFY_DIRNAME = ".kittify"
 _CHARTER_DIR = (_KITTIFY_DIRNAME, "charter")
 _PROVENANCE_DIR = (*_CHARTER_DIR, "provenance")
+_OK_MARKER = "[green][OK][/green]"
+_MISSING = "missing"
 
 
 @app.callback()
@@ -93,7 +95,7 @@ def _enumerate_out_of_scope_files(
     """Return (out_of_scope_files, warnings) for files under .kittify/charter/.
 
     Every file under ``.kittify/charter/`` that is not declared in the
-    manifest (neither tracked nor derived) is surfaced as an informational
+    manifest (neither tracked, optional tracked nor derived) is surfaced as an informational
     warning. The canonical producer-specific message for
     ``context-state.json`` is preserved; all other undeclared files
     (including a stray pre-migration ``references.yaml``) fall through to
@@ -103,8 +105,11 @@ def _enumerate_out_of_scope_files(
     if not charter_dir.is_dir():
         return [], []
 
-    declared = {str(p) for p in manifest.tracked_files} | {
-        str(p) for p in manifest.derived_files
+    # WP09 (F12): an optional tracked member (the activation ledger) is declared
+    # too, so a present ledger is never reported out of scope.
+    declared = {
+        str(p)
+        for p in (*manifest.tracked_files, *manifest.derived_files, *manifest.optional_tracked_files)
     }
 
     out_of_scope: list[str] = []
@@ -194,6 +199,18 @@ def _classify_gitignore(
     return present, missing
 
 
+def _render_optional_files(report: dict[str, Any], console: Console) -> None:
+    """Render the optional tracked members (the activation ledger): present or absent, never a failure."""
+    optional = report["optional_tracked_files"]
+    if not optional["expected"]:
+        return
+    console.print("  Optional tracked files:")
+    for rel in optional["expected"]:
+        marker = _OK_MARKER if rel in optional["present"] else "[dim][ABSENT][/dim]"
+        console.print(f"    {marker} {rel}")
+    console.print("")
+
+
 def _render_human(report: dict[str, Any], console: Console) -> None:
     console.print("[bold]Charter bundle validation[/bold]")
     console.print(f"  Canonical root: {report['canonical_root']}")
@@ -203,14 +220,16 @@ def _render_human(report: dict[str, Any], console: Console) -> None:
     console.print("  Tracked files:")
     for rel in report["tracked_files"]["expected"]:
         ok = rel in report["tracked_files"]["present"]
-        marker = "[green][OK][/green]" if ok else "[red][MISSING][/red]"
+        marker = _OK_MARKER if ok else "[red][MISSING][/red]"
         console.print(f"    {marker} {rel}")
     console.print("")
+
+    _render_optional_files(report, console)
 
     console.print("  Derived files (v1.0.0 scope):")
     for rel in report["derived_files"]["expected"]:
         ok = rel in report["derived_files"]["present"]
-        marker = "[green][OK][/green]" if ok else "[red][MISSING][/red]"
+        marker = _OK_MARKER if ok else "[red][MISSING][/red]"
         console.print(f"    {marker} {rel}")
     console.print("")
 
@@ -260,7 +279,8 @@ def _bundle_compatibility_error(charter_dir: Path) -> str | None:
     bundle_version = get_bundle_schema_version(charter_dir)
     result = check_bundle_compatibility(bundle_version)
     if not result.is_compatible:
-        return result.message
+        message: str | None = result.message
+        return message
     return None
 
 
@@ -371,6 +391,10 @@ def validate(
     derived_present, derived_missing = _classify_paths(
         canonical_root, list(manifest.derived_files)
     )
+    # WP09 (FR-018): optional members are reported, never required.
+    optional_present, optional_missing = _classify_paths(
+        canonical_root, list(manifest.optional_tracked_files)
+    )
     gitignore_present, gitignore_missing = _classify_gitignore(
         canonical_root, list(manifest.gitignore_required_entries)
     )
@@ -397,12 +421,17 @@ def validate(
         "tracked_files": {
             "expected": [p.as_posix() for p in manifest.tracked_files],
             "present": tracked_present,
-            "missing": tracked_missing,
+            _MISSING: tracked_missing,
+        },
+        "optional_tracked_files": {
+            "expected": [p.as_posix() for p in manifest.optional_tracked_files],
+            "present": optional_present,
+            _MISSING: optional_missing,
         },
         "derived_files": {
             "expected": [p.as_posix() for p in manifest.derived_files],
             "present": derived_present,
-            "missing": [] if fresh_clone else derived_missing,
+            _MISSING: [] if fresh_clone else derived_missing,
         },
         "gitignore": {
             "expected_entries": list(manifest.gitignore_required_entries),

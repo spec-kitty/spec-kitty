@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Any
 
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, PROJECT_PACK_ROOT_POSIX
 from kernel.paths import to_posix
 from specify_cli.core.constants import WORKTREES_DIR
@@ -578,6 +579,22 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "compiler.write_compiled_charter) route through the shared INV-9 "
             "load->mutate-owned-section->round-trip-save helper "
             "(charter.activation.charter_yaml_io) so section-preservation is structural."
+        ),
+    ),
+    StateSurface(
+        name="charter_activation_ledger",
+        path_pattern=ACTIVATION_LEDGER.as_posix(),
+        root=StateRoot.PROJECT,
+        format=StateFormat.YAML,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.TRACKED,
+        owner_module="charter.activation.activation_ledger",
+        creation_trigger="spec-kitty init, charter activate/deactivate, or the 4.0.0rc8_activation_ledger upgrade migration",
+        notes=(
+            "persistent-deactivation-ledger (ADR 2026-10-19-1): the single activation "
+            "authority (allow and deny lists). An OPTIONAL tracked charter-bundle member "
+            "and an optional member of its content hash (charter.bundle, FR-018). The path "
+            "derives from kernel.activation_ledger_store.ACTIVATION_LEDGER."
         ),
     ),
     StateSurface(

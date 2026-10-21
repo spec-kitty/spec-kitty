@@ -14,21 +14,23 @@ safe cascade engine on the removal side:
   removes only *exclusive* referenced artifacts and **never** removes a shared
   one (Contract C3.4); shared skips are reported with the still-referencing
   active source named.
-* :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
-  the WP10 engine for a None-state kind) is caught and surfaced as a clean
-  exit-1 with the "activate one first" guidance.
+* Deactivation records an exclusion (``deactivated_<kind>``), also when the
+  kind has no allow-list ("absent = all"). An org-required id raises a
+  :class:`charter.activation.pack_manager.DeactivationRefused`, surfaced as a
+  clean exit-1 naming the pack(s) and the ``required_<kind>`` policy; nothing
+  is written. A cascade records only the named id (D-11).
 * :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import typer
 from specify_cli.cli.console import console
 
-from charter.activation.activation_engine import NoActivationRestrictionsError
 from charter.activation.cascade import CascadeScope, deactivation_plan
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
@@ -38,8 +40,9 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import ActiveCharterConfigError
-from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
+from charter.activation.api import refuse_unmigrated_deny_write
+from charter.activation.pack_context import ActiveCharterConfigError, load_denied
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager, DeactivationRefused
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter._cascade_shared import (
@@ -49,6 +52,7 @@ from specify_cli.cli.commands.charter._cascade_shared import (
 from specify_cli.cli.commands.charter.activate import (
     NO_COMPILE_HELP,
     RESYNTHESIZE_HELP,
+    mission_type_urn,
     recompile_or_notify,
     reproject_pack_skills,
     render_pack_config_error,
@@ -97,9 +101,10 @@ def _source_urn(
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
     except MissionTypeNotAnArtifactKind:
-        return None
+        source: str = mission_type_urn(artifact_id)  # FR-022: the mission type's DRG node is the cascade source
+        return source
     try:
-        return resolve_artifact_urn(
+        urn: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
             offering_root=resolve_offering_root(),
@@ -108,6 +113,7 @@ def _source_urn(
         )
     except UnknownArtifactIdError:
         return None
+    return urn
 
 
 def _active_urns(
@@ -115,11 +121,16 @@ def _active_urns(
     ctx_project: ProjectContext,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
+    graph_urns: frozenset[str] = frozenset(),
+    *,
+    include_mission_types: bool = False,
 ) -> set[str]:
-    """Return the set of currently-activated artifact URNs across all kinds.
+    """Return the set of currently-active artifact URNs across all kinds (C-007).
 
-    Resolves each activated config-stem ID back to its DRG URN. IDs with no
-    resolvable DRG node (or mission-type, which is not an artifact kind) are
+    Counts the effective allow state: a present list contributes its ids
+    (resolved back to DRG URNs), an absent "all" list contributes every DRG
+    node of that kind in *graph_urns*, and denied ids are left out. IDs with
+    no resolvable DRG node (or mission-type, which is not an artifact kind) are
     skipped — they cannot participate in DRG reachability anyway.
 
     ``org_roots`` (T008/T010): full org-pack chain — without it, a currently-
@@ -128,30 +139,72 @@ def _active_urns(
     ``active`` set that :func:`charter.activation.cascade.deactivation_plan` uses for
     Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
     silent-wrong-data risk, not merely a display gap).
+
+    ``include_mission_types`` (FR-022): when a mission type is the cascade
+    target, the other active mission types are sources too, so a child they
+    still reach is kept (C-005). An artifact target keeps today's set.
     """
     offering_root = resolve_offering_root()
+
+    def urns_of(kind_enum: ArtifactKind, ids: Iterable[str]) -> set[str]:
+        found: set[str] = set()
+        for config_id in ids:
+            try:
+                found.add(resolve_artifact_urn(kind_enum, config_id, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
+            except UnknownArtifactIdError:
+                continue
+        return found
+
+    # D* (deny less the org required floor), so a stale deny of a required id keeps it active (FR-012, C-005).
+    denied = dict(load_denied(ctx_project.require_repo_root(), org_roots=org_roots))
     urns: set[str] = set()
     for kind_token, ids in manager.list_activated(ctx_project).items():
-        if ids is None:
-            continue
         try:
             kind_enum = ArtifactKind.from_operator_token(kind_token)
         except MissionTypeNotAnArtifactKind:
+            if include_mission_types:
+                urns |= {mission_type_urn(mission_type) for mission_type in ids or ()}
             continue
-        for config_id in ids:
-            try:
-                urns.add(
-                    resolve_artifact_urn(
-                        kind_enum,
-                        config_id,
-                        offering_root=offering_root,
-                        org_roots=org_roots,
-                        layer_roots=layer_roots,
-                    )
-                )
-            except UnknownArtifactIdError:
-                continue
+        if ids is not None:
+            urns |= urns_of(kind_enum, ids)
+        elif kind_enum.effective_when_absent == "all":
+            urns |= {urn for urn in graph_urns if urn.partition(":")[0] == kind_enum.value}
+        if (deny := denied.get(kind_enum.plural)) is not None:
+            urns -= deny.urns
     return urns
+
+
+def _cascade_child(
+    manager: ActiveCharterManager,
+    ctx_project: ProjectContext,
+    kind_token: str,
+    config_id: str,
+    *,
+    layer_roots: dict[str, Path] | None,
+    source_id: str,
+    allow_absent: bool,
+) -> None:
+    """Drop one exclusive child's allow entry (no deny entry, D-11) and render the outcome."""
+    label = f"{kind_token}/{config_id}"
+    if allow_absent:
+        console.print(f"[cyan]Cascade[/cyan]: {label}: still active (no allow-list; only {source_id} excluded)")
+        return
+    try:
+        result = manager.deactivate(ctx_project, kind_token, config_id, cascade=False, layer_roots=layer_roots, record_exclusion=False)
+    except DeactivationRefused as exc:
+        packs = ", ".join(entry.pack for entry in getattr(exc, "requiring", ()))
+        console.print(f"[yellow]Cascade[/yellow]: {label}: skipped (required by {packs})")
+        return
+    except ValueError as exc:
+        console.print(f"[yellow]Warning[/yellow]: could not cascade-deactivate {label}: {exc}")
+        return
+    if not result.deactivated:
+        return
+    console.print(f"[cyan]Cascade-deactivated[/cyan]: {label}")
+    # #4115: a cascade can remove agent profiles bound by built-in
+    # mission steps exactly like a direct deactivation can.
+    if kind_token == ArtifactKind.AGENT_PROFILE.operator_token:
+        _warn_mission_default_binding(config_id)
 
 
 def _render_cascade_deactivation(
@@ -161,18 +214,20 @@ def _render_cascade_deactivation(
     scope: CascadeScope,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
+    source_id: str,
 ) -> None:
-    """Cascade-deactivate exclusive referenced artifacts; keep shared ones (FR-015/016).
+    """Cascade-deactivate exclusive referenced artifacts; keep shared ones (FR-015/016, C-007).
 
     Uses the WP11 :func:`charter.activation.cascade.deactivation_plan` over the merged DRG.
-    Exclusive candidates are removed through the same activation seam; shared
-    candidates are reported (never removed — Contract C3.4) with the still-
-    referencing active source named.
+    Exclusive candidates lose only their allow-list entry (no exclusion is
+    recorded for them, D-11); a child of a kind with no allow-list stays
+    active and is rendered so; a required child is skipped naming its pack.
+    Shared candidates are reported (never removed — Contract C3.4) with the
+    still-referencing active source named.
 
     T010 (mission ``cascade-org-inert-01M07E9P``): threads the full org-pack
     chain into the DRG load, the active-URN resolution, and the ID mapping
     below — same rationale as ``activate.py``'s ``_render_cascade_activation``.
-    Previously this call carried NO org roots at all.
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
@@ -182,39 +237,37 @@ def _render_cascade_deactivation(
         org_roots=org_roots,
         org_fragments=load_org_drg(repo_root, strict=False),
     )
-    active = _active_urns(manager, ctx_project, layer_roots, org_roots)
+    graph_urns = frozenset(node.urn for node in graph.nodes)
+    active = _active_urns(manager, ctx_project, layer_roots, org_roots, graph_urns, include_mission_types=target_urn.startswith(mission_type_urn("")))
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
     offering_root = resolve_offering_root()
+    allow_state = manager.list_activated(ctx_project)
 
     for urn in plan.deactivate:
         kind_value, _, _ = urn.partition(":")
         kind_token = ArtifactKind(kind_value).operator_token
-        config_id = drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots)
-        try:
-            manager.deactivate(
-                ctx_project,
-                kind_token,
-                config_id,
-                cascade=False,
-                layer_roots=layer_roots,
-            )
-        except (ValueError, NoActivationRestrictionsError) as exc:
-            console.print(
-                f"[yellow]Warning[/yellow]: could not cascade-deactivate "
-                f"{kind_token}/{config_id}: {exc}"
-            )
-            continue
-        console.print(f"[cyan]Cascade-deactivated[/cyan]: {kind_token}/{config_id}")
-        # #4115: a cascade can remove agent profiles bound by built-in
-        # mission steps exactly like a direct deactivation can.
-        if kind_token == ArtifactKind.AGENT_PROFILE.operator_token:
-            _warn_mission_default_binding(config_id)
+        _cascade_child(
+            manager,
+            ctx_project,
+            kind_token,
+            drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots),
+            layer_roots=layer_roots,
+            source_id=source_id,
+            allow_absent=allow_state.get(kind_token, ()) is None,
+        )
 
     for skip in plan.skipped_shared:
+        kind_token = ArtifactKind(skip.urn.partition(":")[0]).operator_token
+        if allow_state.get(kind_token, ()) is None:
+            # No allow-list: the child stays active whoever references it.
+            config_id = drg_urn_to_config_id(skip.urn, offering_root, layer_roots, org_roots)
+            console.print(f"[cyan]Cascade[/cyan]: {kind_token}/{config_id}: still active (no allow-list; only {source_id} excluded)")
+            continue
         console.print(
             f"[yellow]Skipped (shared artifact)[/yellow]: {skip.urn} "
             f"(still referenced by {skip.referencing_active_urn})"
         )
+
 
     # FR-007 (issue #3705): the deactivation-side half of C-002's
     # cross-command symmetry (ADR 2026-08-20-1 Symmetry section) -- render
@@ -239,6 +292,23 @@ def _render_cascade_deactivation(
                 f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
+
+
+def _refuse_unmigrated(kind: str, repo_root: Path) -> None:
+    """Exit 1 with the rendered refusal when an artifact *kind* is deactivated on an unmigrated project.
+
+    A ``mission-type`` deactivation records no deny entry (nor do its cascade
+    children, D-11), so it keeps the legacy target as on ``main``.
+    """
+    try:
+        ArtifactKind.from_operator_token(kind)
+    except MissionTypeNotAnArtifactKind:
+        return
+    try:
+        refuse_unmigrated_deny_write(repo_root)
+    except ActiveCharterConfigError as exc:
+        render_pack_config_error(exc, console)
+        raise typer.Exit(1) from exc
 
 
 def deactivate_cmd(
@@ -289,6 +359,11 @@ def deactivate_cmd(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    # FR-017, hole 2: an artifact deactivation records a deny entry, which an
+    # unmigrated project cannot hold. Refuse the direct and the cascade path
+    # alike, before any write and before the required-floor read (NFR-001).
+    _refuse_unmigrated(kind, repo_root)
+
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
@@ -308,10 +383,13 @@ def deactivate_cmd(
             cascade=scope is not None,
             layer_roots=layer_roots,
         )
-    except NoActivationRestrictionsError as exc:
-        # WP10 engine raises this for a None-state kind; surface the
-        # "activate one first" guidance carried in the error and exit non-zero (no mutation).
+    except DeactivationRefused as exc:
+        # FR-007 / US4.1: an org-required id; nothing was written (NFR-001).
         console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except ActiveCharterConfigError as exc:
+        # FR-013: the strict required floor (or the ledger) cannot be read.
+        render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -330,14 +408,15 @@ def deactivate_cmd(
             artifact_id.removeprefix(f"{ArtifactKind.AGENT_PROFILE.value}:")
         )
 
-    # FR-015/FR-016: shared-reference-safe cascade deactivation via the WP11 engine.
-    # Only runs when a scope was supplied and the direct deactivation actually
-    # removed the target (so we never cascade off a no-op removal).
-    if scope is not None and result.deactivated:
+    # FR-015/FR-016, D-11: shared-reference-safe cascade deactivation via the
+    # WP11 engine. It runs whenever a scope was supplied, also when the named
+    # id was only implicitly active ("absent = all"), and records no exclusion
+    # for the children.
+    if scope is not None:
         target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
         if target_urn is not None:
             _render_cascade_deactivation(
-                manager, ctx_project, target_urn, scope, repo_root, layer_roots
+                manager, ctx_project, target_urn, scope, repo_root, layer_roots, result.deactivated[0] if result.deactivated else artifact_id
             )
 
     # FR-002/FR-003/FR-007: default catalog recompile keeps deactivation

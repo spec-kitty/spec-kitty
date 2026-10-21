@@ -238,15 +238,17 @@ def resolve_active_gate_bindings(
 def _resolve_pack_context(repo_root: Path) -> PackContext | None:
     """Construct a ``PackContext`` for activation filtering — fail-CLOSED.
 
-    Mirrors ``executor.py:275``: an unset org-pack env var or a symlink-escape
-    is operator-actionable, so it propagates rather than silently degrading to
-    an unfiltered graph; any other error leaves the filter optional (``None``).
+    Mirrors ``executor.py:275``: an unset org-pack env var, a symlink-escape or
+    a malformed activation store (``ActiveCharterConfigError``, FR-017) is
+    operator-actionable, so it propagates rather than silently degrading to an
+    unfiltered graph; any other error leaves the filter optional (``None``).
     """
-    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — mirrors executor
+    from charter.activation.pack_context import ActiveCharterConfigError, PackContext  # noqa: PLC0415 — mirrors executor
 
     try:
         return PackContext.from_config(repo_root)
-    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError, ActiveCharterConfigError):
+        # Fail closed (D-20): an unfiltered graph would serve denied contracts.
         raise
     except Exception:  # noqa: BLE001 — defensive; activation filter is optional
         return None

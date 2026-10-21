@@ -22,20 +22,22 @@ _PROFILE_ID_LABEL = "Profile ID"
 _EMPTY_VALUE = "[dim]—[/dim]"
 
 
-def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
-    """Return the three-state ``activated_agent_profiles`` set for ``repo_root``.
+def _effective_agent_profiles(repo_root: Path, available: frozenset[str]) -> frozenset[str]:
+    """The effective ``agent_profile`` ids of *available* for ``repo_root`` (FR-016).
 
-    ``None`` → key absent from config (all profiles available — NFR-001
-    backward-compat). ``frozenset()`` → explicit empty (nothing activated).
-    Non-empty frozenset → explicit set of activated IDs.
+    ``PackContext.effective_ids``: an absent ``activated_agent_profiles`` key
+    keeps every available profile (NFR-001 backward-compat), an explicit list
+    keeps its ids, and a ``deactivated_agent_profiles`` entry removes its id
+    either way. No ``.kittify/config.yaml`` -> every available profile.
     """
     if not (repo_root / _KITTIFY_DIR / "config.yaml").exists():
-        return None
+        return available
 
     from charter.activation.pack_context import PackContext
+    from charter.drg import ArtifactKind
 
-    activated: frozenset[str] | None = PackContext.from_config(repo_root).activated_agent_profiles
-    return activated
+    effective: frozenset[str] = PackContext.from_config(repo_root).effective_ids(ArtifactKind.AGENT_PROFILE, available)
+    return effective
 
 
 def _build_descriptor(p: AgentProfile, *, source_layer: str | None = None) -> dict[str, Any]:
@@ -170,14 +172,13 @@ def list_profiles(
     if show_all:
         show_available = True
 
-    activated = _activated_agent_profiles(repo_root)
+    activated = _effective_agent_profiles(repo_root, frozenset(p.profile_id for p in profiles))
 
     # FR-011: default lists activated-only by *filtering* the existing rows.
     # When the catalog/state columns are not requested, preserve the legacy
     # descriptor schema and byte-identical output for unconfigured projects.
     if not show_available:
-        if activated is not None:
-            profiles = [p for p in profiles if p.profile_id in activated]
+        profiles = [p for p in profiles if p.profile_id in activated]
         descriptors = [
             _build_descriptor(p, source_layer=provenance.get(p.profile_id))
             for p in profiles
@@ -189,8 +190,7 @@ def list_profiles(
     descriptors = []
     for p in profiles:
         d = _build_descriptor(p, source_layer=provenance.get(p.profile_id))
-        is_activated = activated is None or p.profile_id in activated
-        d["state"] = "activated" if is_activated else "available"
+        d["state"] = "activated" if p.profile_id in activated else "available"
         descriptors.append(d)
 
     _render_list_annotated(descriptors, json_output=json_output)
@@ -296,7 +296,7 @@ def _profile_payload(profile: AgentProfile, *, source_layer: str | None, warning
 def _resolve_with_lineage(
     repo: AgentProfileRepository,
     profile_id: str,
-    activated: frozenset[str] | None,
+    activated: frozenset[str],
 ) -> tuple[AgentProfile, list[str]]:
     """Resolve ``profile_id`` (composing lineage) and collect non-activated ancestors.
 
@@ -307,7 +307,7 @@ def _resolve_with_lineage(
     resolved = repo.resolve_profile(profile_id)
     warnings: list[str] = []
     ancestors = repo.get_ancestors(profile_id)
-    if ancestors and activated is not None:
+    if ancestors:
         non_activated = [a for a in ancestors if a not in activated]
         if non_activated:
             warnings.append(_lineage_warning(non_activated))
@@ -329,10 +329,8 @@ def show_profile(
     repo_root = find_repo_root()
     profiles, provenance, owner = _profile_catalog(repo_root)
     by_id = {p.profile_id: p for p in profiles}
-    activated = _activated_agent_profiles(repo_root)
-    activated_profiles = (
-        by_id if activated is None else {k: v for k, v in by_id.items() if k in activated}
-    )
+    activated = _effective_agent_profiles(repo_root, frozenset(by_id))
+    activated_profiles = {k: v for k, v in by_id.items() if k in activated}
 
     # FR-014: activation gate on the leaf id. --all bypasses for inspection.
     if profile_id not in activated_profiles and not show_all:

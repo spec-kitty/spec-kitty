@@ -26,7 +26,7 @@ from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
 from .ledger import MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
-from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError
+from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError, legacy_upgrade_scope
 from .registry import MigrationRegistry, migration_settled
 
 logger = logging.getLogger(__name__)
@@ -235,7 +235,16 @@ class MigrationRunner:
 
         Returns:
             UpgradeResult with details of the upgrade
+
+        The whole run (selection, every migration, the worktree pass) happens
+        inside the upgrade-only legacy activation scope of the project
+        (:func:`~specify_cli.upgrade.migrations.base.legacy_upgrade_scope`).
         """
+        with legacy_upgrade_scope(self.project_path):
+            return self._upgrade(target_version, dry_run=dry_run, include_worktrees=include_worktrees, auto_commit=auto_commit)
+
+    def _upgrade(self, target_version: str, *, dry_run: bool, include_worktrees: bool, auto_commit: bool) -> UpgradeResult:
+        """The body of :meth:`upgrade`, run inside the legacy activation scope."""
         from_version = self.detector.detect_version()
 
         result = UpgradeResult(
@@ -380,7 +389,8 @@ class MigrationRunner:
         Returns:
             Dict with ``warnings`` and ``errors`` lists.
         """
-        return self._upgrade_worktrees(target_version, [], dry_run, auto_commit=auto_commit)
+        with legacy_upgrade_scope(self.project_path):
+            return self._upgrade_worktrees(target_version, [], dry_run, auto_commit=auto_commit)
 
     def _apply_migration(
         self,

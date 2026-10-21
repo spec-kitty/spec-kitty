@@ -549,11 +549,15 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
         True if the seed would create the key on a real run, else False.
     """
     from charter.activation.pack_context import ActiveCharterConfigError
+    from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
 
     try:
         from charter.activation.pack_manager import resolve_activation_write_target
 
-        _target_path, data, _save = resolve_activation_write_target(project_path)
+        # A preview of a run that has not moved anything yet: read the legacy
+        # surface the migrations will act on (the upgrade-only scope, FR-017).
+        with legacy_upgrade_scope(project_path):
+            _target_path, data, _save = resolve_activation_write_target(project_path)
     except ActiveCharterConfigError:
         return True
     except Exception:  # noqa: BLE001 — unreadable/malformed config: do not claim a pending seed
@@ -1064,7 +1068,14 @@ class _FinalizerRenderContext:
 
 
 def _finalizer_step_provision(project_path: Path, *, dry_run: bool, prepared: PreparedUpgradeRepairs | None = None) -> list[str]:
-    """Injected ``provision_activations`` step (C4 order position 1)."""
+    """Injected ``provision_activations`` step (C4 order position 1).
+
+    *prepared* is the provisioning write the finalizer prepared AFTER the
+    migrations ran and outside the legacy activation scope (WP08 T049, m6/M3):
+    once ``4.0.0rc8_activation_ledger`` moved the keys, its target is the
+    ledger, and a keyless pre-ledger project resolves as fresh, so the write
+    never lands on (or holds a stale compare-and-swap of) the legacy surface.
+    """
     if prepared is None:
         return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
     try:
@@ -1128,9 +1139,12 @@ def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
     from specify_cli.tool_surface.operations import ApplyConsent
     from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 
+    from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
+
     hint = "Use --plan-json for full repair details."
     try:
-        prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
+        with legacy_upgrade_scope(project_path):
+            prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
         if not prepared.complete:
             detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
             return f"Supporting repair preview incomplete: {_clause(detail[:350]) or 'Required owner assessment incomplete'}. {hint}", True
@@ -1710,8 +1724,11 @@ def _run_full_plan_json(
         payload["diagnostics"] = [{"code": "invalid_target", "owner": None, "severity": "error", "message": target_error}]
         print(json.dumps(payload, indent=2))
         raise typer.Exit(2)
+    from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
+
     try:
-        prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
+        with legacy_upgrade_scope(project_path):
+            prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
     except Exception as exc:  # noqa: BLE001 - assessment failure is contract data
         payload.update(decision="incomplete", process_exit_code=1)
         payload["diagnostics"] = [{"code": "assessment_failed", "owner": None, "severity": "error", "message": _preparation_error_text(exc)}]
@@ -2094,6 +2111,9 @@ def upgrade(
         render_ctx = _FinalizerRenderContext()
         preparation_errors: tuple[str, ...] = ()
         if not dry_run and outcome.result.success:
+            # After the migrations and outside the legacy activation scope (the
+            # runner closed it): the provisioning target is re-resolved here, so
+            # it names the ledger the ledger migration just wrote (T049).
             preparation_errors = _prepare_finalizer_repairs(project_path, render_ctx)
 
         from specify_cli.upgrade.finalize import finalize_upgrade

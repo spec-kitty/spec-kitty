@@ -285,7 +285,7 @@ def charter_synthesize(  # noqa: C901
             # whole branch to the normal (non-fresh) adapter pipeline below,
             # which fails loud/actionable if ``generated/`` really is
             # required and missing -- never a silent built-in-only reset.
-            if not _catalog_is_established(repo_root, charter_yaml):
+            if not _catalog_is_established(repo_root):
                 # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
                 # strict four-field envelope. ``written_artifacts`` is built from
                 # the already-known minimal seed file list (PROVENANCE.md). No

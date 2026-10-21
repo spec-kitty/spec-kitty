@@ -711,10 +711,13 @@ def implement_check_wp_charter_precondition(main_repo_root: Path, wp: WorkPackag
     from charter.activation.exceptions import CharterActivationError
     from charter.activation.invocation_context import ProjectContext
 
+    from charter.drg import ArtifactKind
+
     pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
-    activated = pack_ctx.activated_agent_profiles
-    if activated is not None and wp_profile not in activated:
-        activated_list = ", ".join(sorted(activated)) or "(none)"
+    # Effective membership (FR-016): an explicit allow list or a deny entry excludes the profile.
+    if not pack_ctx.admits(ArtifactKind.AGENT_PROFILE, wp_profile, available=frozenset({wp_profile})):
+        activated = pack_ctx.allow_for(ArtifactKind.AGENT_PROFILE)
+        activated_list = "(all except deactivated)" if activated is None else ", ".join(sorted(activated)) or "(none)"
         resolution_cmd = f"spec-kitty charter activate agent-profile {wp_profile}"
         print(
             f"Error: WP{normalized_wp_id} charter precondition FAILED\n"

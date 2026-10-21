@@ -136,6 +136,7 @@ def _resolve_create_governance(governance_root: Path, mission: str | None) -> _G
         resolve_mission_type_context,
     )
     from charter.activation.pack_context import ActiveCharterConfigError
+    from charter.bundle import ACTIVATION_YAML
     from specify_cli.runtime.resolver import resolve_configured_template
 
     if not existing_mission_types(governance_root):
@@ -144,8 +145,7 @@ def _resolve_create_governance(governance_root: Path, mission: str | None) -> _G
             "be created. A mission requires at least one activated mission "
             "type. Provision the project's charter: run `spec-kitty init` "
             "(new project) or `spec-kitty upgrade` (existing project), or add a "
-            "non-empty `mission_type_activations` list to .kittify/config.yaml "
-            "(or the charter.yaml it points to)."
+            f"non-empty `mission_type_activations` list to {ACTIVATION_YAML.as_posix()}."
         )
 
     selected_mission_type = mission or "software-dev"

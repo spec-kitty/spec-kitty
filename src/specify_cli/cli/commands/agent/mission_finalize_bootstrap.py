@@ -78,15 +78,18 @@ def _enforce_charter_activation_gate(wp_meta: WPMetadata, wp_id: str, repo_root:
     from charter.activation.exceptions import CharterActivationError
     from charter.activation.invocation_context import ProjectContext
 
+    from charter.drg import ArtifactKind
+
     pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
-    activated_profiles = pack_ctx.activated_agent_profiles
-    if activated_profiles is not None and profile not in activated_profiles:
-        activated_list = ", ".join(sorted(activated_profiles)) or "(none)"
+    # Effective membership (FR-016): an explicit allow list or a deny entry excludes the profile.
+    if not pack_ctx.admits(ArtifactKind.AGENT_PROFILE, profile, available=frozenset({profile})):
+        activated_profiles = pack_ctx.allow_for(ArtifactKind.AGENT_PROFILE)
+        activated_list = "(all except deactivated)" if activated_profiles is None else ", ".join(sorted(activated_profiles)) or "(none)"
         resolution_cmd = f"spec-kitty charter activate agent-profile {profile}"
         _mf.console.print(
             f"[red]✗ Charter activation gate FAILED[/red]\n"
             f"  WP {wp_id} assigns profile: [bold]{profile}[/bold]\n"
-            f"  '{profile}' is not in the activated agent-profile set.\n"
+            f"  '{profile}' is not in the effective agent-profile set.\n"
             f"  Currently activated: {activated_list}\n"
             f"  Resolution: {resolution_cmd}"
         )

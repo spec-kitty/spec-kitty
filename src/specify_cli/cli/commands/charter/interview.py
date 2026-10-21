@@ -100,6 +100,16 @@ def _stem_spelled_config(repo_root: Path, config_data: dict[str, Any], kinds: di
     return mapped
 
 
+def _kept_deactivated_messages(skipped_denied: dict[str, list[str]]) -> list[str]:
+    """``kept deactivated: <kind> <ids>`` per key whose re-selected ids stay excluded (FR-009; the interview never clears a deny)."""
+    from charter.drg import ArtifactKind
+
+    return [
+        f"kept deactivated: {ArtifactKind.from_plural(yaml_key.removeprefix('activated_')).operator_token} {', '.join(ids)}"
+        for yaml_key, ids in skipped_denied.items()
+    ]
+
+
 def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narrow: bool = False) -> tuple[list[str], dict[str, list[str]]]:
     """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
 
@@ -194,9 +204,16 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
         save=save,
         effective_sets=effective_sets,
         narrow_bases=_narrow_bases(repo_root, promotions, warnings) if narrow else None,
+        repo_root=repo_root,
     )
+    if outcome.committed:
+        # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity (F7).
+        from charter.activation.api import restamp_bundle_hash
+
+        restamp_bundle_hash(repo_root)
     warnings.extend(warning for plan in outcome.committed for warning in plan.warnings)
     warnings.extend(outcome.left_absent_messages())
+    warnings.extend(_kept_deactivated_messages(outcome.skipped_denied))
     narrowed = {plan.yaml_key: list(plan.deactivated) for plan in outcome.committed if narrow and plan.deactivated}
     return warnings, narrowed
 

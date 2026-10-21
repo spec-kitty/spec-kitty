@@ -56,9 +56,11 @@ class ProfileRegistry:
     inert for the catalog to be byte-identical to the pre-mission output
     (NFR-001):
 
-    * **Activation gate** — the three-state ``activated_agent_profiles``
-      contract. With no ``activated_agent_profiles`` key the gate admits
-      every doctrine layer (inert).
+    * **Activation gate** — the effective ``agent_profile`` set: the
+      three-state ``activated_agent_profiles`` contract minus the
+      ``deactivated_agent_profiles`` deny-list (FR-016, served by
+      ``service.agent_profiles``). With no ``activated_agent_profiles`` key
+      and no deny entry the gate admits every doctrine layer (inert).
     * **Language-scope filter** — ``build_active_charter_service``
       always computes ``active_languages=infer_repo_languages(repo_root)``
       (FR-008 unification, charter-sole-door-bypass-closure-01KZ3WAA WP01)

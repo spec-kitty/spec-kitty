@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 import typer
-
+from charter.activation.api import ActiveCharterConfigError
 from specify_cli.charter_runtime.preflight.ambient_warning import (
     dedupe_warnings,
     record_surfaced,
@@ -126,13 +126,20 @@ def run_preflight_or_abort(
         _logger.info("charter preflight disabled by project config (consumer=%s)", consumer)
         return CharterPreflightResult(passed=True, checks=[])
 
-    result = run_charter_preflight(
-        repo_root=repo_root,
-        auto_refresh=cfg.auto_refresh,
-        allow_missing_charter=True,
-        strict=False,
-        allow_heal=True,
-    )
+    try:
+        result = run_charter_preflight(
+            repo_root=repo_root,
+            auto_refresh=cfg.auto_refresh,
+            allow_missing_charter=True,
+            strict=False,
+            allow_heal=True,
+        )
+    except ActiveCharterConfigError:
+        # The activation store cannot be read. The consumer's own read of it fails closed and
+        # reports the file through its own contract (``next`` blocks with ``kind: blocked``, #4600),
+        # so the hook adds no advisory and no second, generic refusal. No mutation happened.
+        _logger.info("charter preflight skipped: activation store unreadable (consumer=%s)", consumer)
+        return CharterPreflightResult(passed=True, checks=[])
 
     if result.passed:
         emit_advisory_warnings(result, stderr=stderr, consumer=consumer, repo_root=repo_root)

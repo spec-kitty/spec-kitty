@@ -87,6 +87,7 @@ from ._charter_pack_collect import (  # noqa: E402
     _attach_pack_health,
     _build_selection_block,
     _collect_layer_collisions,
+    _run_activation_ledger_check,
     _run_cross_grain_check,
     _run_operating_procedures_check,
     _run_retired_governance_key_check,
@@ -1152,6 +1153,8 @@ def charter_packs_check(
     # finding (the CLI-root gate does not read charter.yaml).
     _run_retired_governance_key_check(report, repo_root)
     _run_retired_layout_check(report, repo_root)
+    # persistent-deactivation-ledger WP09 (FR-005): activation drift.
+    _run_activation_ledger_check(report, repo_root)
 
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.
@@ -1167,6 +1170,7 @@ def charter_packs_check(
             _render_cross_grain_findings(report)
             _render_retired_governance_key_finding(report)
             _render_retired_layout_findings(report)
+            _render_activation_ledger_findings(report)
         raise typer.Exit(exit_code)
 
     pack_entries = _build_pack_entries(registry, repo_root)
@@ -1205,6 +1209,7 @@ def charter_packs_check(
     _render_cross_grain_findings(report)
     _render_retired_governance_key_finding(report)
     _render_retired_layout_findings(report)
+    _render_activation_ledger_findings(report)
     raise typer.Exit(exit_code)
 
 
@@ -1332,6 +1337,21 @@ def _render_retired_governance_key_finding(report: CharterPackHealthReport) -> N
         return
     console.print(f"\n[bold red]Retired charter key[/bold red] — {finding.get('key')} is not read; the project's selections are ignored\n")
     console.print(f"  {finding.get('message')}", markup=False, soft_wrap=True)
+
+
+def _render_activation_ledger_findings(report: CharterPackHealthReport) -> None:
+    """Render ``org_drg['activation_ledger']`` (WP09, FR-005): errors red, warnings yellow; a no-op without findings."""
+    org_drg = report.org_drg
+    block = org_drg.get("activation_ledger") if isinstance(org_drg, dict) else None
+    if not isinstance(block, dict):
+        return
+    for severity, style in (("errors", "red"), ("warnings", "yellow")):
+        findings = [finding for finding in block.get(severity) or [] if isinstance(finding, dict)]
+        if not findings:
+            continue
+        console.print(f"\n[bold {style}]Activation ledger {severity}[/bold {style}] — {len(findings)}\n")
+        for finding in findings:
+            console.print(f"  • [{style}]{escape(str(finding.get('code')))}[/{style}]: {escape(str(finding.get('message')))}", soft_wrap=True)
 
 
 def _render_retired_layout_findings(report: CharterPackHealthReport) -> None:

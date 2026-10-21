@@ -390,7 +390,7 @@
    "deprecated": false,
    "commands": {
     "activate": {
-     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force.",
+     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force. A deactivated\nid the preset lists stays deactivated (and is left out) unless --force,\nwhich also clears its exclusion.\n\nThe cascade stops at a deactivated artifact and reports it;\n--include-deactivated walks through and clears the exclusions.",
      "hidden": false,
      "deprecated": false
     },
@@ -957,6 +957,11 @@
     },
     "ledger": {
      "help": "Report the migration ledger: which setup steps have run, and their state.\n\nA **read-only** view of the two-partition migration ledger. It lists every\ndeclared setup step in declared (manifest) order and, for each, shows:\n\n\\b\n* whether it is **already in place** (recorded, effect present here),\n* **recorded elsewhere but not here** (a per-clone step the ledger records\n  but whose effect is absent on this checkout — e.g. a freshly pulled clone),\n* **not yet applied**, and\n* whether its source **content changed since it ran** (drift).\n\nDrift is **audit-only**: it is reported, never re-applied. This command never\ncommits and never writes a file.\n\n``--json`` emits the one structured shape the human summary renders from.\n\nExamples:\n\n    spec-kitty migrate ledger\n\n    spec-kitty migrate ledger --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "activation-ledger": {
+     "help": "Move charter activation keys into the activation ledger, and nothing else.\n\nRuns exactly the move of the ``4.0.0rc8_activation_ledger`` upgrade\nmigration: the ``activated_<kind>``, ``activated_kinds`` and\n``mission_type_activations`` keys leave the ``charter.yaml`` that\n``.kittify/config.yaml`` points to (or ``config.yaml`` itself, and any\nleftover copy there) for ``.kittify/charter/activation.yaml``, verbatim,\nand the synthesis manifest is re-stamped. Use it on a project that an\nolder CLI wrote activation keys into again, without a full upgrade.\n\n\b\n* It refuses, writing nothing (exit 1), when the files disagree about a\n  key, or when a legacy file holds a ``deactivated_<kind>`` key.\n* It is idempotent: a re-run reports nothing to do and writes nothing.\n* When ``.kittify/migration-ledger.jsonl`` exists it records the\n  migration as applied (``ledger_record: written``); otherwise it records\n  nothing (``not_recorded``) and a later upgrade finds nothing to move.\n\nExit codes: 0 moved or nothing to do, 1 refused (nothing written), 2 usage error.\n\nExamples:\n\n    spec-kitty migrate activation-ledger --dry-run\n\n    spec-kitty migrate activation-ledger\n\n    spec-kitty migrate activation-ledger --json",
      "hidden": false,
      "deprecated": false
     }

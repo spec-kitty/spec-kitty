@@ -18,6 +18,7 @@ from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
 
 if TYPE_CHECKING:
+    from charter.activation.api import ActivationLedger
     from charter.activation.synthesizer.reconcile import (
         NodeOrEdgeRef,
         ReconciliationConflict,
@@ -63,6 +64,7 @@ def _build_synthesis_request(
     from charter.activation.interview import read_interview_answers
     from charter.activation.api import configured_languages
     from charter.activation.pack_context import PackContext
+    from charter.drg import ArtifactKind
     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
     from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
     from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
@@ -101,7 +103,7 @@ def _build_synthesis_request(
     # pre-#2526 behavior where this field was sourced from
     # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
     pack_context = PackContext.from_config(repo_root)
-    directives_for_synthesis: list[str] = [] if pack_context.activated_directives is None else config_roots.directives
+    directives_for_synthesis: list[str] = [] if pack_context.allow_for(ArtifactKind.DIRECTIVE) is None else config_roots.directives
 
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
@@ -609,28 +611,6 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
 # #4785 reproduced, see research.md Finding 2).
 # ---------------------------------------------------------------------------
 
-#: The ``activated_*`` root fields ``charter.yaml`` can carry (charter
-#: contract G3 / ``schemas.py::CharterYaml``). ``mission_type_activations``
-#: is DELIBERATELY excluded: ``charter generate``'s own provisioning step
-#: (``provision_mission_type_activations``) unconditionally populates it on
-#: EVERY run -- including a genuinely fresh, never-activated project -- so
-#: treating it as an "established" signal would misclassify every
-#: fresh-project fixture (confirmed empirically: a bare ``generate
-#: --from-interview`` run with empty ``selected_*`` answers already writes a
-#: non-empty ``mission_type_activations`` list, while every OTHER
-#: ``activated_*`` field stays absent).
-_ACTIVATION_SIGNAL_KEYS: tuple[str, ...] = (
-    "activated_kinds",
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-)
-
 
 def _has_real_prior_synthesis(repo_root: Path) -> bool:
     """Return True iff a REAL (non-seed) synthesis has already run.
@@ -695,19 +675,21 @@ def _interview_answers_present(repo_root: Path) -> bool:
         return False
 
 
-def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
-    """Return True iff ``charter_yaml_path`` shows evidence of a real, prior
+def _catalog_is_established(repo_root: Path) -> bool:
+    """Return True iff *repo_root*'s charter store shows evidence of a real, prior
     charter-store activation/synthesis -- the positive "not fresh" signal
     (#4785 Finding 2-core) that replaces the old ``generated/`` absence
     check.
 
     Two independent signals, either of which is sufficient:
 
-    1. Any ``activated_*`` root field (see ``_ACTIVATION_SIGNAL_KEYS``) is an
-       explicit, non-empty list -- i.e. an operator has really activated at
-       least one artifact via ``charter activate`` (charter contract G3's
-       three-state semantics: ``None`` == never touched, ``[]`` == explicit
-       fail-closed empty, non-empty == real activation).
+    1. The activation ledger (read through ``charter.activation.api``; the
+       legacy allow keys on an unmigrated project) holds a non-empty allow list or a
+       non-empty deny list (:func:`_activation_established`) -- i.e. an
+       operator has really activated or deactivated at least one artifact
+       (three-state allow semantics: ``None`` == never touched, ``[]`` ==
+       explicit fail-closed empty, non-empty == real activation). A malformed
+       ledger raises ``ActiveCharterConfigError`` (fail closed, FR-017).
     2. ``.kittify/charter/synthesis-manifest.yaml`` already records a REAL
        (non-seed) synthesis (:func:`_has_real_prior_synthesis`) **AND** the
        interview answers a real synthesis run consumes are still on disk
@@ -726,14 +708,10 @@ def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
     classified established and never re-seeded (pinned by
     ``tests/specify_cli/cli/commands/charter/test_synthesize_freshgate_4785.py``).
 
-    Read directly off the round-tripped YAML mapping (``load_charter_yaml``)
-    rather than through the full ``CharterYaml`` pydantic model: this is a
-    narrow, defensive presence probe, not a schema-validating consumer. An
-    unreadable ``charter.yaml`` yields no positive ``activated_*`` signal but
-    still falls through to the answers-gated manifest check -- so an
-    unreadable-but-genuinely-established store (real manifest + answers)
-    stays established, while an unreadable, orphan-manifest, no-answers store
-    is correctly seed-repairable.
+    The activation signal reads the one ledger seam (``load_activation_ledger``),
+    not a file. The former "unreadable ``charter.yaml`` falls through" tolerance is gone
+    for activation state: an unreadable or malformed activation store now
+    fails closed instead of reading as "no activation".
 
     ``catalog.references`` itself is deliberately NOT used as a signal here,
     despite being the intuitive "compiled catalog" field: ``compile_charter``
@@ -744,18 +722,24 @@ def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
     Gating on non-empty ``catalog.references`` would misclassify every
     genuinely fresh project as established.
     """
-    try:
-        from charter.activation.charter_yaml_io import load_charter_yaml
+    from charter.activation.api import load_activation_ledger  # noqa: PLC0415 — lazy: only the catalog-established probe reads the activation source
 
-        data: Any = load_charter_yaml(charter_yaml_path)
-    except Exception:  # noqa: BLE001 -- unreadable: no activated_* signal, fall through.
-        data = None
-    if isinstance(data, dict):
-        for key in _ACTIVATION_SIGNAL_KEYS:
-            value = data.get(key)
-            if isinstance(value, list) and value:
-                return True
+    if _activation_established(load_activation_ledger(repo_root)):
+        return True
     return _has_real_prior_synthesis(repo_root) and _interview_answers_present(repo_root)
+
+
+def _activation_established(ledger: ActivationLedger) -> bool:
+    """Whether *ledger* records a real activation: a non-empty allow list or a non-empty deny list.
+
+    ``mission_type_activations`` is DELIBERATELY not a signal: ``charter
+    generate``'s own provisioning step (``provision_mission_type_activations``)
+    populates it on EVERY run, including a genuinely fresh project. A deny
+    entry is recorded only by ``charter deactivate``, so it counts (T035).
+    """
+    if ledger.activated_kinds:
+        return True
+    return any(ids for _kind, ids in ledger.allow) or any(ids for _kind, ids in ledger.deny)
 
 
 _SYNTHESIS_ARTIFACT_PATHS = (

@@ -120,7 +120,7 @@ class MigrationRegistry:
             project_path: Project root whose two-partition ledger is diffed. When
                 ``None`` there is no ledger to diff, so every declared migration
                 is returned in manifest order (production callers always pass a
-                path).
+                path) and no legacy activation scope is entered.
 
         Returns:
             List of applicable migrations in manifest order.
@@ -131,14 +131,22 @@ class MigrationRegistry:
         if project_path is None:
             return all_migrations
 
+        # Selection runs inside the upgrade-only legacy activation scope: a
+        # ``reselect_when_recorded`` / ``structural_detect`` that reads activation
+        # must see the legacy surface exactly as the shipped migration expects
+        # (a selection-time exception it turns into ``True`` would silently
+        # re-select). Lazy import: ``base`` must not load at registry import.
+        from .migrations.base import legacy_upgrade_scope
+
         path = Path(project_path)
         ledger = MigrationLedger(path)
-        adopting = _pending_adoption_ids(ledger, all_migrations, path)
         selected: list[BaseMigration] = []
-        for migration in all_migrations:
-            settled = migration_settled(ledger, migration) or migration.migration_id in adopting
-            if not settled or migration.reselect_when_recorded(path):
-                selected.append(migration)
+        with legacy_upgrade_scope(path):
+            adopting = _pending_adoption_ids(ledger, all_migrations, path)
+            for migration in all_migrations:
+                settled = migration_settled(ledger, migration) or migration.migration_id in adopting
+                if not settled or migration.reselect_when_recorded(path):
+                    selected.append(migration)
         return selected
 
     @classmethod

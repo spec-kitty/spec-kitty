@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from importlib.metadata import version
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from charter.activation.synthesizer.errors import ProjectDRGValidationError
 from charter.drg import load_built_in_graph
 from charter.drg import DRGGraph
 from specify_cli.cli.commands.charter._common import _interview_path
+from specify_cli.cli.commands.charter.activate import mission_type_urn
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from specify_cli.cli.commands.charter.generate import _is_inside_git_worktree, _load_interview_for_generate
 
@@ -37,11 +37,16 @@ def _future_selections(repo_root: Path, context: PackContext, requested: dict[st
     "required" kind (skills) is seeded from nothing, as its activation is.
     """
     key_kinds = {key: kind for kind, key in YAML_KEY_MAP.items()}
-    absent = [key for key in requested if getattr(context, key) is None and _seeded_from_effective_set(key_kinds[key])]
+
+    def allow(key: str) -> frozenset[str] | None:
+        value: frozenset[str] | None = context.allow_for(ArtifactKind.from_operator_token(key_kinds[key]))
+        return value
+
+    absent = [key for key in requested if allow(key) is None and _seeded_from_effective_set(key_kinds[key])]
     effective = resolve_effective_sets(repo_root, absent) if absent else {}
     selections: dict[str, frozenset[str]] = {}
     for key, identifiers in requested.items():
-        current = getattr(context, key)
+        current = allow(key)
         if key in effective:
             seed = effective[key]
             if not seed.resolved:
@@ -51,8 +56,23 @@ def _future_selections(repo_root: Path, context: PackContext, requested: dict[st
     return selections
 
 
-def preflight_resynthesis(repo_root: Path, kind: str, artifact_id: str, scope: CascadeScope | None, graph: DRGGraph) -> None:
-    """Resolve the complete future activation set before any activation write."""
+def _cascade_source(kind: str, artifact_id: str, roots: dict[str, Path], org_roots: list[Path]) -> str:
+    """The DRG node the cascade walks from: a mission type's own node (FR-022), else the artifact's URN."""
+    if kind == "mission-type":
+        node: str = mission_type_urn(artifact_id)
+        return node
+    urn: str = resolve_artifact_urn(
+        ArtifactKind.from_operator_token(kind), artifact_id, offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots
+    )
+    return urn
+
+
+def preflight_resynthesis(repo_root: Path, kind: str, artifact_id: str, scope: CascadeScope | None, graph: DRGGraph, *, include_deactivated: bool = False) -> None:
+    """Resolve the complete future activation set before any activation write.
+
+    The cascade is walked as the activation will walk it: it stops at a
+    deactivated artifact unless *include_deactivated* (FR-010).
+    """
     if not _is_inside_git_worktree(repo_root):
         raise ValueError("Resynthesis requires a Git repository. Run `git init` before activation.")
     _load_interview_for_generate(
@@ -73,17 +93,15 @@ def preflight_resynthesis(repo_root: Path, kind: str, artifact_id: str, scope: C
     include(kind, artifact_id)
     roots = resolve_layer_roots(repo_root)
     org_roots = resolve_pack_chain(repo_root, strict=False)
-    if scope is not None and kind != "mission-type":
-        source = resolve_artifact_urn(
-            ArtifactKind.from_operator_token(kind), artifact_id, offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots
-        )
-        cascaded = cascade_activation_targets(graph, source, scope)
+    if scope is not None:
+        source = _cascade_source(kind, artifact_id, roots, org_roots)
+        cascaded = cascade_activation_targets(graph, source, scope, deactivated_urns=context.deactivated_urns, include_deactivated=include_deactivated)
         for kind_value, identifiers in cascaded.activated.items():
             for identifier in identifiers:
                 config_id = resolve_config_id(f"{kind_value}:{identifier}", offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots)
                 include(ArtifactKind(kind_value).operator_token, config_id)
     selections = _future_selections(repo_root, context, requested)
-    resolve_config_activated_roots(repo_root=repo_root, pack_context=replace(context, **selections))
+    resolve_config_activated_roots(repo_root=repo_root, pack_context=context.with_allow_lists(selections))
     # Reuse the synthesis emitter's support rules (including its additive-only
     # project-profile policy), so an unsupported profile fails before activation.
     try:

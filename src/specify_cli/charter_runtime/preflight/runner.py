@@ -190,7 +190,13 @@ def run_charter_preflight(
             Independent of ``auto_refresh``; read-only callers pass ``False``.
 
     Returns:
-        A frozen :class:`CharterPreflightResult`.  Never raises.
+        A frozen :class:`CharterPreflightResult`.  Never raises except
+        activation-store errors.
+
+    Raises:
+        ActiveCharterConfigError: The activation store (the ledger, or a legacy
+            surface in tolerant mode) is malformed or unmigrated. The advisory
+            fails closed rather than reporting over an unfiltered state (D-20).
     """
     result = _run_charter_preflight_freshness(
         repo_root,
@@ -208,19 +214,30 @@ def run_charter_preflight(
 def _deactivated_mission_default_profile_warnings(repo_root: Path) -> list[str]:
     """#4115: advisory warnings for deactivated mission-step default profiles.
 
-    Reads the three-state ``activated_agent_profiles`` set from project
-    config: ``None`` (default-allow) is inert and yields no warnings; an
-    explicit set yields one warning per
-    ``mission_step_contracts.profile_defaults._ACTION_PROFILE_DEFAULTS``
-    profile it does not contain. Never raises (the runner's own contract):
-    a config that cannot be read produces no warnings and a DEBUG note, not
-    a crash — a broken config is the freshness layers' problem to block on,
-    not this advisory note's.
-    """
-    try:
-        from charter.activation.pack_context import PackContext  # noqa: PLC0415
+    One warning per ``mission_step_contracts.profile_defaults._ACTION_PROFILE_DEFAULTS``
+    profile outside the effective ``agent_profile`` set (``PackContext.effective_ids``):
+    omitted by an explicit allow list, or denied (FR-016). An absent allow list with
+    no deny is inert and yields no warnings.
 
-        activated = PackContext.from_config(repo_root).activated_agent_profiles
+    Never raises except activation-store errors: a malformed activation store
+    (``ActiveCharterConfigError``) propagates (fail closed, D-20, FR-017), as an
+    unreadable deny would otherwise hide a deactivated default. Any other read
+    fault produces no warnings and a DEBUG note -- the freshness layers own
+    blocking on it, not this advisory note.
+    """
+    # Lazy (PLC0415): this advisory note is the only preflight step that needs the activation layer and the step-contract defaults.
+    from charter.activation.pack_context import ActiveCharterConfigError, PackContext  # noqa: PLC0415 — see above
+    from charter.drg import ArtifactKind  # noqa: PLC0415 — see above
+    from specify_cli.mission_step_contracts.profile_defaults import (  # noqa: PLC0415 — see above
+        _ACTION_PROFILE_DEFAULTS,
+        mission_default_profile_warning,
+    )
+
+    defaults = frozenset(_ACTION_PROFILE_DEFAULTS.values())
+    try:
+        effective = PackContext.from_config(repo_root).effective_ids(ArtifactKind.AGENT_PROFILE, defaults)
+    except ActiveCharterConfigError:
+        raise  # fail closed (D-20): never an unfiltered advisory over a broken store
     except Exception:  # noqa: BLE001 — the never-raise contract above; the
         # freshness layers own fail-closed treatment of a malformed config.
         logger.debug(
@@ -229,17 +246,9 @@ def _deactivated_mission_default_profile_warnings(repo_root: Path) -> list[str]:
             repo_root,
         )
         return []
-    if activated is None:
-        return []
-    from specify_cli.mission_step_contracts.profile_defaults import (  # noqa: PLC0415
-        _ACTION_PROFILE_DEFAULTS,
-        mission_default_profile_warning,
-    )
 
     warnings: list[str] = []
-    for profile_id in sorted(set(_ACTION_PROFILE_DEFAULTS.values())):
-        if profile_id in activated:
-            continue
+    for profile_id in sorted(defaults - effective):
         warning = mission_default_profile_warning(profile_id)
         if warning is not None:
             warnings.append(warning)

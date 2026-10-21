@@ -47,6 +47,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.activation.pack_context import PackContext
+from charter.drg import ArtifactKind
 from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 from specify_cli.invocation.router import CANONICAL_VERB_MAP, RouterDecision, _normalize_tokens
 
@@ -81,7 +82,10 @@ def is_charter_empty(repo_root: Path) -> bool:
     pack_context = PackContext.from_config(repo_root)
     if pack_context.org_roots != ():
         return False
-    return pack_context.activated_agent_profiles is None
+    # A deny entry is explicit agent-profile configuration too: the net must not
+    # pin a profile (``generic-agent`` included) the charter excluded (FR-016).
+    profiles = ArtifactKind.AGENT_PROFILE
+    return pack_context.allow_for(profiles) is None and not pack_context.denied_for(profiles)
 
 
 def _derive_fallback_action(request_text: str) -> str:

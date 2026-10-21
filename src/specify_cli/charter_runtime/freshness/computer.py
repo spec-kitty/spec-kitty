@@ -93,6 +93,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_root
 from kernel.clock import from_epoch
 from pathlib import Path
@@ -220,6 +221,15 @@ _CHARTER_DIR = Path(".kittify") / "charter"
 _CHARTER_YAML_FILENAME = "charter.yaml"
 _BUNDLE_FILES = (_CHARTER_YAML_FILENAME,)
 
+#: Optional bundle members (persistent-deactivation-ledger WP09, FR-018): the
+#: activation ledger, which may be absent. Derived from the kernel's one ledger
+#: declaration (no filename literal, M5); mirrors -- does not import --
+#: ``charter.bundle.BUNDLE_OPTIONAL_CONTENT_HASH_FILES`` for the same dependency
+#: reason as :data:`_BUNDLE_FILES`. ``test_bundle_file_lists_stay_in_sync``
+#: pins both pairs. Absence never degrades ``synced_bundle``; a present file
+#: that does not parse as a mapping makes it ``stale``.
+_OPTIONAL_BUNDLE_FILES = (ACTIVATION_LEDGER.name,)
+
 #: The four legacy bundle files a pre-consolidation project may still carry
 #: (charter-preflight-remediation WP05 / FR-005). Mirrors — does NOT import —
 #: ``specify_cli.upgrade.migrations.m_unify_charter_activation_finalize.
@@ -324,7 +334,8 @@ def _synthesis_manifest_path(repo_root: Path) -> Path:
     """Return the canonical synthesis manifest path via lazy chokepoint import."""
     from charter.activation.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
 
-    return repo_root / MANIFEST_PATH
+    manifest_path: Path = repo_root / MANIFEST_PATH
+    return manifest_path
 
 
 def _project_pack_graph_path(repo_root: Path) -> Path:
@@ -569,7 +580,10 @@ def _compute_synced_bundle(
     layer is largely a structural echo of ``charter_source`` kept for
     contract-shape stability (``charter-status-json.md``'s three-key
     payload) and for future re-widening if the bundle ever grows a second
-    tracked file. ``missing`` when the file is absent; ``stale`` when it
+    tracked file. WP09: the optional ledger (:data:`_OPTIONAL_BUNDLE_FILES`)
+    is parse-checked too; a present ledger that is not a YAML mapping makes
+    this layer ``stale`` (no remediation, same exemption), its absence never
+    does. ``missing`` when the file is absent; ``stale`` when it
     exists but ``charter_source`` found it unparseable (``"invalid"`` — the
     only non-``fresh``, non-``missing`` state ``charter_source`` can report
     once the file exists, since the ``charter.md``-hash ``"stale"`` branch
@@ -625,7 +639,28 @@ def _compute_synced_bundle(
             ),
         )
 
+    unparseable = _first_unparseable_optional_file(repo_root)
+    if unparseable is not None:
+        return FreshnessSubState(
+            state="stale",
+            last_change=last_change,
+            remediation=None,
+            detail=(
+                f"{unparseable} is not a readable YAML mapping; restore it from "
+                "VCS or hand-repair it, then re-run"
+            ),
+        )
+
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
+
+
+def _first_unparseable_optional_file(repo_root: Path) -> str | None:
+    """The repo-relative path of the first present optional bundle file that does not parse, else ``None``."""
+    for name in _OPTIONAL_BUNDLE_FILES:
+        path = repo_root / _CHARTER_DIR / name
+        if path.exists() and _safe_load_yaml(path) is None:
+            return (_CHARTER_DIR / name).as_posix()
+    return None
 
 
 def _compute_synthesized_drg(
