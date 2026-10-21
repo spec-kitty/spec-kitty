@@ -38,7 +38,11 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.skills.skill_frontmatter import (
+# A bare ``python scripts/ci/validate_agent_skills.py`` run has only ``scripts/ci`` on
+# ``sys.path``; resolve ``src`` from the script, never the caller's cwd or PYTHONPATH.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from specify_cli.skills.skill_frontmatter import (  # noqa: E402 - must follow the sys.path bootstrap above
     SKILL_FILENAME,
     is_shared_root,
     project_skill_bytes,

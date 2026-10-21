@@ -10,8 +10,10 @@ is unavailable (the per-worker test HOME starts with an empty uv cache, so point
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -312,3 +314,12 @@ def test_real_skills_ref_agrees_with_the_mirror_on_the_seeded_skills(tmp_path: P
 
     assert [v.failed for v in verdicts] == [False, True, True, True]
     assert not any(v.disagreement for v in verdicts)
+
+
+def test_bare_script_run_resolves_specify_cli_without_pythonpath(tmp_path: Path) -> None:
+    """A workflow runs the file as a plain script: ``specify_cli`` must resolve with no PYTHONPATH."""
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    script = Path(vas.__file__).resolve()
+    completed = subprocess.run([sys.executable, str(script), "--help"], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60, check=False)
+    assert "No module named" not in completed.stderr, completed.stderr
+    assert completed.returncode == 0, completed.stderr
