@@ -27,7 +27,7 @@ from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger import (
     BackfillMigrationLedgerMigration,
 )
-from specify_cli.upgrade.registry import MigrationRegistry, migration_settled
+from specify_cli.upgrade.registry import MigrationRegistry, _within_target, migration_settled
 
 _RECORDED_VERSION = "3.2.0"
 _BELOW = "0.2.0_specify_to_kittify"
@@ -281,3 +281,13 @@ def test_an_unparseable_target_caps_nothing() -> None:
     auto_discover_migrations()
 
     assert len(MigrationRegistry.get_applicable("0.0.0", "not-a-version")) == len(MigrationRegistry.get_all())
+
+
+@pytest.mark.parametrize("declared", ["not-a-version", None])
+def test_a_migration_with_an_unparseable_own_version_is_never_capped(declared: object) -> None:
+    """get_all() sorts by version so the registry cannot hold one; the cap itself must still keep it."""
+
+    class _Stub:
+        target_version = declared
+
+    assert _within_target(_Stub(), "0.0.1") is True  # type: ignore[arg-type]
