@@ -22,7 +22,7 @@ from typer.testing import CliRunner
 from specify_cli import app as root_app
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 
-pytestmark = [pytest.mark.integration, pytest.mark.slow, pytest.mark.p0_repro(issue=6475)]
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 _COMMANDS = (
     "accept",

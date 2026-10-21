@@ -327,7 +327,7 @@ def test_stray_arguments_token_variant(tmp_path: Path) -> None:
 
 
 def test_frontmatter_key_order(tmp_path: Path) -> None:
-    """Frontmatter keys must appear in the exact order: name, description, user-invocable."""
+    """Frontmatter keys must appear in the exact order: name, description, metadata (spec-only, #6475)."""
     template = tmp_path / "order-test.md"
     template.write_text(
         "---\ndescription: Order test\n---\n"
@@ -338,11 +338,11 @@ def test_frontmatter_key_order(tmp_path: Path) -> None:
     )
     skill = render(template, "codex", _TEST_VERSION)
     keys = list(skill.frontmatter.keys())
-    assert keys == ["name", "description", "user-invocable"], f"Unexpected frontmatter key order: {keys}"
+    assert keys == ["name", "description", "metadata"], f"Unexpected frontmatter key order: {keys}"
 
 
 def test_frontmatter_user_invocable_true(tmp_path: Path) -> None:
-    """user-invocable must always be True for both agents."""
+    """``user-invocable`` is always the string ``"true"`` under ``metadata`` for every agent (FR-012)."""
     template = tmp_path / "invocable-test.md"
     template.write_text(
         "---\ndescription: Invocable test\n---\n"
@@ -352,11 +352,12 @@ def test_frontmatter_user_invocable_true(tmp_path: Path) -> None:
     )
     for agent in SUPPORTED_AGENTS:
         skill = render(template, agent, _TEST_VERSION)
-        assert skill.frontmatter["user-invocable"] is True
+        assert skill.frontmatter["metadata"] == {"user-invocable": "true"}
+        assert "user-invocable" not in skill.frontmatter
 
 
 def test_frontmatter_no_extra_keys(tmp_path: Path) -> None:
-    """Frontmatter must contain exactly three keys — no allowed-tools, license, etc."""
+    """Frontmatter must contain exactly three spec keys — no allowed-tools, license, top-level user-invocable."""
     template = tmp_path / "extra-keys.md"
     template.write_text(
         "---\ndescription: Extra keys test\n---\n"
@@ -365,7 +366,7 @@ def test_frontmatter_no_extra_keys(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     skill = render(template, "codex", _TEST_VERSION)
-    assert set(skill.frontmatter.keys()) == {"name", "description", "user-invocable"}
+    assert set(skill.frontmatter.keys()) == {"name", "description", "metadata"}
 
 
 def test_frontmatter_serialisation_with_colon_in_description(tmp_path: Path) -> None:

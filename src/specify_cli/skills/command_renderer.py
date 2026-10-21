@@ -34,6 +34,8 @@ from kernel.text_decode import normalize_newlines
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.skills.command_skill_names import command_skill_name, rewrite_command_invocations
+from specify_cli.skills.skill_frontmatter import command_skill_fields, render_frontmatter, first_paragraph
+from specify_cli.skills.skill_frontmatter import ensure_skill_frontmatter as ensure_skill_frontmatter
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 
 # ---------------------------------------------------------------------------
@@ -58,9 +60,8 @@ _RE_ANY_HEADING = re.compile(r"^#{1,6} +\S", re.MULTILINE)
 # Maximum length for the description field.
 _DESC_MAX_LEN = 140
 
-# Host skill loaders expect frontmatter to start at byte 0. Keep this stricter
-# than the command-template parser, which tolerates leading whitespace.
-_RE_LEADING_FRONTMATTER = re.compile(r"^---\n.*?\n---\n?", re.DOTALL)
+#: ``ensure_skill_frontmatter`` is re-exported from the single frontmatter
+#: authority :mod:`specify_cli.skills.skill_frontmatter` for existing callers.
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +105,8 @@ class RenderedSkill:
         ``"spec-kitty-<command>"`` derived from the template filename through
         :func:`~specify_cli.skills.command_skill_names.command_skill_name`.
     frontmatter:
-        Ordered dict with keys ``name``, ``description``, ``user-invocable``.
+        Ordered dict with keys ``name``, ``description``, ``metadata`` (the
+        Agent Skills specification form, FR-012).
     body:
         Markdown body with the User-Input block rewritten.  Does not contain
         ``$ARGUMENTS``.
@@ -129,93 +131,20 @@ class RenderedSkill:
     def to_skill_md(self) -> str:
         """Serialize to the on-disk ``SKILL.md`` bytes (frontmatter + body).
 
-        The frontmatter is hand-rolled YAML emitted in a deterministic key
-        order: ``name``, ``description``, ``user-invocable``.  No external YAML
-        library is used here so that quoting behaviour is 100% predictable
-        across Python versions and ruamel.yaml releases.
+        The frontmatter comes from the single frontmatter authority
+        (:func:`~specify_cli.skills.skill_frontmatter.render_frontmatter`) in
+        the deterministic key order ``name``, ``description``, ``metadata``.
         """
-        lines: list[str] = ["---"]
-        for key in ("name", "description", "user-invocable"):
-            value = self.frontmatter[key]
-            lines.append(f"{key}: {_yaml_scalar(value)}")
-        lines.append("---")
         # Ensure the body is separated from frontmatter by exactly one newline.
         body = self.body
         if not body.startswith("\n"):
             body = "\n" + body
-        return "\n".join(lines) + body
+        return render_frontmatter(self.frontmatter) + body
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-
-def _yaml_scalar(value: object) -> str:
-    """Emit a YAML scalar that is safe, unquoted when possible, and stable.
-
-    Rules (sufficient for the narrow schema used here):
-
-    * Booleans → lowercase ``true`` / ``false`` (YAML 1.1 canonical form).
-    * Strings that are safe (no leading/trailing whitespace, no characters that
-      require quoting, not a YAML keyword, length ≤ 400 chars) → bare scalar.
-    * Everything else → double-quoted with ``"`` and ``\\`` escaping.
-    """
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int | float):
-        return str(value)
-    text = str(value)
-    if _is_safe_bare_scalar(text):
-        return text
-    # Double-quote and escape backslash + double-quote.
-    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
-
-
-# Characters that force quoting in a YAML bare scalar.
-_YAML_UNSAFE_RE = re.compile(r'[:#\[\]{},&*?|<>=!%@`"\'\n\r\t]')
-# YAML 1.1 boolean/null keywords that must not appear as bare scalars.
-_YAML_KEYWORDS = frozenset(
-    {
-        "true",
-        "false",
-        "yes",
-        "no",
-        "on",
-        "off",
-        "null",
-        "~",
-        "True",
-        "False",
-        "Yes",
-        "No",
-        "On",
-        "Off",
-        "Null",
-        "TRUE",
-        "FALSE",
-        "YES",
-        "NO",
-        "ON",
-        "OFF",
-        "NULL",
-    }
-)
-
-
-def _is_safe_bare_scalar(text: str) -> bool:
-    """Return True if *text* can be emitted as an unquoted YAML scalar."""
-    if not text:
-        return False
-    if text != text.strip():
-        return False
-    if text in _YAML_KEYWORDS:
-        return False
-    if _YAML_UNSAFE_RE.search(text):
-        return False
-    # Guard against strings that look like numbers or start with YAML sigils.
-    return text[0] not in "-+.0123456789"
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -277,67 +206,9 @@ def _extract_purpose_description(body: str) -> str | None:
 
 
 def _extract_first_paragraph_description(body: str) -> str | None:
-    """Return the first non-heading, non-code-fence paragraph line of *body*.
-
-    Skips blank lines, headings, code fences (``` ... ```), and bare
-    formatting markers.  Returns ``None`` if no suitable line is found.
-    """
-    in_code_fence = False
-    for line in body.splitlines():
-        stripped = line.strip()
-        # Toggle code fence tracking.
-        if stripped.startswith("```"):
-            in_code_fence = not in_code_fence
-            continue
-        if in_code_fence:
-            continue
-        if not stripped:
-            continue
-        if stripped.startswith("#"):
-            continue
-        # Skip lines that are purely markdown decorators (e.g. "---", "***").
-        if re.match(r"^[-*_]{3,}$", stripped):
-            continue
-        # Strip leading bold/italic markers.
-        cleaned = re.sub(r"^\*+|^_+", "", stripped).strip()
-        if cleaned:
-            return cleaned[:_DESC_MAX_LEN]
-    return None
-
-
-def ensure_skill_frontmatter(content: str, skill_name: str) -> str:
-    """Return ``content`` with host-required ``SKILL.md`` frontmatter.
-
-    Command-template skills already flow through :class:`RenderedSkill`.
-    Canonical skill-pack installers and repair paths use this helper for older
-    generated skills that were authored as plain Markdown, including the
-    ``spec-kitty`` repro from #964. Existing frontmatter is preserved
-    byte-for-byte (modulo the CRLF/lone-CR normalisation below).
-
-    Newlines are normalised to LF first (#4998): the installer decodes
-    raw source bytes and keeps CRLF, but :data:`_RE_LEADING_FRONTMATTER`
-    matches ``\\n`` only. Without this normalisation, CRLF-terminated
-    frontmatter is never recognised as present, so a second, bogus
-    frontmatter block is prepended ahead of the untouched CRLF original on
-    every CRLF-source install/repair. Normalising here (rather than only in
-    the regex) covers every caller uniformly: installer (both call sites),
-    verifier, and ``runtime/agent_skills.py``.
-    """
-    content = normalize_newlines(content)
-    if _RE_LEADING_FRONTMATTER.match(content):
-        return content
-
-    description = _extract_first_paragraph_description(content) or "Spec Kitty skill"
-    frontmatter = "\n".join(
-        [
-            "---",
-            f"name: {_yaml_scalar(skill_name)}",
-            f"description: {_yaml_scalar(description)}",
-            "---",
-            "",
-        ]
-    )
-    return frontmatter + content
+    """Return the first paragraph line of *body*, limited to :data:`_DESC_MAX_LEN`."""
+    paragraph = first_paragraph(body)
+    return paragraph[:_DESC_MAX_LEN] if paragraph else None
 
 
 def _build_frontmatter(
@@ -349,7 +220,7 @@ def _build_frontmatter(
     """Build the frontmatter dict for the rendered skill.
 
     Keys are inserted in the canonical order: ``name``, ``description``,
-    ``user-invocable``.  The dict is a plain :class:`dict` whose insertion
+    ``metadata`` (spec-only, FR-012; ``user-invocable`` lives under ``metadata``).  The dict is a plain :class:`dict` whose insertion
     order is preserved by CPython 3.7+ and mandated by PEP 468.
 
     Parameters
@@ -383,11 +254,7 @@ def _build_frontmatter(
         or f"Spec Kitty {command} workflow"
     )
 
-    return {
-        "name": command_skill_name(command),
-        "description": description,
-        "user-invocable": True,
-    }
+    return command_skill_fields(command_skill_name(command), description)
 
 
 # ---------------------------------------------------------------------------

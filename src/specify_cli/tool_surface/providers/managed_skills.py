@@ -696,7 +696,9 @@ class ManagedSkillsProvider:
                         installed_path=installed_path,
                         installation_class=installation_class,
                         agent_key=tool_key,
-                        content_hash=skill_verifier._expected_content_hash(source, skill.name, rel_within_skill.as_posix()),
+                        content_hash=skill_verifier._expected_content_hash(
+                            source, skill.name, rel_within_skill.as_posix(), installed_path=installed_path
+                        ),
                         installed_at="",
                         delivery_mode="copy",
                     )

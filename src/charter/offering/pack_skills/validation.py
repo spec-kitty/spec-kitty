@@ -16,7 +16,13 @@ from ruamel.yaml.error import YAMLError
 
 from kernel.pack_tiers import BUILT_IN, PackTier
 
-from charter.offering.pack_skills.models import PackSkill, SkillInvocation, SkillParameter
+from charter.offering.pack_skills.models import (
+    MAX_SKILL_DESCRIPTION_LENGTH,
+    MAX_SKILL_NAME_LENGTH,
+    PackSkill,
+    SkillInvocation,
+    SkillParameter,
+)
 
 #: The pack-skill tier type. Aliased to the single kernel authority (#6048) so
 #: the tier vocabulary is the canonical ``"built-in"``/``"org"``/``"project"``
@@ -41,6 +47,39 @@ def rendered_name(skill_id: str, namespace: str | None) -> str:
     return f"{namespace}-{skill_id}" if namespace else skill_id
 
 
+def rendered_description(skill: PackSkill) -> str:
+    """Description a skill renders with: whitespace collapsed, plus ``" Triggers: a, b."``.
+
+    The single composer of the rendered description: the pack-skill renderer
+    emits exactly this text, and :func:`skill_limit_violation` measures it.
+    """
+    description = " ".join(skill.description.split())
+    if skill.triggers:
+        description = f"{description} Triggers: {', '.join(skill.triggers)}."
+    return description
+
+
+def skill_limit_violation(skill: PackSkill, name: str) -> str | None:
+    """Why *skill* rendered as *name* exceeds an Agent Skills limit, or ``None`` (FR-014).
+
+    The rendered name must be at most :data:`MAX_SKILL_NAME_LENGTH` characters and
+    the rendered description (after the ``Triggers:`` suffix) at most
+    :data:`MAX_SKILL_DESCRIPTION_LENGTH`; a harness drops a longer skill silently.
+    """
+    if len(name) > MAX_SKILL_NAME_LENGTH:
+        return (
+            f"skill {skill.id!r}: rendered name {name!r} is {len(name)} characters, over the "
+            f"{MAX_SKILL_NAME_LENGTH}-character skill name limit; shorten the skill id or namespace"
+        )
+    description = rendered_description(skill)
+    if len(description) > MAX_SKILL_DESCRIPTION_LENGTH:
+        return (
+            f"skill {skill.id!r}: rendered description (with its triggers) is {len(description)} characters, over the "
+            f"{MAX_SKILL_DESCRIPTION_LENGTH}-character skill description limit; shorten the description or triggers"
+        )
+    return None
+
+
 def validate_pack_skill(
     skill: PackSkill,
     skill_file: Path,
@@ -51,7 +90,8 @@ def validate_pack_skill(
     """Validate *skill* for the tier it was loaded from.
 
     Every tier: a prompt-form body must exist next to the skill file and stay
-    inside its directory. Org and project tiers additionally refuse reserved
+    inside its directory, and the rendered name and description must fit the
+    Agent Skills limits (:func:`skill_limit_violation`). Org and project tiers additionally refuse reserved
     built-in name prefixes, a ``scripts/`` directory beside the skill, and
     permission-widening frontmatter in the body.
     """
@@ -59,6 +99,9 @@ def validate_pack_skill(
     # body itself; the base skill's own file is validated when it loads.
     needs_body = skill.form == "prompt" and not skill.enhances
     body_text = _read_body(skill, skill_file) if needs_body else None
+    limit = skill_limit_violation(skill, skill.id if tier == BUILT_IN else rendered_name(skill.id, namespace))
+    if limit is not None:
+        raise PackSkillViolation(limit)
     if tier == BUILT_IN:
         return
     _check_reserved_prefix(skill, namespace)
@@ -193,6 +236,8 @@ __all__ = [
     "PackSkillViolation",
     "Tier",
     "apply_enhancement",
+    "rendered_description",
     "rendered_name",
+    "skill_limit_violation",
     "validate_pack_skill",
 ]

@@ -63,16 +63,26 @@ def write_json(path: Path, payload: dict[str, object] | bytes, *, mode: int = 0o
     finish_build(assessment)
 
 
-def command_members(prefix: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], OwnerAssessment]:
-    """Use WP04's concrete, once-rendered canonical command batch."""
+def command_members(prefix: Path, root: OperationRoot, *, native: bool = False) -> tuple[tuple[StagedFile, ...], OwnerAssessment]:
+    """Use WP04's concrete, once-rendered canonical command batch.
+
+    The batch carries the shared-root (specification-only) bytes; ``native=True``
+    applies the native-root projection for a bundle whose host reads Claude-style
+    keys such as top-level ``user-invocable`` (plan A-M4).
+    """
     from specify_cli.skills.command_installer import PreparedCommands, prepare_commands
+    from specify_cli.skills.skill_frontmatter import project_skill_bytes
 
     supplier = prepare_commands(AssessmentInputs(OperationRoot("bundle-command-source", "project", Path("/"))), ("codex",))
     payload = supplier.prepared
     if not supplier.complete or not isinstance(payload, PreparedCommands):
         raise BuildError("; ".join(d.message for d in supplier.diagnostics))
     files = tuple(
-        StagedFile((prefix / Path(command.path).parent.name / "SKILL.md").relative_to(root.path).as_posix(), command.content, logical_owners=("command_skills",))
+        StagedFile(
+            (prefix / Path(command.path).parent.name / "SKILL.md").relative_to(root.path).as_posix(),
+            project_skill_bytes(command.content, shared=False, skill_name=Path(command.path).parent.name) if native else command.content,
+            logical_owners=("command_skills",),
+        )
         for command in payload.commands
         if command.content is not None
     )

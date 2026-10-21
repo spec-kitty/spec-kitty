@@ -12,7 +12,7 @@ from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAsset
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.core.config import AGENT_SKILL_CONFIG
 from specify_cli.skills.catalog import resolve_builtin_skill_catalog
-from specify_cli.skills.command_renderer import ensure_skill_frontmatter
+from specify_cli.skills.skill_frontmatter import SKILL_FILENAME, is_shared_root, project_skill_bytes
 from specify_cli.skills.paths import get_primary_global_skill_root, iter_installable_agents
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
@@ -80,14 +80,24 @@ def _unique_global_roots(agent_keys: tuple[str, ...] | None = None) -> list[Path
     return roots
 
 
+def _is_shared_global_root(destination_root: Path) -> bool:
+    """Whether a global root (``~/.agents/skills``, ``~/.claude/skills``...) takes the spec projection."""
+    try:
+        return is_shared_root(destination_root.relative_to(Path.home()).as_posix())
+    except ValueError:
+        return True
+
+
 def _prepare_skill_tree(
     prepared: AssetPreparation,
     source: Path,
     destination: Path,
     skill_name: str,
     *,
+    shared: bool = True,
     normalize_frontmatter: bool = True,
 ) -> None:
+    """Stage *source* into *destination*; ``SKILL.md`` is projected for a shared or native root (A-M2)."""
     state = prepared.observe(source, members=True)
     if state.kind != "directory":
         raise ValueError(f"Required skill directory unavailable: {source}")
@@ -106,11 +116,11 @@ def _prepare_skill_tree(
         child_state = prepared.observe(child)
         target = destination / child.name
         if child_state.kind == "directory":
-            _prepare_skill_tree(prepared, child, target, skill_name, normalize_frontmatter=False)
+            _prepare_skill_tree(prepared, child, target, skill_name, shared=shared, normalize_frontmatter=False)
         elif child_state.kind == "file":
             data = prepared.source(child)
-            if child.name == "SKILL.md" and normalize_frontmatter:
-                data = ensure_skill_frontmatter(data.decode("utf-8"), skill_name).encode("utf-8")
+            if child.name == SKILL_FILENAME and normalize_frontmatter:
+                data = project_skill_bytes(data, shared=shared, skill_name=skill_name)
             prepared.asset(target, data, (child_state.mode or 0o644) & ~0o222)
         else:
             raise ValueError(f"Unsupported canonical skill source: {child}")
@@ -193,9 +203,10 @@ def assess_global_agent_skills(
                 prepared.preserve(destination_root, "Unproven global skill root replacement")
                 continue
             canonical = {skill.name for skill in skills}
+            shared = _is_shared_global_root(destination_root)
             for skill in skills:
                 prepared.source(skill.skill_md)
-                _prepare_skill_tree(prepared, skill.skill_dir, destination_root / skill.name, skill.name)
+                _prepare_skill_tree(prepared, skill.skill_dir, destination_root / skill.name, skill.name, shared=shared)
                 prepared.prune_missing(destination_root / skill.name)
             if state.kind == "directory":
                 for existing in destination_root.iterdir():

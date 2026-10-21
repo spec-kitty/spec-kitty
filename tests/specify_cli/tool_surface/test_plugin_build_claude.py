@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ruamel.yaml import YAML
 
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.tool_surface.bundles._builder import (
@@ -134,6 +135,15 @@ class TestSkillsCopy:
             assert content.startswith("---"), (
                 f"{skill_md.name} does not start with YAML frontmatter"
             )
+
+    def test_command_skills_keep_native_user_invocable(self, tmp_path: Path) -> None:
+        """The Claude bundle applies the native projection: ``user-invocable`` stays top-level (A-M4)."""
+        bundle_dir = _run_build(tmp_path)
+        for command in CANONICAL_COMMANDS:
+            skill_md = bundle_dir / "skills" / f"spec-kitty-{command}" / "SKILL.md"
+            frontmatter = YAML(typ="safe").load(skill_md.read_text(encoding="utf-8").split("---\n", 2)[1])
+            assert list(frontmatter) == ["name", "description", "user-invocable"], skill_md
+            assert frontmatter["user-invocable"] is True
 
 
 # ---------------------------------------------------------------------------
