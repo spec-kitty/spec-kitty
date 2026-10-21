@@ -1,7 +1,7 @@
 {
-  "event_count": 48,
-  "last_event_id": "01M5EPAQ6ABM8GE14KZRYW4PHT",
-  "materialized_at": "2026-10-21T07:38:06.411060+00:00",
+  "event_count": 49,
+  "last_event_id": "01M5EPD0ARHZQKN0VP6TVRR91B",
+  "materialized_at": "2026-10-21T07:39:21.304542+00:00",
   "mission_number": "",
   "mission_slug": "command-skill-names-and-antigravity-01M5DBWT",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
@@ -185,17 +185,17 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M5EPAQ6ABM8GE14KZRYW4PHT",
-      "last_transition_at": "2026-10-21T07:38:06.411060+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M5EPD0ARHZQKN0VP6TVRR91B",
+      "last_transition_at": "2026-10-21T07:39:21.304542+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: startup writer scoped to configured slash agents (none outside a project), schema-2 per-key freshness stamp, ~/.agent/workflows cleanup with inventory or current-marker+bytes proof, agent config add writes added agents, 6470 repro unmarked; warm startup 3.455s base vs 3.476s head"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 31652,
-      "shell_pid_created_at": "1792565049.46",
+      "role": "reviewer",
+      "shell_pid": 27790,
+      "shell_pid_created_at": "1792568350.68",
       "subtasks": {
         "T022": "done",
         "T023": "done",
