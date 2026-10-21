@@ -887,7 +887,8 @@ jobs:
   # anthropics/agentskills), pinned to one version and run through uvx: CI-only,
   # never a project dependency. Always-on because its inputs span src/**,
   # packs/** and the generated output, which no single path group covers. Packs
-  # are synced first because `init` reads them. Runs no pytest.
+  # are synced first because `init` reads them. Runs no pytest. The pin lives
+  # only in the script (REFERENCE_SPEC); an unusable uvx/skills-ref exits 2.
   agent-skills:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: agent skills (skills-ref validate, always-on)
@@ -901,7 +902,6 @@ jobs:
       - run: |
           uv sync --frozen
           PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uvx --from skills-ref==0.1.1 agentskills --help
           uv run --frozen python scripts/ci/validate_agent_skills.py
 
   layer-rules:
