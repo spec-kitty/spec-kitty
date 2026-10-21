@@ -235,7 +235,7 @@ class CommandSkillsProvider:
                 return self._unsafe_status(instance, path)
             if rel in verify_report.collisions:
                 return self._collision_status(instance, path)
-            legacy = _legacy_leftover(project_root, rel, verify_report.legacy)
+            legacy = _legacy_leftover(project_root, rel, verify_report)
             if legacy is not None:
                 return self._legacy_status(instance, path) if legacy[1] else self._legacy_kept_status(instance, path, legacy[0])
             if rel in verify_report.stale:
@@ -478,29 +478,24 @@ class CommandSkillsProvider:
 
 def warning_message(disposition: Disposition) -> str | None:
     """Return the user-facing warning of a ``collision`` / ``legacy_kept`` disposition, else ``None``."""
-    if disposition.path is None:
-        return None
-    if disposition.state == command_installer.COLLISION:
-        message: str = command_installer.collision_warning(disposition.path)
-        return message
-    if disposition.state == command_installer.LEGACY_KEPT:
-        message = command_installer.legacy_kept_warning(disposition.path)
-        return message
-    return None
+    message: str | None = command_installer.disposition_warning(disposition.state, disposition.path, disposition.reason)
+    return message
 
 
-def _legacy_leftover(project_root: Path | None, rel: str | None, legacy: list[str]) -> tuple[str, bool] | None:
+def _legacy_leftover(project_root: Path | None, rel: str | None, report: command_installer.VerifyReport) -> tuple[str, bool] | None:
     """Return ``(reported path, still managed)`` when *rel* is a legacy dotted leftover, else ``None``.
 
-    A leftover folder is reported with a trailing ``/`` (only other files remain in it).
+    A leftover folder is reported with a trailing ``/`` (only other files remain in it). A
+    ``SKILL.md`` is still managed when the manifest records it, or when it is an unrecorded
+    exact legacy rendering the installer retires (``legacy_owned``, operator ruling 2026-10-21).
     """
     if project_root is None or rel is None:
         return None
-    if f"{rel}/" in legacy:
+    if f"{rel}/" in report.legacy:
         return f"{rel}/", False
-    if rel not in legacy:
+    if rel not in report.legacy:
         return None
-    return rel, manifest_store.load(project_root).find(rel) is not None
+    return rel, rel in report.legacy_owned or manifest_store.load(project_root).find(rel) is not None
 
 
 def _rel(status: SurfaceStatus, project_root: Path) -> str:

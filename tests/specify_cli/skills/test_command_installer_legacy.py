@@ -466,3 +466,149 @@ def test_stale_recorded_hash_and_an_older_render_keeps_the_file(repo: Path) -> N
     assert rel not in pruned
     assert (repo / rel).is_file()
     assert rel not in _manifest_paths(repo)
+
+
+# ---------------------------------------------------------------------------
+# Operator ruling 2026-10-21: an unrecorded dotted skill is ours only when it is
+# exactly the legacy rendering (a clone that pulled an already-migrated manifest)
+# ---------------------------------------------------------------------------
+
+
+def _write_exact_legacy(repo: Path, command: str = "plan") -> Path:
+    """Write today's render under the legacy name, with no manifest entry recording it."""
+    from specify_cli.skills.command_installer import legacy_rendering
+
+    today = command_installer._render_command_skill(repo, command, "codex", command_installer._get_version())
+    path = repo / legacy_command_skill_rel_path(command)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(legacy_rendering(today, command))
+    return path
+
+
+def test_unrecorded_exact_legacy_render_is_retired_by_install(repo: Path) -> None:
+    install(repo, "codex")  # a migrated, committed manifest: no dotted entry
+    path = _write_exact_legacy(repo)
+    rel = legacy_command_skill_rel_path("plan")
+    before = verify(repo)
+    assert before.legacy == before.legacy_owned == [rel]
+
+    report = install(repo, "codex")
+
+    assert report.legacy_removed == [rel]
+    assert report.legacy_kept == report.legacy_unrecorded == []
+    assert install_warnings(report) == []
+    assert not path.parent.exists()
+    assert _manifest_paths(repo) == _canonical_rels()
+    after = verify(repo)
+    assert after.legacy == after.legacy_owned == []
+
+
+def test_unrecorded_exact_legacy_render_is_retired_by_the_provider_repair(repo: Path) -> None:
+    path = _write_exact_legacy(repo, "tasks")
+
+    assessment = _provider_prepare(repo)
+    assert assessment.complete, assessment.diagnostics
+    rel = legacy_command_skill_rel_path("tasks")
+    assert {effect.path for effect in assessment.effects if effect.after.kind == "absent"} == {rel, Path(rel).parent.as_posix()}
+    assert apply_commands(assessment, assessment.consent).outcome == "applied"
+
+    assert not path.parent.exists()
+    assert (repo / command_skill_rel_path("tasks")).is_file()
+
+
+def test_unrecorded_dotted_skill_with_other_bytes_is_kept_with_a_warning(repo: Path) -> None:
+    from specify_cli.skills.command_installer import unrecorded_legacy_warning
+
+    path = repo / legacy_command_skill_rel_path("plan")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(_EDITED)
+    rel = legacy_command_skill_rel_path("plan")
+
+    report = install(repo, "codex")
+
+    assert path.read_bytes() == _EDITED
+    assert report.legacy_unrecorded == [rel]
+    assert report.legacy_removed == report.legacy_kept == []
+    assert install_warnings(report) == [unrecorded_legacy_warning(rel)]
+    assert verify(repo).legacy_owned == []
+    assessment = _provider_prepare(repo)
+    [disposition] = [d for d in assessment.dispositions if d.state == LEGACY_KEPT]
+    assert command_installer.disposition_warning(disposition.state, disposition.path, disposition.reason) == unrecorded_legacy_warning(rel)
+
+
+def test_unrecorded_exact_render_with_other_files_keeps_the_folder_with_a_warning(repo: Path) -> None:
+    from specify_cli.skills.command_installer import unrecorded_legacy_warning
+
+    path = _write_exact_legacy(repo)
+    (path.parent / "notes.md").write_text("mine\n", encoding="utf-8")
+    folder = f"{path.parent.relative_to(repo).as_posix()}/"
+
+    report = install(repo, "codex")
+
+    assert not path.exists()
+    assert (path.parent / "notes.md").read_text(encoding="utf-8") == "mine\n"
+    assert report.legacy_removed == [legacy_command_skill_rel_path("plan")]
+    assert report.legacy_unrecorded == [folder]
+    assert install_warnings(report) == [unrecorded_legacy_warning(folder)]
+    assert verify(repo).legacy == [folder]
+
+
+def test_recorded_legacy_deleted_from_a_folder_with_other_files_warns_about_the_folder(repo: Path) -> None:
+    _seed_legacy(repo, ("plan",))
+    extra = repo / ".agents/skills/spec-kitty.plan/notes.md"
+    extra.write_text("mine\n", encoding="utf-8")
+
+    report = install(repo, "codex")
+
+    assert report.legacy_unrecorded == [".agents/skills/spec-kitty.plan/"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="directory symlinks need privileges on Windows")
+def test_unrecorded_exact_render_behind_a_link_is_kept(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
+    path = _write_exact_legacy(repo)
+    outside = tmp_path_factory.mktemp("outside")
+    path.rename(outside / "SKILL.md")
+    path.parent.rmdir()
+    path.parent.symlink_to(outside, target_is_directory=True)
+    rel = legacy_command_skill_rel_path("plan")
+
+    assert verify(repo).legacy_owned == []
+    report = install(repo, "codex")
+
+    assert report.legacy_unrecorded == [rel]
+    assert (outside / "SKILL.md").is_file()
+    assert path.parent.is_symlink()
+
+
+def test_unrecorded_exact_render_is_left_alone_by_non_installing_preparations(repo: Path) -> None:
+    """Only an installing pass retires it: remove, prune and adopt-only install nothing to replace it."""
+    install(repo, "codex")
+    path = _write_exact_legacy(repo)
+
+    prune_stale(repo)
+    remove(repo, "codex")
+    assert path.is_file()
+    assessment = _provider_prepare(repo, adopt_only=True)
+    assert not any(command_installer.is_legacy_rel_path(effect.path) for effect in assessment.effects)
+    assert path.is_file()
+
+
+def test_unrecorded_exact_render_edited_after_preparation_refuses_the_apply(repo: Path) -> None:
+    """The bytes the rule read are observed: a change before apply is a precondition failure."""
+    path = _write_exact_legacy(repo)
+    assessment = _provider_prepare(repo)
+    assert assessment.complete, assessment.diagnostics
+    path.write_bytes(_EDITED)
+
+    result = apply_commands(assessment, assessment.consent)
+
+    assert result.outcome == "precondition_changed"
+    assert path.read_bytes() == _EDITED
+
+
+def test_dotted_folder_appearing_after_preparation_refuses_the_apply(repo: Path) -> None:
+    assessment = _provider_prepare(repo)
+    assert assessment.complete, assessment.diagnostics
+    _write_exact_legacy(repo)
+
+    assert apply_commands(assessment, assessment.consent).outcome == "precondition_changed"

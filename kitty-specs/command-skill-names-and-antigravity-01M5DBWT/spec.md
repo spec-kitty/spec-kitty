@@ -89,8 +89,9 @@ one of them, run the upgrade, inspect the tree, the manifest and the output.
    gone, the hyphenated skills exist, and the manifest has no dotted keys.
 2. **Given** a hand-edited dotted skill, **When** upgrade runs, **Then** it is kept untouched, the
    manifest no longer claims it, and a warning names the path and says it is no longer managed.
-3. **Given** a dotted folder that is not in the manifest (user-authored), **When** upgrade runs,
-   **Then** it is not touched.
+3. **Given** a dotted folder that is not in the manifest, **When** upgrade runs, **Then** it is
+   removed only when its `SKILL.md` is byte-identical to Spec Kitty's render (the folder only when
+   then empty); otherwise it is untouched, with a warning (operator ruling 2026-10-21).
 4. **Given** the upgrade already ran, **When** it runs again, **Then** nothing changes (idempotent).
 5. **Given** a project where a skills agent was removed from the configuration (its directory
    deleted), **When** upgrade runs, **Then** no directory is re-created for it.

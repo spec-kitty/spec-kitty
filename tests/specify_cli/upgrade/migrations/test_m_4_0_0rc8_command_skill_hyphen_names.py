@@ -44,6 +44,8 @@ from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, 
 from specify_cli.upgrade.ledger import CLONE_LOCAL_LEDGER_RELPATH, TRACKED_LEDGER_RELPATH
 from specify_cli.upgrade.runner import UpgradeResult
 from specify_cli.upgrade.migrations.base import MigrationResult
+from specify_cli.core.agent_config import AgentConfigError
+from specify_cli.upgrade.migrations import m_4_0_0rc8_command_skill_hyphen_names as migration_module
 from specify_cli.upgrade.migrations.m_4_0_0rc8_command_skill_hyphen_names import (
     CommandSkillHyphenNamesMigration,
     manifest_unreadable_warning,
@@ -224,8 +226,9 @@ def test_edited_dotted_skill_is_kept_with_a_warning_and_dropped_from_the_manifes
     assert (project / command_skill_rel_path("plan")).is_file()
 
 
-def test_unrecorded_dotted_folder_is_untouched(project: Path) -> None:
-    mine = project / legacy_command_skill_rel_path("review")
+def test_unrecorded_dotted_folder_is_untouched_with_a_warning(project: Path) -> None:
+    rel = legacy_command_skill_rel_path("review")
+    mine = project / rel
     mine.parent.mkdir(parents=True)
     mine.write_bytes(b"user-authored\n")
 
@@ -233,7 +236,38 @@ def test_unrecorded_dotted_folder_is_untouched(project: Path) -> None:
 
     assert result.success
     assert mine.read_bytes() == b"user-authored\n"
-    assert legacy_command_skill_rel_path("review") not in _manifest_paths(project)
+    assert rel not in _manifest_paths(project)
+    assert result.warnings == [unrecorded_legacy_warning(rel)]
+    assert result.preserved_paths == [rel]
+
+
+def test_unrecorded_exact_legacy_render_is_retired(project: Path) -> None:
+    """Operator ruling 2026-10-21: an unrecorded dotted skill with exactly the legacy bytes is ours."""
+    rel = legacy_command_skill_rel_path("review")
+    today = command_installer._render_command_skill(project, "review", "codex", command_installer._get_version())
+    (project / rel).parent.mkdir(parents=True)
+    (project / rel).write_bytes(command_installer.legacy_rendering(today, "review"))
+
+    result = CommandSkillHyphenNamesMigration().apply(project)
+
+    assert result.success
+    assert not (project / rel).parent.exists()
+    assert f"Removed legacy dotted command skill {rel}" in result.changes_made
+    assert result.warnings == result.preserved_paths == []
+
+
+def test_leftover_dotted_folder_with_other_files_is_named(project: Path) -> None:
+    folder = project / legacy_command_skill_rel_path("plan")
+    (folder.parent / "notes.md").write_text("mine\n", encoding="utf-8")
+
+    result = CommandSkillHyphenNamesMigration().apply(project)
+
+    assert result.success
+    assert not folder.exists()
+    assert (folder.parent / "notes.md").is_file()
+    leftover = f"{folder.parent.relative_to(project).as_posix()}/"
+    assert result.warnings == [unrecorded_legacy_warning(leftover)]
+    assert result.preserved_paths == [leftover]
 
 
 def test_user_folder_at_a_canonical_path_is_a_collision_and_the_rest_installs(project: Path) -> None:
@@ -250,16 +284,22 @@ def test_user_folder_at_a_canonical_path_is_a_collision_and_the_rest_installs(pr
     assert _manifest_paths(project) == _canonical_rels() - {rel}
 
 
-def test_missing_manifest_is_success_with_a_warning_and_touches_nothing(project: Path) -> None:
+def test_missing_manifest_retires_exact_renders_and_keeps_the_rest(project: Path) -> None:
+    """With no manifest nothing is recorded: only exact legacy renderings are Spec Kitty's (ruling)."""
     (project / _MANIFEST).unlink()
-    before = _tree(project)
+    edited = legacy_command_skill_rel_path("plan")
+    (project / edited).write_bytes(_EDITED)
 
     result = CommandSkillHyphenNamesMigration().apply(project)
 
     assert result.success
-    assert result.warnings == [unrecorded_legacy_warning(legacy_command_skill_rel_path(c)) for c in sorted(_FIXTURE_COMMANDS)]
+    for command in ("specify", "status"):
+        assert not (project / legacy_command_skill_rel_path(command)).parent.exists()
+    assert (project / edited).read_bytes() == _EDITED
+    assert result.warnings == [unrecorded_legacy_warning(edited)]
     assert "spec-kitty doctor skills" in result.warnings[0]
-    assert _tree(project) == before
+    assert result.preserved_paths == [edited]
+    assert _manifest_paths(project) == _canonical_rels()
 
 
 def test_corrupt_manifest_is_success_with_a_warning(project: Path) -> None:
@@ -269,9 +309,11 @@ def test_corrupt_manifest_is_success_with_a_warning(project: Path) -> None:
     result = CommandSkillHyphenNamesMigration().apply(project)
 
     assert result.success
-    assert len(result.warnings) == 1
     assert result.warnings[0].startswith("Command-skill manifest .kittify/command-skills-manifest.json could not be read (")
     assert result.warnings[0].endswith(manifest_unreadable_warning("x").split("(x)", 1)[1])
+    left = sorted(legacy_command_skill_rel_path(c) for c in _FIXTURE_COMMANDS)
+    assert result.warnings[1:] == [unrecorded_legacy_warning(rel) for rel in left]
+    assert result.preserved_paths == left
     assert _tree(project) == before
 
 
@@ -309,8 +351,25 @@ def test_dry_run_changes_nothing(project: Path) -> None:
     result = CommandSkillHyphenNamesMigration().apply(project, dry_run=True)
 
     assert result.success
-    assert len(result.changes_made) == len(_FIXTURE_COMMANDS)
-    assert all(line.startswith("Would retire legacy dotted command skill ") for line in result.changes_made)
+    assert sorted(result.changes_made) == sorted(f"Would remove legacy dotted command skill {legacy_command_skill_rel_path(c)}" for c in _FIXTURE_COMMANDS)
+    assert result.warnings == result.preserved_paths == []
+    assert _tree(project) == before
+
+
+def test_dry_run_names_would_be_kept_and_colliding_paths(project: Path) -> None:
+    """N2: the dry run prepares the installer's batch, so it lists what a real run would keep."""
+    edited = legacy_command_skill_rel_path("plan")
+    (project / edited).write_bytes(_EDITED)
+    collided = command_skill_rel_path("status")
+    (project / collided).parent.mkdir(parents=True)
+    (project / collided).write_bytes(b"mine\n")
+    before = _tree(project)
+
+    result = CommandSkillHyphenNamesMigration().apply(project, dry_run=True)
+
+    assert result.success
+    assert sorted(result.preserved_paths) == sorted([edited, collided])
+    assert sorted(result.warnings) == sorted([collision_warning(collided), legacy_kept_warning(edited)])
     assert _tree(project) == before
 
 
@@ -323,7 +382,9 @@ def test_second_run_changes_nothing(project: Path) -> None:
     result = CommandSkillHyphenNamesMigration().apply(project)
 
     assert result.success
-    assert result.changes_made == result.warnings == []
+    assert result.changes_made == []
+    # The kept file is no longer recorded, so it is now an unrecorded leftover: named, never touched.
+    assert result.warnings == [unrecorded_legacy_warning(legacy_command_skill_rel_path("plan"))]
     assert _tree(project) == before
 
 
@@ -353,15 +414,84 @@ def test_lane_worktree_copy_is_migrated(project: Path) -> None:
     assert (project / legacy_command_skill_rel_path("plan")).is_file()  # the main checkout is its own run
 
 
-def test_installer_refusal_is_a_failure_naming_doctor(project: Path) -> None:
-    """A refusal the installer does not downgrade to a warning (a directory at SKILL.md) fails."""
+def test_installer_refusal_is_success_with_a_warning_naming_doctor(project: Path) -> None:
+    """Review cycle 1, item 3: a refusal (a directory at SKILL.md) warns; the surface repair retries."""
     (project / command_skill_rel_path("plan")).mkdir(parents=True)
+    before = _tree(project)
 
     result = CommandSkillHyphenNamesMigration().apply(project)
 
-    assert result.success is False
-    assert "Command-skill install for codex failed" in result.errors[0]
-    assert "spec-kitty doctor skills" in result.errors[0]
+    assert result.success is True
+    assert result.errors == []
+    assert result.warnings[0].startswith("Command-skill install for codex was refused (")
+    assert "spec-kitty doctor skills" in result.warnings[0]
+    left = sorted(legacy_command_skill_rel_path(c) for c in _FIXTURE_COMMANDS)
+    assert result.warnings[1:] == [unrecorded_legacy_warning(rel) for rel in left]
+    assert result.preserved_paths == left
+    assert _tree(project) == before
+
+
+def test_agent_config_error_is_success_with_a_warning_naming_doctor(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _broken(_: Path) -> list[str]:
+        raise AgentConfigError("bad config")
+
+    monkeypatch.setattr(migration_module, "get_configured_agents", _broken)
+    before = _tree(project)
+
+    result = CommandSkillHyphenNamesMigration().apply(project)
+
+    assert result.success is True
+    assert result.warnings[0] == migration_module.agent_config_warning("bad config")
+    assert "spec-kitty doctor skills" in result.warnings[0]
+    assert len(result.preserved_paths) == len(_FIXTURE_COMMANDS)
+    assert _tree(project) == before
+
+
+# ---------------------------------------------------------------------------
+# Two clones sharing one committed manifest (US2 scenario 9, review cycle 1)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_second_clone_pulling_a_migrated_manifest_ends_without_duplicates(tmp_path: Path) -> None:
+    """Teammate A migrates and commits the hyphen-only manifest; teammate B pulls it.
+
+    B's dotted folders are git-ignored and no longer recorded: the exact legacy renderings are
+    retired, B's edited copy is kept with a warning, and no dotted duplicate of a hyphen skill stays.
+    """
+    clone_a = _project(tmp_path / "a")
+    (clone_a / ".gitignore").write_text(".agents/skills/\n.kittify/migrations/\n", encoding="utf-8")
+    _git(clone_a, "init", "-q", "-b", "main")
+    _git(clone_a, "config", "user.email", "t@example.com")
+    _git(clone_a, "config", "user.name", "T")
+    _seed_prior_release(clone_a)
+    _git(clone_a, "add", "-A")
+    _git(clone_a, "commit", "-q", "-m", "prior release")
+    subprocess.run(["git", "clone", "-q", str(clone_a), str(tmp_path / "b")], check=True, capture_output=True)
+    clone_b = tmp_path / "b"
+    _seed_prior_release(clone_b)  # B's own git-ignored projection from the prior release
+    edited = legacy_command_skill_rel_path("plan")
+    (clone_b / edited).write_bytes(_EDITED)
+
+    assert CommandSkillHyphenNamesMigration().apply(clone_a).success
+    _git(clone_a, "add", "-A")
+    _git(clone_a, "commit", "-q", "-m", "migrate command skills")
+    _git(clone_b, "pull", "-q", "--ff-only")
+    assert not any(command_installer.is_legacy_rel_path(p) for p in _manifest_paths(clone_b))
+    assert CommandSkillHyphenNamesMigration().detect(clone_b) is True
+
+    result = CommandSkillHyphenNamesMigration().apply(clone_b)
+
+    assert result.success
+    for command in ("specify", "status"):
+        assert not (clone_b / legacy_command_skill_rel_path(command)).parent.exists()
+        assert f"Removed legacy dotted command skill {legacy_command_skill_rel_path(command)}" in result.changes_made
+    assert (clone_b / edited).read_bytes() == _EDITED
+    assert result.warnings == [unrecorded_legacy_warning(edited)]
+    assert result.preserved_paths == [edited]
+    assert _manifest_paths(clone_b) == _canonical_rels()
+    dotted = {p.name for p in (clone_b / ".agents/skills").iterdir() if p.name.startswith("spec-kitty.")}
+    assert dotted == {"spec-kitty.plan"}
 
 
 # ---------------------------------------------------------------------------
@@ -465,12 +595,26 @@ def test_upgrade_migrates_a_prior_release_clone(tmp_path: Path, monkeypatch: pyt
     _seed_prior_release(root)
     (root / legacy_command_skill_rel_path("plan")).write_bytes(_EDITED)
     assert _ledger_ids(root, CLONE_LOCAL_LEDGER_RELPATH) == _ledger_ids(root, TRACKED_LEDGER_RELPATH) == []
+    # Review cycle 1, item 2: capture the migration's own result inside the real upgrade run, so
+    # the test fails if apply() stops retiring (the surface repair alone would still converge).
+    migration_results: list[MigrationResult] = []
+    original_apply = CommandSkillHyphenNamesMigration.apply
+
+    def _recording_apply(self: CommandSkillHyphenNamesMigration, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        migration_result = original_apply(self, project_path, dry_run=dry_run)
+        migration_results.append(migration_result)
+        return migration_result
+
+    monkeypatch.setattr(CommandSkillHyphenNamesMigration, "apply", _recording_apply)
 
     with contextlib.chdir(root):
         result = runner.invoke(root_app, ["upgrade", "--yes"], catch_exceptions=False)
 
     output = " ".join(result.output.split())
     assert result.exit_code == 0, result.output
+    assert len(migration_results) == 1
+    assert f"Removed legacy dotted command skill {legacy_command_skill_rel_path('specify')}" in migration_results[0].changes_made
+    assert migration_results[0].preserved_paths == [legacy_command_skill_rel_path("plan")]
     assert not (root / legacy_command_skill_rel_path("specify")).exists()
     assert (root / legacy_command_skill_rel_path("plan")).read_bytes() == _EDITED
     assert _manifest_paths(root) == _canonical_rels()
