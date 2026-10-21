@@ -122,9 +122,9 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 
 ## Supported AI Agents
 
-17 agents total: 13 slash-command, 4 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
+17 agents total: 12 slash-command, 5 Agent Skills. Update all command-layer agents when changing slash commands, migrations, or templates.
 
-### Slash-Command Agents (13)
+### Slash-Command Agents (12)
 
 | Agent | Directory | Subdirectory | Format |
 |-------|-----------|--------------|--------|
@@ -139,21 +139,21 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 | Augment Code | `.augment/` | `commands/` | Markdown |
 | Amazon Q | `.amazonq/` | `prompts/` | Markdown |
 | Kiro | `.kiro/` | `prompts/` | Markdown |
-| Google Antigravity | `.agent/` | `workflows/` | Markdown |
 | LLxprt Code | `.llxprt/` | `commands/` | TOML |
 
 **Argument placeholders:** Markdown agents use `$ARGUMENTS`; TOML agents use `{{args}}`; `{SCRIPT}` is replaced with the actual script path; `__AGENT__` is replaced with the agent name.
 
-### Agent Skills Agents (4)
+### Agent Skills Agents (5)
 
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
-| Codex CLI | `.agents/skills/` | `$spec-kitty.<command>` | `codex` |
-| Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` | `/spec-kitty.<command>` | `vibe` |
-| Pi | `.agents/skills/` | `/skill:spec-kitty.<command>` | `pi` |
+| Codex CLI | `.agents/skills/` | `$spec-kitty-<command>` | `codex` |
+| Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` | `/spec-kitty-<command>` | `vibe` |
+| Pi | `.agents/skills/` | `/skill:spec-kitty-<command>` | `pi` |
 | Letta Code | `.agents/skills/` | Agent Skills | `letta` |
+| Google Antigravity | `.agents/skills/` | `/spec-kitty-<command>` | `antigravity` |
 
-Codex, Vibe, Pi, and Letta share `.agents/skills/spec-kitty.<command>/SKILL.md`. Manifest: `.kittify/command-skills-manifest.json`.
+Codex, Vibe, Pi, Letta and Antigravity share `.agents/skills/spec-kitty-<command>/SKILL.md` (the Agent Skills name grammar allows only `[a-z0-9-]`; the 12 slash-command agents keep their `spec-kitty.<command>` command files and `/spec-kitty.<command>` invocations). Manifest: `.kittify/command-skills-manifest.json`. Older projects are migrated per clone on `spec-kitty upgrade`; Antigravity's old `.agent/workflows/` files are archived to `.kittify/backups/antigravity-workflows/`. ADR: [`docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md`](docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md).
 
 **Agent key mappings** (key differs from directory for some): `copilot` → `.github/prompts`, `auggie` → `.augment/commands`, `q` → `.amazonq/prompts`. Use `AGENT_DIR_TO_KEY` in [`src/specify_cli/agent_utils/directories.py`](src/specify_cli/agent_utils/directories.py) for conversions.
 

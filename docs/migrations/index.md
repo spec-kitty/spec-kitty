@@ -2,7 +2,7 @@
 title: Migrations
 description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current migration paths, historical cutover runbooks, and the migration/shim ruleset with its registry.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-21'
 related:
 - docs/context/index.md
 - docs/changelog/index.md
@@ -10,6 +10,7 @@ related:
 - docs/migrations/2-1-main-cutover-checklist.md
 - docs/migrations/charter-ownership-consolidation.md
 - docs/migrations/charter-pack-cutover.md
+- docs/migrations/command-skill-hyphen-names.md
 - docs/migrations/backfill-wp-status.md
 - docs/migrations/cross-repo-e2e-gate.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
@@ -43,6 +44,7 @@ Use these pages when an existing project, script, or operator habit predates the
 ## Current 3.2 migrations
 
 - [Charter pack cutover](charter-pack-cutover.md) — run `spec-kitty upgrade` once; renamed commands, skills, config keys and the `LEGACY_CHARTER_STATE` error.
+- [Command skills renamed for the Agent Skills specification](command-skill-hyphen-names.md) — `spec-kitty-<command>` skill names, kept edited copies, `doctor skills` remedies and the Antigravity workflows archive.
 - [Migrating from 2.x / early 3.x](from-charter-2x.md)
 - [Mission ID canonical identity](mission-id-canonical-identity.md)
 - [Repair a Mission whose status snapshot misses work packages](backfill-wp-status.md) — `spec-kitty migrate backfill-wp-status`.

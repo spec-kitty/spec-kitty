@@ -2,7 +2,7 @@
 title: spec-kitty init lifecycle
 description: Reference for the spec-kitty init command lifecycle. Understand what files are created, ignored, and how options behave in non-interactive environments.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-21'
 type: reference
 related:
 - docs/api/cli-commands.md
@@ -68,14 +68,14 @@ One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total
 | `auggie` | `.augment/commands/` | `/spec-kitty.*` |
 | `q` | `.amazonq/prompts/` | `/spec-kitty.*` |
 | `kiro` | `.kiro/prompts/` | `/spec-kitty.*` |
-| `antigravity` | `.agent/workflows/` | `/spec-kitty.*` |
 | `llxprt` | `.llxprt/commands/` | `/spec-kitty.*` |
-| `codex` | `.agents/skills/spec-kitty.*/` | `$spec-kitty.<command>` |
-| `vibe` | `.agents/skills/spec-kitty.*/` plus `.vibe/config.toml` | `/spec-kitty.<command>` |
-| `pi` | `.agents/skills/spec-kitty.*/` | `/skill:spec-kitty.<command>` |
-| `letta` | `.agents/skills/spec-kitty.*/` | agent skills |
+| `codex` | `.agents/skills/spec-kitty-*/` | `$spec-kitty-<command>` |
+| `vibe` | `.agents/skills/spec-kitty-*/` plus `.vibe/config.toml` | `/spec-kitty-<command>` |
+| `pi` | `.agents/skills/spec-kitty-*/` | `/skill:spec-kitty-<command>` |
+| `letta` | `.agents/skills/spec-kitty-*/` | `/spec-kitty-<command>` |
+| `antigravity` | `.agents/skills/spec-kitty-*/` | `/spec-kitty-<command>` |
 
-Codex, Vibe, Pi, and Letta share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
+Codex, Vibe, Pi, Letta, and Antigravity share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
 
 ### Ignore files
 

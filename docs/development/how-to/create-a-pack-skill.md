@@ -2,7 +2,7 @@
 title: Create and activate a pack skill
 description: Author a pack skill, set its namespace, activate it into each configured tool's project skill root, and keep it healthy with doctor skills and upgrade.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-21'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -116,17 +116,18 @@ pack skill.
 - **`prompt`** carries a Markdown body. Spec Kitty copies the body into `SKILL.md` unchanged.
   It does not rewrite argument placeholders for each tool.
 - **`wrapper`** is a shorthand for an existing command. `expands_to.target` is either
-  `builtin:spec-kitty.<command>` (one of the built-in command skills) or
+  `builtin:spec-kitty-<command>` (one of the built-in command skills) or
   `cli:spec-kitty <arguments>`. For example:
 
   ```yaml
   form: wrapper
   expands_to:
-    target: "builtin:spec-kitty.status"
+    target: "builtin:spec-kitty-status"
   ```
 
   An unknown `builtin:` command is refused when the skill is projected, and the error lists the
-  known commands.
+  known commands. The older dotted form `builtin:spec-kitty.<command>` is still accepted and
+  resolves to the same command skill.
 
 ### What `requires` does
 
@@ -151,6 +152,9 @@ For project and org skills, Spec Kitty skips the skill file with a warning (and 
 reports it) when:
 
 - the id or its rendered name starts with `spk-`, `spec-kitty-` or `spec-kitty.`;
+- the rendered name (namespace plus id) is longer than 64 characters, or the rendered
+  description (with its triggers) is longer than 1024 characters (the Agent Skills limits); the
+  message names the limit and the length;
 - a `scripts/` directory sits beside the skill file;
 - the body frontmatter has an `allowed-tools` (or `allowed_tools`) key;
 - the body file is missing, or `body_path` points outside the skill's directory;
@@ -198,6 +202,12 @@ tool:
 | Kilocode | `.kilocode/skills/` |
 | Codex, Copilot, Gemini, Cursor, OpenCode, Windsurf, Vibe, Pi, Letta, Auggie, Kiro, Antigravity, LLxprt | `.agents/skills/` |
 | Amazon Q | none (Spec Kitty skips it) |
+
+In the shared `.agents/skills/` root the `SKILL.md` frontmatter carries only the Agent Skills
+specification fields (`name`, `description`, `license`, `compatibility`, `metadata`,
+`allowed-tools`); any other key, such as `argument-hint`, is moved under `metadata`. The
+`.claude/skills/`, `.qwen/skills/` and `.kilocode/skills/` copies keep `user-invocable`,
+`argument-hint` and `disable-model-invocation` at the top level.
 
 Spec Kitty also records every file in `.kittify/skills-manifest.json`. That record is how it
 later knows which files it owns. It never writes a pack skill to a user-global skill root.

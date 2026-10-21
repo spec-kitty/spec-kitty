@@ -108,7 +108,7 @@ cd my-project
 spec-kitty verify-setup
 ```
 
-Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, `letta`, and `llxprt`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
+Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, `letta`, `antigravity`, and `llxprt`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
 
 Open your AI coding agent in the project and run the core workflow:
 
@@ -118,6 +118,8 @@ Open your AI coding agent in the project and run the core workflow:
 /spec-kitty.plan
 /spec-kitty.tasks
 ```
+
+Agents that load Spec Kitty as Agent Skills (Codex, Vibe, Pi, Letta and Antigravity) run the same commands as skills named `spec-kitty-<command>`: for example `$spec-kitty-specify` in Codex, `/skill:spec-kitty-specify` in Pi and `/spec-kitty-specify` in the others.
 
 Then let the runtime choose the next action until the mission is ready:
 
@@ -186,7 +188,7 @@ Spec Kitty can be used as part of a dark software factory or autonomous coding p
 
 ### Which AI coding agents does Spec Kitty support?
 
-Spec Kitty supports common AI coding agents and coding harnesses including Claude Code, Codex, Cursor, Gemini, GitHub Copilot, OpenCode, Qwen, Windsurf, Kiro, Vibe, Pi, and Letta. See [Supported Agents](docs/api/supported-agents.md).
+Spec Kitty supports common AI coding agents and coding harnesses including Claude Code, Codex, Cursor, Gemini, GitHub Copilot, OpenCode, Qwen, Windsurf, Kiro, Vibe, Pi, Letta, and Antigravity. See [Supported Agents](docs/api/supported-agents.md).
 
 ### How is Spec Kitty different from prompt templates or Spec Kit?
 

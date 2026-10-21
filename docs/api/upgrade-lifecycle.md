@@ -2,7 +2,7 @@
 title: spec-kitty upgrade lifecycle
 description: Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-10-21'
 type: reference
 related:
 - docs/api/cli-commands.md
@@ -49,7 +49,7 @@ spec-kitty upgrade [OPTIONS]
 Project upgrade walks pending migrations in version order. For each migration, it may:
 
 1. **Read `.kittify/config.yaml`** to learn which agents are configured. Migrations are *config-aware* and only touch directories for agents you have enabled.
-2. **Refresh agent command directories** for configured agents (`.claude/commands/`, `.agents/skills/spec-kitty.*/`, `.amazonq/prompts/`, etc.) from the CLI's bundled source templates.
+2. **Refresh agent command directories** for configured agents (`.claude/commands/`, `.agents/skills/spec-kitty-*/`, `.amazonq/prompts/`, etc.) from the CLI's bundled source templates.
 3. **Update `.kittify/` scaffold files** — `memory/`, `command-skills-manifest.json`, and config schemas — to the new layout.
 4. **Bump `.kittify/metadata.yaml`** to record the new schema version after each migration step.
 5. **Leave user data alone** — `kitty-specs/`, `architecture/`, `docs/`, `src/`, and anything else you author is untouched.
@@ -58,8 +58,8 @@ Migrations are idempotent: re-running `spec-kitty upgrade` is a no-op when the s
 
 ### Generated, git-ignored command skills (`.agents/skills/`)
 
-The shared command-skill projection `.agents/skills/spec-kitty.<command>/SKILL.md` — consumed
-by Codex, Mistral Vibe, Pi, and Letta — is **generated, local-only state**. It is declared
+The shared command-skill projection `.agents/skills/spec-kitty-<command>/SKILL.md` — consumed
+by Codex, Mistral Vibe, Pi, Letta, and Google Antigravity — is **generated, local-only state**. It is declared
 `DERIVED` / git-`IGNORED` by the state contract (`shared_skills_projection`), so it is never
 committed. Do **not** stage or commit the `.agents/skills/` tree as normal project content;
 its ownership record is `.kittify/command-skills-manifest.json`, which a project may commit.

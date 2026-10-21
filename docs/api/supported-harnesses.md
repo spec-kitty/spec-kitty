@@ -2,7 +2,7 @@
 title: Supported Harnesses
 description: Support matrix for Spec Kitty 3.2 AI coding harnesses, including first-class, supported, experimental, and unsupported hosts.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-10-21'
 ---
 # Supported Harnesses
 
@@ -31,7 +31,7 @@ Full tier criteria and promotion rules are maintained in `docs/archive/plans/3-2
 | Harness | Key | Installed surface | Mechanism | Tier | Citation (accessed 2026-06-03) | Notes |
 |---------|-----|-------------------|-----------|------|--------------------------------|-------|
 | Claude Code | `claude` | `.claude/commands/` | slash_command | **first_class** | https://docs.claude.com/en/docs/claude-code/overview | Reference harness; integration-tested in `src/specify_cli/`. |
-| Codex CLI | `codex` | `.agents/skills/spec-kitty.*/SKILL.md` | skill | **first_class** | https://github.com/openai/codex | Heaviest agent skills integration; canonical skill tree at `.agents/skills/`. |
+| Codex CLI | `codex` | `.agents/skills/spec-kitty-*/SKILL.md` | skill | **first_class** | https://github.com/openai/codex | Heaviest agent skills integration; canonical skill tree at `.agents/skills/`. |
 | OpenCode | `opencode` | `.opencode/command/` | slash_command | **supported** | https://opencode.ai/docs | `/spec-kitty.*` command set installed via standard installer. |
 | Cursor | `cursor` | `.cursor/commands/` | slash_command | **supported** | https://cursor.com/docs | `/spec-kitty.*` command set installed via standard installer. |
 | Google Gemini CLI | `gemini` | `.gemini/commands/` | slash_command | **supported** | https://github.com/google-gemini/gemini-cli | `/spec-kitty.*` command set installed via standard installer. |
@@ -43,10 +43,10 @@ Full tier criteria and promotion rules are maintained in `docs/archive/plans/3-2
 | Kilo Code | `kilocode` | `.kilocode/workflows/` | workflow | **supported** | https://kilocode.ai/docs | Workflow mechanism; `/spec-kitty.*` set installed. |
 | Windsurf | `windsurf` | `.windsurf/workflows/` | workflow | **supported** | https://docs.windsurf.com/windsurf/cascade/workflows | Workflow mechanism; `/spec-kitty.*` set installed. |
 | Kiro | `kiro` | `.kiro/prompts/` | prompt | **partial** | https://kiro.dev/docs | Prompt-file surface only for Spec Kitty 3.3 plugin-install scoping; not a plugin/Powers bundle candidate until upstream exposes and verifies a package primitive. |
-| Google Antigravity | `antigravity` | `.agent/workflows/` | workflow | **partial** | https://www.antigravity.google/docs/rules-workflows | Local live CLI verification was unavailable on 2026-06-03; installed surface remains documented as partial until current Antigravity CLI workflow paths are smoke-tested. |
-| Pi TUI | `pi` | `.agents/skills/spec-kitty.*/SKILL.md` | skill | **partial** | https://pi.dev/docs/latest/skills | Installer-supported command-skill packages; keep partial until a real-session smoke test is recorded. |
-| Mistral Vibe | `vibe` | `.agents/skills/` via `.vibe/config.toml` `skill_paths` | skill | **experimental** | https://docs.mistral.ai/mistral-vibe/terminal/quickstart | Uses the shared `.agents/skills/spec-kitty.*` packages plus a `.vibe/config.toml` `skill_paths` entry. Behaviour may change with Vibe upstream. |
-| Letta Code | `letta` | `.agents/skills/spec-kitty.*/SKILL.md` | skill | **partial** | https://docs.letta.com/letta-code/skills | Installer-supported command-skill packages; keep partial until a real-session smoke test is recorded. |
+| Google Antigravity | `antigravity` | `.agents/skills/spec-kitty-*/SKILL.md` | skill | **partial** | https://www.antigravity.google/docs/rules-workflows | Antigravity stopped reading `.agent/workflows/` on 2026-10-19; since 4.0.0rc8 its commands install as the shared command-skill packages (`/spec-kitty-<command>`) and old workflow files are archived by `spec-kitty upgrade`. Partial until a real-session smoke test is recorded. |
+| Pi TUI | `pi` | `.agents/skills/spec-kitty-*/SKILL.md` | skill | **partial** | https://pi.dev/docs/latest/skills | Installer-supported command-skill packages; keep partial until a real-session smoke test is recorded. |
+| Mistral Vibe | `vibe` | `.agents/skills/` via `.vibe/config.toml` `skill_paths` | skill | **experimental** | https://docs.mistral.ai/mistral-vibe/terminal/quickstart | Uses the shared `.agents/skills/spec-kitty-*` packages plus a `.vibe/config.toml` `skill_paths` entry. Behaviour may change with Vibe upstream. |
+| Letta Code | `letta` | `.agents/skills/spec-kitty-*/SKILL.md` | skill | **partial** | https://docs.letta.com/letta-code/skills | Installer-supported command-skill packages; keep partial until a real-session smoke test is recorded. |
 
 ---
 

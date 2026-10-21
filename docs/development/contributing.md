@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-21'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -81,10 +81,10 @@ Supported contribution types are listed in the [emoji key](https://allcontributo
 
 ## Supported AI Agents
 
-Spec Kitty supports **17 AI coding agents**: 13 slash-command agents (Claude Code,
+Spec Kitty supports **17 AI coding agents**: 12 slash-command agents (Claude Code,
 GitHub Copilot, Gemini, Cursor, Qwen Code, OpenCode, Windsurf, Kilocode, Augment
-Code, Amazon Q, Kiro, Google Antigravity, LLxprt Code) and 4 Agent Skills agents
-(Codex CLI, Mistral Vibe, Pi, Letta Code) that share `.agents/skills/`. When a
+Code, Amazon Q, Kiro, LLxprt Code) and 5 Agent Skills agents (Codex CLI, Mistral
+Vibe, Pi, Letta Code, Google Antigravity) that share `.agents/skills/spec-kitty-<command>/`. When a
 change affects slash commands, migrations, or templates, make sure it applies to
 every configured agent.
 

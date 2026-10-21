@@ -2,7 +2,7 @@
 title: Host-Surface Parity Matrix
 description: Spec Kitty's authoritative matrix of how each supported host surface teaches the governance-injection contract for spec-kitty dispatch, with per-surface parity status.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-21'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -34,7 +34,7 @@ This is Spec Kitty's authoritative record of how each supported host surface tea
 | auggie | .augment/commands/ | slash_command | yes | yes | yes | pointer | at_parity | Pointer at `.augment/commands/spec-kitty-standalone.md` redirects to canonical `src/charter/offering/skills/spec-kitty/SKILL.md`. Shipped by WP04 (T018). |
 | q | .amazonq/prompts/ | slash_command | yes | yes | yes | pointer | at_parity | Pointer at `.amazonq/prompts/spec-kitty-standalone.md` redirects to canonical `src/charter/offering/skills/spec-kitty/SKILL.md`. Shipped by WP04 (T018). |
 | kiro | .kiro/prompts/ | slash_command | yes | yes | yes | pointer | at_parity | Pointer at `.kiro/prompts/spec-kitty-standalone.md` redirects to canonical `src/charter/offering/skills/spec-kitty/SKILL.md`. Shipped by WP04 (T018). |
-| agent | .agent/workflows/ | slash_command | yes | yes | yes | pointer | at_parity | Pointer at `.agent/workflows/spec-kitty-standalone.md` redirects to canonical `src/charter/offering/skills/spec-kitty/SKILL.md`. Shipped by WP04 (T018). |
+| agent | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | Google Antigravity (key `antigravity`) stopped reading `.agent/workflows/` on 2026-10-19. Since 4.0.0rc8 Spec Kitty writes nothing there: Antigravity gets the shared `.agents/skills/spec-kitty-<command>/` command skills and the canonical `src/charter/offering/skills/spec-kitty/SKILL.md` source skill at `.agents/skills/spec-kitty/SKILL.md`, like codex; `spec-kitty upgrade` archives the old workflow files to `.kittify/backups/antigravity-workflows/`. The `agent` surface key is kept for the `.agent/` directory. |
 | codex | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | The `src/charter/offering/skills/spec-kitty/SKILL.md` source skill installs to `.agents/skills/spec-kitty/SKILL.md` with all parity sections: "Discover profiles", "Open a governed invocation", "Governance context injection", and "Close the Op". Codex CLI reads the `.agents/skills/` tree directly. <!-- tool-surface: ignore --> |
 | vibe | .agents/skills/ | agent_skill | yes | yes | yes | inline | partial | The canonical source skill `src/charter/offering/skills/spec-kitty/SKILL.md` is at parity and installs to `.agents/skills/spec-kitty/SKILL.md`. However, `.vibe/config.toml` is absent from this project — Vibe cannot load the skill pack without a `skill_paths` entry pointing at `.agents/skills/`. WP04 owned_files did not include `.vibe/config.toml`; the config.toml was not shipped. Remaining gap: add `.vibe/config.toml` with `skill_paths = [".agents/skills"]` to wire up Vibe's access to the existing skill pack. <!-- tool-surface: ignore --> |
 | pi | .agents/skills/ | agent_skill | yes | yes | yes | inline | at_parity | Pi discovers project `.agents/skills/` directly, so the canonical Spec Kitty command-skill packages provide the same governance guidance used by Codex. Manifest at `.kittify/command-skills-manifest.json` records installed packages with agents including `pi`. <!-- tool-surface: ignore --> |

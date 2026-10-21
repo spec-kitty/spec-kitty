@@ -2,7 +2,7 @@
 title: Use Spec Kitty in Letta Code
 description: 'How to use Spec Kitty in Letta Code (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-21'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -17,7 +17,7 @@ related:
 
 Letta Code is classified `partial` in the 3.2 [support matrix](../../../api/supported-harnesses.md) because:
 
-1. The Spec Kitty installer produces command-skill packages under `.agents/skills/spec-kitty.*/SKILL.md`.
+1. The Spec Kitty installer produces command-skill packages under `.agents/skills/spec-kitty-*/SKILL.md`.
 2. Letta Code's skills documentation says `.agents/skills/` is the preferred project-scoped skills location.
 3. A real-session smoke test for the complete Spec Kitty command set has not yet been recorded, so the row remains `partial` instead of `supported`.
 
@@ -36,22 +36,24 @@ Promotion to `supported` requires at least one documented smoke test against a r
 
 Per the [supported-harnesses matrix](../../../api/supported-harnesses.md), Letta Code consumes Spec Kitty as agent skills. Spec Kitty installs:
 
-- **Directory:** `.agents/skills/spec-kitty.<command>/`
-- **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
+- **Directory:** `.agents/skills/spec-kitty-<command>/`
+- **Files:** one `SKILL.md` per command (`spec-kitty-specify/SKILL.md`, `spec-kitty-plan/SKILL.md`, `spec-kitty-tasks/SKILL.md`, `spec-kitty-implement/SKILL.md`, etc.).
 - **Manifest:** `.kittify/command-skills-manifest.json` records that Letta references each command-skill package.
 - **Runtime ignore entry:** `.letta/` is added to `.gitignore` when Letta is configured.
 
-The shared `.agents/skills/` tree can be co-owned by Codex, Vibe, Pi, and Letta. Do not copy or edit the generated `SKILL.md` files manually; use `spec-kitty agent config sync` or `spec-kitty upgrade` to refresh them.
+The shared `.agents/skills/` tree can be co-owned by Codex, Vibe, Pi, Letta, and Antigravity. Do not copy or edit the generated `SKILL.md` files manually; use `spec-kitty agent config sync` or `spec-kitty upgrade` to refresh them.
+
+Before the 4.0.0rc8 release these folders were named `spec-kitty.<command>`. The Agent Skills specification does not allow a dot in a skill name, so `spec-kitty upgrade` renames them; see [Command skills renamed for the Agent Skills specification](../../../migrations/command-skill-hyphen-names.md).
 
 ## Canonical invocation
 
 Letta Code can load a skill directly with slash syntax. For Spec Kitty command-skill packages, use the skill name as the slash command:
 
 ```text
-/spec-kitty.specify "a hello world page"
-/spec-kitty.plan
-/spec-kitty.tasks
-/spec-kitty.implement WP01
+/spec-kitty-specify "a hello world page"
+/spec-kitty-plan
+/spec-kitty-tasks
+/spec-kitty-implement WP01
 ```
 
 Use `/skills` inside Letta Code to browse discovered skills. If the Spec Kitty skills do not appear after changing files, ask Letta to refresh skills or restart the session.
@@ -63,7 +65,7 @@ Until full smoke evidence lands, treat Letta Code as a **partial-tier** host and
 1. From your project root, run Letta Code.
 2. At the prompt, type:
    ```text
-   /spec-kitty.specify "a hello world page"
+   /spec-kitty-specify "a hello world page"
    ```
 3. Answer the Spec Kitty interview prompts inline.
 4. When asked for a kebab-case slug, supply something short, e.g. `hello-world-page`.
@@ -77,8 +79,8 @@ If Letta does not expose the command in your installed version, the artifacts re
 
 ## Troubleshooting
 
-- **No `/spec-kitty.*` skills inside Letta Code.**
-  Confirm `.agents/skills/spec-kitty.*/SKILL.md` exists, run `spec-kitty agent config sync`, then restart Letta Code or refresh skills.
+- **No `/spec-kitty-*` skills inside Letta Code.**
+  Confirm `.agents/skills/spec-kitty-*/SKILL.md` exists, run `spec-kitty agent config sync`, then restart Letta Code or refresh skills.
 
 - **Skill list shows stale content.**
   Letta caches the discovered skill list in session memory. Refresh skills or restart the session after running `spec-kitty upgrade`.

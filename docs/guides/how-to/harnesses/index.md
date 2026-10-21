@@ -2,7 +2,7 @@
 title: AI Agent Harnesses
 description: "Set up and run Spec Kitty inside each supported AI coding agent, plus post-edit lint hooks."
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-21'
 type: explanation
 ---
 
@@ -22,7 +22,7 @@ Set up and run Spec Kitty inside each supported AI coding agent, plus post-edit 
 - [Use Spec Kitty in Kilo Code](kilocode.md) — How to use Spec Kitty in Kilo Code (supported tier) via the workflow mechanism: prerequisites, workflow install, and the Spec Kitty command flow.
 - [Use Spec Kitty in Augment Code (Auggie)](augment.md) — How to use Spec Kitty in Augment Code (Auggie, supported tier): prerequisites, command install, and the Spec Kitty slash-command workflow.
 - [Use Spec Kitty in GitHub Copilot](copilot.md) — How to use Spec Kitty in GitHub Copilot (supported tier) via the prompt-file mechanism: prerequisites, prompt install, and the Spec Kitty command workflow.
-- [Use Spec Kitty in Google Antigravity](antigravity.md) — Configure the Google Antigravity harness for Spec Kitty 3.2 workflows, partial-tier verification, and generated workflow files.
+- [Use Spec Kitty in Google Antigravity](antigravity.md) — Use Spec Kitty in Google Antigravity through the shared .agents/skills/ command skills: install, invocation, partial-tier status and the archived workflow files.
 - [Use Spec Kitty in Amazon Q CLI](amazon-q.md) — How to use Spec Kitty in Amazon Q CLI (supported tier), retained as legacy alongside the Kiro rebrand: prerequisites, prompt install, and the command workflow.
 - [Use Spec Kitty in Kiro](kiro.md) — How to use Spec Kitty in Kiro (partial tier): a bootstrap-only surface in 3.2, to be promoted once the full /spec-kitty.* command set is verified end-to-end.
 - [Use Spec Kitty in Letta Code](letta.md) — How to use Spec Kitty in Letta Code (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.

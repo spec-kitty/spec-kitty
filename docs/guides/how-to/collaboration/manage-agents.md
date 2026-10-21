@@ -2,7 +2,7 @@
 title: Managing AI Agents
 description: How to add, remove, and manage AI agents in a spec-kitty project after initialization, across the supported slash-command and Agent-Skills harnesses.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-21'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -15,7 +15,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 ## Overview
 
-Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, LLxprt Code, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code. (Roo Code shut down on 2026-05-15 and is no longer supported.)
+Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, LLxprt Code, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, and legacy Amazon Q. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, Letta Code, and Google Antigravity. (Roo Code shut down on 2026-05-15 and is no longer supported.)
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../../tutorials/getting-started.md) guide.
 
@@ -76,10 +76,10 @@ agents:
 
 The `available` field contains a list of active agent keys. Each key corresponds to a managed command surface:
 - `claude` → `~/.claude/commands/` (global)
-- `codex` → `.agents/skills/spec-kitty.<command>/` (project-local agent skills)
+- `codex` → `.agents/skills/spec-kitty-<command>/` (project-local agent skills)
 - `opencode` → `~/.opencode/command/` (global)
 
-When you run `spec-kitty agent config add` or `remove`, this list is automatically updated. Global slash-command files are refreshed by normal CLI startup; Codex, Vibe, Pi, and Letta command skills are managed inside the project.
+When you run `spec-kitty agent config add` or `remove`, this list is automatically updated. Global slash-command files are written for the slash-command agents configured in the current project: `agent config add` writes them for the added agent at once, and normal CLI startup refreshes them inside the project. Codex, Vibe, Pi, Letta, and Antigravity command skills are managed inside the project.
 
 Managed command surfaces are created and refreshed by CLI commands. You should never need to manually create or delete them.
 

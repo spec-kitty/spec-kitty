@@ -2,7 +2,7 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-21'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
@@ -550,7 +550,7 @@ Legacy Codex prompt-home override.
 
 This is a **Codex CLI convention**, not a Spec Kitty variable. Current Spec
 Kitty Codex support uses project-local agent skills under
-`.agents/skills/spec-kitty.<command>/SKILL.md`; do not set `CODEX_HOME` for
+`.agents/skills/spec-kitty-<command>/SKILL.md`; do not set `CODEX_HOME` for
 current Spec Kitty command-skill installs.
 
 **Legacy-only example**:

@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-21'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -1915,7 +1915,7 @@ _Project health diagnostics_
 │                         break on copy/move (#5390).                          │
 │ command-files           Check all agent command files for correctness.       │
 │ skills                  Check command-skill manifest drift for Codex, Vibe,  │
-│                         Pi, and Letta.                                       │
+│                         Pi, Letta, and Antigravity.                          │
 │ tool-surfaces           Audit (and optionally repair) every configured tool  │
 │                         surface.                                             │
 │ state-roots             Show state roots, surface classification, and safety │
@@ -2502,7 +2502,7 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor skills [OPTIONS]
 
- Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.
+ Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --fix             Repair missing command-skill files                         │

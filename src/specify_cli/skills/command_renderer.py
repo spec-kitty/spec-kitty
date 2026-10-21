@@ -3,7 +3,7 @@
 Turns a ``src/charter/offering/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
 source file into a :class:`RenderedSkill` (YAML frontmatter + markdown body)
 that can be written as a ``SKILL.md`` file for command-skill agents such as
-Codex, Vibe, Pi, and Letta Code.
+Codex, Vibe, Pi, Letta Code, and Antigravity.
 
 Three invariants are enforced by this module:
 

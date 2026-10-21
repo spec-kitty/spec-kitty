@@ -1352,6 +1352,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -4599,6 +4605,12 @@
   current_target: true
   notes: null
 - path: docs/migrations/charter-pack-cutover.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/migrations/command-skill-hyphen-names.md
   tag: current
   divio_type: how-to
   owning_workstream: none

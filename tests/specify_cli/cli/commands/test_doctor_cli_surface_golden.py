@@ -167,7 +167,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
     ],
     "skills": [
         "Usage: doctor skills [OPTIONS]",
-        "Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.",
+        "Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity.",
         "Options",
         "--fix Repair missing command-skill files",
         "--json Machine-readable JSON output",

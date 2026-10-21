@@ -2,7 +2,7 @@
 title: Configuration Reference
 description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-21'
 related:
 - docs/api/agent-subcommands.md
 - docs/api/cli-commands.md
@@ -368,9 +368,10 @@ Spec Kitty supports AI agents across different platforms. Agent configuration is
 | `qwen` | `~/.qwen/commands/` | Qwen Code |
 | `opencode` | `~/.opencode/command/` | OpenCode |
 | `windsurf` | `~/.windsurf/workflows/` | Windsurf |
-| `codex` | `.agents/skills/spec-kitty.<command>/` | Codex CLI |
-| `pi` | `.agents/skills/spec-kitty.<command>/` | Pi |
-| `letta` | `.agents/skills/spec-kitty.<command>/` | Letta Code |
+| `codex` | `.agents/skills/spec-kitty-<command>/` | Codex CLI |
+| `pi` | `.agents/skills/spec-kitty-<command>/` | Pi |
+| `letta` | `.agents/skills/spec-kitty-<command>/` | Letta Code |
+| `antigravity` | `.agents/skills/spec-kitty-<command>/` | Google Antigravity |
 | `kilocode` | `~/.kilocode/workflows/` | Kilocode |
 | `auggie` | `~/.augment/commands/` | Augment Code |
 | `q` | `~/.amazonq/prompts/` | Amazon Q |

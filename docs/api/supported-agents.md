@@ -2,7 +2,7 @@
 title: Supported AI Agents Reference
 description: Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-21'
 related:
 - docs/api/cli-commands.md
 - docs/api/slash-commands.md
@@ -10,9 +10,9 @@ related:
 ---
 # Supported AI Agents Reference
 
-Spec Kitty currently exposes **17 agent surfaces**: 13 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
+Spec Kitty currently exposes **17 agent surfaces**: 12 slash-command or prompt-file hosts and 5 project-local command-skill hosts.
 
-Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local agent skills under `.agents/skills/spec-kitty.<command>/`.
+Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`, written for the slash-command agents configured in the current project. Codex CLI, Vibe, Pi, Letta Code, and Google Antigravity use shared project-local agent skills under `.agents/skills/spec-kitty-<command>/`.
 
 ---
 
@@ -30,7 +30,6 @@ Slash-command agents get user-global command directories such as `~/.claude/comm
 | Qwen Code | `~/.qwen/` | `commands/` | `/spec-kitty.*` |
 | OpenCode | `~/.opencode/` | `command/` | `/spec-kitty.*` |
 | Windsurf | `~/.windsurf/` | `workflows/` | `/spec-kitty.*` |
-| Google Antigravity | `~/.agent/` | `workflows/` | `/spec-kitty.*` |
 | Kilocode | `~/.kilocode/` | `workflows/` | `/spec-kitty.*` |
 | Augment Code | `~/.augment/` | `commands/` | `/spec-kitty.*` |
 | Amazon Q (legacy) | `~/.amazonq/` | `prompts/` | `/spec-kitty.*` |
@@ -40,12 +39,13 @@ Slash-command agents get user-global command directories such as `~/.claude/comm
 
 | Agent | Agent Key | Project Directory | Invocation Form |
 |-------|-----------|-------------------|-----------------|
-| Codex CLI | `codex` | `.agents/skills/spec-kitty.<command>/` | `$spec-kitty.<command>` |
-| Mistral Vibe | `vibe` | `.agents/skills/spec-kitty.<command>/` via `.vibe/config.toml` | Host skill syntax |
-| Pi | `pi` | `.agents/skills/spec-kitty.<command>/` | `/skill:spec-kitty.<command>` |
-| Letta Code | `letta` | `.agents/skills/spec-kitty.<command>/` | `/spec-kitty.<command>` |
+| Codex CLI | `codex` | `.agents/skills/spec-kitty-<command>/` | `$spec-kitty-<command>` |
+| Mistral Vibe | `vibe` | `.agents/skills/spec-kitty-<command>/` via `.vibe/config.toml` | `/spec-kitty-<command>` |
+| Pi | `pi` | `.agents/skills/spec-kitty-<command>/` | `/skill:spec-kitty-<command>` |
+| Letta Code | `letta` | `.agents/skills/spec-kitty-<command>/` | `/spec-kitty-<command>` |
+| Google Antigravity | `antigravity` | `.agents/skills/spec-kitty-<command>/` | `/spec-kitty-<command>` |
 
-Command-skill packages share the same `SKILL.md` files. `.kittify/command-skills-manifest.json` records which configured agents own each package so removing one agent does not delete skills still used by another agent.
+Command-skill packages share the same `SKILL.md` files. Before 4.0.0rc8 they were named `spec-kitty.<command>`; see [Command skills renamed for the Agent Skills specification](../migrations/command-skill-hyphen-names.md). `.kittify/command-skills-manifest.json` records which configured agents own each package so removing one agent does not delete skills still used by another agent.
 
 ---
 
@@ -245,12 +245,12 @@ spec-kitty init my-project --ai windsurf
 | Property | Value |
 |----------|-------|
 | Directory | `.agents/skills/` |
-| Commands subdirectory | `spec-kitty.<command>/SKILL.md` |
+| Commands subdirectory | `spec-kitty-<command>/SKILL.md` |
 | CLI flag | `--ai codex` |
 | Status | Supported |
 
 Codex uses project-local agent skills. Spec Kitty installs one `SKILL.md`
-package per command under `.agents/skills/spec-kitty.<command>/`.
+package per command under `.agents/skills/spec-kitty-<command>/`.
 
 **Usage**:
 ```bash
@@ -363,7 +363,7 @@ spec-kitty init my-project --ai claude,pi
 spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,q,kiro,antigravity,vibe,pi,letta,llxprt
 ```
 
-This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup; Codex, Vibe, Pi, and Letta command skills are installed project-locally under `.agents/skills/`.
+This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup; Codex, Vibe, Pi, Letta, and Antigravity command skills are installed project-locally under `.agents/skills/`.
 
 ---
 
@@ -438,7 +438,7 @@ Command-skill hosts use the same Spec Kitty workflow commands but expose them th
 
 **Codex**: Confirm project-local agent skills exist:
 ```bash
-ls .agents/skills/spec-kitty.specify/SKILL.md
+ls .agents/skills/spec-kitty-specify/SKILL.md
 spec-kitty agent config sync
 ```
 

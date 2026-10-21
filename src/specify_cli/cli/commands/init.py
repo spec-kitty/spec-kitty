@@ -1319,7 +1319,7 @@ def init(  # noqa: C901
         "kilocode": ".kilocode/",
         "auggie": ".augment/",
         "copilot": ".github/",
-        "antigravity": ".agent/",
+        "antigravity": ".agents/skills/",
         # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
         "q": ".amazonq/",
         "kiro": ".kiro/",

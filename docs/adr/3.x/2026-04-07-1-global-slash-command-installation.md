@@ -5,6 +5,8 @@ status: Accepted
 date: '2026-04-07'
 ---
 
+**Amended by:** ADR [2026-10-20-1](../4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md) (home-folder writer scoped to configured agents; `antigravity` row removed).
+
 ## Context and Problem Statement
 
 Spec-kitty writes slash command files (e.g., `spec-kitty.plan.md`, `spec-kitty.implement.md`) into each project's agent command directories (`.claude/commands/`, `.gemini/commands/`, etc.) during `spec-kitty init`. This has three consequences:
