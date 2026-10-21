@@ -4203,6 +4203,7 @@ pages:
     - {slug: "allowed-action-values", text: "Allowed `action` values", level: 2}
     - {slug: "category-cookbook", text: "Category cookbook", level: 2}
     - {slug: "failure-modes-the-gate-detects", text: "Failure modes the gate detects", level: 2}
+    - {slug: "what-the-review-gate-exempts", text: "What the review gate exempts", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/charter-commands.md"
     title: "Charter CLI Reference"

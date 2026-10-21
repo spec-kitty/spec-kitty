@@ -151,10 +151,21 @@ without an exception. Every exemption is reported as a note, never silently.
 |---|---|---|
 | File **created** by the diff (`A`) | pass, listed as *created by this diff* | No pre-existing occurrence for the map to protect. Deletions and renames are still judged; an unknown status is treated as a modification. Creating a file under **another** mission's `kitty-specs/<slug>/` still blocks (C-004). |
 | The mission's **own** runtime state (`status.json`, `status.events.jsonl`, lifecycle logs) | pass, listed as *own bookkeeping* | Written by spec-kitty itself during the review. Anchored on the canonical `kitty-specs/<slug>` whatever worktree the mission's `feature_dir` resolves to, and tested **before** the map's exceptions, so `kitty-specs/**: do_not_change` cannot pre-empt it. |
-| Files that **cannot carry a textual occurrence**: webfonts, images, audio/video, compiled objects, generated lockfiles (`Gemfile.lock`, `uv.lock`, `yarn.lock`, …), `.keep`/`.gitkeep` | pass, listed as *no occurrences* | Not text, or resolver output regenerated rather than edited. Opaque **data** files (`.dat`, `.bin`, `.db`, `.sqlite`, `.pkl`, archives) are deliberately **not** exempt: they can carry serialized keys, so they block as unclassified until the map names them. |
+| Files that **cannot carry a textual occurrence**: webfonts, raster images, audio/video, compiled objects, generated lockfiles the diff **creates** (`Gemfile.lock`, `uv.lock`, `yarn.lock`, …), `.keep`/`.gitkeep` | pass, listed as *no occurrences* | Not text, or resolver output regenerated rather than edited. A lockfile the diff **edits** is not exempt, because an edit can rename a package. `.svg` is not exempt either: it is XML text and carries ids and classes. Opaque **data** files (`.dat`, `.bin`, `.db`, `.sqlite`, `.pkl`, archives) are deliberately **not** exempt: they can carry serialized keys, so they block as unclassified until the map names them. |
 
 An explicit `exceptions:` entry always wins over the last row: a reviewer who
 names a binary keeps whatever action they chose.
+
+Two behaviours are deliberate, so plan your map around them:
+
+- **Creating a file is exempt even under a protected path.** A file the work
+  package creates passes even when an explicit `do_not_change` category,
+  path or exception covers it. This gate cannot forbid creating files in a
+  protected tree; it only judges edits, deletions and renames there.
+- **Own bookkeeping outranks the map's exceptions.** The mission's own
+  `notes.md` and `review-cycle-*.md` files, under the mission's own
+  directory, are exempt before the map's exceptions are consulted. An
+  exception such as `kitty-specs/**: do_not_change` does not block them.
 
 Templates, stylesheets and build DSLs (`.erb`, `.haml`, `.slim`, `.heex`,
 `.vue`, `.svelte`, `.css`, `.scss`, `.rake`, `Rakefile`, `Gemfile`,
