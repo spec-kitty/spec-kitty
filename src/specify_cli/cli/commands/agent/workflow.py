@@ -2061,19 +2061,66 @@ def _refuse_review_lane(message: str) -> typer.Exit:
     return typer.Exit(1)
 
 
-def _foreign_review_lock_message(workspace: ResolvedWorkspace, agent: str | None) -> str | None:
+def _foreign_review_lock_message(workspace: ResolvedWorkspace, main_repo_root: Path, agent: str | None) -> str | None:
     """Refusal text when another agent holds a live review lock in *workspace*; ``None`` when it is free to move."""
-    from specify_cli.review.lock import ReviewLock
+    from specify_cli.review.lock import REVIEW_LOCK_UNREADABLE, ReviewLock, ReviewLockReadError
 
     if not workspace.exists:
         return None
-    lock = ReviewLock.load(Path(workspace.worktree_path))
+    try:
+        lock = ReviewLock.load(Path(workspace.worktree_path))
+    except ReviewLockReadError as exc:
+        # Fail closed: a lock that read as corrupt is never "free to move",
+        # even if a second read (racing a writer) would succeed.
+        raced = f"{REVIEW_LOCK_UNREADABLE}: refusing to update the lane; the review lock {exc.path} changed while it was read. Re-run the review."
+        return _unreadable_review_lock_message(workspace, main_repo_root, None) or raced
     if lock is None or lock.is_stale() or lock.agent == (agent or "unknown"):
         return None
     return (
         f"Refusing to update the lane: {workspace.worktree_path} has an active review by agent '{lock.agent}' "
         f"on {lock.wp_id} (PID {lock.pid}). Wait for it to finish, then re-run."
     )
+
+
+def _review_checkout_ref(workspace: ResolvedWorkspace, main_repo_root: Path, start_point: str | None) -> str | None:
+    """The ref :func:`_create_review_worktree` would check out for a missing workspace (``None`` when it exists)."""
+    if workspace.exists or not workspace.branch_name:
+        return None
+    # Same probe as ``_create_review_worktree``, so both name the same ref.
+    if _git_capture(["git", "rev-parse", "--verify", workspace.branch_name], main_repo_root).returncode == 0:
+        return workspace.branch_name
+    return start_point or "HEAD"
+
+
+def _unreadable_review_lock_message(
+    workspace: ResolvedWorkspace, main_repo_root: Path, start_point: str | None, *, claimed: bool = False
+) -> str | None:
+    """``REVIEW_LOCK_UNREADABLE`` refusal text for the lock this review would acquire, or ``None`` (#6386).
+
+    A husk is skipped: it holds no checkout to read, and its own refusal names it.
+    """
+    from specify_cli.review.lock import unreadable_lock_refusal
+
+    if workspace.is_husk:
+        return None
+    return unreadable_lock_refusal(
+        Path(workspace.worktree_path),
+        exists=workspace.exists,
+        repo_root=main_repo_root,
+        checkout_ref=_review_checkout_ref(workspace, main_repo_root, start_point),
+        branch=workspace.branch_name,
+        claimed=claimed,
+    )
+
+
+def _refuse_unreadable_review_lock(message: str) -> typer.Exit:
+    """Print a ``REVIEW_LOCK_UNREADABLE`` refusal unwrapped, so its paths and commands copy intact; return the ``Exit(1)``."""
+    from rich.markup import escape
+
+    from specify_cli.cli.console import console
+
+    console.print(f"[red]{escape(message)}[/red]", soft_wrap=True)
+    return typer.Exit(1)
 
 
 def _lane_ff_target(main_repo_root: Path, branch: str, action: ReviewLaneAction) -> tuple[str, str]:
@@ -2125,9 +2172,9 @@ def _fast_forward_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path
     except _LaneDiverged as exc:
         _lane_diverged_outcome(branch, action, str(exc))
         return
-    lock_message = _foreign_review_lock_message(workspace, agent)
+    lock_message = _foreign_review_lock_message(workspace, main_repo_root, agent)
     if lock_message is not None:
-        raise _refuse_review_lane(lock_message)
+        raise _refuse_unreadable_review_lock(lock_message) if lock_message.startswith("REVIEW_LOCK_UNREADABLE") else _refuse_review_lane(lock_message)
     try:
         advance_branch_ref(main_repo_root, branch, remote_sha, expected_old_sha=local_sha)
     except RefAdvanceDirtyWorktreeError as exc:
@@ -2262,7 +2309,15 @@ def _prepare_review_workspace(
     from rich.markup import escape
 
     from specify_cli.cli.console import console
-    from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
+    from specify_cli.review.lock import LOCK_DIR, ReviewLock, ReviewLockError, ReviewLockReadError, _get_isolation_config, _apply_env_var_isolation
+
+    # #5434/#6386: the review lock lives in the workspace; keep ``.spec-kitty/``
+    # in the common-dir exclude so an agent's ``git add -A`` cannot commit it.
+    # The lane allocator writes the same entry, but a workspace created here
+    # by ``git worktree add`` never passes through it.
+    from specify_cli.core.git_ops import exclude_from_git_index
+
+    exclude_from_git_index(main_repo_root, [f"{LOCK_DIR}/"])
 
     isolation_config = _get_isolation_config(main_repo_root)
     if isolation_config and isolation_config.get("strategy") == "env_var":
@@ -2270,6 +2325,10 @@ def _prepare_review_workspace(
     else:
         try:
             ReviewLock.acquire(Path(workspace.worktree_path), wp_id, agent or "unknown")
+        except ReviewLockReadError as e:
+            # The pre-claim check (#6386) normally refuses first; this covers a
+            # lock that turned unreadable in between.
+            raise _refuse_unreadable_review_lock(_unreadable_review_lock_message(workspace, main_repo_root, None, claimed=True) or str(e)) from e
         except ReviewLockError as e:
             # #4163: the builtin ``print`` echoed these tags literally, and the
             # lock message carries arbitrary text (agent handles, paths), so it
@@ -2363,6 +2422,12 @@ def review(
             target_branch=target_branch,
             review_workspace=review_workspace,
         )
+
+        # #6386: read the lock this review will acquire BEFORE the claim, so an
+        # unreadable one is refused with nothing mutated (a re-run is safe).
+        lock_refusal = _unreadable_review_lock_message(review_workspace, main_repo_root, review_create_from)
+        if lock_refusal is not None:
+            raise _refuse_unreadable_review_lock(lock_refusal)
 
         resolved_binding = _resolve_dispatch_binding(
             model=model,

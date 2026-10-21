@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shlex
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,12 +29,26 @@ from typing import Any
 from specify_cli.core.process_liveness import is_process_alive
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
+from kernel.git import GitCommandError, is_tracked
 from kernel.guarded_read import read_guarded
 
 logger = logging.getLogger(__name__)
 
 LOCK_DIR = ".spec-kitty"
 LOCK_FILE = "review-lock.json"
+#: The lock's path relative to the worktree root, as git names it.
+LOCK_REL_PATH = f"{LOCK_DIR}/{LOCK_FILE}"
+#: Refusal code for a lock file the review cannot verify (#6386).
+REVIEW_LOCK_UNREADABLE = "REVIEW_LOCK_UNREADABLE"
+
+#: The on-disk record's fields and their JSON types (``ReviewLock`` field order).
+_LOCK_FIELDS: dict[str, type] = {
+    "worktree_path": str,
+    "wp_id": str,
+    "agent": str,
+    "started_at": str,
+    "pid": int,
+}
 
 
 class ReviewLockError(Exception):
@@ -83,6 +99,25 @@ class ReviewLock:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ReviewLock:
+        """Build a lock from its on-disk record.
+
+        Raises:
+            TypeError: When *data* is not an object, lacks a field, carries an
+                unknown one, or holds a value of the wrong type. The message
+                names the fields (#6386: ``cls(**data)`` on ``{}`` used to
+                surface as an unattributed ``ReviewLock.__init__() missing 5
+                required positional arguments``).
+        """
+        if not isinstance(data, dict):
+            raise TypeError(f"expected a JSON object, found {type(data).__name__}")
+        missing = [name for name in _LOCK_FIELDS if name not in data]
+        unknown = sorted(set(data) - set(_LOCK_FIELDS))
+        if missing or unknown:
+            parts = ([f"missing field(s) {', '.join(missing)}"] if missing else []) + ([f"unknown field(s) {', '.join(unknown)}"] if unknown else [])
+            raise TypeError("; ".join(parts))
+        wrong = [name for name, kind in _LOCK_FIELDS.items() if not isinstance(data[name], kind) or isinstance(data[name], bool)]
+        if wrong:
+            raise TypeError(f"field(s) with the wrong type: {', '.join(wrong)}")
         return cls(**data)
 
     # ------------------------------------------------------------------
@@ -130,13 +165,9 @@ class ReviewLock:
         if not lock_path.exists():
             return None
 
-        def _parse(content: bytes | str) -> ReviewLock:
-            text = content.decode("utf-8") if isinstance(content, bytes) else content
-            return cls.from_dict(json.loads(text))
-
         return read_guarded(
             lock_path,
-            _parse,
+            _parse_lock,
             errors=(json.JSONDecodeError, KeyError, TypeError),
             error_cls=ReviewLockReadError,
         )
@@ -202,6 +233,114 @@ class ReviewLock:
             except OSError:
                 # Non-empty directory or permission issue — leave in place.
                 pass
+
+
+def _parse_lock(content: bytes | str) -> ReviewLock:
+    """Decode one lock record; the single parser for the lock file and its committed blob."""
+    text = content.decode("utf-8") if isinstance(content, bytes) else content
+    return ReviewLock.from_dict(json.loads(text))
+
+
+# ---------------------------------------------------------------------------
+# Pre-claim check (#6386)
+# ---------------------------------------------------------------------------
+
+
+def _git_stdout(repo: Path, *args: str) -> str | None:
+    """``git -C <repo> <args>`` stdout, or ``None`` on a non-zero exit."""
+    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    return result.stdout if result.returncode == 0 else None
+
+
+def _is_tracked(worktree: Path) -> bool:
+    """Whether git tracks the lock in *worktree*; a checkout git cannot read counts as untracked."""
+    try:
+        return is_tracked(worktree, LOCK_REL_PATH)
+    except GitCommandError:
+        return False
+
+
+def _committed_lock_error(repo_root: Path, ref: str) -> ReviewLockReadError | None:
+    """The error reading the lock committed at *ref*, or ``None`` when it is absent or readable."""
+    spec = f"{ref}:{LOCK_REL_PATH}"
+    content = _git_stdout(repo_root, "show", spec)
+    if content is None:
+        return None  # no lock committed at *ref* (or *ref* itself is absent: creation reports that)
+    try:
+        _parse_lock(content)
+    except (json.JSONDecodeError, TypeError) as exc:
+        return ReviewLockReadError(path=spec, reason=str(exc))
+    return None
+
+
+def _untrack_remedy(worktree: Path, *, exists: bool, branch: str | None, checkout_ref: str | None) -> list[str]:
+    """Remedy lines for a lock git tracks: remove it from the branch that carries it.
+
+    A missing workspace whose local branch is absent is cut from *checkout_ref*
+    (a remote lane or HEAD); the lock is then fixed at that source, which this
+    command cannot check out for you.
+    """
+    if exists:
+        head = _git_stdout(worktree, "symbolic-ref", "--short", "-q", "HEAD")
+        where = branch or (head.strip() if head else "") or "the checked-out branch"
+    else:
+        where = checkout_ref or "the branch"
+    if not exists and checkout_ref != branch:
+        return [f"  The lock is committed on {where}; it must not be. Remove {LOCK_REL_PATH} there, then re-run the review."]
+    quoted = shlex.quote(str(worktree))
+    return [
+        f"  The lock is committed on {where}; it must not be. Remove it from the branch, then re-run the review:",
+        *([f"    git worktree add {quoted} {shlex.quote(where)}"] if not exists else []),
+        f"    git -C {quoted} rm -q {LOCK_REL_PATH}",
+        f"    Then commit that deletion on {where}.",
+    ]
+
+
+def unreadable_lock_refusal(
+    worktree: Path,
+    *,
+    exists: bool,
+    repo_root: Path,
+    checkout_ref: str | None,
+    branch: str | None,
+    claimed: bool = False,
+) -> str | None:
+    """Refusal text when the lock a review would acquire cannot be read; ``None`` when it can.
+
+    Run BEFORE the review claim, so a refusal mutates nothing and a re-run is
+    safe (#6386: the lock used to be read only after the ``in_review`` claim
+    and its commit, so an unreadable one crashed the command half-way and
+    every re-run added another start-review commit). The lock read is the
+    file in *worktree* when the workspace *exists*; otherwise it is the blob
+    the new workspace will check out from *checkout_ref*. Never rewrites or
+    removes the lock: an unverifiable lock may belong to a live review.
+
+    *claimed* is ``True`` only on the fallback after the claim (a lock that
+    turned unreadable between the check and its acquisition); the text then
+    says the claim was recorded instead of claiming nothing changed.
+    """
+    try:
+        if exists:
+            ReviewLock.load(worktree)
+            return None
+        error = _committed_lock_error(repo_root, checkout_ref) if checkout_ref else None
+    except ReviewLockReadError as exc:
+        error = exc
+    if error is None:
+        return None
+    committed = not exists or _is_tracked(worktree)
+    lines = [
+        f"{REVIEW_LOCK_UNREADABLE}: refusing to start the review; the review lock {error.path} cannot be read ({error.reason}).",
+        "  It was edited or committed by hand, or a write of it was cut short.",
+        "  The review claim was already recorded; once the lock is fixed, re-run the review to finish it."
+        if claimed
+        else "  The work package was not claimed for review.",
+    ]
+    if committed:
+        lines += _untrack_remedy(worktree, exists=exists, branch=branch, checkout_ref=checkout_ref)
+    else:
+        lines.append(f"  If no review is running in {worktree}, delete it (rm {shlex.quote(str(error.path))}) and re-run the review.")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
