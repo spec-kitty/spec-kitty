@@ -447,9 +447,16 @@ def _wp01_owner_observer(log: Path) -> Iterator[None]:
                 callback(event, values)
 
         sys.addaudithook(bounded)
+        # A lazy first import inside the window makes the import machinery write a
+        # .pyc into src/**/__pycache__. That is interpreter bytecode caching, not a
+        # product effect, and it only happens with a cold cache (pre-existing on main).
+        # Suppress it for the window so only real file writes are observed.
+        previous_dont_write = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
         try:
             yield
         finally:
+            sys.dont_write_bytecode = previous_dont_write
             active = False
 
 
