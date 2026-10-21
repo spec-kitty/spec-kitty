@@ -77,6 +77,8 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("LegacyRenameRefusedError", "charter.activation.synthesizer.legacy_rename"),
     ("RenameReport", "charter.activation.synthesizer.legacy_rename"),
     ("rename_legacy_project_intent_directive", "charter.activation.synthesizer.legacy_rename"),
+    ("MAX_SKILL_DESCRIPTION_LENGTH", "charter.activation.skill_preparation"),
+    ("MAX_SKILL_NAME_LENGTH", "charter.activation.skill_preparation"),
 ]
 
 

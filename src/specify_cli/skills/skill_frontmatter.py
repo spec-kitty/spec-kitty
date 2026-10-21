@@ -36,7 +36,7 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.skill_preparation import MAX_SKILL_DESCRIPTION_LENGTH, MAX_SKILL_NAME_LENGTH
+from charter.activation.api import MAX_SKILL_DESCRIPTION_LENGTH, MAX_SKILL_NAME_LENGTH
 from kernel.text_decode import normalize_newlines
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_NATIVE
 

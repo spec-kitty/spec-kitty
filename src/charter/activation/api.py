@@ -172,12 +172,22 @@ from charter.activation.activation_ledger import (
     required_not_in_force as required_not_in_force,
 )
 
+# Agent Skills specification limits (#6475) -- the frontmatter name/description
+# caps the command-skill renderer in specify_cli.skills enforces. Public per
+# charter.activation.skill_preparation.
+from charter.activation.skill_preparation import (
+    MAX_SKILL_DESCRIPTION_LENGTH as MAX_SKILL_DESCRIPTION_LENGTH,
+    MAX_SKILL_NAME_LENGTH as MAX_SKILL_NAME_LENGTH,
+)
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
 #: ``tests/architectural/test_charter_activation_api_reexport.py``.
 __all__ = [
     "MANIFEST_PATH",
+    "MAX_SKILL_DESCRIPTION_LENGTH",
+    "MAX_SKILL_NAME_LENGTH",
     "UNKNOWN_SELECTION_DIAGNOSTIC",
     "ActivationLedger",
     "ActivationResult",
