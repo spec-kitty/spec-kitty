@@ -150,7 +150,7 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 | Codex CLI | `.agents/skills/` | `$spec-kitty-<command>` | `codex` |
 | Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` | `/spec-kitty-<command>` | `vibe` |
 | Pi | `.agents/skills/` | `/skill:spec-kitty-<command>` | `pi` |
-| Letta Code | `.agents/skills/` | Agent Skills | `letta` |
+| Letta Code | `.agents/skills/` | `/spec-kitty-<command>` | `letta` |
 | Google Antigravity | `.agents/skills/` | `/spec-kitty-<command>` | `antigravity` |
 
 Codex, Vibe, Pi, Letta and Antigravity share `.agents/skills/spec-kitty-<command>/SKILL.md` (the Agent Skills name grammar allows only `[a-z0-9-]`; the 12 slash-command agents keep their `spec-kitty.<command>` command files and `/spec-kitty.<command>` invocations). Manifest: `.kittify/command-skills-manifest.json`. Older projects are migrated per clone on `spec-kitty upgrade`; Antigravity's old `.agent/workflows/` files are archived to `.kittify/backups/antigravity-workflows/`. ADR: [`docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md`](docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md).
