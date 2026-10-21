@@ -136,6 +136,8 @@ It has no allowlist. Floor assertions name the real renderers, builders and exit
 
 Decision 5 no longer applies to the shared command-skill projection, `.agents/skills/spec-kitty.<command>/SKILL.md` (Codex, Mistral Vibe, Pi, Letta). The state contract declares that surface `DERIVED` and git-`IGNORED` (`shared_skills_projection`, `src/specify_cli/state/contract.py`). Across two checkouts of one project, the command-skill manifest and the ignored bytes legitimately disagree, so the installer cannot tell a hand edit from generated output that another checkout's upgrade left behind. Operator direction (2026-10-05, P1) is to regenerate: `init`, `upgrade` and `spec-kitty agent config sync` rewrite a manifest-owned projection whose bytes match neither the recorded hash nor the current render, without consent and without a `Not updated, your local edit was kept` line.
 
+> Naming superseded: command skills are now `spec-kitty-<cmd>`, see ADR 2026-10-20-1.
+
 Consequences:
 
 - A hand edit to a `spec-kitty.*` command skill is replaced on the next reconcile. Customizations belong in a skill of the project's own, which is never touched.

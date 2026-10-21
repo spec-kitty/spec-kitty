@@ -5,7 +5,7 @@ status: Accepted
 date: '2026-04-07'
 ---
 
-**Amended by:** ADR [2026-10-20-1](../4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md) (home-folder writer scoped to configured agents; `antigravity` row removed).
+**Amended by:** ADR [2026-10-20-1](../4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md) (home-folder writer scoped to configured agents; the `antigravity` row below is superseded: Antigravity reads command skills, not `~/.agent/workflows/`).
 
 ## Context and Problem Statement
 
@@ -56,7 +56,7 @@ Commands are installed to the global agent command roots on every CLI startup. T
 | `auggie` | Augment Code | `~/.augment/commands/` | `.md` | `$ARGUMENTS` |
 | `roo` | Roo Code | `~/.roo/commands/` | `.md` | `$ARGUMENTS` |
 | `q` | Amazon Q | `~/.amazonq/prompts/` | `.md` | `$ARGUMENTS` |
-| `antigravity` | Google Antigravity | `~/.agent/workflows/` | `.md` | `$ARGUMENTS` |
+| ~~`antigravity`~~ | ~~Google Antigravity~~ | ~~`~/.agent/workflows/`~~ | ~~`.md`~~ | ~~`$ARGUMENTS`~~ (superseded, see ADR 2026-10-20-1) |
 
 Global root = `Path.home() / AGENT_COMMAND_CONFIG[agent_key]["dir"]`
 
