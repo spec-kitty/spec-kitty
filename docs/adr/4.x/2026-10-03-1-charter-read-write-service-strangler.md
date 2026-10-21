@@ -460,6 +460,10 @@ surface, an identity check against the service's info operation before every ses
 a launcher that records the process identity, not only the PID, so a recycled PID is never
 mistaken for the service. A security review of the launcher precedes the cutover.
 
+## Amendment 2026-10-19: the activation write target is the ledger seam
+
+[ADR 2026-10-19-1](2026-10-19-1-activation-ledger-persists-deactivation.md) changes the write target of every activation write described here. Activation state is read from and written to `.kittify/charter/activation.yaml` through the seam `charter.activation.activation_ledger`, reached by `specify_cli` only through `charter.activation.api`. The `(path, data, save)` write-target triple keeps its shape. Any future write adapter for activation must go through the same seam and its deny-list guard.
+
 ## Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)
 
 `charter.offering.api` gains one symbol, `LANGUAGE_TOKENS`: a read-only tuple of plain language tokens, in catalog order, derived once from the language catalog. The charter service and the conformance corpus need the token vocabulary, and a hand-copied list would drift from the catalog.

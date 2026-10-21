@@ -120,3 +120,7 @@ The original outcome — the *compiler* (`write_compiled_charter`) never writes 
 - Assessment + dialectic + empirical resolution: `kitty-specs/consolidate-charter-bundle-01KXSYB9/research/charter-authority-inversion-assessment.md`.
 - Mission spec: `kitty-specs/consolidate-charter-bundle-01KXSYB9/spec.md`.
 - Related: ADR 2026-07-15-1 (activation axis); #2772 (charter.md non-destructive refresh); epic #2519.
+
+## Amendment 2026-10-19: Decision 2 is superseded for activation keys
+
+[ADR 2026-10-19-1](../4.x/2026-10-19-1-activation-ledger-persists-deactivation.md) supersedes **Decision 2 only** ("`charter.yaml` OWNS activation"). The activation keys (`activated_kinds`, `mission_type_activations`, `activated_<plural>`) and the new `deactivated_<plural>` deny-lists now live in `.kittify/charter/activation.yaml`, not in `charter.yaml` or `.kittify/config.yaml`. A migration moves existing keys. The rest of this ADR stands: `charter.yaml` stays the authoritative structured charter for everything else, `charter.md` stays a curated companion, and the prose-to-triad extractor stays retired. `answers.yaml` is still provenance only.

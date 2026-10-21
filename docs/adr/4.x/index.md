@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-19'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -76,3 +76,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-15 | [QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger](2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md) |
 | 2026-10-16 | [extract the charter offering layer first as the GA gate leg; the activation rework rides the post-GA stable line](2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md) |
 | 2026-10-17 | [the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run](2026-10-17-1-explicit-migration-ledger.md) |
+| 2026-10-19 | [one activation ledger persists deactivation, and nothing silently reinstalls it](2026-10-19-1-activation-ledger-persists-deactivation.md) |

@@ -3,10 +3,10 @@ title: 'ADR: extract the charter offering layer first as the GA gate leg; the ac
 description: 'Charter extraction splits by seam: offering extracts first as the 4.0.0 GA gate leg; the activation drain/rework moves off-gate to CLI 4.x stable. Amends 2026-10-12-2.'
 status: Accepted
 date: '2026-10-16'
-updated: '2026-10-19'
+updated: '2026-10-21'
 ---
 
-**Status:** Accepted (2026-10-16).
+**Status:** Accepted (2026-10-16); amended 2026-10-20 (activation timing and authority, see the end).
 
 **Date:** 2026-10-16
 
@@ -195,3 +195,19 @@ What this changes in the record above:
 - The *Confirmation* bullet "an architectural test pins `charter.offering` as an external
   contract package once the extraction lands" no longer applies: no extraction lands. The
   phase-2 conformance corpus remains the net.
+
+## Amendment 2026-10-20: the charter service becomes authoritative for activation
+
+Operator rulings of 2026-10-20 (Mission `persistent-deactivation-ledger-01M59YAA`, rulings
+`contract_rulings_r2_r12` R2 and `contract_epic_ga_milestone`), recorded in the amendment of
+ADR [2026-10-19-1](2026-10-19-1-activation-ledger-persists-deactivation.md).
+
+- **Authority after the cutover (R2).** After the charter contract's 1.0.0 remote cutover, the
+  charter service is authoritative for activation, and core's activation ledger
+  (`.kittify/charter/activation.yaml`) is the mapped local copy. Until then the activation
+  ledger stays core's authority, and an anti-corruption layer maps its content onto the
+  contract (`contract_document_scope`).
+- **Timing.** The post-GA timing of the activation rework is superseded. Switching to the
+  charter surface is a 4.0 deliverable: the charter-contract alignment epic and all its
+  children are on the GA milestone (#11), whose target date is removed. The offering-first
+  split of this ADR is unchanged.
