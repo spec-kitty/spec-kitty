@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/init/test_init_next_steps.py; docs/changelog/CHANGELOG.md Unreleased; docs/migrations/command-skill-hyphen-names.md (mission FR set: 968 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-21T15:54:23.153420+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
