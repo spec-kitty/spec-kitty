@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
+from specify_cli.docs_links import INSTALL_AND_UPGRADE_URL
+
 if TYPE_CHECKING:
     from specify_cli.compat._detect.runtime import InstalledCliRuntime, UvRequirement
 
@@ -551,7 +553,7 @@ _MANUAL_NOTES: dict[str, dict[str, str]] = {
         "source": "Rebuild from source using your normal dev workflow.",
         "unknown": (
             "Reinstall spec-kitty-cli using your original install method. "
-            "See https://spec-kitty.dev/docs/how-to/install-and-upgrade for guidance."
+            f"See {INSTALL_AND_UPGRADE_URL} for guidance."
         ),
         "system-package": (
             "Use your system package manager to upgrade spec-kitty-cli."

@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 from specify_cli.compat._detect.install_method import InstallMethod
 from specify_cli.compat.remediation import COMMAND_ALLOWLIST_MAX_LEN
+from specify_cli.docs_links import INSTALL_AND_UPGRADE_URL
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +111,7 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
         (
             "Your install method could not be detected automatically. "
             "Upgrade Spec Kitty using the same method you used to install it. "
-            "See https://spec-kitty.dev/docs/guides/install-and-upgrade for guidance."
+            f"See {INSTALL_AND_UPGRADE_URL} for guidance."
         ),
     ),
 }
