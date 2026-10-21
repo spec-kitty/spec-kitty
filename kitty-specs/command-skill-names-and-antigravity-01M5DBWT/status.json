@@ -158,6 +158,9 @@
       "last_event_id": "01M5EHV5M994D3P1A80JXA5ZDE",
       "last_transition_at": "2026-10-21T06:19:42.601913+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: antigravity moved to the command-skill roster (no AGENT_COMMAND_CONFIG/AGENT_DIRS rows), configured_slash_agents filter, init installs its command skills, clone-local 4.0.0rc8_retire_antigravity_workflows archives proven .agent/workflows files via the guard and installs skills"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 23661,
