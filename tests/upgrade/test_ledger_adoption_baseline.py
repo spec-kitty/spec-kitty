@@ -177,7 +177,11 @@ def test_an_older_target_still_selects_the_adoption(tmp_path: Path) -> None:
 def test_unparseable_recorded_version_stamps_nothing(tmp_path: Path) -> None:
     project = _project(tmp_path, version="not-a-version")
 
-    assert BackfillMigrationLedgerMigration().detect(project) is False
+    migration = BackfillMigrationLedgerMigration()
+
+    assert migration.detect(project) is False
+    migration.apply(project)
+    assert MigrationLedger(project).read_tracked() == []
 
 
 def test_backfill_is_idempotent_after_the_baseline(tmp_path: Path) -> None:
