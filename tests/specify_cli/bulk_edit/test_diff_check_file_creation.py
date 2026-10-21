@@ -187,8 +187,18 @@ class TestNonOccurrenceFiles:
         assert a.violation is False
         assert a.source == "non-occurrence"
 
-    def test_generated_lockfile_does_not_block(self) -> None:
-        assert assess_file("Gemfile.lock", _map(), None, "M").violation is False
+    @pytest.mark.parametrize("path", ["Gemfile.lock", "package-lock.json"])
+    def test_created_lockfile_does_not_block(self, path: str) -> None:
+        a = assess_file(path, _map(), None, "A")
+        assert a.violation is False
+
+    @pytest.mark.parametrize("path", ["Gemfile.lock", "package-lock.json", "assets/logo.svg"])
+    def test_edited_lockfile_or_svg_is_not_a_non_occurrence(self, path: str) -> None:
+        """A lockfile edit can rename a package and an SVG carries ids and
+        classes as text: neither may pass as incapable of an occurrence."""
+        a = assess_file(path, _map(), None, "M")
+        assert a.source != "non-occurrence"
+        assert a.violation is True
 
     def test_placeholder_does_not_block(self) -> None:
         assert assess_file("app/controllers/concerns/.keep", _map(), None, "M").violation is False

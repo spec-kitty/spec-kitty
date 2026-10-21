@@ -407,9 +407,8 @@ def _is_review_lifecycle_basename(basename: str) -> bool:
 _OPAQUE_SUFFIXES: frozenset[str] = frozenset({
     # Webfonts
     ".woff", ".woff2", ".ttf", ".otf", ".eot",
-    # Raster and vector assets
+    # Raster assets. Not ``.svg``: it is XML text and can carry ids and classes.
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".avif",
-    ".svg", ".pdf",
     # Audio and video
     ".mp3", ".wav", ".ogg", ".flac", ".mp4", ".webm", ".mov",
     # Compiled objects
@@ -447,8 +446,12 @@ def _in_foreign_mission_dir(path: str, feature_dir_rel: str | None) -> bool:
     return parts[1] != Path(feature_dir_rel.strip("/")).name
 
 
-def _non_occurrence_reason(path: str) -> str | None:
+def _non_occurrence_reason(path: str, status: str | None = None) -> str | None:
     """Return why *path* cannot carry a textual occurrence, or ``None``.
+
+    A lockfile is exempt only when this diff CREATES it (*status* ``"A"``): a
+    generated file has no prior occurrence. Editing one (a package rename in
+    ``package-lock.json``) is a real change and keeps blocking as unclassified.
 
     ``None`` means "this file is ordinary text"; the caller falls through to
     the path-heuristic classifier.
@@ -457,7 +460,7 @@ def _non_occurrence_reason(path: str) -> str | None:
     basename = p.name
     if basename in _PLACEHOLDER_BASENAMES:
         return "empty-directory marker (zero bytes, no occurrences)"
-    if basename in _LOCKFILE_BASENAMES:
+    if status == "A" and basename in _LOCKFILE_BASENAMES:
         return (
             f"'{basename}' is a generated dependency lockfile — resolver "
             "output, regenerated rather than edited"
@@ -692,7 +695,7 @@ def _classify_file(
     #    deliberately named such a path keeps whatever action they chose,
     #    and BEFORE the heuristic, which would otherwise block them as
     #    unclassified.
-    non_occurrence = _non_occurrence_reason(path)
+    non_occurrence = _non_occurrence_reason(path, status)
     if non_occurrence is not None:
         return FileAssessment(
             path=path,
