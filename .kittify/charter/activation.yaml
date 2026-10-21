@@ -194,6 +194,8 @@ activated_toolguides:
 - java-supply-chain
 - javascript-supply-chain
 - python-supply-chain
+- terminology-guard
+- test-quality-triage
 activated_paradigms:
 - atomic-design
 - behaviour-driven-development
@@ -231,6 +233,13 @@ activated_procedures:
 - glossary-maintenance-workflow
 - development-assist-test-cleanup
 - charter-offering-scenario-extraction
+- landing-contributor-prs
+- project-evolution-postmortem
+- memory-curation-and-escalation
+- executive-debrief-generation
+- test-suite-quality-assessment
+- cloud-session-dispatch
+- semi-auto-delivery
 activated_agent_profiles:
 - architect-alphonso
 - curator-carla

@@ -833,6 +833,12 @@ catalog:
     summary: "The maintainer method for building the consumer-facing BDD feature/scenario suite for the charter offering domain ahead of the spec-kitty-charter extraction. The suite is the behavioural contract a user relies on — \"what should the system do for me\" — and it becomes the conformance net that survives the repo split (the offering-first extraction's red-first contract-conformance phase). The method is promise-first: scenarios are derived from the charter's stated guarantees (docs, ADRs, FR docstrings, --help, the charter.offering.api seam), and the existing nightly e2e and fast tests are read only as EVIDENCE that a promise already holds and as a source of concrete commands and outcomes — never transcribed into Gherkin. Every scenario is authored to the feature-and-scenario-authoring styleguide and lands in the existing tests/scenarios Gherkin + Cucumber-JVM scaffold, gated per-PR by the scenario contract and run nightly cross-OS.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-charter-offering-scenario-extraction.md
+  - id: PROCEDURE:cloud-session-dispatch
+    kind: procedure
+    title: Cloud Session Dispatch (hand tracker issues to an autonomous cloud runner)
+    summary: "The maintainer workflow for handing one or more spec-kitty/spec-kitty tracker issues to a fresh Claude Code cloud session that runs a governed Spec Kitty mission end to end and delivers a draft PR. The runner starts from nothing, so the dispatch prompt is its whole world. This procedure makes that prompt complete: branch off main, set up the latest CLI, align to the charter, ground in the code before specifying, bind the doctrine for the kind of work, and deliver through the canonical mission loop to a draft PR the operator merges. It is the substance behind the operator-local `spk-dispatch-cloud` skill. Per ADR 2026-09-27-1, the skill stays a thin wrapper that requires this procedure.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-cloud-session-dispatch.md
   - id: PROCEDURE:development-assist-test-cleanup
     kind: procedure
     title: Development-Assist Test Cleanup
@@ -875,6 +881,12 @@ catalog:
     summary: "Turn a behavior request into concrete rules, examples, and open questions that stakeholders and implementers can share as a canonical specification set.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-example-mapping-workshop.md
+  - id: PROCEDURE:executive-debrief-generation
+    kind: procedure
+    title: Executive Debrief Generation
+    summary: "The maintainer workflow for producing an executive debrief — a \"WTF happened since <T>\" window report or a \"WTF is up with <milestone>\" scope report — over one or more repositories. It is a three-stage pipeline: a deterministic collector reads the facts from GitHub, the maintainer synthesizes them under the executive-debrief styleguide, and a renderer produces the branded PDF. The styleguide defines two layouts: a one-pager (a fixed slot contract filled into the debrief template) and a long-form debrief (one Markdown file rendered by the spec-kitty-branded-pdf generator). It is lighter and more data-driven than the project-evolution-postmortem, and it is run as a governed dispatch Op, not a Mission (DIRECTIVE_053).\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-executive-debrief-generation.md
   - id: PROCEDURE:glossary-maintenance-workflow
     kind: procedure
     title: Glossary Maintenance Workflow
@@ -887,6 +899,12 @@ catalog:
     summary: "Triage incoming bugs and enhancements into a single current state, preserving durable handoff context for agents and durable rejection context for future maintainers. The procedure is tracker-neutral: GitHub labels are one possible carrier, but the invariant is a category plus exactly one workflow state.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-issue-triage-state-machine.md
+  - id: PROCEDURE:landing-contributor-prs
+    kind: procedure
+    title: Landing Contributor PRs
+    summary: "The maintainer workflow for taking a contributor PR from \"open with red CI\" to \"merge-ready\": sized up, claimed, rebased onto the current main of the canonical repository, every red check adjudicated, fixes added to the contributor branch, independently reviewed, documented, and handed off with evidence, so the operator can merge without re-deriving the adjudication. This procedure holds the rules; docs/development/how-to/pr-landing.md holds the command-level detail. The `land-pr` pack skill is the thin entry point to this procedure. Terms used here. The operator is the human in charge of the run: the maintainer who invoked it. The canonical remote is the git remote that points at `spec-kitty/spec-kitty`; its name differs per clone, so find it with `git remote -v`. A landing fix (called a \"fold\" in the runbook) is one commit that the landing pass adds to the PR branch. A companion change is an edit that a gate requires next to your change, such as a regenerated index or a removed exclude entry. A review squad is a small set of reviewer subagents, each given a different focus; adversarial-squad-deployment owns how one is run. The landing queue is the set of PRs the operator has asked maintainers to land in this run, in the order they will be landed.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-landing-contributor-prs.md
   - id: PROCEDURE:legacy-codebase-triage
     kind: procedure
     title: Legacy Codebase Triage
@@ -899,6 +917,12 @@ catalog:
     summary: "Convert a VTT meeting transcript into structured, validated Markdown minutes and post them as the assistant response in the originating chat. The pipeline supports two output formats and asks the user which to use, before agenda resolution or extraction: DECISION MINUTES (Attendance / Minutes table / Action Items, for decision- and action-oriented meetings) and DISCUSSION NOTES (Attendance / Topics Discussed / optional Action Items, a stand-alone briefing for discussion-oriented meetings). The already-running chat agent performs extraction; chat-only delivery requires no API key, PAT, or wiki publish credentials. Validated Markdown in that chat is the canonical content. Wiki/knowledge-base publication is an optional human-operated follow-up: it runs only when the user explicitly requests it and identifies the destination, and it reuses the same validated Markdown. `.minutes.json` and `.wiki.txt` are not mandatory outputs.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-meeting-minutes-pipeline.md
+  - id: PROCEDURE:memory-curation-and-escalation
+    kind: procedure
+    title: Agent-Memory Curation and Knowledge Escalation
+    summary: "The maintainer workflow for keeping local agent-memory a durable asset rather than a landfill, and for routing each learned fact to its correct home. Local agent-memory (Claude Code's per-project `~/.claude/projects/.../memory/` store) accumulates fast and drifts: mission/PR-status notes pile up, the same lesson is written many times, and the always-loaded index silently truncates once it exceeds its load budget. This procedure classifies every memory into one of four dispositions — drop a duplicate, prune a stale status note, keep a durable gotcha, or escalate a repo-invariant fact into the repository — and applies the placement discipline that keeps each kind where it belongs. It is operator-guided: the maintainer sets the boundaries and nothing is destroyed unilaterally. It complements, and enforces at scale, the two standing rules in the memory-curation-retention-policy (mission-status never enters always-loaded memory; project memories age out at merge).\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-memory-curation-and-escalation.md
   - id: PROCEDURE:migrate-project-guidance-to-spec-kitty-charter
     kind: procedure
     title: Migrate Project Guidance to Spec Kitty Charter
@@ -929,6 +953,12 @@ catalog:
     summary: "After merging one or more lane branches, architectural gate failures may appear that were not visible during per-lane review. This procedure distinguishes pre-existing failures (present on the mission base branch before any lane work) from regressions introduced by the merge. Correct adjudication prevents teams from either ignoring real regressions or blocking on failures they did not cause.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-post-merge-arch-gate-adjudication.md
+  - id: PROCEDURE:project-evolution-postmortem
+    kind: procedure
+    title: Project Technical-Evolution Postmortem
+    summary: "The maintainer workflow for producing a project-technical-evolution postmortem: a report that describes how the project moved over a cycle — architecture and roadmap currency, code and design quality, bug trend, contribution distribution, velocity, community-versus-maintainer authorship, and the friction the Missions themselves surfaced. It is driven by parallel profile-loaded research squads whose outputs are synthesized into one least-technical-first report addressed to maintainers, stakeholders, and investors at once. The deliverable is an evidence-backed narrative every figure of which is attributed to its source; it is not a status dump and not a roadmap.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-project-evolution-postmortem.md
   - id: PROCEDURE:red-main-release-discipline
     kind: procedure
     title: Red Main & Release Discipline
@@ -941,6 +971,12 @@ catalog:
     summary: "Improve internal code structure without changing external behavior. This procedure provides a disciplined workflow for identifying improvement opportunities, selecting the right refactoring tactic, applying changes in safe increments, and verifying behavior preservation throughout.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-refactoring.md
+  - id: PROCEDURE:semi-auto-delivery
+    kind: procedure
+    title: Semi-Auto Delivery (a governed autonomous run with pause-and-escalate)
+    summary: "The runner-side standing orders for a semi-autonomous governed delivery run: one agent — a local maintainer session or a dispatched cloud runner — takes a tracker issue, or a coherent issue-set, from orientation through to a draft PR the operator merges, working on its own but PAUSING to escalate the decisions that are the operator's to make. \"Semi-auto\" is the whole point: autonomous inside the agreed scope, never silent on a decision that changes something outside it. These standing orders are what a dispatch brief or a local invocation would otherwise hand-type every single time; a path that binds this procedure by reference stops re-authoring them. It is the substance behind the kitty-semi-auto skill in both of its modes. It is mode-agnostic: the conduct of the run is identical whether executed locally or in a cloud session. cloud-session-dispatch owns how the dispatch prompt is written and how the runner is spawned; this procedure owns how the run is then conducted.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-semi-auto-delivery.md
   - id: PROCEDURE:situational-assessment
     kind: procedure
     title: Situational Assessment
@@ -959,6 +995,12 @@ catalog:
     summary: "Resolve software defects by writing a failing test that reproduces the issue before modifying any production code. Transforms bug fixing from trial-and-error into a systematic, verifiable procedure with built-in regression prevention.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-test-first-bug-fixing.md
+  - id: PROCEDURE:test-suite-quality-assessment
+    kind: procedure
+    title: Test-Suite Quality Assessment (static triage, domain squads, shrink-only follow-through)
+    summary: "The maintainer workflow for assessing the quality of Spec Kitty's own test corpus, either the tests added in a recent window or the whole suite. The corpus is too large to read end to end (over three thousand modules), so the assessment runs cheapest-first: a static triage pass ranks every file without running a single test, then profile-loaded review squads read only the top of each domain's ranked list against the Test Desiderata, and every confirmed finding lands as a fix, a retirement with its covering guard named, or a shrink-only baseline entry. The deliverable is a set of per-domain ledgers with a verdict for each reviewed file and the issues or PRs that act on them; it is not a report that restates the flags.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-test-suite-quality-assessment.md
   - id: STYLEGUIDE:aggregate-design-rules
     kind: styleguide
     title: Aggregate Design Rules
@@ -1871,6 +1913,18 @@ catalog:
     summary: "Operator reference for SonarQube static analysis and its quality gate. Covers the four measure families (new-code coverage, code smells / maintainability, security hotspots and vulnerabilities, duplication), why the gate is evaluated on NEW code rather than the whole project, and the loopback-safe handling of a local Sonar or control-plane URL (do not force HTTPS on 127.0.0.1).\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-sonar.md
+  - id: TOOLGUIDE:terminology-guard
+    kind: toolguide
+    title: Terminology Guard
+    summary: "Describes when and how to invoke Spec Kitty's own legacy-terminology guard (tests/architectural/test_no_legacy_terminology.py) before pushing changes to src/charter/offering/ or user-facing prose. The guard catches superseded terms that have reappeared in active source and fails CI if any are found. Maintainer-only: it names a test that exists only in the Spec Kitty repository.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-terminology-guard.md
+  - id: TOOLGUIDE:test-quality-triage
+    kind: toolguide
+    title: Test-Quality Triage (static scan of the pytest corpus)
+    summary: "How to run the maintainer-only static triage asset that opens a test-suite quality assessment. It parses every test module with ast, runs no tests, flags weak-oracle and implementation-coupling patterns per test, attaches git provenance (when a file was added, by which commit, when it was last touched), and writes a ranked worklist plus one resumable review ledger per domain. Covers the make target, the direct invocation through the `charter pack asset` resolver, the window mode (--since), what each flag code means and how it maps to the review rubric, how to read the outputs, and the known false positives that make every flag a candidate rather than a verdict.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-test-quality-triage.md
   - id: TOOLGUIDE:typescript-mutation-tools
     kind: toolguide
     title: typescript-mutation-tools
@@ -1885,5 +1939,5 @@ catalog:
     local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-10-17T06:21:56Z'
+  generated_at: '2026-10-21T20:16:32Z'
   bundle_schema_version: 2
