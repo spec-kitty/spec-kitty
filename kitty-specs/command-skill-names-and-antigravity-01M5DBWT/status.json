@@ -314,6 +314,9 @@
       "last_event_id": "01M5FJ164MN6FNZ1903KANTAH3",
       "last_transition_at": "2026-10-21T15:42:14.164715+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "open-packs #61 merged (ecda7b0); internal pin bumped and synced; test_validate_pr_body adapted to upstream (problems, warnings) API; 48/48 + 578 internal-pack blast radius"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1592,
