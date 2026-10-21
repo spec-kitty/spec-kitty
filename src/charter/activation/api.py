@@ -114,18 +114,62 @@ from charter.activation.language_settlement import (
 # Activation result / effective-set / org-required-stem / selection-diagnostic
 # primitives the ``charter activate`` / ``interview`` commands and the runtime
 # doctor consume (#6099). Public per the respective modules' ``__all__``.
-from charter.activation.activation_engine import EffectiveSet as EffectiveSet
+from charter.activation.activation_engine import EffectiveSet as EffectiveSet, deny_delta as deny_delta
 from charter.activation.org_charter import org_required_stems as org_required_stems
 from charter.activation.pack_manager import ActivationResult as ActivationResult
+
+# The manifest bundle-hash restamp an activation writer runs after a committed
+# promotion (the activation ledger is in the bundle hash, FR-018). Public per
+# charter.activation.bundle_restamp.__all__.
+from charter.activation.bundle_restamp import restamp_bundle_hash as restamp_bundle_hash
 from charter.activation.resolver import (
     UNKNOWN_SELECTION_DIAGNOSTIC as UNKNOWN_SELECTION_DIAGNOSTIC,
 )
 
-# The activation reader's charter.yaml soundness rule + its typed refusal, consumed by the
-# ``charter synthesize`` gate (#6415). Public per charter.activation.pack_context.__all__.
+# The activation reader's charter.yaml soundness rule, consumed by the ``charter synthesize``
+# gate (#6415). Public per charter.activation.pack_context.__all__. Its typed refusal,
+# ``ActiveCharterConfigError``, is re-exported once below from the activation ledger.
 from charter.activation.pack_context import (
-    ActiveCharterConfigError as ActiveCharterConfigError,
     load_charter_yaml_mapping as load_charter_yaml_mapping,
+)
+
+# Activation ledger seam (persistent-deactivation-ledger WP02) -- the typed
+# ledger, its load, the explicit deny-list choice and the guard's refusal, for
+# the specify_cli consumers re-pointed onto the ledger (list, doctor, charter
+# activate/deactivate). Public per charter.activation.activation_ledger.__all__.
+from charter.activation.activation_ledger import (
+    ActivationLedger as ActivationLedger,
+    DenyListChoice as DenyListChoice,
+    DenyListWriteRefused as DenyListWriteRefused,
+    load_activation_ledger as load_activation_ledger,
+    refuse_unmigrated_deny_write as refuse_unmigrated_deny_write,
+    resolve_ledger_source as resolve_ledger_source,
+)
+
+# Ledger migration (persistent-deactivation-ledger WP08) -- the pure planner and
+# its apply, shared by the ``4.0.0rc8_activation_ledger`` upgrade migration and
+# ``spec-kitty migrate activation-ledger``, plus the error the planner raises on
+# an unreadable surface. Public per charter.activation.activation_ledger.__all__.
+from charter.activation.activation_ledger import (
+    ActiveCharterConfigError as ActiveCharterConfigError,
+    LedgerMigrationPlan as LedgerMigrationPlan,
+    LedgerMigrationRefusal as LedgerMigrationRefusal,
+    LedgerMigrationRefused as LedgerMigrationRefused,
+    LedgerMove as LedgerMove,
+    apply_ledger_migration as apply_ledger_migration,
+    plan_ledger_migration as plan_ledger_migration,
+)
+
+# Activation diagnostics (persistent-deactivation-ledger WP09) -- the doctor's
+# activation-drift findings and the FR-023 required-but-omitted reader that
+# ``doctor charter-packs`` and ``charter list`` consume. Public per
+# charter.activation.activation_ledger.__all__.
+from charter.activation.activation_ledger import (
+    LedgerFinding as LedgerFinding,
+    LedgerFindings as LedgerFindings,
+    RequiredOmission as RequiredOmission,
+    ledger_findings as ledger_findings,
+    required_not_in_force as required_not_in_force,
 )
 
 #: The curated activation public surface. Keep it sorted and explicit; every entry
@@ -135,27 +179,46 @@ from charter.activation.pack_context import (
 __all__ = [
     "MANIFEST_PATH",
     "UNKNOWN_SELECTION_DIAGNOSTIC",
-    "ActiveCharterConfigError",
+    "ActivationLedger",
     "ActivationResult",
+    "ActiveCharterConfigError",
+    "DenyListChoice",
+    "DenyListWriteRefused",
     "EffectiveSet",
     "IdentityEntry",
     "IdentityIndex",
     "LanguageSettlement",
+    "LedgerFinding",
+    "LedgerFindings",
+    "LedgerMigrationPlan",
+    "LedgerMigrationRefusal",
+    "LedgerMigrationRefused",
+    "LedgerMove",
     "LegacyRenameRefusedError",
     "RenameReport",
+    "RequiredOmission",
     "append_synthesized_activations",
+    "apply_ledger_migration",
     "canonical_mission_type_key",
     "canonical_yaml",
     "configured_languages",
     "created_slugs_by_kind",
+    "deny_delta",
     "finalize_manifest",
+    "ledger_findings",
+    "load_activation_ledger",
     "load_charter_yaml_mapping",
     "load_yaml",
     "org_required_stems",
+    "plan_ledger_migration",
     "read_mission_type",
+    "refuse_unmigrated_deny_write",
     "rename_legacy_project_intent_directive",
+    "required_not_in_force",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
+    "resolve_ledger_source",
+    "restamp_bundle_hash",
     "settle_project_languages",
     "store_language_settlement",
     "verify",

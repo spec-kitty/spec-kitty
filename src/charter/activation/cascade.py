@@ -56,6 +56,7 @@ satisfied at mission-merge per the WP11 Definition of Done.
 
 from __future__ import annotations
 
+import dataclasses
 from collections import deque
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -253,13 +254,16 @@ class CascadeScope:
 def _forward_reference_closure(
     adj: dict[str, list[str]],
     sources: set[str],
+    blocked: frozenset[str] = frozenset(),
 ) -> set[str]:
     """Forward transitive closure over a pre-built reference adjacency.
 
     BFS from *sources* following *adj*; returns every reachable URN **excluding**
     the seed sources themselves (the cascade targets are the artifacts a source
     *references*, not the source). ``adj`` is the forward adjacency restricted to
-    :data:`_REFERENCE_RELATIONS`.
+    :data:`_REFERENCE_RELATIONS`. A *blocked* node is recorded when reached but
+    never expanded: the walk does not follow any of its edges (operator ruling
+    ``cascade_walk_through_denied``).
     """
     visited: set[str] = set(sources)
     queue: deque[str] = deque(sources)
@@ -268,7 +272,8 @@ def _forward_reference_closure(
         for neighbor in adj.get(current, ()):
             if neighbor not in visited:
                 visited.add(neighbor)
-                queue.append(neighbor)
+                if neighbor not in blocked:
+                    queue.append(neighbor)
     return visited - sources
 
 
@@ -279,6 +284,35 @@ def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
         if edge.relation in _REFERENCE_RELATIONS:
             adj.setdefault(edge.source, []).append(edge.target)
     return adj
+
+
+def _requires_parents(edges: list[DRGEdge], parents: set[str]) -> dict[str, tuple[str, ...]]:
+    """Target URN → the sorted *parents* that have a ``REQUIRES`` edge to it."""
+    required_by: dict[str, set[str]] = {}
+    for edge in edges:
+        if edge.relation is Relation.REQUIRES and edge.source in parents:
+            required_by.setdefault(edge.target, set()).add(edge.source)
+    return {target: tuple(sorted(sources)) for target, sources in required_by.items()}
+
+
+def _partition_artifacts(urns: set[str]) -> tuple[list[ReferencedArtifact], list[ReferencedArtifact]]:
+    """Split *urns* into ``(activatable, kind_filtered)`` artifact records, each sorted by ``(kind, id)``.
+
+    Non-artifact nodes are dropped (:func:`_kind_of` returns ``None``);
+    artifact-kind nodes are partitioned by the canonical
+    :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` membership.
+    """
+    activatable: list[ReferencedArtifact] = []
+    kind_filtered: list[ReferencedArtifact] = []
+    for urn in urns:
+        kind = _kind_of(urn)
+        if kind is None:
+            continue
+        ref = ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn)
+        (activatable if kind in CHARTER_ACTIVATABLE_KINDS else kind_filtered).append(ref)
+    activatable.sort(key=lambda r: (r.kind.value, r.artifact_id))
+    kind_filtered.sort(key=lambda r: (r.kind.value, r.artifact_id))
+    return activatable, kind_filtered
 
 
 def _referenced_artifacts(
@@ -302,21 +336,7 @@ def _referenced_artifacts(
         structurally non-activatable (``template``/``asset``) nodes.
     """
     adj = _reference_adjacency(graph.edges)
-    reachable = _forward_reference_closure(adj, {source_urn})
-    activatable: list[ReferencedArtifact] = []
-    kind_filtered: list[ReferencedArtifact] = []
-    for urn in reachable:
-        kind = _kind_of(urn)
-        if kind is None:
-            continue
-        ref = ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn)
-        if kind not in CHARTER_ACTIVATABLE_KINDS:
-            kind_filtered.append(ref)
-            continue
-        activatable.append(ref)
-    activatable.sort(key=lambda r: (r.kind.value, r.artifact_id))
-    kind_filtered.sort(key=lambda r: (r.kind.value, r.artifact_id))
-    return activatable, kind_filtered
+    return _partition_artifacts(_forward_reference_closure(adj, {source_urn}))
 
 
 # ---------------------------------------------------------------------------
@@ -329,12 +349,17 @@ class ReferencedArtifact:
     """A single artifact referenced from an activation source.
 
     Carries both the bucketed kind and the bare config ID so the CLI can render a
-    per-kind list and the engine can fold IDs into ``cascade_targets``.
+    per-kind list and the engine can fold IDs into ``cascade_targets``. Reused
+    for the "skipped, deactivated" bucket (R10): ``via_requires`` is ``True``
+    when the source or a reached node has a ``REQUIRES`` edge to it, and
+    ``required_by`` names those parents' URNs, sorted.
     """
 
     kind: ArtifactKind
     artifact_id: str
     urn: str
+    via_requires: bool = False
+    required_by: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -361,17 +386,76 @@ class CascadeActivationResult:
         shared :func:`_referenced_artifacts` seam instead of being silently
         dropped (issue #3705, FR-001/FR-002). Never overlaps ``activated`` or
         ``skipped_by_scope`` (C-006).
+    skipped_deactivated:
+        Kind → in-scope artifacts that are deactivated (FR-010). The walk records
+        them and stops there: nothing is followed through them. Each entry flags
+        whether a reached parent ``requires`` it.
+    unreached_behind_deactivated:
+        Kind → sorted bare IDs in the full walk that are reachable only through
+        a deactivated artifact (FR-011).
+
+    Every artifact node of the full walk lands in exactly one bucket.
     """
 
     activated: dict[str, list[str]] = field(default_factory=dict)
     skipped_by_scope: dict[str, list[str]] = field(default_factory=dict)
     not_cascaded_kind_filtered: dict[str, list[str]] = field(default_factory=dict)
+    skipped_deactivated: dict[str, list[ReferencedArtifact]] = field(default_factory=dict)
+    unreached_behind_deactivated: dict[str, list[str]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _Classified:
+    """The per-node buckets of one cascade walk, before kind bucketing."""
+
+    in_scope: list[ReferencedArtifact] = field(default_factory=list)
+    out_of_scope: list[ReferencedArtifact] = field(default_factory=list)
+    deactivated: list[ReferencedArtifact] = field(default_factory=list)
+    unreached: list[ReferencedArtifact] = field(default_factory=list)
+
+
+def _classify_nodes(
+    full: list[ReferencedArtifact],
+    scope: CascadeScope,
+    *,
+    denied: frozenset[str],
+    reached: set[str],
+    required_by: dict[str, tuple[str, ...]],
+) -> _Classified:
+    """Put every activatable node of the full walk into exactly one bucket.
+
+    Order: scope first (a denied node outside the scope is ``out_of_scope``),
+    then deny, then reachability over the walk that stops at denied nodes.
+    """
+    classified = _Classified()
+    for ref in full:
+        if not scope.selects(ref.kind):
+            classified.out_of_scope.append(ref)
+        elif ref.urn in denied:
+            parents = required_by.get(ref.urn, ())
+            classified.deactivated.append(dataclasses.replace(ref, via_requires=bool(parents), required_by=parents))
+        elif ref.urn in reached:
+            classified.in_scope.append(ref)
+        else:
+            classified.unreached.append(ref)
+    return classified
+
+
+def _bucket_refs(refs: list[ReferencedArtifact]) -> dict[str, list[ReferencedArtifact]]:
+    """Bucket *refs* (already sorted by ``(kind, id)``) by kind value, keeping the records."""
+    buckets: dict[str, list[ReferencedArtifact]] = {}
+    for ref in refs:
+        buckets.setdefault(ref.kind.value, []).append(ref)
+    return buckets
 
 
 def cascade_activation_targets(
     graph: DRGGraph,
     source_urn: str,
     scope: CascadeScope,
+    *,
+    deactivated_urns: frozenset[str] = frozenset(),
+    include_deactivated: bool = False,
 ) -> CascadeActivationResult:
     """Compute scoped cascade activation targets for *source_urn* (FR-014).
 
@@ -381,6 +465,13 @@ def cascade_activation_targets(
     ``skipped_by_scope``. ``--cascade all`` selects every referenced kind. Pure
     graph logic — the partition branches only on :meth:`CascadeScope.selects`,
     never on a specific kind (FR-016).
+
+    Deactivated artifacts (FR-010/FR-011): a node in *deactivated_urns* is
+    recorded and **not expanded** — the walk stops there. It is reported in
+    ``skipped_deactivated``; nodes reachable only through it are reported in
+    ``unreached_behind_deactivated``; a node reachable over another path is
+    activated normally. ``include_deactivated`` walks the full graph and puts
+    the formerly denied nodes in ``activated``.
 
     Parameters
     ----------
@@ -392,23 +483,30 @@ def cascade_activation_targets(
     scope:
         The explicit cascade scope (never ``None`` here — the caller routes the
         no-cascade case to :func:`referenced_but_not_cascaded`).
+    deactivated_urns:
+        The DRG URNs of every denied artifact
+        (:attr:`~charter.activation.pack_context.PackContext.deactivated_urns`).
+    include_deactivated:
+        Walk through denied nodes and activate them (``--include-deactivated``).
 
     Returns
     -------
     CascadeActivationResult
-        Per-kind activated IDs and per-kind skipped-by-scope IDs, each list
-        sorted for deterministic rendering.
+        Per-kind buckets, each list sorted for deterministic rendering.
     """
-    activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
-    in_scope = [ref for ref in activatable if scope.selects(ref.kind)]
-    out_of_scope = [ref for ref in activatable if not scope.selects(ref.kind)]
-    activated = _bucket_by_kind(in_scope)
-    skipped = _bucket_by_kind(out_of_scope)
-    not_cascaded_kind_filtered = _bucket_by_kind(kind_filtered)
+    adj = _reference_adjacency(graph.edges)
+    full_urns = _forward_reference_closure(adj, {source_urn})
+    activatable, kind_filtered = _partition_artifacts(full_urns)
+    denied = frozenset() if include_deactivated else deactivated_urns - {source_urn}
+    reached = _forward_reference_closure(adj, {source_urn}, blocked=denied) if denied else full_urns
+    parents = (reached - denied) | {source_urn}
+    classified = _classify_nodes(activatable, scope, denied=denied, reached=reached, required_by=_requires_parents(graph.edges, parents))
     return CascadeActivationResult(
-        activated=activated,
-        skipped_by_scope=skipped,
-        not_cascaded_kind_filtered=not_cascaded_kind_filtered,
+        activated=_bucket_by_kind(classified.in_scope),
+        skipped_by_scope=_bucket_by_kind(classified.out_of_scope),
+        not_cascaded_kind_filtered=_bucket_by_kind(kind_filtered),
+        skipped_deactivated=_bucket_refs(classified.deactivated),
+        unreached_behind_deactivated=_bucket_by_kind(classified.unreached),
     )
 
 
@@ -438,12 +536,16 @@ class NoCascadeReport:
     recovery_hint:
         Actionable recovery string naming the ``--cascade`` re-run and the
         consistency-check (Contract C3.2).
+    deactivated:
+        Per-kind sorted bare IDs of referenced nodes that are deactivated
+        (FR-010): a ``--cascade`` re-run would not activate them either.
     """
 
     source_urn: str
     skipped: dict[str, list[str]] = field(default_factory=dict)
     not_cascaded_kind_filtered: dict[str, list[str]] = field(default_factory=dict)
     recovery_hint: str = _NO_CASCADE_HINT
+    deactivated: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def has_skipped(self) -> bool:
@@ -459,12 +561,14 @@ class NoCascadeReport:
         (NFR-004) -- a source with only activatable-kind skipped refs (the
         pre-existing case) still triggers this exactly as before.
         """
-        return any(self.skipped.values()) or any(self.not_cascaded_kind_filtered.values())
+        return any(self.skipped.values()) or any(self.not_cascaded_kind_filtered.values()) or any(self.deactivated.values())
 
 
 def referenced_but_not_cascaded(
     graph: DRGGraph,
     source_urn: str,
+    *,
+    deactivated_urns: frozenset[str] = frozenset(),
 ) -> NoCascadeReport:
     """Return the referenced-but-not-cascaded artifacts for the no-cascade warning.
 
@@ -480,6 +584,9 @@ def referenced_but_not_cascaded(
         The merged DRG.
     source_urn:
         Full URN of the artifact that was activated directly.
+    deactivated_urns:
+        Denied DRG URNs; a referenced denied node is reported under
+        ``deactivated``, never under ``skipped``.
 
     Returns
     -------
@@ -491,12 +598,11 @@ def referenced_but_not_cascaded(
         ``False`` (the caller emits no warning).
     """
     activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
-    skipped = _bucket_by_kind(activatable)
-    not_cascaded_kind_filtered = _bucket_by_kind(kind_filtered)
     return NoCascadeReport(
         source_urn=source_urn,
-        skipped=skipped,
-        not_cascaded_kind_filtered=not_cascaded_kind_filtered,
+        skipped=_bucket_by_kind([ref for ref in activatable if ref.urn not in deactivated_urns]),
+        not_cascaded_kind_filtered=_bucket_by_kind(kind_filtered),
+        deactivated=_bucket_by_kind([ref for ref in activatable if ref.urn in deactivated_urns]),
     )
 
 

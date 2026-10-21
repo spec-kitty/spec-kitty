@@ -45,10 +45,11 @@ Activation seam (FR-011/012, NFR-003)
 :mod:`charter.activation.activation_engine` plan/commit seam (WP10): they load the config,
 discover the available-ID universe, call ``plan_activation`` /
 ``plan_deactivation`` (which validate *before* computing any post-state), and
-then perform the single ``commit_plan`` write. The legacy ``sys.exit(1)`` in
-``deactivate`` is gone — the engine raises a typed
-:class:`~charter.activation.activation_engine.NoActivationRestrictionsError` that the CLI
-(WP12) surfaces.
+then perform the single ``commit_plan`` write. ``deactivate`` records an
+exclusion (``deactivated_<plural>``), also under "absent = all"; an org-required
+id is refused with :class:`~charter.activation.activation_engine.RequiredArtifactDeactivationError`
+(a :class:`~charter.activation.activation_engine.DeactivationRefused`), which the
+CLI surfaces.
 
 Cascade parameter (FR-006/007)
 --------------------------------
@@ -64,7 +65,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -75,11 +76,26 @@ from ruamel.yaml.error import YAMLError
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.activation_engine import (
     NARROW_UNRESOLVED_WARNING,
-    NoActivationRestrictionsError,
+    DeactivationRefused,
+    RequiredArtifactDeactivationError,
     UnknownActivationIdError,
+    check_deactivation_permitted,
     commit_plan,
+    deny_delta,
     plan_activation,
     plan_deactivation,
+)
+from charter.activation.activation_ledger import (
+    DENY_KEYS,
+    LEDGER_KEYS,
+    UNMIGRATED_REMEDY,
+    DenyListChoice,
+    _deny_changes,
+    _effective_deny,
+    deny_key as _deny_key,
+    load_activation_ledger,
+    prepare_ledger_write,
+    resolve_ledger_source,
 )
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
@@ -92,6 +108,7 @@ from charter.activation.charter_yaml_io import (
     yaml_documents_equal,
     update_charter_yaml_section,
 )
+from charter.activation.org_pack_discovery import RequiringPack, read_org_required_provenance
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
@@ -107,6 +124,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
+from kernel.activation_ledger_store import ACTIVATION_LEDGER, ActivationSource, activation_ledger_path
 from kernel.pack_tiers import BUILT_IN, ORG, PACK_TIERS, PROJECT
 
 if TYPE_CHECKING:
@@ -116,6 +134,7 @@ __all__ = [
     "ACTIVATION_YAML_KEYS",
     "AvailableArtifact",
     "ActiveCharterManager",
+    "DenyListChoice",
     "YAML_KEY_MAP",
     "resolve_activation_write_target",
     "prepare_activation_write",
@@ -192,6 +211,7 @@ ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values
 _LAYER_SEGMENTS: tuple[str, ...] = PACK_TIERS
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
+_LEDGER_REL = ACTIVATION_LEDGER.as_posix()
 #: The project-tier overlay directory name per kind is the single canonical
 #: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported above
 #: as ``_PROJECT_KIND_DIRS``). It is *total*, so the ``.get(kind, kind.plural)``
@@ -434,6 +454,7 @@ def _preservation_set(
     data: Mapping[str, Any],
     available: frozenset[str],
     when_absent: str,
+    deny: _DenyInputs | None = None,
 ) -> tuple[list[str], list[str], bool]:
     """What ``activate`` materializes for an absent key (#4253, #4399, #4400).
 
@@ -453,10 +474,24 @@ def _preservation_set(
     ledger whose absent key puts nothing in force; it is seeded from the same
     chain-wide ``fallback_ids``, so every org pack is treated alike.
     """
+    ids, warnings, in_force = _preservation_ids(repo_root, kind, yaml_key, data, available, when_absent)
+    # The effective deny (``D*``) is subtracted in stem space: materialising never re-adds an exclusion (FR-009).
+    return (_without_denied(ids, deny) if deny is not None else ids), warnings, in_force
+
+
+def _preservation_ids(
+    repo_root: Path,
+    kind: str,
+    yaml_key: str,
+    data: Mapping[str, Any],
+    available: frozenset[str],
+    when_absent: str,
+) -> tuple[list[str], list[str], bool]:
+    """The in-force set an absent key materialises, before the deny subtraction (see :func:`_preservation_set`)."""
     if data.get(yaml_key) is not None:
         return [], [], True
     if when_absent != "all":
-        in_force = getattr(PackContext.from_config(repo_root), yaml_key, None)
+        in_force = PackContext.from_config(repo_root).allow_for(ArtifactKind.from_plural(yaml_key.removeprefix("activated_")))
         return sorted(str(item) for item in in_force or ()), [], True
     from charter.activation.effective_set import resolve_effective_sets
 
@@ -475,6 +510,62 @@ def _preservation_set(
         f"The effective {kind} set could not be resolved because {effective.reason}; initialized from the {len(seeded)} ids available across all readable layers."
     )
     return seeded, [warning], False
+
+
+@dataclass(frozen=True)
+class _DenyInputs:
+    """The deny state ``activate`` hands the engine: key, ``D*`` in stems and the written id."""
+
+    key: str | None
+    effective: frozenset[str]
+    artifact_id: str
+    stem_of: Callable[[str], str]
+    stored: tuple[str, ...] = ()
+
+
+def _stored_deny(repo_root: Path, kind: ArtifactKind) -> tuple[str, ...]:
+    """The deny-list of *kind* as the activation ledger seam reads it (``()`` on a legacy source, FR-017).
+
+    Never the write-target mapping: on an unmigrated project that is
+    ``config.yaml`` / ``charter.yaml``, whose hand-written ``deactivated_<kind>``
+    key is reported, never applied.
+    """
+    stored: tuple[str, ...] = load_activation_ledger(repo_root, report_stray=False).deny_for(kind)
+    return stored
+
+
+def _deny_inputs(repo_root: Path, kind: ArtifactKind | None, artifact_id: str) -> _DenyInputs:
+    """``D* = D − R`` for *kind* (stems), read only when the kind's deny-list is non-empty (NFR-003).
+
+    *D* comes from the activation ledger seam (:func:`_stored_deny`). The
+    required floor is read strictly (FR-013): an unreadable declared org pack
+    refuses rather than subtracting a required id. *artifact_id* becomes its stem
+    when that stem is denied, so the activation clears the stored entry.
+    """
+    if kind is None or not kind.activatable:
+        return _DenyInputs(None, frozenset(), artifact_id, lambda token: token)
+    key = _deny_key(kind)
+    deny = list(_stored_deny(repo_root, kind))
+    if not deny:
+        return _DenyInputs(key, frozenset(), artifact_id, lambda token: token)
+    from charter.activation.identity_index import IdentityIndex
+
+    index = IdentityIndex.build(repo_root)
+    floor = read_org_required_provenance(repo_root, kind, strict=True)
+    effective = _effective_deny(kind, deny, floor, index).stems
+
+    def stem_of(token: str) -> str:
+        return index.stem(kind, token) or token
+
+    stem = stem_of(artifact_id)
+    return _DenyInputs(key, effective, stem if stem in deny else artifact_id, stem_of, tuple(deny))
+
+
+def _without_denied(ids: list[str], deny: _DenyInputs) -> list[str]:
+    """*ids* less the effective-denied ones (stem comparison), for an absent-list materialisation."""
+    if not deny.effective:
+        return ids
+    return [item for item in ids if deny.stem_of(item) not in deny.effective or item == deny.artifact_id]
 
 
 @dataclass(frozen=True)
@@ -605,25 +696,83 @@ def _save_config(config_path: Path, data: Any, yaml: YAML) -> None:
     apply_yaml_write(prepare_yaml_write(config_path, desired, section="activation", inputs=(before,)))
 
 
-def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any]) -> None:
+def _refuse_legacy_deny(target: Path, before: Mapping[str, Any], after: Mapping[str, Any]) -> None:
+    """C-003, hole 1: a legacy save never records or changes a deny entry.
+
+    Refuses when *after* would add, remove or change a ``deactivated_<kind>``
+    entry against *before* (absent, ``[]`` and ``null`` are equal). An explicit
+    deny choice that changes nothing (``charter activate``, ``--preset
+    --force``, cascade ``--include-deactivated`` with nothing denied) passes,
+    so allow-only commands keep working on an unmigrated project.
+    """
+    changed = [key for key, _added, _removed in _deny_changes(before, after)]
+    if changed:
+        raise ActiveCharterConfigError(
+            f"Refused to write {', '.join(changed)} to the legacy activation surface {target}: a deactivation "
+            f"(deactivated_<kind>) is recorded only in {_LEDGER_REL}. {UNMIGRATED_REMEDY} Nothing was written."
+        )
+
+
+def _save_legacy_config(config_path: Path, data: Any, *, yaml: YAML, deny_change: DenyListChoice | None = None) -> None:
+    """The legacy ``config.yaml`` save: today's full round-trip write, behind the C-003 deny refusal.
+
+    *deny_change* is accepted for the write-target triple's signature; a legacy
+    save records no deny entry whatever the choice.
+    """
+    del deny_change
+    current, _yaml = _load_config(config_path)
+    _refuse_legacy_deny(config_path, current, data)
+    _save_config(config_path, data, yaml)
+
+
+def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any], *, deny_change: DenyListChoice | None = None) -> None:
     """INV-9 write path: persist activation keys through the shared helper.
 
     ``data`` is the full in-memory ``charter.yaml`` document (governance /
     directives / catalog / metadata / overrides plus the flat activation
-    keys); only the flat activation keys known to :data:`YAML_KEY_MAP` are
-    ever written, via :func:`~charter.activation.charter_yaml_io.update_charter_yaml_section`'s
-    ``"activation"`` pseudo-section — so unrelated sections are structurally
+    keys); only the flat allow keys known to :data:`YAML_KEY_MAP` are ever
+    written, via :func:`~charter.activation.charter_yaml_io.update_charter_yaml_section`'s
+    ``"activation"`` pseudo-section -- so unrelated sections are structurally
     preserved rather than conventionally preserved (Landmine 3 / INV-9).
 
     Safe to call once per changed key (``ActiveCharterManager.activate`` /
     ``deactivate``) or once for a batch of keys
     (``charter.activation.activation_engine.promote_activations``): only the keys
     actually present in ``data`` are written, and re-writing an unchanged
-    key is idempotent.
+    key is idempotent. A save that would change a deny entry refuses (C-003);
+    *deny_change* is accepted for the triple's signature only.
     """
+    del deny_change
+    current = load_charter_yaml(charter_path)
+    _refuse_legacy_deny(charter_path, current if isinstance(current, dict) else {}, data)
     values = {key: data[key] for key in YAML_KEY_MAP.values() if key in data}
     if values:
         update_charter_yaml_section(charter_path, "activation", values)
+
+
+def _save_ledger(path: Path, data: Mapping[str, Any], *, repo_root: Path, deny_change: DenyListChoice | None = None) -> None:
+    """The ledger save behind the write-target triple: *data* is the whole ledger mapping.
+
+    Accepts ``commit_plan``'s positional ``(path, data)`` call; a key of
+    :data:`LEDGER_KEYS` absent from *data* is removed. The write goes through
+    the seam's one writer, so the deny guard applies (*deny_change*). An empty
+    mapping for a project with no ledger yet writes nothing.
+    """
+    del path  # the ledger path is repo_root's; the triple hands it back unchanged
+    values = {key: data[key] for key in LEDGER_KEYS if key in data}
+    if not values and not activation_ledger_path(repo_root).is_file():
+        return  # nothing to record: never create an empty ledger for a fresh project
+    removals = tuple(key for key in LEDGER_KEYS if key not in data)
+    apply_yaml_write(prepare_ledger_write(repo_root, values, remove=removals, deny_change=deny_change))
+
+
+def _ledger_write_target(repo_root: Path) -> tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]:
+    """The ledger triple: path, round-trip mapping (``{}`` before the first write), save."""
+    load_activation_ledger(repo_root)  # validates the ledger (L1/L2) with the seam's texts
+    path = activation_ledger_path(repo_root)
+    document = YAML().load(path.read_bytes()) if path.is_file() else None
+    data: dict[str, Any] = document if isinstance(document, dict) else {}
+    return path, data, functools.partial(_save_ledger, repo_root=repo_root)
 
 
 def resolve_activation_write_target(
@@ -633,30 +782,34 @@ def resolve_activation_write_target(
 
     Shared by :class:`ActiveCharterManager` and the two other activation
     writers (``specify_cli.cli.commands.charter.interview`` and
-    ``charter.activation.org_charter``) so pointer resolution has exactly
-    one implementation on the write side — mirroring
-    :meth:`charter.activation.pack_context.PackContext.from_config` on the read side
-    (INV-2/INV-5/INV-9).
+    ``charter.activation.org_charter``) so source resolution has exactly
+    one implementation on the write side — the kernel resolver through the
+    activation ledger seam (FR-017), mirroring
+    :meth:`charter.activation.pack_context.PackContext.from_config` on the read side.
 
-    Absent ``.kittify/config.yaml`` ``charter:`` pointer -> legacy /
-    un-migrated project: the target IS ``config.yaml`` itself, written as a
-    full ``ruamel`` round-trip document — the pre-relocation behavior,
-    preserved byte-for-byte until the project runs the charter-bundle
-    migration.
+    ``LEDGER`` -> the target is ``.kittify/charter/activation.yaml``; the save
+    takes ``commit_plan``'s positional ``(path, data)`` call plus a
+    ``deny_change=`` keyword and writes through the seam's guarded writer.
 
-    Present pointer -> migrated project: the target is the pointed-at
-    ``charter.yaml``; a dangling/unreadable pointer is a fail-loud
-    :class:`~charter.activation.pack_context.ActiveCharterConfigError` (INV-5, re-homed
-    #2530) rather than a silent fallback to the legacy config-embedded keys.
-    Writes route through :func:`_save_charter_yaml_activation`, touching
-    only the flat activation keys (INV-9).
+    ``LEGACY`` (inside the upgrade scope, or an unmigrated project) -> today's
+    pointer rule, unchanged; the ledger is never created here (hole 3). Absent ``.kittify/config.yaml``
+    ``charter:`` pointer: the target IS ``config.yaml`` itself, written as a
+    full ``ruamel`` round-trip document. Present pointer: the target is the
+    pointed-at ``charter.yaml``; a dangling/unreadable pointer is a fail-loud
+    :class:`~charter.activation.pack_context.ActiveCharterConfigError` (INV-5,
+    re-homed #2530). Writes route through :func:`_save_charter_yaml_activation`,
+    touching only the flat activation keys (INV-9). Both legacy saves refuse a
+    change to a deny entry (C-003).
     """
     config_path = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
     config_data, yaml_inst = _load_config(config_path)
 
+    if resolve_ledger_source(repo_root).source is ActivationSource.LEDGER:
+        return _ledger_write_target(repo_root)
+
     charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
     if charter_path is None:
-        return config_path, config_data, functools.partial(_save_config, yaml=yaml_inst)
+        return config_path, config_data, functools.partial(_save_legacy_config, yaml=yaml_inst)
 
     if not charter_path.exists():
         raise ActiveCharterConfigError(
@@ -671,24 +824,54 @@ def resolve_activation_write_target(
     return charter_path, charter_data, _save_charter_yaml_activation
 
 
-def prepare_activation_write(repo_root: Path, values: dict[str, Any], *, remove: Iterable[str] = ()) -> PreparedYamlWrite:
-    """Prepare the canonical activation target, retaining config/pointer identity.
-
-    *values* are written; the keys named in *remove* are deleted (an absent key
-    is a no-op). Both name keys of :data:`ACTIVATION_YAML_KEYS`; a key in both is
-    a ``ValueError``. This is the single activation writer for both targets
-    (``config.yaml`` and a pointed ``charter.yaml``).
-    """
-    removals = tuple(dict.fromkeys(remove))
+def _check_legacy_write_keys(values: Mapping[str, Any], removals: tuple[str, ...]) -> None:
+    """Today's key checks of the legacy writer (the deny keys are split off before, by the C-003 refusal)."""
     unknown = (set(values) | set(removals)) - set(ACTIVATION_YAML_KEYS)
     if unknown:
         raise ValueError(f"Unknown activation key(s): {sorted(unknown)}")
     overlap = sorted(set(values) & set(removals))
     if overlap:
         raise ValueError(f"Activation key(s) both written and removed: {overlap}")
+
+
+def _applied(data: Mapping[str, Any], values: Mapping[str, Any], removals: Iterable[str]) -> dict[str, Any]:
+    """*data* with *values* set and *removals* deleted (a plain copy; *data* is untouched)."""
+    merged = {**data, **values}
+    for key in removals:
+        merged.pop(key, None)
+    return merged
+
+
+def prepare_activation_write(
+    repo_root: Path,
+    values: dict[str, Any],
+    *,
+    remove: Iterable[str] = (),
+    deny_change: DenyListChoice | None = None,
+) -> PreparedYamlWrite:
+    """Prepare the canonical activation target, retaining config/pointer identity.
+
+    *values* are written; the keys named in *remove* are deleted (an absent key
+    is a no-op). A key in both is a ``ValueError``. This is the single
+    activation writer for every target: the ledger (through the seam's guarded
+    :func:`~charter.activation.activation_ledger.prepare_ledger_write`, where
+    *deny_change* authorises a deny-list change), or the legacy ``config.yaml``
+    / pointed ``charter.yaml``, where a write that changes a deny entry refuses
+    and a deny key that changes nothing is dropped (C-003).
+    """
+    removals = tuple(dict.fromkeys(remove))
     config = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
     inputs = tuple(observe_yaml_input(path) for path in (*reversed(config.parents), config))
+    if resolve_ledger_source(repo_root).source is ActivationSource.LEDGER:
+        ledger = prepare_ledger_write(repo_root, values, remove=removals, deny_change=deny_change)
+        observed = {item.path: item for item in (*inputs, *ledger.observations)}
+        return prepare_yaml_write(ledger.target, ledger.desired_bytes, section="activation", inputs=tuple(observed.values()))
+    allow_values = {key: value for key, value in values.items() if key not in DENY_KEYS}
+    allow_removals = tuple(key for key in removals if key not in DENY_KEYS)
+    _check_legacy_write_keys(allow_values, allow_removals)
     target, data, _save = resolve_activation_write_target(repo_root)
+    _refuse_legacy_deny(target, data, _applied(data, values, removals))
+    values, removals = allow_values, allow_removals
     before = observe_yaml_input(target)
     if before.content is not None and not yaml_documents_equal(YAML().load(before.content) or {}, data):
         raise ValueError(f"precondition_changed: {target}")
@@ -708,6 +891,79 @@ def prepare_activation_write(repo_root: Path, values: dict[str, Any], *, remove:
 # ---------------------------------------------------------------------------
 # ActiveCharterManager
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _DeactivationInputs:
+    """What ``deactivate`` hands the planner: the stem, every other spelling, the deny key and the floor."""
+
+    stem: str
+    spellings: tuple[str, ...]
+    deny_key: str | None
+    required_by: dict[str, tuple[RequiringPack, ...]]
+    stored_deny: tuple[str, ...] = ()
+
+
+def _deactivation_inputs(repo_root: Path, kind: ArtifactKind | None, artifact_id: str) -> _DeactivationInputs:
+    """The deactivation inputs; the strict floor is always read (FR-013).
+
+    ``spellings`` holds *artifact_id* and the artifact's declared id, so a
+    deactivation by stem also removes a declared-id allow entry (#6423).
+    ``mission-type`` (``kind is None``) has no deny-list and no required floor.
+    """
+    if kind is None:
+        return _DeactivationInputs(artifact_id, (artifact_id,), None, {})
+    from charter.activation.identity_index import IdentityIndex
+
+    required_by = read_org_required_provenance(repo_root, kind, strict=True)
+    index = IdentityIndex.build(repo_root)
+    stem = index.stem(kind, artifact_id) or artifact_id
+    declared = index.declared_id(kind, artifact_id)
+    spellings = tuple(dict.fromkeys(item for item in (artifact_id, declared) if item))
+    if not kind.activatable:
+        return _DeactivationInputs(stem, spellings, None, required_by)
+    return _DeactivationInputs(stem, spellings, _deny_key(kind), required_by, _stored_deny(repo_root, kind))
+
+
+def _collapse_spellings(ids: Iterable[Any], stem_of: Callable[[str], str]) -> list[str]:
+    """*ids* with every entry in stem spelling, first occurrence kept (one artifact, one entry; #6423)."""
+    return list(dict.fromkeys(stem_of(str(item)) for item in ids))
+
+
+def _identity_normalised(
+    repo_root: Path, kind: ArtifactKind | None, artifact_id: str, yaml_key: str, data: MutableMapping[str, Any], available: frozenset[str]
+) -> str:
+    """*artifact_id* in stem spelling; a present allow list is collapsed to stems in place (#6423, ruling R3).
+
+    A declared id (``DIRECTIVE_024``, an org ``EVD_003``) is not a stem, so it is
+    not in *available*; it becomes its stem before the availability check. The
+    identity index is built only when a token is not a known stem (NFR-003).
+    """
+    present = data.get(yaml_key)
+    present_list = [str(item) for item in present] if isinstance(present, list) else []
+    if kind is None or (artifact_id in available and all(item in available for item in present_list)):
+        return artifact_id
+    from charter.activation.identity_index import IdentityIndex
+
+    index = IdentityIndex.build(repo_root)
+
+    def stem_of(token: str) -> str:
+        return index.stem(kind, token) or token
+
+    collapsed = _collapse_spellings(present_list, stem_of)
+    if present_list and collapsed != present_list:
+        data[yaml_key] = collapsed
+    return stem_of(artifact_id)
+
+
+def _availability_roots(repo_root: Path, layer_roots: dict[str, Path] | None, org_root_chain: list[Path] | None) -> dict[str, Any]:
+    """The layer roots and org chain a deactivation validates against (resolved when omitted)."""
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
+
+    return {
+        "layer_roots": layer_roots if layer_roots is not None else resolve_layer_roots(repo_root),
+        "org_root_chain": org_root_chain if org_root_chain is not None else resolve_pack_chain(repo_root, strict=False),
+    }
 
 
 class ActiveCharterManager:
@@ -744,6 +1000,7 @@ class ActiveCharterManager:
         layer_roots: dict[str, Path] | None = None,
         org_root_chain: list[Path] | None = None,
         only: bool = False,
+        reinstate: DenyListChoice = DenyListChoice.ACTIVATE,
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -784,6 +1041,10 @@ class ActiveCharterManager:
             Opt-in narrowing (#6408): the kind's list becomes *artifact_id* plus
             the org-required ids (as stems), replacing any present list;
             :attr:`ActivationResult.deactivated` names what stopped being in force.
+        reinstate:
+            The explicit choice recorded when the id's exclusion is cleared
+            (:attr:`DenyListChoice.ACTIVATE` for ``charter activate``; the
+            cascade's ``--include-deactivated`` passes its own).
 
         Returns
         -------
@@ -806,7 +1067,10 @@ class ActiveCharterManager:
 
         available = self.list_available(ctx, kind, layer_roots=layer_roots, org_root_chain=org_root_chain)
         when_absent = self._effective_when_absent(kind)
-        preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent)
+        artifact_id = _identity_normalised(repo_root, self._require_kind(kind), artifact_id, yaml_key, data, available)
+        deny = _deny_inputs(repo_root, self._require_kind(kind), artifact_id)
+        artifact_id = deny.artifact_id
+        preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent, deny)
 
         narrow: _NarrowInputs | None = None
         available_ids: Iterable[str] = available
@@ -830,12 +1094,17 @@ class ActiveCharterManager:
             effective_ids_in_force=in_force,
             narrow_base=narrow.base if narrow is not None else None,
             previous_ids=narrow.previous if narrow is not None else (),
+            deny_key=deny.key,
+            current_deny=deny.stored,
+            deny_change=reinstate,
+            effective_deny=deny.effective,
         )
 
+        _added, reinstated = deny_delta(deny.stored, plan.new_deny_list) if plan.deny_key else ([], [])
         result = ActivationResult(
             activated=list(plan.activated),
             deactivated=list(plan.deactivated),
-            warnings=preservation_warnings + list(plan.warnings),
+            warnings=preservation_warnings + list(plan.warnings) + [f"Cleared the exclusion of {item!r} ({deny.key})." for item in reinstated],
         )
 
         commit_plan(target_path, data, plan, save=save)
@@ -850,15 +1119,21 @@ class ActiveCharterManager:
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
         layer_roots: dict[str, Path] | None = None,
+        org_root_chain: list[Path] | None = None,
+        record_exclusion: bool = True,
     ) -> ActivationResult:
-        """Deactivate ``artifact_id`` for ``kind`` in the project charter pack.
+        """Deactivate ``artifact_id`` for ``kind`` in the project charter pack (FR-007).
 
         Thin wrapper over :func:`charter.activation.activation_engine.plan_deactivation` +
-        :func:`~charter.activation.activation_engine.commit_plan` (WP10). A kind with no
-        explicit activation set has no known baseline, so the engine raises a
-        typed :class:`~charter.activation.activation_engine.NoActivationRestrictionsError`
-        (the CLI, WP12, surfaces the "run upgrade first" guidance) — there is no
-        ``sys.exit`` here.
+        :func:`~charter.activation.activation_engine.commit_plan`. It **always**
+        reads the strict required floor first: an id any declared org pack
+        requires (directly or through ``extends:``) raises
+        :class:`~charter.activation.activation_engine.RequiredArtifactDeactivationError`
+        and nothing is written; an unreadable declared pack raises
+        :class:`ActiveCharterConfigError`. Otherwise the id (in stem spelling)
+        is removed from a present allow list and recorded in
+        ``deactivated_<plural>`` — also when the allow list is absent. An id
+        that is already denied writes nothing and warns.
 
         Parameters
         ----------
@@ -867,13 +1142,19 @@ class ActiveCharterManager:
         kind:
             Charter kind operator token (e.g. ``"directive"``).
         artifact_id:
-            Artifact ID to deactivate.
+            Artifact ID to deactivate (a stem or a declared id).
         cascade:
             Accepted for signature stability; DRG shared-reference analysis is
             handled by the CLI-level ``charter cascade`` command. No warning is emitted.
         layer_roots:
-            Accepted for caller symmetry with ``activate``. Deactivation validates
-            against the current activation list, not the availability catalog.
+            Org/project doctrine roots for the availability check (resolved
+            from *ctx* when omitted).
+        org_root_chain:
+            The full org-pack chain for the availability check (resolved from
+            *ctx* when omitted).
+        record_exclusion:
+            ``False`` for a cascade child: it only loses its allow-list entry
+            and gets no deny entry (D-11).
 
         Returns
         -------
@@ -883,31 +1164,40 @@ class ActiveCharterManager:
         Raises
         ------
         ValueError
-            If ``kind`` is not in the canonical charter kind universe.
-        NoActivationRestrictionsError
-            If the kind has no explicit activation set (the engine raises this;
-            the CLI surfaces the upgrade guidance).
+            If ``kind`` is not in the canonical charter kind universe, or the
+            id is unknown (:class:`UnknownActivationIdError`).
+        DeactivationRefused
+            If the id is required by an org pack.
         """
-        del layer_roots  # Accepted for API symmetry with activate(); deactivation ignores external layer maps.
-        self._require_kind(kind)
+        kind_enum = self._require_kind(kind)
         yaml_key = YAML_KEY_MAP[kind]
 
         repo_root = ctx.require_repo_root()
         target_path, data, save = resolve_activation_write_target(repo_root)
+        inputs = _deactivation_inputs(repo_root, kind_enum, artifact_id)
+        stem, deny_key, required_by = inputs.stem, inputs.deny_key, inputs.required_by
+        # Refuse a required id before the availability scan (the planner checks again: it is pure and self-contained).
+        check_deactivation_permitted(kind, stem, required_by)
+        available = self.list_available(ctx, kind, **_availability_roots(repo_root, layer_roots, org_root_chain))
 
         plan = plan_deactivation(
             kind,
-            artifact_id,
+            stem,
             yaml_key=yaml_key,
             config_data=data,
+            available_ids=available,
+            required_by=required_by,
+            deny_key=deny_key,
+            current_deny=inputs.stored_deny,
+            record_exclusion=record_exclusion,
+            also_matches=inputs.spellings,
         )
 
         result = ActivationResult(deactivated=list(plan.deactivated), warnings=list(plan.warnings))
 
-        # Guard only the side effect: a no-op removal (ID not present) writes
-        # nothing and leaves the activation source bytes untouched. The returned
-        # result is identical on both paths (S3516 -> single return).
-        if plan.deactivated:
+        # Guard only the side effect: a no-op plan writes nothing and leaves the
+        # activation source bytes untouched (NFR-001).
+        if not plan.noop:
             commit_plan(target_path, data, plan, save=save)
             restamp_bundle_hash(repo_root)
         return result
@@ -918,10 +1208,9 @@ class ActiveCharterManager:
     ) -> dict[str, frozenset[str] | None]:
         """Return activated artifact IDs keyed by charter kind token.
 
-        A ``None`` value means the kind has no explicit activation set (in
-        ``charter.yaml`` for a migrated project, or in ``config.yaml`` for a
-        legacy/un-migrated one — the project has not yet been upgraded to
-        the pack-based model for that kind).
+        A ``None`` value means the kind has no explicit activation set in the
+        source the activation ledger seam resolves (the ledger, or before the
+        ledger migration ``charter.yaml`` / ``config.yaml``).
 
         Parameters
         ----------
@@ -934,7 +1223,7 @@ class ActiveCharterManager:
             Mapping of charter kind token to activated IDs (or ``None``).
         """
         repo_root = ctx.require_repo_root()
-        _, data, _ = resolve_activation_write_target(repo_root)
+        data = load_activation_ledger(repo_root).raw()
 
         result: dict[str, frozenset[str] | None] = {}
         for kind, yaml_key in YAML_KEY_MAP.items():
@@ -1134,4 +1423,4 @@ class ActiveCharterManager:
 
 # Re-export the engine's structured errors for callers that import them from
 # ``pack_manager`` (the CLI, WP12, catches these to surface guidance).
-__all__ += ["NoActivationRestrictionsError", "UnknownActivationIdError"]
+__all__ += ["DeactivationRefused", "RequiredArtifactDeactivationError", "RequiringPack", "UnknownActivationIdError"]

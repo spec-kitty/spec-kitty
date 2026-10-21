@@ -15,6 +15,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
 from charter.activation.catalog import resolve_offering_root
+from charter.activation.activation_ledger import load_activation_ledger
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -23,7 +24,7 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext, load_denied, resolve_charter_yaml_pointer
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 
 if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
@@ -349,59 +350,30 @@ def _load_config_yaml_mapping(config_path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
-    """Resolve the mapping raw activation lists are read from (IC-04).
-
-    Mirrors :meth:`charter.activation.pack_context.PackContext.from_config`'s two-state
-    INV-2/INV-5 resolution, so this guard and the activation engine never
-    diverge on which source is authoritative (closing the WP02<->WP04
-    transient-parity coupling):
-
-    * ``charter:`` pointer absent in ``config.yaml`` -> legacy/un-migrated
-      project. Activation is read directly from ``config.yaml`` (the
-      pre-relocation behavior, unchanged).
-    * Pointer present -> ``charter.yaml`` MUST resolve to a readable
-      mapping; a dangling pointer or unparseable/non-mapping ``charter.yaml``
-      is a fail-loud :class:`ActiveCharterConfigError` (#2530 re-homed onto
-      charter.yaml), never a silent fallback to the legacy config-embedded
-      keys.
-    """
-    config_path = repo_root / ".kittify" / "config.yaml"
-    config_data = _load_config_yaml_mapping(config_path)
-
-    charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
-    if charter_path is None:
-        return config_data
-    if not charter_path.exists():
-        raise ActiveCharterConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
-    try:
-        loaded = load_charter_yaml(charter_path)
-    except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal.
-        raise ActiveCharterConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
-    if not isinstance(loaded, dict):
-        raise ActiveCharterConfigError(f"{charter_path} root must be a mapping.")
-    return dict(loaded)
-
-
 def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | None]:
-    """Read activation lists from charter.yaml, without deduplicating entries.
+    """Read the activation lists, without deduplicating entries (IC-04, FR-017).
 
-    IC-04: re-pointed from a direct ``config.yaml`` read onto the same
-    charter.yaml activation source :class:`charter.activation.pack_context.PackContext`
-    resolves (via the ``charter:`` pointer) -- see
-    :func:`_load_raw_activation_source`.
+    The activation ledger seam's projected mapping
+    (:func:`charter.activation.activation_ledger.load_activation_ledger`), the
+    same source :meth:`charter.activation.pack_context.PackContext.from_config`
+    reads, so this guard and the activation engine never diverge on which
+    source is authoritative. A dangling pointer, an unreadable legacy file or
+    an unmigrated project is a fail-loud :class:`ActiveCharterConfigError`,
+    never a silent fallback.
     """
-    data = _load_raw_activation_source(ctx.require_repo_root())
+    repo_root = ctx.require_repo_root()
+    ledger = load_activation_ledger(repo_root)
+    data = ledger.raw()
+    # A denied id is inactive (FR-006): it is netted out of every list, the
+    # duplicates of the ids that stay are kept (the duplicate check reads them).
+    denied = dict(load_denied(repo_root, ledger=ledger))
 
     result: dict[str, list[str] | None] = {}
     for kind, yaml_key in YAML_KEY_MAP.items():
         raw = data.get(yaml_key)
-        if raw is None:
-            result[kind] = None
-        elif isinstance(raw, list):
-            result[kind] = [str(item) for item in raw]
-        else:
-            result[kind] = []
+        deny = denied.get(yaml_key.removeprefix("activated_"))
+        # The seam's ``raw()`` holds only validated lists (L2), so there is no other shape.
+        result[kind] = None if raw is None else [str(item) for item in raw if deny is None or deny.admits(str(item))]
     return result
 
 
@@ -629,7 +601,7 @@ def _resolve_charter_yaml_path(repo_root: Path) -> Path:
     (:func:`charter.activation.pack_context.resolve_charter_yaml_pointer` -- the one
     shared pointer-resolution implementation); defaults to the canonical
     ``.kittify/charter/charter.yaml`` location otherwise. Unlike activation
-    (:func:`_load_raw_activation_source`), there is no "legacy" fallback
+    (:func:`_load_raw_activation_lists`), there is no "legacy" fallback
     source for the catalog -- ``references.yaml`` (the file this replaces)
     was never pointer-resolved, so a pointer-absent project simply reads the
     canonical default location.

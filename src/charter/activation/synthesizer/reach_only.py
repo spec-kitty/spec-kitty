@@ -15,7 +15,9 @@ synthesis has ever created is recorded per kind in :data:`CREATED_ARTIFACTS_PATH
 (the unreleased tactic-only record :data:`_LEGACY_CREATED_TACTICS_PATH` is still
 read, never written), and a recorded id is never appended again, even when a later
 run regenerates it after a ``--prune`` or a deleted manifest. Only the operator
-brings it back (``spec-kitty charter activate <kind> <id>``).
+brings it back (``spec-kitty charter activate <kind> <id>``). A deactivated artifact
+is never appended, even when synthesis has just created it (FR-009); the
+created-artifacts record is not an activation surface and is unchanged by deny.
 """
 
 from __future__ import annotations
@@ -178,6 +180,10 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     follows it, so a failed write retries. An absent key is left absent (C-001). An
     unreadable record appends nothing for any kind and warns. The synthesis
     manifest's bundle hash is restamped once after a config write.
+
+    A deactivated artifact is never appended, not even on its first creation
+    (FR-009): it is recorded as created and reported as ``kept deactivated:
+    <kind> <id>``; only ``spec-kitty charter activate <kind> <id>`` reinstates it.
     """
     slugs_by_kind = {kind: list(dict.fromkeys(created_by_kind.get(kind, ()))) for kind in REACH_ONLY_KINDS}
     slugs_by_kind = {kind: _eligible(repo_root, kind, slugs) for kind, slugs in slugs_by_kind.items()}
@@ -206,7 +212,7 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     if write_target is None or not additions:
         _record()
         return []  # nothing to append: no config rewrite, no restamp
-    warnings = _promote(additions, write_target)
+    warnings = _promote(repo_root, additions, write_target)
     # Record only once the config write succeeded: a failed promote must leave the
     # artifact unrecorded so a later run still appends it.
     _record()
@@ -239,12 +245,29 @@ def _config_additions(data: Mapping[str, Any], first_time: Mapping[str, list[str
     return additions
 
 
-def _promote(additions: Mapping[str, list[str]], write_target: _WriteTarget) -> list[str]:
+def _promote(repo_root: Path, additions: Mapping[str, list[str]], write_target: _WriteTarget) -> list[str]:
     from charter.activation.activation_engine import promote_activations  # deferred import
 
     target_path, data, save = write_target
-    outcome = promote_activations(additions, config_path=target_path, config_data=data, save=save, effective_sets={})
-    return [warning for plan in outcome.committed for warning in plan.warnings]
+    outcome = promote_activations(
+        additions,
+        config_path=target_path,
+        config_data=data,
+        save=save,
+        effective_sets={},
+        repo_root=repo_root,
+    )
+    return [warning for plan in outcome.committed for warning in plan.warnings] + _kept_deactivated(outcome.skipped_denied)
+
+
+#: Prefix of the warning for a created artifact that stays deactivated (FR-009).
+_KEPT_DEACTIVATED = "kept deactivated:"
+
+
+def _kept_deactivated(skipped_denied: Mapping[str, list[str]]) -> list[str]:
+    """One ``kept deactivated: <kind> <id>`` warning per created artifact the deny-list kept out."""
+    kind_by_key = {_activation_key(kind): kind for kind in REACH_ONLY_KINDS}
+    return [f"{_KEPT_DEACTIVATED} {kind_by_key.get(key, key)} {slug}" for key, slugs in skipped_denied.items() for slug in slugs]
 
 
 def created_slugs_by_kind(reconciliation: object) -> dict[str, list[str]]:

@@ -2,12 +2,14 @@
 
 Single source of truth for "is the SPDD/REASONS charter content active for this
 project?". The helper inspects the project's real activation authority --
-``.kittify/config.yaml``'s (or, when a ``charter:`` string pointer resolves,
-the pointed-at ``charter.yaml``'s) top-level ``activated_paradigms``/
-``activated_directives``/``activated_tactics`` keys, replicating
-``charter.activation.pack_context.PackContext.from_config``'s INV-2 two-file
-pointer resolution -- and returns ``True`` iff at least one of the four
-selectors is present:
+the source :func:`kernel.activation_ledger_store.resolve_activation_source`
+names (the activation ledger ``.kittify/charter/activation.yaml``; before the
+ledger migration ``.kittify/config.yaml``'s or, when a ``charter:`` string
+pointer resolves, the pointed-at ``charter.yaml``'s) top-level
+``activated_paradigms``/``activated_directives``/``activated_tactics`` keys,
+the same resolution ``charter.activation.pack_context.PackContext.from_config``
+reads through -- and returns ``True`` iff at least one of the four selectors
+is present:
 
 - paradigm ``structured-prompt-driven-development``
 - tactic ``reasons-canvas-fill``
@@ -70,10 +72,20 @@ with existing callers.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from kernel.activation_ledger_store import (
+    ActivationLedgerFormatError,
+    ActivationSource,
+    ResolvedActivationSource,
+    read_activation_ledger_raw,
+    resolve_activation_source,
+)
 from ruamel.yaml import YAML
+
+from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = ["clear_activation_cache", "is_spdd_reasons_active"]
 
@@ -85,10 +97,27 @@ DIRECTIVE_NUMERIC_HINT = "038"
 
 _KITTIFY = ".kittify"
 _CONFIG_YAML = "config.yaml"
+#: The ``config.yaml`` key naming the active ``charter.yaml``, handed to the kernel resolver. The activation
+#: seam's spelling (``charter.activation.activation_ledger._CHARTER_POINTER_KEY``), which C-004 forbids importing here.
 _CHARTER_POINTER_KEY = "charter"
 _ACTIVATED_PARADIGMS_KEY = "activated_paradigms"
 _ACTIVATED_TACTICS_KEY = "activated_tactics"
 _ACTIVATED_DIRECTIVES_KEY = "activated_directives"
+_DEACTIVATED_PARADIGMS_KEY = "deactivated_paradigms"
+_DEACTIVATED_TACTICS_KEY = "deactivated_tactics"
+_DEACTIVATED_DIRECTIVES_KEY = "deactivated_directives"
+
+#: The activation keys a legacy surface may carry, handed to the kernel resolver
+#: (it tells an unmigrated project from a fresh one with them). Derived from :class:`ArtifactKind` with the
+#: activation seam's spelling (``charter.activation.activation_ledger.LEDGER_KEYS``),
+#: which C-004 forbids importing here.
+_LEGACY_ACTIVATION_KEYS: frozenset[str] = frozenset(
+    {
+        "activated_kinds",
+        "mission_type_activations",
+        *(f"{prefix}{kind.plural}" for kind in ArtifactKind if kind.activatable for prefix in ("activated_", "deactivated_")),
+    }
+)
 
 
 class _SpddActivationConfigError(ValueError):
@@ -123,7 +152,9 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
     resolution (module docstring). Absent ``.kittify/config.yaml`` returns
     ``False`` (FR-004); malformed YAML, a dangling/unreadable ``charter:``
     pointer target, or a present-but-non-list ``activated_<kind>`` value all
-    raise (FR-005) -- never an unexplained silent result (NFR-001).
+    raise (FR-005) -- never an unexplained silent result (NFR-001). A selector
+    the matching ``deactivated_<kind>`` list names is off (``allow and not
+    deny``, D-07); the directive deny matches through ``_is_directive_038``.
     """
     config_path = repo_root / _KITTIFY / _CONFIG_YAML
     if not config_path.exists():
@@ -138,50 +169,76 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
         return False
 
     config_data = _load_mapping(config_path)
-
-    pointer_path = _resolve_charter_pointer(repo_root, config_data)
-    if pointer_path is None:
-        activation_source = config_data
-    else:
-        if not pointer_path.exists():
-            raise _SpddActivationConfigError(f".kittify/config.yaml 'charter:' pointer names {pointer_path}, which does not exist.")
-        activation_source = _load_mapping(pointer_path)
+    activation_source, deny_source = _activation_source(repo_root, config_data)
 
     activated_paradigms = _read_activated_key(activation_source, _ACTIVATED_PARADIGMS_KEY)
     activated_tactics = _read_activated_key(activation_source, _ACTIVATED_TACTICS_KEY)
     activated_directives = _read_activated_key(activation_source, _ACTIVATED_DIRECTIVES_KEY)
+    # Deny (D-07): read from the ledger only; a legacy deactivated_<kind> key is
+    # never applied (hole 6), so a LEGACY source denies nothing. No org
+    # required floor is applied here -- the floor lives in activation, which
+    # C-004 forbids importing; ADR 2026-10-19-1 records the residual.
+    denied_paradigms = _read_activated_key(deny_source, _DEACTIVATED_PARADIGMS_KEY) or frozenset()
+    denied_tactics = _read_activated_key(deny_source, _DEACTIVATED_TACTICS_KEY) or frozenset()
+    denied_directives = _read_activated_key(deny_source, _DEACTIVATED_DIRECTIVES_KEY) or frozenset()
 
     # Second carve-out (Decision Record 1 / plan.md section (a) item 1, see
     # module docstring): this per-kind disjunction does NOT apply
-    # compile_charter's project_configured gate. Each `is None` branch below
-    # means "selector satisfied" (all built-ins available for that kind),
+    # compile_charter's project_configured gate. An absent allow list (`None`)
+    # in `_selector_admitted` means "selector satisfied" (all built-ins available for that kind),
     # independent of whichever OTHER kinds are explicitly configured.
     #
     # NEVER `x or set()`/`x or frozenset()` here: that idiom collapses an
     # absent key (None, "all built-ins") through the same falsy path as an
     # explicit `[]` ("nothing selected") -- the exact truthiness-collapse
     # bug class this mission exists to close.
-    paradigm_active = activated_paradigms is None or PARADIGM_ID in activated_paradigms
-    tactic_active = activated_tactics is None or bool({TACTIC_FILL_ID, TACTIC_REVIEW_ID} & activated_tactics)
-    directive_active = activated_directives is None or any(_is_directive_038(entry) for entry in activated_directives)
+    #
+    # A deny list, unlike an allow list, has no three-state meaning (absent ==
+    # empty), so `or frozenset()` above is the correct collapse there.
+    paradigm_active = _selector_admitted(activated_paradigms, denied_paradigms, PARADIGM_ID.__eq__)
+    tactic_active = any(_selector_admitted(activated_tactics, denied_tactics, tactic.__eq__) for tactic in (TACTIC_FILL_ID, TACTIC_REVIEW_ID))
+    directive_active = _selector_admitted(activated_directives, denied_directives, _is_directive_038)
 
     return paradigm_active or tactic_active or directive_active
 
 
-def _resolve_charter_pointer(repo_root: Path, config_data: dict[str, Any]) -> Path | None:
-    """Mirror ``pack_context.resolve_charter_yaml_pointer``'s "string-only" rule.
+def _selector_admitted(allow: frozenset[str] | None, deny: frozenset[str], matches: Callable[[str], bool]) -> bool:
+    """``allow and not deny`` for one selector: a denied match wins; an absent allow list (``None``) admits."""
+    if any(matches(entry) for entry in deny):
+        return False
+    return allow is None or any(matches(entry) for entry in allow)
 
-    Only a *string* ``charter:`` value is a pointer -- a mapping/list/scalar
-    non-string value (e.g. a legacy inline block) is NOT a pointer and must
-    not be stringified into a bogus filesystem path. Returns ``None`` when
-    the key is absent (legacy/un-migrated project: activation is read
-    directly from ``config.yaml``) or non-string.
+
+def _resolve_source(repo_root: Path) -> ResolvedActivationSource:
+    """The kernel resolver's answer, with this module's own error type (C-004)."""
+    try:
+        resolved = resolve_activation_source(repo_root, legacy_keys=_LEGACY_ACTIVATION_KEYS, pointer_key=_CHARTER_POINTER_KEY)
+    except ActivationLedgerFormatError as exc:
+        raise _SpddActivationConfigError(exc.body) from exc
+    return resolved
+
+
+def _activation_source(repo_root: Path, config_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """``(allow source, deny source)``: the mappings the activation keys are read from, as the kernel resolver decides (FR-017).
+
+    ``LEDGER`` -> the ledger (``{}`` before its first write) for both.
+    ``LEGACY`` -> today's pointer rule for the allow keys: no ``charter:``
+    string pointer -> *config_data*; a pointer -> the pointed ``charter.yaml``,
+    where a dangling pointer raises. A legacy source denies nothing (``{}``):
+    a legacy ``deactivated_<kind>`` key is never applied (hole 6).
     """
-    pointer = config_data.get(_CHARTER_POINTER_KEY)
-    if not isinstance(pointer, str):
-        return None
-    pointer_path = Path(pointer)
-    return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
+    resolved = _resolve_source(repo_root)
+    if resolved.source is ActivationSource.LEDGER:
+        try:
+            ledger = read_activation_ledger_raw(repo_root) or {}
+        except ActivationLedgerFormatError as exc:
+            raise _SpddActivationConfigError(exc.body) from exc
+        return ledger, ledger
+    if resolved.pointer is None:
+        return config_data, {}
+    if not resolved.pointer_exists:
+        raise _SpddActivationConfigError(f".kittify/config.yaml 'charter:' pointer names {resolved.pointer}, which does not exist.")
+    return _load_mapping(resolved.pointer), {}
 
 
 def _read_activated_key(data: dict[str, Any], key: str) -> frozenset[str] | None:

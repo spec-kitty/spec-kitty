@@ -183,19 +183,21 @@ def _seed_sets(
     Activated and org-required tokens (stem or declared id) map through
     ``identity.activation_id``; an absent activation key keeps the catalog-default
     behaviour (C-007), whose ids are already graph ids. The org-required union
-    applies even when the project side is an explicit empty list.
+    applies even when the project side is an explicit empty list. The effective
+    deny is subtracted after both unions (FR-006); it never holds a required id.
     """
     seeds: list[set[str]] = []
-    for kind, node_kind, defaults, field_name, required_key in (
-        (ArtifactKind.DIRECTIVE, NodeKind.DIRECTIVE, catalog.directives, "activated_directives", "directives"),
-        (ArtifactKind.TACTIC, NodeKind.TACTIC, catalog.tactics, "activated_tactics", "tactics"),
-        (ArtifactKind.PARADIGM, NodeKind.PARADIGM, catalog.paradigms, "activated_paradigms", "paradigms"),
+    for kind, node_kind, defaults in (
+        (ArtifactKind.DIRECTIVE, NodeKind.DIRECTIVE, catalog.directives),
+        (ArtifactKind.TACTIC, NodeKind.TACTIC, catalog.tactics),
+        (ArtifactKind.PARADIGM, NodeKind.PARADIGM, catalog.paradigms),
     ):
-        activated = getattr(pack_context, field_name) if pack_context is not None else None
+        activated = pack_context.allow_for(kind) if pack_context is not None else None
         base = _catalog_default_or_activated(activated, _graph_and_catalog_default_ids(merged, node_kind, defaults))
         mapped = base if activated is None else _activation_ids(identity, kind, base, warnings)
-        mapped |= _activation_ids(identity, kind, org_required[required_key], warnings)
-        seeds.append(mapped)
+        mapped |= _activation_ids(identity, kind, org_required[kind.plural], warnings)
+        deny = pack_context.denied_for(kind) if pack_context is not None else None
+        seeds.append({item for item in mapped if deny.admits(item)} if deny else mapped)
     for message in warnings:
         _LOGGER.warning("%s", message)
     return seeds[0], seeds[1], seeds[2]
@@ -412,7 +414,7 @@ def _load_action_governance_bundle(
                     for node in merged.nodes
                     if node.kind.value == "directive" and service.directives.get_provenance(node.urn.split(":", 1)[1]) == "project"
                 }
-                if pack_context is not None and pack_context.activated_directives is not None
+                if pack_context is not None and pack_context.allow_for(ArtifactKind.DIRECTIVE) is not None
                 else set()
             )
             action_urn = f"action:{resolved_type}/{action}"

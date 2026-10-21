@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 from kernel.charter_pack_paths import project_pack_root
 
 from .hasher import hash_content
@@ -51,6 +52,11 @@ CHARTER_MD = Path(".kittify/charter/charter.md")
 #: pre-emption; do NOT re-scatter a second copy of the ``charter.yaml`` name).
 CHARTER_YAML = Path(".kittify/charter/charter.yaml")
 
+#: The activation ledger (``.kittify/charter/activation.yaml``, ADR 2026-10-19-1),
+#: re-exported beside :data:`CHARTER_YAML` from the kernel's one declaration
+#: (:data:`kernel.activation_ledger_store.ACTIVATION_LEDGER`); never re-spell it.
+ACTIVATION_YAML = ACTIVATION_LEDGER
+
 # Content-identity input set for the charter bundle's freshness hash
 # (synthesized-drg-stale-refresh mission originally; re-scoped by
 # consolidate-charter-bundle WP01 manifest v2). Post-inversion the ONLY
@@ -61,6 +67,14 @@ CHARTER_YAML = Path(".kittify/charter/charter.yaml")
 # direction (mirrors ``specify_cli.charter_runtime.freshness.computer::
 # _BUNDLE_FILES``, which independently owns its own copy).
 BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = ("charter.yaml",)
+
+#: Optional content-hash members (persistent-deactivation-ledger WP09, FR-018,
+#: data-model.md §10): hashed only when present, after the required members, so
+#: a project without a ledger keeps a byte-identical digest while an out-of-band
+#: ledger edit changes it. Derived from the kernel's one ledger declaration
+#: (never re-spell the filename, M5). Mirrored -- not imported -- by
+#: ``specify_cli.charter_runtime.freshness.computer::_OPTIONAL_BUNDLE_FILES``.
+BUNDLE_OPTIONAL_CONTENT_HASH_FILES: tuple[str, ...] = (ACTIVATION_LEDGER.name,)
 
 # Synthesis state paths (all relative to repo root)
 SYNTHESIS_MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
@@ -97,6 +111,12 @@ class CharterBundleManifest(BaseModel):
     Landmine 1 (data-model.md): do NOT fold this into ``derived_files`` —
     ``charter.yaml`` is tracked/authored, not derived."""
     gitignore_required_entries: list[str]
+    optional_tracked_files: list[Path] = Field(default_factory=list)
+    """Git-tracked bundle members that MAY be absent (WP09, FR-018): the
+    activation ledger. Unlike :attr:`tracked_files` (which ``charter bundle
+    validate``, ``charter generate`` and the shipped rc35 bundle migration
+    treat as "must be present"), absence is never a failure. Disjoint from
+    ``tracked_files`` and ``derived_files``."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -112,6 +132,12 @@ class CharterBundleManifest(BaseModel):
         if overlap:
             raise ValueError(
                 f"Paths appear in both tracked and derived: {sorted(str(p) for p in overlap)}"
+            )
+        optional_overlap = set(self.optional_tracked_files) & (tracked | derived)
+        if optional_overlap:
+            raise ValueError(
+                "Paths appear in optional_tracked_files and in tracked or derived: "
+                f"{sorted(str(p) for p in optional_overlap)}"
             )
         # Every key in derivation_sources must appear in derived_files.
         missing_keys = set(self.derivation_sources.keys()) - derived
@@ -137,6 +163,7 @@ CANONICAL_MANIFEST: CharterBundleManifest = CharterBundleManifest(
     derivation_sources={},
     content_hash_files=[CHARTER_YAML],
     gitignore_required_entries=[],
+    optional_tracked_files=[ACTIVATION_YAML],
 )
 
 
@@ -160,6 +187,13 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
     authoritative ``charter.yaml`` (the four legacy files were folded into it),
     so the recipe hashes one file today; the per-file loop is retained so the
     contract stays correct if the input set ever grows again.
+
+    persistent-deactivation-ledger WP09 (FR-018): each file in
+    :data:`BUNDLE_OPTIONAL_CONTENT_HASH_FILES` (the activation ledger) is
+    appended after the required members, only when it exists. A project
+    without a ledger therefore keeps a byte-identical digest, and an
+    out-of-band ledger edit changes it. An optional file that exists but is
+    unreadable makes the digest ``None``, like a required one.
 
     This is the single canonical write-side hashing recipe (C-005): the writers
     and the freshness reader both route through it so there is exactly one
@@ -185,22 +219,39 @@ def compute_bundle_content_hash(repo_root: Path) -> str | None:
     charter_dir = repo_root / ".kittify" / "charter"
     digests: list[str] = []
     for name in BUNDLE_CONTENT_HASH_FILES:
+        digest = _file_digest(charter_dir / name)
+        if digest is None:
+            return None
+        digests.append(digest)
+    # WP09 (FR-018): optional members are appended only when present, so a
+    # project without them keeps the exact digest it had before (no new stale).
+    for name in BUNDLE_OPTIONAL_CONTENT_HASH_FILES:
         path = charter_dir / name
         if not path.exists():
+            continue
+        digest = _file_digest(path)
+        if digest is None:
             return None
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return None
-        # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
-        # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
-        # imports, which erases hash_content's declared "-> str" return type
-        # to Any at this call site. Annotating recovers the real type without
-        # a suppression comment.
-        digest: str = hash_content(text)
         digests.append(digest)
     combined: str = hash_content("\n".join(digests))
     return combined
+
+
+def _file_digest(path: Path) -> str | None:
+    """The ``hash_content`` digest of *path*; ``None`` when missing or unreadable (fail-safe)."""
+    if not path.exists():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
+    # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
+    # imports, which erases hash_content's declared "-> str" return type
+    # to Any at this call site. Annotating recovers the real type without
+    # a suppression comment.
+    digest: str = hash_content(text)
+    return digest
 
 
 def first_missing_bundle_file(repo_root: Path) -> str | None:
@@ -605,6 +656,7 @@ def _find_artifact(pack_root: Path, kind: str, slug: str) -> Path | None:
 
 
 __all__ = [
+    "ACTIVATION_YAML",
     "CANONICAL_MANIFEST",
     "CHARTER_YAML",
     "CharterBundleManifest",

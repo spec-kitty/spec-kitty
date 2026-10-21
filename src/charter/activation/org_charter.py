@@ -478,10 +478,17 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         config_data=config_data,
         save=save,
         effective_sets=_effective_sets_for_absent_keys(repo_root, promotions, config_data),
+        # The promoted ids ARE the required floor: the seam's D* already exempts them (D-05).
+        repo_root=repo_root,
     )
 
+    if outcome.committed:
+        # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity (F7).
+        from charter.activation.bundle_restamp import restamp_bundle_hash
+
+        restamp_bundle_hash(repo_root)
     promoted = [f"Promoted {len(plan.activated)} org-required id(s) into {plan.yaml_key} (config-authority)." for plan in outcome.committed if plan.activated]
-    return warnings + promoted + outcome.left_absent_messages()
+    return warnings + promoted + outcome.left_absent_messages() + outcome.skipped_denied_messages()
 
 
 def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:

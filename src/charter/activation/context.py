@@ -29,6 +29,7 @@ from charter.activation.action_governance_bundle import (
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.activation.identity_index import IdentityIndex
 from charter.activation.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
 from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION as CONTEXT_SCHEMA_VERSION
@@ -371,6 +372,32 @@ def build_charter_context(
     )
 
 
+def _denied_kind(repo_root: Path, identifier: str, kinds: frozenset[ArtifactKind] | None, org_roots: list[Path] | None) -> ArtifactKind | None:
+    """The kind (of *kinds*, or any) whose effective deny holds *identifier* in identity space, else ``None``.
+
+    The identifier is spelled out through the include's identity index
+    (``resolve_deny``: stem, declared id, URN), so ``directive:3``,
+    ``directive:directive_003`` and ``directive:DIRECTIVE_003`` agree (FR-016).
+    No index is built without a deny list (NFR-003).
+    """
+    from charter.activation.activation_ledger import resolve_deny  # noqa: PLC0415 — lazy, as the other activation reads here
+    from charter.activation.pack_context import load_denied  # noqa: PLC0415 — lazy: read only on this include path, like the other activation reads here
+
+    denied = load_denied(repo_root, kinds=kinds)
+    if not denied:
+        return None
+    identity = IdentityIndex.build(repo_root, org_roots=org_roots)
+    for plural, deny in denied:
+        kind = ArtifactKind.from_plural(plural)
+        if not resolve_deny(kind, [identifier], identity).spellings().isdisjoint(deny.spellings()):
+            return kind
+    return None
+
+
+def _deactivated_note(selector_kind: str, identifier: str, restore_kind: str) -> str:
+    return f"{selector_kind}:{identifier} is deactivated in this project (charter activate {restore_kind} {identifier} restores it)"
+
+
 def build_charter_context_include(
     repo_root: Path,
     selector: str,
@@ -398,8 +425,6 @@ def build_charter_context_include(
     pack 2..N defines resolves here and a colliding id renders the same body
     as the bootstrap context (#5779).
     """
-    from charter.offering.artifact_kinds import ArtifactKind
-
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()
     identifier = identifier.strip()
@@ -410,6 +435,10 @@ def build_charter_context_include(
         return _render_section_include_selector(repo_root, selector, identifier, action)
 
     if kind == "artifact":
+        # D-21: the best-effort selector is gated too, against every kind's deny.
+        denied_kind = _denied_kind(repo_root, identifier, None, org_roots)
+        if denied_kind is not None:
+            return _deactivated_note(kind, identifier, denied_kind.value.replace("_", "-"))
         service = _build_offering_service(repo_root, org_roots=org_roots)
         return _render_generic_artifact_include(service, identifier)
 
@@ -421,6 +450,10 @@ def build_charter_context_include(
 
     if resolved_kind is ArtifactKind.TEMPLATE:
         return _render_template_include(repo_root, identifier, selector)
+
+    # FR-016 / D-21: every activatable kind honours the effective deny.
+    if resolved_kind.activatable and _denied_kind(repo_root, identifier, frozenset({resolved_kind}), org_roots) is not None:
+        return _deactivated_note(kind, identifier, kind)
 
     canonical_kind = resolved_kind.value
     # NFR-003: one identity index for this include invocation.

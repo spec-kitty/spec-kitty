@@ -106,6 +106,9 @@ class PreparedYamlWrite:
 
     @property
     def changed(self) -> bool:
+        """``False`` when the bytes are unchanged, or when an absent target stays absent (empty desired bytes)."""
+        if self.before_bytes is None and not self.desired_bytes:
+            return False
         return self.before_bytes != self.desired_bytes
 
     def recheck(self) -> None:
@@ -158,7 +161,8 @@ def prepare_yaml_write(
     if before.identity is not None and before.content is None:
         raise ValueError(f"YAML target must be a regular file: {target}")
     decoded = _yaml_loader().load(desired)
-    if not isinstance(decoded, dict) and not (decoded is None and desired == before.content):
+    keeps_absent = before.content is None and not desired
+    if not isinstance(decoded, dict) and not (decoded is None and (desired == before.content or keeps_absent)):
         raise ValueError("YAML root must be a mapping")
     mode = stat.S_IMODE(before.identity[2]) if before.identity else 0o644
     prepared = PreparedYamlWrite(
@@ -468,7 +472,7 @@ def _dump_flow_entries(document: Any) -> str:
 #:
 #: The vocabulary itself (WP05 / FR-010 / C4.1) is DERIVED from the single
 #: authority :data:`charter.activation.pack_manager.ACTIVATION_YAML_KEYS` via
-#: :func:`_activation_keys` rather than hand-restated here -- a hand-written
+#: :func:`_allow_activation_keys` rather than hand-restated here -- a hand-written
 #: literal previously drifted from the finalize migration's own copy (missing
 #: ``activated_glossary_packs``, FR-010/SC-005). ``_ACTIVATION_KEYS`` stays
 #: importable as a module attribute (``from charter.activation.charter_yaml_io import
@@ -477,7 +481,7 @@ def _dump_flow_entries(document: Any) -> str:
 
 
 @functools.lru_cache(maxsize=1)
-def _activation_keys() -> tuple[str, ...]:
+def _allow_activation_keys() -> tuple[str, ...]:
     """Return the flat activation-key vocabulary, derived from the authority.
 
     Lazy, function-scoped import of :data:`charter.activation.pack_manager.
@@ -503,10 +507,10 @@ def __getattr__(name: str) -> object:
     ``from charter.activation.charter_yaml_io
     import _ACTIVATION_KEYS`` and ``charter_yaml_io._ACTIVATION_KEYS`` both
     keep working for existing callers/tests without a module-level import
-    that would reintroduce the cycle :func:`_activation_keys` avoids.
+    that would reintroduce the cycle :func:`_allow_activation_keys` avoids.
     """
     if name == "_ACTIVATION_KEYS":
-        return _activation_keys()
+        return _allow_activation_keys()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -630,7 +634,7 @@ def _validate_section(section: str, values: dict[str, Any]) -> None:
     if section not in OWNED_SECTIONS:
         raise UnknownCharterYamlSectionError(section)
     if section == "activation":
-        unknown_keys = sorted(set(values) - set(_activation_keys()))
+        unknown_keys = sorted(set(values) - set(_allow_activation_keys()))
         if unknown_keys:
             raise ValueError(f"Unknown activation key(s): {unknown_keys}")
 
@@ -641,7 +645,7 @@ def _validate_removals(section: str, remove: tuple[str, ...]) -> None:
         return
     if section != "activation":
         raise ValueError(f"remove= is only supported for the 'activation' section, not {section!r}")
-    unknown_keys = sorted(set(remove) - set(_activation_keys()))
+    unknown_keys = sorted(set(remove) - set(_allow_activation_keys()))
     if unknown_keys:
         raise ValueError(f"Unknown activation key(s): {unknown_keys}")
 

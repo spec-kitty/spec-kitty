@@ -64,6 +64,9 @@ from typing import Any, ClassVar
 
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.activation_engine import deny_delta
+from charter.activation.activation_ledger import DenyListChoice, deny_key
+from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.charter_yaml_io import apply_yaml_write
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.identity_index import IdentityIndex
@@ -71,7 +74,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.org_charter import REQUIRED_KIND_FIELDS, load_org_charter_policies
-from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.pack_context import ActiveCharterConfigError, load_denied
 from charter.activation.pack_manager import ActiveCharterManager, prepare_activation_write, resolve_activation_write_target
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
 from charter.offering.drg.loader import DRGLoadError
@@ -93,6 +96,7 @@ from charter.offering.packs.presets import (
 
 __all__ = [
     "PresetApplicationError",
+    "PresetOutcome",
     "PresetPlan",
     "apply_preset_plan",
     "find_offering_pack",
@@ -209,11 +213,30 @@ class PresetPlan:
     removed: list[str] = field(default_factory=list)
     changes: dict[str, tuple[object, object]] = field(default_factory=dict)
     customised_changes: tuple[str, ...] = ()
+    denied_listed: dict[str, list[str]] = field(default_factory=dict)
+    forced_written: dict[str, list[str]] = field(default_factory=dict)
+    forced_deny: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def is_noop(self) -> bool:
-        """Whether applying the plan changes nothing (no write happens)."""
+        """Whether applying the plan without ``--force`` changes nothing (no write happens)."""
         return not self.written and not self.removed
+
+
+@dataclass(frozen=True)
+class PresetOutcome:
+    """What :func:`apply_preset_plan` wrote (FR-009, FR-014).
+
+    ``written`` is the allow lists actually written. Without ``--force``,
+    ``kept_deactivated`` maps an allow key to the deactivated ids the preset
+    lists, left out of it and still excluded. With ``--force``, ``cleared``
+    maps a ``deactivated_<plural>`` key to the ids whose exclusion was cleared
+    (computed with :func:`~charter.activation.activation_engine.deny_delta`).
+    """
+
+    written: dict[str, list[str]] = field(default_factory=dict)
+    kept_deactivated: dict[str, list[str]] = field(default_factory=dict)
+    cleared: dict[str, list[str]] = field(default_factory=dict)
 
 
 class PresetWouldOverwriteError(PresetApplicationError):
@@ -550,6 +573,46 @@ def _read_target(repo_root: Path) -> tuple[Path, Mapping[str, Any]]:
     return target_file, document
 
 
+@dataclass(frozen=True)
+class _DenyPartition:
+    """The preset-listed ids that are deactivated, and the post-``--force`` lists."""
+
+    denied_listed: dict[str, list[str]] = field(default_factory=dict)
+    forced_written: dict[str, list[str]] = field(default_factory=dict)
+    forced_deny: dict[str, list[str]] = field(default_factory=dict)
+
+
+def _cleared_deny(stored: Iterable[str], listed: Sequence[str], kind: ArtifactKind, identity: IdentityIndex) -> list[str]:
+    """*stored* less every entry naming one of *listed* (stem or declared id)."""
+    listed_stems = {identity.stem(kind, item) or item for item in listed}
+    return [item for item in stored if item not in listed and (identity.stem(kind, item) or item) not in listed_stems]
+
+
+def _deny_partition(repo_root: Path, target: dict[str, _Value], document: Mapping[str, Any], roots: _Roots, identity: IdentityIndex | None) -> _DenyPartition:
+    """Take the effective-denied ids (``D*``) out of every listed allow list (FR-009); record what ``--force`` writes instead.
+
+    The deny keys are never governed (a preset names no deny key); only
+    ``--force`` clears the exclusions of the ids the preset lists (FR-014).
+    """
+    if identity is None:
+        return _DenyPartition()
+    denied = dict(load_denied(repo_root, org_roots=roots.org_roots))
+    partition = _DenyPartition()
+    for key, listed in target.items():
+        kind = _KIND_BY_KEY.get(key)
+        if listed is None or kind is None or kind.plural not in denied:
+            continue
+        hit = [item for item in listed if not denied[kind.plural].admits(item)]
+        if not hit:
+            continue
+        partition.denied_listed[key] = hit
+        partition.forced_written[key] = list(listed)
+        stored = [str(item) for item in document.get(deny_key(kind)) or ()]
+        partition.forced_deny[deny_key(kind)] = _cleared_deny(stored, hit, kind, identity)
+        target[key] = [item for item in listed if item not in hit]
+    return partition
+
+
 def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -> PresetPlan:
     """Compute the change applying *preset_name* of *pack_name* makes (pure read).
 
@@ -563,6 +626,7 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
     identity = IdentityIndex.build(repo_root, org_roots=roots.org_roots, resolution_pass=roots.resolution_pass) if _lists_ids(preset) else None
     target = _target_state(preset, _org_required(repo_root, preset), identity)
     target_file, document = _read_target(repo_root)
+    deny = _deny_partition(repo_root, target, document, roots, identity)
     defaults = _default_values()
     written: dict[str, list[str]] = {}
     removed: list[str] = []
@@ -588,20 +652,57 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
         removed=removed,
         changes=changes,
         customised_changes=tuple(customised),
+        denied_listed=deny.denied_listed,
+        forced_written=deny.forced_written,
+        forced_deny=deny.forced_deny,
     )
 
 
-def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False) -> None:
+def _forced_values(plan: PresetPlan) -> tuple[dict[str, list[str]], list[str]]:
+    """The ``--force`` write: listed deactivated ids written back, their exclusions cleared (``[]`` removes the key)."""
+    values: dict[str, list[str]] = {**plan.written, **plan.forced_written}
+    removed = list(plan.removed)
+    for key, remaining in plan.forced_deny.items():
+        if remaining:
+            values[key] = remaining
+        else:
+            removed.append(key)
+    return values, removed
+
+
+def _cleared_by_force(document: Mapping[str, Any], plan: PresetPlan) -> dict[str, list[str]]:
+    """``deactivated_<plural>`` key -> the ids ``--force`` takes off it (the deny delta, R11)."""
+    cleared = {key: deny_delta(document.get(key), remaining)[1] for key, remaining in plan.forced_deny.items()}
+    return {key: ids for key, ids in cleared.items() if ids}
+
+
+def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False) -> PresetOutcome:
     """Perform *plan* as one write through the single activation writer.
 
     Raises :class:`PresetWouldOverwriteError` (writing nothing) when the plan
     changes a customised key and *force* is false. A no-op plan writes nothing.
+    Without *force*, the deactivated ids the preset lists stay excluded and are
+    left out (:attr:`PresetOutcome.kept_deactivated`); with *force* they are
+    written and their exclusions cleared with
+    :attr:`~charter.activation.activation_ledger.DenyListChoice.PRESET_FORCE`.
     """
     if plan.customised_changes and not force:
         raise PresetWouldOverwriteError(plan)
-    if plan.is_noop:
-        return
+    if not force or not plan.forced_deny:
+        if not plan.is_noop:
+            _write(repo_root, plan, plan.written, plan.removed, deny_change=None)
+        return PresetOutcome(written=dict(plan.written), kept_deactivated=dict(plan.denied_listed))
+    _target_file, document = _read_target(repo_root)
+    cleared = _cleared_by_force(document, plan)
+    values, removed = _forced_values(plan)
+    _write(repo_root, plan, values, removed, deny_change=DenyListChoice.PRESET_FORCE)
+    return PresetOutcome(written={key: ids for key, ids in values.items() if key in plan.written or key in plan.forced_written}, cleared=cleared)
+
+
+def _write(repo_root: Path, plan: PresetPlan, values: dict[str, list[str]], removed: list[str], *, deny_change: DenyListChoice | None) -> None:
+    """The one activation write, then the bundle-hash restamp (a ``charter.yaml`` target changed)."""
     try:
-        apply_yaml_write(prepare_activation_write(repo_root, plan.written, remove=plan.removed))
+        apply_yaml_write(prepare_activation_write(repo_root, values, remove=removed, deny_change=deny_change))
     except ValueError as exc:
         raise _target_error(plan.target_file, exc) or exc from exc
+    restamp_bundle_hash(repo_root)

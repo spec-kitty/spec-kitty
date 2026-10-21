@@ -45,6 +45,7 @@ from pathlib import Path
 
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.activation_ledger import DenySet
 from charter.bundle import CHARTER_YAML
 from charter.offering.artifact_kinds import ArtifactKind
 
@@ -244,6 +245,22 @@ def _select_reference_pointers(
     return selected
 
 
+def _denied_by_kind(canonical_root: Path) -> dict[str, DenySet]:
+    """The effective deny keyed by singular kind (``{}`` without a deny list; fails closed on a malformed ledger)."""
+    from charter.activation.pack_context import load_denied  # noqa: PLC0415 — lazy: keeps this renderer off pack_context's import path
+
+    return {ArtifactKind.from_plural(plural).value: deny for plural, deny in load_denied(canonical_root)}
+
+
+def _reference_admitted(item: dict[object, object], denied: dict[str, DenySet]) -> bool:
+    """Whether the reference's target survives its kind's effective deny (a skipped recompile must not leak, P7)."""
+    deny = denied.get(str(item.get("kind", "")))
+    if deny is None:
+        return True
+    target = str(item.get("id", "")).split(":", 1)[-1]
+    return deny.admits(target)
+
+
 def _load_references(canonical_root: Path) -> list[dict[str, str]]:
     """Load the doctrine reference catalog from charter.yaml's ``catalog.references``.
 
@@ -252,7 +269,9 @@ def _load_references(canonical_root: Path) -> list[dict[str, str]]:
     (``charter.activation.schemas.CharterCatalog`` — item shape mirrors the old file verbatim).
     Reading it here keeps the injected "Reference Docs" bootstrap block sourced from
     the authoritative charter, not the file the fold migration deletes. Returns
-    ``[]`` when charter.yaml or its ``catalog`` section is absent.
+    ``[]`` when charter.yaml or its ``catalog`` section is absent. A reference whose
+    target is deactivated is dropped (FR-006, P7), so a stale compiled catalog never
+    renders it; a malformed activation ledger raises (fail closed).
     """
     # Same-layer, lazy import: avoids an import cycle with ``charter.activation.charter_yaml_io``.
     from charter.activation.charter_yaml_io import load_charter_yaml  # noqa: PLC0415
@@ -271,9 +290,10 @@ def _load_references(canonical_root: Path) -> list[dict[str, str]]:
     if not isinstance(raw_references, list):
         return []
 
+    denied = _denied_by_kind(canonical_root)
     refs: list[dict[str, str]] = []
     for item in raw_references:
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or not _reference_admitted(item, denied):
             continue
         refs.append(
             {

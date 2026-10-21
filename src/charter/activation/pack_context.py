@@ -28,12 +28,26 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from kernel.errors import KittyInternalConsistencyError
-from ruamel.yaml import YAML
 
+# ActiveCharterConfigError and its standard-remediation helper live in the
+# activation ledger seam (WP02); importing them here keeps
+# ``from charter.activation.pack_context import ActiveCharterConfigError``
+# resolving to the same class object for every existing importer.
+from charter.activation.activation_ledger import (
+    ActivationLedger,
+    ActiveCharterConfigError,
+    DenySet,
+    _effective_deny,
+    allow_key,
+    ledger_may_hold_deny,
+    load_activation_ledger,
+    load_config_yaml,
+)
+from charter.activation.activation_ledger import config_error as _config_error
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.bundle import CHARTER_YAML
-from charter.activation.org_pack_discovery import read_org_required_ids
+from kernel.activation_ledger_store import legacy_pointer_path
+from charter.activation.org_pack_discovery import read_org_required_ids, read_org_required_tokens
 from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
@@ -43,6 +57,7 @@ __all__ = [
     "charter_activated_urns",
     "explicit_activated_skills",
     "load_charter_yaml_mapping",
+    "load_denied",
     "normalize_activation_identifier",
     "partition_activated_unreachable",
     "resolve_charter_yaml_pointer",
@@ -62,17 +77,6 @@ _ACTIVATION_KEY_PREFIX = "activated_"
 _CHARTER_POINTER_KEY = "charter"
 
 #: Repo-root-relative default location of ``charter.yaml`` (no pointer set).
-
-
-class ActiveCharterConfigError(KittyInternalConsistencyError):
-    """Raised when the active charter configuration has an invalid shape.
-
-    The active charter configuration is ``.kittify/config.yaml`` or the
-    ``charter.yaml`` it points to (#3732, ADR 2026-10-06-2 section 1).
-    """
-
-    def __init__(self, body: str) -> None:
-        super().__init__("ACTIVE_CHARTER_CONFIG_INVALID", body)
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +188,15 @@ class PackContext:
     activated_skills: frozenset[str] | None = None
     """Pack-skill IDs activated for this project (three-state)."""
 
+    denied: tuple[tuple[str, DenySet], ...] = ()
+    """The effective deny ``D*`` per plural kind, sorted by plural (hashable, FR-006).
+
+    Holds only kinds whose effective deny is non-empty. The present
+    ``activated_<plural>`` lists above are already netted by it; an absent list
+    stays ``None``, so readers subtract it through :meth:`admits`,
+    :meth:`effective_ids` or :meth:`denied_for`.
+    """
+
     # ------------------------------------------------------------------
     # Derived accessors
     # ------------------------------------------------------------------
@@ -200,6 +213,79 @@ class PackContext:
         Those two existing sites are left as-is (out of scope for WP01).
         """
         return self.pack_roots[1:]
+
+    # ------------------------------------------------------------------
+    # Effective membership (FR-006, ADR 2026-10-19-1 Decision 2)
+    # ------------------------------------------------------------------
+
+    def denied_for(self, kind: ArtifactKind) -> DenySet:
+        """The effective deny of *kind*; :attr:`DenySet.EMPTY` when nothing is denied."""
+        for plural, deny in self.denied:
+            if plural == kind.plural:
+                return deny
+        return DenySet.EMPTY
+
+    def with_allow_lists(self, lists: Mapping[str, frozenset[str]]) -> PackContext:
+        """A copy whose ``activated_<plural>`` sets named in *lists* are replaced; every other field is kept.
+
+        The typed form of ``dataclasses.replace(context, **lists)`` (the
+        resynthesis preflight checks the sets an activation will write). A key
+        that is not a per-kind allow key raises :class:`ValueError`.
+        """
+        unknown = sorted(set(lists) - {allow_key(kind) for kind in ArtifactKind if kind.activatable})
+        if unknown:
+            raise ValueError(f"Not a per-kind activation key: {unknown}")
+
+        def pick(kind: ArtifactKind) -> frozenset[str] | None:
+            return lists.get(allow_key(kind), self.allow_for(kind))
+
+        return PackContext(
+            activated_kinds=self.activated_kinds,
+            activated_mission_types=self.activated_mission_types,
+            pack_roots=self.pack_roots,
+            org_pack_names=self.org_pack_names,
+            repo_root=self.repo_root,
+            activated_directives=pick(ArtifactKind.DIRECTIVE),
+            activated_tactics=pick(ArtifactKind.TACTIC),
+            activated_styleguides=pick(ArtifactKind.STYLEGUIDE),
+            activated_toolguides=pick(ArtifactKind.TOOLGUIDE),
+            activated_paradigms=pick(ArtifactKind.PARADIGM),
+            activated_procedures=pick(ArtifactKind.PROCEDURE),
+            activated_agent_profiles=pick(ArtifactKind.AGENT_PROFILE),
+            activated_mission_step_contracts=pick(ArtifactKind.MISSION_STEP_CONTRACT),
+            activated_glossary_packs=pick(ArtifactKind.GLOSSARY_PACK),
+            activated_anti_patterns=pick(ArtifactKind.ANTI_PATTERN),
+            activated_skills=pick(ArtifactKind.SKILL),
+            denied=self.denied,
+        )
+
+    def allow_for(self, kind: ArtifactKind) -> frozenset[str] | None:
+        """The deny-netted allow state of *kind*: ``None`` when the key is absent."""
+        value: frozenset[str] | None = getattr(self, allow_key(kind))
+        return value
+
+    def admits(self, kind: ArtifactKind, token: str, *, available: AbstractSet[str]) -> bool:
+        """Whether *token* is in the effective set of *kind* (the membership accessor, M2).
+
+        An absent "all" list admits a token of *available*; an absent "required"
+        list admits nothing beyond the floor :meth:`from_config` materialises; a
+        present list admits its own (netted) tokens. A denied token is never admitted.
+        """
+        if not self.denied_for(kind).admits(token):
+            return False
+        allow = self.allow_for(kind)
+        if allow is None:
+            return kind.effective_when_absent == "all" and token in available
+        return token in allow
+
+    def effective_ids(self, kind: ArtifactKind, available: AbstractSet[str]) -> frozenset[str]:
+        """``E(k)`` over *available*: the ids :meth:`admits` keeps."""
+        return frozenset(token for token in available if self.admits(kind, token, available=available))
+
+    @property
+    def deactivated_urns(self) -> frozenset[str]:
+        """Every denied DRG URN (the DRG filter and the cascade read these, R5)."""
+        return frozenset().union(*(deny.urns for _plural, deny in self.denied))
 
     # ------------------------------------------------------------------
     # Constructor
@@ -241,14 +327,11 @@ class PackContext:
         """
         data = _load_config(repo_root)
 
-        # --- activation source (two-file read, INV-2) -------------------
-        # Absent `charter:` pointer -> legacy/un-migrated project: activation
-        # keys are read directly from the already-loaded config.yaml mapping
-        # (unchanged pre-relocation behavior). Present pointer -> the
-        # resolved charter.yaml supplies the flat activation keys instead;
+        # --- activation source (the ledger seam, FR-017) ----------------
         # `org_pack_names`/`pack_roots` below STILL read from `data`
         # (config.yaml), never from the activation source.
-        activation = _load_charter_activation_source(repo_root, data)
+        ledger = load_activation_ledger(repo_root)
+        activation = ledger.raw()
 
         # --- activated_kinds -------------------------------------------
         activated_kinds = _read_activated_kinds(activation)
@@ -267,23 +350,28 @@ class PackContext:
         builtin_root = Path(__file__).parent.parent / "offering"
         pack_roots: tuple[Path, ...] = (builtin_root, *org_pack_roots)
 
+        # --- effective deny, computed once (FR-006, NFR-003) -------------
+        denied = load_denied(repo_root, ledger=ledger, org_roots=org_pack_roots)
+        deny = dict(denied)
+
         return cls(
             activated_kinds=activated_kinds,
             activated_mission_types=activated_mission_types,
             pack_roots=pack_roots,
             org_pack_names=org_pack_names,
             repo_root=repo_root,
-            activated_directives=_read_activated_directives(activation),
-            activated_tactics=_read_activated_tactics(activation),
-            activated_styleguides=_read_activated_styleguides(activation),
-            activated_toolguides=_read_activated_toolguides(activation),
-            activated_paradigms=_read_activated_paradigms(activation),
-            activated_procedures=_read_activated_procedures(activation),
-            activated_agent_profiles=_read_activated_agent_profiles(activation),
-            activated_mission_step_contracts=_read_activated_mission_step_contracts(activation),
-            activated_glossary_packs=_read_activated_glossary_packs(activation),
-            activated_anti_patterns=_read_activated_anti_patterns(activation),
-            activated_skills=_read_activated_skills(activation, repo_root),
+            activated_directives=_net(_read_activated_directives(activation), deny.get("directives")),
+            activated_tactics=_net(_read_activated_tactics(activation), deny.get("tactics")),
+            activated_styleguides=_net(_read_activated_styleguides(activation), deny.get("styleguides")),
+            activated_toolguides=_net(_read_activated_toolguides(activation), deny.get("toolguides")),
+            activated_paradigms=_net(_read_activated_paradigms(activation), deny.get("paradigms")),
+            activated_procedures=_net(_read_activated_procedures(activation), deny.get("procedures")),
+            activated_agent_profiles=_net(_read_activated_agent_profiles(activation), deny.get("agent_profiles")),
+            activated_mission_step_contracts=_net(_read_activated_mission_step_contracts(activation), deny.get("mission_step_contracts")),
+            activated_glossary_packs=_net(_read_activated_glossary_packs(activation), deny.get("glossary_packs")),
+            activated_anti_patterns=_net(_read_activated_anti_patterns(activation), deny.get("anti_patterns")),
+            activated_skills=_net(_read_activated_skills(activation, repo_root), deny.get("skills")),
+            denied=denied,
         )
 
 
@@ -292,19 +380,46 @@ class PackContext:
 # ---------------------------------------------------------------------------
 
 
-def _yaml_loader() -> YAML:
-    """Return a YAML parser instance (round-trip mode, preserve quotes)."""
-    yaml = YAML()
-    yaml.preserve_quotes = True
-    return yaml
+def load_denied(
+    repo_root: Path,
+    *,
+    ledger: ActivationLedger | None = None,
+    org_roots: Iterable[Path] | None = None,
+    kinds: AbstractSet[ArtifactKind] | None = None,
+) -> tuple[tuple[str, DenySet], ...]:
+    """The effective deny ``D*(k) = resolve_deny(D(k)) − R(k)`` per plural, sorted (FR-006).
+
+    The one place a reader's deny is computed (:meth:`PackContext.from_config`
+    and the readers that hold no ``PackContext`` call it). Only kinds with a
+    non-empty deny list are resolved, so a project without one reads no
+    identity index and no floor (NFR-003). The floor is read strictly: an
+    unreadable declared org pack raises :class:`ActiveCharterConfigError`, as
+    does a malformed ledger (fail closed). *kinds* narrows the resolution.
+    """
+    if ledger is None:
+        if not ledger_may_hold_deny(repo_root):
+            return ()
+        ledger = load_activation_ledger(repo_root)
+    pending = [(kind, tokens) for kind, tokens in ledger.deny if kinds is None or kind in kinds]
+    if not pending:
+        return ()
+    from charter.activation.identity_index import IdentityIndex  # noqa: PLC0415 — lazy: identity_index imports layer_roots (cycle)
+
+    roots = list(org_roots) if org_roots is not None else list(_read_org_packs(repo_root, {})[1])
+    identity = IdentityIndex.build(repo_root, org_roots=roots)
+    denied: list[tuple[str, DenySet]] = []
+    for kind, tokens in pending:
+        effective = _effective_deny(kind, tokens, read_org_required_tokens(repo_root, kind, strict=True), identity)
+        if effective:
+            denied.append((kind.plural, effective))
+    return tuple(sorted(denied, key=lambda entry: entry[0]))
 
 
-def _config_error(message: str) -> ActiveCharterConfigError:
-    return ActiveCharterConfigError(
-        f"{message}\nRemediation: fix .kittify/config.yaml (or the charter.yaml "
-        f"it points to) or run `spec-kitty upgrade` to restore the default "
-        f"active charter shape."
-    )
+def _net(ids: frozenset[str] | None, deny: DenySet | None) -> frozenset[str] | None:
+    """*ids* less the denied tokens; an absent list (``None``) stays absent. Reads only: writers derive from the ledger."""
+    if ids is None or not deny:
+        return ids
+    return frozenset(token for token in ids if deny.admits(token))
 
 
 def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -> Path | None:
@@ -329,13 +444,8 @@ def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -
     ``charter.activation.pack_manager`` (write) so pointer resolution has exactly one
     implementation (INV-5).
     """
-    pointer = config_data.get(_CHARTER_POINTER_KEY)
-    if not isinstance(pointer, str):
-        # Absent (None) OR a non-string legacy inline mapping/namespace ->
-        # no pointer to resolve; callers use the legacy config.yaml read.
-        return None
-    pointer_path = Path(pointer)
-    return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
+    # The rule itself lives in the kernel (FR-017); this keeps its importers' signature.
+    return legacy_pointer_path(repo_root, config_data.get(_CHARTER_POINTER_KEY))
 
 
 # ---------------------------------------------------------------------------
@@ -545,14 +655,14 @@ def charter_activated_urns(repo_root: Path) -> set[str]:
         Repository root containing ``.kittify/config.yaml`` (and, when
         migrated, the pointed-at ``charter.yaml``).
     """
-    data = _load_config(repo_root)
-    activation = _load_charter_activation_source(repo_root, data)
+    _load_config(repo_root)
+    ledger = load_activation_ledger(repo_root)
+    activation = ledger.raw()
+    deny = dict(load_denied(repo_root, ledger=ledger))
     urns: set[str] = set()
     for key, kind in _ACTIVATION_URN_KINDS.items():
-        entries = activation.get(key)
-        if not entries:
-            continue
-        for entry in entries:
+        entries = _net(_read_list_key(activation, key), deny.get(key.removeprefix(_ACTIVATION_KEY_PREFIX)))
+        for entry in entries or ():
             urns.add(normalize_activation_identifier(kind, str(entry)))
     return urns
 
@@ -560,23 +670,19 @@ def charter_activated_urns(repo_root: Path) -> set[str]:
 def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> dict[str, Any]:
     """Return the mapping ``_read_activated_*`` reads activation keys from.
 
-    Two-state resolution keyed on the ``charter:`` pointer (INV-2/INV-5):
-
-    * Pointer absent -> legacy/un-migrated project. Activation is read
-      directly from ``config.yaml`` (the pre-relocation behavior, preserved
-      byte-for-byte for projects that have not yet run the charter-bundle
-      migration).
-    * Pointer present -> the project has been migrated. The pointer MUST
-      resolve to a readable ``charter.yaml``; a dangling/unreadable pointer
-      is a fail-loud error (INV-5, re-homed #2530) — never a silent
-      fallback to the legacy config-embedded keys.
+    The activation ledger seam decides the source (FR-017,
+    :func:`charter.activation.activation_ledger.load_activation_ledger`): the
+    ledger when the kernel resolver says ``LEDGER``; otherwise the legacy
+    surface by today's pointer rule (pointer absent -> ``config.yaml``;
+    pointer present -> the pointed ``charter.yaml``, where a dangling or
+    unreadable pointer fails loud, INV-5 / #2530). An unmigrated project fails
+    closed naming ``spec-kitty upgrade``. The mapping is projected onto the
+    ledger keys; *data* (the caller's parsed ``config.yaml``) is no longer
+    read, the seam reads the files itself.
     """
-    charter_path = resolve_charter_yaml_pointer(repo_root, data)
-    if charter_path is None:
-        return data
-    if not charter_path.exists():
-        raise _config_error(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
-    return _read_charter_mapping(charter_path, str(charter_path), _config_error)
+    del data  # kept for the callers' signature; the seam reads the files itself
+    activation: dict[str, Any] = load_activation_ledger(repo_root).raw()
+    return activation
 
 
 def _read_charter_mapping(
@@ -586,8 +692,8 @@ def _read_charter_mapping(
 ) -> dict[str, Any]:
     """Load ``charter_path`` as a mapping, refusing anything unparseable or non-mapping.
 
-    The single parse + shape implementation behind :func:`_load_charter_activation_source`
-    and :func:`load_charter_yaml_mapping`. Any load exception (a scanner, composer or
+    The single parse + shape implementation behind :func:`load_charter_yaml_mapping` (the
+    ``charter synthesize`` soundness gate, #6415). Any load exception (a scanner, composer or
     constructor error, ``RecursionError``, an unreadable file) is an invalid charter.
     """
     try:
@@ -632,24 +738,13 @@ def load_charter_yaml_mapping(repo_root: Path, *, remediation: str | None = None
 
 
 def _load_config(repo_root: Path) -> dict[str, Any]:
-    """Read and parse ``.kittify/config.yaml``.
+    """Read and parse ``.kittify/config.yaml`` (the seam's one reader).
 
     Returns an empty dict when the file is absent. Invalid YAML or a non-mapping
     root is a hard error: activation filters must not fail open.
     """
-    config_path = repo_root / ".kittify" / "config.yaml"
-    if not config_path.exists():
-        return {}
-    try:
-        yaml = _yaml_loader()
-        raw: Any = yaml.load(config_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        raise _config_error(f"Invalid YAML in .kittify/config.yaml: {exc}") from exc
-    if raw is None:
-        return {}
-    if not isinstance(raw, dict):
-        raise _config_error(".kittify/config.yaml root must be a mapping.")
-    return dict(raw)
+    config: dict[str, Any] = load_config_yaml(repo_root)
+    return config
 
 
 def _read_list_key(data: dict[str, Any], key: str) -> frozenset[str] | None:
@@ -777,9 +872,15 @@ def explicit_activated_skills(repo_root: Path) -> frozenset[str] | None:
     Unlike :attr:`PackContext.activated_skills` this never applies the absent-key
     default (the org-required set), so a caller can tell "the project lists these
     skills" from "the org packs decide". Raises :class:`ActiveCharterConfigError` on a
-    non-list value, exactly as :meth:`PackContext.from_config` does.
+    non-list value, exactly as :meth:`PackContext.from_config` does. The list is
+    deny-netted (a denied skill is not listed; the required floor is never subtracted).
     """
-    return _read_list_key(_load_charter_activation_source(repo_root, _load_config(repo_root)), "activated_skills")
+    _load_config(repo_root)
+    ledger = load_activation_ledger(repo_root)
+    declared = _read_list_key(ledger.raw(), "activated_skills")
+    if not declared:
+        return declared
+    return _net(declared, dict(load_denied(repo_root, ledger=ledger, kinds=frozenset({ArtifactKind.SKILL}))).get(ArtifactKind.SKILL.plural))
 
 
 def _absent_key_default(kind: ArtifactKind, repo_root: Path) -> frozenset[str] | None:

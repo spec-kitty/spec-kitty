@@ -42,6 +42,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from charter.activation.activation_ledger import DenySet
 from charter.activation.catalog import OfferingCatalog, load_offering_catalog
 from charter.activation.identity_index import IdentityIndex
 from charter.activation.kind_vocabulary import ArtifactKind
@@ -220,12 +221,13 @@ class ActiveCharterService:
         kind per service; a token no layer knows but that names a delivered item is kept
         verbatim, and any other unknown token is logged (#4240) and kept best-effort.
         """
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        deny = pack_ctx.denied_for(kind) if pack_ctx is not None else DenySet.EMPTY
         if activated is None:
-            return all_items
-        cache: dict[ArtifactKind, frozenset[str]] = object.__getattribute__(self, "_activated_id_cache")
-        ids = cache.get(kind)
-        if ids is None:
-            pack_ctx: PackContext = object.__getattribute__(self, "_pack_context")
+            return {key: item for key, item in all_items.items() if deny.admits(key)} if deny else all_items
+        cache: dict[tuple[ArtifactKind, DenySet], frozenset[str]] = object.__getattribute__(self, "_activated_id_cache")
+        ids = cache.get((kind, deny))
+        if ids is None and pack_ctx is not None:
             identity = self._identity_index(pack_ctx)
             resolved: set[str] = set()
             warnings: list[str] = []
@@ -237,15 +239,13 @@ class ActiveCharterService:
             for warning in warnings:
                 _LOGGER.warning("%s", warning)
             ids = frozenset(resolved)
-            cache[kind] = ids
-        return {key: item for key, item in all_items.items() if key in ids}
+            cache[(kind, deny)] = ids
+        return {key: item for key, item in all_items.items() if key in (ids or ()) and deny.admits(key)}
 
-    def _activation_for(self, field_name: str) -> frozenset[str] | None:
+    def _activation_for(self, kind: ArtifactKind) -> frozenset[str] | None:
+        """The deny-netted allow state of *kind* (``None``: absent, or no pack context)."""
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is None:
-            return None
-        value: frozenset[str] | None = getattr(pack_ctx, field_name)
-        return value
+        return pack_ctx.allow_for(kind) if pack_ctx is not None else None
 
     # ------------------------------------------------------------------
     # Pattern B: flat catalog activation filter (paradigms, procedures)
@@ -255,13 +255,13 @@ class ActiveCharterService:
     def paradigms(self) -> dict[str, Paradigm]:
         """Return paradigms dict, filtered by ``activated_paradigms`` when set."""
         all_paradigms: dict[str, Paradigm] = {item.id: item for item in self._inner.paradigms.list_all()}
-        return self._gated(ArtifactKind.PARADIGM, all_paradigms, self._activation_for("activated_paradigms"))
+        return self._gated(ArtifactKind.PARADIGM, all_paradigms, self._activation_for(ArtifactKind.PARADIGM))
 
     @property
     def procedures(self) -> dict[str, Procedure]:
         """Return procedures dict, filtered by ``activated_procedures`` when set."""
         all_procedures: dict[str, Procedure] = {item.id: item for item in self._inner.procedures.list_all()}
-        return self._gated(ArtifactKind.PROCEDURE, all_procedures, self._activation_for("activated_procedures"))
+        return self._gated(ArtifactKind.PROCEDURE, all_procedures, self._activation_for(ArtifactKind.PROCEDURE))
 
     # ------------------------------------------------------------------
     # Pattern C: direct repository activation filter (agent_profiles)
@@ -271,7 +271,7 @@ class ActiveCharterService:
     def agent_profiles(self) -> dict[str, AgentProfile]:
         """Return agent profiles dict, filtered by ``activated_agent_profiles`` when set."""
         all_profiles: dict[str, AgentProfile] = {p.profile_id: p for p in self._inner.agent_profiles.list_all()}
-        return self._gated(ArtifactKind.AGENT_PROFILE, all_profiles, self._activation_for("activated_agent_profiles"))
+        return self._gated(ArtifactKind.AGENT_PROFILE, all_profiles, self._activation_for(ArtifactKind.AGENT_PROFILE))
 
     # ------------------------------------------------------------------
     # FR-005: six more mechanical Pattern B properties (identical filtering
@@ -291,43 +291,43 @@ class ActiveCharterService:
         become co-activated merely because their normalized spellings collide.
         """
         all_directives: dict[str, Directive] = {item.id: item for item in self._inner.directives.list_all()}
-        return self._gated(ArtifactKind.DIRECTIVE, all_directives, self._activation_for("activated_directives"))
+        return self._gated(ArtifactKind.DIRECTIVE, all_directives, self._activation_for(ArtifactKind.DIRECTIVE))
 
     @property
     def tactics(self) -> dict[str, Tactic]:
         """Return tactics dict, filtered by ``activated_tactics`` when set."""
         all_tactics: dict[str, Tactic] = {item.id: item for item in self._inner.tactics.list_all()}
-        return self._gated(ArtifactKind.TACTIC, all_tactics, self._activation_for("activated_tactics"))
+        return self._gated(ArtifactKind.TACTIC, all_tactics, self._activation_for(ArtifactKind.TACTIC))
 
     @property
     def styleguides(self) -> dict[str, Styleguide]:
         """Return styleguides dict, filtered by ``activated_styleguides`` when set."""
         all_styleguides: dict[str, Styleguide] = {item.id: item for item in self._inner.styleguides.list_all()}
-        return self._gated(ArtifactKind.STYLEGUIDE, all_styleguides, self._activation_for("activated_styleguides"))
+        return self._gated(ArtifactKind.STYLEGUIDE, all_styleguides, self._activation_for(ArtifactKind.STYLEGUIDE))
 
     @property
     def toolguides(self) -> dict[str, Toolguide]:
         """Return toolguides dict, filtered by ``activated_toolguides`` when set."""
         all_toolguides: dict[str, Toolguide] = {item.id: item for item in self._inner.toolguides.list_all()}
-        return self._gated(ArtifactKind.TOOLGUIDE, all_toolguides, self._activation_for("activated_toolguides"))
+        return self._gated(ArtifactKind.TOOLGUIDE, all_toolguides, self._activation_for(ArtifactKind.TOOLGUIDE))
 
     @property
     def mission_step_contracts(self) -> dict[str, MissionStepContract]:
         """Return mission step contracts dict, filtered by ``activated_mission_step_contracts`` when set."""
         all_contracts: dict[str, MissionStepContract] = {item.id: item for item in self._inner.mission_step_contracts.list_all()}
-        return self._gated(ArtifactKind.MISSION_STEP_CONTRACT, all_contracts, self._activation_for("activated_mission_step_contracts"))
+        return self._gated(ArtifactKind.MISSION_STEP_CONTRACT, all_contracts, self._activation_for(ArtifactKind.MISSION_STEP_CONTRACT))
 
     @property
     def glossary_packs(self) -> dict[str, GlossaryPack]:
         """Return glossary packs dict, filtered by ``activated_glossary_packs`` when set."""
         all_glossary_packs: dict[str, GlossaryPack] = {item.id: item for item in self._inner.glossary_packs.list_all()}
-        return self._gated(ArtifactKind.GLOSSARY_PACK, all_glossary_packs, self._activation_for("activated_glossary_packs"))
+        return self._gated(ArtifactKind.GLOSSARY_PACK, all_glossary_packs, self._activation_for(ArtifactKind.GLOSSARY_PACK))
 
     @property
     def skills(self) -> dict[str, PackSkill]:
         """Return pack skills dict, filtered by ``activated_skills`` when set."""
         all_skills: dict[str, PackSkill] = {item.id: item for item in self._inner.skills.list_all()}
-        return self._gated(ArtifactKind.SKILL, all_skills, self._activation_for("activated_skills"))
+        return self._gated(ArtifactKind.SKILL, all_skills, self._activation_for(ArtifactKind.SKILL))
 
     # ------------------------------------------------------------------
     # FR-001: pinned lineage/mutation accessor (NOT a gated property --
@@ -697,7 +697,7 @@ def _resolve_paradigm_base(
     silently re-route the explicit opt-out case back to the catalog default it
     exists to suppress.
     """
-    activated_paradigms = pack_ctx.activated_paradigms
+    activated_paradigms = pack_ctx.allow_for(ArtifactKind.PARADIGM)
     if activated_paradigms is None:
         base = sorted(offering_catalog.paradigms)
         diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
@@ -828,7 +828,7 @@ def _resolve_directive_base(
     local_ids = {normalize_directive_id(d.id) for d in directives_cfg.directives}
     catalog_ids = {normalize_directive_id(d) for d in offering_catalog.directives}
 
-    activated_directives = pack_ctx.activated_directives
+    activated_directives = pack_ctx.allow_for(ArtifactKind.DIRECTIVE)
     if activated_directives is None:
         base = sorted(catalog_ids)
         diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
@@ -968,9 +968,12 @@ def resolve_project_governance(
     resolved_directives, directives_source = _resolve_directives_selection(charter_config, directives_cfg, offering_catalog, pack_ctx, identity, diagnostics)
     template_set, template_set_source = _resolve_template_set_selection(charter_config, offering_catalog, fallback_template_set, diagnostics)
 
+    # FR-006 / US1.6: the effective deny applies after every union (activation
+    # base, charter selection, project-local); it never holds a required id.
+    paradigm_deny, directive_deny = pack_ctx.denied_for(ArtifactKind.PARADIGM), pack_ctx.denied_for(ArtifactKind.DIRECTIVE)
     return GovernanceResolution(
-        paradigms=selected_paradigms,
-        directives=resolved_directives,
+        paradigms=[item for item in selected_paradigms if paradigm_deny.admits(item)],
+        directives=[item for item in resolved_directives if directive_deny.admits(item)],
         tactics=[],
         styleguides=[],
         toolguides=[],

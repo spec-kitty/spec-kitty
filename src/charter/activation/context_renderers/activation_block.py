@@ -89,7 +89,9 @@ def _read_org_activations(repo_root: Path) -> list[ActivationEntry]:
     from charter.activation.context import _iter_org_charter_docs  # noqa: PLC0415 — breaks a load-time cycle (see module docstring)
 
     entries: list[ActivationEntry] = []
-    for name, raw in _iter_org_charter_docs(repo_root):
+    for name, member, raw in _iter_org_charter_docs(repo_root):
+        if member != name:  # each pack's own document once; extends: members are read where declared
+            continue
         value = raw.get("activations")
         if not isinstance(value, list):
             continue

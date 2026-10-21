@@ -364,14 +364,22 @@ def _resolve_activated_urns_by_kind(
     return {
         node_kind: _resolve_activated_urns_for_kind(
             node_kind,
-            getattr(pack_context, per_kind_field, None),
+            pack_context.allow_for(ArtifactKind(node_kind)),
             offering_root=offering_root,
             org_roots=org_roots,
             layer_roots={"project": project_pack_root(pack_context.repo_root)},
             identity=identity,
         )
-        for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
+        for node_kind in _SINGULAR_TO_PER_KIND_FIELD
     }
+
+
+def _admitted_by_deny(node_kind: str, artifact_id: str, pack_context: PackContext) -> bool:
+    """Whether the node ``<node_kind>:<artifact_id>`` survives its kind's effective deny (bare id or URN)."""
+    if node_kind not in _SINGULAR_TO_PER_KIND_FIELD:
+        return True
+    deny = pack_context.denied_for(ArtifactKind(node_kind))
+    return deny.admits(artifact_id) and deny.admits(f"{node_kind}:{artifact_id}")
 
 
 def _node_is_activated(
@@ -399,6 +407,9 @@ def _node_is_activated(
 
     Decision tree:
 
+    0. Effective deny (FR-006, P6): a node whose bare id or URN is in its
+       kind's :meth:`PackContext.denied_for` is dropped, before every other
+       step (including the mission-type return of step 1).
     1. Mission-step contract nodes (``mission_step_contract:<owner>/<id>``):
        activated iff the recovered owner mission type is in
        ``activated_mission_types``. Steps that cannot be owner-attributed
@@ -416,6 +427,11 @@ def _node_is_activated(
        artifact id). An empty *artifact_id* (malformed URN) bypasses this
        gate (default-allow).
     """
+    # Step 0: the effective deny (FR-006, P6), before the mission-type early
+    # return so a denied mission-step contract is dropped too.
+    if pack_context.denied and artifact_id and not _admitted_by_deny(node_kind, artifact_id, pack_context):
+        return False
+
     # Step 1: mission-step contract kind check.
     if node_kind in _MISSION_STEP_SINGULAR_KINDS:
         # Reconstruct the URN to reuse _owning_mission_type which expects a full URN.

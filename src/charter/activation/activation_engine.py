@@ -44,7 +44,12 @@ Charter layer: this module may import ``doctrine`` and ``kernel`` but never
 are passed in **as data** (C-008); this module performs no filesystem
 discovery and no ``config.yaml`` load of its own. The single write in
 :func:`commit_plan` delegates to the caller-supplied ``save`` callable so the
-engine stays free of an I/O dependency on ``pack_manager`` internals.
+engine stays free of an I/O dependency on ``pack_manager`` internals. The one
+read it makes is the effective deny of :func:`promote_activations`, through the
+activation ledger seam (:func:`charter.activation.pack_context.load_denied`,
+imported lazily), so no promotion caller can forget the required floor or apply
+a legacy deny key. :func:`plan_activation` / :func:`plan_deactivation` take the
+stored deny-list as data (``current_deny``), never from the write-target mapping.
 
 FR-021 (backward compatibility)
 -------------------------------
@@ -55,30 +60,45 @@ corpus (the resolver's own view, falling back to the available one) into the
 plan first, then appends the requested ID, and records an initialization warning
 naming how many artifacts it preserved. Before #4253 it materialized a
 narrower shipped list instead, which turned a single activation into a silent
-deactivation of everything outside it. Deactivation against a ``None``-state
-kind is reported as a structured :class:`NoActivationRestrictionsError` (the CLI
-surfaces the "activate one first" guidance) rather than silently fabricating a
-list.
+deactivation of everything outside it.
+
+Deny-lists (ADR 2026-10-19-1)
+-----------------------------
+A plan carries the allow **and** the deny state of one kind, so the
+:func:`commit_plan` write stays single. Deactivation records an exclusion in
+``deactivated_<plural>`` (also under "absent = all"), after the one refusal
+seam :func:`check_deactivation_permitted` (an org-required id raises
+:class:`RequiredArtifactDeactivationError`). Activation clears the id's
+exclusion; promotion never re-adds an effective-denied id
+(:attr:`PromotionOutcome.skipped_denied`).
 """
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from charter.activation.activation_ledger import DenyListChoice, DenySet
 from charter.offering.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from charter.activation.org_pack_discovery import RequiringPack
+
 __all__ = [
     "NARROW_UNRESOLVED_WARNING",
     "ActivationPlan",
+    "DeactivationRefused",
     "EffectiveSet",
-    "NoActivationRestrictionsError",
+    "RequiredArtifactDeactivationError",
     "UnknownActivationIdError",
+    "check_deactivation_permitted",
     "commit_plan",
+    "deny_delta",
     "plan_activation",
     "plan_deactivation",
     "promote_activations",
@@ -110,41 +130,45 @@ class UnknownActivationIdError(ValueError):
         )
 
 
-class NoActivationRestrictionsError(RuntimeError):
-    """Raised when deactivating a kind that has no explicit activation set.
+class DeactivationRefused(ValueError):
+    """Abstract: a deactivation the project's policy does not permit (ADR 2026-10-19-1 Decision 6).
 
-    A kind with no explicit activation set (the YAML key is absent) has no
-    known baseline, so removing a single ID would be unsafe. The operator must
-    materialize the list first. Replaces the legacy ``sys.exit(1)`` in
-    ``pack_manager.deactivate`` so the engine never touches process state
-    (the CLI surfaces the guidance).
+    ``reason`` names the policy (``"required"`` today; a later ``"locked"``
+    mutability level joins here). Only subclasses are raised.
     """
 
-    def __init__(self, kind: str) -> None:
+    def __init__(self, kind: str, artifact_id: str, reason: str, message: str) -> None:
+        if type(self) is DeactivationRefused:
+            raise TypeError("DeactivationRefused is abstract; raise a subclass")
         self.kind = kind
-        super().__init__(_no_restrictions_message(kind))
+        self.artifact_id = artifact_id
+        self.reason = reason
+        super().__init__(message)
 
 
-def _no_restrictions_message(kind: str) -> str:
-    """Return the operator remedy for deactivating a kind with no explicit set.
+class RequiredArtifactDeactivationError(DeactivationRefused):
+    """An org pack requires the artifact, so it cannot be deactivated (FR-007, US4.1)."""
 
-    An absent key is never seeded by ``spec-kitty upgrade`` (absent already
-    means "everything effective"), so the
-    remedy is the step that actually materializes the list: one explicit
-    activation, which seeds the full effective set first, or an explicit list.
-    A kind whose absent key means "required only" (see
-    :attr:`ArtifactKind.effective_when_absent`) says which entries are in force.
-    """
-    try:
-        required_only = ArtifactKind.from_operator_token(kind).effective_when_absent == "required"
-    except ValueError:
-        required_only = False
-    in_force = " (only org-required entries are in force)" if required_only else ""
-    return (
-        f"Kind {kind!r} has no explicit activation set{in_force}. "
-        f"Activate one first with `spec-kitty charter activate {kind} <id>`, or set the list explicitly in "
-        "`.kittify/config.yaml`, before deactivating individual entries."
-    )
+    def __init__(self, kind: str, artifact_id: str, policy_key: str, requiring: tuple[RequiringPack, ...]) -> None:
+        self.policy_key = policy_key
+        self.requiring = requiring
+        noun = "org pack" if len(requiring) == 1 else "org packs"
+        packs = ", ".join(entry.describe() for entry in requiring)
+        super().__init__(
+            kind, artifact_id, "required", f"Cannot deactivate {kind} {artifact_id!r}: required by {noun} {packs} ({policy_key}). Nothing was recorded."
+        )
+
+
+def _policy_key(kind: str) -> str:
+    """``required_<plural>`` of an operator kind token."""
+    return f"required_{ArtifactKind.from_operator_token(kind).plural}"
+
+
+def check_deactivation_permitted(kind: str, artifact_id: str, required_by: Mapping[str, tuple[RequiringPack, ...]]) -> None:
+    """The one refusal seam (Decision 6): raise when *artifact_id* is in the required floor *required_by*."""
+    requiring = required_by.get(artifact_id)
+    if requiring:
+        raise RequiredArtifactDeactivationError(kind, artifact_id, _policy_key(kind), tuple(requiring))
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +192,8 @@ class ActivationPlan:
         The resolved ``config.yaml`` key the plan targets (e.g.
         ``"activated_directives"``).
     new_list:
-        The post-state list to write for ``yaml_key``.
+        The post-state list to write for ``yaml_key``; ``None`` leaves the
+        allow state as it is (an absent list stays absent).
     warnings:
         Operator-facing warnings (effective-set initialization, no-cascade
         skipped references (FR-013), mission-type step removal). The CLU/CLI
@@ -182,14 +207,27 @@ class ActivationPlan:
     deactivated:
         IDs removed by this plan (empty for an activation plan or a no-op
         removal).
+    deny_key:
+        The ``deactivated_<plural>`` key the plan changes, or ``None`` when the
+        deny-list is untouched.
+    new_deny_list:
+        The post-state deny-list for ``deny_key`` (``[]`` removes the key).
+    deny_change:
+        The explicit choice that authorises the deny change (FR-014).
+    noop:
+        ``True`` when the plan changes nothing (the caller writes nothing).
     """
 
     yaml_key: str
-    new_list: list[str]
+    new_list: list[str] | None
     warnings: list[str] = field(default_factory=list)
     cascade_targets: dict[str, list[str]] = field(default_factory=dict)
     activated: list[str] = field(default_factory=list)
     deactivated: list[str] = field(default_factory=list)
+    deny_key: str | None = None
+    new_deny_list: list[str] | None = None
+    deny_change: DenyListChoice | None = None
+    noop: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +256,66 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
     if not isinstance(raw, list):
         raise ValueError(f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}.")
     return [str(item) for item in raw]
+
+
+def _deny_list(deny_key: str | None, current_deny: Iterable[str]) -> list[str]:
+    """The caller-supplied deny-list of *deny_key* (``[]`` for a kind without one).
+
+    The deny-list always comes from the activation ledger seam, never from the
+    write-target mapping (on a legacy source that mapping may hold a
+    hand-written ``deactivated_<kind>`` key, which is never applied; FR-017).
+    """
+    if deny_key is None:
+        return []
+    return [str(item) for item in current_deny]
+
+
+def _deny_key_for(yaml_key: str) -> str | None:
+    """``deactivated_<plural>`` for an ``activated_<plural>`` key; ``None`` for a non-kind key."""
+    plural = yaml_key.removeprefix("activated_")
+    if plural == yaml_key or plural == "kinds":
+        return None
+    try:
+        kind = ArtifactKind.from_plural(plural)
+    except ValueError:
+        return None
+    return f"deactivated_{plural}" if kind.activatable else None
+
+
+def deny_delta(before: Iterable[str] | None, after: Iterable[str] | None) -> tuple[list[str], list[str]]:
+    """``(added, cleared)`` between two deny-lists, sorted; ``None`` reads as empty (R11)."""
+    old, new = set(before or ()), set(after or ())
+    return sorted(new - old), sorted(old - new)
+
+
+def _with_deny(plan: ActivationPlan, deny_key: str | None, deny: list[str], cleared: str, choice: DenyListChoice) -> ActivationPlan:
+    """*plan* with *cleared* taken off the deny-list, when it was on it (an explicit activation)."""
+    if deny_key is None or cleared not in deny:
+        return plan
+    return dataclasses.replace(plan, deny_key=deny_key, new_deny_list=[item for item in deny if item != cleared], deny_change=choice)
+
+
+def _materialise_absent(
+    kind: str,
+    effective_ids: Iterable[str],
+    available_ids: Iterable[str],
+    *,
+    effective_when_absent: str,
+    in_force: bool,
+    exclude: AbstractSet[str],
+) -> tuple[list[str], list[str]]:
+    """What an absent list materialises (#4253), less the effective-denied ids; ``(ids, warnings)``."""
+    materialized = [item for item in dict.fromkeys(effective_ids) if item not in exclude]
+    if not materialized and effective_when_absent == "all":
+        materialized = [item for item in dict.fromkeys(available_ids) if item not in exclude]
+    warnings: list[str] = []
+    if in_force:
+        warnings.append(
+            f"Kind {kind!r} had no explicit activation set. "
+            f"Initialized from the {len(materialized)} artifact(s) already effective, "
+            "so nothing in force was deactivated." + FROZEN_LIST_NOTE
+        )
+    return materialized, warnings
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +359,10 @@ def plan_activation(
     cascade_scope: Any = None,  # noqa: ANN401
     narrow_base: Iterable[str] | None = None,
     previous_ids: Iterable[str] = (),
+    deny_key: str | None = None,
+    current_deny: Iterable[str] = (),
+    deny_change: DenyListChoice = DenyListChoice.ACTIVATE,
+    effective_deny: AbstractSet[str] = frozenset(),
 ) -> ActivationPlan:
     """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
 
@@ -327,6 +429,20 @@ def plan_activation(
         What was in force before a narrowing, in the same spelling as
         *narrow_base*. ``deactivated`` reports every one that is not in the new
         list. Ignored unless *narrow_base* is given.
+    deny_key:
+        The kind's ``deactivated_<plural>`` key (``None``: the kind has no
+        deny-list). When *artifact_id* is on *current_deny*, the plan clears
+        it with *deny_change*; under an absent "all" list the plan is deny-only
+        and the allow list stays absent (D-09).
+    current_deny:
+        The kind's stored deny-list, read by the caller through the activation
+        ledger seam (``ActivationLedger.deny_for``; empty on a legacy source).
+        It is never read from *config_data*: a hand-written legacy
+        ``deactivated_<kind>`` key is reported, never applied (FR-017).
+    deny_change:
+        The explicit choice recorded for a cleared exclusion.
+    effective_deny:
+        ``D*`` in stem spelling: left out of an absent-list materialisation.
 
     Returns
     -------
@@ -351,48 +467,35 @@ def plan_activation(
 
     # Fail closed on a malformed (non-list) value on every path, narrowing included.
     current = _current_list(config_data, yaml_key)
+    deny = _deny_list(deny_key, current_deny)
 
     if narrow_base is not None:
-        return plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids)
+        return _with_deny(plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids), deny_key, deny, artifact_id, deny_change)
+
+    if current is None and effective_when_absent == "all" and artifact_id in deny:
+        # D-09: clearing the exclusion is enough; materialising would freeze the list.
+        plan = ActivationPlan(
+            yaml_key=yaml_key,
+            new_list=None,
+            activated=[artifact_id],
+            warnings=[f"Kind {kind!r} keeps no explicit activation set, so artifacts shipped later stay active."],
+        )
+        return _with_deny(plan, deny_key, deny, artifact_id, deny_change)
 
     warnings: list[str] = []
-
-    was_unrestricted = current is None
-    if current is None:  # the UNRESTRICTED state; narrows `current` for the else branch
+    if current is None:
         # #4253: an absent key is the UNRESTRICTED state — every EFFECTIVE
-        # artifact is in force, which is strictly wider than any shipped
-        # list. Materializing such a list here therefore did not merely
-        # "initialize" the set: it silently DEACTIVATED every effective
-        # artifact outside it (observed: 15 directives and 11
-        # procedures, including adversarial-squad-deployment, lost on a
-        # single unrelated activation).
-        #
-        # ``effective_ids`` is the resolver's OWN view of what is in force —
-        # read from the activation-aware doctrine service by the caller. It
-        # is the right source for two reasons the #4399 squad round found by
-        # execution: it spans the full declared org chain (``list_available``
-        # is handed a root map that deliberately truncates to org pack #1),
-        # and it is already in the keyspace the resolver filters on (Pattern
-        # B/C kinds such as procedures match a declared ``id:``, so a set
-        # written as filename stems is filtered straight back out). Falling
-        # back to ``available_ids`` keeps a caller that cannot build a
-        # service — or a kind the service does not expose — behaving as it
-        # did before.
-        materialized = list(dict.fromkeys(effective_ids))
-        if not materialized and effective_when_absent == "all":
-            materialized = list(dict.fromkeys(available_ids))
-        if effective_ids_in_force:
-            warnings.append(
-                f"Kind {kind!r} had no explicit activation set. "
-                f"Initialized from the {len(materialized)} artifact(s) already effective, "
-                "so nothing in force was deactivated." + FROZEN_LIST_NOTE
-            )
-        new_list = list(materialized)
+        # artifact is in force. ``effective_ids`` is the resolver's own view
+        # (it spans the full org chain and the keyspace the resolver filters
+        # on); ``available_ids`` is the fallback. Effective-denied ids stay out.
+        new_list, warnings = _materialise_absent(
+            kind, effective_ids, available_ids, effective_when_absent=effective_when_absent, in_force=effective_ids_in_force, exclude=effective_deny - {artifact_id}
+        )
     else:
         new_list = list(current)
 
     activated: list[str] = []
-    if artifact_id in new_list and not was_unrestricted:
+    if artifact_id in new_list and current is not None:
         warnings.append(f"{artifact_id!r} is already activated for kind {kind!r}.")
     else:
         # From the unrestricted state the artifact was effective only
@@ -402,12 +505,8 @@ def plan_activation(
             new_list.append(artifact_id)
         activated.append(artifact_id)
 
-    return ActivationPlan(
-        yaml_key=yaml_key,
-        new_list=new_list,
-        warnings=warnings,
-        activated=activated,
-    )
+    plan = ActivationPlan(yaml_key=yaml_key, new_list=new_list, warnings=warnings, activated=activated)
+    return _with_deny(plan, deny_key, deny, artifact_id, deny_change)
 
 
 def plan_deactivation(
@@ -416,64 +515,60 @@ def plan_deactivation(
     *,
     yaml_key: str,
     config_data: Mapping[str, Any],
+    available_ids: Iterable[str],
+    required_by: Mapping[str, tuple[RequiringPack, ...]],
+    deny_key: str | None,
+    current_deny: Iterable[str] = (),
+    record_exclusion: bool = True,
+    also_matches: Iterable[str] = (),
     cascade_scope: Any = None,  # noqa: ANN401
 ) -> ActivationPlan:
-    """Compute the post-state for deactivating *artifact_id* — purely.
+    """Compute the post-state for deactivating *artifact_id* — purely (FR-007, data-model.md §3).
 
-    Mirrors :func:`plan_activation` on the removal side. A kind with no explicit
-    activation set has no known baseline, so this raises
-    :class:`NoActivationRestrictionsError` (no write) instead of fabricating a
-    list. Removing an ID that is not present is a no-op plan (the ``new_list``
-    equals the current list) with an explanatory warning.
-
-    Parameters
-    ----------
-    kind:
-        CLI kind token, used only for error/warning text.
-    artifact_id:
-        The config-stem artifact ID to deactivate.
-    yaml_key:
-        Resolved ``config.yaml`` key for *kind*.
-    config_data:
-        The already-loaded ``config.yaml`` mapping (read-only here).
-    cascade_scope:
-        Reserved for the WP11 cascade engine; threaded but not consumed here.
-
-    Returns
-    -------
-    ActivationPlan
-        The full in-memory post-state.
+    In order: the refusal seam (:func:`check_deactivation_permitted`; an id the
+    required floor *required_by* lists raises), the unknown id (neither
+    available, listed nor already denied: :class:`UnknownActivationIdError`),
+    then the plan.
+    *artifact_id* is removed from a present allow list (with any spelling in
+    *also_matches*) and, with *record_exclusion*, added to the deny-list under
+    :attr:`DenyListChoice.DEACTIVATE` — also when the allow list is absent
+    ("absent = all"), which the allow list alone cannot express. An id that is
+    already denied is a flagged no-op with a warning. A cascade child
+    (*record_exclusion* ``False``) only loses its allow entry (D-11).
 
     Raises
     ------
-    NoActivationRestrictionsError
-        If *kind* has no explicit activation set (``yaml_key`` absent).
+    RequiredArtifactDeactivationError
+        If an org pack requires *artifact_id*.
+    UnknownActivationIdError
+        If *artifact_id* is neither available, in the allow list nor denied.
     ValueError
         If ``config_data[yaml_key]`` is present but not a list.
     """
-    # Preserve the typed cascade contract at this seam even though this pure
-    # planner does not branch on it yet.
     _ = cascade_scope
+    check_deactivation_permitted(kind, artifact_id, required_by)
     current = _current_list(config_data, yaml_key)
-    if current is None:
-        raise NoActivationRestrictionsError(kind)
+    deny = _deny_list(deny_key, current_deny)
+    spellings = {artifact_id, *also_matches}
+    if artifact_id not in set(available_ids) and not spellings & {*(current or ()), *deny}:
+        raise UnknownActivationIdError(kind, artifact_id)
 
-    warnings: list[str] = []
-    new_list = list(current)
-    deactivated: list[str] = []
+    records = record_exclusion and deny_key is not None
+    if records and artifact_id in deny:
+        return ActivationPlan(
+            yaml_key=yaml_key, new_list=current, noop=True, warnings=[f"{artifact_id!r} is already deactivated for kind {kind!r}. Nothing was recorded."]
+        )
 
-    if artifact_id in new_list:
-        new_list.remove(artifact_id)
-        deactivated.append(artifact_id)
-    else:
-        warnings.append(f"{artifact_id!r} is not in the activation set for kind {kind!r}. Nothing to deactivate.")
+    removed = [item for item in current or () if item in spellings]
+    new_list = None if current is None else [item for item in current if item not in spellings]
+    if not removed and not records:
+        warning = f"{artifact_id!r} is not in the activation set for kind {kind!r}. Nothing to deactivate."
+        return ActivationPlan(yaml_key=yaml_key, new_list=current, noop=True, warnings=[warning])
 
-    return ActivationPlan(
-        yaml_key=yaml_key,
-        new_list=new_list,
-        warnings=warnings,
-        deactivated=deactivated,
-    )
+    plan = ActivationPlan(yaml_key=yaml_key, new_list=new_list, deactivated=[artifact_id])
+    if not records:
+        return plan
+    return dataclasses.replace(plan, deny_key=deny_key, new_deny_list=sorted({*deny, artifact_id}), deny_change=DenyListChoice.DEACTIVATE)
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +581,7 @@ def commit_plan(
     config_data: dict[str, Any],
     plan: ActivationPlan,
     *,
-    save: Callable[[Path, dict[str, Any]], None],
+    save: Callable[..., None],
 ) -> ActivationPlan:
     """Apply *plan* to *config_data* and persist it with a single write.
 
@@ -502,20 +597,31 @@ def commit_plan(
         Destination ``config.yaml`` path (passed through to ``save``).
     config_data:
         The mutable config mapping; ``plan.yaml_key`` is assigned
-        ``plan.new_list`` in place before the write.
+        ``plan.new_list`` (unless ``None``) and ``plan.deny_key`` its new
+        deny-list (an empty one removes the key) in place before the write.
     plan:
         The plan produced by :func:`plan_activation` / :func:`plan_deactivation`.
     save:
         Single-write callable, e.g. ``functools.partial(_save_config,
-        yaml=yaml_inst)`` from ``pack_manager``.
+        yaml=yaml_inst)`` from ``pack_manager``. Called as ``save(path, data)``,
+        plus ``deny_change=`` when the plan changes a deny-list.
 
     Returns
     -------
     ActivationPlan
         The committed plan (returned for convenient result chaining).
     """
-    config_data[plan.yaml_key] = list(plan.new_list)
-    save(config_path, config_data)
+    if plan.new_list is not None:
+        config_data[plan.yaml_key] = list(plan.new_list)
+    if plan.deny_key is not None:
+        if plan.new_deny_list:
+            config_data[plan.deny_key] = sorted(set(plan.new_deny_list))
+        else:
+            config_data.pop(plan.deny_key, None)
+    if plan.deny_change is None:
+        save(config_path, config_data)
+    else:
+        save(config_path, config_data, deny_change=plan.deny_change)
     return plan
 
 
@@ -577,10 +683,21 @@ class PromotionOutcome:
     left_absent:
         ``yaml_key`` -> reason for every absent key whose effective set was
         unresolved: nothing was written for it and the caller reports it.
+    skipped_denied:
+        ``yaml_key`` -> the effective-denied ids the promotion left out
+        (promotion never re-adds an excluded id; FR-009).
     """
 
     committed: list[ActivationPlan] = field(default_factory=list)
     left_absent: dict[str, str] = field(default_factory=dict)
+    skipped_denied: dict[str, list[str]] = field(default_factory=dict)
+
+    def skipped_denied_messages(self) -> list[str]:
+        """One warning per key whose promotion skipped effective-denied ids (FR-009)."""
+        return [
+            f"{yaml_key}: skipped {', '.join(repr(item) for item in ids)}: deactivated; run `spec-kitty charter activate` to reinstate."
+            for yaml_key, ids in self.skipped_denied.items()
+        ]
 
     def left_absent_messages(self) -> list[str]:
         """One operator-facing line per left-absent key, the same wording for every caller."""
@@ -601,6 +718,7 @@ def _plan_promotion(
     config_data: Mapping[str, Any],
     effective: EffectiveSet | None,
     narrow_base: Sequence[str] | None = None,
+    denied: DenySet = DenySet.EMPTY,
 ) -> ActivationPlan | str:
     """Compute the append-only post-state for promoting *ids* into *yaml_key*.
 
@@ -616,7 +734,8 @@ def _plan_promotion(
     bare list into it would narrow that to "only these ids", so an absent key is
     seeded from *effective* (sorted, deterministic) before *ids* are appended.
     When *effective* is missing or unresolved, no plan is produced: the reason
-    is returned instead and the key stays absent (fail closed).
+    is returned instead and the key stays absent (fail closed). Ids in
+    *denied* (``D*``) are neither seeded nor appended.
     """
     current = _current_list(config_data, yaml_key)
     warnings: list[str] = []
@@ -624,7 +743,7 @@ def _plan_promotion(
     if narrow_base is not None:
         resolved = effective is not None and effective.resolved
         previous = current if current is not None else sorted(effective.ids) if effective is not None and resolved else []
-        plan = plan_narrowed_list(yaml_key, ids, narrow_base, previous)
+        plan = plan_narrowed_list(yaml_key, [item for item in ids if denied.admits(item)], narrow_base, previous)
         if current is None and not resolved:
             plan.warnings.append(NARROW_UNRESOLVED_WARNING)
         return plan
@@ -632,7 +751,7 @@ def _plan_promotion(
     if current is None:
         if effective is None or not effective.resolved:
             return (effective.reason if effective is not None else None) or _NO_EFFECTIVE_SET
-        new_list = sorted(effective.ids)
+        new_list = sorted(item for item in effective.ids if denied.admits(item))
         warnings.append(
             f"Key {yaml_key!r} had no explicit activation set. Preserved {len(new_list)} effective entries before promotion (absent-key parity)." + FROZEN_LIST_NOTE
         )
@@ -641,6 +760,8 @@ def _plan_promotion(
 
     activated: list[str] = []
     for artifact_id in dict.fromkeys(ids):
+        if not denied.admits(artifact_id):
+            continue
         if artifact_id in new_list:
             warnings.append(f"{artifact_id!r} is already activated for key {yaml_key!r}.")
         else:
@@ -663,6 +784,8 @@ def promote_activations(
     save: Callable[[Path, dict[str, Any]], None],
     effective_sets: Mapping[str, EffectiveSet],
     narrow_bases: Mapping[str, Sequence[str]] | None = None,
+    repo_root: Path | None = None,
+    denied: Mapping[str, DenySet] | None = None,
 ) -> PromotionOutcome:
     """Promote an arbitrary ``{yaml_key: [config-stem ids]}`` set, append-only.
 
@@ -709,6 +832,19 @@ def promote_activations(
         written as that base plus its promoted ids (replacing any present list,
         never reading its effective set); the plan's ``deactivated`` names what
         stopped being in force. ``None`` (default) keeps append-only behaviour.
+    repo_root:
+        The project whose effective deny ``D*`` (deny less the org required
+        floor, in identity space) the promotion honours. ``D*`` is derived
+        here, through the activation ledger seam
+        (:func:`charter.activation.pack_context.load_denied`), never from
+        *config_data*: a legacy source holds no applied deny (FR-017) and a
+        stale deny of a required id is inert (FR-006). Defaults to the project
+        that holds *config_path* (the parent of its ``.kittify`` ancestor). An
+        id in ``D*`` is skipped and reported in
+        :attr:`PromotionOutcome.skipped_denied`; a deny-list is never changed.
+    denied:
+        ``yaml_key`` -> an already-derived ``D*``, replacing the seam read
+        (pure callers and tests).
 
     Returns
     -------
@@ -716,16 +852,63 @@ def promote_activations(
         The committed plans and the keys left absent, with their reasons.
     """
     outcome = PromotionOutcome()
+    effective_denied = denied if denied is not None else _seam_deny(repo_root if repo_root is not None else _owning_project(config_path), promotions)
     for yaml_key, ids in promotions.items():
+        ids = list(ids)
+        effective = effective_sets.get(yaml_key)
+        key_denied = effective_denied.get(yaml_key, DenySet.EMPTY)
         plan = _plan_promotion(
             yaml_key,
             ids,
             config_data=config_data,
-            effective=effective_sets.get(yaml_key),
+            effective=effective,
             narrow_base=narrow_bases.get(yaml_key) if narrow_bases is not None else None,
+            denied=key_denied,
         )
         if isinstance(plan, str):
             outcome.left_absent[yaml_key] = plan
             continue
+        skipped = _skipped_ids(key_denied, ids, effective, seeded=_current_list(config_data, yaml_key) is None)
+        if skipped:
+            outcome.skipped_denied[yaml_key] = skipped
         outcome.committed.append(commit_plan(config_path, config_data, plan, save=save))
     return outcome
+
+
+def _owning_project(config_path: Path) -> Path | None:
+    """The project root holding *config_path* (the parent of its nearest ``.kittify`` ancestor), else ``None``."""
+    for parent in config_path.parents:
+        if parent.name == ".kittify":
+            return parent.parent
+    return None
+
+
+def _promoted_kinds(promotions: Iterable[str]) -> frozenset[ArtifactKind]:
+    """The activatable kinds of the promoted ``activated_<plural>`` keys (non-kind keys have no deny-list)."""
+    kinds: set[ArtifactKind] = set()
+    for yaml_key in promotions:
+        if _deny_key_for(yaml_key) is not None:
+            kinds.add(ArtifactKind.from_plural(yaml_key.removeprefix("activated_")))
+    return frozenset(kinds)
+
+
+def _seam_deny(repo_root: Path | None, promotions: Iterable[str]) -> dict[str, DenySet]:
+    """``yaml_key`` -> ``D*`` of the promoted kinds, through the activation ledger seam (one place, FR-006/FR-017).
+
+    ``{}`` without a project or without a promoted kind; the seam itself reads
+    nothing more when no deny-list is recorded (NFR-003).
+    """
+    kinds = _promoted_kinds(promotions)
+    if repo_root is None or not kinds:
+        return {}
+    from charter.activation.pack_context import load_denied  # lazy: pack_context imports the activation layer
+
+    return {f"activated_{plural}": deny for plural, deny in load_denied(repo_root, kinds=kinds)}
+
+
+def _skipped_ids(denied: DenySet, ids: Iterable[str], effective: EffectiveSet | None, *, seeded: bool) -> list[str]:
+    """The denied ids a promotion would have written: promoted ones, and seeded ones for an absent key."""
+    if not denied:
+        return []
+    candidates = set(ids) | (set(effective.ids) if seeded and effective is not None and effective.resolved else set())
+    return sorted(item for item in candidates if not denied.admits(item))

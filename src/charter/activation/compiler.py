@@ -14,8 +14,10 @@ from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, TypedDict
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.activation_ledger import DenySet, resolve_ledger_source
 from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
 from charter.activation._io import load_charter_file
+from kernel.activation_ledger_store import ActivationSource
 from kernel.charter_pack_paths import project_pack_root
 from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
@@ -65,7 +67,6 @@ __all__ = [
     "WholeKindUnresolvedError",
     "WriteBundleResult",
     "compile_charter",
-    "default_preset_mission_types",
     "provision_mission_type_activations",
     "resolve_config_activated_roots",
     "write_compiled_charter",
@@ -132,18 +133,13 @@ class ConfigActivatedRoots:
     agent_profiles: list[str]
 
 
-#: The ``PackContext`` per-artifact activation fields this compiler resolves.
-#: Used to decide whether a project is "configured" (activates at least one
-#: kind) for the FR-018 absence-is-empty delivery rule in
+#: The activatable kinds this compiler resolves roots for: one per
+#: :class:`ConfigActivatedRoots` field, derived from :class:`ArtifactKind`
+#: (C-004). Used to decide whether a project is "configured" (activates at
+#: least one kind) for the FR-018 absence-is-empty delivery rule in
 #: :func:`_resolve_config_activated_roots`.
-_CONFIG_ACTIVATION_FIELDS: tuple[str, ...] = (
-    "activated_directives",
-    "activated_paradigms",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_procedures",
-    "activated_agent_profiles",
+_CONFIG_ACTIVATION_KINDS: tuple[ArtifactKind, ...] = tuple(
+    kind for kind in ArtifactKind if kind.activatable and kind.plural in ConfigActivatedRoots.__dataclass_fields__
 )
 
 
@@ -155,6 +151,7 @@ def _resolve_config_activated_ids(
     fallback_ids: frozenset[str],
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
+    deny: DenySet = DenySet.EMPTY,
 ) -> list[str]:
     """Resolve ``config.activated_<kind>`` stems to bare canonical DRG ids.
 
@@ -179,14 +176,17 @@ def _resolve_config_activated_ids(
     :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) rather than being
     silently dropped -- this closes the C-006 silent-drop vector that
     ``_sanitize_catalog_selection`` left open for the answers-sourced path.
+
+    *deny* (the kind's effective deny) is subtracted last, so the all-built-ins
+    fallback never delivers a deactivated id (FR-006).
     """
     if activated_stems is None:
-        return sorted(fallback_ids)
+        return sorted(item for item in fallback_ids if deny.admits(item))
 
     resolved = {
         resolve_artifact_urn(kind, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
     }
-    return sorted(resolved)
+    return sorted(item for item in resolved if deny.admits(item))
 
 
 def _resolve_config_activated_roots(
@@ -207,15 +207,18 @@ def _resolve_config_activated_roots(
     # per-artifact activation at all -- a scaffold with no charter) keeps the
     # all-built-ins convenience default, which is not a per-project delivery
     # boundary.
-    project_configured = pack_context is not None and any(getattr(pack_context, field) is not None for field in _CONFIG_ACTIVATION_FIELDS)
+    project_configured = pack_context is not None and any(pack_context.allow_for(kind) is not None for kind in _CONFIG_ACTIVATION_KINDS)
 
-    def _stems(field_name: str) -> frozenset[str] | None:
+    def _stems(kind: ArtifactKind) -> frozenset[str] | None:
         if pack_context is None:
             return None
-        value: frozenset[str] | None = getattr(pack_context, field_name)
+        value: frozenset[str] | None = pack_context.allow_for(kind)
         if value is None and project_configured:
             return frozenset()
         return value
+
+    def _deny(kind: ArtifactKind) -> DenySet:
+        return pack_context.denied_for(kind) if pack_context is not None else DenySet.EMPTY
 
     # ``pack_context.pack_roots`` is ``(builtin_root, *org_pack_roots)``
     # (``PackContext.from_config``); the built-in root is already threaded
@@ -230,59 +233,66 @@ def _resolve_config_activated_roots(
         return ConfigActivatedRoots(
             directives=_resolve_config_activated_ids(
                 ArtifactKind.DIRECTIVE,
-                _stems("activated_directives"),
+                _stems(ArtifactKind.DIRECTIVE),
                 offering_root=offering_root,
                 fallback_ids=catalog.directives,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.DIRECTIVE),
             ),
             paradigms=_resolve_config_activated_ids(
                 ArtifactKind.PARADIGM,
-                _stems("activated_paradigms"),
+                _stems(ArtifactKind.PARADIGM),
                 offering_root=offering_root,
                 fallback_ids=catalog.paradigms,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.PARADIGM),
             ),
             tactics=_resolve_config_activated_ids(
                 ArtifactKind.TACTIC,
-                _stems("activated_tactics"),
+                _stems(ArtifactKind.TACTIC),
                 offering_root=offering_root,
                 fallback_ids=catalog.tactics,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.TACTIC),
             ),
             styleguides=_resolve_config_activated_ids(
                 ArtifactKind.STYLEGUIDE,
-                _stems("activated_styleguides"),
+                _stems(ArtifactKind.STYLEGUIDE),
                 offering_root=offering_root,
                 fallback_ids=catalog.styleguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.STYLEGUIDE),
             ),
             toolguides=_resolve_config_activated_ids(
                 ArtifactKind.TOOLGUIDE,
-                _stems("activated_toolguides"),
+                _stems(ArtifactKind.TOOLGUIDE),
                 offering_root=offering_root,
                 fallback_ids=catalog.toolguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.TOOLGUIDE),
             ),
             procedures=_resolve_config_activated_ids(
                 ArtifactKind.PROCEDURE,
-                _stems("activated_procedures"),
+                _stems(ArtifactKind.PROCEDURE),
                 offering_root=offering_root,
                 fallback_ids=catalog.procedures,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.PROCEDURE),
             ),
             agent_profiles=_resolve_config_activated_ids(
                 ArtifactKind.AGENT_PROFILE,
-                _stems("activated_agent_profiles"),
+                _stems(ArtifactKind.AGENT_PROFILE),
                 offering_root=offering_root,
                 fallback_ids=catalog.agent_profiles,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                deny=_deny(ArtifactKind.AGENT_PROFILE),
             ),
         )
     except UnknownArtifactIdError as exc:
@@ -710,7 +720,7 @@ def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeAct
 
 
 def provision_mission_type_activations(repo_root: Path) -> bool:
-    """Ensure the activation authority carries ``mission_type_activations``.
+    """Ensure the activation authority (the activation ledger, or an unmigrated legacy surface) carries ``mission_type_activations``.
 
     WP04 (charter-activation-authority) made the provisioned charter the SOLE
     mission-type activation authority. Construction
@@ -727,13 +737,16 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     a custom set or an explicit ``[]`` fail-closed opt-out — is left untouched.
 
     The write routes through
-    :func:`charter.activation.pack_manager.resolve_activation_write_target` (the single
-    write-side authority resolver, INV-2/INV-5/INV-9): for a migrated project
-    (``config.yaml`` ``charter:`` pointer present) the target is the pointed-at
-    ``charter.yaml`` and only its flat activation keys are touched; for a legacy
-    project the target is ``config.yaml`` itself. That resolver never constructs
-    a :class:`PackContext`, so provisioning does NOT re-trigger the fail-closed
-    read it exists to repair (the WP04 chicken-and-egg where every
+    :func:`charter.activation.pack_manager.prepare_activation_write` (the single
+    activation writer, resolved by
+    :func:`~charter.activation.pack_manager.resolve_activation_write_target`,
+    FR-017): a project whose source is the activation ledger -- a fresh project
+    or one the ``4.0.0rc8_activation_ledger`` migration moved -- gets the key in
+    ``.kittify/charter/activation.yaml`` (ADR 2026-10-19-1); an unmigrated
+    project keeps its legacy target (the pointed-at ``charter.yaml``, else
+    ``config.yaml``), touching only the flat activation keys. Neither path
+    constructs a :class:`PackContext`, so provisioning does NOT re-trigger the
+    fail-closed read it exists to repair (the WP04 chicken-and-egg where every
     ``PackContext``-building command refuses to run on an unprovisioned charter).
 
     Returns ``True`` when the key was written, ``False`` when provisioning was a
@@ -851,6 +864,11 @@ def _legacy_activation_keys() -> tuple[str, ...]:
     return keys
 
 
+def _activation_source_is_legacy(repo_root: Path) -> bool:
+    """Whether the activation ledger seam resolves *repo_root* to its legacy surface (no ledger, legacy keys or the upgrade scope)."""
+    return resolve_ledger_source(repo_root).source is ActivationSource.LEGACY
+
+
 def _read_legacy_config_activation(repo_root: Path) -> dict[str, list[str]]:
     """Read flat ``activated_*`` keys VERBATIM from ``.kittify/config.yaml``.
 
@@ -895,9 +913,12 @@ def _bootstrap_charter_yaml(
     "file missing -> empty config" gracefully (FR-4.4), which also covers
     a genuinely fresh project (no curated ``charter.md`` yet). Activation
     stays absent (three-state ``None`` == default-pack fallback, contract
-    G3) unless ``repo_root``'s ``.kittify/config.yaml`` already carries
-    flat ``activated_*`` keys (a pre-WP02 project) -- copied verbatim,
-    never derived.
+    G3) unless the activation source is LEGACY and ``repo_root``'s
+    ``.kittify/config.yaml`` carries flat allow keys (an unmigrated project):
+    those are copied verbatim, never derived, so the legacy reads that follow
+    the new pointer keep the same answer (hole 4, C-003). Deny keys are never
+    copied. With a ledger, or on a fresh project, nothing is copied: the ledger
+    is the authority and a copy would only make stray keys.
     """
     governance = GovernanceConfig()
     directives = DirectivesConfig()
@@ -908,7 +929,8 @@ def _bootstrap_charter_yaml(
 
         governance = load_governance_config(repo_root)
         directives = load_directives_config(repo_root)
-        activation = _read_legacy_config_activation(repo_root)
+        if _activation_source_is_legacy(repo_root):
+            activation = _read_legacy_config_activation(repo_root)
 
     charter_yaml = CharterYaml(
         governance=governance,
