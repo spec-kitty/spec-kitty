@@ -1031,6 +1031,7 @@ class MigrationRunner:
         # writes the file with a different YAML emitter (an empty
         # ``last_upgraded_at:`` where this dump writes ``null``), and a byte
         # compare re-serialized a just-initialized project's file (#6416).
+        # Formatting and the header are deliberately not normalized here.
         if stamped == spec_kitty:
             return
         data["spec_kitty"] = stamped
