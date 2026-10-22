@@ -72,32 +72,20 @@ def test_from_dict_round_trips_a_saved_lock() -> None:
         ([], "expected a JSON object, found list"),
     ],
 )
-def test_from_dict_names_what_is_wrong(data: Any, fragment: str) -> None:
+def test_from_dict_names_what_is_wrong(data: Any, fragment: str, tmp_path: Path) -> None:
     with pytest.raises(TypeError) as excinfo:
         ReviewLock.from_dict(data)
     assert fragment in str(excinfo.value)
-
-
-def test_load_of_empty_object_names_the_file_and_fields(tmp_path: Path) -> None:
-    """The reported ``{}`` lock: a ``ReviewLockReadError`` naming the path and the missing fields."""
-    lock = _write_lock(tmp_path, "{}")
-    with pytest.raises(ReviewLockReadError) as excinfo:
+    # The same record on disk: ``load`` names the file and the fields, never an unattributed ``__init__`` error.
+    lock = _write_lock(tmp_path, json.dumps(data))
+    with pytest.raises(ReviewLockReadError) as loaded:
         ReviewLock.load(tmp_path)
-    assert excinfo.value.path == str(lock)
-    assert "missing field(s)" in str(excinfo.value)
-    assert "__init__" not in str(excinfo.value)
+    assert loaded.value.path == str(lock)
+    assert fragment in str(loaded.value)
+    assert "__init__" not in str(loaded.value)
 
 
 # --- review_lock_refusal: existing workspace ------------------------------
-
-
-def test_existing_workspace_without_lock_passes(repo: Path) -> None:
-    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
-
-
-def test_existing_workspace_with_valid_lock_passes(repo: Path) -> None:
-    _write_lock(repo, json.dumps({**_VALID, "pid": os.getpid()}))
-    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
 
 
 def test_untracked_unreadable_lock_offers_delete_and_is_left_alone(repo: Path) -> None:
@@ -169,31 +157,24 @@ def test_missing_workspace_reads_the_committed_blob(repo: Path, tmp_path: Path) 
     assert not worktree.exists()
 
 
-def test_missing_workspace_cut_from_a_start_point_names_that_source(repo: Path, tmp_path: Path) -> None:
-    """No local lane branch: the lock comes from the start point, so the remedy names it, with no worktree command."""
-    _write_lock(repo, "{}")
+@pytest.mark.parametrize(
+    ("content", "ref", "branch", "fragment"),
+    [
+        pytest.param("{}", "HEAD", "kitty/lane-a", f"committed on HEAD; it must not be. Remove {LOCK_REL_PATH} there", id="start-point"),
+        pytest.param("[]", "main", None, "committed on main", id="ref-when-no-branch"),
+    ],
+)
+def test_missing_workspace_remedy_names_the_source_ref(repo: Path, tmp_path: Path, content: str, ref: str, branch: str | None, fragment: str) -> None:
+    """No local lane branch: the lock comes from the ref, so the remedy names it, with no worktree command."""
+    _write_lock(repo, content)
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
 
-    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="HEAD", branch="kitty/lane-a")
+    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref=ref, branch=branch)
 
     assert message is not None
-    assert f"committed on HEAD; it must not be. Remove {LOCK_REL_PATH} there" in message
+    assert fragment in message
     assert "git worktree add" not in message
-
-
-def test_missing_workspace_falls_back_to_the_ref_when_no_branch(repo: Path, tmp_path: Path) -> None:
-    _write_lock(repo, "[]")
-    _git(repo, "add", "-f", LOCK_REL_PATH)
-    _git(repo, "commit", "-qm", "oops")
-
-    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch=None)
-
-    assert message is not None and "committed on main" in message
-
-
-def test_missing_workspace_without_a_committed_lock_passes(repo: Path, tmp_path: Path) -> None:
-    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch="b") is None
 
 
 # --- a committed lock is refused whatever its content (operator ruling, option a) ---
@@ -234,61 +215,57 @@ def test_tracked_lock_deleted_by_a_release_is_still_refused(repo: Path) -> None:
     assert f"git -C {repo} rm -q {LOCK_REL_PATH}" in message
 
 
-def test_untracked_readable_lock_passes(repo: Path) -> None:
-    """An ordinary lock (ignored or untracked) is not refused; ``acquire`` judges its liveness."""
-    _write_lock(repo, json.dumps(_VALID))
-    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
+@pytest.mark.parametrize(
+    ("lock_content", "exists", "ref"),
+    [
+        pytest.param(None, True, None, id="existing-without-lock"),
+        pytest.param(json.dumps(_VALID), True, None, id="existing-untracked-readable-lock"),
+        pytest.param(None, False, "main", id="missing-without-committed-lock"),
+        pytest.param(None, False, None, id="missing-without-a-ref"),
+        pytest.param(None, False, "nope", id="missing-with-unknown-ref"),
+    ],
+)
+def test_no_refusal_without_a_tracked_or_unreadable_lock(repo: Path, tmp_path: Path, lock_content: str | None, exists: bool, ref: str | None) -> None:
+    """An ordinary lock (untracked) or none passes, and an unresolvable ref is for worktree creation to report."""
+    if lock_content is not None:
+        _write_lock(repo, lock_content)
+    worktree = repo if exists else tmp_path / "lane"
 
-
-def test_missing_workspace_without_a_ref_passes(repo: Path, tmp_path: Path) -> None:
-    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref=None, branch=None) is None
-
-
-def test_missing_workspace_with_unknown_ref_passes(repo: Path, tmp_path: Path) -> None:
-    """An unresolvable ref is not a lock problem; worktree creation reports it."""
-    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="nope", branch="nope") is None
+    assert review_lock_refusal(worktree, exists=exists, repo_root=repo, checkout_ref=ref, branch="main") is None
 
 
 # --- remedy accuracy (pre-PR review) -----------------------------------------
 
 
-def test_pre_claim_text_says_nothing_was_claimed(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("claimed", "said", "unsaid"),
+    [(False, "The work package was not claimed for review.", "already recorded"), (True, "The review claim was already recorded", "not claimed")],
+)
+def test_claim_line_matches_whether_the_claim_was_recorded(tmp_path: Path, claimed: bool, said: str, unsaid: str) -> None:
     _write_lock(tmp_path, "{}")
-    message = review_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b")
+    message = review_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b", claimed=claimed)
     assert message is not None
-    assert "The work package was not claimed for review." in message
-    assert "already recorded" not in message
+    assert said in message
+    assert unsaid not in message
 
 
-def test_claimed_text_says_the_claim_was_recorded(tmp_path: Path) -> None:
-    _write_lock(tmp_path, "{}")
-    message = review_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b", claimed=True)
-    assert message is not None
-    assert "The review claim was already recorded" in message
-    assert "not claimed" not in message
-
-
-def test_tracked_lock_without_a_branch_name_names_the_checked_out_branch(repo: Path) -> None:
-    """A repository root checkout resolves with no branch name; the remedy names HEAD's branch, never ``None``."""
+@pytest.mark.parametrize(
+    ("detach", "expected"),
+    [(False, "committed on main"), (True, "committed on the checked-out branch")],
+    ids=["attached-head", "detached-head"],
+)
+def test_tracked_lock_without_a_branch_name_names_the_checked_out_branch(repo: Path, detach: bool, expected: str) -> None:
+    """A repository root checkout resolves with no branch name; the remedy names HEAD's branch (or says so), never ``None``."""
     _write_lock(repo, "{}")
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
+    if detach:
+        _git(repo, "checkout", "-q", "--detach")
 
     message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
 
     assert message is not None
-    assert "committed on main" in message and "None" not in message
-
-
-def test_tracked_lock_on_a_detached_head_still_reads(repo: Path) -> None:
-    _write_lock(repo, "{}")
-    _git(repo, "add", "-f", LOCK_REL_PATH)
-    _git(repo, "commit", "-qm", "oops")
-    _git(repo, "checkout", "-q", "--detach")
-
-    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
-
-    assert message is not None and "committed on the checked-out branch" in message
+    assert expected in message and "None" not in message
 
 
 def test_paths_with_spaces_are_quoted(tmp_path: Path) -> None:

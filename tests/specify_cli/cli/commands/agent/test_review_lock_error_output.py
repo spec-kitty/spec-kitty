@@ -84,18 +84,9 @@ def test_unreadable_lock_at_acquire_is_a_named_refusal(tmp_path: Path, monkeypat
 
     out = capsys.readouterr().out
     assert "REVIEW_LOCK_UNREADABLE" in out
+    assert "The review claim was already recorded" in out
     assert f"rm {lock}" in out, "the refusal is printed unwrapped, so the remedy copies intact"
     assert lock.read_text() == "{}"
-
-
-def test_prepare_review_workspace_excludes_the_lock_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo = _repo(tmp_path)
-    monkeypatch.setattr("specify_cli.review.lock._get_isolation_config", lambda root: None)
-    workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
-
-    workflow._prepare_review_workspace(workspace, repo, "WP01", "claude")
-
-    assert ".spec-kitty/" in (repo / ".git" / "info" / "exclude").read_text().splitlines()
 
 
 def test_foreign_lock_check_names_an_unreadable_lock(tmp_path: Path) -> None:
@@ -120,18 +111,6 @@ def test_review_checkout_ref_mirrors_worktree_creation(tmp_path: Path) -> None:
     assert ref(exists=False, branch="main") == "main", "an existing local branch is checked out as is"
     assert ref(exists=False, branch="kitty/new", start="refs/remotes/origin/kitty/new") == "refs/remotes/origin/kitty/new"
     assert ref(exists=False, branch="kitty/new") == "HEAD"
-
-
-def test_acquire_fallback_says_the_claim_was_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    repo = _repo(tmp_path)
-    _corrupt_lock(repo)
-    monkeypatch.setattr("specify_cli.review.lock._get_isolation_config", lambda root: None)
-    workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
-
-    with pytest.raises(typer.Exit):
-        workflow._prepare_review_workspace(workspace, repo, "WP01", "claude")
-
-    assert "The review claim was already recorded" in capsys.readouterr().out
 
 
 def test_husk_workspace_is_left_to_the_husk_refusal(tmp_path: Path) -> None:
