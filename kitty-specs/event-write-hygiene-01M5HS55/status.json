@@ -1,7 +1,7 @@
 {
-  "event_count": 10,
-  "last_event_id": "01M5HZKC1XF3MYSHPA9715WX38",
-  "materialized_at": "2026-10-22T14:17:50.398040+00:00",
+  "event_count": 12,
+  "last_event_id": "01M5HZMAAAECP5XPHZS9YJ957G",
+  "materialized_at": "2026-10-22T14:18:21.381446+00:00",
   "mission_number": "",
   "mission_slug": "event-write-hygiene-01M5HS55",
   "mission_type": "software-dev",
@@ -13,41 +13,42 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
-      "agent_profile": "reviewer-renata",
+      "agent": null,
+      "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M5HZKC1XF3MYSHPA9715WX38",
-      "last_transition_at": "2026-10-22T14:17:50.398040+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M5HZMAAAECP5XPHZS9YJ957G",
+      "last_transition_at": "2026-10-22T14:18:21.381446+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-22T14:01:57Z – claude – shell_pid=14916 – Helper tests/_support/status_seed.py + tests/status/test_status_seed_helper.py (4 passed; mypy/ruff clean). Codemod (AST, scratchpad script) rewrote 187 test files off store/_unsafe append_event onto seed_status_event; function-local imports kept at the same nesting; no aliased imports. Deleted the identity spy line (refinalize_frozen_lanes_support.py:311) and its dead _record_feature_dir recorder; kept the append_raw_rows_atomic spy. Batched the perf fixture (tests/perf/test_tasks_status_baseline.py) into one seed_status_events call; other loops left unbatched (not stress/timing tier). Fix found by make test-fast: tests/status/test_writer_serialization.py (not owned, touched) lock recorder flagged unlocked seeding in _flat_mission; now seeds under feature_status_lock. Tests: pytest on 179 changed test files + helper tests -n auto --dist loadfile = 3079 passed, 13 skipped; 102 further dependant files of shared fixtures = 1837 passed, 4 skipped; 3 architectural dependants 23 passed 4 skipped; door/gate files (test_status_unsafe_allowlist, test_status_events_writes_gate, test_no_absolute_event_timestamp_mixture, test_locked_frontmatter_writers, test_store, test_store_sanitized) 173 passed; make test-fast 2441 passed, 8 skipped. No pre-existing failures found. Remaining append_event hits: WP02 files, method calls, glossary, prose.",
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/event-write-hygiene-01M5HS55/tasks/WP01-test-seeding-helper-and-codemod/review-cycle-1.md",
         "reference": "review-cycle://event-write-hygiene-01M5HS55/WP01-test-seeding-helper-and-codemod/review-cycle-1.md",
         "reviewer": "claude",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 29387,
-      "shell_pid_created_at": "1792678444.77",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned"
       }
     },
     "WP02": {
