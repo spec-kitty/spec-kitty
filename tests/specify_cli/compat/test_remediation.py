@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 
+from kernel.site_urls import INSTALL_AND_UPGRADE_URL
 from specify_cli.compat._detect.install_method import InstallMethod
 from specify_cli.compat._detect.runtime import (
     InstalledCliRuntime,
@@ -33,6 +34,7 @@ from specify_cli.compat._detect.runtime import (
 from specify_cli.compat.remediation import (
     RemediationCommand,
     RemediationIntent,
+    _manual_note,
     _powershell_quote,
     plan_remediation,
 )
@@ -831,3 +833,10 @@ class TestCurrentUpgradeCommand:
         )
         assert upgrade_hint.current_upgrade_command() == "pipx upgrade spec-kitty-cli"
         assert upgrade_hint.current_upgrade_command("custom fallback") == "custom fallback"
+
+
+def test_unknown_upgrade_remediation_links_the_install_guide() -> None:
+    """Both call sites print the same link, so they cannot drift apart again."""
+    note = _manual_note("unknown", RemediationIntent.UPGRADE)
+    assert note is not None
+    assert INSTALL_AND_UPGRADE_URL in note

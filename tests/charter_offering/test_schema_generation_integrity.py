@@ -34,15 +34,18 @@ is emitted. It is RED against the stale schemas and GREEN once T024-T027 land.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import jsonschema
 import pytest
 import yaml
 
-from scripts.generate_schemas import generate_schema
+from kernel.site_urls import OWNED_DOMAIN
+from scripts.generate_schemas import SCHEMA_ID_BASE, generate_schema
 
 # No `fast`: this module shells out to `scripts/generate_schemas.py --check`,
 # and Rule 2 of the marker-correctness gate keeps subprocess work out of the
@@ -229,3 +232,23 @@ def test_mission_step_template_ref_is_emitted() -> None:
         "artifact_key",
         "template_file",
     }
+
+
+_SCHEMA_FILES = sorted((_REPO_ROOT / "src/charter/offering/schemas").glob("*.schema.yaml")) + [
+    _REPO_ROOT / "src/specify_cli/skills/data/skills-manifest.schema.json"
+]
+
+
+def _schema_id(path: Path) -> object:
+    if path.suffix == ".json":
+        return json.loads(path.read_text(encoding="utf-8")).get("$id")
+    return yaml.safe_load(path.read_text(encoding="utf-8")).get("$id")
+
+
+def test_every_shipped_schema_id_starts_at_the_base() -> None:
+    assert urlsplit(SCHEMA_ID_BASE)[:2] == ("https", OWNED_DOMAIN)
+    assert len(_SCHEMA_FILES) >= 14
+    ids = {path.name: _schema_id(path) for path in _SCHEMA_FILES}
+    off_base = {name: schema_id for name, schema_id in ids.items() if schema_id is not None and not str(schema_id).startswith(SCHEMA_ID_BASE + "/")}
+    assert off_base == {}
+    assert sum(schema_id is not None for schema_id in ids.values()) >= 14

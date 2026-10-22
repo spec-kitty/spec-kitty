@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from kernel.site_urls import INSTALL_AND_UPGRADE_URL
 from specify_cli.compat._detect.install_method import InstallMethod
 from specify_cli.compat.provider import NoNetworkProvider
 from specify_cli.compat.upgrade_hint import UpgradeHint, build_upgrade_hint
@@ -300,3 +301,9 @@ class TestSourceHintRendersWithoutUnavailable:
             "The SOURCE note must not contain characters excluded by the _safe() regex."
         )
         assert rendered.strip() != "", "render_human returned empty string for SOURCE hint."
+
+
+def test_unknown_install_hint_links_the_install_guide() -> None:
+    note = build_upgrade_hint(InstallMethod.UNKNOWN).note
+    assert note is not None
+    assert INSTALL_AND_UPGRADE_URL in note
