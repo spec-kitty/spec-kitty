@@ -1343,11 +1343,12 @@ jobs:
             --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
-  # The Mission-state audit (#5864). The upgrade witness
-  # (tests/upgrade/preview_support/test_public_witnesses.py::test_original_full_corpus_has_no_teamspace_blockers)
-  # audits the checkout's whole kitty-specs/ with this command and gate, but it runs only when upgrade code
-  # changes, so a Mission that landed with a drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next
-  # unrelated upgrade PR instead of its own. The corpus jobs do not catch it: the reality check passes on a
+  # The Mission-state audit (#5864). The upgrade witness used to audit the checkout's whole kitty-specs/
+  # with this command and gate, but it runs only when upgrade code changes, so a Mission that landed with a
+  # drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next unrelated upgrade PR instead of its own.
+  # The witness now pins the gate on a frozen corpus
+  # (tests/upgrade/preview_support/test_public_witnesses.py::test_original_teamspace_blocker_gate_on_frozen_corpus,
+  # #5865); this job owns the live corpus. The corpus jobs do not catch it: the reality check passes on a
   # drifted snapshot. This job runs the same audit on every kitty-specs/ change: about 20-30 s of audit after
   # the environment install, against the 4 upgrade shards or the corpus-blocking job (5-10 min). It is
   # read-only. The audit step always reports (#6058): it captures the auditor's exit code instead of letting
