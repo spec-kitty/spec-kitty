@@ -11,15 +11,18 @@ from pathlib import Path
 
 import pytest
 from specify_cli import gitignore_manager
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries
+from specify_cli.core.config import AI_CHOICES
 
 pytestmark = [pytest.mark.integration]
 
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 
-# Total entries: agents + runtime (derived from state contract)
-_TOTAL_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
-_AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
+# Total entries: the agent-files block (every agent when no list is configured,
+# #6474) + runtime entries (derived from state contract)
+_AGENT_DIRS = agent_ignore_entries(Path("/nonexistent"), tuple(AI_CHOICES))
+_TOTAL_ENTRIES = len(_AGENT_DIRS) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
 
 
 def test_gitignore_manager_creates_new_file():
@@ -119,7 +122,7 @@ def test_gitignore_manager_handles_multiple_entries():
 
 
 def test_protect_all_agents_adds_all_directories():
-    """Test that protect_all_agents adds all 13 agent directories."""
+    """Without an agent list, protect_all_agents lists every agent's generated files."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
 
@@ -139,9 +142,10 @@ def test_protect_all_agents_adds_all_directories():
         assert gitignore_path.exists()
         content = gitignore_path.read_text()
 
-        # Verify all expected directories are present
-        for dir_name in _AGENT_DIRS:
-            assert dir_name in content
+        # Verify all expected entries are present, as whole lines
+        lines = content.splitlines()
+        for entry in _AGENT_DIRS:
+            assert entry in lines
         assert ".kittify/missions/__pycache__/" in content
 
 
@@ -151,8 +155,8 @@ def test_protect_all_agents_with_existing_directory():
         project_path = Path(temp_dir)
         gitignore_path = project_path / ".gitignore"
 
-        # Create .gitignore with some agent directories already present
-        existing_content = ".codex/\n.claude/\n"
+        # Create .gitignore with some protected entries already present
+        existing_content = ".codex/auth.json\n.kittify/runtime/\n"
         gitignore_path.write_text(existing_content)
 
         # Use GitignoreManager
@@ -161,11 +165,11 @@ def test_protect_all_agents_with_existing_directory():
 
         # Check success
         assert result.success
-        assert result.modified  # Should still be modified (adding other 11)
+        assert result.modified  # Should still be modified (adding the others)
 
         # Check that existing entries were skipped
-        assert ".codex/" in result.entries_skipped
-        assert ".claude/" in result.entries_skipped
+        assert ".codex/auth.json" in result.entries_skipped
+        assert ".kittify/runtime/" in result.entries_skipped
 
         # Check that new entries were added (total - 2 existing)
         assert len(result.entries_added) == _TOTAL_ENTRIES - 2
@@ -185,8 +189,7 @@ def test_protect_all_agents_cursor_is_narrow():
 
         content = manager.gitignore_path.read_text()
         assert ".cursor/rules/spec-kitty.mdc" in content
-        assert ".cursor/commands/" in content
-        assert ".cursor/skills/" in content
+        assert ".cursor/commands/spec-kitty.*" in content  # only Spec Kitty's files (#6474)
 
         # No line blocks the whole .cursor/ directory.
         blanket_lines = [line for line in content.splitlines() if line.strip() in (".cursor", ".cursor/")]

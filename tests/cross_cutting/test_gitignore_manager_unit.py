@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries
+from specify_cli.core.config import AI_CHOICES
 from specify_cli.gitignore_manager import (
     AGENT_DIRECTORIES,
     RUNTIME_PROTECTED_ENTRIES,
@@ -23,8 +25,10 @@ from specify_cli.gitignore_manager import (
 
 pytestmark = [pytest.mark.integration]
 
-# Total entries: agents + runtime (derived from state contract)
-_TOTAL_ENTRIES = len(AGENT_DIRECTORIES) + len(RUNTIME_PROTECTED_ENTRIES)
+# With no agent list configured every agent's generated files are listed in
+# the agent-files block (#6474), next to the runtime entries from the contract.
+_AGENT_BLOCK_ENTRIES = agent_ignore_entries(Path("/nonexistent"), tuple(AI_CHOICES))
+_TOTAL_ENTRIES = len(_AGENT_BLOCK_ENTRIES) + len(RUNTIME_PROTECTED_ENTRIES)
 
 
 class TestGitignoreManager:
@@ -113,9 +117,12 @@ class TestGitignoreManager:
         assert len(result.entries_added) == _TOTAL_ENTRIES
 
         content = manager.gitignore_path.read_text()
+        lines = content.splitlines()
         assert manager.marker in content
-        assert ".claude/" in content
-        assert ".codex/" in content
+        assert ".claude/commands/spec-kitty.*" in lines
+        assert ".codex/auth.json" in lines
+        assert ".claude/" not in lines  # whole agent folders are no longer ignored (#6474)
+        assert ".codex/" not in lines
 
     def test_protect_all_agents_with_existing_entries(self, manager, temp_dir):
         """Test protect_all_agents preserves existing entries."""
@@ -130,17 +137,15 @@ class TestGitignoreManager:
         content = manager.gitignore_path.read_text()
         assert "node_modules/" in content
         assert "*.log" in content
-        assert ".claude/" in content
+        assert ".claude/commands/spec-kitty.*" in content
 
     def test_protect_all_agents_includes_all_agents(self, manager):
-        """Test that all registered agent directories are protected."""
+        """Without an agent list, every agent's generated files are protected."""
         manager.protect_all_agents()
 
-        expected_dirs = [agent.directory for agent in AGENT_DIRECTORIES]
-
-        content = manager.gitignore_path.read_text()
-        for dir_name in expected_dirs:
-            assert dir_name in content
+        lines = manager.gitignore_path.read_text().splitlines()
+        for entry in _AGENT_BLOCK_ENTRIES:
+            assert entry in lines
 
     # T027 - Test duplicate detection logic
     def test_duplicate_detection_prevents_duplicates(self, manager):
@@ -159,14 +164,14 @@ class TestGitignoreManager:
     def test_duplicate_detection_with_manual_entries(self, manager):
         """Test duplicate detection with manually added entries."""
         # Manually add some entries
-        manager.gitignore_path.write_text(".claude/\n.codex/\n")
+        manager.gitignore_path.write_text(".kittify/runtime/\n.codex/auth.json\n")
 
         # Try to protect all agents
         result = manager.protect_all_agents()
 
         assert result.modified  # Still modified because we add the remaining entries
-        assert ".claude/" in result.entries_skipped
-        assert ".codex/" in result.entries_skipped
+        assert ".kittify/runtime/" in result.entries_skipped
+        assert ".codex/auth.json" in result.entries_skipped
         assert len(result.entries_added) == _TOTAL_ENTRIES - 2
 
     def test_duplicate_detection_marker_comment(self, manager):

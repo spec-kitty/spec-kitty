@@ -131,6 +131,7 @@ class SessionPresenceManager:
                 if writer.can_write(self.project_root) and not writer.has_presence(self.project_root):
                     writer.write(self.project_root, content)
                     changes.append(f"Wrote orientation for {key}")
+                    warnings.extend(_writer_notices(writer, self.project_root))
             except Exception as exc:
                 warnings.append(f"Failed to write orientation for {key}: {exc}")
                 _logger.warning("SessionPresenceManager.install failed for %s: %s", key, exc)
@@ -170,6 +171,16 @@ class SessionPresenceManager:
             except Exception as exc:
                 warnings.append(f"Failed to update orientation for {key}: {exc}")
         return InstallResult(changes=changes, warnings=warnings)
+
+
+def _writer_notices(writer: object, project_root: Path) -> list[str]:
+    """Follow-up notices a writer leaves after a write (a committed file it would not edit)."""
+    from .writers.claude_code import ClaudeCodeWriter, committed_settings_notice
+
+    if not isinstance(writer, ClaudeCodeWriter):
+        return []
+    notice = committed_settings_notice(project_root)
+    return [notice] if notice else []
 
 
 __all__ = ["InstallResult", "SessionPresenceManager"]

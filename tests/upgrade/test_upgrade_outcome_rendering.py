@@ -772,3 +772,30 @@ def test_help_says_only_a_completed_dry_run_preview_exits_zero() -> None:
     assert "a completed ``--dry-run`` preview" in doc
     assert "any ``--dry-run``" not in doc
     assert "``--dry-run``\n         preview that could not be completed" in doc
+
+
+def test_refresh_of_the_agent_ignore_block_warns_once_and_never_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6474: the upgrade refreshes the .gitignore agent-files block before its churn commit."""
+    import specify_cli.gitignore_manager as gitignore_manager
+
+    calls: list[Path] = []
+    monkeypatch.setattr(gitignore_manager, "refresh_agent_block", lambda project: calls.append(project) or "block not refreshed")
+    outcome = _outcome()
+
+    upgrade_module._refresh_agent_ignore_block(outcome, tmp_path)
+    upgrade_module._refresh_agent_ignore_block(outcome, tmp_path)
+
+    assert calls == [tmp_path, tmp_path]
+    assert outcome.result.warnings.count("block not refreshed") == 1
+    assert outcome.result.success
+
+
+def test_refresh_of_a_current_block_adds_no_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.gitignore_manager as gitignore_manager
+
+    monkeypatch.setattr(gitignore_manager, "refresh_agent_block", lambda _project: None)
+    outcome = _outcome()
+
+    upgrade_module._refresh_agent_ignore_block(outcome, tmp_path)
+
+    assert outcome.result.warnings == []

@@ -8,6 +8,7 @@ structured report.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,6 +29,8 @@ from specify_cli.state.contract import (
 # ``get_runtime_root().base`` (which honors ``SPEC_KITTY_HOME``); this prefix is
 # stripped before joining so resolution never recomputes the home (FR-010).
 _GLOBAL_SYNC_PATTERN_PREFIX = "~/.spec-kitty/"
+# A reserved skill name, covered by the agent block's `spec-kitty-*/` pattern.
+_AGENT_BLOCK_PROBE_NAME = "spec-kitty-doctor-probe"
 
 
 # ---------------------------------------------------------------------------
@@ -202,10 +205,23 @@ def _check_gitignore(repo_root: Path, surface: StateSurface) -> bool:
     ):
         return True  # Tracked or external surfaces don't need gitignore
 
-    result = _is_gitignore_covered(repo_root, surface.path_pattern)
+    result = _is_gitignore_covered(repo_root, _gitignore_probe_path(surface))
     if result is None:
         return True  # Can't verify, don't warn
     return result
+
+
+def _gitignore_probe_path(surface: StateSurface) -> str:
+    """The path to ask ``git check-ignore`` about for *surface*.
+
+    A surface ignored through the configured-agent block is covered only for
+    Spec Kitty's own names (``.agents/skills/spec-kitty-*/``, #6474), so its
+    placeholder is filled with such a name; a whole-root surface is probed as
+    declared.
+    """
+    if not surface.ignored_via_agent_block:
+        return surface.path_pattern
+    return re.sub(r"<[^>]+>", _AGENT_BLOCK_PROBE_NAME, surface.path_pattern)
 
 
 def _generate_warning(

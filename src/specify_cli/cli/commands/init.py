@@ -13,6 +13,7 @@ from collections.abc import Callable
 from typing import Literal
 
 import typer
+from rich.markup import escape
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
@@ -1207,16 +1208,17 @@ def init(  # noqa: C901
             # Protect runtime roots before publishing project identity or
             # declaring initialization complete. A failed protection check
             # must remain resumable: config.yaml is the idempotency boundary.
+            # The agent config is saved later, so pass the selection explicitly.
             manager = GitignoreManager(project_path)
-            result = manager.protect_all_agents()
+            result = manager.protect_all_agents(agent_config.available)
             if result.modified:
-                _console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
+                _console.print("[cyan]Updated .gitignore to exclude Spec Kitty's generated agent files and runtime state:[/cyan]")
                 for entry in result.entries_added:
                     _console.print(f"  • {entry}")
                 if result.entries_skipped:
                     _console.print(f"  ({len(result.entries_skipped)} already protected)")
             elif result.entries_skipped:
-                _console.print(f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]")
+                _console.print(f"[dim]All {len(result.entries_skipped)} generated-file entries already in .gitignore[/dim]")
             for warning in result.warnings:
                 _console.print(f"[yellow]⚠️  {warning}[/yellow]")
             for error in result.errors:
@@ -1515,6 +1517,8 @@ def init(  # noqa: C901
         sp_result = SessionPresenceManager(project_path, agent_config).install()
         for change in sp_result.changes:
             _console.print(f"[dim]{change}[/dim]")
+        for warning in sp_result.warnings:
+            _console.print(f"[yellow]Note:[/yellow] {escape(warning)}")
     except Exception as e:
         # Never fail init due to session presence errors
         _console.print(f"[dim]Note: Could not write session presence: {e}[/dim]")

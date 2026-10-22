@@ -421,3 +421,27 @@ class TestBuildContent:
 # implementations into specify_cli.core.version_compare.is_version_newer.
 # manager.py now imports that canonical helper directly (see _build_content
 # above) rather than defining its own private comparison function.
+
+
+@pytest.mark.git_repo
+def test_install_reports_hooks_left_out_of_committed_claude_settings(tmp_path: Path) -> None:
+    """#6474: install() leaves committed settings alone and says how to add the hooks."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude/settings.json").write_text("{}\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".claude/settings.json"], cwd=tmp_path, check=True)
+    manager = _make_manager(tmp_path, ["claude"])
+
+    with (
+        patch("specify_cli.session_presence.manager.UpgradeChecker") as mock_checker_cls,
+        patch("specify_cli.compat.plan", side_effect=Exception("no compat")),
+    ):
+        mock_checker_cls.return_value.get_available_version.return_value = None
+        result = manager.install()
+
+    assert (tmp_path / ".claude/settings.json").read_text(encoding="utf-8") == "{}\n"
+    assert result.changes == ["Wrote orientation for claude"]
+    assert len(result.warnings) == 1
+    assert "spec-kitty session-start" in result.warnings[0]

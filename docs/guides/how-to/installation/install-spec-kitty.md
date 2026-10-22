@@ -138,7 +138,7 @@ What this does today:
 
 **Best practices for existing projects:**
 1. Commit or stash your current work before adding Spec Kitty.
-2. Review `.gitignore` after init so agent directories remain untracked.
+2. Review `.gitignore` after init: Spec Kitty ignores only the files it generates in agent folders (the `# >>> Spec Kitty agent files` block), so team files such as `.claude/settings.json` stay committable.
 3. Use `spec-kitty doctor skills --json` if you want a post-install skill health check.
 4. Start the workflow with `/spec-kitty.specify`; mission selection happens there, not during `init`.
 

@@ -18,6 +18,7 @@ from collections.abc import Iterable, Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from rich.markup import escape
 
 from .enums import ActivationMode, RequiredPolicy, ToolSurfaceKind
 from .findings import SurfaceFinding
@@ -347,6 +348,9 @@ class DriftPolicySummary:
     drifted_overwritten: list[Path] = field(default_factory=list)
     drifted_reported: list[Path] = field(default_factory=list)
     skipped: list[Path] = field(default_factory=list)
+    #: Follow-up problems that did not undo the repair (#6474: the .gitignore
+    #: agent-files block could not be refreshed).
+    warnings: list[str] = field(default_factory=list)
 
 
 #: Per-path notice for a regenerated DERIVED command-skill projection (#6155 item 1). Named
@@ -390,6 +394,7 @@ def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:
         lines.append(f"[dim]Note: {len(summary.drifted_reported)} tool surface(s) have local edits — run 'spec-kitty doctor tool-surfaces' to review[/dim]")
     if summary.skipped:
         lines.append(f"  {len(summary.skipped)} surface(s) not applicable, skipped.")
+    lines.extend(f"[yellow]Warning: {escape(warning)}[/yellow]" for warning in summary.warnings)
     return lines
 
 
@@ -491,14 +496,12 @@ def run_surface_repair(
     from .plan import SurfacePlanBuilder
     from .status import SurfaceStatusService
 
-    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
     from specify_cli.core.agent_config import get_configured_agents
 
     # Resolve configured tools — must run AFTER config is flushed to disk.
-    try:
-        configured_tools = list(get_configured_agents(project_root))
-    except Exception:  # noqa: BLE001 — fallback to all known agents on config error
-        configured_tools = list(AGENT_DIR_TO_KEY.values())
+    # An unreadable config raises AgentConfigError: repairing every known
+    # agent instead would write surfaces the project never configured (#6494).
+    configured_tools = list(get_configured_agents(project_root))
 
     if not configured_tools:
         return DriftPolicySummary()
@@ -541,4 +544,10 @@ def run_surface_repair(
         for status in overwrite_statuses:
             summary.drifted_overwritten.append(status.instance.path)
 
+    # Skills installed above may add skill folders the agent-files block lists (#6474).
+    from specify_cli.gitignore_manager import refresh_agent_block
+
+    warning = refresh_agent_block(project_root)
+    if warning:
+        summary.warnings.append(warning)
     return summary

@@ -9,13 +9,16 @@ from pathlib import Path
 
 import pytest
 from specify_cli import gitignore_manager
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries
+from specify_cli.core.config import AI_CHOICES
 
 pytestmark = [pytest.mark.integration]
 
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
-TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
-AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
+# Without an agent list every agent's generated files are protected (#6474).
+AGENT_DIRS = agent_ignore_entries(Path("/nonexistent"), tuple(AI_CHOICES))
+TOTAL_PROTECTED_ENTRIES = len(AGENT_DIRS) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
 
 
 def run_tests():
@@ -67,7 +70,7 @@ def test_basic_functionality():
 
 
 def test_all_agents_protected():
-    """Test that all 13 agent directories are protected."""
+    """Every agent's generated files are protected when no agent list is configured."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         manager = GitignoreManager(tmppath)
@@ -75,8 +78,9 @@ def test_all_agents_protected():
         manager.protect_all_agents()
 
         content = manager.gitignore_path.read_text()
-        for dir_name in AGENT_DIRS:
-            assert dir_name in content, f"{dir_name} not found in .gitignore"
+        lines = content.splitlines()
+        for entry in AGENT_DIRS:
+            assert entry in lines, f"{entry} not found in .gitignore"
 
         # Check for marker
         assert "# Added by Spec Kitty CLI" in content, "Marker comment not found"

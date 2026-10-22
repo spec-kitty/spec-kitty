@@ -873,6 +873,8 @@ def reproject_pack_skills(repo_root: Path, kind: str) -> None:
         console.print(f"[green]Skill file synced[/green]: {path}")
     for path, reason in projection.preserved:
         console.print(f"[yellow]Skill file preserved[/yellow]: {path} ({reason})")
+    for warning in projection.warnings:
+        console.print(f"[yellow]Warning[/yellow]: {warning}")
 
 
 #: The pack ``--preset`` reads when ``--pack`` is not given.

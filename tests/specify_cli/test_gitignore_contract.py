@@ -168,26 +168,30 @@ def test_gitignore_manager_protects_encoding_provenance(tmp_path: Path) -> None:
 
 
 def test_contract_runtime_entries_include_skill_projection_surfaces():
-    """#2412: the shared skill projection root and the per-machine install
-    ledger are runtime-ignored contract entries, so fresh init gitignores
-    both (machine-local absolute symlinks + per-machine manifest state)."""
+    """#2412: the per-machine install ledger is a runtime-ignored contract
+    entry. The shared skill projection root is not a whole-root entry any
+    more (#6474): a team's own skills share ``.agents/skills/``, so only Spec
+    Kitty's skill folders are ignored, through the configured-agent block."""
     from specify_cli.state.contract import get_runtime_gitignore_entries
 
     entries = get_runtime_gitignore_entries()
-    assert ".agents/skills/" in entries
+    assert ".agents/skills/" not in entries
+    assert not any(entry.startswith(".agents") for entry in entries)
     assert ".kittify/skills-manifest.json" in entries
 
 
 def test_gitignore_manager_protects_skill_projection(tmp_path: Path) -> None:
-    """Fresh init protection hides a projected skill symlink and the manifest."""
+    """Fresh init protection hides Spec Kitty's projected skills and the manifest, not a team skill."""
     from specify_cli.gitignore_manager import GitignoreManager
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    result = GitignoreManager(tmp_path).protect_all_agents()
+    result = GitignoreManager(tmp_path).protect_all_agents(["codex"])
 
     assert result.success
+    assert _is_ignored(tmp_path, ".agents/skills/spec-kitty-implement/SKILL.md")
     assert _is_ignored(tmp_path, ".agents/skills/spec-kitty.implement/SKILL.md")
     assert _is_ignored(tmp_path, ".kittify/skills-manifest.json")
+    assert not _is_ignored(tmp_path, ".agents/skills/team-skill/SKILL.md")
 
 
 def test_contract_runtime_entries_include_ops_index():

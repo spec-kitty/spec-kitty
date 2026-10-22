@@ -131,6 +131,10 @@ class ProfileManifest:
         """Insert or replace the entry for ``profile.output_path``."""
         self._entries[str(profile.output_path)] = profile
 
+    def output_paths(self) -> tuple[Path, ...]:
+        """Every projected profile file the manifest records, as absolute paths."""
+        return tuple(entry.output_path for entry in self._entries.values())
+
     def get_hash(self, output_path: Path) -> str | None:
         """Return the recorded hash for ``output_path`` or ``None``."""
         entry = self._entries.get(str(output_path))

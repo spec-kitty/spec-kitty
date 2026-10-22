@@ -257,7 +257,9 @@ def test_apply_preserves_operator_blanket_appended_after_generated_block(
 
     assert result.success
     assert result.manual_review_required is True
-    assert gitignore.read_text(encoding="utf-8").splitlines()[-1] == ".cursor/"
+    # The narrow backfill may append after it (protect_all_agents now ends with
+    # the #6474 agent-files block, not the cursor rows); the operator's line stays.
+    assert ".cursor/" in gitignore.read_text(encoding="utf-8").splitlines()
     assert _is_ignored(tmp_path, ".cursor/local-secrets.json")
     assert any("Preserved operator-owned" in warning for warning in result.warnings)
 

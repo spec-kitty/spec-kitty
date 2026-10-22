@@ -104,6 +104,10 @@ class StateSurface:
     atomic_write: bool = False
     notes: str = ""
     target_owned: bool = False
+    #: Ignored through the configured-agent block of ``.gitignore``
+    #: (``GitignoreManager.sync_agent_block``, #6474), narrowly, instead of as a
+    #: whole runtime root: the folder is shared with files a team commits.
+    ignored_via_agent_block: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
@@ -497,11 +501,12 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "copies (delivery_mode: copy) -- absolute symlinks were retired "
             "because they dangle in dev-containers and defeat sandboxed "
             "harnesses (#2412, ADR 2026-07-19-1). Still machine-generated "
-            "state regenerated on every init/upgrade, never commit. Unlike "
-            ".claude/ etc., .agents/ is NOT in GitignoreManager's "
-            "AGENT_DIRECTORIES, so this surface is its only ignore coverage. "
-            "Collapses to the .agents/skills/ gitignore entry."
+            "state regenerated on every init/upgrade, never commit. A team's "
+            "own skills share this root, so only Spec Kitty's skill folders "
+            "are ignored, through the configured-agent block (#6474); there "
+            "is no whole-root .agents/skills/ entry."
         ),
+        ignored_via_agent_block=True,
     ),
     StateSurface(
         name="skills_install_manifest",
@@ -1184,7 +1189,7 @@ def get_runtime_gitignore_entries() -> list[str]:
     raw: set[str] = set()
 
     for s in STATE_SURFACES:
-        if s.git_class != GitClass.IGNORED:
+        if s.git_class != GitClass.IGNORED or s.ignored_via_agent_block:
             continue
 
         if s.root == StateRoot.FEATURE:

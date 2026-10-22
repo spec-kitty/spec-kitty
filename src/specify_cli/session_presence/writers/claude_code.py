@@ -12,12 +12,19 @@ and additionally manages the ``SessionStart`` and ``Stop`` hooks in
 This means the session-presence migration's ``detect()`` triggers a re-write
 when any artefact is missing — existing projects pick up the Stop hook on
 ``spec-kitty upgrade``.
+
+A ``.claude/settings.json`` that git tracks is the team's file: Spec Kitty
+never edits it (#6474). The hook entry is then prepared with the ``preserve``
+disposition and :func:`committed_settings_notice` tells the operator how to
+add the hooks themselves.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+
+from kernel.git import GitCommandError, tracked_paths
 
 from ..content import SessionPresenceContent
 from ..hooks.claude_code_hook import (
@@ -27,10 +34,37 @@ from ..hooks.claude_code_hook import (
 )
 from .markdown_rules import MarkdownRulesWriter, PreparedPresenceFile, observe_presence_path
 
-__all__ = ["ClaudeCodeWriter", "SESSION_START_CMD", "SESSION_STOP_CMD"]
+__all__ = ["ClaudeCodeWriter", "SESSION_START_CMD", "SESSION_STOP_CMD", "committed_settings_notice"]
 
 SESSION_START_CMD = "spec-kitty session-start"
 SESSION_STOP_CMD = "spec-kitty session-stop"
+COMMITTED_SETTINGS_REASON = "Committed team settings are never edited"
+
+
+def _settings_committed(project_root: Path) -> bool:
+    """Whether git tracks ``.claude/settings.json`` (outside a repository: never)."""
+    settings = ClaudeCodeHookRegistrar().settings_relative_path
+    try:
+        return bool(tracked_paths(project_root, pathspecs=(settings,)))
+    except (GitCommandError, OSError):
+        return False
+
+
+def _hooks_registered(project_root: Path) -> bool:
+    start = ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(project_root, SESSION_START_CMD)
+    stop = ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(project_root, SESSION_STOP_CMD)
+    return bool(start and stop)
+
+
+def committed_settings_notice(project_root: Path) -> str | None:
+    """What to tell the operator when the hooks were left out of a committed settings file."""
+    if not _settings_committed(project_root) or _hooks_registered(project_root):
+        return None
+    return (
+        ".claude/settings.json is committed, so Spec Kitty did not edit it. To enable session orientation, "
+        f"add a SessionStart hook running `{SESSION_START_CMD}` and a Stop hook running `{SESSION_STOP_CMD}` "
+        "to .claude/settings.json and commit the change."
+    )
 
 
 @dataclass
@@ -66,6 +100,8 @@ class ClaudeCodeWriter(MarkdownRulesWriter):
             project_root,
             ((SESSION_START_EVENT, SESSION_START_CMD), (STOP_EVENT, SESSION_STOP_CMD)),
         )
+        if settings.changed and _settings_committed(project_root):
+            settings = replace(settings, disposition="preserve", reason=COMMITTED_SETTINGS_REASON)
         return orientation, settings
 
     def apply_prepared(self, project_root: Path, prepared: PreparedPresenceFile) -> None:
@@ -84,8 +120,4 @@ class ClaudeCodeWriter(MarkdownRulesWriter):
 
     def has_presence(self, project_root: Path) -> bool:
         """Return ``True`` only when the CLAUDE.md section AND both hooks exist."""
-        return (
-            super().has_presence(project_root)
-            and ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(project_root, SESSION_START_CMD)
-            and ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(project_root, SESSION_STOP_CMD)
-        )
+        return super().has_presence(project_root) and _hooks_registered(project_root)

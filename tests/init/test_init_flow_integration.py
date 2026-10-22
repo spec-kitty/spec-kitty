@@ -12,12 +12,15 @@ from pathlib import Path
 
 import pytest
 from specify_cli import gitignore_manager
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries
+from specify_cli.core.config import AI_CHOICES
 
 pytestmark = pytest.mark.git_repo
 
 GitignoreManager = gitignore_manager.GitignoreManager
-TOTAL_PROTECTED_ENTRIES = len(gitignore_manager.AGENT_DIRECTORIES) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
-AGENT_DIRS = [agent.directory for agent in gitignore_manager.AGENT_DIRECTORIES]
+# Without an agent list every agent's generated files are protected (#6474).
+AGENT_DIRS = agent_ignore_entries(Path("/nonexistent"), tuple(AI_CHOICES))
+TOTAL_PROTECTED_ENTRIES = len(AGENT_DIRS) + len(gitignore_manager.RUNTIME_PROTECTED_ENTRIES)
 
 
 def test_init_flow_fresh_project():
@@ -79,9 +82,12 @@ dist/
         assert ".env" in content
         assert "dist/" in content
 
-        # Verify agent directories are added
-        assert ".claude/" in content
-        assert ".codex/" in content
+        # Verify Spec Kitty's agent files are added, never whole agent folders (#6474)
+        lines = content.splitlines()
+        assert ".claude/commands/spec-kitty.*" in lines
+        assert ".codex/auth.json" in lines
+        assert ".claude/" not in lines
+        assert ".codex/" not in lines
 
         print("✓ test_init_flow_existing_gitignore")
 
@@ -126,10 +132,10 @@ def test_init_flow_partial_existing():
         project_path = Path(tmpdir)
         gitignore_path = project_path / ".gitignore"
 
-        # Create .gitignore with some agent directories already
+        # Create .gitignore with some protected entries and an operator's own agent folder
         existing_content = """# Project gitignore
-.codex/
-.claude/
+.codex/auth.json
+.kittify/runtime/
 .gemini/
 node_modules/
 """
@@ -141,23 +147,20 @@ node_modules/
 
         # Verify success
         assert result.success
-        assert result.modified, "Should add missing agents"
+        assert result.modified, "Should add the missing entries"
 
         # Check that existing were skipped
-        assert ".codex/" in result.entries_skipped
-        assert ".claude/" in result.entries_skipped
-        assert ".gemini/" in result.entries_skipped
+        assert ".codex/auth.json" in result.entries_skipped
+        assert ".kittify/runtime/" in result.entries_skipped
 
-        expected_new_entries = TOTAL_PROTECTED_ENTRIES - 3
+        expected_new_entries = TOTAL_PROTECTED_ENTRIES - 2
         assert len(result.entries_added) == expected_new_entries
         assert ".cursor/rules/spec-kitty.mdc" in result.entries_added
 
-        # Verify no duplicates in file
-        content = gitignore_path.read_text()
-        # Count occurrences of each directory
-        for agent_dir in [".codex/", ".claude/", ".gemini/"]:
-            count = content.count(agent_dir)
-            assert count == 1, f"{agent_dir} should appear exactly once, found {count}"
+        # The operator's own line is kept as written, and runtime entries are not duplicated
+        lines = gitignore_path.read_text().splitlines()
+        assert lines.count(".gemini/") == 1
+        assert lines.count(".kittify/runtime/") == 1
 
         print("✓ test_init_flow_partial_existing")
 
@@ -210,9 +213,10 @@ npm-debug.log*
         # Marker should be added
         assert "# Added by Spec Kitty CLI" in content
 
-        # All agents should be present
-        for agent in AGENT_DIRS:
-            assert agent in content
+        # Every agent's generated files should be present
+        lines = content.splitlines()
+        for entry in AGENT_DIRS:
+            assert entry in lines
 
         print("✓ test_init_flow_mixed_content")
 

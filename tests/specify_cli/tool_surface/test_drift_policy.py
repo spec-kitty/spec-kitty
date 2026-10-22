@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.core.agent_config import AgentConfigError
 from specify_cli.tool_surface.enums import (
     ActivationMode,
     InstallScope,
@@ -449,8 +450,8 @@ class TestRunSurfaceRepairEdgeCases:
             )
         assert summary == DriftPolicySummary()
 
-    def test_get_configured_agents_exception_falls_back(self) -> None:
-        """If get_configured_agents raises, AGENT_DIR_TO_KEY values are used."""
+    def test_config_error_fails_closed_without_repairing(self) -> None:
+        """An unreadable config raises instead of repairing every agent (#6494)."""
         report = _empty_report(surfaces=())
         recorder = _RepairRecorder()
 
@@ -458,16 +459,11 @@ class TestRunSurfaceRepairEdgeCases:
             _patch_surface_layer(report, recorder),
             patch(
                 "specify_cli.core.agent_config.get_configured_agents",
-                side_effect=RuntimeError("config error"),
+                side_effect=AgentConfigError("config error"),
             ),
+            pytest.raises(AgentConfigError, match="config error"),
         ):
-            # Should not raise; returns empty summary (no surfaces in report)
-            summary = run_surface_repair(
-                Path("/proj"), interactive=True, repair_drift=False
-            )
-        # If fallback tools are used, we may get an empty or non-empty summary
-        # depending on mock. The critical invariant: no exception raised.
-        assert isinstance(summary, DriftPolicySummary)
+            run_surface_repair(Path("/proj"), interactive=True, repair_drift=False)
 
     def test_mixed_states_all_rules_applied(self) -> None:
         """Multiple surface states are each handled by their respective rule."""
@@ -669,3 +665,25 @@ class TestRenderSurfaceSummaryLines:
             "— run 'spec-kitty doctor tool-surfaces' to review[/dim]",
             "  1 surface(s) not applicable, skipped.",
         ]
+
+
+class TestAgentBlockRefreshAfterRepair:
+    """#6474: surface repair keeps the .gitignore agent-files block current."""
+
+    def test_warning_is_rendered_escaped(self) -> None:
+        lines = render_surface_summary_lines(DriftPolicySummary(warnings=["block [damaged]"]))
+
+        assert lines == ["[yellow]Warning: block \\[damaged][/yellow]"]
+
+    def test_refresh_warning_lands_in_the_summary(self) -> None:
+        report = _empty_report(surfaces=())
+        recorder = _RepairRecorder()
+
+        with (
+            _patch_surface_layer(report, recorder),
+            patch("specify_cli.core.agent_config.get_configured_agents", return_value=["claude"]),
+            patch("specify_cli.gitignore_manager.refresh_agent_block", return_value="not refreshed: x"),
+        ):
+            summary = run_surface_repair(Path("/proj"), interactive=True, repair_drift=False)
+
+        assert summary.warnings == ["not refreshed: x"]

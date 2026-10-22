@@ -1345,7 +1345,22 @@ def _finalizer_step_surface_repair(
         return _dry_run_surface_report(project_path, json_output=json_output)
     if ctx.prepared_repairs is None:
         return SurfaceRepairReport(failed=True, failure_messages=(_REPAIR_NOT_PREPARED_MESSAGE,))
-    return _apply_prepared_surface_repairs(outcome, ctx, ctx.prepared_repairs)
+    report = _apply_prepared_surface_repairs(outcome, ctx, ctx.prepared_repairs)
+    _refresh_agent_ignore_block(outcome, project_path)
+    return report
+
+
+def _refresh_agent_ignore_block(outcome: UpgradeOutcome, project_path: Path) -> None:
+    """List the skill folders just installed in the .gitignore agent-files block (#6474).
+
+    Runs before the churn commit, so the refreshed block is committed with the
+    rest of the upgrade. A refresh that cannot run is a warning, never a failure.
+    """
+    from specify_cli.gitignore_manager import refresh_agent_block
+
+    warning = refresh_agent_block(project_path)
+    if warning and warning not in outcome.result.warnings:
+        outcome.result.warnings.append(warning)
 
 
 def _render_safe_commit_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:

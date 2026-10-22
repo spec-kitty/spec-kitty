@@ -494,3 +494,36 @@ def test_without_agents_the_projection_neither_stages_nor_refuses(project: Path,
 
     assert project_pack_skills(project) == PackSkillProjection()
     assert _tree(project) == before
+
+
+def test_projection_lists_pack_skill_folders_in_the_gitignore_block(project: Path, tmp_path: Path) -> None:
+    """#6474: pack skills are ignored folder by folder, and leave when retired."""
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    GitignoreManager(project).sync_agent_block()
+    shipped = _fake_builtin(tmp_path, "spk-one")
+
+    projection = project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
+
+    assert projection.warnings == ()
+    text = (project / ".gitignore").read_text(encoding="utf-8")
+    assert f".claude/skills/{RENDERED}/" in text
+    assert f".agents/skills/{RENDERED}/" in text
+
+    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n")
+    project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
+
+    assert f".claude/skills/{RENDERED}/" not in (project / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_projection_reports_a_block_it_could_not_refresh(project: Path, tmp_path: Path) -> None:
+    from specify_cli.gitignore_manager import AGENT_BLOCK_BEGIN
+
+    (project / ".gitignore").write_text(f"{AGENT_BLOCK_BEGIN}\n", encoding="utf-8")
+    shipped = _fake_builtin(tmp_path, "spk-one")
+
+    projection = project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
+
+    assert projection.changed
+    assert len(projection.warnings) == 1
+    assert "damaged" in projection.warnings[0]

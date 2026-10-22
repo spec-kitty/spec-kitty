@@ -1263,10 +1263,13 @@ class PackSkillProjection:
     ``changed`` lists project-relative skill files created, updated or retired;
     ``preserved`` lists ``(path, reason)`` pairs the installer deliberately left
     alone (an unowned same-name directory, a locally modified managed file).
+    ``warnings`` lists follow-up problems that did not undo the projection
+    (the ``.gitignore`` agent-files block could not be refreshed, #6474).
     """
 
     changed: tuple[str, ...] = ()
     preserved: tuple[tuple[str, str], ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 def installable_agent_keys(project_path: Path) -> tuple[str, ...]:
@@ -1323,4 +1326,8 @@ def project_pack_skills(project_path: Path, *, registry: SkillRegistry | None = 
     succeeded = set(result.succeeded)
     changed = tuple(sorted(effect.path for effect in assessment.effects if effect.id in succeeded and effect.path in selected))
     preserved = tuple((item.path or "", item.reason) for item in assessment.dispositions if item.state in {"preserve", "consent_required"})
-    return PackSkillProjection(changed, preserved)
+    # Pack-skill folders are listed one by one in the agent-files block (#6474).
+    from specify_cli.gitignore_manager import refresh_agent_block
+
+    warning = refresh_agent_block(project_path)
+    return PackSkillProjection(changed, preserved, (warning,) if warning else ())

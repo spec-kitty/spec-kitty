@@ -1,15 +1,19 @@
 """
-GitignoreManager module for protecting AI agent directories.
+GitignoreManager module for protecting runtime state and generated agent files.
 
-This module provides a centralized system for managing .gitignore entries
-to protect AI agent directories from being accidentally committed to git.
-It replaces the fragmented approach where only .codex/ was protected.
+This module provides a centralized system for managing .gitignore entries:
+runtime state under ``.kittify/`` (from the state contract), ``.worktrees/``,
+and the files Spec Kitty generates inside agent folders. The agent files live
+in one delimited block that :meth:`GitignoreManager.sync_agent_block` rewrites
+from the configured agents (#6474); whole agent folders are no longer ignored,
+so a team can commit its own ``.claude/settings.json`` or ``.kiro/steering/``.
 """
 
 import os
 import subprocess
 import stat
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,10 +24,56 @@ from specify_cli.core.no_follow import (
     open_no_follow,
     read_text_no_follow,
 )
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries, ignored_agent_keys
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
 SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
+
+#: Delimiters of the agent-files block. Everything between them is rewritten
+#: by :meth:`GitignoreManager.sync_agent_block`; lines outside are never touched.
+AGENT_BLOCK_BEGIN = "# >>> Spec Kitty agent files (auto-managed; lines in this block are replaced) >>>"
+AGENT_BLOCK_END = "# <<< Spec Kitty agent files <<<"
+
+
+class GitignoreBlockError(ValueError):
+    """Raised when the agent-files block delimiters are missing a partner or repeated."""
+
+
+def replace_agent_block(content: str | None, entries: Sequence[str], *, create: bool = True) -> str | None:
+    """Return *content* with the agent-files block set to *entries*.
+
+    The block is replaced where it stands; with no block, it is appended when
+    *create* is true. Returns ``None`` when nothing would change (including no
+    block and ``create=False``). The file's newline style is kept.
+
+    Raises:
+        GitignoreBlockError: a begin line without its end line (or the
+            reverse), or more than one block. The file is left for the
+            operator to repair rather than guessed at.
+    """
+    text = content or ""
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines()
+    begins = [index for index, line in enumerate(lines) if line.strip() == AGENT_BLOCK_BEGIN]
+    ends = [index for index, line in enumerate(lines) if line.strip() == AGENT_BLOCK_END]
+    block = [AGENT_BLOCK_BEGIN, *entries, AGENT_BLOCK_END]
+    if not begins and not ends:
+        if not create:
+            return None
+        updated_lines = list(lines)
+        if updated_lines and updated_lines[-1].strip():
+            updated_lines.append("")
+        updated_lines.extend(block)
+    elif len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]:
+        updated_lines = [*lines[: begins[0]], *block, *lines[ends[0] + 1 :]]
+    else:
+        raise GitignoreBlockError(
+            f".gitignore has a damaged Spec Kitty agent-files block ({len(begins)} begin and {len(ends)} end line(s)); "
+            f"keep exactly one '{AGENT_BLOCK_BEGIN}' ... '{AGENT_BLOCK_END}' pair, or delete both lines, then re-run"
+        )
+    updated = newline.join(updated_lines) + newline
+    return None if updated == text else updated
 
 
 class GitignorePathError(Exception):
@@ -303,7 +353,10 @@ class ProtectionResult:
     """Warning messages if any were generated"""
 
 
-# Registry of all known AI agent directories
+# Legacy registry of the whole-folder entries Spec Kitty used to write (#6474).
+# Nothing writes these any more; shipped migrations still read it to recognise
+# Spec Kitty-authored lines (m_3_2_6rc3_narrow_cursor_gitignore), so it stays
+# frozen. The live ignore set is agent_utils.ignore_entries.
 AGENT_DIRECTORIES = [
     AgentDirectory("claude", ".claude/", False, "Claude Code CLI"),
     AgentDirectory("codex", ".codex/", False, "Codex (contains auth.json)"),
@@ -501,46 +554,107 @@ class GitignoreManager:
 
         return result
 
-    def protect_all_agents(self) -> ProtectionResult:
+    def sync_agent_block(self, agent_keys: Sequence[str] | None = None, *, create: bool = True) -> bool:
+        """Rewrite the agent-files block from the configured agents (#6474).
+
+        Args:
+            agent_keys: Agents whose generated files to ignore. ``None`` reads
+                them from ``.kittify/config.yaml`` (``ignored_agent_keys``).
+            create: Append the block when the file has none. Callers that only
+                keep an existing block current (skill installs, ``agent
+                config``) pass ``False``.
+
+        Returns:
+            True if .gitignore was modified.
+
+        Raises:
+            GitignoreBlockError: the existing block is damaged.
+            AgentConfigError: *agent_keys* is ``None`` and the config is unreadable.
         """
-        Add all known agent directories to .gitignore.
+        keys = ignored_agent_keys(self.project_path) if agent_keys is None else agent_keys
+        entries = agent_ignore_entries(self.project_path, keys)
+        self._reject_symlink()
+        content = read_gitignore_text(self.gitignore_path)
+        updated = replace_agent_block(content, entries, create=create)
+        if updated is None:
+            return False
+        write_gitignore_text(self.gitignore_path, updated)
+        return True
 
-        This is the primary method used during spec-kitty init to ensure
-        comprehensive protection of all AI agent directories.
+    def protect_all_agents(self, agent_keys: Sequence[str] | None = None) -> ProtectionResult:
+        """Protect runtime state and the generated files of the configured agents.
 
-        Also protects runtime-generated files under .kittify/.
+        This is the primary method used during spec-kitty init. It adds the
+        runtime entries from the state contract, makes sure ``.worktrees/`` is
+        ignored, and writes the agent-files block (:meth:`sync_agent_block`).
+        Whole agent folders are no longer ignored (#6474).
+
+        Args:
+            agent_keys: Agents to protect; ``None`` reads them from config.
+                ``init`` passes its selection, because it saves the config
+                only after this step.
 
         Returns:
             ProtectionResult containing details of the operation
         """
-        # Get all agent directories
-        all_directories = [agent.directory for agent in AGENT_DIRECTORIES]
-
-        # Add runtime files that should never be tracked
-        all_directories.extend(RUNTIME_PROTECTED_ENTRIES)
-
-        result = self._protect_entries(all_directories, "agent directories")
+        result = self._protect_entries(list(RUNTIME_PROTECTED_ENTRIES), "runtime files")
         if not result.success:
             return result
 
         try:
-            if not is_gitignore_root_effectively_ignored(
-                self.project_path,
-                root_path=WORKTREES_DIR,
-                equivalent_entries=frozenset({_WORKTREES_ENTRY}),
-                probe_path=_WORKTREES_PROBE,
-            ):
-                self.ensure_entries([_WORKTREES_ENTRY], force_append=True)
-                result.modified = True
-                if _WORKTREES_ENTRY in result.entries_skipped:
-                    result.entries_skipped.remove(_WORKTREES_ENTRY)
-                if _WORKTREES_ENTRY not in result.entries_added:
-                    result.entries_added.append(_WORKTREES_ENTRY)
+            self._protect_worktrees(result)
+            self._protect_agent_block(result, agent_keys)
         except PermissionError:
             result.success = False
             result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as exc:
             result.success = False
-            result.errors.append(f"Error protecting agent directories: {exc}")
+            result.errors.append(f"Error protecting agent files: {exc}")
 
         return result
+
+    def _protect_worktrees(self, result: ProtectionResult) -> None:
+        if is_gitignore_root_effectively_ignored(
+            self.project_path,
+            root_path=WORKTREES_DIR,
+            equivalent_entries=frozenset({_WORKTREES_ENTRY}),
+            probe_path=_WORKTREES_PROBE,
+        ):
+            return
+        self.ensure_entries([_WORKTREES_ENTRY], force_append=True)
+        result.modified = True
+        if _WORKTREES_ENTRY in result.entries_skipped:
+            result.entries_skipped.remove(_WORKTREES_ENTRY)
+        if _WORKTREES_ENTRY not in result.entries_added:
+            result.entries_added.append(_WORKTREES_ENTRY)
+
+    def _protect_agent_block(self, result: ProtectionResult, agent_keys: Sequence[str] | None) -> None:
+        before = set((read_gitignore_text(self.gitignore_path) or "").splitlines())
+        if self.sync_agent_block(agent_keys):
+            result.modified = True
+        after = [line.strip() for line in (read_gitignore_text(self.gitignore_path) or "").splitlines()]
+        begin = after.index(AGENT_BLOCK_BEGIN)
+        end = after.index(AGENT_BLOCK_END)
+        for entry in after[begin + 1 : end]:
+            (result.entries_skipped if entry in before else result.entries_added).append(entry)
+
+
+def refresh_agent_block(project_path: Path) -> str | None:
+    """Best-effort: bring an existing agent-files block up to date (#6474).
+
+    For callers whose own work already succeeded (skill installs, surface
+    repair): the block follows the configured agents and the skills manifest,
+    and a project without a block is left for ``init``/``upgrade`` to create.
+    Returns a warning to show the operator when the refresh could not run,
+    else ``None``; it never raises for a damaged block, an unsafe or
+    unwritable ``.gitignore`` or an unreadable config.
+    """
+    from specify_cli.core.agent_config import AgentConfigError
+
+    if not project_path.is_dir():
+        return None  # no project, so no .gitignore to keep current
+    try:
+        GitignoreManager(project_path).sync_agent_block(create=False)
+    except (AgentConfigError, GitignoreBlockError, GitignorePathError, OSError) as exc:
+        return f".gitignore agent-files block not refreshed: {exc}"
+    return None

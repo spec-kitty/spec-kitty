@@ -528,3 +528,63 @@ def test_6155_sync_json_reports_regenerated_without_human_line(tmp_path: Path, m
     assert _REGENERATED_PREFIX not in result.output, "the human notice must not reach stdout under --json"
     summary = json.loads(result.output[result.output.index("{") :])
     assert summary["regenerated"] == [rel], summary
+
+
+# ---------------------------------------------------------------------------
+# #6474: add/remove keep the .gitignore agent-files block in step
+# ---------------------------------------------------------------------------
+
+
+class TestAgentIgnoreBlockRefresh:
+    def _project_with_block(self, root: Path, available: list[str]) -> Path:
+        from specify_cli.gitignore_manager import GitignoreManager
+
+        _write_project(root, available)
+        GitignoreManager(root).sync_agent_block()
+        return root
+
+    def test_remove_drops_the_agents_entries(self, tmp_path: Path) -> None:
+        project = self._project_with_block(tmp_path, ["claude", "gemini"])
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=project):
+            result = runner.invoke(app, ["remove", "gemini"])
+
+        assert result.exit_code == 0, result.output
+        text = (project / ".gitignore").read_text(encoding="utf-8")
+        assert ".gemini/commands/spec-kitty.*" not in text
+        assert ".claude/commands/spec-kitty.*" in text
+
+    def test_add_lists_the_new_agents_entries(self, tmp_path: Path) -> None:
+        project = self._project_with_block(tmp_path, ["claude"])
+
+        with (
+            patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=project),
+            patch("specify_cli.cli.commands.agent.config._write_global_commands"),
+        ):
+            result = runner.invoke(app, ["add", "gemini"])
+
+        assert result.exit_code == 0, result.output
+        assert ".gemini/commands/spec-kitty.*" in (project / ".gitignore").read_text(encoding="utf-8")
+
+    def test_project_without_a_block_is_left_alone(self, tmp_path: Path) -> None:
+        project = _write_project(tmp_path, ["claude", "gemini"])
+        (project / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=project):
+            result = runner.invoke(app, ["remove", "gemini"])
+
+        assert result.exit_code == 0, result.output
+        assert (project / ".gitignore").read_text(encoding="utf-8") == "node_modules/\n"
+
+    def test_damaged_block_warns_without_failing(self, tmp_path: Path) -> None:
+        from specify_cli.gitignore_manager import AGENT_BLOCK_BEGIN
+
+        project = _write_project(tmp_path, ["claude", "gemini"])
+        (project / ".gitignore").write_text(f"{AGENT_BLOCK_BEGIN}\n", encoding="utf-8")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=project):
+            result = runner.invoke(app, ["remove", "gemini"])
+
+        assert result.exit_code == 0, result.output
+        assert ".gitignore not updated" in result.output
+        assert load_agent_config(project).available == ["claude"]

@@ -145,3 +145,4 @@ migrate_lifecycle_envelope  # tie: shares target_version 3.2.6rc2; auto-discover
 4.0.0rc8_activation_ledger  # tie: shares target_version 4.0.0rc8; runs after the project-intent rename so the stem tokens it rewrites in the legacy activation keys are what move into the ledger
 4.0.0rc8_command_skill_hyphen_names  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_project_intent_directive_rename; runs after it
 4.0.0rc8_retire_antigravity_workflows  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_command_skill_hyphen_names; runs after it so legacy dotted skills are renamed before Antigravity is installed
+4.0.0rc8_narrow_agent_gitignore  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_retire_antigravity_workflows; runs last so every earlier gitignore backfill (0.4.8, 3.2.5, 3.2.6rc3) has written the whole-folder lines it narrows

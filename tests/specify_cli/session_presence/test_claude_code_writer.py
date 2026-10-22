@@ -114,3 +114,72 @@ class TestHasPresence:
         """has_presence() is False when neither artefact is present."""
         writer = ClaudeCodeWriter()
         assert writer.has_presence(claude_project) is False
+
+
+class TestCommittedSettings:
+    """#6474: a settings.json the team committed is never edited."""
+
+    @staticmethod
+    def _commit_settings(project: Path, text: str) -> None:
+        import subprocess
+
+        subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+        (project / ".claude").mkdir()
+        (project / ".claude/settings.json").write_text(text, encoding="utf-8")
+        subprocess.run(["git", "add", ".claude/settings.json"], cwd=project, check=True)
+
+    @pytest.mark.git_repo
+    def test_committed_settings_are_left_alone_and_the_notice_names_the_hooks(self, tmp_path: Path) -> None:
+        from specify_cli.session_presence.writers.claude_code import committed_settings_notice
+
+        team_settings = '{"enabledPlugins": {"team@market": true}}\n'
+        self._commit_settings(tmp_path, team_settings)
+        writer = ClaudeCodeWriter()
+
+        writer.write(tmp_path, _content())
+
+        assert (tmp_path / ".claude/settings.json").read_text(encoding="utf-8") == team_settings
+        assert (tmp_path / ".claude/CLAUDE.md").read_text() == _content().render()
+        settings_member = writer.prepare_batch(tmp_path, _content())[1]
+        assert settings_member.disposition == "preserve"
+        assert not settings_member.changed
+        notice = committed_settings_notice(tmp_path)
+        assert notice is not None
+        assert SESSION_START_CMD in notice
+        assert SESSION_STOP_CMD in notice
+
+    @pytest.mark.git_repo
+    def test_committed_settings_that_already_hold_the_hooks_need_no_notice(self, tmp_path: Path) -> None:
+        import json
+
+        from specify_cli.session_presence.writers.claude_code import committed_settings_notice
+
+        hooks = {
+            "hooks": {
+                "SessionStart": [{"hooks": [{"type": "command", "command": SESSION_START_CMD}]}],
+                "Stop": [{"hooks": [{"type": "command", "command": SESSION_STOP_CMD}]}],
+            }
+        }
+        self._commit_settings(tmp_path, json.dumps(hooks))
+
+        assert committed_settings_notice(tmp_path) is None
+
+    @pytest.mark.git_repo
+    def test_untracked_settings_still_get_the_hooks(self, tmp_path: Path) -> None:
+        import subprocess
+
+        from specify_cli.session_presence.writers.claude_code import committed_settings_notice
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude/settings.json").write_text("{}\n", encoding="utf-8")
+
+        ClaudeCodeWriter().write(tmp_path, _content())
+
+        assert SESSION_START_CMD in (tmp_path / ".claude/settings.json").read_text(encoding="utf-8")
+        assert committed_settings_notice(tmp_path) is None
+
+    def test_outside_a_repository_settings_are_never_committed(self, tmp_path: Path) -> None:
+        from specify_cli.session_presence.writers.claude_code import committed_settings_notice
+
+        assert committed_settings_notice(tmp_path) is None

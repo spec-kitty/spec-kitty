@@ -276,3 +276,34 @@ def test_global_sync_surfaces_resolve_from_home(tmp_path, monkeypatch):
     )
     assert sync_config is not None
     assert sync_config.present is True
+
+
+def test_agent_block_surface_is_probed_with_a_reserved_name(tmp_path, monkeypatch):
+    """#6474: `.agents/skills/` is ignored only for Spec Kitty's names, so the probe uses one."""
+    from specify_cli.state import doctor as doctor_mod
+
+    asked: list[str] = []
+    monkeypatch.setattr(doctor_mod, "_is_gitignore_covered", lambda _root, path: asked.append(path) or True)
+
+    check_state_roots(tmp_path)
+
+    assert ".agents/skills/spec-kitty-doctor-probe/" in asked
+    assert not any("<" in path for path in asked if path.startswith(".agents/"))
+
+
+@pytest.mark.git_repo
+def test_agent_block_covers_the_shared_skills_probe(tmp_path):
+    """The probe really is ignored by the block a shared-root agent gets."""
+    import subprocess
+
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    GitignoreManager(tmp_path).protect_all_agents(["codex"])
+    (tmp_path / ".agents" / "skills" / "spec-kitty-plan").mkdir(parents=True)
+
+    report = check_state_roots(tmp_path)
+
+    check = next(s for s in report.surfaces if s.surface.name == "shared_skills_projection")
+    assert check.gitignore_covered
+    assert check.warning is None

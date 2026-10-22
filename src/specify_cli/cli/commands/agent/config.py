@@ -21,6 +21,7 @@ from specify_cli.core.agent_config import (
     AgentConfigError,
 )
 from specify_cli.core.utils import write_text_within_directory
+from specify_cli.gitignore_manager import GitignoreBlockError, GitignoreManager, GitignorePathError
 from specify_cli.runtime.agent_commands import get_global_command_dir
 from specify_cli.session_presence.hooks.claude_code_hook import ClaudeCodeHookRegistrar
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
@@ -213,6 +214,22 @@ def _register_skill_agent(
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"
+
+
+def _refresh_agent_ignore_block(repo_root: Path, config: AgentConfig) -> None:
+    """Keep the .gitignore agent-files block in step with *config* (#6474).
+
+    Only an existing block is rewritten; a project without one gets it from
+    ``init`` or ``spec-kitty upgrade``. A damaged block or unsafe .gitignore is
+    reported and left alone, because the agent change itself already landed.
+    """
+    try:
+        changed = GitignoreManager(repo_root).sync_agent_block(config.available, create=False)
+    except (GitignoreBlockError, GitignorePathError, OSError) as exc:
+        console.print(f"[yellow]Warning:[/yellow] .gitignore not updated: {exc}")
+        return
+    if changed:
+        console.print("[dim]Updated the Spec Kitty agent-files block in .gitignore[/dim]")
 
 
 def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
@@ -539,6 +556,7 @@ def add_agents(
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
         _write_global_commands([key for key in added if key in GLOBAL_COMMAND_AGENTS])
+        _refresh_agent_ignore_block(repo_root, config)
 
     if already_configured:
         console.print(f"\n[dim]Already configured:[/dim] {', '.join(already_configured)}")
@@ -621,6 +639,7 @@ def remove_agents(
     if not keep_config and removed_from_config:
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed_from_config)}")
+        _refresh_agent_ignore_block(repo_root, config)
 
     if errors:
         console.print("\n[yellow]Warnings:[/yellow]")
