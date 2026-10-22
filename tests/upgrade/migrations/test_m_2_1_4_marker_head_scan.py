@@ -10,11 +10,12 @@ rewrite them on every upgrade.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+from tests._support.eacces import deny_path_method
 
 from specify_cli.upgrade.migrations.m_2_1_4_enforce_command_file_state import (
     _VERSION_MARKER_HEAD_LINES,
@@ -147,8 +148,7 @@ def _setup_project_with_config(tmp_path: Path, agents: list[str] | None = None) 
     return project
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_apply_rewrites_preexisting_read_only_command_file(tmp_path: Path) -> None:
+def test_apply_rewrites_preexisting_read_only_command_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#3651: re-running the migration over its own read-only output must
     rewrite the file, report zero errors, and report ``success=True``.
 
@@ -176,6 +176,11 @@ def test_apply_rewrites_preexisting_read_only_command_file(tmp_path: Path) -> No
         encoding="utf-8",
     )
     output_path.chmod(0o444)
+    # Root writes through a 0o444 file, so deny an in-place Path write of it
+    # for every uid (#5691). The managed writer's contract is to replace the
+    # file, never to rewrite it in place, so the denial does not lift.
+    for attr in ("write_text", "write_bytes"):
+        deny_path_method(monkeypatch, attr, output_path)
 
     # Real templates dir with a file for every prompt-driven command so the
     # migration does not warn-and-skip any of them for a missing template.

@@ -22,7 +22,6 @@ and that the edit is actually applied (not silently dropped).
 
 from __future__ import annotations
 
-import os
 import stat
 import subprocess
 from pathlib import Path
@@ -36,6 +35,7 @@ from specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff import (
     KittifyProfileHandoffMigration,
     _HANDOFF_SENTINEL,
 )
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -59,8 +59,7 @@ Record your changes.
 """
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_kittify_profile_handoff_rewrites_readonly_skill_file(tmp_path: Path) -> None:
+def test_kittify_profile_handoff_rewrites_readonly_skill_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A previously-generated read-only SKILL.md must not crash the upgrade.
 
     Before the fix, ``_apply_patch_to_file`` calls a bare
@@ -75,6 +74,11 @@ def test_kittify_profile_handoff_rewrites_readonly_skill_file(tmp_path: Path) ->
     skill_path.parent.mkdir(parents=True)
     skill_path.write_text(_SKILL_IMPLEMENT_WITHOUT_HANDOFF, encoding="utf-8")
     skill_path.chmod(0o444)
+    # Root writes through a 0o444 file, so deny an in-place Path write of it
+    # for every uid (#5691). The managed writer's contract is to replace the
+    # file, never to rewrite it in place, so the denial does not lift.
+    for attr in ("write_text", "write_bytes"):
+        deny_path_method(monkeypatch, attr, skill_path)
 
     migration = KittifyProfileHandoffMigration()
 
@@ -93,8 +97,7 @@ def test_kittify_profile_handoff_rewrites_readonly_skill_file(tmp_path: Path) ->
     assert stat.S_IMODE(skill_path.stat().st_mode) & 0o222 == 0
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_workflow_agent_flag_rewrites_readonly_command_file(tmp_path: Path) -> None:
+def test_workflow_agent_flag_rewrites_readonly_command_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A previously-generated read-only implement.md must not crash the upgrade.
 
     Before the fix, ``_update_workflow_lines`` calls a bare
@@ -110,6 +113,11 @@ def test_workflow_agent_flag_rewrites_readonly_command_file(tmp_path: Path) -> N
     command_path.parent.mkdir(parents=True)
     command_path.write_text("spec-kitty agent action implement WP01\n", encoding="utf-8")
     command_path.chmod(0o444)
+    # Root writes through a 0o444 file, so deny an in-place Path write of it
+    # for every uid (#5691). The managed writer's contract is to replace the
+    # file, never to rewrite it in place, so the denial does not lift.
+    for attr in ("write_text", "write_bytes"):
+        deny_path_method(monkeypatch, attr, command_path)
 
     migration = WorkflowAgentFlagMigration()
 

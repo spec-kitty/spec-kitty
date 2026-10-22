@@ -44,13 +44,13 @@ matches) fails loudly too.
 
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
 
 import pytest
 
-from specify_cli.runtime.generated_writer import write_generated_file
+from specify_cli.runtime.generated_writer import generated_temporary_path, write_generated_file
+from tests._support.eacces import deny_path_method
 
 pytestmark = pytest.mark.fast
 
@@ -59,7 +59,6 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
 def test_write_over_read_only_target_succeeds_and_stays_read_only(tmp_path: Path) -> None:
     """(a) A pre-existing 0o444 target is rewritten and left read-only."""
     target = tmp_path / "command.md"
@@ -93,22 +92,20 @@ def test_read_only_false_leaves_target_writable(tmp_path: Path) -> None:
     assert stat.S_IMODE(target.stat().st_mode) & 0o200 != 0
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_genuine_write_failure_propagates(tmp_path: Path) -> None:
+def test_genuine_write_failure_propagates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d) A genuine failure (unwritable parent directory) is not swallowed."""
     blocked_dir = tmp_path / "blocked"
     blocked_dir.mkdir()
     target = blocked_dir / "command.md"
 
-    blocked_dir.chmod(0o555)  # read+execute only — cannot create a new file here
-    try:
-        with pytest.raises(OSError):
-            write_generated_file(target, "content\n")
-    finally:
-        blocked_dir.chmod(0o755)  # restore so tmp_path cleanup can remove it
+    # An unwritable directory refuses the temporary sibling the writer creates.
+    # Deny that write at the seam: a chmod(0o555) directory does not deny root (#5691).
+    deny_path_method(monkeypatch, "write_text", generated_temporary_path(target))
+    with pytest.raises(PermissionError):
+        write_generated_file(target, "content\n")
+    assert not target.exists()
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
 def test_idempotent_double_write(tmp_path: Path) -> None:
     """(e) Writing the same content twice in a row is a clean no-op state."""
     target = tmp_path / "command.md"

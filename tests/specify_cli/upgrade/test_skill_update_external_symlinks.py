@@ -212,18 +212,9 @@ def _install_windows_like_replace(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Path, "replace", windows_like_replace)
 
 
-# ``os.getuid`` is POSIX-only; on Windows the read-only path is exercised
-# natively (root does not exist there), so guard the skip with ``hasattr``.
-_skip_if_root = pytest.mark.skipif(
-    hasattr(os, "getuid") and os.getuid() == 0,
-    reason="root ignores file permissions",
-)
-
-
 class TestWriteSkillTextReadOnlyTarget:
     """A read-only managed SKILL.md must be rewritten, not silently skipped."""
 
-    @_skip_if_root
     def test_readonly_target_is_rewritten_not_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         skill_dir = tmp_path / ".claude" / "skills" / "spec-kitty-glossary-context"
         skill_dir.mkdir(parents=True)
@@ -242,7 +233,6 @@ class TestWriteSkillTextReadOnlyTarget:
         assert warning is None
         assert dest.read_text(encoding="utf-8") == "NEW"
 
-    @_skip_if_root
     def test_writable_target_unaffected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The read-only clear must not disturb an already-writable target."""
         skill_dir = tmp_path / ".claude" / "skills" / "spec-kitty-glossary-context"
@@ -258,7 +248,6 @@ class TestWriteSkillTextReadOnlyTarget:
         assert warning is None
         assert dest.read_text(encoding="utf-8") == "NEW"
 
-    @_skip_if_root
     def test_chmod_failure_does_not_abort_write(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A read-only target we cannot chmod (e.g. owned by another user) must
         not abort the write (squad F1).

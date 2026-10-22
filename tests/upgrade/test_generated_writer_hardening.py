@@ -24,7 +24,6 @@ two (the docstring fix has no runtime behavior to assert). Covers:
 
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
 
@@ -41,7 +40,6 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
 def test_failing_write_leaves_original_content_and_read_only_bit_intact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A write failure mid-way must not corrupt or unlock the prior file.
 
@@ -71,7 +69,6 @@ def test_failing_write_leaves_original_content_and_read_only_bit_intact(tmp_path
     assert stat.S_IMODE(target.stat().st_mode) == 0o444
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
 def test_failing_write_does_not_leave_a_stray_temp_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A failed write cleans up its temporary sibling file."""
     target = tmp_path / "command.md"
@@ -81,6 +78,8 @@ def test_failing_write_does_not_leave_a_stray_temp_file(tmp_path: Path, monkeypa
 
     def failing_write_text(self: Path, *args: object, **kwargs: object) -> int:
         if self.name.startswith(".") and ".tmp" in self.name:
+            # Fail mid-write: the temporary sibling exists, so cleanup has work to do.
+            original_write_text(self, "partial", encoding="utf-8")
             raise OSError("simulated failure")
         return original_write_text(self, *args, **kwargs)  # type: ignore[arg-type]
 
@@ -163,7 +162,6 @@ def test_round_trip_absent_target_creates_read_only_file(tmp_path: Path) -> None
     assert not target.is_symlink()
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
 def test_round_trip_already_read_only_target_is_rewritten_and_stays_read_only(
     tmp_path: Path,
 ) -> None:

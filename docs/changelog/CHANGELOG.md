@@ -150,6 +150,7 @@ this section at publish._
 
 ### Internal
 
+- **The read-only generated-writer, read-only migration and skill-write tests now run, and bite, as root** (#5691). They skipped as uid 0, which is how CI containers and cloud sessions run; an in-place `Path.write_text`/`write_bytes` of a read-only target is now denied at the seam, so a regression from the replacing writer to such a write goes red for every uid.
 - **The language settlement moves to `charter.activation.language_settlement`, removing a hidden import cycle with the evidence code reader** (#6540), and reconciliation gains tests for table styleguide edges (#6543).
 - **Audit `Severity` now ranks `>` and `>=` like `<` and `<=` (error, then warning, then info), and the dossier indexer chains manifest specs instead of `sum()`-concatenating lists** (#4695; SonarCloud S8500, S8520).
 - **Dead event write doors are deleted, and `status.events.jsonl` has one set of write primitives** (#6614). No user-visible behavior changes. `store.append_event`, `append_event_verified`, `append_primary_checkout_event_verified`, `coordination.status_service.append_event_log`, `kernel.atomic.notify_file_written` and `invocations_cmd.append_to_index` had no production caller and are removed. `tests/architectural/test_status_unsafe_allowlist.py`, `test_status_events_writes_gate.py` (now with a single-writer check for `kitty-ops/ops-index.jsonl`) and `test_no_dead_symbols.py` are re-pinned to the smaller set.
