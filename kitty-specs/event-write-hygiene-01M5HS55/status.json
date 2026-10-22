@@ -162,8 +162,8 @@
     "WP05": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "architect-alphonso",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -171,7 +171,8 @@
       "last_transition_at": "2026-10-22T16:51:42.602676+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-22T16:46:42Z – claude – shell_pid=18479 – Docs landed: G-11/G-16/G-18 closed, amendments on 4 ADRs, env var doc, breaking changelog, index regenerated; freshness 0 errors"
+        "- 2026-10-22T16:46:42Z – claude – shell_pid=18479 – Docs landed: G-11/G-16/G-18 closed, amendments on 4 ADRs, env var doc, breaking changelog, index regenerated; freshness 0 errors",
+        "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
