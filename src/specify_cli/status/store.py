@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.paths import is_windows
-from kernel.atomic import notify_file_written, notify_written
+from kernel.atomic import notify_written
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -300,20 +300,6 @@ def serialize_event_line(event_dict: Mapping[str, Any]) -> str:
     return json.dumps(sanitize_event_for_log(event_dict), sort_keys=True)
 
 
-def append_event(feature_dir: Path, event: StatusEvent) -> None:
-    """Atomically append a StatusEvent as a single JSON line.
-
-    Creates parent directories and the file if they do not exist.
-    Uses ``sort_keys=True`` for deterministic key ordering.
-    """
-    path = _events_path(feature_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = serialize_event_line(event.to_dict())
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-    notify_file_written(path)
-
-
 def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
     """Return True when *actual* is durable evidence for *expected*."""
     if actual.event_id != expected.event_id:
@@ -342,28 +328,6 @@ def verify_event_readback(feature_dir: Path, expected: StatusEvent) -> None:
             feature_dir=feature_dir,
             expected=expected,
         )
-
-
-def append_event_verified(feature_dir: Path, event: StatusEvent) -> None:
-    """Append one event and require a successful post-write readback."""
-    try:
-        append_event(feature_dir, event)
-    except Exception as exc:
-        raise EventPersistenceError(
-            problem=f"append failed: {exc}",
-            feature_dir=feature_dir,
-            expected=event,
-        ) from exc
-    verify_event_readback(feature_dir, event)
-
-
-def append_primary_checkout_event_verified(feature_dir: Path, event: StatusEvent) -> None:
-    """Append one event to the primary-checkout event log.
-
-    Coordination worktree callers must not use this helper; they route through
-    ``coordination.status_service.EventLogWriteContract`` instead.
-    """
-    append_event_verified(feature_dir, event)
 
 
 def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -460,9 +424,9 @@ def _read_text_without_following_symlinks(path: Path) -> str:
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     """Atomically persist a batch of StatusEvents as JSONL lines.
 
-    The existing single-event append remains the compatibility path. Composite
-    lifecycle operations use this helper so crash recovery never observes only
-    half of a logical operation such as ``planned -> claimed -> in_progress``.
+    Composite lifecycle operations use this helper so crash recovery never
+    observes only half of a logical operation such as
+    ``planned -> claimed -> in_progress``.
     """
     _append_serialized_atomic(feature_dir, [event.to_dict() for event in events])
 

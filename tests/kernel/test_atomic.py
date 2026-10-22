@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from kernel.atomic import atomic_write, notify_file_written, notify_written, observe_writes, stop_observing_writes, substantively_equal
+from kernel.atomic import atomic_write, notify_written, observe_writes, stop_observing_writes, substantively_equal
 
 pytestmark = pytest.mark.fast
 
@@ -447,20 +447,6 @@ def test_notify_written_tells_the_observer_and_is_silent_without_one(tmp_path: P
     finally:
         stop_observing_writes(token)
     assert heard == [(tmp_path / "x", b"bytes")]
-
-
-def test_notify_file_written_reads_the_file_only_when_an_observer_is_installed(tmp_path: Path) -> None:
-    missing = tmp_path / "never-created"
-    notify_file_written(missing)  # no observer: the file is not even read
-    target = tmp_path / "log.jsonl"
-    target.write_bytes(b"row\n")
-    heard: list[tuple[Path, bytes]] = []
-    token = observe_writes(lambda path, content: heard.append((path, content)))
-    try:
-        notify_file_written(target)
-    finally:
-        stop_observing_writes(token)
-    assert heard == [(target, b"row\n")]
 
 
 def test_a_nested_observer_is_chained_with_the_outer_one(tmp_path: Path) -> None:

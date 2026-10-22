@@ -25,8 +25,6 @@ from specify_cli.status.store import (
     _resolve_mission_id_from_dict,
     _SlugResolver,
     StoreError,
-    append_event,
-    append_event_verified,
     append_events_atomic,
     append_events_atomic_verified,
     read_events,
@@ -67,23 +65,23 @@ def _make_event(
 def test_append_and_read_round_trip(tmp_path: Path) -> None:
     """Append a single event then read it back; fields must match."""
     event = _make_event()
-    append_event(tmp_path, event)
+    append_events_atomic(tmp_path, [event])
 
     events = read_events(tmp_path)
     assert len(events) == 1
     assert events[0] == event
 
 
-def test_append_event_verified_fails_when_readback_misses_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_append_events_atomic_verified_single_event_readback_miss_diagnostic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verified append requires durable readback of the exact transition."""
     event = _make_event(to_lane=Lane.IN_PROGRESS)
 
     import specify_cli.status.store as status_store
 
-    monkeypatch.setattr(status_store, "append_event", lambda _feature_dir, _event: None)
+    monkeypatch.setattr(status_store, "append_events_atomic", lambda _feature_dir, _events: None)
 
     with pytest.raises(EventPersistenceError) as exc_info:
-        append_event_verified(tmp_path, event)
+        append_events_atomic_verified(tmp_path, [event])
 
     message = str(exc_info.value)
     assert "expected event missing after append" in message
@@ -99,7 +97,7 @@ def test_append_event_verified_fails_when_readback_misses_event(tmp_path: Path, 
     assert diagnostic["status_events_path"] == str(tmp_path / EVENTS_FILENAME)
 
 
-def test_append_event_verified_wraps_append_failures_in_diagnostic(
+def test_append_events_atomic_verified_wraps_append_failure_in_diagnostic(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -108,13 +106,13 @@ def test_append_event_verified_wraps_append_failures_in_diagnostic(
 
     import specify_cli.status.store as status_store
 
-    def _raise_append(_feature_dir: Path, _event: StatusEvent) -> None:
+    def _raise_append(_feature_dir: Path, _events: list[StatusEvent]) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(status_store, "append_event", _raise_append)
+    monkeypatch.setattr(status_store, "append_events_atomic", _raise_append)
 
     with pytest.raises(EventPersistenceError) as exc_info:
-        append_event_verified(tmp_path, event)
+        append_events_atomic_verified(tmp_path, [event])
 
     assert "append failed: disk full" in str(exc_info.value)
     diagnostic = exc_info.value.to_diagnostic()
@@ -130,9 +128,9 @@ def test_multiple_appends_preserve_order(tmp_path: Path) -> None:
     e2 = _make_event(event_id="01BBBB0000000000000000002B", wp_id="WP02")
     e3 = _make_event(event_id="01CCCC0000000000000000003C", wp_id="WP03")
 
-    append_event(tmp_path, e1)
-    append_event(tmp_path, e2)
-    append_event(tmp_path, e3)
+    append_events_atomic(tmp_path, [e1])
+    append_events_atomic(tmp_path, [e2])
+    append_events_atomic(tmp_path, [e3])
 
     events = read_events(tmp_path)
     assert len(events) == 3
@@ -184,7 +182,7 @@ def test_append_events_atomic_verified_fails_when_batch_readback_misses_event(
 
 def test_verify_event_readback_rejects_wrong_mission_slug(tmp_path: Path) -> None:
     expected = _make_event()
-    append_event(tmp_path, replace(expected, mission_slug="999-other-mission"))
+    append_events_atomic(tmp_path, [replace(expected, mission_slug="999-other-mission")])
 
     with pytest.raises(EventPersistenceError) as exc_info:
         verify_event_readback(tmp_path, expected)
@@ -194,7 +192,7 @@ def test_verify_event_readback_rejects_wrong_mission_slug(tmp_path: Path) -> Non
 
 def test_verify_event_readback_rejects_wrong_mission_id(tmp_path: Path) -> None:
     expected = _make_event(mission_id="01HQ0000000000000000000001")
-    append_event(tmp_path, replace(expected, mission_id="01HQ0000000000000000000002"))
+    append_events_atomic(tmp_path, [replace(expected, mission_id="01HQ0000000000000000000002")])
 
     with pytest.raises(EventPersistenceError) as exc_info:
         verify_event_readback(tmp_path, expected)
@@ -265,7 +263,7 @@ def test_append_events_atomic_repairs_missing_trailing_newline(tmp_path: Path) -
 
 def test_append_events_atomic_replace_failure_leaves_original(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     original = _make_event(event_id="01AAAA0000000000000000001A", wp_id="WP01")
-    append_event(tmp_path, original)
+    append_events_atomic(tmp_path, [original])
 
     def _raise_replace(_src: Path, _dst: Path) -> None:
         raise OSError("replace failed")
@@ -375,7 +373,7 @@ def test_file_created_on_first_event(tmp_path: Path) -> None:
     events_file = tmp_path / EVENTS_FILENAME
     assert not events_file.exists()
 
-    append_event(tmp_path, _make_event())
+    append_events_atomic(tmp_path, [_make_event()])
     assert events_file.exists()
 
 
@@ -384,7 +382,7 @@ def test_directory_created_on_first_event(tmp_path: Path) -> None:
     nested = tmp_path / "deep" / "nested" / "feature"
     assert not nested.exists()
 
-    append_event(nested, _make_event())
+    append_events_atomic(nested, [_make_event()])
     assert (nested / EVENTS_FILENAME).exists()
 
 
@@ -436,7 +434,7 @@ def test_corruption_non_object_event_line(tmp_path: Path) -> None:
 def test_read_raw_returns_dicts(tmp_path: Path) -> None:
     """read_events_raw returns plain dicts, not StatusEvent objects."""
     event = _make_event()
-    append_event(tmp_path, event)
+    append_events_atomic(tmp_path, [event])
 
     raw = read_events_raw(tmp_path)
     assert len(raw) == 1
@@ -458,7 +456,7 @@ def test_read_raw_rejects_non_object_event_line(tmp_path: Path) -> None:
 
 def test_deterministic_key_ordering(tmp_path: Path) -> None:
     """JSON keys in the JSONL file are sorted alphabetically."""
-    append_event(tmp_path, _make_event())
+    append_events_atomic(tmp_path, [_make_event()])
 
     events_file = tmp_path / EVENTS_FILENAME
     line = events_file.read_text(encoding="utf-8").strip()

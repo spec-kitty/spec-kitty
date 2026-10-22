@@ -74,19 +74,15 @@ def tasks_are_finalized(mission_dir: Path) -> bool:
        stale-but-larger status.json -- on the real rollback path itself,
        not only via the live reproduction's direct file edit.
 
-    Inode replacement (adjacent hazard, examined): CANNOT occur for
-    ``status.events.jsonl`` specifically, because every writer mutates the
-    file'S CONTENT in place through the SAME inode -- ``append_event``
-    opens in ``"a"`` mode, ``_rollback`` opens in ``"ab"`` mode and
-    truncates -- neither ever ``os.replace()``s a new inode over this
-    path (unlike ``status.json``/``decisions/index.json``, which DO use
-    tmp-then-rename, and are safe for the opposite reason: a reader who
-    already holds an fd open before a rename keeps reading the old
-    inode's complete content; a reader who opens after gets the fully-new
-    inode's complete content -- either way, no torn/mixed read is
-    possible via rename). No reader here can observe a page composed of
-    two different inodes' bytes, because only one inode ever exists for
-    this file.
+    Inode replacement (adjacent hazard, examined): the event-log append
+    primitives write a temp file and ``os.replace()`` it over
+    ``status.events.jsonl`` (``append_raw_rows_atomic``), as
+    ``status.json``/``decisions/index.json`` do; ``_rollback`` instead opens
+    in ``"ab"`` mode and truncates in place. A rename cannot tear a read:
+    a reader that already holds an fd open before the rename keeps reading
+    the old inode's complete content, and a reader that opens after gets
+    the fully-new inode's complete content. No reader here can observe a
+    page composed of two different inodes' bytes.
     """
     from specify_cli.status import read_events, reduce
 

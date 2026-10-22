@@ -15,7 +15,7 @@ primitives to anyone who asked, so the census decayed silently.
 
 This module is the ONLY sanctioned import path for those primitives from
 outside ``specify_cli.status``. The public facade (``specify_cli.status``)
-no longer exports them; ``from specify_cli.status import append_event`` is an
+no longer exports them; ``from specify_cli.status import append_raw_rows_atomic`` is an
 ``ImportError``. Modules inside ``specify_cli.status`` may keep importing
 ``store`` directly (same-package reuse).
 
@@ -46,11 +46,8 @@ from __future__ import annotations
 
 from .store import (
     append_annotations_atomic_verified,
-    append_event,
     append_event_stream_atomic_verified,
-    append_event_verified,
     append_events_atomic_verified,
-    append_primary_checkout_event_verified,
     append_primary_checkout_events_atomic_verified,
     append_raw_rows_atomic,
 )
@@ -58,11 +55,8 @@ from .store import (
 __all__ = [
     "ALLOWED_CALLERS",
     "append_annotations_atomic_verified",
-    "append_event",
     "append_event_stream_atomic_verified",
-    "append_event_verified",
     "append_events_atomic_verified",
-    "append_primary_checkout_event_verified",
     "append_primary_checkout_events_atomic_verified",
     "append_raw_rows_atomic",
 ]
@@ -80,8 +74,8 @@ ALLOWED_CALLERS: frozenset[str] = frozenset(
         # Family 2: the lifecycle appender (mission + project canonical logs)
         # delegates every row to ``append_raw_rows_atomic``.
         "specify_cli.status.lifecycle_events",
-        # Family 3 (coord shell): the ``append_event_log`` /
-        # ``append_event_stream_log`` write funnel ``BookkeepingTransaction``
+        # Family 3 (coord shell): the ``append_event_stream_log``
+        # write funnel ``BookkeepingTransaction``
         # commits through; the only module that names the verified
         # primitives on behalf of the coordination pipeline.
         "specify_cli.coordination.status_service",

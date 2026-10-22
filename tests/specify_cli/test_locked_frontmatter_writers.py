@@ -524,7 +524,7 @@ def test_the_ledger_records_the_meta_text_inside_the_writing_hold(mission: tuple
 
 def test_a_status_append_is_recorded_in_the_ledger_with_the_bytes_of_the_appending_hold(mission: tuple[Path, Path, Path]) -> None:
     from specify_cli.status import StatusEvent
-    from specify_cli.status.store import append_event
+    from specify_cli.status.store import append_events_atomic
 
     _repo, primary, _wp = mission
     event = StatusEvent.from_dict(
@@ -543,9 +543,9 @@ def test_a_status_append_is_recorded_in_the_ledger_with_the_bytes_of_the_appendi
             "wp_id": "WP01",
         }
     )
-    append_event(primary, event)  # outside a run: nothing is recorded and nothing raises
+    append_events_atomic(primary, [event])  # outside a run: nothing is recorded and nothing raises
     with _finalize_run() as ledger:
-        append_event(primary, event)
+        append_events_atomic(primary, [event])
     assert ledger.written == {(primary / "status.events.jsonl").resolve(): (primary / "status.events.jsonl").read_bytes()}
 
 

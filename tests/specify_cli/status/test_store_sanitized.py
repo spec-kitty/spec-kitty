@@ -1,7 +1,6 @@
 """Tests confirming zero PII fields survive the status write paths.
 
 Covers T014 (WP03):
-- status/store.py::append_event() strips PII before writing status.events.jsonl
 - status/store.py::append_events_atomic() strips PII before writing
 - decisions/emit.py::_append_raw_event() strips PII for DecisionPointOpened/Resolved
 """
@@ -14,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, append_events_atomic
+from specify_cli.status.store import append_events_atomic
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -92,7 +91,7 @@ def _all_keys_recursive(obj: object) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# T014a — append_event() strips PII
+# T014a — the single-event append path strips PII (append_events_atomic)
 #
 # Strategy: patch sanitize_event_for_log inside the store module to inject
 # PII into the dict it receives, then assert the PII is gone from the file.
@@ -119,7 +118,7 @@ def test_pii_absent_from_status_events_jsonl(
     monkeypatch.setattr(store_module, "sanitize_event_for_log", injecting_sanitizer)
 
     event = _make_event()
-    append_event(tmp_path, event)
+    append_events_atomic(tmp_path, [event])
 
     lines = _read_written_lines(tmp_path)
     assert len(lines) == 1, "Expected exactly one line written"
@@ -136,7 +135,7 @@ def test_non_pii_fields_preserved_in_status_events_jsonl(
 ) -> None:
     """Non-PII fields are preserved in written output."""
     event = _make_event()
-    append_event(tmp_path, event)
+    append_events_atomic(tmp_path, [event])
 
     lines = _read_written_lines(tmp_path)
     assert len(lines) == 1
@@ -328,28 +327,6 @@ def test_lamport_proxy_returned_by_append_raw_event(tmp_path: Path) -> None:
 
     assert count1 == 1
     assert count2 == 2
-
-
-def test_sanitizer_is_called_in_append_event(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Verify sanitize_event_for_log is actually called during append_event."""
-    import specify_cli.status.store as store_module
-
-    call_count = {"n": 0}
-    real_sanitizer = store_module.sanitize_event_for_log
-
-    def tracking_sanitizer(d: dict) -> dict:
-        call_count["n"] += 1
-        return real_sanitizer(d)
-
-    monkeypatch.setattr(store_module, "sanitize_event_for_log", tracking_sanitizer)
-
-    event = _make_event()
-    append_event(tmp_path, event)
-
-    assert call_count["n"] == 1, "sanitize_event_for_log must be called exactly once per append_event"
 
 
 def test_sanitizer_is_called_in_append_events_atomic(

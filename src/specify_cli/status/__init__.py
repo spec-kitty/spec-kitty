@@ -72,9 +72,7 @@ from .store import (
     EventPersistenceError,
     StoreError,
     # WP03 (fsm-write-path-integrity-01M1TZV6, FR-010): the raw append
-    # primitives (append_event, append_event_verified,
-    # append_event_stream_atomic_verified, append_events_atomic_verified,
-    # append_primary_checkout_event_verified,
+    # primitives (append_event_stream_atomic_verified, append_events_atomic_verified,
     # append_primary_checkout_events_atomic_verified,
     # append_annotations_atomic_verified, append_raw_rows_atomic) are NO
     # LONGER exported here. They were promoted onto this facade by WP02 of
