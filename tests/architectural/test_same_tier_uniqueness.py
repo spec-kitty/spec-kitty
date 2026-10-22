@@ -87,6 +87,7 @@ ALLOWLIST: tuple[lu.OverlapAllowance, ...] = (
             {
                 "tests/architectural/test_bare_prose_corpus_ratchet.py",
                 "tests/architectural/test_first_party_hosts_are_owned.py",
+                "tests/architectural/test_no_unsandboxed_agent_dispatch.py",
                 "tests/architectural/test_transition_guard_shrink_only.py",
             },
         ),
