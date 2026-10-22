@@ -86,6 +86,7 @@ ALLOWLIST: tuple[lu.OverlapAllowance, ...] = (
         scope_files=frozenset(
             {
                 "tests/architectural/test_bare_prose_corpus_ratchet.py",
+                "tests/architectural/test_first_party_hosts_are_owned.py",
                 "tests/architectural/test_transition_guard_shrink_only.py",
             },
         ),
