@@ -21,9 +21,8 @@ Usage:
 
 # Pre-import ``.kitty.env`` two-tier loader (FR-004/FR-004a/FR-005;
 # contracts/kitty-env-loader.md C-LDR-1..7). Runs as the FIRST statements of
-# this module -- before the SPEC_KITTY_TEST_MODE read below and before any
-# other spec-kitty submodule is imported (C-LDR-2) -- so operator-configured
-# env vars are already in os.environ by the time
+# this module -- before any other spec-kitty submodule is imported (C-LDR-2)
+# -- so operator-configured env vars are already in os.environ by the time
 # anything downstream reads them. specify_cli.bootstrap.env_file's own
 # transitive imports are stdlib + kernel ONLY (arch-gated by
 # tests/architectural/test_bootstrap_import_purity.py) -- it does not import
@@ -48,15 +47,6 @@ import typer  # noqa: E402
 if TYPE_CHECKING:
     from rich.console import Console
     from specify_cli.cli import StepTracker
-
-# Get version from package metadata
-# Test mode: use environment override to ensure tests use source version
-if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
-    __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
-else:
-    from specify_cli.version_utils import get_version
-
-    __version__ = get_version()
 
 _APP: typer.Typer | None = None
 
@@ -106,8 +96,10 @@ def version_callback(value: bool) -> None:
         # a fork's version_label wins, else its package_name.
         profile = resolve_distribution_profile()
         label = profile.version_label or profile.package_name
+        from specify_cli.version_utils import cli_version
+
         console.print(
-            f"{label} version {__version__}",
+            f"{label} version {cli_version()}",
             soft_wrap=True,
             highlight=False,
             markup=False,
@@ -324,6 +316,15 @@ def _get_show_banner() -> Any:
 def __getattr__(name: str) -> Any:
     if name == "app":
         return _get_app()
+    if name == "__version__":
+        # Resolved on first access, not at import (#6584): see cli_version().
+        # Stored as a real module attribute from then on, so it behaves as
+        # the eagerly-set attribute did (vars(), delattr, monkeypatch undo).
+        from specify_cli.version_utils import cli_version
+
+        version = cli_version()
+        globals()["__version__"] = version
+        return version
     raise AttributeError(name)
 
 

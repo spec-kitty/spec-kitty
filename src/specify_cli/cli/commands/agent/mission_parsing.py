@@ -19,7 +19,7 @@ from pathlib import Path
 from kernel._safe_re import re
 from specify_cli.cli.console import console
 
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.validation import _PLANNING_PREFIXES
@@ -264,7 +264,7 @@ def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
     if "spec_kitty_version" in payload:
         return payload
     enriched = dict(payload)
-    enriched["spec_kitty_version"] = SPEC_KITTY_VERSION
+    enriched["spec_kitty_version"] = cli_version()
     return enriched
 
 

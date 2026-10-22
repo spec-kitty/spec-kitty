@@ -22,7 +22,7 @@ from kernel.git import GitCommandError, GitPath
 from kernel.git import changed_paths as git_changed_paths
 from kernel.git_topology import GitTopologyError, git_common_dir
 
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import is_coordination_kind_file
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -276,7 +276,7 @@ def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     payload = build_git_preflight_failure_payload(preflight, command_name="spec-kitty consolidate")
     if json_output:
         enriched = dict(payload)
-        enriched["spec_kitty_version"] = SPEC_KITTY_VERSION
+        enriched["spec_kitty_version"] = cli_version()
         print(json.dumps(enriched))
     else:
         console.print(f"[red]Error:[/red] {payload['error']}")
@@ -326,7 +326,7 @@ def _validate_target_branch(
         error_msg = f"Target branch '{target_branch}' does not exist locally or on origin."
 
     if json_output:
-        print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+        print(json.dumps({"spec_kitty_version": cli_version(), "error": error_msg}))
     else:
         console.print(f"[red]Error:[/red] {error_msg}")
     raise typer.Exit(1)

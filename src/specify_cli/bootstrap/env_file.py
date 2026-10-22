@@ -18,9 +18,8 @@ values are seeded into ``os.environ`` verbatim; interpreting them as booleans
 is each downstream reader's own concern.
 
 Call order (load-bearing): :func:`load_operator_env_file` is invoked as the
-very FIRST statements of ``specify_cli/__init__.py`` -- before that module's
-own ``SPEC_KITTY_TEST_MODE`` read and before any other spec-kitty submodule
-is imported (C-LDR-2). Merge order is likewise load-bearing: tiers are
+very FIRST statements of ``specify_cli/__init__.py`` -- before any other
+spec-kitty submodule is imported (C-LDR-2). Merge order is likewise load-bearing: tiers are
 merged ``{**home, **repo}`` FIRST, then exactly ONE ``os.environ.setdefault``
 pass over the merged result, giving precedence real-env > per-repo > home. A
 naive per-tier ``os.environ.setdefault`` loop (home pass, then a separate

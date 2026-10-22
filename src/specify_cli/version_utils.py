@@ -1,5 +1,7 @@
 """Version detection utilities for spec-kitty CLI."""
 
+import os
+from functools import cache
 from kernel._safe_re import re
 from pathlib import Path
 
@@ -61,3 +63,24 @@ def get_version() -> str:
 
     # Last resort fallback
     return "0.0.0-dev"
+
+
+@cache
+def cli_version() -> str:
+    """Return the version this CLI reports as ``specify_cli.__version__``.
+
+    Resolved on first use and then fixed for the process, so the
+    ``SPEC_KITTY_TEST_MODE`` environment at the first read decides it (it used
+    to be the environment at import). Under
+    ``SPEC_KITTY_TEST_MODE=1`` it is ``SPEC_KITTY_CLI_VERSION`` (default
+    ``0.5.0-dev``), so tests see the source version; otherwise it is
+    :func:`get_version`.
+
+    Deferred rather than computed at import (#6584): :func:`get_version`
+    resolves the distribution name through ``packages_distributions()``, which
+    reads the metadata of every installed distribution, and a command that
+    never prints a version (``spec-kitty --help``) should not pay for that.
+    """
+    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
+        return os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
+    return get_version()

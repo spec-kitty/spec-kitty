@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from mission_runtime import ActionContextError, MissionArtifactKind
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.context.mission_resolver import mission_not_found_message
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
@@ -429,7 +429,7 @@ def _build_setup_plan_detection_error(
         return {
             "error_code": error_code,
             "mission_flag": mission_flag,
-            "spec_kitty_version": SPEC_KITTY_VERSION,
+            "spec_kitty_version": cli_version(),
             "error": mission_not_found_message(explicit_handle),
             "remediation": "Re-run with an existing --mission <slug>, or create it: spec-kitty agent mission create <name> --json",
         }
@@ -440,7 +440,7 @@ def _build_setup_plan_detection_error(
     payload: dict[str, object] = {
         "error_code": error_code,
         "mission_flag": mission_flag,
-        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "spec_kitty_version": cli_version(),
     }
 
     if not candidates:

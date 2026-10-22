@@ -71,7 +71,7 @@ import click
 import typer
 from rich.markup import escape
 
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.context.mission_resolver import mission_not_found_message
@@ -738,7 +738,7 @@ def _dispatch_resume(repo_root: Path, mission: str | None, *, json_output: bool 
     if resolved and not _resolved_mission_dir_exists(repo_root, resolved):
         error_msg = mission_not_found_message(resolved)
         if json_output:
-            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+            print(json.dumps({"spec_kitty_version": cli_version(), "error": error_msg}))
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
@@ -779,7 +779,7 @@ def _enforce_retention_cleanup(
         print(
             json.dumps(
                 {
-                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "spec_kitty_version": cli_version(),
                     "mission_slug": mission_slug,
                     "blocked": True,
                     "blockers": [
@@ -1272,7 +1272,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     if not resume and resolved_mission and not _resolved_mission_dir_exists(repo_root, resolved_mission):
         error_msg = mission_not_found_message(resolved_mission)
         if json_output:
-            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+            print(json.dumps({"spec_kitty_version": cli_version(), "error": error_msg}))
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
@@ -1296,7 +1296,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         # is surfaced (corruption visible), not swallowed.
         error_msg = f"Cannot resolve the merge target branch: {exc}. meta.json exists but is corrupt or unreadable; fix it before merging."
         if json_output:
-            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+            print(json.dumps({"spec_kitty_version": cli_version(), "error": error_msg}))
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from exc
@@ -1312,7 +1312,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         print(
             json.dumps(
                 {
-                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "spec_kitty_version": cli_version(),
                     "error": "--json is currently supported with --dry-run only.",
                 }
             )

@@ -21,7 +21,7 @@ import typer
 
 from kernel.git.remote import FETCH_TIMEOUT, RemoteUnreachable, divergence, fetch_branches
 from kernel.git.runner import GitCommandError
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
 from specify_cli.consolidation._constants import (
     TARGET_BRANCH_NOT_SYNCHRONIZED,
@@ -328,7 +328,7 @@ def _target_branch_sync_payload(
         mission_id=mission_id,
     )
     return {
-        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "spec_kitty_version": cli_version(),
         "diagnostic_code": TARGET_BRANCH_NOT_SYNCHRONIZED,
         "branch_or_work_package": status.target_branch,
         "violated_invariant": TARGET_BRANCH_SYNC_INVARIANT,
@@ -349,7 +349,7 @@ def _target_branch_refresh_failed_payload(
     error: str | None,
 ) -> dict[str, object]:
     return {
-        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "spec_kitty_version": cli_version(),
         "diagnostic_code": "TARGET_BRANCH_REFRESH_FAILED",
         "branch_or_work_package": target_branch,
         "violated_invariant": TARGET_BRANCH_SYNC_INVARIANT,

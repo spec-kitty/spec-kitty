@@ -18,7 +18,7 @@ from pathlib import Path
 
 import typer
 
-from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.version_utils import cli_version
 from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
@@ -71,7 +71,7 @@ def _effective_delete_branch(delete_branch: bool, lanes_manifest: LanesManifest)
 def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | None = None) -> None:
     """Emit a dry-run error in the right channel (``error_code`` added to JSON when given)."""
     if json_output:
-        payload: dict[str, str] = {"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}
+        payload: dict[str, str] = {"spec_kitty_version": cli_version(), "error": error_msg}
         if error_code is not None:
             payload["error_code"] = error_code
         print(json.dumps(payload))
@@ -156,7 +156,7 @@ def _emit_review_artifact_block(
         print(
             json.dumps(
                 {
-                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "spec_kitty_version": cli_version(),
                     "mission_slug": resolved_feature,
                     "target_branch": resolved_target_branch,
                     "blocked": True,
@@ -209,7 +209,7 @@ def _emit_target_content_conflict(
         print(
             json.dumps(
                 {
-                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "spec_kitty_version": cli_version(),
                     "mission_slug": resolved_feature,
                     "mission_branch": mission_branch,
                     "target_branch": target_branch,
@@ -383,7 +383,7 @@ def run_dry_run_forecast(
     )
 
     payload: dict[str, object] = {
-        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "spec_kitty_version": cli_version(),
         "mission_slug": resolved_feature,
         "target_branch": resolved_target_branch,
         "strategy": resolved_strategy.value,
