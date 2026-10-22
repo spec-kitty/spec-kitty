@@ -202,3 +202,14 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 - [ADR 2026-02-09-3](../2.x/2026-02-09-3-event-log-merge-semantics.md): event-log merge semantics.
 - [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md): hosted surfaces frozen.
 - `spec-kitty-events`: `contracts/versioning-and-compatibility.md`, `models.py` (`Event.schema_version`), `strict.py`.
+
+## Amendment 2026-10-22: the write doors and the seam names this ADR cites have changed (#6614, #6607)
+
+This amendment records facts only; D-1 to D-5 are unchanged. Mission `event-write-hygiene-01M5HS55` landed these changes:
+
+- **Doors deleted.** The flat `store.append_event`, `append_event_verified`, `append_primary_checkout_event_verified`, `coordination.status_service.append_event_log`, `kernel.atomic.notify_file_written` and `invocations_cmd.append_to_index` had no production caller and are gone. The "two low-level append primitives" paragraph below the writer table still describes the two primitives that remain in use.
+- **Hosted builder deleted.** `build_saas_lifecycle_queue_event`, which the context section calls a thirteenth row shape and Option 3 cites as today's outbound-edge canonicalization, was dead code and is deleted, with `_canonical_lifecycle_payload_for_saas`, `_validate_lifecycle_payload` and the public `repo_root_for_lifecycle_log`.
+- **Seam renamed.** `fire_saas_fanout` and `fire_lifecycle_saas_fanout` are now `fire_status_fanout` and `fire_lifecycle_fanout`, with no alias. The claim that the seam "gates on hosted drain" is stale: the drain posture was removed in #6164, and the seam registers no default handler, so producing an event never depends on a drain.
+- **Not decided here.** The writer-language question (the Java writer) is a separate pending ADR; D-1 and D-2 are not amended for it.
+
+The gap table in [Event ledger writers and readers](../../architecture/event-ledger-writers-and-readers.md) records G-11, G-16 and G-18 as closed.

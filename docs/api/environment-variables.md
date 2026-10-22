@@ -2,7 +2,7 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-22'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
@@ -511,6 +511,28 @@ spec-kitty init my-project --ai claude
 
 ---
 
+## Status Fan-out
+
+### SPEC_KITTY_STATUS_FANOUT_TIMEOUT
+
+Seconds each status and lifecycle fan-out handler may run before the CLI stops
+waiting for it (#6607). Handlers are registered by a transport owner through
+`register_status_fanout_handler` and `register_lifecycle_fanout_handler`; open-core
+registers none, so the variable only matters once one is registered.
+
+- **Default**: `10` seconds.
+- **Zero or negative**: the handler runs inline, with no bound.
+- **Non-finite or unparseable** (`nan`, `inf`, text): falls back to the default.
+
+**Renamed in 4.0.0rc8 (#6607)**: this replaces `SPEC_KITTY_SAAS_FANOUT_TIMEOUT`. The
+old name is ignored and there is no alias.
+
+```bash
+SPEC_KITTY_STATUS_FANOUT_TIMEOUT=30 spec-kitty agent tasks status
+```
+
+---
+
 ## Selector / Compatibility Toggles
 
 ### SPECIFY_REPO_ROOT
@@ -587,6 +609,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_UPGRADE_DISABLED` | Disable upgrade readiness UX | `1` |
 | `SPEC_KITTY_UPGRADE_AUTO` | Enable safe auto-upgrade override | `1` |
 | `SPEC_KITTY_UPGRADE_NEVER_ASK` | Suppress upgrade prompt override | `1` |
+| `SPEC_KITTY_STATUS_FANOUT_TIMEOUT` | Per-handler bound for the status fan-out seam (seconds; default 10; `<= 0` runs inline) | `30` |
 | `SPEC_KITTY_SIMPLE_HELP` | Use simpler help output | `1` |
 | `SPEC_KITTY_NO_BANNER` | Suppress startup banner | `1` |
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |

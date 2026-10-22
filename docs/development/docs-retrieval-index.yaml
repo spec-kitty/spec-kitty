@@ -1543,6 +1543,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-22-the-boundary-covers-public-symbols-not-only-the-public-package-6607", text: "Amendment 2026-10-22: the boundary covers public symbols, not only the public package (#6607)", level: 2}
   - path: "docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md"
     title: "ADR: Contract Pinning to the Resolved Package Version"
     divio_type: "none"
@@ -2189,6 +2190,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-22-the-seam-this-adr-cites-as-fire-saas-fanout-is-renamed-6607", text: "Amendment 2026-10-22: the seam this ADR cites as `fire_saas_fanout` is renamed (#6607)", level: 2}
   - path: "docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md"
     title: "ADR: Common Docs Consolidation — Reconciliation of Metadata, Structure, Redirects, Glossary Read-Path, ADR Migration, and Curation"
     divio_type: "none"
@@ -3775,6 +3777,7 @@ pages:
     - {slug: "retention-one-policy-for-every-log", text: "Retention: one policy for every log", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendments", text: "Amendments", level: 2}
+    - {slug: "amendment-2026-10-22-the-seam-rename-debt-is-discharged-6607", text: "Amendment 2026-10-22: the seam rename debt is discharged (#6607)", level: 2}
   - path: "docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md"
     title: "ADR: an event-native core with one canonical event writer behind a domain port"
     divio_type: "none"
@@ -3798,6 +3801,7 @@ pages:
     - {slug: "a-producer-gate-over-twelve-writers", text: "A producer gate over twelve writers", level: 3}
     - {slug: "canonicalize-only-at-the-outbound-edge", text: "Canonicalize only at the outbound edge", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-22-the-write-doors-and-the-seam-names-this-adr-cites-have-changed-6614-6607", text: "Amendment 2026-10-22: the write doors and the seam names this ADR cites have changed (#6614, #6607)", level: 2}
   - path: "docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md"
     title: "ADR: QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger"
     divio_type: "none"
@@ -4562,6 +4566,8 @@ pages:
     - {slug: "spec-kitty-upgrade-never-ask", text: "SPEC_KITTY_UPGRADE_NEVER_ASK", level: 3}
     - {slug: "spec-kitty-simple-help", text: "SPEC_KITTY_SIMPLE_HELP", level: 3}
     - {slug: "spec-kitty-no-banner", text: "SPEC_KITTY_NO_BANNER", level: 3}
+    - {slug: "status-fan-out", text: "Status Fan-out", level: 2}
+    - {slug: "spec-kitty-status-fanout-timeout", text: "SPEC_KITTY_STATUS_FANOUT_TIMEOUT", level: 3}
     - {slug: "selector-compatibility-toggles", text: "Selector / Compatibility Toggles", level: 2}
     - {slug: "specify-repo-root", text: "SPECIFY_REPO_ROOT", level: 3}
     - {slug: "spec-kitty-suppress-feature-deprecation", text: "SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION", level: 3}
