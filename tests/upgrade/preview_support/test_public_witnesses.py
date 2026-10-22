@@ -10,10 +10,11 @@ import os
 import shutil
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from tests.upgrade.preview_support.fixtures import copy_case, degrade_p6, prepare_case
+from tests.upgrade.preview_support.fixtures import PreviewCase, copy_case, degrade_p6, prepare_case
 from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta
 
 pytestmark = pytest.mark.integration
@@ -87,15 +88,61 @@ def test_original_legacy_downgrade_is_rejected_semantically(tmp_path: Path) -> N
     assert_unchanged(before, after)
 
 
-def test_original_full_corpus_has_no_teamspace_blockers(tmp_path: Path) -> None:
-    case = prepare_case(tmp_path / "case", LANE)
+#: Frozen Mission fixtures, checked in and pinned by
+#: ``tests/audit/test_audit_architecture.py``. Copied verbatim, never generated.
+AUDIT_FIXTURES = LANE / "tests" / "audit" / "fixtures"
+#: Directory name under ``kitty-specs/`` -> frozen fixture. ``snapshot-drift`` carries the
+#: blocker class the live-corpus witness caught (#5862): a ``status.json`` whose
+#: ``event_count`` disagrees with its event log. Its ``mission_id`` is also not a valid
+#: ULID, so the fixture reports ``IDENTITY_INVALID`` too; both are pinned below.
+CLEAN_MISSION = ("clean-modern", "clean_modern")
+BLOCKER_MISSION = ("snapshot-drift", "snapshot_drift")
+
+
+def _seed_corpus(case: PreviewCase, *missions: tuple[str, str]) -> None:
     corpus = case.project / "kitty-specs"
     if corpus.exists():
         shutil.rmtree(corpus)
-    shutil.copytree(LANE / "kitty-specs", corpus, symlinks=True)
+    corpus.mkdir()
+    for slug, fixture in missions:
+        shutil.copytree(AUDIT_FIXTURES / fixture, corpus / slug)
+
+
+def _audit(case: PreviewCase, evidence: Path) -> tuple[int, dict[str, Any]]:
     before = case.observe()
     result = case.run("doctor", "mission-state", "--audit", "--fail-on", "teamspace-blocker", "--json")
     after = case.observe()
-    case.retain(_evidence(tmp_path, "original-corpus"), result, before, after)
-    data = result.json()
-    assert result.returncode == 0, data["repo_summary"]
+    case.retain(evidence, result, before, after)
+    return result.returncode, result.json()
+
+
+def test_original_teamspace_blocker_gate_on_frozen_corpus(tmp_path: Path) -> None:
+    """Pin the audit's TeamSpace-blocker gate on a frozen corpus (#5865).
+
+    Product behaviour only: a clean Mission passes the gate, and a Mission with a
+    known blocker fails it and is named in the report. The health of the LIVE
+    ``kitty-specs/`` corpus is not this test's concern: the blocking
+    ``mission-state audit`` job in ``.github/workflows/ci-router.yml`` runs the same
+    command over the checkout on every ``kitty-specs/**`` change (#5864), backed by
+    the nightly ``mission-state-audit`` job, so corpus drift no longer reds an
+    unrelated upgrade PR.
+    """
+    clean = prepare_case(tmp_path / "clean", LANE)
+    _seed_corpus(clean, CLEAN_MISSION)
+    blocked = copy_case(clean, tmp_path / "blocked")
+    _seed_corpus(blocked, CLEAN_MISSION, BLOCKER_MISSION)
+
+    code, data = _audit(clean, _evidence(tmp_path, "frozen-corpus-clean"))
+    assert code == 0, data["repo_summary"]
+    assert data["repo_summary"]["teamspace_blockers"] == 0, data["repo_summary"]
+    assert [m["mission_slug"] for m in data["missions"]] == ["clean-modern"], data["missions"]
+
+    code, data = _audit(blocked, _evidence(tmp_path, "frozen-corpus-blocked"))
+    assert code == 1, data["repo_summary"]
+    assert data["repo_summary"]["missions_with_teamspace_blockers"] == 1, data["repo_summary"]
+    by_slug = {m["mission_slug"]: m for m in data["missions"]}
+    assert set(by_slug) == {"clean-modern", "snapshot-drift"}, data["missions"]
+    assert not by_slug["clean-modern"]["has_teamspace_blockers"], by_slug["clean-modern"]
+    assert by_slug["snapshot-drift"]["has_teamspace_blockers"], by_slug["snapshot-drift"]
+    codes = {f["code"] for f in by_slug["snapshot-drift"]["findings"]}
+    assert codes == {"IDENTITY_INVALID", "SNAPSHOT_DRIFT"}, by_slug["snapshot-drift"]
