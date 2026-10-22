@@ -19,10 +19,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kernel.site_urls import INSTALL_AND_UPGRADE_URL
 from specify_cli.compat._detect.install_method import InstallMethod
 from specify_cli.compat.remediation import COMMAND_ALLOWLIST_MAX_LEN
-from kernel.site_urls import INSTALL_AND_UPGRADE_URL
-
 
 # ---------------------------------------------------------------------------
 # Validation regex (CHK028) — shared max length with remediation.py
