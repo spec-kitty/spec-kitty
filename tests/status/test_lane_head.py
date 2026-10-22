@@ -432,7 +432,7 @@ def coord_repo(tmp_path: Path) -> Path:
 
 
 def _seed_planned_on_coord_repo(repo: Path) -> None:
-    from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+    from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 
     seed = StatusEvent(
         event_id="01SEEDLANEHEADCOORD00000001",
@@ -449,9 +449,9 @@ def _seed_planned_on_coord_repo(repo: Path) -> None:
     )
     worktree = repo / ".worktrees" / "seed-coord"
     _git_run(repo, "worktree", "add", "-q", str(worktree), _COORD_BRANCH)
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(worktree / "kitty-specs" / _COORD_MISSION_DIRNAME),
-        seed,
+        [seed],
     )
     _git_run(worktree, "add", "-A")
     _git_run(worktree, "commit", "-q", "-m", "seed genesis->planned")

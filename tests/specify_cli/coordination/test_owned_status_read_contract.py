@@ -25,7 +25,7 @@ from specify_cli.coordination.status_service import (
     EventLogReadContract,
     EventLogWriteContract,
     StatusContractError,
-    append_event_log,
+    append_event_stream_log,
     read_event_log,
     read_event_stream_log,
 )
@@ -153,19 +153,21 @@ def test_registered_coordination_worktree_same_path_still_refused(
     with pytest.raises(StatusContractError, match="primary_checkout reads must not target coordination worktree paths"):
         read_event_stream_log(EventLogReadContract.primary_checkout(coord_mission_dir))
     with pytest.raises(StatusContractError, match="primary_checkout_append must not target coordination worktree paths"):
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.primary_checkout_append(coord_mission_dir),
-            StatusEvent(
-                event_id="wp06-t027-registered-coord-refused",
-                mission_slug=checkouts.mission_slug,
-                wp_id="WP01",
-                from_lane=Lane.PLANNED,
-                to_lane=Lane.CLAIMED,
-                at="2026-09-28T00:00:00+00:00",
-                actor="wp06-test",
-                force=False,
-                execution_mode="worktree",
-            ),
+            [
+                StatusEvent(
+                    event_id="wp06-t027-registered-coord-refused",
+                    mission_slug=checkouts.mission_slug,
+                    wp_id="WP01",
+                    from_lane=Lane.PLANNED,
+                    to_lane=Lane.CLAIMED,
+                    at="2026-09-28T00:00:00+00:00",
+                    actor="wp06-test",
+                    force=False,
+                    execution_mode="worktree",
+                )
+            ],
         )
 
 

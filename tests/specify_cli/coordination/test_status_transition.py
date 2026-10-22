@@ -22,7 +22,6 @@ from specify_cli.coordination.status_service import (
     EventLogReadContract,
     EventLogWriteContract,
     StatusContractError,
-    append_event_log,
     append_event_stream_log,
     merge_append_preserving_coordination_event_log_bytes,
     read_event_log,
@@ -144,9 +143,9 @@ def _seed_planned_on_coord(repo: Path) -> StatusEvent:
     worktree = repo / ".worktrees" / "seed-genesis"
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        seed_event,
+        [seed_event],
     )
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed genesis->planned")
@@ -407,7 +406,7 @@ def test_primary_checkout_event_log_read_remains_explicit(repo: Path) -> None:
     feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
     event = _status_event("01PRIMARY00000000000000000")
 
-    append_event_log(EventLogWriteContract.primary_checkout_append(feature_dir), event)
+    append_event_stream_log(EventLogWriteContract.primary_checkout_append(feature_dir), [event])
     events = read_event_log(EventLogReadContract.primary_checkout(feature_dir))
 
     assert [e.event_id for e in events] == [event.event_id]
@@ -418,14 +417,14 @@ def test_coordination_branch_ref_read_ignores_stale_primary_checkout(repo: Path)
     feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
     primary_event = _status_event("01PRIMARYSTALE00000000000", to_lane="planned")
     coord_event = _status_event("01COORDCURRENT00000000000", to_lane="claimed")
-    append_event_log(EventLogWriteContract.primary_checkout_append(feature_dir), primary_event)
+    append_event_stream_log(EventLogWriteContract.primary_checkout_append(feature_dir), [primary_event])
 
     worktree = repo / ".worktrees" / "seed-coord"
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        coord_event,
+        [coord_event],
     )
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed coord event")
@@ -448,9 +447,9 @@ def test_read_contract_cannot_be_used_as_write_contract(repo: Path) -> None:
     event = _status_event("01CONTRACTFAIL000000000000")
 
     with pytest.raises(StatusContractError):
-        append_event_log(  # type: ignore[arg-type]
+        append_event_stream_log(  # type: ignore[arg-type]
             EventLogReadContract.primary_checkout(repo / "kitty-specs" / MISSION_DIRNAME),
-            event,
+            [event],
         )
 
 
@@ -460,15 +459,15 @@ def test_wrong_write_target_fails_loudly(repo: Path) -> None:
     coordination_feature_dir = repo / ".worktrees" / "coord" / "kitty-specs" / MISSION_DIRNAME
 
     with pytest.raises(StatusContractError, match="primary_checkout_append"):
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.primary_checkout_append(coordination_feature_dir),
-            event,
+            [event],
         )
 
     with pytest.raises(StatusContractError, match="coordination_transaction_append"):
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.coordination_transaction_append(primary_feature_dir),
-            event,
+            [event],
         )
 
 
@@ -800,9 +799,9 @@ def _seed_coord_branch_without_meta(repo: Path) -> StatusEvent:
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
     (coord_feature_dir / "meta.json").unlink()
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        seed_event,
+        [seed_event],
     )
     _git(worktree, "add", "-A")
     _git(worktree, "commit", "-q", "-m", "coord: status surface without meta")
@@ -890,9 +889,9 @@ def _seed_planned_on_primary(repo: Path) -> StatusEvent:
         reason="seed",
         execution_mode="worktree",
     )
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.primary_checkout_append(repo / "kitty-specs" / MISSION_DIRNAME),
-        seed_event,
+        [seed_event],
     )
     return seed_event
 
@@ -1221,9 +1220,9 @@ def _flat_mission(tmp_path: Path) -> Path:
         json.dumps({"mission_slug": MISSION_SLUG, "mission_id": MISSION_ID, "mid8": MID8}) + "\n",
         encoding="utf-8",
     )
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.primary_checkout_append(feature_dir),
-        _seed_planned_event(),
+        [_seed_planned_event()],
     )
     return feature_dir
 

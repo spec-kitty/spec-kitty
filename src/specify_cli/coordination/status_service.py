@@ -301,25 +301,6 @@ def wp_lane_actor_from_events(
     return CurrentWpState(lane, actor_key or None, role)
 
 
-def append_event_log(
-    contract: EventLogWriteContract,
-    event: StatusEvent | InnerStateChanged,
-) -> None:
-    """Append one event using an explicit mutating contract."""
-    from specify_cli.status._unsafe import append_annotations_atomic_verified as _append_annotations_atomic_verified
-    from specify_cli.status._unsafe import append_event_verified as _append_event_verified
-
-    if not isinstance(contract, EventLogWriteContract):
-        raise StatusContractError("append_event_log requires EventLogWriteContract")
-    _validate_write_contract(contract)
-    from specify_cli.status import InnerStateChanged  # noqa: PLC0415
-
-    if isinstance(event, InnerStateChanged):
-        _append_annotations_atomic_verified(contract.feature_dir, [event])
-    else:
-        _append_event_verified(contract.feature_dir, event)
-
-
 def append_event_stream_log(
     contract: EventLogWriteContract,
     events: list[StatusEvent | InnerStateChanged],

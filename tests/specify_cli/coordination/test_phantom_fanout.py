@@ -32,7 +32,7 @@ from typing import Any
 import pytest
 
 from specify_cli.coordination import status_transition as st
-from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 from specify_cli.coordination.transaction import BookkeepingTransaction
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest, WPInnerStateDelta
@@ -521,7 +521,7 @@ def _seed_in_progress_on_coord(repo_root: Path) -> None:
     _git(repo_root, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / MISSION_DIRNAME
     for seed in seeds:
-        append_event_log(EventLogWriteContract.coordination_transaction_append(coord_feature_dir), seed)
+        append_event_stream_log(EventLogWriteContract.coordination_transaction_append(coord_feature_dir), [seed])
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed genesis->in_progress")
     _git(repo_root, "worktree", "remove", "-f", str(worktree))

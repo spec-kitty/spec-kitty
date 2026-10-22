@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination import status_transition as st
-from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
 pytest_plugins = ("tests.conftest_saas_sink",)
@@ -86,9 +86,9 @@ def _seed_planned_on_coord(repo: Path) -> None:
     worktree = repo / ".worktrees" / "seed-genesis"
     _git(repo, "worktree", "add", "-q", str(worktree), _COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / _DIRNAME
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        seed,
+        [seed],
     )
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed genesis->planned")

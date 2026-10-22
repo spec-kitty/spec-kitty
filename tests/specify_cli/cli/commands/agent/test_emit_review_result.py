@@ -253,7 +253,7 @@ def _gate_manifest() -> LanesManifest:
 def _gate_seed_planned_on_coord(repo: Path) -> None:
     from specify_cli.coordination.status_service import (
         EventLogWriteContract,
-        append_event_log,
+        append_event_stream_log,
     )
 
     seed = StatusEvent(
@@ -271,9 +271,9 @@ def _gate_seed_planned_on_coord(repo: Path) -> None:
     )
     worktree = repo / ".worktrees" / "seed-coord"
     _gate_git(repo, "worktree", "add", "-q", str(worktree), _GATE_COORD_BRANCH)
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(worktree / "kitty-specs" / _GATE_MISSION_DIRNAME),
-        seed,
+        [seed],
     )
     _gate_git(worktree, "add", "-A")
     _gate_git(worktree, "commit", "-q", "-m", "seed genesis->planned")
