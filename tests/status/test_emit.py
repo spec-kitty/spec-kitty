@@ -43,7 +43,8 @@ from specify_cli.status.models import (
     TransitionRequest,
     WPInnerStateDelta,
 )
-from specify_cli.status.store import EVENTS_FILENAME, append_event, read_event_stream, read_events
+from specify_cli.status.store import EVENTS_FILENAME, read_event_stream, read_events
+from tests._support.status_seed import seed_status_event
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
@@ -109,16 +110,16 @@ class TestDeriveFromLane:
             force=False,
             execution_mode="worktree",
         )
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         result = _derive_from_lane(feature_dir, "WP01")
         assert result == "claimed"
 
     def test_filters_by_wp_id(self, feature_dir: Path):
         """Only considers events for the specified WP."""
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         event_wp01 = StatusEvent(
             event_id="01HXYZ0000000000000000TST1",
@@ -142,15 +143,15 @@ class TestDeriveFromLane:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event_wp01)
-        append_event(feature_dir, event_wp02)
+        seed_status_event(feature_dir, event_wp01)
+        seed_status_event(feature_dir, event_wp02)
 
         result = _derive_from_lane(feature_dir, "WP01")
         assert result == "claimed"
 
     def test_unknown_wp_returns_genesis(self, feature_dir: Path):
         """WP with no events in existing log derives 'genesis' (pre-finalize)."""
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         event = StatusEvent(
             event_id="01HXYZ0000000000000000TST3",
@@ -163,17 +164,17 @@ class TestDeriveFromLane:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         result = _derive_from_lane(feature_dir, "WP99")
         assert result == "genesis"
 
     def test_uses_reduced_state_not_append_order(self, feature_dir: Path):
         """Derivation uses canonical reducer order when log lines are out of order."""
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         # Write a later transition first, then an earlier one.
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO02",
@@ -187,7 +188,7 @@ class TestDeriveFromLane:
                 execution_mode="worktree",
             ),
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO01",
@@ -1637,7 +1638,7 @@ class TestBatchEmit:
             )
 
     def test_batch_all_alias_collapses_returns_empty(self, feature_dir: Path) -> None:
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000CLPS",

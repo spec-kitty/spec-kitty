@@ -38,7 +38,7 @@ from specify_cli.charter_activate import (
 )
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 runner = CliRunner()
 
@@ -105,7 +105,7 @@ def _seed_mission_via_append(
     mission_slug: str,
     wp_lane_pairs: list[tuple[str, Lane]],
 ) -> Path:
-    """Use append_event to create a mission with WPs in given lanes."""
+    """Use seed_status_event to create a mission with WPs in given lanes."""
     mission_dir = kitty_specs_dir / mission_slug
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(
@@ -113,7 +113,7 @@ def _seed_mission_via_append(
         encoding="utf-8",
     )
     for i, (wp_id, lane) in enumerate(wp_lane_pairs):
-        append_event(
+        seed_status_event(
             mission_dir,
             _make_status_event(
                 event_id=f"seed-{mission_slug}-{wp_id}",

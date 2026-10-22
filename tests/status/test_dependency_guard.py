@@ -38,7 +38,8 @@ from specify_cli.status.emit import TransitionError, emit_status_transition, emi
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import GuardContext, Lane, StatusEvent, StatusSnapshot, TransitionRequest
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.transition_context import TransitionContext
 from specify_cli.status.transition_pipeline import prepare_transition
 from specify_cli.status.transitions import validate_transition
@@ -116,7 +117,7 @@ def _advance(feature_dir: Path, wp_id: str, *lanes: Lane, **overrides: Any) -> N
     """Append lane hops directly to the log (no pipeline, no guard) from ``planned``."""
     from_lane = Lane.PLANNED
     for lane in lanes:
-        append_event(feature_dir, _event(wp_id, from_lane, lane, **overrides))
+        seed_status_event(feature_dir, _event(wp_id, from_lane, lane, **overrides))
         from_lane = lane
 
 
@@ -623,7 +624,7 @@ def test_verdict_reflects_state_written_by_a_writer_that_held_the_lock_first(fea
             assert emitter_waiting.wait(5)
             time.sleep(0.2)  # give the emitter time to block on the lock
             # The dependency regresses to in_progress while the lock is held.
-            append_event(feature_dir, _event("WP01", Lane.APPROVED, Lane.IN_PROGRESS, force=True, reason="rework"))
+            seed_status_event(feature_dir, _event("WP01", Lane.APPROVED, Lane.IN_PROGRESS, force=True, reason="rework"))
 
     def emitter() -> None:
         emitter_waiting.set()

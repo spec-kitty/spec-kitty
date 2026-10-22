@@ -91,7 +91,7 @@ from specify_cli.review.gate_bindings import (
 from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.review.scope_source import DeclaredCommandScopeSource
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -302,7 +302,7 @@ def _build_wp_file(
 
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",

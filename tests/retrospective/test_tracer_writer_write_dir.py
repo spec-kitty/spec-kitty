@@ -176,7 +176,7 @@ def _commit_real_status_transition(coord: CoordMission) -> None:
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     tasks_dir = coord.root_mission_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
@@ -207,7 +207,7 @@ def _commit_real_status_transition(coord: CoordMission) -> None:
             planning_commit_sha="a" * 40,
         ),
     )
-    append_event(
+    seed_status_event(
         coord.root_mission_dir,
         StatusEvent(
             event_id=str(_ulid_mod.ULID()),

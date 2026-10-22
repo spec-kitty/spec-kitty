@@ -301,10 +301,10 @@ def _seed_execution_begun(coord: CoordMission, mission_dir_name: str) -> None:
     from mission_runtime import MissionArtifactKind, placement_seam
     from kernel.clock import now_utc_iso
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     write_dir = placement_seam(coord.repo_root, mission_dir_name).write_dir(MissionArtifactKind.STATUS_STATE).path
-    append_event(
+    seed_status_event(
         write_dir,
         StatusEvent(
             event_id="01HXYZWP15EXECUTIONBEGUNEVT",

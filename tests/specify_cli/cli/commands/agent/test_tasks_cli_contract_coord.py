@@ -74,7 +74,7 @@ from specify_cli.review.arbiter import (
     persist_arbiter_decision,
 )
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     _build_coord_topology,
@@ -255,7 +255,7 @@ def _seed_event(
     scenario to carry a CURRENT rejection/approval must seed it here, not
     merely write the on-disk ``review-cycle-N.md`` artifact.
     """
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{_MID8}FC00000000000000{ordinal:04d}",

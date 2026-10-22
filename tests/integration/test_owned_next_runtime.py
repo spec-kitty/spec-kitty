@@ -810,14 +810,14 @@ def _merge_stale_copy_in_r(copy_dir: Path, mission_slug: str) -> None:
     import json
 
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     meta_path = copy_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["mission_number"] = 7
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     for wp_id in ("WP01", "WP02", "WP03", "WP04", "WP05"):
-        append_event(
+        seed_status_event(
             copy_dir,
             StatusEvent(
                 event_id=f"stale-{wp_id}-approved",

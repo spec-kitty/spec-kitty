@@ -58,7 +58,7 @@ from specify_cli.cli.commands.consolidate import (
 # regressions below re-point onto it (same accept/reject semantics).
 from specify_cli.consolidation.run_state import _capture_merge_snapshots
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: subprocess CLI invocation
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def _append_done_event(feature_dir: Path, wp_id: str) -> None:
         force=False,
         execution_mode="direct_repo",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ def test_assert_merged_wps_reached_done_raises_when_wp_not_done(
         force=False,
         execution_mode="direct_repo",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
     with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01", "WP02"])
@@ -313,7 +313,7 @@ def test_assert_merged_wps_reached_done_includes_lane_value_in_error(
         force=True,
         execution_mode="direct_repo",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
     with pytest.raises(typer.Exit):
         _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
@@ -536,7 +536,7 @@ def _seed_done_event_m(feature_dir: Path, wp_id: str) -> None:
         force=False,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def test_planning_only_merge_with_coord_branch_reaches_done(

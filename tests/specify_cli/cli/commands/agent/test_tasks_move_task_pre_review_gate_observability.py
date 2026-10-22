@@ -37,7 +37,7 @@ from specify_cli.review import gate_bindings, gate_registry, pre_review_gate
 from specify_cli.review.gate_budget import assess_scope_budget
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
@@ -131,7 +131,7 @@ def _build_command_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordR
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-in-progress",
@@ -233,7 +233,7 @@ def _build_residue_fixture(
         json.dumps(meta),
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         primary_feature,
         StatusEvent(
             event_id="primary-WP01-in-progress",
@@ -252,7 +252,7 @@ def _build_residue_fixture(
     coord_feature = coordination / "kitty-specs" / _MISSION
     coord_feature.mkdir(parents=True)
     (coord_feature / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    append_event(
+    seed_status_event(
         coord_feature,
         StatusEvent(
             event_id="residue-WP01-in-progress",
@@ -1673,7 +1673,7 @@ def _build_binding_resolution_fixture(tmp_path: Path) -> tuple[TasksPorts, _Reco
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-in-progress",

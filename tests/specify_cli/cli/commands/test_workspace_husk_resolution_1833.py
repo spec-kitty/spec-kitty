@@ -363,12 +363,12 @@ class TestImplementHuskGuard:
         from unittest.mock import MagicMock, patch
 
         from specify_cli.status.models import Lane, StatusEvent
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         repo, husk = husk_repo
         feature_dir = repo / "kitty-specs" / MISSION_SLUG
         wp_path = feature_dir / "tasks" / f"{WP_ID}-test-task.md"
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{WP_ID}-planned",

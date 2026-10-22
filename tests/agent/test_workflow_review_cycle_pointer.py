@@ -11,7 +11,7 @@ from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.integration.coord_topology_fixture import _build_coord_topology
 from tests.specify_cli.cli.commands.agent.test_tasks_move_task_cli_4899 import (
     _PARITY_MISSION_SLUG,
@@ -69,7 +69,7 @@ def test_canonical_review_cycle_pointer_resolves_for_fix_context(
 ) -> None:
     repo, feature_dir, mission_slug = review_pointer_repo
     pointer = f"review-cycle://{mission_slug}/WP01-core/review-cycle-2.md"
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-reject",
@@ -103,7 +103,7 @@ def test_fix_context_skips_action_review_claim_sentinel(
 ) -> None:
     repo, feature_dir, mission_slug = review_pointer_repo
     pointer = f"review-cycle://{mission_slug}/WP01-core/review-cycle-2.md"
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-claim",
@@ -118,7 +118,7 @@ def test_fix_context_skips_action_review_claim_sentinel(
             review_ref="action-review-claim",
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-reject",
@@ -151,7 +151,7 @@ def test_fix_context_skips_synthetic_approval_token(
     found no artifact, and made ``agent action implement`` refuse to re-claim
     the approved WP with a bogus "review feedback artifact is missing" error."""
     repo, feature_dir, mission_slug = review_pointer_repo
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-approve",
@@ -188,7 +188,7 @@ def test_fix_context_skips_synthetic_rejection_token_and_falls_back_to_real_poin
     scan, exactly as it does for ``action-review-claim``."""
     repo, feature_dir, mission_slug = review_pointer_repo
     pointer = f"review-cycle://{mission_slug}/WP01-core/review-cycle-2.md"
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-reject",
@@ -203,7 +203,7 @@ def test_fix_context_skips_synthetic_rejection_token_and_falls_back_to_real_poin
             review_ref=pointer,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-reject-no-artifact",
@@ -333,7 +333,7 @@ def test_coord_status_state_split_resolves_feedback_file_contents(tmp_path: Path
     # The durable record lives on the COORD partition (the materialized coord
     # worktree's status.events.jsonl) -- NOT on the PRIMARY decoy the fixture
     # seeds.
-    append_event(
+    seed_status_event(
         ctx.coord_feature_dir,
         StatusEvent(
             event_id="coord-seed-reject",
@@ -370,7 +370,7 @@ def test_single_branch_status_state_reroute_is_a_noop(
     dual-topology non-regression leg alongside the coord-half test above."""
     repo, feature_dir, mission_slug = review_pointer_repo
     pointer = f"review-cycle://{mission_slug}/WP01-core/review-cycle-2.md"
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-reject-single-branch-noop",
@@ -420,7 +420,7 @@ def test_sc005_no_preseed_rejection_renders_feedback_text_coord(tmp_path: Path, 
         (Lane.FOR_REVIEW, Lane.IN_REVIEW),
     )
     for index, (from_lane, to_lane) in enumerate(hops, start=1):
-        append_event(
+        seed_status_event(
             ctx.coord_feature_dir,
             StatusEvent(
                 event_id=f"01SC005COORD{str(index).zfill(14)}",

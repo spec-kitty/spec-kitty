@@ -180,7 +180,7 @@ class TestImplementClaimGateThreadsProvenance:
     @staticmethod
     def _seed(status_dir: Any, wp01_reason_source: str) -> None:
         from specify_cli.status.models import Lane, StatusEvent
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         def ev(event_id: str, wp: str, frm: Lane, to: Lane, reason_source: str | None = None) -> StatusEvent:
             return StatusEvent(
@@ -198,10 +198,10 @@ class TestImplementClaimGateThreadsProvenance:
             )
 
         # WP01: bootstrapped then canceled (provenance varies per case).
-        append_event(status_dir, ev("01AA", "WP01", Lane.GENESIS, Lane.PLANNED))
-        append_event(status_dir, ev("01AB", "WP01", Lane.PLANNED, Lane.CANCELED, wp01_reason_source))
+        seed_status_event(status_dir, ev("01AA", "WP01", Lane.GENESIS, Lane.PLANNED))
+        seed_status_event(status_dir, ev("01AB", "WP01", Lane.PLANNED, Lane.CANCELED, wp01_reason_source))
         # WP02: the dependent, finalized to planned (non-genesis) so the gate runs.
-        append_event(status_dir, ev("01AC", "WP02", Lane.GENESIS, Lane.PLANNED))
+        seed_status_event(status_dir, ev("01AC", "WP02", Lane.GENESIS, Lane.PLANNED))
 
     def test_operator_canceled_dependency_admits_claim(self, tmp_path: Any) -> None:
         from specify_cli.status_lanes import OPERATOR_REASON_SOURCE

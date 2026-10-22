@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 from kernel.clock import now_utc_iso
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent import _rework_loop_harness as h
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -33,7 +33,7 @@ def _forced_review_exit(m: h.ReworkMission) -> None:
     # ``move-task --to in_progress`` demands feedback even with --force, so the
     # verdict-less exit is written to the event log as a forced transition (the
     # shape ``agent action implement --force --note`` records).
-    append_event(
+    seed_status_event(
         m.feature_dir,
         StatusEvent(
             event_id="01FORCEDEXIT000000000000AA",

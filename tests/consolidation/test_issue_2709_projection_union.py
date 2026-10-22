@@ -40,7 +40,7 @@ from specify_cli.status import (
     reduce,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast]
 
@@ -49,7 +49,7 @@ _MISSION_ID = "01KTDVHZKGCHCW6HQ4V577PNES"
 
 
 def _seed_event(feature_dir: Path, *, event_id: str, wp_id: str, at: str) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

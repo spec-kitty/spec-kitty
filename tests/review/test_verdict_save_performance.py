@@ -47,7 +47,7 @@ from specify_cli.review.cycle import (
 )
 from specify_cli.status import TransitionRequest, read_events
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -140,7 +140,7 @@ def _seed_lane_event(
     to_lane: Lane,
     review_result: ReviewResult | None = None,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"benchmark-{sequence}-{to_lane.value}",

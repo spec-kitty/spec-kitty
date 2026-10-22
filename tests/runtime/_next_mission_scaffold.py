@@ -74,9 +74,9 @@ def commit_all(path: Path, message: str) -> None:
 
 def seed_wp_lane(feature_dir: Path, mission_slug: str, wp_id: str, lane: str) -> None:
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"seed-{wp_id}-{lane}",
@@ -325,9 +325,9 @@ def reject_wp_on_status_surface(status_dir: Path, mission_slug: str, wp_id: str)
     directly on ``status_dir`` — the coord surface for coord/lanes_with_coord,
     the feature dir itself for single_branch/lanes."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         status_dir,
         StatusEvent(
             event_id=f"reject-{wp_id}",

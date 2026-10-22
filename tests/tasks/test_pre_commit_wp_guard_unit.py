@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]  # non_sandbox: rea
 def test_python_hook_detects_active_wp_ownership_in_reused_lane_context(tmp_path: Path) -> None:
     from specify_cli.policy.commit_guard_hook import _detect_ownership_scope
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
     from specify_cli.workspace.context import WorkspaceContext, save_context
 
     repo = tmp_path / "repo"
@@ -62,7 +62,7 @@ def test_python_hook_detects_active_wp_ownership_in_reused_lane_context(tmp_path
         ),
     )
     for wp_id, lane in (("WP01", Lane.DONE), ("WP04", Lane.IN_PROGRESS)):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{wp_id}-{lane.value}",

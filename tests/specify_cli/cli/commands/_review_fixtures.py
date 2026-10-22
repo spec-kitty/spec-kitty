@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 if TYPE_CHECKING:
     import typer
@@ -70,7 +70,7 @@ def seed_wp_event(
         force=False,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def build_cli_app() -> typer.Typer:

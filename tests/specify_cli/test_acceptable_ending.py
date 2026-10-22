@@ -33,7 +33,7 @@ from typer.testing import CliRunner
 from specify_cli.acceptance import collect_feature_summary, perform_acceptance
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.mocked_env import setup_mocked_env
 
@@ -118,7 +118,7 @@ def _scaffold_mission(tmp_path: Path, mission_slug: str, wp_ids: list[str]) -> P
 
 def _seed_lane(feature_dir: Path, mission_slug: str, wp_id: str, lane: str) -> None:
     """Seed a WP's pre-cancel lane directly in the event store (fixture only)."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"seed-{wp_id}-{lane}",

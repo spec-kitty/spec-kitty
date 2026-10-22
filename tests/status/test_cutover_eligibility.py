@@ -44,7 +44,7 @@ from specify_cli.status import (
     is_cut_over,
 )
 from specify_cli.status.cutover_eligibility import eligible_runtime_missions, mission_carries_event_log_runtime
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -74,14 +74,14 @@ def test_no_event_log_is_not_detected(tmp_path: Path) -> None:
 
 def test_bootstrap_only_events_are_not_detected(tmp_path: Path) -> None:
     """A ``genesis -> planned`` bootstrap anchor carries no runtime signal at all."""
-    append_event(tmp_path, _genesis_to_planned(event_id="01BOOTSTRAPONLYAAAAAAAAAA1"))
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01BOOTSTRAPONLYAAAAAAAAAA1"))
 
     assert mission_carries_event_log_runtime(tmp_path) is False
 
 
 def test_claim_policy_metadata_is_detected(tmp_path: Path) -> None:
     """A real ``planned -> claimed`` claim (``shell_pid``/``agent`` keys) IS evidence."""
-    append_event(tmp_path, _genesis_to_planned(event_id="01CLAIMDETECTEDAAAAAAAAA1"))
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01CLAIMDETECTEDAAAAAAAAA1"))
     claim = StatusEvent(
         event_id="01CLAIMDETECTEDAAAAAAAAA2",
         mission_slug=_MISSION_SLUG,
@@ -99,7 +99,7 @@ def test_claim_policy_metadata_is_detected(tmp_path: Path) -> None:
             agent="claude",
         ),
     )
-    append_event(tmp_path, claim)
+    seed_status_event(tmp_path, claim)
 
     assert mission_carries_event_log_runtime(tmp_path) is True
 
@@ -110,7 +110,7 @@ def test_approval_only_policy_metadata_is_detected(tmp_path: Path) -> None:
     all, yet must still count as runtime evidence -- the exact shape a claim-keys-only
     re-key (the rejected alternative) would have stopped detecting.
     """
-    append_event(tmp_path, _genesis_to_planned(event_id="01APPROVALONLYAAAAAAAAA01"))
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01APPROVALONLYAAAAAAAAA01"))
     approval_only = StatusEvent(
         event_id="01APPROVALONLYAAAAAAAAA02",
         mission_slug=_MISSION_SLUG,
@@ -124,7 +124,7 @@ def test_approval_only_policy_metadata_is_detected(tmp_path: Path) -> None:
         execution_mode="worktree",
         policy_metadata={"tool": "reviewer-1", "profile": None, "model": None},
     )
-    append_event(tmp_path, approval_only)
+    seed_status_event(tmp_path, approval_only)
 
     assert mission_carries_event_log_runtime(tmp_path) is True
 
@@ -136,7 +136,7 @@ def test_lane_head_only_policy_metadata_is_not_detected(tmp_path: Path) -> None:
     must not flip a never-claimed mission to "runtime-carrying" -- the exact
     misclassification a bare ``bool(policy_metadata)`` check would produce.
     """
-    append_event(tmp_path, _genesis_to_planned(event_id="01LANEHEADONLYAAAAAAAAA1"))
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01LANEHEADONLYAAAAAAAAA1"))
     stamped_but_unclaimed = StatusEvent(
         event_id="01LANEHEADONLYAAAAAAAAA2",
         mission_slug=_MISSION_SLUG,
@@ -151,13 +151,13 @@ def test_lane_head_only_policy_metadata_is_not_detected(tmp_path: Path) -> None:
         execution_mode="worktree",
         policy_metadata={"lane_head": "d" * 40},
     )
-    append_event(tmp_path, stamped_but_unclaimed)
+    seed_status_event(tmp_path, stamped_but_unclaimed)
 
     assert mission_carries_event_log_runtime(tmp_path) is False
 
 
 def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
-    append_event(tmp_path, _genesis_to_planned(event_id="01EMPTYMETADATAAAAAAAAA01"))
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01EMPTYMETADATAAAAAAAAA01"))
     empty_metadata = StatusEvent(
         event_id="01EMPTYMETADATAAAAAAAAA02",
         mission_slug=_MISSION_SLUG,
@@ -172,7 +172,7 @@ def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
         execution_mode="worktree",
         policy_metadata={},
     )
-    append_event(tmp_path, empty_metadata)
+    seed_status_event(tmp_path, empty_metadata)
 
     assert mission_carries_event_log_runtime(tmp_path) is False
 
@@ -206,9 +206,9 @@ def _born_mission(
     if tasks_is_file:
         shutil.rmtree(mission_dir / "tasks")
         (mission_dir / "tasks").write_text("not a directory", encoding="utf-8")
-    append_event(mission_dir, _genesis_to_planned(event_id="01MATRIXBOOTSTRAPAAAAAA1"))
+    seed_status_event(mission_dir, _genesis_to_planned(event_id="01MATRIXBOOTSTRAPAAAAAA1"))
     if claim:
-        append_event(
+        seed_status_event(
             mission_dir,
             StatusEvent(
                 event_id="01MATRIXCLAIMAAAAAAAAAA2",

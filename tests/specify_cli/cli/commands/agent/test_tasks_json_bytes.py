@@ -45,7 +45,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 # In-process CliRunner over the ``app`` object — no subprocess, no git — so the
@@ -177,7 +177,7 @@ def build_mission(project_root: Path, *, stale_wp02_refs: bool = False) -> Path:
     (tasks_dir / "WP02-latency-regression-report-rollup.md").write_text(
         _WP02_MD_TEMPLATE.format(refs=wp02_refs), encoding="utf-8"
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01KWG4S0B3E7H9JKMNPQRSTVWX",

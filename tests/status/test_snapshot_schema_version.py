@@ -36,7 +36,7 @@ from specify_cli.status.reducer import (
     materialize_snapshot,
     materialize_to_json,
 )
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast]
 
@@ -59,7 +59,7 @@ def _claim_event(*, event_id: str, wp_id: str, at: str, agent: str) -> StatusEve
 
 def _seed_claimed_wp(feature_dir: Path, *, event_id: str, agent: str) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    append_event(
+    seed_status_event(
         feature_dir,
         _claim_event(event_id=event_id, wp_id="WP01", at="2026-09-20T00:00:01+00:00", agent=agent),
     )

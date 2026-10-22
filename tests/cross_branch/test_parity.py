@@ -139,7 +139,7 @@ class TestReducerParity:
 
     def test_materialize_to_file_matches_expected(self, tmp_path: Path):
         """Write events to disk, materialize, and compare with expected."""
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
         from specify_cli.status.reducer import materialize
 
         events = _load_sample_events()
@@ -149,7 +149,7 @@ class TestReducerParity:
         feature_dir.mkdir(parents=True)
 
         for event in events:
-            append_event(feature_dir, event)
+            seed_status_event(feature_dir, event)
 
         snapshot = materialize(feature_dir)
 

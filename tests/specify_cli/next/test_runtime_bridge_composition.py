@@ -976,7 +976,7 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
 def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a single status event so ``get_wp_lane`` returns ``lane`` for ``wp_id``."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{lane}",
@@ -989,7 +989,7 @@ def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 @pytest.fixture()
@@ -1896,7 +1896,7 @@ def _t027_seed_approved_wp(feature_dir: Path, wp_id: str) -> None:
     -- all WPs "handed off", so the WP-iteration pre-check proceeds to the
     guard check instead of staying in WP-iteration mode."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
@@ -1915,7 +1915,7 @@ def _t027_seed_approved_wp(feature_dir: Path, wp_id: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 _T027_QA_FAMILY = "qa"

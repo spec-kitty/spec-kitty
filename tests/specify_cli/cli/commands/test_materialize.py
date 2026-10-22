@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
@@ -52,7 +52,7 @@ def _setup_feature(
     for idx, (wp_id, lane) in enumerate(wp_lanes.items()):
         event_id = f"01TEST{idx:020d}"
         event = _make_event(mission_slug, wp_id, "planned", lane, event_id)
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
     return feature_dir
 
 
@@ -394,7 +394,7 @@ def _append_coordination_transitions(coord: Any, wp_id: str, lanes: tuple[str, .
     """Append ``planned -> lanes...`` transitions to the COORDINATION log only (the root log stays stale)."""
     previous = "planned"
     for idx, lane in enumerate(lanes):
-        append_event(
+        seed_status_event(
             coord.coord_mission_dir,
             _make_event(coord.mission_dir_name, wp_id, previous, lane, f"01COORD{idx:020d}"),
         )

@@ -677,10 +677,10 @@ def test_protected_primary_event_only_mark_status_succeeds_without_commit(
         "# Tasks\n\n## WP01\nSubtasks: T001\n",
         encoding="utf-8",
     )
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
     from specify_cli.status.models import Lane, StatusEvent
 
-    append_event(
+    seed_status_event(
         result.feature_dir,
         StatusEvent(
             event_id=f"{_EDGE_MID8}FC0000000000000001",

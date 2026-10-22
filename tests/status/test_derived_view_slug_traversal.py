@@ -31,7 +31,8 @@ from specify_cli.status.lifecycle import _fallback_created_at, _last_merge_marke
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import EVENTS_FILENAME, append_event
+from specify_cli.status.store import EVENTS_FILENAME
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import write_derived_views
 
 pytestmark = pytest.mark.fast
@@ -65,7 +66,7 @@ def _seed_hostile_feature_dir(tmp_path: Path) -> Path:
     """Create a feature dir with an event log carrying a hostile mission_slug."""
     feature_dir = tmp_path / "kitty-specs" / _FEATURE_NAME
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _hostile_event())
+    seed_status_event(feature_dir, _hostile_event())
     return feature_dir
 
 
@@ -163,7 +164,7 @@ def _seed_meta_only_hostile_feature_dir(tmp_path: Path) -> Path:
     """
     feature_dir = tmp_path / "kitty-specs" / _FEATURE_NAME
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _hostile_event(slug=""))
+    seed_status_event(feature_dir, _hostile_event(slug=""))
     (feature_dir / "meta.json").write_text(
         json.dumps({"mission_slug": _META_HOSTILE_SLUG}),
         encoding="utf-8",

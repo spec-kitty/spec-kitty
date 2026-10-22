@@ -260,7 +260,7 @@ class TestMigrationIdempotency:
     """Migration is idempotent: running twice doesn't change result."""
 
     def test_second_migration_is_skipped_with_live_events(self, tmp_path: Path) -> None:
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
         from specify_cli.status.models import Lane, StatusEvent
 
         feature_dir = _create_legacy_feature(
@@ -281,7 +281,7 @@ class TestMigrationIdempotency:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, live_event)
+        seed_status_event(feature_dir, live_event)
 
         # Second rebuild with existing event log: events are enriched/kept,
         # not duplicated. The result should not report errors.
@@ -294,7 +294,7 @@ class TestMigrationIdempotency:
         assert len(events_after) >= 1, "Existing events must be preserved"
 
     def test_migration_does_not_lose_existing_events(self, tmp_path: Path) -> None:
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
         from specify_cli.status.models import Lane, StatusEvent
 
         feature_dir = _create_legacy_feature(
@@ -316,7 +316,7 @@ class TestMigrationIdempotency:
             execution_mode="worktree",
             reason="migration",
         )
-        append_event(feature_dir, migration_event)
+        seed_status_event(feature_dir, migration_event)
 
         # Second migration (migration-only events) should replace, not duplicate
         rebuild_event_log(feature_dir, feature_dir.name, {})

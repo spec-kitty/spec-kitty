@@ -180,7 +180,7 @@ def _write_invalid_runtime_mission(repo_root: Path, mission_type: str) -> None:
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
     from specify_cli.status.models import StatusEvent, Lane
 
     # Map legacy aliases to canonical lane names
@@ -198,7 +198,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:

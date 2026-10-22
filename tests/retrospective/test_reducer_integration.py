@@ -726,14 +726,14 @@ class TestEmitRetrospectiveEvent:
 class TestStatusSnapshotRetrospectiveField:
     def test_retrospective_absent_by_default(self, tmp_path: Path) -> None:
         """When no retrospective events exist, snapshot.retrospective is None."""
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
         from specify_cli.status.models import Lane, StatusEvent
 
         feature_dir = tmp_path / "kitty-specs" / "test-mission"
         feature_dir.mkdir(parents=True)
 
         # Write a regular lane event
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01KQ73CS2CCFY8BYYTTFV58001",
@@ -855,7 +855,7 @@ class TestStatusSnapshotRetrospectiveField:
 
     def test_materialize_attaches_non_absent_retrospective_snapshot(self, tmp_path: Path) -> None:
         from specify_cli.status.models import Lane, StatusEvent
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
 
         feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
         feature_dir.mkdir(parents=True)
@@ -869,7 +869,7 @@ class TestStatusSnapshotRetrospectiveField:
             ),
             encoding="utf-8",
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01KQ73CS2CCFY8BYYTTFV58001",

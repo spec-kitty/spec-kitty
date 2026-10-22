@@ -33,7 +33,8 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.task_utils import LANES
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.store import StoreError, append_annotations_atomic_verified, append_event
+from specify_cli.status.store import StoreError, append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 from specify_cli.cli.commands import accept as accept_module
 from tests.lane_test_utils import write_mission_meta, write_single_lane_manifest
 
@@ -324,7 +325,7 @@ def _create_test_feature(
             execution_mode="direct_repo",
             reason="Test setup: skip to done",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
         append_annotations_atomic_verified(
             feature_dir,
             [

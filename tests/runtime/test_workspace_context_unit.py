@@ -10,7 +10,7 @@ import specify_cli.workspace.context as workspace_context_module
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import (
     WorkspaceContext,
     ActiveWPResolution,
@@ -115,7 +115,7 @@ def _write_wp(
 
 
 def _seed_lane_event(feature_dir: Path, wp_id: str, lane: Lane) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"seed-{wp_id}-{lane.value}",

@@ -20,7 +20,7 @@ from kernel.clock import now_utc_iso
 from mission_runtime import MissionTopology
 from specify_cli.lanes.recovery import RecoveryState, reconcile_status
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests._factories.coord_mission import event_ids, make_prefix_coord_mission
 
 pytestmark = [pytest.mark.fast]
@@ -33,7 +33,7 @@ def _seed_planned(feature_dir: Path, mission_slug: str, wp_id: str = "WP01") -> 
     does) -- ``reconcile_status``'s emitted transitions derive ``from_lane``
     from the real event log, so a genuine ``genesis -> claimed`` hop needs
     this precondition, same as a real post-finalize mission."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=str(_ulid_mod.ULID()),

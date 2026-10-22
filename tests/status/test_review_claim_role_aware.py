@@ -31,7 +31,8 @@ from specify_cli.status.models import (
     TransitionRequest,
     WPInnerStateDelta,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.transitions import validate_transition
 
 pytestmark = pytest.mark.fast
@@ -94,7 +95,7 @@ def _legacy_aggregate(feature_dir: Path, repo_root: Path) -> MissionStatus:
 
 def _seed_for_review_by_implementer(feature_dir: Path) -> None:
     """WP01 sits at ``for_review`` with the latest event authored by an implementer."""
-    append_event(
+    seed_status_event(
         feature_dir,
         _transition(
             _uid("A1"),
@@ -200,7 +201,7 @@ def test_stale_reviewer_role_at_for_review_still_allows(tmp_path: Path) -> None:
     # at=now_utc_iso())` below is exactly the #3157-class flakiness this
     # test must not reintroduce (see
     # tests/architectural/test_no_absolute_event_timestamp_mixture.py).
-    append_event(
+    seed_status_event(
         feature_dir,
         _transition(
             _uid("A2"),
@@ -222,7 +223,7 @@ def test_stale_reviewer_role_at_for_review_still_allows(tmp_path: Path) -> None:
             )
         ],
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _transition(
             _uid("A4"),

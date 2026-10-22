@@ -17,7 +17,7 @@ these tests guard is unaffected and still holds, so the tests no longer assert
 that a gate *ran* — they assert the no-op invariants directly.
 
 Histories are produced by the live writer (``build_status_event`` +
-``append_event``), never hand-written JSON.
+``seed_status_event``), never hand-written JSON.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.status.emit import build_status_event
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [
     pytest.mark.integration,
@@ -89,7 +89,7 @@ def _write_mission(repo: Path, slug: str, *, mission_id: str | None, timestamps:
             mission_id=mission_id,
             reason="driven by the live writer",
         )
-        append_event(mission_dir, event)
+        seed_status_event(mission_dir, event)
 
 
 def _build_project(root: Path) -> None:

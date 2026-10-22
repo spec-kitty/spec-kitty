@@ -79,10 +79,10 @@ def _seed_terminal_wp01(
     transition, not merely write the on-disk artifact.
     """
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     ctx.status_events_path.write_text("", encoding="utf-8")
-    append_event(
+    seed_status_event(
         ctx.coord_feature_dir,
         StatusEvent(
             event_id=event_id,
@@ -119,12 +119,12 @@ def _append_lane_chain(
     terminal transition.
     """
     from specify_cli.status.models import StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     base = datetime(2026, 6, 26, 1, 0, 0, tzinfo=UTC)
     last_index = len(chain) - 1
     for step, (from_lane, to_lane, event_id) in enumerate(chain):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=event_id,
@@ -822,7 +822,7 @@ def test_resolve_review_verdict_facts_routes_through_owner_function(
     )
     from specify_cli.review.artifacts import ReviewCycleArtifact
     from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     ctx = flat_topology_mission
     wp_path = ctx.primary_feature_dir / "tasks" / "WP02_second_wp.md"
@@ -840,7 +840,7 @@ def test_resolve_review_verdict_facts_routes_through_owner_function(
         reviewed_at="2026-06-26T00:30:00+00:00",
         body="# Review\n\nVerdict: rejected.\n",
     ).write(correct_path)
-    append_event(
+    seed_status_event(
         ctx.primary_feature_dir,
         StatusEvent(
             event_id="01KW2E7B0RVFROUTE0000001",

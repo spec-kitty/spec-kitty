@@ -16,7 +16,7 @@ import pytest
 
 from mission_runtime import ClaimCommitUnresolved, claim_commit_for_wp
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -60,7 +60,7 @@ def _event(event_id: str, wp_id: str, to_lane: Lane, from_lane: Lane = Lane.PLAN
 
 def _record(directory: Path, event: StatusEvent, *, commit: bool = True) -> str | None:
     """Append ``event`` and (by default) commit it in its own event-only commit."""
-    append_event(directory, event)
+    seed_status_event(directory, event)
     if not commit:
         return None
     repo = directory.parents[1]

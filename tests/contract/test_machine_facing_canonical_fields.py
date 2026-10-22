@@ -22,7 +22,7 @@ from specify_cli.verify_enhanced import run_enhanced_verify
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import write_derived_views
 
 
@@ -76,7 +76,7 @@ def _append_lane_event(
     event_id: str = "01TESTAAAAAAAAAAAAAAAAAAA1",
 ) -> None:
     mission_slug = mission_dir.name
-    append_event(
+    seed_status_event(
         mission_dir,
         StatusEvent(
             event_id=event_id,
@@ -383,7 +383,7 @@ def test_orchestrator_transition_payloads_emit_canonical_mission_fields(tmp_path
     # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
     # finalize-tasks does) so start-implementation's composite transition is
     # legal (planned -> claimed -> in_progress).
-    append_event(
+    seed_status_event(
         mission_dir,
         StatusEvent(
             event_id="01TESTSEED0000000000000001",

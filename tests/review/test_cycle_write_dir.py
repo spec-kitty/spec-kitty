@@ -380,7 +380,7 @@ def test_has_prior_rejection_and_fix_mode_see_a_primary_only_local_only_cycle(
     from specify_cli.cli.commands.agent.workflow_executor import implement_try_render_fix_mode_prompt
     from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
     from specify_cli.status import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     repo = tmp_path / "repo"
     _init_repo(repo)
@@ -415,7 +415,7 @@ def test_has_prior_rejection_and_fix_mode_see_a_primary_only_local_only_cycle(
     ).write(sub_artifact_dir / "review-cycle-1.md")
 
     pointer = f"review-cycle://{mission_slug}/{wp_slug}/review-cycle-1.md"
-    append_event(
+    seed_status_event(
         status_dir,
         StatusEvent(
             event_id="coord-seed-reject-primary-only",

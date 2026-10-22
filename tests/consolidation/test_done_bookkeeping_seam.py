@@ -574,7 +574,7 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
     import json
 
     from specify_cli.status import StatusEvent, TransitionError, get_wp_lane
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     mission_slug = "080-test-feature"
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -587,7 +587,7 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
         '---\nwork_package_id: "WP01"\ntitle: "Test WP"\ndependencies: []\n---\n# WP01\n',
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTWP01APPROVED00000000",

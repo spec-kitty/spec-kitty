@@ -20,7 +20,7 @@ from rich.console import Console
 
 from specify_cli.cli.commands.review._lane_gate import check_wp_lanes
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.reliability.fixtures import WorkPackageSpec, create_mission_fixture, write_work_package
 
 pytestmark = pytest.mark.fast
@@ -35,7 +35,7 @@ def test_check_wp_lanes_renders_no_artifact_conflict_without_literal_none(
     """
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
-    append_event(
+    seed_status_event(
         mission.mission_dir,
         StatusEvent(
             event_id="01KQKV85NOARTIFACTRENDER01",

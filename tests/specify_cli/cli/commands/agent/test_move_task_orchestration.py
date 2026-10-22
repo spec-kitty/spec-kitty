@@ -41,7 +41,7 @@ from specify_cli.missions._read_path_resolver import (
     resolve_planning_read_dir,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
@@ -79,7 +79,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     """Seed a WP event so the canonical event log knows the WP exists."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",
@@ -108,7 +108,7 @@ def _seed_claim_then_progress(feature_dir: Path, wp_id: str, *, claim_actor: str
     back ``current_agent=None``, which trivially bypasses the guard and would
     prove nothing).
     """
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-claimed",
@@ -123,7 +123,7 @@ def _seed_claim_then_progress(feature_dir: Path, wp_id: str, *, claim_actor: str
             policy_metadata={"agent": claim_actor},
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-in-progress",
@@ -432,7 +432,7 @@ def test_wp06_t028_rollback_to_planned_is_fully_reimplementable(tmp_path: Path) 
 #
 # Reproduces the reported defect at the SAME layer ``move_task``'s Typer
 # command actually runs at (``_do_move_task``, real event log via
-# ``append_event``/``_seed_claim_then_progress``), not just the pure decision
+# ``seed_status_event``/``_seed_claim_then_progress``), not just the pure decision
 # core (``tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py``
 # covers that layer). See ``_guard_agent_ownership``'s docstring in
 # ``tasks_transition_core.py`` for the root-cause narrative.

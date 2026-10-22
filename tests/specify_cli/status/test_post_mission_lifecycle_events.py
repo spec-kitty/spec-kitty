@@ -36,7 +36,8 @@ from specify_cli.status.lifecycle_events import (
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import format_post_mission_events
 
 pytestmark = pytest.mark.fast
@@ -80,7 +81,7 @@ def _append_status_event(
     event_id: str,
     from_lane: str = "planned",
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

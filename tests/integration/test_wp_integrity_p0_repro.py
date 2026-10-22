@@ -62,7 +62,7 @@ from specify_cli.lanes.worktree_allocator import (
 )
 from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from ulid import ULID
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -428,7 +428,7 @@ def test_3281_retry_reenters_self_heal_to_establish_post_materialize_ancestry(
     _git(repo, "checkout", "-q", "main")
 
     feature_dir = _ancestry_feature_dir(repo)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=str(ULID()),

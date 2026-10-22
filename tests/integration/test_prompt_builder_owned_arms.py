@@ -20,7 +20,7 @@ from runtime.next._tmp_namespace import prompt_tmp_dir
 from runtime.next.prompt_builder import build_prompt
 from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests._factories import provision_test_charter
 from tests.integration.conftest import OwnedCheckouts
 
@@ -46,7 +46,7 @@ def _set_wp_frontmatter(checkouts: OwnedCheckouts, *, owned_files: str, subtasks
 
 
 def _claim(checkouts: OwnedCheckouts, event_id: str = "01CLAIMAAAAAAAAAAAAAAAAAA1") -> str:
-    append_event(
+    seed_status_event(
         checkouts.mission_dir,
         StatusEvent(
             event_id=event_id,

@@ -48,7 +48,7 @@ from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status import materialize
 from specify_cli.status.emit import emit_inner_state_changed
 from specify_cli.status.models import Lane, ReviewOverride, ReviewResult, StatusEvent, WPInnerStateDelta
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration]
 
@@ -103,7 +103,7 @@ def _append_approved_event(
         reason="approved for merge",
         review_result=review_result,
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _write_rejected_artifact(feature_dir: Path) -> Path:

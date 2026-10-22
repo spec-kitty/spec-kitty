@@ -405,9 +405,9 @@ def test_approve_control_unchanged(tmp_path: Path) -> None:
     advance_to_step(repo, mission_slug, "software-dev", "review")
     feature_dir = repo / "kitty-specs" / mission_slug
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="approve-WP01",

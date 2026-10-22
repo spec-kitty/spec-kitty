@@ -19,7 +19,7 @@ from specify_cli.cli.commands.accept import accept
 from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 from specify_cli.workspace.context import clear_workspace_resolution_caches
 from tests.status.test_transition_request_owned import claim_counter
@@ -389,7 +389,7 @@ def test_finalize_refresh_reports_owned_checkout_commit_success(checkouts):
     assert setup.exit_code == 0, setup.output
 
     mission = owned / "kitty-specs" / SLUG
-    append_event(
+    seed_status_event(
         mission,
         StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",

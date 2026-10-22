@@ -13,7 +13,7 @@ import pytest
 
 from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.progress import compute_weighted_progress
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ def _setup_feature_with_events(
     for counter, (wp_id, from_lane, to_lane) in enumerate(wp_transitions, start=1):
         event_id = f"01TEST{str(counter).zfill(20).upper()}"
         event = _make_event(mission_slug, wp_id, from_lane, to_lane, event_id)
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
     return feature_dir
 

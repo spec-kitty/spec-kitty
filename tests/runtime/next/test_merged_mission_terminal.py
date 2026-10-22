@@ -31,7 +31,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -70,7 +70,7 @@ def _seed(
     from_lane: Lane,
     to_lane: Lane,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",

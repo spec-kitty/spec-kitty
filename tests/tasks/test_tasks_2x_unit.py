@@ -14,7 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.models import StatusEvent, Lane
 
 
@@ -34,7 +34,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 runner = CliRunner()
 

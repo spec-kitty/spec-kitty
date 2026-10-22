@@ -89,7 +89,8 @@ from specify_cli.decisions import store as decision_store
 from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, append_raw_rows_atomic
+from specify_cli.status.store import append_raw_rows_atomic
+from tests._support.status_seed import seed_status_event
 from tests._factories import provision_test_charter
 from tests._support.git_template import clone_template
 
@@ -614,7 +615,7 @@ def _append_extra_root_events(coord: CoordMission, count: int) -> None:
             force=False,
             execution_mode="direct_repo",
         )
-        append_event(coord.root_mission_dir, event)
+        seed_status_event(coord.root_mission_dir, event)
 
 
 def _convert_branch_to_remote_only(coord: CoordMission) -> None:

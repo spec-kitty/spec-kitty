@@ -292,14 +292,11 @@ def wrap_everywhere(monkeypatch: pytest.MonkeyPatch, original: Callable[..., obj
 def spy_writers(monkeypatch: pytest.MonkeyPatch) -> WriteSpy:
     """Record every status-event append and every ``write_lanes_json`` call.
 
-    The status sinks are the two physical writers of ``status.events.jsonl``:
-    ``append_event`` (line append) and ``append_raw_rows_atomic`` (the atomic
-    batch writer every ``append_*_atomic*`` helper delegates to).
+    The status sink is the physical writer of ``status.events.jsonl``:
+    ``append_raw_rows_atomic`` (the atomic batch writer every
+    ``append_*_atomic*`` helper delegates to).
     """
     spy = WriteSpy()
-
-    def _record_feature_dir(feature_dir: Path, *_args: object, **_kwargs: object) -> None:
-        spy.status_dirs.append(Path(feature_dir))
 
     def _record_events_path(path: Path, *_args: object, **_kwargs: object) -> None:
         if Path(path).name == EVENTS:
@@ -308,7 +305,6 @@ def spy_writers(monkeypatch: pytest.MonkeyPatch) -> WriteSpy:
     def _record_lanes_dir(planning_dir: Path, *_args: object, **_kwargs: object) -> None:
         spy.lanes_dirs.append(Path(planning_dir))
 
-    wrap_everywhere(monkeypatch, status_store.append_event, _record_feature_dir)
     wrap_everywhere(monkeypatch, status_store.append_raw_rows_atomic, _record_events_path)
     wrap_everywhere(monkeypatch, lanes_persistence.write_lanes_json, _record_lanes_dir)
     return spy

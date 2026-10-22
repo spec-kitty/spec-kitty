@@ -22,7 +22,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +175,7 @@ class TestHasPriorRejection:
             to_lane=Lane.PLANNED,
             review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
         )
-        append_event(feature_dir, rejection_event)
+        seed_status_event(feature_dir, rejection_event)
 
         result = _has_prior_rejection(feature_dir, "WP01-some-title", "WP01")
         assert result is True
@@ -188,7 +188,7 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # First: rejection event
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP01",
             from_lane=Lane.IN_PROGRESS,
@@ -196,14 +196,14 @@ class TestHasPriorRejection:
             review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
         ))
         # Then: approval (for_review -> approved)
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01BBBB0000000000000000002B",
             wp_id="WP01",
             from_lane=Lane.FOR_REVIEW,
             to_lane=Lane.APPROVED,
         ))
         # Then: re-implementation start (not from for_review)
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01CCCC0000000000000000003C",
             wp_id="WP01",
             from_lane=Lane.APPROVED,
@@ -221,7 +221,7 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # Rejection event for WP02 only
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP02",  # Different WP
             from_lane=Lane.FOR_REVIEW,
@@ -250,7 +250,7 @@ class TestHasPriorRejection:
         _make_artifact(tmp_path, "WP01-some-title", cycle=2)
 
         # First rejection
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP01",
             from_lane=Lane.IN_PROGRESS,
@@ -258,7 +258,7 @@ class TestHasPriorRejection:
             review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
         ))
         # Second rejection (latest)
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01BBBB0000000000000000002B",
             wp_id="WP01",
             from_lane=Lane.IN_PROGRESS,
@@ -276,20 +276,20 @@ class TestHasPriorRejection:
         feature_dir = tmp_path / "kitty-specs" / "066-test-mission"
         _make_artifact(tmp_path, "WP01-some-title", cycle=1)
 
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP01",
             from_lane=Lane.IN_PROGRESS,
             to_lane=Lane.PLANNED,
             review_ref="review-cycle://066-test-mission/WP01-some-title/review-cycle-1.md",
         ))
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01BBBB0000000000000000002B",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
         ))
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01CCCC0000000000000000003C",
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
@@ -380,7 +380,7 @@ class TestModeSwitchFallsThroughOnResolved:
         _make_artifact(tmp_path, "WP01-some-title")
 
         # Event: claimed -> in_progress (not from for_review)
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
@@ -401,7 +401,7 @@ class TestModeSwitchFallsThroughOnResolved:
         empty_dir.mkdir(parents=True)
 
         # Emit a rejection event
-        append_event(feature_dir, _make_event(
+        seed_status_event(feature_dir, _make_event(
             event_id="01AAAA0000000000000000001A",
             wp_id="WP01",
             from_lane=Lane.FOR_REVIEW,
@@ -511,10 +511,10 @@ class TestImplementReviewFeedbackHandoff:
             body="**Issue 1**: Use the canonical review artifact instead of the claim token.\n",
         ).write(feature_dir / "tasks" / "WP01-test-task" / "review-cycle-2.md")
 
-        append_event(feature_dir, _make_event(event_id="01AAA000000000000000000001"))
-        append_event(feature_dir, _make_event(event_id="01AAA000000000000000000002", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
-        append_event(feature_dir, _make_event(event_id="01AAA000000000000000000003", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW))
-        append_event(
+        seed_status_event(feature_dir, _make_event(event_id="01AAA000000000000000000001"))
+        seed_status_event(feature_dir, _make_event(event_id="01AAA000000000000000000002", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
+        seed_status_event(feature_dir, _make_event(event_id="01AAA000000000000000000003", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW))
+        seed_status_event(
             feature_dir,
             _make_event(
                 event_id="01AAA000000000000000000004",
@@ -523,7 +523,7 @@ class TestImplementReviewFeedbackHandoff:
                 review_ref="action-review-claim",
             ),
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             _make_event(
                 event_id="01AAA000000000000000000005",
@@ -554,8 +554,8 @@ class TestImplementReviewFeedbackHandoff:
         _repo, feature_dir = workflow_cli_repo
         review_cycle_ref = "review-cycle://001-test-feature/WP01-test-task/review-cycle-9.md"
 
-        append_event(feature_dir, _make_event(event_id="01BBB000000000000000000001"))
-        append_event(
+        seed_status_event(feature_dir, _make_event(event_id="01BBB000000000000000000001"))
+        seed_status_event(
             feature_dir,
             _make_event(
                 event_id="01BBB000000000000000000002",

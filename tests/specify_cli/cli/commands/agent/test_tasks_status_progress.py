@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -51,7 +51,7 @@ def _create_project(tmp_path: Path, mission_slug: str, lanes: dict[str, str]) ->
             ),
             encoding="utf-8",
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"test-{wp_id}-{lane}",

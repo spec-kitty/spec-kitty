@@ -52,7 +52,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_hop_policy_metadata,
 )
 from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent
-from specify_cli.status._unsafe import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.resolved_binding import ResolvedBinding
 
 pytestmark = pytest.mark.fast
@@ -466,7 +466,7 @@ def test_resolve_review_verdict_facts_picks_highest_cycle(tmp_path: Path) -> Non
     wp_dir = tasks_dir / "WP01-do-a-thing"
     _write_review_cycle_artifact(wp_dir, 1, "rejected")
     cycle2 = _write_review_cycle_artifact(wp_dir, 2, "approved")
-    append_event(
+    seed_status_event(
         tmp_path,
         StatusEvent(
             event_id="01T023PICKSHIGHEST0000001",

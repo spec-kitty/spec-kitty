@@ -368,7 +368,7 @@ def _write_wp_file(tasks_dir: Path, wp_id: str) -> Path:
 def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a status event so ``get_wp_lane`` returns ``lane``."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{lane}",
@@ -381,7 +381,7 @@ def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _advance_runtime_to_step(

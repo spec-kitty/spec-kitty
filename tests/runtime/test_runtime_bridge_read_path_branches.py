@@ -44,7 +44,7 @@ from runtime.next.runtime_bridge_query import QueryModeValidationError, _query_r
 from specify_cli.coordination.workspace import CoordinationWorkspaceUnavailable
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests._owned_fixtures import mint_test_fact
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -151,7 +151,7 @@ def _all_done_board(feature_dir: Path) -> None:
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
     (tasks / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\ntitle: WP01\n---\n# WP01\n", encoding="utf-8")
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-WP01-done",

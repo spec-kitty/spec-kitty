@@ -66,7 +66,7 @@ import specify_cli.status as _status_facade
 from specify_cli.frontmatter import FrontmatterManager
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
 from spec_kitty_events.diary import _RUNTIME_SLOTS
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils import WorkPackage
 from tests.architectural._ast_scan import parse_file
 
@@ -157,7 +157,7 @@ def test_snapshot_is_authority_over_frontmatter(tmp_path: Path) -> None:
 
     # Claim rides the transition policy_metadata (agent/shell_pid); assignee is
     # an off-axis annotation. All DIVERGE from the frontmatter values above.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-claim",
@@ -205,7 +205,7 @@ def test_absent_snapshot_entry_is_authoritative_empty_not_frontmatter_fallback(
     # is for an unrelated WP): WP01's snapshot slots are genuinely absent, so a
     # frontmatter fallback — if one survived — would surface the divergent
     # frontmatter values below.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-other",

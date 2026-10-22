@@ -35,7 +35,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # Marked for mutmut sandbox skip — subprocess CLI/git invocation.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -128,7 +128,7 @@ def _create_lane_feature(
     # claim path). Skipping straight from ``planned`` to ``done`` (as before
     # the #2816 event-sourced cutover) left the strict-accept "missing agent
     # in canonical runtime state" gate permanently red for this fixture.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTCLEANTREE000000",
@@ -147,7 +147,7 @@ def _create_lane_feature(
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTCLEANTREE000001",

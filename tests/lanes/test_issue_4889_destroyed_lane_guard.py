@@ -48,7 +48,7 @@ from specify_cli.lanes.worktree_allocator import (
 from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import (
     WorkspaceContext,
     get_context_path,
@@ -155,7 +155,7 @@ def _append_status_event(coord_status_dir: Path, ids: MissionIds, from_lane: str
         force=False,
         execution_mode="worktree",
     )
-    append_event(coord_status_dir, event)
+    seed_status_event(coord_status_dir, event)
 
 
 #: Realistic transition chains for each non-terminal post-allocation lane the

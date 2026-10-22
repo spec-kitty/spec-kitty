@@ -53,7 +53,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # Marked for mutmut sandbox skip — subprocess CLI/git invocation.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -136,7 +136,7 @@ def _create_accept_ready_feature(repo_root: Path) -> Path:
         "# WP01\nDone.\n"
     )
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTNORMALIZEENCODING0001",
@@ -454,7 +454,7 @@ def _create_accept_ready_feature_for_commit(repo_root: Path) -> Path:
         "# WP01\nDone.\n"
     )
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTNORMALIZEENCCOMMIT0000",
@@ -473,7 +473,7 @@ def _create_accept_ready_feature_for_commit(repo_root: Path) -> Path:
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTNORMALIZEENCCOMMIT0001",

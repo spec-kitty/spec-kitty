@@ -25,7 +25,7 @@ from specify_cli.lanes.recovery import (
     scan_recovery_state,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 
@@ -73,7 +73,7 @@ def _write_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str,
         execution_mode="worktree",
         reason="test event",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _make_six_wp_manifest(mission_slug: str) -> LanesManifest:

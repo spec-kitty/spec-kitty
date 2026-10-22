@@ -75,7 +75,8 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.reducer import event_sourced_review_result
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 from specify_cli.status import TransitionError, TransitionRequest, read_events
 from tests._perf_helpers import assert_timing_budget
 from tests.mocked_env import setup_mocked_env
@@ -183,7 +184,7 @@ def _seed_event_at(seq: int) -> str:
 
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}-{seq}",
@@ -221,7 +222,7 @@ def _seed_rejection_result_event(feature_dir: Path, wp_id: str, *, seq: int) -> 
     """
     from specify_cli.status.models import ReviewResult
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-rejected-{seq}",

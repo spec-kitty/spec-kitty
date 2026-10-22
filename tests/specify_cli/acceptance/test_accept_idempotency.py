@@ -39,7 +39,8 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -114,7 +115,7 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
         "# WP01\nDone.\n"
     )
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTIDEMPOTENCY0001",

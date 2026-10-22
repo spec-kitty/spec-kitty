@@ -16,7 +16,7 @@ import typer
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -113,7 +113,7 @@ def _prepare_coord_mission(
 
 def _seed_execution_event(coord_root: Path, mission_slug: str) -> None:
     event_dir = coord_root / "kitty-specs" / mission_slug
-    append_event(
+    seed_status_event(
         event_dir,
         StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",
@@ -236,7 +236,7 @@ def _run_refresh(
 
 def _append_dirty_coord_event(coord_root: Path, mission_slug: str) -> None:
     event_dir = coord_root / "kitty-specs" / mission_slug
-    append_event(
+    seed_status_event(
         event_dir,
         StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJL",
@@ -257,7 +257,7 @@ def test_refresh_wrong_surface_status_residue_refuses_before_any_write(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root, feature_dir, coord_root, mission_slug, coord_branch, _recorded_pin = _prepare_coord_mission(tmp_path, monkeypatch)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJM",

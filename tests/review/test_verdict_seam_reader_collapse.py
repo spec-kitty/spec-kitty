@@ -47,7 +47,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import ReviewResultLookup
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -132,7 +132,7 @@ def _append_review_result_event(
     from_lane: Lane = Lane.IN_REVIEW,
     reference: str = "review-cycle://demo/WP01/review-cycle-1.md",
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

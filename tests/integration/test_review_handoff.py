@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.models import StatusEvent, Lane
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
@@ -65,7 +65,7 @@ def review_handoff_repo(tmp_path: Path) -> tuple[Path, Path, str]:
 
     # Seed status events: planned -> in_progress
     for lane_val in ("planned", "in_progress"):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",

@@ -35,7 +35,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.models import ReviewOverride
 from specify_cli.status.reducer import wp_snapshot_state
 from specify_cli.status.resolved_binding import RESOLVED_MODEL_ABSENT
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.wp_view import (
     AuthoredGroup,
     ResolvedGroup,
@@ -124,7 +124,7 @@ def _seed_claim(
     shell_pid_created_at: str | None = None,
 ) -> None:
     """Append a planned→claimed transition carrying agent/shell_pid (FR-004)."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"seed-claim-{at}",

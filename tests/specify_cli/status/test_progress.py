@@ -16,7 +16,7 @@ from specify_cli.status.progress import (
     generate_progress_json,
 )
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@ def test_generate_progress_json_writes_file(tmp_path):
 
     # Add events so reducer has data
     event = _make_event("001-test-feature", "WP01", "planned", "done", "01TESTAAAAAAAAAAAAAAAAAAA1")
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
     derived_dir = tmp_path / ".kittify" / "derived"
     generate_progress_json(feature_dir, derived_dir)

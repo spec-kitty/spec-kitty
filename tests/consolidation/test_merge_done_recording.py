@@ -726,7 +726,7 @@ def coord_branch_mission(tmp_path: Path) -> dict:
 
 def _seed_done_event(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     event = StatusEvent(
         event_id=f"01TESTREGRWP{wp_id[-2:]}DONE0000000"[:26],
@@ -739,7 +739,7 @@ def _seed_done_event(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
         force=False,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def test_coord_branch_assert_reads_from_coord_surface(
@@ -774,7 +774,7 @@ def test_coord_branch_assert_ignores_primary_checkout(
     Relates-to: #1726
     """
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     repo_root = coord_branch_mission["repo_root"]
     primary_dir = coord_branch_mission["primary_dir"]
@@ -795,7 +795,7 @@ def test_coord_branch_assert_ignores_primary_checkout(
         force=False,
         execution_mode="worktree",
     )
-    append_event(coord_specs, approved_event)
+    seed_status_event(coord_specs, approved_event)
 
     # Must RAISE — coord surface only has approved, not done
     with pytest.raises(typer.Exit):

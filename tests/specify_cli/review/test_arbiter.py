@@ -23,7 +23,7 @@ from specify_cli.review.arbiter import (
     parse_category_from_note,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 
 pytestmark = pytest.mark.fast
@@ -50,7 +50,7 @@ def _make_event(
         execution_mode="direct_repo",
         review_ref=review_ref,
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
     return event
 
 

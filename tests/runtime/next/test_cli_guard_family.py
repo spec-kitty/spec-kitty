@@ -49,7 +49,7 @@ from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.mission import get_mission_type
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -83,7 +83,7 @@ def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 WP_BLOCK_REVIEW_MESSAGE = "Not all work packages are approved or done"

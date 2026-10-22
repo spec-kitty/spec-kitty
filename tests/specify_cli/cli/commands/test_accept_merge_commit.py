@@ -42,7 +42,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # Real git + the real accept pipeline: mutmut's forked sandbox cannot host it.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -132,7 +132,7 @@ def _create_pr_merged_feature(repo_root: Path, *, merged: bool = True, squash: b
 
     # Event-sourced done state (the same planned -> claimed -> done legs the
     # clean-tree regression fixture seeds).
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTPRACCEPTMUTATION0001",
@@ -151,7 +151,7 @@ def _create_pr_merged_feature(repo_root: Path, *, merged: bool = True, squash: b
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTPRACCEPTMUTATION0002",

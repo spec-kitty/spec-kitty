@@ -720,7 +720,7 @@ def _build_lanes_fixture_for_tip_clear(repo: Path, mission_slug: str, wp_ids: tu
 
 def _seed_wp_lane(repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     feature_dir = repo / "kitty-specs" / mission_slug
     chain = {
@@ -748,7 +748,7 @@ def _seed_wp_lane(repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> No
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
 
 def test_on_wp_terminal_clears_lane_tip_when_the_whole_lane_is_terminal(tmp_path: Path) -> None:

@@ -46,7 +46,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 )
 from specify_cli.review.cycle import create_rejected_review_cycle
 from specify_cli.status import Lane, StatusEvent
-from specify_cli.status._unsafe import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils import WorkPackage
 from specify_cli.workspace.context import ResolvedWorkspace, WorkspaceContext
 
@@ -789,7 +789,7 @@ class TestResolveReviewContext:
 
 def _write_events(feature_dir: Path, events: list[StatusEvent]) -> None:
     for event in events:
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
 
 def _seed_rejected_review_cycle(repo_root: Path, *, wp_id: str, wp_slug: str) -> str:

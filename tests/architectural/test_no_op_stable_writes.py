@@ -219,7 +219,8 @@ def _materialize_status(feature_dir: Path) -> None:
     """
     from specify_cli.status.models import Lane, StatusEvent
     from specify_cli.status.reducer import materialize
-    from specify_cli.status.store import append_event, read_events
+    from specify_cli.status.store import read_events
+    from tests._support.status_seed import seed_status_event
 
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
@@ -247,7 +248,7 @@ def _materialize_status(feature_dir: Path) -> None:
     # is append-only and out of the no-op class). Re-materializing the SAME log
     # is the no-op we ratchet.
     if not read_events(feature_dir):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01TESTNOOPSTABLE0000000001",

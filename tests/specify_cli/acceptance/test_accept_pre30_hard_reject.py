@@ -28,7 +28,7 @@ from specify_cli import app as cli_app
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -83,7 +83,7 @@ def _pre30_repo(tmp_path: Path) -> tuple[Path, Path]:
         ),
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         fd,
         StatusEvent(
             event_id="01KW0LEGACYEVENT0000000001",

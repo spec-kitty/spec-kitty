@@ -49,7 +49,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_events
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.slow, pytest.mark.timing]
@@ -104,6 +104,7 @@ def _build_large_mission(tmp_path: Path, mission_slug: str, wp_count: int) -> Pa
         encoding="utf-8",
     )
 
+    events: list[StatusEvent] = []
     for i in range(wp_count):
         wp_id = f"WP{i + 1:03d}"
         lane = _LANE_CYCLE[i % len(_LANE_CYCLE)]
@@ -125,8 +126,7 @@ def _build_large_mission(tmp_path: Path, mission_slug: str, wp_count: int) -> Pa
             ),
             encoding="utf-8",
         )
-        append_event(
-            feature_dir,
+        events.append(
             StatusEvent(
                 event_id=f"perf-{wp_id}-{lane.value}",
                 mission_slug=mission_slug,
@@ -137,9 +137,10 @@ def _build_large_mission(tmp_path: Path, mission_slug: str, wp_count: int) -> Pa
                 actor="perf-fixture",
                 force=True,
                 execution_mode="worktree",
-            ),
+            )
         )
 
+    seed_status_events(feature_dir, events)
     return feature_dir
 
 

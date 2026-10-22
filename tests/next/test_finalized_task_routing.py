@@ -8,7 +8,7 @@ import pytest
 
 from runtime.next.decision import DecisionKind
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.runtime._next_mission_scaffold import analysis_is_current
 
@@ -45,7 +45,7 @@ def _scaffold(
             f"---\nwork_package_id: {wp_id}\ndependencies: {deps_literal}\ntitle: {wp_id}\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{wp_id}-{lane}",

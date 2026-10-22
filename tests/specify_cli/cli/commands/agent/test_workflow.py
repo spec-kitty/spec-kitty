@@ -311,7 +311,7 @@ def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(
 
     from specify_cli.cli.commands.agent import workflow as workflow_module
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     mission_slug = "010-feature"
     main_repo = tmp_path / "main"
@@ -324,7 +324,7 @@ def test_preview_claimable_wp_for_mission_reads_repo_root_not_worktree(
             encoding="utf-8",
         )
     for wp_id, lane in (("WP01", Lane.APPROVED), ("WP02", Lane.PLANNED)):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{wp_id}",

@@ -390,12 +390,12 @@ def test_append_event_journal_lines_are_whole_even_when_fsync_fails(tmp_path: Pa
 
 def _seed_planned_wp(feature_dir: Path, wp_id: str) -> None:
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-work.md").write_text(f"# {wp_id}\n", encoding="utf-8")
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-planned",

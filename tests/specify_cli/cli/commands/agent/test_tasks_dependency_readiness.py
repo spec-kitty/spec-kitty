@@ -28,7 +28,7 @@ from specify_cli.cli.commands.agent.tasks_dependency_graph import (
 )
 from specify_cli.core.dependency_graph import get_dependents
 from specify_cli.status import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -51,7 +51,7 @@ def _event(wp_id: str, from_lane: str, to_lane: str, event_id: str) -> StatusEve
 
 def _seed(feature_dir: Path, *events: StatusEvent) -> None:
     for ev in events:
-        append_event(feature_dir, ev)
+        seed_status_event(feature_dir, ev)
 
 
 # ---------------------------------------------------------------------------

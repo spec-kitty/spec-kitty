@@ -19,7 +19,8 @@ from specify_cli.cli.console import console
 from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, SafeCommitPathPolicyError
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from tests._support.git_cli import git_out
 
 # Markers are per test: the pure bundle/text seams are ``fast``; everything that runs git is
@@ -292,7 +293,7 @@ def test_claim_commit_softens_any_other_failure(claim_repo: SimpleNamespace, cap
 def _seed_lane(feature_dir: Path, lane: Lane, actor: str) -> None:
     # The fixture's placeholder log is not a valid event stream; start from a real one.
     (feature_dir / "status.events.jsonl").unlink(missing_ok=True)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-WP01-{lane.value}",

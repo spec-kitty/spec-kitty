@@ -261,11 +261,11 @@ def test_workflow_cores_canonical_review_ref_wins(tmp_path: Path) -> None:
     reports source ``"canonical"``."""
     from specify_cli.cli.commands.agent.workflow_cores import resolve_review_feedback_context
     from specify_cli.status.models import StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     feature_dir.mkdir(parents=True)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=_EVID,

@@ -48,7 +48,8 @@ from specify_cli.status.locking import (
     feature_status_lock_path,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 
 from typer.testing import CliRunner
 
@@ -65,7 +66,7 @@ def _append_status_event(
     from_lane: Lane,
     to_lane: Lane,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{wp_id}-{to_lane.value}-{time.time_ns()}",

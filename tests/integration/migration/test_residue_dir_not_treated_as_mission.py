@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app
 from specify_cli.status.emit import build_status_event
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [
     pytest.mark.integration,
@@ -50,7 +50,7 @@ def _build_project(root: Path) -> Path:
     )
     (mission_dir / "spec.md").write_text("# real\n", encoding="utf-8")
     for from_lane, to_lane in (("planned", "claimed"), ("claimed", "in_progress")):
-        append_event(
+        seed_status_event(
             mission_dir,
             build_status_event(
                 mission_slug=slug,

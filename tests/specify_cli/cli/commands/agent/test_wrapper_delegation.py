@@ -15,7 +15,7 @@ from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.consolidate import ConsolidateOptions
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -56,7 +56,7 @@ def _scaffold_implement_mission(repo_root: Path, mission_slug: str, wp_id: str =
         "# Test WP\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-planned",

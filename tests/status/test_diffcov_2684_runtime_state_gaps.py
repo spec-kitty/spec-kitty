@@ -34,10 +34,10 @@ from specify_cli.status.models import (
 from specify_cli.status.store import (
     StoreError,
     append_annotations_atomic_verified,
-    append_event,
     is_non_lane_event,
     read_event_stream,
 )
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.wp_state import annotate
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -67,7 +67,7 @@ def _seed_roster(feature_dir: Path, wp_id: str, subtasks: list[str]) -> None:
 
 def _seed_wp_entry(feature_dir: Path, wp_id: str) -> None:
     """Seed a ``planned -> in_progress`` transition so the WP has a snapshot entry."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=_ulid("TRN"),

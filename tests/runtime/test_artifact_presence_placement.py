@@ -14,7 +14,7 @@ from runtime.next import runtime_bridge_composition as composition
 from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests._owned_fixtures import mint_test_fact
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -106,7 +106,7 @@ def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (primary / "spec.md").write_text("# Spec\n\n- **FR-001**: Resolve planning authority.\n", encoding="utf-8")
-    append_event(
+    seed_status_event(
         status,
         StatusEvent(
             event_id="test-WP01-for-review",

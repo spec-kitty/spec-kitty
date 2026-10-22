@@ -37,7 +37,7 @@ from specify_cli.review.arbiter import (
 )
 from specify_cli.status import ReviewOverride, WPInnerStateDelta, emit_inner_state_changed
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -71,7 +71,7 @@ def _make_event(
 
 
 def _write_event(feature_dir: Path, event: StatusEvent) -> None:
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _make_checklist(

@@ -54,7 +54,7 @@ from specify_cli.agent_tasks_ports import RealCoordCommitRouter
 from specify_cli.agent_utils.status import show_kanban_status
 from specify_cli.review.cycle import create_rejected_review_cycle
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
@@ -215,7 +215,7 @@ def _append_status_event(feature_dir: Path, mission_slug: str, mission_id: str, 
         (Lane.IN_REVIEW, Lane.APPROVED, event_id, "2026-08-02T12:00:03+00:00"),
     )
     for from_lane, to_lane, eid, at in transitions:
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=eid,

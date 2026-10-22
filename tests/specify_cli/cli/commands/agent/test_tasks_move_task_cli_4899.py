@@ -29,7 +29,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.review.cycle import is_non_resolvable_review_ref
 from specify_cli.status import Lane, StatusEvent
-from specify_cli.status._unsafe import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status.store import read_events
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -141,7 +141,7 @@ def _build_in_review_repo(root: Path, mission_slug: str = _PARITY_MISSION_SLUG) 
         (Lane.FOR_REVIEW, Lane.IN_REVIEW),
     )
     for index, (from_lane, to_lane) in enumerate(hops, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"01PARITY{str(index).zfill(18)}",
@@ -342,7 +342,7 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
         # before it once the clock passes the literal, and the lane reducer
         # then sees in_progress -> in_progress.
         second_round_at = _seconds_after_latest_event(feature_dir, 1, 2)
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01PARITYSECONDROUND000001",
@@ -356,7 +356,7 @@ class TestFr008ReviewCycleCounterOnReimplementEdge:
                 execution_mode="worktree",
             ),
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="01PARITYSECONDROUND000002",

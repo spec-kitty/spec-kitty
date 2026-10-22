@@ -45,7 +45,8 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -106,7 +107,7 @@ def _build_feature_in_lane(
             execution_mode="worktree",
             reason="seed: bootstrap",
         )
-        append_event(feature_dir, seed)
+        seed_status_event(feature_dir, seed)
     else:
         # Force-seed directly into the desired lane. The reducer cares
         # only about the latest event's to_lane, so a single forced
@@ -123,7 +124,7 @@ def _build_feature_in_lane(
             execution_mode="worktree",
             reason=f"seed: bootstrap to {lane}",
         )
-        append_event(feature_dir, seed)
+        seed_status_event(feature_dir, seed)
     return feature_dir, wp_file
 
 

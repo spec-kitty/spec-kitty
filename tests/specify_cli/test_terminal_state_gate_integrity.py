@@ -41,7 +41,8 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils import LANES
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -73,7 +74,7 @@ def _append_transition_chain(feature_dir: Path, wp_id: str, target: Lane) -> Non
         chain.append((Lane.APPROVED, Lane.DONE))
     for index, (from_lane, to_lane) in enumerate(chain):
         policy_metadata = {"agent": "test-agent"} if from_lane == Lane.PLANNED and to_lane == Lane.CLAIMED else None
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=str(ULID()),
@@ -99,7 +100,7 @@ def _append_cancellation(feature_dir: Path, wp_id: str, *, operator: bool) -> No
     operator-authored provenance (FR-001) — the acceptable case. ``operator=False``
     leaves a synthetic (provenance-free) cancellation — the blocker case (FR-003).
     """
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=str(ULID()),

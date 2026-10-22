@@ -38,7 +38,7 @@ from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.regression]
@@ -146,7 +146,7 @@ def _seed_status(coord_status_dir: Path, ids: MissionIds) -> None:
             force=False,
             execution_mode="worktree",
         )
-        append_event(coord_status_dir, event)
+        seed_status_event(coord_status_dir, event)
 
 
 def _build_destroyed_lane_fixture(tmp_path: Path, ids: MissionIds) -> tuple[Path, LanesManifest, Path, str]:

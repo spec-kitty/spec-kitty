@@ -28,7 +28,7 @@ from specify_cli.agent_tasks_ports import (
 from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import FakeFsReader, FakeGitOps, FakeRender
 
@@ -59,7 +59,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
 
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",

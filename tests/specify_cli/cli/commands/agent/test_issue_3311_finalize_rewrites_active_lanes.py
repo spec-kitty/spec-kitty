@@ -49,7 +49,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 from tests.specify_cli.cli.commands.agent.finalize_runner import add_owned_file, run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
@@ -107,7 +107,7 @@ def test_ownership_only_amendment_preserves_established_lanes_and_provenance(
     # The started WP is WP02, the one on the higher-sorting lane that LOSES
     # the overlap tie, so the lane-identity assertion below cannot pass by luck.
     read_dir = resolve_status_surface_with_anchor(tmp_path, mission_slug).read_dir
-    append_event(
+    seed_status_event(
         read_dir,
         StatusEvent(
             event_id="01HXYZ3311EXECUTIONBEGUNEVT",

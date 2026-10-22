@@ -33,7 +33,8 @@ from specify_cli.status.reducer import (
     reduce,
     review_result_from_state,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 from tests.reliability.fixtures import (
     MissionFixture,
     WorkPackageSpec,
@@ -670,7 +671,7 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         snapshot = materialize(feature_dir)
 
@@ -699,7 +700,7 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         materialize(feature_dir)
 
@@ -734,7 +735,7 @@ class TestMaterializeFile:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event1)
+        seed_status_event(feature_dir, event1)
         materialize(feature_dir)
 
         # Add another event and re-materialize
@@ -745,7 +746,7 @@ class TestMaterializeFile:
             to_lane=Lane.IN_PROGRESS,
             at="2026-02-08T13:00:00Z",
         )
-        append_event(feature_dir, event2)
+        seed_status_event(feature_dir, event2)
         snapshot = materialize(feature_dir)
 
         assert snapshot.event_count == 2
@@ -797,7 +798,7 @@ class TestMaterializeIdempotency:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         materialize(feature_dir)
         assert (feature_dir / SNAPSHOT_FILENAME).exists()
@@ -816,7 +817,7 @@ class TestMaterializeIdempotency:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         # First call: writes the file
         materialize(feature_dir)
@@ -845,7 +846,7 @@ class TestMaterializeIdempotency:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event1)
+        seed_status_event(feature_dir, event1)
         materialize(feature_dir)
         mtime_before = (feature_dir / SNAPSHOT_FILENAME).stat().st_mtime
 
@@ -859,7 +860,7 @@ class TestMaterializeIdempotency:
             to_lane=Lane.IN_PROGRESS,
             at="2026-02-08T13:00:00Z",
         )
-        append_event(feature_dir, event2)
+        seed_status_event(feature_dir, event2)
         materialize(feature_dir)
         mtime_after = (feature_dir / SNAPSHOT_FILENAME).stat().st_mtime
 
@@ -897,7 +898,7 @@ class TestMaterializeGitClean:
             to_lane=Lane.CLAIMED,
             at="2026-02-08T12:00:00Z",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         # First materialize to create status.json, then commit
         materialize(feature_dir)
@@ -1173,7 +1174,7 @@ class TestEventSourcedReviewResultReader:
         feature_dir.mkdir(parents=True)
         rr = ReviewResult(reviewer="r", verdict="approved", reference="review-cycle://m/WP01/1.md")
         for event in _in_review_exit_events(review_result=rr, target=Lane.APPROVED):
-            append_event(feature_dir, event)
+            seed_status_event(feature_dir, event)
 
         lookup = event_sourced_review_result(feature_dir, "WP01")
 
@@ -1185,7 +1186,7 @@ class TestEventSourcedReviewResultReader:
         applies at the CALLER, e.g. find_rejected_review_artifact_conflicts)."""
         feature_dir = tmp_path / "kitty-specs" / "069-unreviewed"
         feature_dir.mkdir(parents=True)
-        append_event(
+        seed_status_event(
             feature_dir,
             _make_event(
                 event_id="01A",
@@ -1229,7 +1230,7 @@ class TestEventSourcedReviewResultReader:
         meta_path.write_text(json.dumps(meta), encoding="utf-8")
         assert "status_phase" not in meta
 
-        append_event(
+        seed_status_event(
             feature_dir,
             _make_event(
                 event_id="01A",
@@ -1273,7 +1274,7 @@ def _append_mission_events(mission: MissionFixture, events: list[StatusEvent]) -
     Sonar S1192 response for this module.
     """
     for event in events:
-        append_event(
+        seed_status_event(
             mission.mission_dir,
             StatusEvent(
                 event_id=event.event_id,
@@ -1392,7 +1393,7 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
         on-disk artifact says (G2: absent means 'no block')."""
         mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
         write_work_package(mission, WorkPackageSpec(lane="approved"))
-        append_event(
+        seed_status_event(
             mission.mission_dir,
             StatusEvent(
                 event_id="01KQKV85APPROVED000000001",

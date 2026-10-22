@@ -172,9 +172,9 @@ def _seed_mission(workflow_repo: Path, *, subtasks: tuple[str, ...] = ("T001",))
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", subtasks=subtasks)
     from specify_cli.status import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-planned",

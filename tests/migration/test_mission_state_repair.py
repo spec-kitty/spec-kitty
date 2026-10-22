@@ -1814,7 +1814,7 @@ class _ConcurrentWriter:
             mission_lock_key,
         )
         from specify_cli.status.locking import feature_status_lock
-        from specify_cli.status.store import append_event
+        from tests._support.status_seed import seed_status_event
         from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
         try:
@@ -1827,7 +1827,7 @@ class _ConcurrentWriter:
                 self.waiting.set()
                 self._settled.set()
             with feature_status_lock(root, key):
-                append_event(self.mission, _b_event(self.mission.name))
+                seed_status_event(self.mission, _b_event(self.mission.name))
                 if self.rewrite_status_json:
                     snapshot = materialize_snapshot(self.mission)
                     atomic_write(self.mission / "status.json", materialize_to_json(snapshot))

@@ -29,7 +29,8 @@ import pytest
 
 from specify_cli.cli.commands.agent.tasks_shared import _check_unchecked_subtasks
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -78,7 +79,7 @@ def _seed_feature_dir(tmp_path: Path, tasks_md: str, *, roster: list[str] | None
 
 def _seed_claim_transition(feature_dir: Path, wp_id: str) -> None:
     """Seed a ``planned -> in_progress`` transition so the WP has a snapshot entry."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=_ulid("TRN" + wp_id),

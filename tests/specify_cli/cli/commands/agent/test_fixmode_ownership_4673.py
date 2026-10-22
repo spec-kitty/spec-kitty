@@ -52,7 +52,7 @@ fold order.
 Test harness note: mirrors ``test_move_task_rollback_clears_claim.py`` /
 ``test_move_task_reject_fix_approve_cycle.py`` — GENESIS->PLANNED and the
 reviewer's for_review->in_review review-claim are seeded directly via
-``append_event`` (that hop's real CLI surface is ``agent action review``, a
+``seed_status_event`` (that hop's real CLI surface is ``agent action review``, a
 wholly separate command not under test here); every hop actually exercising
 the #4673 fix (claim, rejection, fix-mode reclaim, resubmission) drives the
 REAL ``move-task`` CLI entry point.
@@ -75,9 +75,9 @@ from specify_cli.status.models import InnerStateChanged, StatusEvent, WPInnerSta
 from specify_cli.status.reducer import reduce as reduce_snapshot
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
-    append_event,
     read_event_stream,
 )
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
@@ -121,7 +121,7 @@ def _seed_claim_through_in_review(feature_dir: Path) -> None:
         (Lane.FOR_REVIEW, Lane.IN_REVIEW, None, _REVIEWER),
     ]
     for idx, (frm, to, policy_metadata, actor) in enumerate(hops, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{idx}",

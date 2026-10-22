@@ -46,7 +46,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 from tests.specify_cli.cli.commands.agent.finalize_runner import add_owned_file, run_finalize
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
@@ -100,7 +100,7 @@ def _seed_execution_begun_event(repo_root: Path, mission_slug: str, wp_id: str) 
     """Append a real WP-past-``planned`` event to the resolved status surface.
 
     Uses the same read-dir authority (``resolve_status_surface_with_anchor``)
-    the fix under test reads from, and the pure JSONL append (``append_event``)
+    the fix under test reads from, and the pure JSONL append (``seed_status_event``)
     — never ``reducer.materialize()`` — so this seed itself demonstrates the
     read-only recipe round-trips correctly.
     """
@@ -116,7 +116,7 @@ def _seed_execution_begun_event(repo_root: Path, mission_slug: str, wp_id: str) 
         force=False,
         execution_mode="worktree",
     )
-    append_event(read_dir, event)
+    seed_status_event(read_dir, event)
 
 
 def _amend_wp01_owned_files(feature_dir: Path) -> None:

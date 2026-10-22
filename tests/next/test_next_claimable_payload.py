@@ -21,7 +21,7 @@ import pytest
 from runtime.next.decision import DecisionKind, _state_to_action
 from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.runtime._next_mission_scaffold import analysis_is_current
@@ -63,7 +63,7 @@ def _scaffold(
             encoding="utf-8",
         )
         reason_source = reason_sources.get(wp_id) if reason_sources else None
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{wp_id}-{lane}",
@@ -340,7 +340,7 @@ def test_advancing_next_rechecks_dependency_that_was_reopened(tmp_path: Path) ->
     assert preview_claimable_wp(feature_dir).wp_id == "WP01"
     assert _advancing_implement_wp(feature_dir, mission_slug, repo) == "WP01"
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="reopen-WP02-to-planned",
