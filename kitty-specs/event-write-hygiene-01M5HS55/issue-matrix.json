@@ -61,7 +61,7 @@
       "wp": null
     },
     "#6607": {
-      "evidence_ref": "WP03 (builder + public-imports gate) + WP04 (seam rename)",
+      "evidence_ref": "WP03 builder deletion + widened test_events_tracker_public_imports; WP04 seam rename + test_adapters_contract",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,8 +69,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: context_only>",
-      "verdict": "in-mission",
-      "wp": "WP03"
+      "verdict": "fixed",
+      "wp": "WP04"
     },
     "#6608": {
       "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
