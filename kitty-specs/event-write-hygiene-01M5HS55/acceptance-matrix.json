@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "rg build_saas_lifecycle_queue_event|_validate_lifecycle_payload|_EVENT_TYPE_TO_MODEL src -> empty; tests/status/test_lifecycle_events.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:07.970810+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
