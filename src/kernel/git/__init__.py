@@ -21,6 +21,7 @@ build a remote-contacting git argv themselves;
 
 from __future__ import annotations
 
+from kernel.git.blame import BlameLine, DiffHunk, blame_lines, diff_hunks
 from kernel.git.listing import (
     IndexEntry,
     NameStatusEntry,
@@ -65,6 +66,8 @@ __all__ = [
     "FETCH_TIMEOUT",
     "LS_REMOTE_TIMEOUT",
     "AheadBehind",
+    "BlameLine",
+    "DiffHunk",
     "GitCommandError",
     "GitPath",
     "GitResult",
@@ -74,6 +77,7 @@ __all__ = [
     "RemoteUnreachable",
     "StatusEntry",
     "TreeEntry",
+    "blame_lines",
     "blob_at",
     "changed_entries",
     "changed_paths",
@@ -81,6 +85,7 @@ __all__ = [
     "commit_paths",
     "decode_path",
     "describe_remote_head",
+    "diff_hunks",
     "divergence",
     "fetch_branches",
     "fetch_tags",

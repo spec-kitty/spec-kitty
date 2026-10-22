@@ -31,6 +31,7 @@ from tests.terminus.canceled_dependency_support import (
     LANE_B,
     WP01_PATH,
     WP02_PATH,
+    SUPERSEDING_WP01_BODY,
     CanceledDependencyMission,
     build_canceled_dependency_mission,
     build_never_started_dependency_mission,
@@ -48,7 +49,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _STRATEGIES = ("squash", "merge")
 _ERROR_CODE = "CANCELED_REACHABLE_VIA_DEPENDENCY"
 _ATTEST_REASON = "checked by hand: WP01's canceled content is absent or superseded on lane-b"
-_SUPERSEDING_BODY = "def wp01() -> int:\n    return 'superseded by WP02'\n"
 
 
 def _assert_fast_forward_shape(built: CanceledDependencyMission) -> None:
@@ -185,7 +185,7 @@ def test_twin_attested_unattributable_canceled_dependency_consolidates_when_supe
     rc, flat = _consolidate(built, strategy, ATTEST_FLAG, "WP01", "--attest-reason", _ATTEST_REASON)
     assert rc == 0, f"the attested legacy mission whose canceled content is superseded must consolidate ({strategy}):\n{flat}"
     assert _ERROR_CODE not in flat
-    assert git(mission.repo, "show", f"{mission.target_branch}:{WP01_PATH}").stdout == _SUPERSEDING_BODY, "only WP02's version of the file lands"
+    assert git(mission.repo, "show", f"{mission.target_branch}:{WP01_PATH}").stdout == SUPERSEDING_WP01_BODY, "only WP02's version of the file lands"
     assert blob_present_at(mission.repo, mission.target_branch, WP02_PATH)
 
 

@@ -413,7 +413,7 @@ def test_canceled_spine_content_skips_merges_and_bookkeeping(tmp_path: Path, mon
     canceled = frozenset({built.wp01_sha})
     blob = git(repo, "rev-parse", f"{built.wp01_sha}:{WP01_PATH}").stdout.strip()
 
-    assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: False) == (frozenset(), {WP01_PATH: (built.wp01_sha, blob)})
+    assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: False) == (frozenset(), {WP01_PATH: wpa.LiveCanceledContent(built.wp01_sha, blob)})
     # A commit touching only bookkeeping paths is neither superseded nor content.
     assert wpa.canceled_spine_content(repo, spine, canceled, lambda _p: True) == (frozenset(), {})
     # Nothing on the spine is canceled: no commit is read at all.
@@ -462,7 +462,8 @@ def test_append_carrier_keeps_the_canceled_commit_live_not_superseded(tmp_path: 
 
     assert superseded == frozenset(), "an append must not supersede the canceled commit — its content survives"
     assert list(live) == [path]
-    reported_sha, reported_state = live[path]
+    reported_sha, reported_state, renamed_from = live[path]
+    assert renamed_from is None
     assert reported_sha == canceled_sha
     assert reported_state == final_blob, "live reports the carrier's final blob (what the integrated target carries)"
 

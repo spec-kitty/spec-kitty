@@ -81,7 +81,8 @@ def _drive_wp01_superseding_rework(mission: CoordMission, lane_branch: str) -> N
 
     git(mission.repo, "checkout", "-q", lane_branch)
     leaked = mission.repo / _LEAKED_PATH
-    leaked.write_text("def wp02_new():\n    return 'wp01 rewrote this entirely'\n", encoding="utf-8")
+    # Every line rewritten: a kept ``def wp02_new()`` would still be WP02's line (#6309).
+    leaked.write_text("def wp01_rework():\n    return 'wp01 rewrote this entirely'\n", encoding="utf-8")
     git(mission.repo, "add", _LEAKED_PATH)
     git(mission.repo, "commit", "-qm", "wp01 rework supersedes wp02's content")
     git(mission.repo, "checkout", "-q", mission.target_branch)

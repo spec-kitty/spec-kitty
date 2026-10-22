@@ -10,10 +10,10 @@ canceled-content axis treated the whole path as superseded, landed WP01's body o
 in shipped code (residual of #5569; the #5569 fix only covered the shape where the
 dependent leaves the canceled file alone).
 
-Fixed in #5932: content-level supersession
-(``git_probes.canceled_content_survives``) keeps the canceled content live when an
+Fixed in #5932: content-level supersession keeps the canceled content live when an
 append/partial rework preserves its lines, so ``consolidate`` refuses instead of
-shipping it.
+shipping it. Since #6309 the check is line attribution
+(``line_attribution.LineAttribution``) rather than the #5932 all-lines subset test.
 
 This drives the REAL CLI end to end (the full ``consolidate`` pipeline: lane
 skipping, coord teardown, squash), because the defect did not reproduce at the

@@ -250,6 +250,9 @@ class CanceledDependencyContent:
     carrier_lane_id: str
     path: str
     state: str | None
+    #: #6309: the canceled path when a carrier commit renamed it; ``path`` is then
+    #: the new path, where the carried content lives and the target is compared.
+    renamed_from: str | None = None
 
 
 @dataclass(frozen=True)
@@ -382,8 +385,16 @@ def _describe_canceled_content(entry: CanceledPathState) -> str:
     if entry.canceled_state is None:
         situation = f"file '{entry.path}' was deleted by {who} (lane {entry.lane_id}) and that deletion is on the target — approved content would be lost"
     else:
-        situation = f"file '{entry.path}' carries {who}'s change (lane {entry.lane_id}) on the target — canceled work would ship"
+        situation = f"file '{entry.path}'{_renamed_note(entry.renamed_from)} carries {who}'s change (lane {entry.lane_id}) on the target — canceled work would ship"
     return f"{situation}; {recovery}"
+
+
+def _renamed_note(renamed_from: str | None) -> str:
+    """`` (renamed from '<old>')`` for canceled content a survivor moved to a new path (#6309), else empty.
+
+    No ``;`` (the clause contract splits situation from recovery on it).
+    """
+    return f" (renamed from '{renamed_from}')" if renamed_from else ""
 
 
 def _describe_approved_content_missing(entry: MissingApprovedContent) -> str:
@@ -423,7 +434,8 @@ def _describe_canceled_reachable(entry: CanceledDependencyContent) -> str:
     who = f"canceled {', '.join(entry.wp_ids)}"
     effect = "its deletion" if entry.state is None else "its change"
     situation = (
-        f"{CANCELED_REACHABLE_VIA_DEPENDENCY}: file '{entry.path}' carries {who}'s work (lane {entry.canceled_lane_id}), which reached "
+        f"{CANCELED_REACHABLE_VIA_DEPENDENCY}: file '{entry.path}'{_renamed_note(entry.renamed_from)} carries {who}'s work "
+        f"(lane {entry.canceled_lane_id}), which reached "
         f"approved lane {entry.carrier_lane_id} through a dependency lane, and {effect} IS on the target — canceled work would ship"
     )
     recovery = (
@@ -2552,8 +2564,8 @@ def _carried_dependency_content(
             continue
         superseded |= lane_superseded
         live_commits |= on_spine - lane_superseded
-        for path, (sha, state) in live.items():
-            content.add(CanceledDependencyContent(wps_of[lane_of[sha]], lane_of[sha], carrier_id, path, state))
+        for path, entry in live.items():
+            content.add(CanceledDependencyContent(wps_of[lane_of[entry.sha]], lane_of[entry.sha], carrier_id, path, entry.state, entry.renamed_from))
     return frozenset(superseded - live_commits), frozenset(content)
 
 

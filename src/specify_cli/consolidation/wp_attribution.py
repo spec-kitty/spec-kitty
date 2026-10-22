@@ -26,12 +26,12 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import NamedTuple
 
 from specify_cli.status import LANE_HEAD_KEY, StatusEvent, is_migration_actor
 
 from .git_probes import (
     GitProbeError,
-    canceled_content_survives,
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
@@ -39,6 +39,7 @@ from .git_probes import (
     path_state_at,
     sha_reachable_from,
 )
+from .line_attribution import LineAttribution
 
 # Lane values a WP transition can carry (status/models.py::Lane is a StrEnum;
 # these plain-str sets compare/hash equal to its members).
@@ -120,7 +121,9 @@ class CanceledPathState:
     """One path whose newest on-spine state is the canceled WP's own, unsuperseded (T019).
 
     ``canceled_state`` / ``pre_state`` are blob shas, or ``None`` for
-    "absent" (the path did not exist, or the canceled WP deleted it).
+    "absent" (the path did not exist, or the canceled WP deleted it). When a
+    survivor renamed the canceled path (#6309), ``path`` is the new path,
+    ``canceled_state`` is read there and ``renamed_from`` names the old one.
     ``pre_state_by_survivor`` is True when a non-canceled, non-merge lane
     commit touched ``path`` BEFORE the canceled WP's oldest touch — i.e. the
     pre-state was itself produced on the lane by a surviving WP, not merely
@@ -145,6 +148,10 @@ class CanceledPathState:
     canceled_state: str | None
     pre_state: str | None
     pre_state_by_survivor: bool
+    #: #6309: the canceled path when a survivor renamed it; ``path`` is then where
+    #: the canceled content lives in the lane's final state (what the target is
+    #: compared at), and ``pre_state`` is still read at this original path.
+    renamed_from: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -482,6 +489,67 @@ def _content_commits(
         yield idx, sha, [path for path in changed_paths_of(repo_root, sha) if not is_bookkeeping(path)]
 
 
+@dataclass(frozen=True)
+class _PathTouches:
+    """What the spine walk learned about one path a canceled commit touched.
+
+    ``toucher`` is the path's newest non-merge toucher (its blob is the lane's final
+    state for the path), ``oldest_canceled`` the canceled WP's oldest touch,
+    ``canceled_shas`` every canceled touch, newest first, and ``lane_tip`` the
+    lane's final commit (where a renamed path is judged).
+    """
+
+    path: str
+    toucher: str
+    oldest_canceled: str
+    canceled_shas: tuple[str, ...]
+    lane_tip: str
+
+
+def _canceled_path_state(
+    attribution: LineAttribution,
+    touches: _PathTouches,
+    canceled_commits: frozenset[str],
+    *,
+    pre_state_by_survivor: bool,
+    owner: tuple[str, str],
+) -> CanceledPathState | None:
+    """The :class:`CanceledPathState` for one path, or ``None`` when no canceled content survives.
+
+    When the newest toucher is a SURVIVOR (the pre-#5932 R7 drop), the path is kept
+    only when line attribution (:class:`~specify_cli.consolidation.line_attribution.
+    LineAttribution`, #6309) finds a canceled commit's change still in the final
+    state: a non-trivial line still attributed to a canceled commit, a canceled
+    deletion still in effect, or (via a rename) either at the new path. A probe error
+    raises :class:`GitProbeError` (fail-closed; the caller maps it onto
+    ``SPINE_UNREADABLE``). When the canceled commit is itself the newest toucher the
+    final state is its own, as before #5932.
+    """
+    path, toucher = touches.path, touches.toucher
+    final_path, final_ref = path, toucher
+    if toucher not in canceled_commits:
+        survival = attribution.survival(touches.canceled_shas, path, toucher, floor=touches.oldest_canceled, tip=touches.lane_tip)
+        if not survival.survives or survival.final_path is None:
+            return None  # superseded — no canceled commit's change still lives in the final state
+        final_path, final_ref = survival.final_path, survival.final_ref
+    # The final state is what the integrated target carries: the survivor's blob
+    # embedding the canceled content, or the canceled commit's own blob.
+    canceled_state = path_state_at(attribution.repo_root, final_ref, final_path)
+    pre_state = path_state_at(attribution.repo_root, f"{touches.oldest_canceled}^", path)
+    if canceled_state == pre_state and final_path == path:
+        return None  # net-zero: the final blob is back at the pre-canceled state
+    wp_id, lane_id = owner
+    return CanceledPathState(
+        wp_id=wp_id,
+        lane_id=lane_id,
+        path=final_path,
+        canceled_state=canceled_state,
+        pre_state=pre_state,
+        pre_state_by_survivor=pre_state_by_survivor,
+        renamed_from=path if final_path != path else None,
+    )
+
+
 def _canceled_content_walk(
     repo_root: Path,
     spine: list[str],
@@ -502,17 +570,14 @@ def _canceled_content_walk(
     ``oldest_canceled_{idx,sha}`` for it, so after the full walk that holds
     the LAST (oldest) canceled touch. A path produces a
     :class:`CanceledPathState` when a canceled commit touched it AND that
-    canceled content still lives in the lane's final blob
-    (:func:`~specify_cli.consolidation.git_probes.canceled_content_survives`,
-    #5932): a later survivor toucher that merely APPENDED or fully kept the
-    path keeps the canceled lines, so content-level supersession — not a
-    bare path-touch (the pre-#5932 R7 rule) — decides. A full overwrite drops
-    the canceled lines, so that path is genuinely superseded and no entry is
-    produced.  This NARROWS, but does not fully close, hunk-level supersession:
-    the survival test is a line-SUBSET check, so a survivor that keeps SOME of a
-    canceled commit's added lines while dropping others still launders the kept
-    remainder (it reads as superseded). The full fix is line-level authorship
-    attribution, tracked in #6309.  ``pre_state_by_survivor`` compares walk
+    canceled change still lives in the lane's final state
+    (:func:`_canceled_path_state`, line attribution, #6309): a later survivor
+    that appended to, kept part of, or renamed the path keeps the canceled
+    lines, and a survivor that left a canceled deletion standing keeps that
+    deletion, so line-level authorship — not a bare path-touch (the pre-#5932
+    R7 rule) and not the #5932 all-lines subset test — decides. A full
+    overwrite leaves no canceled line, so that path is genuinely superseded and
+    no entry is produced. ``pre_state_by_survivor`` compares walk
     POSITIONS (index 0 = newest): a survivor's oldest recorded touch index
     strictly greater than the canceled WP's oldest touch index means some
     survivor commit is OLDER on the spine than the canceled WP's first change to
@@ -543,42 +608,20 @@ def _canceled_content_walk(
             else:
                 oldest_survivor_idx[path] = idx
 
+    attribution = LineAttribution(repo_root)
     results: set[CanceledPathState] = set()
     for path, toucher in newest_toucher.items():
         if path not in oldest_canceled_sha:
             continue  # no canceled commit touched this path — not canceled content
-        oldest_c_sha = oldest_canceled_sha[path]
-        # ``toucher`` is the path's newest NON-MERGE toucher, so its blob IS the lane's
-        # final state for the path. When that toucher is a SURVIVOR (the pre-#5932 R7
-        # drop), keep the path when ANY canceled commit's content at it still lives in
-        # that final blob (#5932, content-level — per canceled commit, matching
-        # ``canceled_spine_content``, so a newer canceled touch of the same path is not
-        # missed): a full overwrite drops every canceled commit's lines (superseded), an
-        # append or partial keep preserves them (ships, embedded). This is a line-SUBSET
-        # test, so a survivor that drops only SOME of one canceled commit's added lines
-        # still launders the kept remainder — the full fix is line-level authorship
-        # attribution (#6309). A probe error raises GitProbeError (fail-closed; the
-        # caller maps it onto SPINE_UNREADABLE).
-        if toucher not in canceled_commits and not any(canceled_content_survives(repo_root, c_sha, path, toucher) for c_sha in canceled_shas_by_path[path]):
-            continue  # superseded — no canceled commit's content still lives in the final blob
-        # When a survivor appended on top, ``canceled_state`` is that final blob, which is
-        # what the integrated target carries; when the canceled commit is itself the newest
-        # toucher this is unchanged from the pre-#5932 behaviour.
-        canceled_state = path_state_at(repo_root, toucher, path)
-        pre_state = path_state_at(repo_root, f"{oldest_c_sha}^", path)
-        if canceled_state == pre_state:
-            continue  # net-zero: the final blob is back at the pre-canceled state
-        pre_state_by_survivor = oldest_survivor_idx.get(path, -1) > oldest_canceled_idx[path]
-        results.add(
-            CanceledPathState(
-                wp_id=wp_id,
-                lane_id=lane_id,
-                path=path,
-                canceled_state=canceled_state,
-                pre_state=pre_state,
-                pre_state_by_survivor=pre_state_by_survivor,
-            )
+        entry = _canceled_path_state(
+            attribution,
+            _PathTouches(path, toucher, oldest_canceled_sha[path], tuple(canceled_shas_by_path[path]), spine[0]),
+            canceled_commits,
+            pre_state_by_survivor=oldest_survivor_idx.get(path, -1) > oldest_canceled_idx[path],
+            owner=(wp_id, lane_id),
         )
+        if entry is not None:
+            results.add(entry)
     return _SpineWalk(canceled_content=frozenset(results), outside_windows=tuple(outside))
 
 
@@ -830,36 +873,47 @@ def lacks_lane_head_stamps(events: Sequence[StatusEvent], wp_id: str) -> bool:
     return any(not window.still_open and _window_stamps(window) is None for window in windows)
 
 
+class LiveCanceledContent(NamedTuple):
+    """What a canceled commit left on a carrier lane at one path (#5613, #6309).
+
+    ``sha`` is the newest canceled commit whose change lives there, ``state`` the
+    carrier lane's FINAL blob at the path (what the integrated target carries), or
+    ``None`` when the path is absent there, and ``renamed_from`` the canceled path
+    when a carrier commit renamed it.
+    """
+
+    sha: str
+    state: str | None
+    renamed_from: str | None = None
+
+
 def canceled_spine_content(
     repo_root: Path,
     spine: Sequence[str],
     canceled_commits: frozenset[str],
     is_bookkeeping: Callable[[str], bool],
-) -> tuple[frozenset[str], dict[str, tuple[str, str | None]]]:
+) -> tuple[frozenset[str], dict[str, LiveCanceledContent]]:
     """What a fully-canceled lane's commits leave on ONE carrier lane's first-parent spine (#5613).
 
     *spine* is newest-first. Returns ``(superseded, live)``:
 
-    * ``superseded`` -- canceled commits EVERY content path of which is CONTENT-level
-      superseded on the spine: the canceled lines no longer live in the carrier lane's
-      final blob (a later survivor fully overwrote the path). Nothing of such a commit
-      is the lane's final state, so nothing of it ships. A survivor that merely APPENDED
-      to or partially reworked the path keeps the canceled lines, so the commit is NOT
-      superseded (content-level, not path-touch — #5932).
-    * ``live`` -- content path -> ``(newest canceled toucher, the FINAL blob there)`` for
-      every path a canceled commit touched whose content still lives in the lane's final
-      blob. The state is the blob id at the carrier lane's final state for the path (what
-      the integrated target carries), or ``None`` when the path is absent there.
+    * ``superseded`` -- canceled commits EVERY content path of which is superseded
+      on the spine: a later survivor touched the path and line attribution
+      (:class:`~specify_cli.consolidation.line_attribution.LineAttribution`, #6309)
+      finds none of the commit's change in the carrier lane's final state — no
+      non-trivial line still attributed to it, no deletion of it still in effect.
+      Nothing of such a commit is the lane's final state, so nothing of it ships.
+      A survivor that appended to, partially reworked or renamed the path keeps the
+      canceled lines, so the commit is NOT superseded.
+    * ``live`` -- final path -> :class:`LiveCanceledContent` for every path a
+      canceled commit touched whose change still lives in the lane's final state.
+      A path a carrier commit renamed is reported at its new name.
 
     A merge commit neither supersedes nor is superseded (its first-parent diff can
     carry the canceled content itself). A canceled commit that touches no content
     path is not superseded: it stays out of the approved claim, as before. Raises
-    :class:`GitProbeError` when a commit cannot be read; the caller decides.
-
-    The content check is a line-SUBSET test, so this NARROWS but does not fully close
-    partial supersession: a survivor that keeps SOME of a canceled commit's added lines
-    while dropping others reads as superseded and launders the kept remainder. The full
-    fix is line-level authorship attribution, tracked in #6309.
+    :class:`GitProbeError` when a commit cannot be read or attributed; the caller
+    decides.
     """
     # Nothing older than the oldest canceled commit can supersede or be canceled
     # content, so the walk (the same per-commit step as :func:`_canceled_content_walk`)
@@ -868,23 +922,31 @@ def canceled_spine_content(
     if oldest_canceled < 0:
         return frozenset(), {}
     final_ref = spine[0]  # newest-first: the carrier lane's final state for every path
+    attribution = LineAttribution(repo_root)
+    floor = spine[oldest_canceled]  # one blame per path covers every canceled commit
+    on_spine = canceled_commits.intersection(spine)  # never approved rework of a deletion's spot
     survivor_paths: set[str] = set()
     superseded: set[str] = set()
-    newest_canceled: dict[str, str] = {}
+    newest_canceled: dict[str, tuple[str, str | None]] = {}
     for _idx, sha, paths in _content_commits(repo_root, spine[: oldest_canceled + 1], is_bookkeeping, {}):
         if sha not in canceled_commits:
             survivor_paths.update(paths)
             continue
-        # A canceled commit's path is superseded only when a LATER survivor touched it
-        # AND the canceled content no longer lives in the carrier's final blob (#5932,
-        # content-level): a later survivor that merely appended to or partially kept the
-        # path is NOT a supersession, so the canceled content stays live and subtracted.
-        unsuperseded = [path for path in paths if path not in survivor_paths or canceled_content_survives(repo_root, sha, path, final_ref)]
-        if paths and not unsuperseded:
+        # A path no later survivor touched is still this commit's (or a newer canceled
+        # commit's); a survivor-touched path is judged by line attribution (#6309).
+        locations: list[tuple[str, str | None]] = []
+        for path in paths:
+            if path not in survivor_paths:
+                locations.append((path, None))
+                continue
+            survival = attribution.survival((sha,), path, final_ref, floor=floor, other_canceled=on_spine)
+            if survival.survives and survival.final_path is not None:
+                locations.append((survival.final_path, path if survival.final_path != path else None))
+        if paths and not locations:
             superseded.add(sha)
-        for path in unsuperseded:
-            newest_canceled.setdefault(path, sha)
-    live = {path: (sha, path_state_at(repo_root, final_ref, path)) for path, sha in newest_canceled.items()}
+        for final_path, renamed_from in locations:
+            newest_canceled.setdefault(final_path, (sha, renamed_from))
+    live = {path: LiveCanceledContent(sha, path_state_at(repo_root, final_ref, path), renamed_from) for path, (sha, renamed_from) in newest_canceled.items()}
     return frozenset(superseded), live
 
 
@@ -894,6 +956,7 @@ __all__ = [
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
+    "LiveCanceledContent",
     "canceled_spine_content",
     "first_governed_open_stamp",
     "is_migration_event",

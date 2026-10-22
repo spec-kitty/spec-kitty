@@ -41,6 +41,9 @@ from tests.terminus.mixed_lane_support import transition
 ACTOR = "canceled-dependency-test"
 WP01_PATH = "src/pkg/wp01.py"
 WP02_PATH = "src/pkg/wp02.py"
+#: What approved WP02 writes over WP01's file with ``wp02_overwrites_wp01``: every
+#: line is rewritten, so nothing of canceled WP01 survives (#6309 operator ruling).
+SUPERSEDING_WP01_BODY = "def superseding_wp02() -> str:\n    return 'superseded by WP02'\n"
 LANE_A = "lane-a"
 LANE_B = "lane-b"
 
@@ -188,7 +191,9 @@ def build_canceled_dependency_mission(
 
     _commit_in(lane_b_tree, WP02_PATH, "def wp02() -> int:\n    return 2\n", f"feat({slug}): WP02 work")
     if wp02_overwrites_wp01:
-        _commit_in(lane_b_tree, WP01_PATH, "def wp01() -> int:\n    return 'superseded by WP02'\n", f"feat({slug}): WP02 supersedes WP01")
+        # A genuine overwrite: WP02 rewrites every line of WP01's file. Keeping even the
+        # ``def wp01()`` signature would ship a canceled line (#6309 operator ruling).
+        _commit_in(lane_b_tree, WP01_PATH, SUPERSEDING_WP01_BODY, f"feat({slug}): WP02 supersedes WP01")
     if approve_wp02:
         _approve(mission, "WP02", reference="review-WP02")
 

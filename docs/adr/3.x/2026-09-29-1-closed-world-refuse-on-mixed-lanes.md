@@ -222,3 +222,108 @@ of its commits can be on a dependent lane's spine. An unreadable or incomplete
 event log, a lane-tip ref still recorded for the branch, and an existing branch
 whose range cannot be read keep refusing. The decisions above are otherwise
 unchanged.
+
+## Amendment 2026-10-22: canceled content is judged line by line (#6309)
+
+Both canceled-content checks (the mixed-lane check and the canceled-dependency
+check) ask the same question: does a canceled commit's change still live in the
+lane's final state for a path that a surviving commit touched later? #5932
+answered it with an all-lines test. The change counted as gone unless every line
+the canceled commit added was still present. That left three ways for rejected
+work to ship at exit 0:
+
+- a surviving commit that kept two of three canceled lines laundered the two;
+- a canceled deletion (it added nothing) read as gone whenever a surviving commit
+  touched the file;
+- a surviving commit that renamed the file left the canceled content at a path
+  nothing checked.
+
+The operator ruled on #6309 as follows.
+
+1. **A kept line is canceled content.** A non-blank line that `git blame`
+   still attributes to a canceled commit means the change survives, and the gate
+   FAILs. This applies even when a surviving commit rewrote the rest of the hunk,
+   including when the only kept line is a signature such as `def wp01() -> int:`.
+   No line rule can tell such a signature from the two kept lines of #6309,
+   because blame attributes both the same way. Blank, whitespace-only and
+   punctuation-only lines (`}`, `),`) are ignored, so a full rewrite that happens
+   to keep one of them is not flagged. Blame runs with `-w`, so re-indenting or
+   converting to CRLF keeps the line's author. It runs with `-M`, so moving a
+   longer line inside the file keeps it too. A line that a surviving commit
+   removed and later re-added belongs to that commit. The #5932 all-lines test
+   remains a second way to flag a change as surviving, so nothing it caught is
+   lost.
+2. **A deletion stays in effect unless it is undone or reworked.** The deletion
+   is placed in the final state by the nearest lines around it that survive. A
+   `--reverse` blame finds those lines. The deletion is over in two cases:
+   - its lines are back in that spot;
+   - a surviving commit rewrote the spot, so the spot holds non-blank lines and
+     no canceled commit wrote any of them. For example, a canceled change from
+     `value = 1` to `value = 2`, followed by an approved change to
+     `value = 3`, is approved work.
+
+   Only lines written after the canceled commit count as being in the spot.
+   An original line that survives untouched is never rework, even when moving
+   a neighbouring line stretches the spot over it.
+
+   An empty spot keeps the deletion in effect. This covers the case raised in
+   the #6310 review: a canceled WP removes an auth check, an approved WP appends
+   elsewhere, and the gate now FAILs. Adding the same line somewhere else does
+   not undo the deletion.
+3. **A rename is followed.** When the path is gone from the final state, a
+   rename of it is found with no rename limit (`diff.renameLimit=0`). The
+   content is then judged at the new path. `CanceledPathState.path` and
+   `CanceledDependencyContent.path` name the new path, which is where the
+   target is compared and what the verdict prints. The old path is carried as
+   `renamed_from`, and the verdict shows it as "(renamed from '…')". A path
+   renamed to more than one target REFUSEs, because which copy carries the
+   content is ambiguous.
+
+**Fail-closed and bounded.** Any git error or unparseable output raises
+`GitProbeError`, which the callers already map onto REFUSE. Blame is limited to
+history after the oldest canceled commit. Each walk makes one forward blame per
+path, however many canceled commits touched it. One reverse blame and one diff
+are added per canceled commit that removed lines that are not blank. The
+rename lookup diffs the range from the newest canceled commit to the lane tip
+with no rename limit, so its cost grows with the files added and deleted in that
+range. It runs only when the path is gone from the final state. The blame
+and diff reads live in `kernel.git.blame`, which pins `diff.algorithm=myers` and
+turns off textconv and external diff drivers. The attribution rules live in
+`specify_cli.consolidation.line_attribution`, which replaces
+`git_probes.canceled_content_survives`.
+
+**Verdicts that change.**
+
+| Case | Before | After |
+|------|--------|-------|
+| A survivor keeps some canceled lines and drops others (former residual 8) | PASS | FAIL |
+| A survivor rewrites a canceled file but keeps a non-blank canceled line, such as a signature | PASS | FAIL |
+| A survivor re-indents canceled lines or converts them to CRLF | PASS | FAIL |
+| A canceled deletion stays in effect under a later approved edit | PASS | FAIL |
+| A canceled deletion's line is re-added elsewhere | PASS | FAIL |
+| A survivor renames the canceled path and keeps the content | PASS | FAIL, naming the new path |
+| A survivor rewrites the canceled change itself (`1 → 2 → 3`) | PASS | PASS |
+| A full rewrite that shares only blank or punctuation lines | PASS | PASS |
+| A survivor reverts the canceled commit, or removes and re-adds lines itself | PASS | PASS |
+
+The dependency-lane fixture whose approved WP "overwrote" WP01's file kept
+WP01's signature line. Under this ruling that line is canceled content, so the
+fixture now rewrites both lines. The test it supports still checks that a
+superseded canceled commit stays in the carrier's authorship without its blob.
+
+**Residuals (strict `xfail`).** Two are pinned in
+`tests/consolidation/test_canceled_line_attribution_6309.py`:
+
+- approved lines inserted exactly where a canceled deletion was count as
+  reworking that spot, so the deletion reads as superseded;
+- canceled content that a surviving commit copied into another file is not
+  followed.
+
+Two more are documented here without a pin:
+
+- a short line (below git's `-M` threshold) moved within the file is followed
+  only by the all-lines test, that is, only when every canceled line survives;
+- a rename whose old path is then re-created is judged at the re-created path.
+
+Content resolved inside a merge commit stays the existing residual. The
+decisions above are otherwise unchanged.

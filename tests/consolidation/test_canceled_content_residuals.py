@@ -12,16 +12,18 @@ change to the axis that silently alters this behaviour turns the test RED
 (``strict=True``) rather than drifting unnoticed (charter tactic
 ``delete-the-assertion-not-the-test``).
 
-**#5932 update.** Residual 1 (hunk-level supersession) is NARROWED, not fully
-fixed: content-level supersession (``git_probes.canceled_content_survives``)
-replaces the path-touch rule in both ``wp_attribution`` axes, so a survivor that
-APPENDS to or FULLY keeps a canceled WP's content no longer launders it — that
-case is now a regular test pinning the FAIL (``test_hunk_level_supersession_fails``),
-not a strict ``xfail``. But the survival test is a line-SUBSET check, so a survivor
-that keeps SOME of a canceled commit's added lines while dropping others still
-launders the kept remainder; that partial-removal fail-open stays a strict ``xfail``
-(``test_partial_removal_of_canceled_lines_ideally_fails``). The full fix is
-line-level authorship attribution, tracked in #6309.
+**#5932 update.** Residual 1 (hunk-level supersession) is fixed: content-level
+supersession replaces the path-touch rule in both ``wp_attribution`` axes, so a
+survivor that APPENDS to or FULLY keeps a canceled WP's content no longer launders
+it (``test_hunk_level_supersession_fails``, a regular test).
+
+**#6309 update.** The #5932 survival test was a line-SUBSET check, which left
+residual 8 open: a survivor that kept SOME of a canceled commit's added lines while
+dropping others laundered the kept remainder. Line attribution
+(``line_attribution.LineAttribution``: a ``git blame`` of the lane's final state,
+plus a deletion arm and rename following) closes it, so residual 8 is now a regular
+test pinning the FAIL (``test_partial_removal_of_canceled_lines_fails``). The
+ruling's own residuals are pinned in ``test_canceled_line_attribution_6309.py``.
 
 Every scenario is driven through the SAME production seam WP06's other
 subtasks use: real git commits on a real lane branch, real
@@ -43,8 +45,8 @@ resolved WP window, which the closed-world check now REFUSEs. Their leak is
 closed (the verdict is a safe non-PASS), so they are regular tests pinning the
 REFUSE instead of strict ``xfail`` pins. Residuals 2 and 5 stay strict
 ``xfail`` (their commits all sit inside a resolved window); residual 1 is now
-narrowed (its residual partial-removal fail-open is pinned as residual 8 — see the
-#5932 update below). Residual 6
+fixed (its partial-removal remainder, residual 8, was closed by #6309 — see the
+#6309 update above). Residual 6
 (landing review, #5330) is a gap of the closed-world ANCHORS: a pre-claim
 out-of-workflow commit (first-claim anchor), still a strict ``xfail``.
 
@@ -239,13 +241,13 @@ def test_hunk_level_supersession_fails(tmp_path: Path) -> None:
     Narrowed in #5932 (this append/full-keep arm is now caught): ``wp_attribution.
     _canceled_content_walk`` no longer drops a path because its newest toucher is a
     survivor. It keeps the path's canceled content when that content still lives in
-    the lane's final blob (``git_probes.canceled_content_survives``), and records the
+    the lane's final blob (line attribution, #6309; first the #5932 subset test), and records the
     FINAL blob as the ``CanceledPathState`` state, so the divergence axis sees the
     target carry it. Here WP01's rework keeps WP02's WHOLE line, so every added line
-    survives the line-SUBSET test, the content is attributed, and the gate FAILs — the
+    is still attributed to WP02, the content survives, and the gate FAILs — the
     reviewer's rejection is not silently undone. The PARTIAL-removal arm (a survivor
-    that keeps some of a canceled commit's added lines while dropping others) is NOT
-    closed by this subset test and stays a strict ``xfail`` (residual 8, #6309).
+    that keeps some of a canceled commit's added lines while dropping others) is
+    residual 8, closed by line attribution in #6309.
     """
     slug = "residual-hunk"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
@@ -294,27 +296,19 @@ def test_hunk_level_supersession_fails(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Residual 8 -- partial removal of a canceled commit's added lines (#6309)
+# Residual 8 (fixed, #6309) -- partial removal of a canceled commit's added lines
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="partial-removal fail-open of the #5932 line-subset survival test — full fix is line-level attribution (#6309)",
-)
-def test_partial_removal_of_canceled_lines_ideally_fails(tmp_path: Path) -> None:
+def test_partial_removal_of_canceled_lines_fails(tmp_path: Path) -> None:
     """A survivor's rework keeps SOME of the canceled WP's added lines and drops
     others: the final blob still ships two of WP02's three canceled lines.
 
-    The #5932 fix (``git_probes.canceled_content_survives``) is a line-SUBSET
-    test — the canceled commit's content counts as surviving only when EVERY added
-    line is still present. Here WP01's rework drops WP02's third line, so the subset
-    check reads the whole path as superseded and drops it from ``canceled_content``,
-    even though WP02's first two canceled lines genuinely ship on the target. TODAY:
-    PASS (the kept remainder is laundered). IDEAL: FAIL, since canceled content did
-    not fully leave the tree. The full fix is line-level authorship attribution,
-    tracked in #6309.
+    Fixed in #6309 (formerly residual 8, a strict ``xfail``). The #5932 line-SUBSET
+    test read the whole path as superseded as soon as one canceled line was dropped,
+    laundering the kept two. Line attribution (``line_attribution.LineAttribution``)
+    blames the final blob: WP02_A and WP02_B are still WP02's lines, so the content
+    survives and the gate FAILs.
     """
     slug = "residual-partialdrop"
     repo, feature_dir, manifest, coord_base = _init_repo(tmp_path, slug=slug, wp_ids=("WP01", "WP02"))
@@ -362,7 +356,7 @@ def test_partial_removal_of_canceled_lines_ideally_fails(tmp_path: Path) -> None
     target_ref = _squash_target(repo, _TARGET, lane_branch)
 
     status = _verify_today(repo, feature_dir, manifest, coord_base, target_ref, frozenset({"WP02"}))
-    assert status == VerifyStatus.FAIL, "ideal: partially-kept canceled content must still FAIL (two lines ship) — #6309"
+    assert status == VerifyStatus.FAIL, "partially-kept canceled content must FAIL (two lines ship) — #6309"
 
 
 # --------------------------------------------------------------------------- #
