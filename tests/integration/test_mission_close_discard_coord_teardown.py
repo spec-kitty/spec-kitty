@@ -24,7 +24,6 @@ on the current code (the bug); the fix flips it green.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -34,7 +33,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import mission_type
 from specify_cli.coordination import CoordinationWorkspace
 from specify_cli.lanes.branch_naming import code_lane_branch_name
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -376,7 +375,7 @@ def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -
 
 
 def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`#3194`: the `entry.is_dir()` filter must not use the EACCES-divergent
     predicate.
@@ -399,20 +398,10 @@ def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
     worktrees_root.mkdir(parents=True, exist_ok=True)
     (worktrees_root / "alpha-lane-a").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        with pytest.raises(OSError):
-            _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", worktrees_root / "alpha-lane-a")
+    with pytest.raises(OSError):
+        _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
 
 
 def test_verify_flags_stale_coordination_worktree_registration(tmp_path: Path) -> None:

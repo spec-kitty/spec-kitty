@@ -186,7 +186,7 @@ def test_audit_repo_skips_non_directories(tmp_path: Path) -> None:
     assert result[0].slug == "001-hello"
 
 
-def test_audit_repo_unstattable_entry_is_skipped_not_crashed(tmp_path: Path) -> None:
+def test_audit_repo_unstattable_entry_is_skipped_not_crashed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`#3194`: an unstattable candidate must be skipped like a non-directory,
     not crash `audit_repo` (nor silently vanish only on some interpreters).
 
@@ -198,9 +198,8 @@ def test_audit_repo_unstattable_entry_is_skipped_not_crashed(tmp_path: Path) -> 
     (``README.md``, templates, ...) — on every interpreter, and it still audits
     every OTHER mission in the corpus.
     """
-    import os
 
-    from tests._support.eacces import mode_bits_enforced
+    from tests._support.eacces import deny_path_method
 
     specs = tmp_path / "kitty-specs"
     specs.mkdir()
@@ -210,19 +209,9 @@ def test_audit_repo_unstattable_entry_is_skipped_not_crashed(tmp_path: Path) -> 
     (vault / "m-target").mkdir(parents=True)
     (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        result = audit_repo(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs / "m-link")
+    result = audit_repo(tmp_path)
 
     slugs = {s.slug for s in result}
     assert slugs == {"001-hello"}, (
@@ -344,13 +333,12 @@ def test_find_duplicate_prefixes_skips_non_directory_entries(tmp_path: Path) -> 
 
 
 def test_find_duplicate_prefixes_unstattable_entry_is_skipped_not_crashed(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`#3194` companion to ``test_audit_repo_unstattable_entry_is_skipped_not_crashed``,
     for ``find_duplicate_prefixes``'s own separate directory walk."""
-    import os
 
-    from tests._support.eacces import mode_bits_enforced
+    from tests._support.eacces import deny_path_method
 
     specs = tmp_path / "kitty-specs"
     _mission_dir(specs, "080-one", _ULID_A, 80)
@@ -360,19 +348,9 @@ def test_find_duplicate_prefixes_unstattable_entry_is_skipped_not_crashed(
     (vault / "m-target").mkdir(parents=True)
     (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        dupes = find_duplicate_prefixes(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs / "m-link")
+    dupes = find_duplicate_prefixes(tmp_path)
 
     assert "080" in dupes
     assert frozenset(s.slug for s in dupes["080"]) == frozenset({"080-one", "080-two"})

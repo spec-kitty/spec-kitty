@@ -16,7 +16,6 @@ Fixture layout (for tests that need identity functions to work):
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 
@@ -26,7 +25,7 @@ import pytest
 from specify_cli.audit import AuditOptions, RepoAuditReport, run_audit
 from specify_cli.audit.serializer import build_report_json
 from tests._perf_helpers import assert_timing_budget
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -374,7 +373,7 @@ def test_empty_scan_root(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_unstattable_mission_candidate_does_not_crash_the_audit(tmp_path: Path) -> None:
+def test_unstattable_mission_candidate_does_not_crash_the_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`#3194`: `_scan_missions`'s `candidate.is_dir()` filter must not use the
     EACCES-divergent predicate — and here specifically must not let a bare
     predicate-turned-raise crash this read-only, best-effort audit engine either.
@@ -397,19 +396,9 @@ def test_unstattable_mission_candidate_does_not_crash_the_audit(tmp_path: Path) 
     (vault / "m-target").mkdir(parents=True)
     (specs_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        report = run_audit(_options(tmp_path))
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs_dir / "m-link")
+    report = run_audit(_options(tmp_path))
 
     slugs = {m.mission_slug for m in report.missions}
     assert "mission-readable" in slugs, (

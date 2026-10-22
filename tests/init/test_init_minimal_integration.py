@@ -126,9 +126,8 @@ class TestInitCreatesMinimalProject:
         pins the behaviour explicitly against a real EACCES directory (not just a
         coincidence of unrelated exception handling), via `safe_is_dir`.
         """
-        import os
 
-        from tests._support.eacces import mode_bits_enforced
+        from tests._support.eacces import deny_path_method
 
         global_home = tmp_path / "global"
         vault = tmp_path / "vault"
@@ -137,21 +136,11 @@ class TestInitCreatesMinimalProject:
         (global_home / "missions" / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
-        canary = vault / "canary"
-        canary.write_text("{}", encoding="utf-8")
-        os.chmod(vault, 0o000)
-        try:
-            if not mode_bits_enforced(canary):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can stat through "
-                    "a 0o000 directory (running as root, or a filesystem that "
-                    "ignores mode bits), so the branch cannot be constructed here."
-                )
-            from specify_cli.cli.commands.init import _has_global_runtime
+        # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+        deny_path_method(monkeypatch, "stat", global_home / "missions" / "m-link")
+        from specify_cli.cli.commands.init import _has_global_runtime
 
-            assert _has_global_runtime() is False
-        finally:
-            os.chmod(vault, 0o700)
+        assert _has_global_runtime() is False
 
     def test_prepare_project_minimal(self, tmp_path):
         """_prepare_project_minimal creates only .kittify/ and .kittify/memory/."""

@@ -13,7 +13,6 @@ All filesystem I/O is in tmp_path fixtures. No network calls.
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +146,7 @@ def test_corpus_scan_empty_project_returns_zero(tmp_path: Path) -> None:
 
 
 def test_collect_charter_files_unstattable_mission_candidate_is_not_silently_skipped(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`#3194`: the `mission_dir.is_dir()` filter in `_collect_charter_files` must
     not use the EACCES-divergent predicate.
@@ -166,20 +165,10 @@ def test_collect_charter_files_unstattable_mission_candidate_is_not_silently_ski
     specs.mkdir()
     (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        with pytest.raises(OSError):
-            _collect_charter_files(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs / "m-link")
+    with pytest.raises(OSError):
+        _collect_charter_files(tmp_path)
 
 
 # ---------------------------------------------------------------------------

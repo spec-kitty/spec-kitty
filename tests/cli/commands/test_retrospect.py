@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import json
 from dataclasses import dataclass
-import os
 import subprocess
 from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
@@ -35,7 +34,7 @@ from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.cli.commands.agent_retrospect import app as agent_retrospect_app
 
 from tests._support.ansi import strip_ansi
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -1436,7 +1435,7 @@ class TestBackfillDiscovery:
 
         assert [(c["mission_id"], c.get("skip_reason")) for c in result] == [(MISSION_ID_COMPLETED, "not_completed")]
 
-    def test_discover_missions_unstattable_entry_is_not_silently_skipped(self, tmp_path: Path) -> None:
+    def test_discover_missions_unstattable_entry_is_not_silently_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """`#3194`: an unstattable mission entry must not be silently dropped.
 
         Companion to ``test_discover_missions_skips_non_dirs`` above, which pins
@@ -1456,21 +1455,11 @@ class TestBackfillDiscovery:
         (vault / "m-target").mkdir(parents=True)
         (missions_root / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-        canary = vault / "canary"
-        canary.write_text("{}", encoding="utf-8")
-        os.chmod(vault, 0o000)
-        try:
-            if not mode_bits_enforced(canary):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can stat through "
-                    "a 0o000 directory (running as root, or a filesystem that "
-                    "ignores mode bits), so the branch cannot be constructed here."
-                )
-            now = now_utc()
-            with pytest.raises(OSError):
-                _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
-        finally:
-            os.chmod(vault, 0o700)
+        # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+        deny_path_method(monkeypatch, "stat", missions_root / "m-link")
+        now = now_utc()
+        with pytest.raises(OSError):
+            _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
 
     def test_discover_missions_skips_missing_meta(self, tmp_path: Path) -> None:
         """Skips directories without meta.json."""
@@ -1655,7 +1644,7 @@ class TestSummaryCmdExtended:
         # Should have at least 2 missions
         assert len(data["missions"]) >= 2
 
-    def test_summary_unstattable_mission_candidate_is_not_silently_skipped(self, tmp_path: Path) -> None:
+    def test_summary_unstattable_mission_candidate_is_not_silently_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """`#3194`: ``summary``'s mission enumeration must not use the
         EACCES-divergent ``Path.is_dir()`` predicate anywhere in its path.
 
@@ -1678,22 +1667,12 @@ class TestSummaryCmdExtended:
         (vault / "m-target").mkdir(parents=True)
         (kitty_specs_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-        canary = vault / "canary"
-        canary.write_text("{}", encoding="utf-8")
-        os.chmod(vault, 0o000)
-        try:
-            if not mode_bits_enforced(canary):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can stat through "
-                    "a 0o000 directory (running as root, or a filesystem that "
-                    "ignores mode bits), so the branch cannot be constructed here."
-                )
-            result = RUNNER.invoke(
-                retrospect_app,
-                ["summary", "--project", str(tmp_path), "--json"],
-            )
-        finally:
-            os.chmod(vault, 0o700)
+        # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+        deny_path_method(monkeypatch, "stat", kitty_specs_dir / "m-link")
+        result = RUNNER.invoke(
+            retrospect_app,
+            ["summary", "--project", str(tmp_path), "--json"],
+        )
 
         assert result.exit_code == 2, f"an unstattable mission candidate must not silently produce a successful, misleadingly-complete summary: {result.output!r}"
         assert "I/O error reading corpus" in strip_ansi(result.output), f"expected the actionable I/O-error message, got: {result.output!r}"

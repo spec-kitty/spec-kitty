@@ -33,7 +33,6 @@ All filesystem I/O is under ``tmp_path``. No network calls, no git shell-out
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -54,7 +53,7 @@ from specify_cli.cli.commands.migrate.backfill_provenance import (
     run_backfill_provenance_migration,
 )
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -294,7 +293,7 @@ def test_dry_run_reports_but_writes_nothing(tmp_path: Path) -> None:
 
 
 def test_collect_matrix_paths_unstattable_mission_candidate_is_not_silently_skipped(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`#3194`: the `p.is_dir()` filter in `_collect_matrix_paths` must not use
     the EACCES-divergent predicate.
@@ -311,20 +310,10 @@ def test_collect_matrix_paths_unstattable_mission_candidate_is_not_silently_skip
     (vault / "m-target").mkdir(parents=True)
     (specs_root / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        with pytest.raises(OSError):
-            _collect_matrix_paths(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs_root / "m-link")
+    with pytest.raises(OSError):
+        _collect_matrix_paths(tmp_path)
 
 
 # ---------------------------------------------------------------------------
