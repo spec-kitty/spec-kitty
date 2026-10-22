@@ -10,7 +10,7 @@ failure becomes one warning and the command runs.
 
 Only that class degrades. Every other ``StartupAssetError`` (a torn read,
 source drift, a malformed inventory) and every other ``OSError`` stays fatal.
-Commands that do need the assets (``init``, ``agent config add``, ``upgrade``)
+Commands that do need the assets (``init``, ``agent config add``, ``migrate``)
 call the owners directly and still fail with the named ``StartupAssetError``.
 """
 
