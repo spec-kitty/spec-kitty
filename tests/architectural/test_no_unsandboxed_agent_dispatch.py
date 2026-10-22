@@ -36,23 +36,30 @@ _SKIPPED_DIR_NAMES: frozenset[str] = frozenset({"__pycache__", ".git", "node_mod
 _ALLOWED_FILES: frozenset[str] = frozenset({"src/specify_cli/orchestrator_api/envelope.py"})
 
 # Flags that switch a harness's sandbox or approvals off wherever they appear.
-_ANYWHERE: tuple[re.Pattern[str], ...] = (
-    *(re.compile(rf"(?<![\w-]){re.escape(flag)}(?![\w-])") for flag in sorted(BANNED_FLAGS)),
-    re.compile(r"danger-full-access"),
-    re.compile(r"--approval-mode(?:=|\s+)['\"]?yolo\b", re.IGNORECASE),
-    re.compile(r"(?<![\w-])--allow-all(?:-tools|-paths|-urls)?(?![\w-])"),
-    re.compile(r"dangerously-skip-permissions|dangerously-bypass-approvals"),
-    re.compile(r"\bbypassPermissions\b"),
+_ANYWHERE: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        *(rf"(?<![\w-]){re.escape(flag)}(?![\w-])" for flag in sorted(BANNED_FLAGS)),
+        r"danger-full-access",
+        r"--approval-mode(?:=|\s+)['\"]?yolo\b",
+        r"(?<![\w-])--allow-all(?:-tools|-paths|-urls)?(?![\w-])",
+        r"dangerously-skip-permissions|dangerously-bypass-approvals",
+        r"\bbypassPermissions\b",
+    )
 )
 
 # Short or generic flags that are unsafe only on one harness's command line.
-_ON_HARNESS_LINE: tuple[re.Pattern[str], ...] = (
-    # Cursor: --force/-f auto-approves every command not explicitly denied.
-    re.compile(r"\bcursor(?:-agent| agent)\b[^\n]*\s(?:--force|-f)(?![\w-])"),
-    # Kilo Code: --auto/-a disables every permission prompt.
-    re.compile(r"\bkilo(?:code)?\b[^\n]*\s(?:--auto|-a)(?![\w-])"),
-    # Gemini CLI family: -y is the short spelling of --yolo.
-    re.compile(r"\b(?:gemini|qwen|llxprt)\b[^\n]*\s-y(?![\w-])"),
+# Short flags match inside a cluster too (``-ys``, ``-ay``).
+_ON_HARNESS_LINE: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        # Cursor: --force/-f auto-approves every command not explicitly denied.
+        r"\bcursor(?:-agent| agent)\b[^\n]*(?:\s--force(?![\w-])|\s-[a-z]*f[a-z]*(?![\w-]))",
+        # Kilo Code: --auto/-a disables every permission prompt.
+        r"\bkilo(?:code)?\b[^\n]*(?:\s--auto(?![\w-])|\s-[a-z]*a[a-z]*(?![\w-]))",
+        # Gemini CLI family: -y is the short spelling of --yolo.
+        r"\b(?:gemini|qwen|llxprt)\b[^\n]*\s-[a-z]*y[a-z]*(?![\w-])",
+    )
 )
 
 
@@ -113,6 +120,10 @@ def test_scan_is_not_vacuous() -> None:
         'qwen -p "x" --approval-mode\tYOLO',
         'cursor agent -p \\\n  --force "x"',
         "codex exec -s danger-full-access -",
+        "gemini --YOLO",
+        "CURSOR agent -p --force",
+        "kilocode -ay x",
+        "gemini -p x -ys",
     ],
 )
 def test_detector_flags_each_unsafe_spelling(text: str) -> None:
