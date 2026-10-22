@@ -57,7 +57,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from kernel.git import BlameLine, DiffHunk, GitCommandError, blame_lines, blob_at, changed_entries, diff_hunks, run_git, tree_entry
+from kernel.git import BlameLine, DiffHunk, GitCommandError, blame_lines, blob_at, changed_entries, diff_hunks, numstat_entries, run_git, tree_entry
 from specify_cli.consolidation.git_probes import GitProbeError, path_state_at
 
 __all__ = ["LineAttribution"]
@@ -191,6 +191,8 @@ class LineAttribution:
             return CanceledSurvival(final_path, judged_ref, added=True, deletion=False)
         any_canceled = canceled | {self._resolve(sha) for sha in other_canceled}
         deletion = any(self._deletion_in_effect(sha, path, judged_ref, final_blame, any_canceled) for sha in canceled_shas)
+        if not deletion:
+            self._refuse_binary(canceled_shas, path)
         return CanceledSurvival(final_path, judged_ref, added=False, deletion=deletion)
 
     # -- reads -------------------------------------------------------------
@@ -226,6 +228,19 @@ class LineAttribution:
             revs = [f"{parent}..{final_ref}"] if parent is not None else [final_ref]
             self._forward[key] = blame_lines(self._repo, path, revs=revs, first_parent=True, ignore_whitespace=True, detect_moves=True)
         return self._forward[key]
+
+    def _is_binary_change(self, sha: str, path: str) -> bool:
+        """Did *sha* change *path* as a binary file (git prints ``-`` counts, or a root commit's blob holds a NUL)?"""
+        parent = self._parent(self._resolve(sha))
+        if parent is None:
+            return b"\0" in (blob_at(self._repo, sha, path) or b"")
+        return any(entry.added is None for entry in numstat_entries(self._repo, parent, sha, pathspecs=[path]))
+
+    def _refuse_binary(self, canceled_shas: Sequence[str], path: str) -> None:
+        """Refuse a binary path that no arm found surviving: git yields no hunks for it, so only blame judged it."""
+        for sha in canceled_shas:
+            if self._is_binary_change(sha, path):
+                raise ValueError(f"canceled commit {sha} changed binary '{path}' and a later commit changed it too; line attribution cannot judge a binary file")
 
     def _canceled_hunks(self, sha: str, path: str, *, exact: bool = False) -> tuple[DiffHunk, ...]:
         """What canceled commit *sha* removed and added at *path*.

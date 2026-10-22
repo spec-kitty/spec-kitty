@@ -403,6 +403,16 @@ def test_a_failed_blame_raises_a_probe_error(tmp_path: Path, monkeypatch: pytest
         lane.content()
 
 
+def test_a_canceled_binary_change_a_survivor_rewrote_refuses(tmp_path: Path) -> None:
+    """Git prints no text diff for a binary path, so only blame would judge it: refuse instead of guessing."""
+    lane = _lane(tmp_path, {"assets/blob.bin": "\x00BASE\n"})
+    lane.commit({"assets/blob.bin": "\x00CANCELED\nPAYLOAD\n"}, canceled=True)
+    lane.commit({"assets/blob.bin": "\x00APPROVED\nOTHER\n"})
+
+    with pytest.raises(GitProbeError, match="binary"):
+        lane.content()
+
+
 def test_one_forward_blame_per_path_however_many_canceled_commits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Cost bound: a canceled WP with many commits on one hot path blames that path once."""
     lane = _lane(tmp_path, {_PATH: _lines("BASE = 0")})
