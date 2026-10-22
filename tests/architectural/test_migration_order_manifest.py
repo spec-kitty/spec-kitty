@@ -179,17 +179,17 @@ def _write_manifest(tmp_path: Path, body: str) -> Path:
     return path
 
 
-def test_lead_block_is_the_annotated_prefix(tmp_path: Path) -> None:
-    path = _write_manifest(
-        tmp_path,
-        "first  # runs-first: adopt\nsecond  # runs-first: cut over\nbody\nlater  # runs-first: stray\n",
-    )
-    assert lead_block_length(load_manifest_entries(path)) == 2
-
-
-def test_lead_block_is_empty_without_a_leading_annotation(tmp_path: Path) -> None:
-    path = _write_manifest(tmp_path, "body\nlater  # runs-first: stray\n")
-    assert lead_block_length(load_manifest_entries(path)) == 0
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("first  # runs-first: adopt\nsecond  # runs-first: cut over\nbody\nlater  # runs-first: stray\n", 2),
+        ("body\nlater  # runs-first: stray\n", 0),
+    ],
+    ids=["annotated_prefix", "empty_without_a_leading_annotation"],
+)
+def test_lead_block_length_is_the_annotated_prefix(tmp_path: Path, body: str, expected: int) -> None:
+    path = _write_manifest(tmp_path, body)
+    assert lead_block_length(load_manifest_entries(path)) == expected
 
 
 def test_real_lead_block_is_the_backfill_bundle_v2_then_the_cutover() -> None:
