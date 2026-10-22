@@ -105,5 +105,15 @@
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "Deleted dead write doors and the hosted builder do not reappear in src",
+      "verification_method": "grep_absence",
+      "verification_command": "def append_event_verified|def append_primary_checkout_event_verified|def append_event_log\\b|def append_to_index|build_saas_lifecycle_queue_event|_EVENT_TYPE_TO_MODEL|SPEC_KITTY_SAAS_FANOUT|register_saas_fanout_handler|fire_saas_fanout",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    }
+  ]
 }
