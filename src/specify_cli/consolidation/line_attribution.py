@@ -40,10 +40,10 @@ that removed non-trivial lines.
 
 Known limits (ADR 2026-09-29-1, Amendment 2026-10-22). Pinned as strict ``xfail``
 in ``tests/consolidation/test_canceled_line_attribution_6309.py``: approved lines
-inserted exactly at a canceled deletion's spot supersede it, and canceled content
-copied into another file is not followed. Not pinned: a short line moved within the
-file (below git's ``-M`` threshold) is caught only by the subset signal, a rename
-whose old path is re-created is judged at the re-created path, and content inside a
+inserted exactly at a canceled deletion's spot supersede it, canceled content
+copied into another file is not followed, and a rename whose old path is re-created
+is judged at the re-created path only. Not pinned: a short line moved within the
+file (below git's ``-M`` threshold) is caught only by the subset signal, and content inside a
 merge commit stays the existing residual. The rename lookup diffs the window from the
 newest canceled commit to the lane tip with no rename limit, and runs only when the
 path is gone from the final state.
@@ -57,7 +57,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from kernel.git import BlameLine, DiffHunk, GitCommandError, blame_lines, blob_at, changed_entries, diff_hunks, run_git
+from kernel.git import BlameLine, DiffHunk, GitCommandError, blame_lines, blob_at, changed_entries, diff_hunks, run_git, tree_entry
 from specify_cli.consolidation.git_probes import GitProbeError, path_state_at
 
 __all__ = ["LineAttribution"]
@@ -185,6 +185,7 @@ class LineAttribution:
             any(line.commit in canceled and not is_trivial_line(line.text) for line in final_blame)
             or any(self._all_added_lines_kept(sha, path, final_blame) for sha in canceled_shas)
             or any(self._exact_change_kept(sha, path, final_blame) for sha in canceled_shas)
+            or any(self._mode_or_empty_creation_kept(sha, path, judged_ref, final_path) for sha in canceled_shas)
         )
         if added:
             return CanceledSurvival(final_path, judged_ref, added=True, deletion=False)
@@ -273,6 +274,23 @@ class LineAttribution:
             return False
         before = Counter((blob_at(self._repo, parent, path) or b"").split(b"\n"))
         return any(final[text] < before[text] for text in set(removed))
+
+    def _mode_or_empty_creation_kept(self, sha: str, path: str, final_ref: str, final_path: str) -> bool:
+        """A canceled change with no line to blame: a mode change, or an empty file's creation, still in effect.
+
+        Neither adds nor removes a line, so blame and the hunks never see it. A mode change
+        stays live while the final state has the mode it set; an empty file's creation, while
+        the file still exists (what a survivor wrote into it is the survivor's, the file is not).
+        """
+        entry = tree_entry(self._repo, sha, path)
+        if entry is None:
+            return False
+        parent = self._parent(self._resolve(sha))
+        before = tree_entry(self._repo, parent, path) if parent is not None else None
+        if before is None:
+            return not (blob_at(self._repo, sha, path) or b"")
+        final = tree_entry(self._repo, final_ref, final_path)
+        return entry.mode != before.mode and final is not None and final.mode == entry.mode
 
     def _deletion_in_effect(self, sha: str, path: str, final_ref: str, final_blame: Sequence[BlameLine], canceled: frozenset[str]) -> bool:
         """Is any non-trivial deletion of *sha* at *path* still in effect in *final_ref*?"""

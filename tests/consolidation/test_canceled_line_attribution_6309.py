@@ -130,6 +130,17 @@ def _lines(*lines: str) -> str:
     return "".join(f"{line}\n" for line in lines)
 
 
+def _chmod_commit(lane: _Lane, path: str, flag: str, *, canceled: bool = True) -> str:
+    """Commit a mode-only change of *path* (``+x`` / ``-x``), recorded as canceled by default."""
+    (lane.repo / path).chmod(0o755 if flag == "+x" else 0o644)  # the working tree keeps the mode a later `git add` records
+    _git(lane.repo, "add", path)
+    _git(lane.repo, "commit", "-qm", f"chmod {flag}")
+    sha = _git(lane.repo, "rev-parse", "HEAD")
+    if canceled:
+        lane.canceled.add(sha)
+    return sha
+
+
 _BASE = _lines("import os", "", "def keep_one() -> int:", "    return 1", "check_auth(user)", "def keep_two() -> int:", "    return 2")
 
 
@@ -207,6 +218,28 @@ def test_whitespace_or_punctuation_only_canceled_change_is_not_superseded_by_an_
 
     expected = (frozenset(), {_PATH: (canceled, lane.blob(_PATH))}) if ships else (frozenset({canceled}), {})
     assert lane.content() == expected
+
+
+@pytest.mark.parametrize("undone", [False, True], ids=["mode-kept", "mode-undone-by-approved-work"])
+def test_canceled_mode_change_stays_live_unless_the_mode_is_undone(tmp_path: Path, undone: bool) -> None:
+    """A +x with no line change leaves nothing to blame: it ships while the final mode is the executable one."""
+    lane = _lane(tmp_path, {_PATH: _BASE})
+    canceled = _chmod_commit(lane, _PATH, "+x")
+    if undone:
+        _chmod_commit(lane, _PATH, "-x", canceled=False)
+    lane.commit({_PATH: _BASE + _lines("APPROVED = 3")})
+
+    expected = (frozenset({canceled}), {}) if undone else (frozenset(), {_PATH: (canceled, lane.blob(_PATH))})
+    assert lane.content() == expected
+
+
+def test_canceled_empty_file_creation_stays_live_once_a_survivor_writes_into_it(tmp_path: Path) -> None:
+    """Creating an empty marker file adds no line; a survivor filling it in does not make the file approved."""
+    lane = _lane(tmp_path)
+    canceled = lane.commit({"src/pkg/__init__.py": ""}, canceled=True)
+    lane.commit({"src/pkg/__init__.py": "APPROVED = 1\n"})
+
+    assert lane.content() == (frozenset(), {"src/pkg/__init__.py": (canceled, lane.blob("src/pkg/__init__.py"))})
 
 
 def test_lines_removed_then_readded_by_approved_work_are_its_own(tmp_path: Path) -> None:
@@ -420,6 +453,18 @@ def test_canceled_content_moved_to_another_file_ideally_stays_live(tmp_path: Pat
 
     _superseded, live = lane.content()
     assert live, "the canceled function ships from other.py"
+    del canceled
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="#6309 residual: a rename whose old path is re-created is judged at the re-created path only")
+def test_rename_whose_old_path_is_recreated_ideally_stays_live(tmp_path: Path) -> None:
+    lane = _lane(tmp_path, {_PATH: _BASE})
+    canceled = lane.commit({_PATH: _BASE + _lines("CANCELED = 'feature flag'")}, canceled=True)
+    lane.move(_PATH, _RENAMED)
+    lane.commit({_PATH: _lines("APPROVED = 'a new module at the old path'")})
+
+    _superseded, live = lane.content()
+    assert _RENAMED in live, "the canceled line ships from the renamed file"
     del canceled
 
 
