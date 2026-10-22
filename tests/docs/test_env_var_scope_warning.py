@@ -5,7 +5,7 @@ exported ``SPEC_KITTY_ENABLE_SAAS_SYNC`` into a shell — on our own advice — 
 nothing in the documentation said that arming it there arms every project the
 shell subsequently touches. The absent warning is why the shell was armed.
 
-This test asserts on the *substance* (both variable names plus the phrase that
+This test asserts on the *substance* (the variable name plus the phrase that
 carries the meaning), not on a heading, because a heading anchor passes happily
 against an emptied section.
 """
@@ -25,13 +25,12 @@ def test_env_var_reference_states_machine_global_scope() -> None:
     text = _DOC.read_text(encoding="utf-8")
 
     assert "SPEC_KITTY_ENABLE_SAAS_SYNC" in text
-    assert "SPEC_KITTY_SAAS_URL" in text
     assert "machine-global" in text, (
-        "the env-var reference must state that the hosted-sync variables are "
+        "the env-var reference must state that the hosted-sync variable is "
         "machine-global; see spec-kitty#3030"
     )
     assert "no project-scoped form" in text, (
-        "the reference must say the variables have no project-scoped form"
+        "the reference must say the variable has no project-scoped form"
     )
     assert "every project that shell subsequently touches" in text, (
         "the reference must spell out the consequence of exporting in a shell"

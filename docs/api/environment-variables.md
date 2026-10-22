@@ -148,7 +148,7 @@ spec-kitty merge
 
 ## Hosted Auth and Sync
 
-!!! warning "A shell `export` of either variable is machine-global"
+!!! warning "A shell `export` of this variable is machine-global"
 
     `SPEC_KITTY_ENABLE_SAAS_SYNC` is an ordinary process environment variable.
     **Exported in a shell**, it has no project-scoped form —
