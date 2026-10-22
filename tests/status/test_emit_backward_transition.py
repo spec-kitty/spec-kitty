@@ -9,7 +9,7 @@ backward emission appeared to be silently dropped/replaced.
 
 These tests pin the contract at the layer this repo owns:
 
-1. ``emit_status_transition`` fires ``fire_saas_fanout`` exactly once per
+1. ``emit_status_transition`` fires ``fire_status_fanout`` exactly once per
    forward transition AND exactly once for a forced backward review-rejection
    transition (``in_review → planned``, ``force=True``).
 2. The backward fan-out invocation carries the correct ``from_lane`` /
@@ -18,7 +18,7 @@ These tests pin the contract at the layer this repo owns:
    fan-out invocations and the last one is the backward rollback.
 
 If the canary failure recurs and these tests still pass, the regression is
-downstream of ``fire_saas_fanout`` (in ``emit_wp_status_changed`` →
+downstream of ``fire_status_fanout`` (in ``emit_wp_status_changed`` →
 ``OfflineQueue.queue_event``) — the breadcrumb log added in
 ``src/specify_cli/status/adapters.py`` will then surface it in operator
 logs. See ``kitty-specs/investigate-canary-followups-1142-1141-01KS02TV/
@@ -45,28 +45,28 @@ from specify_cli.status.models import TransitionRequest
 
 pytestmark = pytest.mark.fast
 
-# Capture the real ``_saas_fan_out`` at import time, BEFORE pytest gets a
+# Capture the real ``_status_fan_out`` at import time, BEFORE pytest gets a
 # chance to apply the conftest's autouse no-op patch. The fixture below
 # rebinds the module attribute back to this captured reference for each
 # test in this file.
-_REAL_SAAS_FAN_OUT = _emit_module._saas_fan_out
+_REAL_STATUS_FAN_OUT = _emit_module._status_fan_out
 
 
 @pytest.fixture(autouse=True)
-def _enable_saas_fanout_for_this_module(
+def _enable_status_fanout_for_this_module(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Re-enable real SaaS fan-out routing for tests in this module.
+    """Re-enable real status fan-out routing for tests in this module.
 
     ``tests/status/conftest.py`` autouse-patches
-    ``specify_cli.status.emit._saas_fan_out`` to a no-op for every test in
+    ``specify_cli.status.emit._status_fan_out`` to a no-op for every test in
     this directory except a single whitelisted filename. Without this
     override our registered handler would never fire and the assertions
-    would pass vacuously. We restore the original ``_saas_fan_out`` (the
-    one that calls ``fire_saas_fanout``) for the duration of every test in
+    would pass vacuously. We restore the original ``_status_fan_out`` (the
+    one that calls ``fire_status_fanout``) for the duration of every test in
     this file.
     """
-    monkeypatch.setattr(_emit_module, "_saas_fan_out", _REAL_SAAS_FAN_OUT)
+    monkeypatch.setattr(_emit_module, "_status_fan_out", _REAL_STATUS_FAN_OUT)
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def _drive_forward_chain(
 
     Mirrors the canary scenario 4 setup: ``planned → claimed → in_progress
     → for_review → in_review``. Each hop is a separate
-    ``emit_status_transition`` call so the SaaS fan-out fires once per
+    ``emit_status_transition`` call so the status fan-out fires once per
     transition (the canary uses ``spec-kitty agent tasks move-task`` for
     each lane individually, which has the same effect at the emit layer).
     """
@@ -176,7 +176,7 @@ class TestBackwardTransitionFanOut:
         def fake_saas(**kwargs: Any) -> None:
             captured.append(dict(kwargs))
 
-        adapters.register_saas_fanout_handler(fake_saas)
+        adapters.register_status_fanout_handler(fake_saas)
 
         try:
             _drive_forward_chain(
@@ -250,7 +250,7 @@ class TestBackwardTransitionFanOut:
         def fake_saas(**kwargs: Any) -> None:
             captured.append(dict(kwargs))
 
-        adapters.register_saas_fanout_handler(fake_saas)
+        adapters.register_status_fanout_handler(fake_saas)
 
         try:
             _drive_forward_chain(
@@ -307,7 +307,7 @@ class TestBackwardTransitionFanOut:
         def fake_saas(**kwargs: Any) -> None:
             captured.append(dict(kwargs))
 
-        adapters.register_saas_fanout_handler(fake_saas)
+        adapters.register_status_fanout_handler(fake_saas)
 
         try:
             _drive_forward_chain(

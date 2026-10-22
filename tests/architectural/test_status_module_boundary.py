@@ -33,7 +33,7 @@ Residual allow-list (post-WP10):
   promoting the relevant symbols into ``status/__init__.__all__``
   (lifecycle_events, work_package_lifecycle, reducer.materialize_snapshot,
   doctor.run_doctor, aggregate.InvalidMissionSlug) and refactoring the sync
-  SaaS fan-out handler onto facade helpers. Three entries remain:
+  status fan-out handler onto facade helpers. Three entries remain:
   - ``workspace/context.py`` — ``status.wp_metadata``
     (cycle-breaker: status/__init__ → .emit → workspace → .context; facade
     is not yet initialized when workspace.context loads at import time —

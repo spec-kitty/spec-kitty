@@ -77,11 +77,11 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Bootstrap tests assert local state seeding, not SaaS sync behavior."""
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 class TestBootstrapCoordinationBranchPersistence:

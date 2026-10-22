@@ -145,7 +145,7 @@ def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # Keep status emits from touching the network / dossier sync.
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")

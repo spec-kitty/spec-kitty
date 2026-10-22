@@ -1,5 +1,5 @@
 """Scope: create() target_branch logic over a real git repository; the commit runs
-for real and only the SaaS fan-out stays mocked."""
+for real and only the status fan-out stays mocked."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _run_create_feature(
         # Keep the canonical local MissionCreated event while disabling the
         # transport fan-out, so the failure-atomic persistence contract is
         # exercised without touching the network.
-        patch("specify_cli.status.adapters.fire_lifecycle_saas_fanout"),
+        patch("specify_cli.status.adapters.fire_lifecycle_fanout"),
     ):
         result = runner.invoke(app, args)
 

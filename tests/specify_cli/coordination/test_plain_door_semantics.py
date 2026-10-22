@@ -43,9 +43,9 @@ MISSION_ID = "01LANES00000000000000000001"
 _MUTATING_GIT_VERBS = frozenset({"commit", "checkout", "merge", "rebase", "reset", "push", "tag"})
 _LOCK_PATH_PROBE = ["rev-parse", "--git-common-dir"]
 _FAN_OUT_BOUNDARIES = (
-    "specify_cli.status.adapters.fire_saas_fanout",
-    "specify_cli.status.fire_saas_fanout",
-    "specify_cli.status.emit.fire_saas_fanout",
+    "specify_cli.status.adapters.fire_status_fanout",
+    "specify_cli.status.fire_status_fanout",
+    "specify_cli.status.emit.fire_status_fanout",
 )
 
 

@@ -478,12 +478,12 @@ class TestFinalizeLeavesNoPrimaryResidue:
     """AC-A1: residue-free finalize on coordination topology (#1814)."""
 
     @pytest.fixture(autouse=True)
-    def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _disable_status_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.status.emit as emit_module
 
-        # Stub the (now handler-less) saas fan-out so no environment-dependent
+        # Stub the (now handler-less) status fan-out so no environment-dependent
         # outbound write leaks into the porcelain assertions below.
-        monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+        monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
 
     def test_finalize_leaves_porcelain_free_of_stager_residue(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -92,7 +92,7 @@ def _patches(tmp_path: Path):
             "specify_cli.cli.commands.agent.status.get_main_repo_root",
             return_value=tmp_path,
         ),
-        patch("specify_cli.status.emit._saas_fan_out"),
+        patch("specify_cli.status.emit._status_fan_out"),
     )
 
 
@@ -358,7 +358,7 @@ def _gate_emit(repo: Path, *args: str):
             "specify_cli.cli.commands.agent.status.get_main_repo_root",
             return_value=repo,
         ),
-        patch("specify_cli.status.emit._saas_fan_out"),
+        patch("specify_cli.status.emit._status_fan_out"),
     ):
         return runner.invoke(
             app,

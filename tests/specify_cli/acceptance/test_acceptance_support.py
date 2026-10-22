@@ -226,7 +226,7 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     import specify_cli.status.emit as status_emit
     from tests.utils import run, write_wp
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
     write_wp(feature_repo, mission_slug, "planned", "WP02")
@@ -313,7 +313,7 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     from specify_cli.status.store import read_events
     from tests.utils import run
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
     # #4891: accept fails closed when lanes.json is absent.
@@ -435,7 +435,7 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo:
     from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     feature_dir = feature_repo / "kitty-specs" / mission_slug
     write_single_lane_manifest(feature_dir)
@@ -495,7 +495,7 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
     from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     feature_dir = feature_repo / "kitty-specs" / mission_slug
     side_effect_path = feature_repo / "diagnose-side-effect.txt"
@@ -550,7 +550,7 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
     from specify_cli.status.store import read_events
     from tests.utils import run
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
     # #4891: accept fails closed when lanes.json is absent.

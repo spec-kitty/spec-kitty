@@ -485,7 +485,7 @@ def test_emit_reads_log_once(feature_dir: Path, monkeypatch: pytest.MonkeyPatch)
     """One flat-shell emit: ``_derive_from_lane`` == 1, one full-log read before the write."""
     _seed_planned(feature_dir, "WP01", slug=_SLUG)
     counters = _ReadCounters(monkeypatch)
-    with patch.object(emit_module, "_saas_fan_out"):
+    with patch.object(emit_module, "_status_fan_out"):
         event = emit_status_transition(_request(feature_dir=feature_dir))
     assert isinstance(event, StatusEvent)
     assert counters.appends == 1
@@ -497,7 +497,7 @@ def test_batch_emit_reads_log_once_for_the_whole_batch(feature_dir: Path, monkey
     """A batch of N: one derive, one full read before the single write -- from_lane chains in memory."""
     _seed_planned(feature_dir, "WP01", slug=_SLUG)
     counters = _ReadCounters(monkeypatch)
-    with patch.object(emit_module, "_saas_fan_out"):
+    with patch.object(emit_module, "_status_fan_out"):
         events = emit_status_transition_batch(
             [
                 _request(feature_dir=feature_dir, to_lane="claimed"),

@@ -18,7 +18,7 @@ Pins the two surviving seams of the emit-side actor identity fix:
 (The third pinned seam — the sync emitter's ``_is_actor_field``
 ``Union[str, Dict]`` acceptance gate for fan-out payload validators — died
 with the sync transport, issue #5. The resolved-actor dict still rides the
-transition verbatim via :func:`~specify_cli.status.emit._saas_fan_out`.)
+transition verbatim via :func:`~specify_cli.status.emit._status_fan_out`.)
 """
 
 from __future__ import annotations

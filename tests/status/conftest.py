@@ -182,7 +182,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout_for_local_status_tests(
+def _disable_status_fanout_for_local_status_tests(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -200,7 +200,7 @@ def _disable_saas_fanout_for_local_status_tests(
 
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 @pytest.fixture

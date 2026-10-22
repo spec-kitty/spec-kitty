@@ -62,7 +62,7 @@ def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> Non
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 def _build_wedged_repo(tmp_path: Path) -> tuple[Path, Path]:

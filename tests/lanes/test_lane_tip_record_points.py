@@ -480,7 +480,7 @@ def test_status_emit_for_review_records_tip_despite_foreign_hook(tmp_path: Path,
     from specify_cli.cli.commands.agent.status import app as status_app
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)  # noqa: ARG005
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)  # noqa: ARG005
 
     repo_root, mission_dirname, branch_name, head_sha = _seed_for_review_ready_lane(tmp_path, monkeypatch, request, tag="status-emit")
 
@@ -514,7 +514,7 @@ def test_orchestrator_transition_for_review_records_tip_despite_foreign_hook(
     from specify_cli.orchestrator_api.commands import app as orchestrator_app
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)  # noqa: ARG005
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)  # noqa: ARG005
 
     repo_root, mission_dirname, branch_name, head_sha = _seed_for_review_ready_lane(tmp_path, monkeypatch, request, tag="orch-transition")
 
@@ -584,7 +584,7 @@ def test_status_emit_for_review_of_a_planning_wp_lands_with_no_tip_ref(monkeypat
     from specify_cli.status.reducer import materialize
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)  # noqa: ARG005
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)  # noqa: ARG005
 
     repo = _planning_lane_legacy_repo(tmp_path)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
@@ -627,7 +627,7 @@ def test_orchestrator_transition_for_review_of_a_planning_wp_lands_with_no_tip_r
     from specify_cli.status.reducer import materialize
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)  # noqa: ARG005
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)  # noqa: ARG005
 
     repo = _planning_lane_legacy_repo(tmp_path)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))

@@ -175,7 +175,7 @@ def _start_implementation(repo: Path, mission_slug: str) -> object:
 def test_orchestrator_start_implementation_stamps_execution_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str, expected: str) -> None:
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
     repo, mission_slug, feature_dir = _build_mission(tmp_path, f"start-{topology}", topology=topology)
     _seed_canonical_wp_state(repo, mission_slug, "WP01", "planned", actor="system", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T00:30:00Z")
 
@@ -208,7 +208,7 @@ def _transition(repo: Path, mission_slug: str, *, to: str) -> object:
 def test_orchestrator_transition_stamps_execution_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, topology: str, expected: str) -> None:
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
     repo, mission_slug, feature_dir = _build_mission(tmp_path, f"transition-{topology}", topology=topology)
     _seed_canonical_wp_state(repo, mission_slug, "WP01", "claimed", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T01:00:00Z")
     _git(repo, "add", "-A")

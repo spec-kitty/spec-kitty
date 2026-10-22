@@ -42,7 +42,7 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests focused on the local transition + completeness gate."""
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), *args],

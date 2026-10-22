@@ -135,11 +135,11 @@ def repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
 
 
 def _run_finalize(repo_root: Path, mission_slug: str = MISSION_SLUG) -> tuple[int, str]:

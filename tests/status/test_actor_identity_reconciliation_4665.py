@@ -88,11 +88,11 @@ _FULL_IDENTITY_DICT: ActorField = {
 
 @pytest.fixture(autouse=True)
 def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Best-effort SaaS fan-out is not under test here (mirrors the sibling
+    """Best-effort status fan-out is not under test here (mirrors the sibling
     ``test_work_package_lifecycle.py`` fixture, same package)."""
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 def _feature_dir(tmp_path: Path) -> Path:

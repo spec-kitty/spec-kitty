@@ -33,7 +33,7 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests focused on local persistence + routing."""
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 from tests.status.conftest import seed_wp_to_planned as _seed_planned_shared
 
 

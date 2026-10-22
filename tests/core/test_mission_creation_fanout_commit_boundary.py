@@ -59,7 +59,7 @@ def test_protected_bootstrap_preserves_disclosed_local_source(tmp_path, monkeypa
     _init_git_repo(tmp_path)
     _git(tmp_path, "branch", "-M", "main")
     emitted = []
-    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
+    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_fanout", lambda **kwargs: emitted.append(kwargs))
     result = create_mission_core(tmp_path, "bootstrap", allow_worktree_context=True, **_mission_summary("bootstrap"))
     assert result.feature_dir / "status.events.jsonl" not in result.uncommitted_files
     assert not (result.feature_dir / "status.events.jsonl").exists()
@@ -91,7 +91,7 @@ def test_creation_fanout_follows_the_scaffold_commit(tmp_path, monkeypatch):
         committed = _committed_in_own_worktree(kwargs["log_path"])
         emitted.append((kwargs["envelope"]["event_type"], 0 if committed else 1))
 
-    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", capture)
+    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_fanout", capture)
     create_mission_core(tmp_path, "committed-first", allow_worktree_context=True, **_mission_summary("committed-first"))
     assert [event_type for event_type, _ in emitted] == ["MissionCreated", "SpecifyStarted"]
     assert all(returncode == 0 for _, returncode in emitted), emitted
@@ -129,7 +129,7 @@ def test_hard_commit_failure_does_not_fanout_discarded_creation(tmp_path, monkey
     emitted = []
     _install_commit_msg_hook(tmp_path, refuse_prefix="Add scaffold for", message="injected scaffold commit failure")
 
-    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
+    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_fanout", lambda **kwargs: emitted.append(kwargs))
     with pytest.raises(RuntimeError, match="injected scaffold commit failure"):
         create_mission_core(tmp_path, "late-refusal", allow_worktree_context=True, **_mission_summary("late-refusal"))
     assert not emitted
@@ -153,7 +153,7 @@ def test_origin_commit_failure_preserves_evidence_without_creation_fanout(tmp_pa
     # A real pending-origin consumer (the registry the tracker uses) and a
     # real ``commit-msg`` hook that refuses the second, origin-binding commit.
     record = _install_commit_msg_hook(tmp_path, refuse_prefix="Add origin-ticket binding for", message="injected origin commit failure")
-    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
+    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_fanout", lambda **kwargs: emitted.append(kwargs))
     register_pending_origin_consumer(bind)
     try:
         with pytest.raises(RuntimeError, match="origin-ticket binding commit failed"):
@@ -188,7 +188,7 @@ def test_head_mismatch_bootstrap_keeps_planning_target_and_disclosure(tmp_path, 
     _init_git_repo(tmp_path)
     _git(tmp_path, "branch", "planning-work")
     emitted = []
-    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_saas_fanout", lambda **kwargs: emitted.append(kwargs))
+    monkeypatch.setattr("specify_cli.status.adapters.fire_lifecycle_fanout", lambda **kwargs: emitted.append(kwargs))
     result = create_mission_core(tmp_path, "other-target", target_branch="planning-work", allow_worktree_context=True, **_mission_summary("other-target"))
     assert result.target_branch == "planning-work"
     assert result.current_branch == "operator-work"

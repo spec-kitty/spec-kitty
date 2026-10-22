@@ -434,7 +434,7 @@ def test_emit_resolved_binding_none_is_a_noop_annotation(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# T039 — structured actor helper (staged for the IC-09 SaaS fan-out)
+# T039 — structured actor helper (staged for the IC-09 status fan-out)
 # ---------------------------------------------------------------------------
 
 
