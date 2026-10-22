@@ -233,6 +233,28 @@ def _refresh_agent_ignore_block(repo_root: Path, config: AgentConfig, *, quiet: 
         console.print("[dim]Updated the Spec Kitty agent-files block in .gitignore[/dim]")
 
 
+def _warn_newly_visible_files(repo_root: Path, config: AgentConfig, removed_keys: list[str]) -> None:
+    """Name generated files that outlived a removed agent and are now visible to git (#6474).
+
+    Removal preserves files it cannot prove it owns; once the agent's ignore
+    patterns leave the block, those files show up as untracked.
+    """
+    from specify_cli.agent_utils.ignore_entries import agent_ignore_entries
+    from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import _newly_visible
+
+    try:
+        dropped = set(agent_ignore_entries(repo_root, removed_keys)) - set(agent_ignore_entries(repo_root, config.available))
+    except OSError:
+        return
+    visible = _newly_visible(repo_root, sorted(dropped), glob=True)
+    if visible:
+        console.print(
+            f"[yellow]Warning:[/yellow] {len(visible)} file(s) of the removed agent(s) are still on disk and "
+            f"now show in git: {', '.join(visible[:5])}{' ...' if len(visible) > 5 else ''}. "
+            "Delete them, commit them, or add your own ignore rule."
+        )
+
+
 def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
     """Register a slash-command agent whose command files are global."""
     global_dir = get_global_command_dir(agent_key)
@@ -641,6 +663,7 @@ def remove_agents(
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed_from_config)}")
         _refresh_agent_ignore_block(repo_root, config)
+        _warn_newly_visible_files(repo_root, config, removed_from_config)
 
     if errors:
         console.print("\n[yellow]Warnings:[/yellow]")

@@ -555,6 +555,19 @@ class TestAgentIgnoreBlockRefresh:
         assert ".gemini/commands/spec-kitty.*" not in text
         assert ".claude/commands/spec-kitty.*" in text
 
+    def test_remove_names_a_preserved_file_that_is_now_visible_to_git(self, tmp_path: Path) -> None:
+        project = self._project_with_block(tmp_path, ["claude", "gemini"])
+        subprocess.run(["git", "-C", str(project), "init", "-q"], check=True)
+        (project / ".gemini" / "commands").mkdir(parents=True)
+        (project / ".gemini" / "commands" / "spec-kitty.mine.toml").write_text("x\n", encoding="utf-8")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=project):
+            result = runner.invoke(app, ["remove", "gemini"])
+
+        assert result.exit_code == 0, result.output
+        assert ".gemini/commands/spec-kitty.mine.toml" in " ".join(result.output.split())
+        assert "now show in git" in " ".join(result.output.split())
+
     def test_add_lists_the_new_agents_entries(self, tmp_path: Path) -> None:
         project = self._project_with_block(tmp_path, ["claude"])
 

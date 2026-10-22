@@ -213,12 +213,15 @@ def _plan(project_path: Path) -> tuple[str | None, str, list[str], list[str]]:
     return content, narrowed if updated is None else updated, removed, operator_rules
 
 
-def _newly_visible(project_path: Path, removed: list[str]) -> list[str]:
-    """Untracked, unignored files under the paths whose ignore lines were removed."""
+def _newly_visible(project_path: Path, removed: list[str], *, glob: bool = False) -> list[str]:
+    """Untracked, unignored files under the paths whose ignore lines were removed.
+
+    ``glob=True`` reads the lines as ignore patterns (``spec-kitty.*``) rather than literal paths.
+    """
     if not removed:
         return []
     try:
-        entries = status_entries(project_path, pathspecs=sorted(set(removed)), untracked="all", optional_locks=False)
+        entries = status_entries(project_path, pathspecs=sorted(set(removed)), untracked="all", optional_locks=False, glob=glob)
     except (GitCommandError, OSError, ValueError):
         return []
     return sorted(entry.path.as_posix() for entry in entries if entry.xy == "??")
