@@ -102,6 +102,10 @@ class ReviewLock:
     def from_dict(cls, data: dict[str, Any]) -> ReviewLock:
         """Build a lock from its on-disk record.
 
+        Unknown fields are rejected on purpose: a lock written by a newer CLI
+        (with a field this version does not know) must be refused as
+        ``REVIEW_LOCK_UNREADABLE`` rather than half-understood and overwritten.
+
         Raises:
             TypeError: When *data* is not an object, lacks a field, carries an
                 unknown one, or holds a value of the wrong type. The message
