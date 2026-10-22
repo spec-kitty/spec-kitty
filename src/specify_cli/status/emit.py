@@ -2,7 +2,7 @@
 
 Single entry point for ALL state changes in the canonical status model.
 Validates a transition, appends an event to the JSONL log, materializes
-a status snapshot, and emits SaaS telemetry.
+a status snapshot, and fans the event out to registered handlers.
 
 The event log is the sole authority for mutable WP state. In explicit
 phase-1 compatibility mode (``meta.json`` with ``status_phase: 1``),
@@ -36,7 +36,7 @@ pipeline ``status/transition_pipeline.py::prepare_transition`` (FR-005):
     4. prepare_transition(...)  (alias-resolve, gates, validate, build)
     5. store.append_event_stream_atomic_verified -> reducer.materialize -> lane mirror
     6. Release the lock
-    7. _saas_fan_out(event, mission_slug, repo_root)  (skipped when fan_out=False)
+    7. _status_fan_out(event, mission_slug, repo_root)  (skipped when fan_out=False)
     8. Return the event
 """
 
@@ -81,7 +81,7 @@ from .resolved_binding import ResolvedBinding
 from .wp_state import annotate
 from . import store as _store
 from . import reducer as _reducer
-from .adapters import fire_resolved_binding_fanout, fire_saas_fanout
+from .adapters import fire_resolved_binding_fanout, fire_status_fanout
 from .locking import feature_status_lock
 from .mission_write import mission_lock_key
 from .transition_pipeline import PreparedTransition, prepare_transition
@@ -95,7 +95,7 @@ logger = logging.getLogger(__name__)
 _LEGACY_LANE_FIELD = "lane"
 
 # ---------------------------------------------------------------------------
-# SaaS package capability gate (T022, WP04)
+# Events package capability gate (T022, WP04)
 # ---------------------------------------------------------------------------
 # Detect at import time whether the installed spec_kitty_events supports the
 # genesis lane. spec_kitty_events 5.2.0 has no genesis member; 6.0.0+ will add
@@ -891,7 +891,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     never calls ``validate_transition`` itself (P-2).
 
     Validation failures raise TransitionError BEFORE any data is
-    persisted. SaaS failures never block canonical persistence.
+    persisted. Fan-out failures never block canonical persistence.
 
     Args:
         feature_dir: Path to the kitty-specs mission directory, or a
@@ -908,10 +908,10 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         subtasks_complete: Whether subtasks are complete for review handoff.
         implementation_evidence_present: Whether implementation evidence is present.
         execution_mode: "worktree" or "direct_repo".
-        repo_root: Repository root for SaaS fan-out (optional).
+        repo_root: Repository root for status fan-out (optional).
         policy_metadata: Orchestrator policy metadata dict (optional).
         review_result: Structured ReviewResult for in_review -> * transitions (optional).
-        fan_out: When False, step 7 (SaaS + resolved-binding fan-out) is
+        fan_out: When False, step 7 (status + resolved-binding fan-out) is
             skipped and the persisted event is returned as-is. The coord
             fallback arm uses this to fan out only after its commit succeeds
             (FR-008 / SC-002); the default preserves immediate fan-out.
@@ -925,9 +925,9 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             pre-commit, once from the post-commit ``_fan_out_committed_coord_
             tail`` hook) and leave a phantom projection (a rolled-back event
             visible in the derived ``status.json``) on a commit failure,
-            the same hazard class SC-002 forbids for SaaS fan-out. This is
+            the same hazard class SC-002 forbids for status fan-out. This is
             deliberately NOT keyed on ``fan_out``: FR-009 requires the
-            refresh to run regardless of the SaaS fan-out setting, so the
+            refresh to run regardless of the status fan-out setting, so the
             two flags are independent.
 
     Returns:
@@ -1025,7 +1025,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
 
     # Step 7: fan-out after release (never blocks canonical persistence).
     if fan_out:
-        _saas_fan_out(
+        _status_fan_out(
             prepared.event,
             request_mission_slug,
             request.repo_root,
@@ -1193,7 +1193,7 @@ def emit_status_transition_batch(
 
     if fan_out:
         for event, _prepared, request in built:
-            _saas_fan_out(
+            _status_fan_out(
                 event,
                 mission_slug,
                 request.repo_root,
@@ -1306,17 +1306,17 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str, repo_
     """Version-gated ``WPResolvedBindingChanged`` fan-out for a binding change.
 
     ``emit_inner_state_changed`` has no fan-out of its own; this adds the
-    first-class resolved-binding bridge (spec-kitty ↔ spec-kitty-saas) additively.
+    first-class resolved-binding bridge (for a transport owner to consume) additively.
     Only an annotation that actually carries a resolved binding fans out — a plain
     runtime annotation (``shell_pid``/note/subtask) is a no-op here.
 
     Gated exactly like the genesis gate (:data:`_EVENTS_SUPPORTS_RESOLVED_BINDING`
-    / :func:`_saas_fan_out`): when the installed ``spec_kitty_events`` lacks
+    / :func:`_status_fan_out`): when the installed ``spec_kitty_events`` lacks
     ``WPResolvedBindingChanged`` the fan-out is a **logged, intentional skip**,
     never a swallowed ``ValidationError``, and canonical local state is untouched.
     The concrete payload model is built by the registered sync handler once 6.2.0
     ships; the status layer only feature-detects via the gate and hands off kwargs
-    (the same handoff shape as :func:`_saas_fan_out` — no local type definition).
+    (the same handoff shape as :func:`_status_fan_out` — no local type definition).
 
     ``repo_root`` (#5181) is vestigial: it was the drain-gate input removed in
     #6164, :func:`fire_resolved_binding_fanout` absorbs and discards it, and it is
@@ -1364,7 +1364,7 @@ def build_resolved_actor(
 
     ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
     ``Union[str, Dict]`` — so no shared-package change is needed to carry this
-    shape. The dict form lets the SaaS fan-out ride the transition's *resolved*
+    shape. The dict form lets the status fan-out ride the transition's *resolved*
     identity rather than the bare ``--agent`` tool string.
 
     The ``model``/``profile`` prefer the genuine dispatch-resolved binding; when
@@ -1379,7 +1379,7 @@ def build_resolved_actor(
        surfaces are now typed :data:`~specify_cli.status.models.ActorField`
        (``str | dict``), and ``decode_actor`` guards the ``from_dict`` round-trip,
        so a caller may pass this dict as the claim/review transition ``actor`` and
-       it reaches ``_saas_fan_out`` (``fire_saas_fanout(actor=event.actor, …)``)
+       it reaches ``_status_fan_out`` (``fire_status_fanout(actor=event.actor, …)``)
        uncorrupted. The ``emit_status_transition`` ``# NOSONAR`` hub was NOT
        inflated — the guard reads a projected string via ``actor_identity_str``.
        The off-transition binding change additionally bridges through the
@@ -1446,7 +1446,7 @@ class ResolvedBindingEmit:
     ``annotation`` is the persisted :class:`InnerStateChanged` — the latest-wins
     channel the IC-07 reconstruction reads — or ``None`` when no binding was
     threaded (a bare ``--agent`` claim with no dispatch context). ``structured_actor``
-    is the ``{role, profile, tool, model}`` form staged for the IC-09 SaaS fan-out
+    is the ``{role, profile, tool, model}`` form staged for the IC-09 status fan-out
     (consumed by WP12 once the emit signatures widen; see :func:`_build_resolved_actor`).
     """
 
@@ -1510,16 +1510,16 @@ def emit_resolved_binding(
     return ResolvedBindingEmit(annotation=annotation, structured_actor=structured_actor)
 
 
-def _saas_fan_out(
+def _status_fan_out(
     event: StatusEvent,
     mission_slug: str,
     repo_root: Path | None,
     *,
     policy_metadata: dict[str, Any] | None = None,
 ) -> None:
-    """Conditionally fan out a SaaS telemetry event via the registered handlers.
+    """Conditionally fan out a status event via the registered handlers.
 
-    Routes through specify_cli.status.adapters.fire_saas_fanout, which
+    Routes through specify_cli.status.adapters.fire_status_fanout, which
     is non-raising and a no-op when no sync handler has been registered
     (e.g., 0.1x branch or test environments without sync imported).
     Canonical status persistence is never affected by handler failures.
@@ -1535,7 +1535,7 @@ def _saas_fan_out(
     to_lane_str = str(event.to_lane)
     if (from_lane_str == "genesis" or to_lane_str == "genesis") and not _EVENTS_SUPPORTS_GENESIS:
         logger.info(
-            "Skipping SaaS fan-out for genesis transition (wp_id=%s from=%s to=%s); "
+            "Skipping status fan-out for genesis transition (wp_id=%s from=%s to=%s); "
             "installed spec_kitty_events lacks the genesis lane (needs >=6.0.0). "
             "Canonical local state is unaffected.",
             event.wp_id,
@@ -1546,11 +1546,11 @@ def _saas_fan_out(
 
     # WPStatusChangeMetadata lives in the CORE status layer (not sync/INTEGRATION),
     # so importing it here does not cross the CORE→INTEGRATION boundary that
-    # test_integration_boundary.py enforces; the actual SaaS wiring still routes
-    # only through the status/adapters observer registry (fire_saas_fanout).
+    # test_integration_boundary.py enforces; the actual transport wiring still routes
+    # only through the status/adapters observer registry (fire_status_fanout).
     from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
 
-    fire_saas_fanout(
+    fire_status_fanout(
         wp_id=event.wp_id,
         from_lane=str(event.from_lane),
         to_lane=str(event.to_lane),
@@ -1564,7 +1564,7 @@ def _saas_fan_out(
         mission_slug=mission_slug,
         mission_id=event.mission_id,
         # Producer occurrence time: thread the canonical local lane-transition
-        # time so SaaS persists Event.occurred_at = StatusEvent.at, not the
+        # time so a transport persists Event.occurred_at = StatusEvent.at, not the
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         # The emitting checkout root, so the Zeitgeist bridge resolves relay

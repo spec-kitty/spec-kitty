@@ -3,7 +3,7 @@
 This module is the durable, local-first writer for the canonical event
 stream that records project initialization, mission creation,
 spec/plan/tasks artifact lifecycle, and work-package creation. Lifecycle
-events land on disk synchronously *before* any best-effort SaaS outbox
+events land on disk synchronously *before* any best-effort outbox
 fan-out, so local dashboards and TeamSpace import always have a complete
 history even when the scoped sync boundary is unavailable.
 
@@ -339,7 +339,7 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
         return None
 
 
-def fanout_lifecycle_event_hosted(
+def fanout_lifecycle_event(
     envelope: Mapping[str, Any],
     *,
     log_path: Path | None,
@@ -356,10 +356,10 @@ def fanout_lifecycle_event_hosted(
     collapsed to ``None`` here (#5181/m2). Registered handlers receive only
     ``envelope`` and ``log_path``; ``repo_root`` is absorbed by the adapter.
     """
-    from specify_cli.status.adapters import fire_lifecycle_saas_fanout
+    from specify_cli.status.adapters import fire_lifecycle_fanout
 
     repo_root = log_path.parent if log_path is not None else None
-    fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path, repo_root=repo_root)
+    fire_lifecycle_fanout(envelope=envelope, log_path=log_path, repo_root=repo_root)
 
 
 def _match_lifecycle_event(
@@ -504,7 +504,7 @@ def append_lifecycle_event(
         repo_root=repo_root,
     )
     if envelope is not None:
-        fanout_lifecycle_event_hosted(envelope, log_path=log_path)
+        fanout_lifecycle_event(envelope, log_path=log_path)
     return envelope
 
 
@@ -784,7 +784,7 @@ def emit_artifact_phase(
     Existing callers retain their composed local-write-plus-hosted-fan-out
     behavior. Callers with their own hosted authority decision should use
     :func:`emit_artifact_phase_local` and later submit the returned envelope
-    to :func:`fanout_lifecycle_event_hosted` with the mission log path.
+    to :func:`fanout_lifecycle_event` with the mission log path.
 
     ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
     straight through (owned-checkout-lifecycle-authority WP09).
@@ -804,7 +804,7 @@ def emit_artifact_phase(
         repo_root=repo_root,
     )
     if envelope is not None:
-        fanout_lifecycle_event_hosted(
+        fanout_lifecycle_event(
             envelope,
             log_path=mission_event_log_path(feature_dir),
         )
@@ -1146,7 +1146,7 @@ __all__ = [
     "MISSION_EVENTS_FILENAME",
     "project_event_log_path",
     "mission_event_log_path",
-    "fanout_lifecycle_event_hosted",
+    "fanout_lifecycle_event",
     "append_lifecycle_event",
     "has_lifecycle_event",
     "emit_project_initialized",

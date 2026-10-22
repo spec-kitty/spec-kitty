@@ -11,7 +11,7 @@ The payload is validated by the Pydantic model before serialization.
 
 After the local JSONL append succeeds, both events are also offered on the
 same best-effort ``event.publish`` fan-out path already used by
-``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_saas_fanout``
+``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_fanout``
 → ``specify_cli.status.zeitgeist_bridge``). Fan-out is fire-and-forget: a
 relay outage, missing credential, or codec rejection is logged and dropped,
 never raised, and can never roll back or affect the local write that already
@@ -167,7 +167,7 @@ def _queue_decision_fanout(
     Mirrors ``lifecycle_events.py``'s ``_queue_lifecycle_event_if_enabled``: this
     is called only AFTER :func:`_append_raw_event` has returned, so a relay
     outage or codec rejection can never affect the canonical local write.
-    ``fire_lifecycle_saas_fanout`` and every handler behind it already catch
+    ``fire_lifecycle_fanout`` and every handler behind it already catch
     and log their own failures; the ``except`` here is one more belt against
     a defect in that chain reaching this seam, matching every other slot
     wrapper in ``zeitgeist_bridge.py`` (e.g. ``lifecycle_moment_handler``) --
@@ -176,7 +176,7 @@ def _queue_decision_fanout(
     ``repo_root`` (#5181): the caller's own ``repo_root`` argument, threaded
     through so the drain gate reads THIS repo's posture, never the process CWD.
     """
-    from specify_cli.status import fire_lifecycle_saas_fanout
+    from specify_cli.status import fire_lifecycle_fanout
 
     envelope = {
         "event_id": event_dict["event_id"],
@@ -187,7 +187,7 @@ def _queue_decision_fanout(
         "payload": event_dict["payload"],
     }
     try:
-        fire_lifecycle_saas_fanout(envelope=envelope, log_path=events_path, repo_root=repo_root)
+        fire_lifecycle_fanout(envelope=envelope, log_path=events_path, repo_root=repo_root)
     except Exception:
         logger.warning(
             "Zeitgeist fan-out failed for %s; canonical decision log unaffected",
@@ -293,7 +293,7 @@ def emit_decision_resolved(
     Defaults:
         - run_id       → ``decision_id``
         - mission_type → ``"software-dev"``
-        - summary      → ``None``  (SaaS concern; slot reserved in V1)
+        - summary      → ``None``  (transport concern; slot reserved in V1)
         - actual_participants → ``()``
         - closed_locally_while_widened → ``False``
         - closure_message → ``None``

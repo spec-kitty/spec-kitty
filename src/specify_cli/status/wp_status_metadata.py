@@ -1,7 +1,7 @@
 """CORE params object for ``WPStatusChanged`` fan-out.
 
 This dataclass lives in the CORE ``status`` layer rather than in
-``sync``/INTEGRATION so that CORE producers — ``status/emit._saas_fan_out`` and
+``sync``/INTEGRATION so that CORE producers — ``status/emit._status_fan_out`` and
 the coordination outbound path — can build it without crossing the
 CORE→INTEGRATION boundary enforced by
 ``tests/architectural/test_integration_boundary.py`` (the crossing allowlist is

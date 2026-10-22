@@ -1233,7 +1233,7 @@ def init(  # noqa: C901
             # an existing repo leaves the repo untouched.
 
             # Persist a local canonical ProjectInitialized event before any
-            # SaaS fan-out so local dashboards and TeamSpace import always
+            # status fan-out so local dashboards and TeamSpace import always
             # see a complete project history (issue #1067).
             try:
                 from specify_cli.identity.project import ensure_identity

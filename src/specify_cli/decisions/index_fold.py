@@ -33,7 +33,7 @@ wire schema itself is out of this module's surface (``decisions/emit.py`` is
 not owned by mission local-write-safety-01M2ZPZD WP03).
 
 Similarly, ``IndexEntry.summary_json`` is never placed on the wire
-(``emit.emit_decision_resolved`` always emits ``summary=None`` -- "SaaS
+(``emit.emit_decision_resolved`` always emits ``summary=None`` -- "transport
 concern; slot reserved in V1", its own docstring) -- :func:`_fold_resolved`
 therefore always folds ``summary_json=None``, matching what the forward path
 persists whenever a caller does not supply it (the common case).

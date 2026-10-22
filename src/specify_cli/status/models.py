@@ -148,7 +148,7 @@ def resolve_subtask_status_alias(value: str) -> str:
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
 #: ``str`` identity (the common case) OR a ``{role, profile, tool, model}``
 #: structured *resolved binding* (FR-015 / IC-09). The dict form is the delivery
-#: vehicle that lets the SaaS fan-out ride the transition's *resolved* identity;
+#: vehicle that lets the status fan-out ride the transition's *resolved* identity;
 #: ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
 #: ``Union[str, Dict]``, so no shared-package change is needed to carry it.
 ActorField: TypeAlias = str | dict[str, str | None]
@@ -200,7 +200,7 @@ def actor_identity_str(actor: ActorField) -> str:
     identity a plain-string actor already carries), falling back to ``role`` then
     ``""``. A ``str`` actor is returned verbatim. This keeps guard inputs and the
     reduced-snapshot ``actor`` slot ``str``-typed for the ``.strip()``/display
-    consumers, while the dict itself still rides ``StatusEvent.actor`` to the SaaS
+    consumers, while the dict itself still rides ``StatusEvent.actor`` to the status
     fan-out untouched (the snapshot slot is a display identity, not the binding).
     """
     if isinstance(actor, dict):
@@ -451,7 +451,7 @@ class StatusEvent:
     at: str  # ISO 8601 UTC
     # ``str`` identity OR a ``{role, profile, tool, model}`` structured resolved
     # binding (FR-015 / IC-09). Widened from bare ``str`` so a dispatch-resolved
-    # dict actor rides the transition to ``_saas_fan_out`` and round-trips the
+    # dict actor rides the transition to ``_status_fan_out`` and round-trips the
     # JSONL uncorrupted; see :data:`ActorField` / :func:`decode_actor`.
     actor: ActorField
     force: bool

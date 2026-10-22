@@ -26,19 +26,19 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Wall-time bound (seconds) for a single SaaS/lifecycle fan-out handler. The
-# fan-out contract is "SaaS failures never block canonical persistence" — a
-# guarantee that must cover a *hanging* handler (e.g. the sync daemon polling a
+# Wall-time bound (seconds) for a single status/lifecycle fan-out handler. The
+# fan-out contract is "fan-out failures never block canonical persistence" — a
+# guarantee that must cover a *hanging* handler (e.g. a transport polling a
 # stopped daemon with a large offline-queue backlog), not just a raising one.
 # Handlers run in a short-lived daemon thread joined with this timeout; on
 # timeout the caller (canonical persistence) proceeds and the worker is left to
 # unwind on its own. Generous enough for a legitimate enqueue; a non-positive
 # value runs handlers inline (legacy behaviour / opt-out).
-_DEFAULT_SAAS_FANOUT_TIMEOUT_S = 10.0
-_SAAS_FANOUT_TIMEOUT_ENV = "SPEC_KITTY_SAAS_FANOUT_TIMEOUT"
+_DEFAULT_FANOUT_TIMEOUT_S = 10.0
+_FANOUT_TIMEOUT_ENV = "SPEC_KITTY_STATUS_FANOUT_TIMEOUT"
 
 
-def _saas_fanout_timeout_s() -> float:
+def _fanout_timeout_s() -> float:
     """Resolve the per-handler fan-out timeout from the environment.
 
     Non-finite values (``nan``/``inf``) are rejected: ``Thread.join(nan)``
@@ -46,15 +46,15 @@ def _saas_fanout_timeout_s() -> float:
     platform time — both would silently disable the safety mechanism, so they
     fall back to the default.
     """
-    raw = os.environ.get(_SAAS_FANOUT_TIMEOUT_ENV)
+    raw = os.environ.get(_FANOUT_TIMEOUT_ENV)
     if raw is None or not raw.strip():
-        return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
+        return _DEFAULT_FANOUT_TIMEOUT_S
     try:
         value = float(raw)
     except ValueError:
-        return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
+        return _DEFAULT_FANOUT_TIMEOUT_S
     if math.isnan(value) or math.isinf(value):
-        return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
+        return _DEFAULT_FANOUT_TIMEOUT_S
     return value
 
 
@@ -83,7 +83,7 @@ def _run_fanout_handler_bounded(handler: Callable[..., None], kwargs: dict[str, 
     non-positive timeout runs the handler inline (no thread), preserving legacy
     behaviour.
     """
-    timeout_s = _saas_fanout_timeout_s()
+    timeout_s = _fanout_timeout_s()
     if timeout_s <= 0:
         handler(**kwargs)
         return
@@ -117,16 +117,16 @@ def _run_fanout_handler_bounded(handler: Callable[..., None], kwargs: dict[str, 
 
 
 # Callback signature: keyword-only, mirrors emit_wp_status_changed
-SaasFanOutHandler = Callable[..., None]
+StatusFanOutHandler = Callable[..., None]
 
-LifecycleSaasFanOutHandler = Callable[..., None]
+LifecycleFanOutHandler = Callable[..., None]
 
 # Callback signature: keyword-only, carries the resolved binding + WP identity
 # for the first-class ``WPResolvedBindingChanged`` bridge (FR-015 / IC-09).
 ResolvedBindingFanOutHandler = Callable[..., None]
 
-_saas_handlers: list[SaasFanOutHandler] = []
-_lifecycle_saas_handlers: list[LifecycleSaasFanOutHandler] = []
+_status_handlers: list[StatusFanOutHandler] = []
+_lifecycle_handlers: list[LifecycleFanOutHandler] = []
 _resolved_binding_handlers: list[ResolvedBindingFanOutHandler] = []
 
 
@@ -147,35 +147,35 @@ def _handler_key(cb: Callable[..., Any]) -> str:
     return repr(cb)
 
 
-def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:
-    """Register a SaaS fan-out callback (idempotent by qualified name).
+def register_status_fanout_handler(cb: StatusFanOutHandler) -> None:
+    """Register a status fan-out callback (idempotent by qualified name).
 
     Re-registration of a handler with the same ``__qualname__`` replaces
     the existing entry rather than appending, so re-registering does not
     stack duplicate fan-out invocations.
     """
     key = _handler_key(cb)
-    for idx, existing in enumerate(_saas_handlers):
+    for idx, existing in enumerate(_status_handlers):
         if _handler_key(existing) == key:
-            _saas_handlers[idx] = cb
+            _status_handlers[idx] = cb
             return
-    _saas_handlers.append(cb)
+    _status_handlers.append(cb)
 
 
-def register_lifecycle_saas_fanout_handler(cb: LifecycleSaasFanOutHandler) -> None:
-    """Register a lifecycle SaaS fan-out callback (idempotent by qualified name)."""
+def register_lifecycle_fanout_handler(cb: LifecycleFanOutHandler) -> None:
+    """Register a lifecycle fan-out callback (idempotent by qualified name)."""
     key = _handler_key(cb)
-    for idx, existing in enumerate(_lifecycle_saas_handlers):
+    for idx, existing in enumerate(_lifecycle_handlers):
         if _handler_key(existing) == key:
-            _lifecycle_saas_handlers[idx] = cb
+            _lifecycle_handlers[idx] = cb
             return
-    _lifecycle_saas_handlers.append(cb)
+    _lifecycle_handlers.append(cb)
 
 
 def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
     """Register a ``WPResolvedBindingChanged`` fan-out callback (idempotent by name).
 
-    Mirrors :func:`register_saas_fanout_handler`. A transport handler
+    Mirrors :func:`register_status_fanout_handler`. A transport handler
     builds the concrete ``spec_kitty_events.WPResolvedBindingChanged`` payload
     once the events package ships it; until then the status layer's version
     gate skips the fan-out (see ``emit._resolved_binding_fan_out``).
@@ -195,8 +195,8 @@ def reset_handlers() -> None:
     from this repository, #6164), so a wiped registry stays empty until a
     caller that owns a transport registers one.
     """
-    _saas_handlers.clear()
-    _lifecycle_saas_handlers.clear()
+    _status_handlers.clear()
+    _lifecycle_handlers.clear()
     _resolved_binding_handlers.clear()
 
 
@@ -214,8 +214,8 @@ def _fanout_force(kwargs: dict[str, Any]) -> Any:
     return getattr(kwargs.get("metadata"), "force", None)
 
 
-def fire_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
-    """Call all registered SaaS fan-out handlers with **kwargs.
+def fire_status_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+    """Call all registered Status fan-out handlers with **kwargs.
 
     Guarantees:
     - Handlers called in registration order.
@@ -240,26 +240,26 @@ def fire_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
     # never blocks fan-out. Log even with zero handlers; a missing handler
     # registration is one of the states this breadcrumb is meant to reveal.
     logger.info(
-        "fire_saas_fanout: wp_id=%s from=%s to=%s force=%s handlers=%d",
+        "fire_status_fanout: wp_id=%s from=%s to=%s force=%s handlers=%d",
         kwargs.get("wp_id"),
         kwargs.get("from_lane"),
         kwargs.get("to_lane"),
         _fanout_force(kwargs),
-        len(_saas_handlers),
+        len(_status_handlers),
     )
-    for handler in _saas_handlers:
+    for handler in _status_handlers:
         try:
-            _run_fanout_handler_bounded(handler, kwargs, label="SaaS fan-out")
+            _run_fanout_handler_bounded(handler, kwargs, label="Status fan-out")
         except _FanoutHandlerBusyError:
             logger.warning(
-                "SaaS fan-out handler still in flight from a prior transition; skipped to avoid overlap (wp_id=%s from=%s to=%s)",
+                "Status fan-out handler still in flight from a prior transition; skipped to avoid overlap (wp_id=%s from=%s to=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
             )
         except TimeoutError:
             logger.warning(
-                "SaaS fan-out handler timed out; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
+                "Status fan-out handler timed out; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
@@ -267,7 +267,7 @@ def fire_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
             )
         except Exception:
             logger.warning(
-                "SaaS fan-out handler failed; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
+                "Status fan-out handler failed; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
@@ -279,16 +279,13 @@ def fire_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
 def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
     """Call all registered ``WPResolvedBindingChanged`` fan-out handlers with **kwargs.
 
-    Same non-raising / bounded contract as :func:`fire_saas_fanout`: exceptions
+    Same non-raising / bounded contract as :func:`fire_status_fanout`: exceptions
     from a handler are caught and logged, never re-raised, so a resolved-binding
     fan-out can never block canonical local persistence. An empty registry is a
     no-op. The status layer only reaches here once its version gate confirms the
     installed ``spec_kitty_events`` supports the event (FR-015 / IC-09).
 
-    ``repo_root`` was the drain-gate input (``drain_posture(project_root=repo_root)``)
-    that #6164 removed; it was never forwarded to handlers (handlers receive the
-    caller's ``**kwargs`` only), so it is absorbed as an explicit parameter here
-    and discarded rather than passed through.
+    ``repo_root`` is accepted for API stability and not forwarded to handlers.
     """
     del repo_root
     logger.info(
@@ -318,31 +315,26 @@ def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any
             )
 
 
-def fire_lifecycle_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
-    """Call all registered lifecycle SaaS fan-out handlers with **kwargs.
+def fire_lifecycle_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
+    """Call all registered lifecycle Status fan-out handlers with **kwargs.
 
-    ``repo_root`` was the drain-gate input (``drain_posture(project_root=repo_root)``)
-    that #6164 removed; it was never forwarded to handlers (handlers receive the
-    caller's ``**kwargs`` only -- ``{envelope, log_path}``), so it is absorbed as
-    an explicit parameter here and discarded rather than passed through. Callers
-    still resolve it themselves (e.g.
-    ``lifecycle_events._repo_root_for_lifecycle_log(log_path)``) since this module
-    must not reach back into ``lifecycle_events``/``decisions`` at import time.
+    ``repo_root`` is accepted for API stability and not forwarded to handlers
+    (they receive ``{envelope, log_path}``).
     """
     del repo_root
-    for handler in _lifecycle_saas_handlers:
+    for handler in _lifecycle_handlers:
         try:
-            _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle SaaS fan-out")
+            _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle fan-out")
         except _FanoutHandlerBusyError:
             logger.warning(
-                "Lifecycle SaaS fan-out handler still in flight from a prior transition; skipped to avoid overlap",
+                "Lifecycle fan-out handler still in flight from a prior transition; skipped to avoid overlap",
             )
         except TimeoutError:
             logger.warning(
-                "Lifecycle SaaS fan-out handler timed out; canonical lifecycle log unaffected",
+                "Lifecycle fan-out handler timed out; canonical lifecycle log unaffected",
             )
         except Exception:
             logger.debug(
-                "Lifecycle SaaS fan-out handler failed; canonical lifecycle log unaffected",
+                "Lifecycle fan-out handler failed; canonical lifecycle log unaffected",
                 exc_info=True,
             )
