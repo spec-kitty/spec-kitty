@@ -1,4 +1,9 @@
-"""Unit tests for the review lock's field validation and pre-claim check (#6386)."""
+"""Unit tests for the review lock's field validation and pre-claim check (#6386).
+
+A committed or tracked lock is refused (``REVIEW_LOCK_COMMITTED``) whatever its
+content; an untracked lock is refused only when it cannot be read
+(``REVIEW_LOCK_UNREADABLE``).
+"""
 
 from __future__ import annotations
 
@@ -12,10 +17,11 @@ import pytest
 
 from specify_cli.review.lock import (
     LOCK_REL_PATH,
+    REVIEW_LOCK_COMMITTED,
     REVIEW_LOCK_UNREADABLE,
     ReviewLock,
     ReviewLockReadError,
-    unreadable_lock_refusal,
+    review_lock_refusal,
 )
 
 pytestmark = pytest.mark.fast
@@ -82,22 +88,22 @@ def test_load_of_empty_object_names_the_file_and_fields(tmp_path: Path) -> None:
     assert "__init__" not in str(excinfo.value)
 
 
-# --- unreadable_lock_refusal: existing workspace ---------------------------
+# --- review_lock_refusal: existing workspace ------------------------------
 
 
 def test_existing_workspace_without_lock_passes(repo: Path) -> None:
-    assert unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
+    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
 
 
 def test_existing_workspace_with_valid_lock_passes(repo: Path) -> None:
     _write_lock(repo, json.dumps({**_VALID, "pid": os.getpid()}))
-    assert unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
+    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
 
 
 def test_untracked_unreadable_lock_offers_delete_and_is_left_alone(repo: Path) -> None:
     lock = _write_lock(repo, "{not json")
 
-    message = unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
 
     assert message is not None
     assert message.startswith(f"{REVIEW_LOCK_UNREADABLE}:")
@@ -107,20 +113,27 @@ def test_untracked_unreadable_lock_offers_delete_and_is_left_alone(repo: Path) -
     assert lock.read_text() == "{not json", "the check never rewrites the lock"
 
 
-def test_tracked_unreadable_lock_offers_untrack(repo: Path) -> None:
-    _write_lock(repo, "{}")
+def _commit_lock(repo: Path, content: str) -> Path:
+    lock = _write_lock(repo, content)
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
+    return lock
 
-    message = unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
+
+def test_tracked_unreadable_lock_offers_untrack(repo: Path) -> None:
+    _commit_lock(repo, "{}")
+
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
 
     assert message is not None
+    assert message.startswith(f"{REVIEW_LOCK_COMMITTED}:")
+    assert "is tracked by git and cannot be read (missing field(s)" in message
     assert "committed on main" in message
     assert f"git -C {repo} rm -q {LOCK_REL_PATH}" in message
     assert "git worktree add" not in message, "the workspace already exists"
 
 
-# --- unreadable_lock_refusal: workspace still to be created ----------------
+# --- review_lock_refusal: workspace still to be created -------------------
 
 
 def test_missing_workspace_reads_the_committed_blob(repo: Path, tmp_path: Path) -> None:
@@ -131,9 +144,10 @@ def test_missing_workspace_reads_the_committed_blob(repo: Path, tmp_path: Path) 
     _git(repo, "checkout", "-q", "main")
     worktree = tmp_path / "lane"
 
-    message = unreadable_lock_refusal(worktree, exists=False, repo_root=repo, checkout_ref="kitty/lane-a", branch="kitty/lane-a")
+    message = review_lock_refusal(worktree, exists=False, repo_root=repo, checkout_ref="kitty/lane-a", branch="kitty/lane-a")
 
     assert message is not None
+    assert message.startswith(f"{REVIEW_LOCK_COMMITTED}:")
     assert f"kitty/lane-a:{LOCK_REL_PATH}" in message
     assert "committed on kitty/lane-a" in message
     assert f"git worktree add {worktree} kitty/lane-a" in message
@@ -148,7 +162,7 @@ def test_missing_workspace_cut_from_a_start_point_names_that_source(repo: Path, 
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
 
-    message = unreadable_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="HEAD", branch="kitty/lane-a")
+    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="HEAD", branch="kitty/lane-a")
 
     assert message is not None
     assert f"committed on HEAD; it must not be. Remove {LOCK_REL_PATH} there" in message
@@ -160,27 +174,66 @@ def test_missing_workspace_falls_back_to_the_ref_when_no_branch(repo: Path, tmp_
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
 
-    message = unreadable_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch=None)
+    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch=None)
 
     assert message is not None and "committed on main" in message
 
 
-@pytest.mark.parametrize("committed", [None, json.dumps(_VALID)])
-def test_missing_workspace_with_absent_or_valid_committed_lock_passes(repo: Path, tmp_path: Path, committed: str | None) -> None:
-    if committed is not None:
-        _write_lock(repo, committed)
-        _git(repo, "add", "-f", LOCK_REL_PATH)
-        _git(repo, "commit", "-qm", "valid lock")
-    assert unreadable_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch="b") is None
+def test_missing_workspace_without_a_committed_lock_passes(repo: Path, tmp_path: Path) -> None:
+    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch="b") is None
+
+
+# --- a committed lock is refused whatever its content (operator ruling, option a) ---
+
+
+def test_missing_workspace_with_a_readable_committed_lock_is_refused(repo: Path, tmp_path: Path) -> None:
+    """A valid lock with a stale PID used to be overwritten in place, leaving the tracked file modified."""
+    _commit_lock(repo, json.dumps(_VALID))
+
+    message = review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="main", branch="main")
+
+    assert message is not None
+    assert message.startswith(f"{REVIEW_LOCK_COMMITTED}: refusing to start the review; the review lock main:{LOCK_REL_PATH} is tracked by git.")
+    assert "cannot be read" not in message
+    assert "The work package was not claimed for review." in message
+    assert f"rm -q {LOCK_REL_PATH}" in message
+
+
+def test_existing_workspace_with_a_readable_tracked_lock_is_refused(repo: Path) -> None:
+    lock = _commit_lock(repo, json.dumps({**_VALID, "pid": os.getpid()}))
+
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
+
+    assert message is not None
+    assert message.startswith(f"{REVIEW_LOCK_COMMITTED}: refusing to start the review; the review lock {lock} is tracked by git.")
+    assert f"git -C {repo} rm -q {LOCK_REL_PATH}" in message
+    assert json.loads(lock.read_text())["pid"] == os.getpid(), "the check never rewrites the lock"
+
+
+def test_tracked_lock_deleted_by_a_release_is_still_refused(repo: Path) -> None:
+    """The #6386 collateral: release unlinked a tracked lock, leaving ``D .spec-kitty/review-lock.json``."""
+    lock = _commit_lock(repo, json.dumps(_VALID))
+    lock.unlink()
+
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main")
+
+    assert message is not None and message.startswith(f"{REVIEW_LOCK_COMMITTED}:")
+    assert f"git -C {repo} rm -q {LOCK_REL_PATH}" in message
+
+
+def test_untracked_readable_lock_passes(repo: Path) -> None:
+    """An ordinary lock (ignored or untracked) is not refused; ``acquire`` judges its liveness."""
+    _write_lock(repo, json.dumps(_VALID))
+    assert review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch="main") is None
 
 
 def test_missing_workspace_without_a_ref_passes(repo: Path, tmp_path: Path) -> None:
-    assert unreadable_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref=None, branch=None) is None
+    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref=None, branch=None) is None
 
 
 def test_missing_workspace_with_unknown_ref_passes(repo: Path, tmp_path: Path) -> None:
     """An unresolvable ref is not a lock problem; worktree creation reports it."""
-    assert unreadable_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="nope", branch="nope") is None
+    assert review_lock_refusal(tmp_path / "lane", exists=False, repo_root=repo, checkout_ref="nope", branch="nope") is None
 
 
 # --- remedy accuracy (pre-PR review) -----------------------------------------
@@ -188,7 +241,7 @@ def test_missing_workspace_with_unknown_ref_passes(repo: Path, tmp_path: Path) -
 
 def test_pre_claim_text_says_nothing_was_claimed(tmp_path: Path) -> None:
     _write_lock(tmp_path, "{}")
-    message = unreadable_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b")
+    message = review_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b")
     assert message is not None
     assert "The work package was not claimed for review." in message
     assert "already recorded" not in message
@@ -196,7 +249,7 @@ def test_pre_claim_text_says_nothing_was_claimed(tmp_path: Path) -> None:
 
 def test_claimed_text_says_the_claim_was_recorded(tmp_path: Path) -> None:
     _write_lock(tmp_path, "{}")
-    message = unreadable_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b", claimed=True)
+    message = review_lock_refusal(tmp_path, exists=True, repo_root=tmp_path, checkout_ref=None, branch="b", claimed=True)
     assert message is not None
     assert "The review claim was already recorded" in message
     assert "not claimed" not in message
@@ -208,7 +261,7 @@ def test_tracked_lock_without_a_branch_name_names_the_checked_out_branch(repo: P
     _git(repo, "add", "-f", LOCK_REL_PATH)
     _git(repo, "commit", "-qm", "oops")
 
-    message = unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
 
     assert message is not None
     assert "committed on main" in message and "None" not in message
@@ -220,7 +273,7 @@ def test_tracked_lock_on_a_detached_head_still_reads(repo: Path) -> None:
     _git(repo, "commit", "-qm", "oops")
     _git(repo, "checkout", "-q", "--detach")
 
-    message = unreadable_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
+    message = review_lock_refusal(repo, exists=True, repo_root=repo, checkout_ref=None, branch=None)
 
     assert message is not None and "committed on the checked-out branch" in message
 
@@ -228,6 +281,6 @@ def test_tracked_lock_on_a_detached_head_still_reads(repo: Path) -> None:
 def test_paths_with_spaces_are_quoted(tmp_path: Path) -> None:
     worktree = tmp_path / "with space"
     lock = _write_lock(worktree, "{}")
-    message = unreadable_lock_refusal(worktree, exists=True, repo_root=worktree, checkout_ref=None, branch="b")
+    message = review_lock_refusal(worktree, exists=True, repo_root=worktree, checkout_ref=None, branch="b")
     assert message is not None
     assert f"rm '{lock}'" in message

@@ -40,6 +40,8 @@ LOCK_FILE = "review-lock.json"
 LOCK_REL_PATH = f"{LOCK_DIR}/{LOCK_FILE}"
 #: Refusal code for a lock file the review cannot verify (#6386).
 REVIEW_LOCK_UNREADABLE = "REVIEW_LOCK_UNREADABLE"
+#: Refusal code for a lock file git tracks, whatever its content (#6386).
+REVIEW_LOCK_COMMITTED = "REVIEW_LOCK_COMMITTED"
 
 #: The on-disk record's fields and their JSON types (``ReviewLock`` field order).
 _LOCK_FIELDS: dict[str, type] = {
@@ -260,17 +262,17 @@ def _is_tracked(worktree: Path) -> bool:
         return False
 
 
-def _committed_lock_error(repo_root: Path, ref: str) -> ReviewLockReadError | None:
-    """The error reading the lock committed at *ref*, or ``None`` when it is absent or readable."""
+def _committed_lock(repo_root: Path, ref: str) -> tuple[bool, ReviewLockReadError | None]:
+    """``(present, error)`` for the lock committed at *ref*; ``error`` is ``None`` when it is absent or readable."""
     spec = f"{ref}:{LOCK_REL_PATH}"
     content = _git_stdout(repo_root, "show", spec)
     if content is None:
-        return None  # no lock committed at *ref* (or *ref* itself is absent: creation reports that)
+        return False, None  # no lock committed at *ref* (or *ref* itself is absent: creation reports that)
     try:
         _parse_lock(content)
     except (json.JSONDecodeError, TypeError) as exc:
-        return ReviewLockReadError(path=spec, reason=str(exc))
-    return None
+        return True, ReviewLockReadError(path=spec, reason=str(exc))
+    return True, None
 
 
 def _untrack_remedy(worktree: Path, *, exists: bool, branch: str | None, checkout_ref: str | None) -> list[str]:
@@ -296,7 +298,25 @@ def _untrack_remedy(worktree: Path, *, exists: bool, branch: str | None, checkou
     ]
 
 
-def unreadable_lock_refusal(
+def _lock_state(worktree: Path, *, exists: bool, repo_root: Path, checkout_ref: str | None) -> tuple[bool, ReviewLockReadError | None]:
+    """``(committed, read_error)`` for the lock a review would acquire.
+
+    *committed* is true when git tracks the lock in the existing workspace
+    (even when a release deleted the file), or when the ref a new workspace
+    checks out carries one.
+    """
+    if not exists:
+        return _committed_lock(repo_root, checkout_ref) if checkout_ref else (False, None)
+    try:
+        ReviewLock.load(worktree)
+        error = None
+    except ReviewLockReadError as exc:
+        error = exc
+    # The index, not the file: a tracked lock deleted by a release (``D``) is still committed.
+    return _is_tracked(worktree), error
+
+
+def review_lock_refusal(
     worktree: Path,
     *,
     exists: bool,
@@ -305,42 +325,52 @@ def unreadable_lock_refusal(
     branch: str | None,
     claimed: bool = False,
 ) -> str | None:
-    """Refusal text when the lock a review would acquire cannot be read; ``None`` when it can.
+    """Refusal text when the lock a review would acquire is committed or unreadable; ``None`` otherwise.
 
     Run BEFORE the review claim, so a refusal mutates nothing and a re-run is
     safe (#6386: the lock used to be read only after the ``in_review`` claim
     and its commit, so an unreadable one crashed the command half-way and
-    every re-run added another start-review commit). The lock read is the
-    file in *worktree* when the workspace *exists*; otherwise it is the blob
-    the new workspace will check out from *checkout_ref*. Never rewrites or
-    removes the lock: an unverifiable lock may belong to a live review.
+    every re-run added another start-review commit). The lock is the file in
+    *worktree* when the workspace *exists*; otherwise it is the blob the new
+    workspace will check out from *checkout_ref*.
 
-    *claimed* is ``True`` only on the fallback after the claim (a lock that
-    turned unreadable between the check and its acquisition); the text then
-    says the claim was recorded instead of claiming nothing changed.
+    * ``REVIEW_LOCK_COMMITTED``: git tracks the lock, whatever its content.
+      A tracked lock is rewritten by every review and deleted by its release,
+      which leaves the lane dirty and blocks consolidation.
+    * ``REVIEW_LOCK_UNREADABLE``: an untracked lock that cannot be read.
+
+    Never rewrites or removes the lock: an unverifiable lock may belong to a
+    live review. *claimed* is ``True`` only on the fallback after the claim
+    (a lock that changed between the check and its acquisition); the text
+    then says the claim was recorded instead of claiming nothing changed.
     """
-    try:
-        if exists:
-            ReviewLock.load(worktree)
-            return None
-        error = _committed_lock_error(repo_root, checkout_ref) if checkout_ref else None
-    except ReviewLockReadError as exc:
-        error = exc
-    if error is None:
-        return None
-    committed = not exists or _is_tracked(worktree)
-    lines = [
-        f"{REVIEW_LOCK_UNREADABLE}: refusing to start the review; the review lock {error.path} cannot be read ({error.reason}).",
-        "  It was edited or committed by hand, or a write of it was cut short.",
-        "  The review claim was already recorded; once the lock is fixed, re-run the review to finish it."
-        if claimed
-        else "  The work package was not claimed for review.",
-    ]
+    committed, error = _lock_state(worktree, exists=exists, repo_root=repo_root, checkout_ref=checkout_ref)
     if committed:
-        lines += _untrack_remedy(worktree, exists=exists, branch=branch, checkout_ref=checkout_ref)
+        path = error.path if error is not None else (str(worktree / LOCK_REL_PATH) if exists else f"{checkout_ref}:{LOCK_REL_PATH}")
+        unreadable = f" and cannot be read ({error.reason})" if error is not None else ""
+        lines = [
+            f"{REVIEW_LOCK_COMMITTED}: refusing to start the review; the review lock {path} is tracked by git{unreadable}.",
+            "  The lock is runtime state: each review rewrites it and its release deletes it, so a tracked lock leaves the lane dirty.",
+            _claim_line(claimed),
+            *_untrack_remedy(worktree, exists=exists, branch=branch, checkout_ref=checkout_ref),
+        ]
+    elif error is not None:
+        lines = [
+            f"{REVIEW_LOCK_UNREADABLE}: refusing to start the review; the review lock {error.path} cannot be read ({error.reason}).",
+            "  It was edited by hand, or a write of it was cut short.",
+            _claim_line(claimed),
+            f"  If no review is running in {worktree}, delete it (rm {shlex.quote(str(error.path))}) and re-run the review.",
+        ]
     else:
-        lines.append(f"  If no review is running in {worktree}, delete it (rm {shlex.quote(str(error.path))}) and re-run the review.")
+        return None
     return "\n".join(lines)
+
+
+def _claim_line(claimed: bool) -> str:
+    """What the refusal says about the review claim (see :func:`review_lock_refusal`)."""
+    if claimed:
+        return "  The review claim was already recorded; once the lock is fixed, re-run the review to finish it."
+    return "  The work package was not claimed for review."
 
 
 # ---------------------------------------------------------------------------

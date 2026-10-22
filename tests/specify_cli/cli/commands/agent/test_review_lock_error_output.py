@@ -135,7 +135,7 @@ def test_acquire_fallback_says_the_claim_was_recorded(tmp_path: Path, monkeypatc
 def test_husk_workspace_is_left_to_the_husk_refusal(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     workspace = SimpleNamespace(worktree_path=tmp_path / "husk", branch_name="main", is_husk=True, exists=False)
-    assert workflow._unreadable_review_lock_message(workspace, repo, None) is None
+    assert workflow._review_lock_refusal_message(workspace, repo, None) is None
 
 
 def test_foreign_lock_check_fails_closed_when_the_lock_changes_mid_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,7 +148,7 @@ def test_foreign_lock_check_fails_closed_when_the_lock_changes_mid_read(tmp_path
         raise ReviewLockReadError(path=str(worktree / "lock"), reason="truncated")
 
     monkeypatch.setattr(ReviewLock, "load", staticmethod(_corrupt_once))
-    monkeypatch.setattr(workflow, "_unreadable_review_lock_message", lambda *a, **k: None)
+    monkeypatch.setattr(workflow, "_review_lock_refusal_message", lambda *a, **k: None)
     workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
 
     message = workflow._foreign_review_lock_message(workspace, repo, "claude")

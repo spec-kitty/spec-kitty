@@ -1,4 +1,4 @@
-"""Regression: an unreadable review lock refuses ``agent action review`` before the claim (#6386).
+"""Regression: a committed or unreadable review lock refuses ``agent action review`` before the claim (#6386).
 
 Per ADR 2026-07-17-1 (regression-test discipline) this file reproduces #6386
 against the REAL CLI in the LANES topology. The reported run committed a
@@ -9,9 +9,13 @@ to ``in_review``, and only afterwards read the lock and crashed with
 added another start-review commit and crashed again.
 
 After the fix the lock that the review would acquire (the file in an existing
-workspace, or the blob a new workspace checks out) is read before the claim.
-An unreadable one is refused with ``REVIEW_LOCK_UNREADABLE``, naming the file
-and the remedy, and nothing is mutated. A re-run after the remedy succeeds.
+workspace, or the blob a new workspace checks out) is inspected before the
+claim. A lock git tracks is refused with ``REVIEW_LOCK_COMMITTED`` whatever its
+content (operator ruling on the PR: a tracked lock is rewritten by every review
+and deleted by its release, which left the lane dirty and blocked
+``consolidate``); an untracked lock that cannot be read is refused with
+``REVIEW_LOCK_UNREADABLE``. Either way the refusal names the file and the
+remedy, and nothing is mutated. A re-run after the remedy succeeds.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.review.lock import LOCK_DIR, LOCK_FILE
+from specify_cli.review.lock import LOCK_DIR, LOCK_FILE, ReviewLock
 from specify_cli.status.store import read_events
 from tests.terminus import conftest as harness
 from tests.terminus.conftest import CoordMission, git_rev, run_terminus
@@ -79,7 +83,7 @@ def test_committed_unreadable_lock_is_refused_before_the_claim(mission: CoordMis
     code, out = _review(m)
 
     assert code == 1, out
-    assert "REVIEW_LOCK_UNREADABLE" in out
+    assert "REVIEW_LOCK_COMMITTED" in out and "cannot be read (missing field(s)" in out
     assert "missing 5 required positional arguments" not in out
     assert _LOCK_REL in out and m.lane_branches["WP01"] in out
     assert f"git worktree add {_lane_worktree(m)} {m.lane_branches['WP01']}" in out
@@ -90,7 +94,7 @@ def test_committed_unreadable_lock_is_refused_before_the_claim(mission: CoordMis
 
     # Re-running without the remedy is refused the same way and still mutates nothing.
     code, out = _review(m)
-    assert code == 1 and "REVIEW_LOCK_UNREADABLE" in out
+    assert code == 1 and "REVIEW_LOCK_COMMITTED" in out
     assert git_rev(m.repo, m.target_branch) == target_before
 
     # Remedy: remove the lock from the lane branch, then review again.
@@ -99,6 +103,32 @@ def test_committed_unreadable_lock_is_refused_before_the_claim(mission: CoordMis
     assert code == 0, out
     assert _review_events(m)[-1] == ("for_review", "in_review")
     assert json.loads((_lane_worktree(m) / _LOCK_REL).read_text())["agent"] == REVIEWER
+
+
+def test_committed_readable_lock_is_refused_and_the_lane_stays_clean(mission: CoordMission, tmp_path: Path) -> None:
+    """A readable lock committed on the lane (stale PID) was overwritten in place, dirtying the tracked file."""
+    m = mission
+    stale = {"worktree_path": "/elsewhere", "wp_id": "WP01", "agent": "someone", "started_at": "2026-10-01T00:00:00+00:00", "pid": 1}
+    _commit_lock_on_lane(m, tmp_path / "agent", json.dumps(stale))
+    _make_for_review(m)
+    events_before = _review_events(m)
+    target_before = git_rev(m.repo, m.target_branch)
+
+    code, out = _review(m)
+
+    assert code == 1, out
+    assert "REVIEW_LOCK_COMMITTED" in out and "is tracked by git." in out
+    assert _review_events(m) == events_before
+    assert git_rev(m.repo, m.target_branch) == target_before
+    assert not _lane_worktree(m).exists()
+
+    _commit_lock_on_lane(m, tmp_path / "agent-fix", None)
+    code, out = _review(m)
+    assert code == 0, out
+    worktree = _lane_worktree(m)
+    assert harness._git(worktree, "status", "--porcelain").stdout == ""
+    ReviewLock.release(worktree)  # what an approval or rejection does
+    assert harness._git(worktree, "status", "--porcelain").stdout == "", "release leaves no tracked deletion behind"
 
 
 def test_rerun_after_the_crash_state_is_refused_then_recovers(mission: CoordMission) -> None:
