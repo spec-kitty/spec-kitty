@@ -33,7 +33,7 @@ def _clean_handlers() -> None:
 def test_hanging_saas_handler_does_not_block_canonical_persistence(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """Functional half of the #4015 split; the wall-clock ceiling now lives in
     ``test_hanging_saas_handler_returns_within_three_seconds`` (nightly-only)."""
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "0.3")
     entered = threading.Event()
     release = threading.Event()
 
@@ -57,7 +57,7 @@ def test_hanging_saas_handler_does_not_block_canonical_persistence(monkeypatch: 
 def test_hanging_saas_handler_returns_within_three_seconds(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """Split from ``test_hanging_saas_handler_does_not_block_canonical_persistence``
     (#4015); budget preserved (nightly)."""
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "0.3")
     release = threading.Event()
 
     def hanging_handler(**_kwargs: object) -> None:
@@ -78,7 +78,7 @@ def test_hanging_saas_handler_returns_within_three_seconds(monkeypatch: pytest.M
 def test_normal_saas_handler_still_runs_to_completion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "5")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "5")
     calls: list[str | None] = []
 
     def ok_handler(**kwargs: object) -> None:
@@ -90,7 +90,7 @@ def test_normal_saas_handler_still_runs_to_completion(
 
 
 def test_raising_saas_handler_is_still_caught(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "5")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "5")
 
     def boom(**_kwargs: object) -> None:
         raise RuntimeError("handler blew up")
@@ -105,7 +105,7 @@ def test_nonfinite_timeout_falls_back_to_default_not_disabled(monkeypatch: pytes
     # A non-finite value must NOT reach Thread.join() (nan raises immediately,
     # inf overflows) — that would silently disable the bound. It falls back to
     # the default, so a well-behaved handler still runs to completion.
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", bad)
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", bad)
     assert adapters._saas_fanout_timeout_s() == adapters._DEFAULT_SAAS_FANOUT_TIMEOUT_S
     calls: list[object] = []
     adapters.register_saas_fanout_handler(lambda **k: calls.append(k.get("wp_id")))
@@ -114,7 +114,7 @@ def test_nonfinite_timeout_falls_back_to_default_not_disabled(monkeypatch: pytes
 
 
 def test_orphaned_handler_suppresses_an_overlapping_invocation(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "0.3")
     release = threading.Event()
     entry_count: list[int] = []
     lock = threading.Lock()
@@ -143,7 +143,7 @@ def test_orphaned_handler_suppresses_an_overlapping_invocation(monkeypatch: pyte
 def test_hanging_lifecycle_handler_does_not_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "0.3")
     release = threading.Event()
 
     def hanging_handler(**_kwargs: object) -> None:
@@ -155,3 +155,24 @@ def test_hanging_lifecycle_handler_does_not_block(
     elapsed = time.monotonic() - start
     assert elapsed < 3.0, f"lifecycle fan-out blocked for {elapsed:.1f}s"
     release.set()
+
+
+def test_old_saas_timeout_env_var_has_no_effect(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No alias is kept for the retired variable: setting only it must leave the
+    # default bound in force (a "0" would otherwise run handlers inline).
+    monkeypatch.delenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0")
+    assert adapters._fanout_timeout_s() == 10.0
+
+
+def test_new_timeout_env_var_zero_runs_handler_inline(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_STATUS_FANOUT_TIMEOUT", "0")
+    assert adapters._fanout_timeout_s() == 0.0
+    threads: list[int] = []
+
+    def handler(**_kwargs: object) -> None:
+        threads.append(threading.get_ident())
+
+    adapters.register_status_fanout_handler(handler)
+    adapters.fire_status_fanout(wp_id="WP12", from_lane="planned", to_lane="claimed")
+    assert threads == [threading.get_ident()], "a non-positive timeout must run the handler inline"
