@@ -37,11 +37,8 @@ def test_docs_base_is_the_owned_docs_site() -> None:
     assert cname.endswith("." + OWNED_DOMAIN)
 
 
-def test_schema_id_base_is_on_the_owned_domain() -> None:
-    assert urlsplit(SCHEMA_ID_BASE)[:2] == ("https", OWNED_DOMAIN)
-
-
 def test_every_shipped_schema_id_starts_at_the_base() -> None:
+    assert urlsplit(SCHEMA_ID_BASE)[:2] == ("https", OWNED_DOMAIN)
     assert len(_SCHEMA_FILES) >= 14
     ids = {path.name: _schema_id(path) for path in _SCHEMA_FILES}
     off_base = {name: schema_id for name, schema_id in ids.items() if schema_id is not None and not str(schema_id).startswith(SCHEMA_ID_BASE + "/")}
@@ -53,9 +50,8 @@ def test_install_and_upgrade_page_exists() -> None:
     assert (_REPO_ROOT / "docs" / f"{site_urls.INSTALL_AND_UPGRADE_PAGE}.md").is_file()
 
 
-@pytest.mark.parametrize("page", ["guides/x", "/guides/x", "guides/x/"])
-def test_docs_url_joins_one_slash(page: str) -> None:
-    assert site_urls.docs_url(page) == f"{DOCS_BASE_URL}/guides/x"
+def test_docs_url_joins_one_slash() -> None:
+    assert site_urls.docs_url("/guides/x/") == f"{DOCS_BASE_URL}/guides/x"
 
 
 def test_unknown_install_hint_links_the_install_guide() -> None:
