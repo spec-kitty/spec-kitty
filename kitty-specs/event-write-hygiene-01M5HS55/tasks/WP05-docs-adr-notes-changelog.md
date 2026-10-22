@@ -7,15 +7,15 @@ dependencies:
 - WP04
 requirement_refs:
 - FR-010
+planning_base_branch: feat/event-write-hygiene
+merge_target_branch: feat/event-write-hygiene
+branch_strategy: Planning artifacts for this mission were generated on feat/event-write-hygiene. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/event-write-hygiene unless the human explicitly redirects the landing branch.
 subtasks:
 - T018
 - T019
 - T020
 - T021
 phase: Phase 4 - Docs
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-10-22T13:30:00+00:00'
   actor: system
@@ -34,8 +34,11 @@ owned_files:
 - docs/api/batch-api-contract.md
 - docs/api/environment-variables.md
 - docs/changelog/CHANGELOG.md
+- docs/development/docs-retrieval-index.yaml
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – Docs, ADR amendment notes, changelog
@@ -151,7 +154,7 @@ Run:
 PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_no_legacy_terminology.py -q
 ```
 
-If any docs index script applies to edited pages, run it as well (`scripts/docs/docs_index.py --write`; check its `--help`; only needed for new pages).
+Run `.venv/bin/python scripts/docs/docs_index.py --write` (**mandatory**). The new `## Amendment` headings drift `docs/development/docs-retrieval-index.yaml`, and `tests/docs/test_committed_docs_index_fresh.py` plus `check_docs_freshness --ci` (DOCS-INDEX-DRIFT) check it. Then run `.venv/bin/python -m scripts.docs.check_changelog_style` and `tests/docs/test_committed_docs_index_fresh.py`.
 
 ## Risks & Mitigations
 

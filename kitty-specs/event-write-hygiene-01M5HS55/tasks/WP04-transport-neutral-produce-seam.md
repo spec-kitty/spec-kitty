@@ -8,6 +8,9 @@ requirement_refs:
 - FR-009
 - SC-003
 - C-003
+planning_base_branch: feat/event-write-hygiene
+merge_target_branch: feat/event-write-hygiene
+branch_strategy: Planning artifacts for this mission were generated on feat/event-write-hygiene. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/event-write-hygiene unless the human explicitly redirects the landing branch.
 subtasks:
 - T013
 - T014
@@ -15,9 +18,6 @@ subtasks:
 - T016
 - T017
 phase: 'Phase 3 - #6607'
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-10-22T13:30:00+00:00'
   actor: system
@@ -87,7 +87,9 @@ owned_files:
 - tests/status/test_sync_lane_mapping.py
 - tests/status/test_transition_pipeline.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP04 – Transport-neutral produce seam (#6607, part 2)
@@ -201,9 +203,9 @@ Docstrings and comments that describe **the seam** as "SaaS" get neutral wording
   3. `git mv tests/status/test_saas_fanout_timeout.py tests/status/test_fanout_timeout.py` and `git mv tests/specify_cli/status/test_saas_resolved_binding_fanout.py tests/specify_cli/status/test_resolved_binding_fanout.py`. Update the path-keyed ledgers:
      - `tests/release/coverage_breadth_baseline.json` (node ids, :36-37) and `tests/release/coverage_breadth_evidence.md`;
      - `tests/architectural/test_timing_coverage_invariant.py:290`;
-     - `pyproject.toml:2058` (whatever list it is in; keep the list sorted if it is sorted).
+     - `pyproject.toml:2058`. This is the `[tool.ruff.format].exclude` formatter-debt ratchet: rename the path in place and keep the renamed file **unformatted** (use `--force-exclude`). Run `tests/architectural/test_ruff_format_exclude_ratchet.py`.
 
-     Then run `tests/release/test_coverage_breadth.py` (it checks :302) and `tests/architectural/test_timing_coverage_invariant.py` on their own.
+     Then run `tests/architectural/test_coverage_breadth.py` (it checks :302) and `tests/architectural/test_timing_coverage_invariant.py` on their own.
   4. If a renamed test function name contains `saas`, rename it too (node ids change), and update the coverage baseline consistently.
 
 ### Subtask T017 – Retarget test references and run the blast radius
@@ -214,15 +216,20 @@ Docstrings and comments that describe **the seam** as "SaaS" get neutral wording
      - caplog exact-text assertions (`test_emit_fanout_after_adapter.py:102` breadcrumb, `test_emit.py:1862` genesis skip);
      - `monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", ...)`;
      - fixture names.
-  2. Final sweep: `rg -n "saas_fan|SAAS_FAN|SaasFan|lifecycle_saas|queue_saas_emission|_send_to_saas|fanout_lifecycle_event_hosted|conftest_saas_sink|mock_saas_sink|SaaS fan-out" src tests docs/api docs/architecture`. Only `docs/` lines (WP05's) and out-of-scope names may remain.
+  2. Comment sweep: run `rg -ni saas` over the seam's own files (`adapters.py`, `emit.py`, `outbound.py`, `decisions/emit.py`, `status_transition.py`, `models.py`, `wp_status_metadata.py`). Make every seam-describing mention neutral, for example emit.py:5/:39/:98/:1309-1319/:1382 and outbound.py:1-27. Leave only out-of-scope client names.
+  3. Final sweep: `rg -n "saas_fan|SAAS_FAN|SaasFan|lifecycle_saas|queue_saas_emission|_send_to_saas|fanout_lifecycle_event_hosted|conftest_saas_sink|mock_saas_sink|SaaS fan-out" src tests docs/api docs/architecture`. Only `docs/` lines (WP05's) and out-of-scope names may remain.
   3. Run:
      ```bash
      PWHEADLESS=1 .venv/bin/python -m pytest tests/status tests/specify_cli/status tests/specify_cli/coordination tests/specify_cli/decisions tests/core tests/specify_cli/core -q -n auto --dist loadfile
      PWHEADLESS=1 .venv/bin/python -m pytest <every other file in owned_files + leeway_files> -q -n auto --dist loadfile
-     PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_timing_coverage_invariant.py tests/architectural/test_ledger_floor.py tests/release/test_coverage_breadth.py tests/architectural/test_no_legacy_terminology.py -q
+     PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_timing_coverage_invariant.py tests/architectural/test_ledger_floor.py tests/architectural/test_coverage_breadth.py tests/architectural/test_no_legacy_terminology.py -q
      make test-fast
      ```
      Then run mypy on changed src modules, and ruff check plus `ruff format --check --force-exclude` on all changed files. Classify any red against the merge base before acting on it.
+
+## Intended diffs beyond identifiers
+
+Renaming the labels also changes the worker thread name `f"{label}-handler"` (adapters.py:108) and the `TimeoutError` / `_FanoutHandlerBusyError` message text. These changes are intended. No test asserts them today (`"still in flight"` and `"timed out"` survive); state them in the commit message.
 
 ## Risks & Mitigations
 

@@ -6,15 +6,15 @@ requirement_refs:
 - FR-004
 - NFR-001
 - SC-004
+planning_base_branch: feat/event-write-hygiene
+merge_target_branch: feat/event-write-hygiene
+branch_strategy: Planning artifacts for this mission were generated on feat/event-write-hygiene. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/event-write-hygiene unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
 - T003
 - T004
 phase: Phase 1 - Tidy-first
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-10-22T13:30:00+00:00'
   actor: system
@@ -198,7 +198,6 @@ owned_files:
 - tests/specify_cli/test_acceptance.py
 - tests/specify_cli/test_acceptance_regressions.py
 - tests/specify_cli/test_canonical_acceptance.py
-- tests/specify_cli/test_locked_frontmatter_writers.py
 - tests/specify_cli/test_runtime_hard_fail.py
 - tests/specify_cli/test_terminal_state_gate_integrity.py
 - tests/status/conftest.py
@@ -218,7 +217,9 @@ owned_files:
 - tests/upgrade/migrations/test_m_3_2_0a4_normalize_mission_lifecycle.py
 - tests/utils.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – Test seeding helper and codemod (tidy-first)
@@ -243,6 +244,7 @@ If this WP was returned from review, the feedback reference is in the event log 
 
 - **New helper**: add `tests/_support/status_seed.py`, a test-only helper that seeds `status.events.jsonl` through the production **atomic** primitive.
 - **Codemod**: move every test off `specify_cli.status.store.append_event` (the plain, non-atomic door that WP02 deletes) and onto that helper. The census counts 189 files and 382 call sites, plus one identity spy.
+- **Exception**: `tests/specify_cli/test_locked_frontmatter_writers.py:524` tests the door's in-place notify behaviour. WP02 owns it. Do not codemod it.
 - **Exception**: the door's own tests stay untouched, because WP02 deletes them together with the door. Those are `tests/status/test_store.py` and `tests/specify_cli/status/test_store_sanitized.py`.
 - **Done when**: `rg -n "\bappend_event\b" tests` matches only:
   - `tests/status/test_store.py` and `tests/specify_cli/status/test_store_sanitized.py`;
@@ -340,9 +342,8 @@ These fields are populated by `spec-kitty agent mission finalize-tasks`. Run `sp
 - **Steps**:
   1. Extend the codemod so it rewrites imports nested inside functions or fixtures. Put the replacement `from tests._support.status_seed import seed_status_event` at the same nesting level, to keep the lazy-import intent.
   2. **Identity spy**: `tests/integration/refinalize_frozen_lanes_support.py:311` checks or patches the door by object identity without importing it. Read the surrounding code first.
-     - If the spy asserts that nothing appends to the log during refinalize, retarget it to the primitive production uses, `store.append_raw_rows_atomic` / `store._append_serialized_atomic`, keeping the assertion's intent. Patch the attribute on the `specify_cli.status.store` module object.
-     - If the spy only guards the door itself, delete the spy line and its assertion.
-     - Record which case applied in `spec-kitty agent tasks add-history WP01 --note`.
+     - **Always delete the :311 spy line** (post-tasks review). The next line (:312) already spies `append_raw_rows_atomic`, so retargeting :311 to it, or to `_append_serialized_atomic`, would double-record `status_dirs`. Keep the :312 spy and the assertions it feeds.
+     - Record the deletion in `spec-kitty agent tasks add-history WP01 --note`.
   3. Shared fixture modules cover many tests: `tests/utils.py`, `tests/_factories/coord_mission.py`, `tests/status/conftest.py` and four more listed in the census. Rewrite them carefully, and run their dependants.
 - **Validation**: `rg -n "status\.store import[^\n]*\bappend_event\b|_unsafe import[^\n]*\bappend_event\b|store\.append_event\(" tests` returns only the two door test files.
 

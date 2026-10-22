@@ -11,6 +11,9 @@ requirement_refs:
 - NFR-004
 - SC-001
 - C-005
+planning_base_branch: feat/event-write-hygiene
+merge_target_branch: feat/event-write-hygiene
+branch_strategy: Planning artifacts for this mission were generated on feat/event-write-hygiene. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/event-write-hygiene unless the human explicitly redirects the landing branch.
 subtasks:
 - T005
 - T006
@@ -18,9 +21,6 @@ subtasks:
 - T008
 - T009
 phase: 'Phase 2 - #6614'
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-10-22T13:30:00+00:00'
   actor: system
@@ -59,8 +59,14 @@ owned_files:
 - tests/status/test_lane_head.py
 - tests/status/test_store.py
 - tests/specify_cli/status/test_store_sanitized.py
+- src/kernel/atomic.py
+- tests/kernel/test_atomic.py
+- src/specify_cli/cli/commands/agent/mission_finalize_commit.py
+- tests/specify_cli/test_locked_frontmatter_writers.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Delete the dead write doors (#6614)
@@ -129,18 +135,27 @@ Requirements: FR-001, FR-002, FR-003, FR-005, NFR-004, SC-001.
   1. In `tests/architectural/test_status_unsafe_allowlist.py`:
      - Remove `append_event`, `append_event_verified` and `append_primary_checkout_event_verified` from `STORE_APPEND_PRIMITIVES` (:72-84).
      - Remove `append_event_log` from `COORD_WRAPPER_DOORS` (:93).
-     - The non-vacuity fixtures use `append_event` as their sample door (:278, :314, :316, plus the rationale map near :282-295 and :1121). Switch each to a surviving door such as `append_raw_rows_atomic`, so the self-tests still show the scanner catching a door.
+     - The sample-door fixtures at :278, :314 and :316 use `from specify_cli.status._unsafe import append_event`. They still count as doors after the change (`_doors_from_import_from`, :165), so switching them to `append_raw_rows_atomic` is optional. The file has 316 lines and no rationale map.
      - Keep the module docstring's door-shape list accurate (:37 names `append_event_log`).
   2. In `tests/architectural/test_status_events_writes_gate.py::test_store_writes_are_found` (:687-694), re-pin the expected store write set to `{("os.replace", "replace")}`. Update the comment: the store's only write to the event log is now the atomic rename.
-  3. **Invocation-index single writer.** Add a test to the same writes-gate file, reusing its `src_source_tree` fixture and its `_classify_call` / `_classify_method_call` write classifiers. Do not write a second classifier.
-     - **What to flag:** a top-level function or method in `src/` that (a) refers to the index — the literal `"ops-index.jsonl"`, a `*.jsonl` constant whose value ends with it, or the `INDEX_PATH` name imported from `specify_cli.invocation.writer` — and (b) contains a write-mode file operation, or calls a same-module function or `staticmethod` that contains one.
+  3. **Make FR-002/FR-003 red first through the dead-symbol gate.**
+     - Remove the `append_to_index` (:1277) and `append_event_log` (:1287) entries from `tests/architectural/dead_symbol_allowlist.yaml` in this red commit. While those symbols still exist with no `src/` caller, `test_no_dead_symbols` fails on them.
+     - Add `assert not hasattr(status_service, "append_event_log")` to `tests/specify_cli/coordination/test_1622_dead_symbol_retirement.py`, in the style of its existing `append_event_log_batch` ban (:54).
+  4. **Invocation-index single writer.** Add a test to the same writes-gate file, reusing its `src_source_tree` fixture and its `_classify_call` / `_classify_method_call` write classifiers. Do not write a second classifier.
+     - **What to flag:** a top-level function or method in `src/` that (a) refers to the index through a **non-docstring** string constant exactly equal to `"ops-index.jsonl"` or `"kitty-ops/ops-index.jsonl"`, or through a `Name` / `Attribute` reference to `INDEX_PATH` (or a module constant holding that exact value), and (b) contains a write-mode file operation, or calls a same-module function or `staticmethod` that contains one. Never match substrings and never inspect docstrings: `write_started`'s docstring (writer.py:240) names the index and that method opens a file with `"x"`.
      - **Expected set:** exactly `{("specify_cli.invocation.writer", "InvocationWriter._append_to_index")}`.
      - **Why a function census:** the plain path resolver cannot follow `INDEX_PATH` across modules, and the writer's shared `_append_line_no_follow` staticmethod is called with different paths. Document this in the test docstring.
      - **Non-vacuity:**
        - a planted source like `invocations_cmd.append_to_index` must be reported;
-       - a planted read-only use of `INDEX_PATH` (like `invocations_cmd._iter_index_reverse`) must not be;
+       - a planted read-only use of `INDEX_PATH` must not be reported. Model it on `invocations_cmd._iter_records` (:346), which uses both `INDEX_PATH` and the literal and only reads.
+       - a planted docstring-only mention plus an unrelated `"x"` open must not be reported;
        - a floor: the live scan finds the writer's own function.
-  4. Run the gates. They must fail on the current tree: the doors still exist, `invocations_cmd.append_to_index` still writes the index, and the store still has the `Path.open "a"` site. Commit only the gate changes, with message `test(arch): re-pin door gates for #6614 dead write doors (red)`. Record the red output (test ids and the failing assertions) in history.
+  5. Run the gates. They must fail on the current tree, and each reported failure must be one of the following:
+     - the store doors still exist (`STORE_APPEND_PRIMITIVES`);
+     - the store still has the `Path.open "a"` site;
+     - `append_event_log` / `append_to_index` are dead symbols missing from the allowlist;
+     - the `hasattr` ban fails;
+     - the index census reports `invocations_cmd.append_to_index`. Commit only the gate changes, with message `test(arch): re-pin door gates for #6614 dead write doors (red)`. Record the red output (test ids and the failing assertions) in history.
 
 ### Subtask T006 – Delete the store doors and shrink `_unsafe`
 
@@ -148,7 +163,10 @@ Requirements: FR-001, FR-002, FR-003, FR-005, NFR-004, SC-001.
   1. In `store.py`, delete `append_event` (:303-314), `append_event_verified` (:347-357) and `append_primary_checkout_event_verified` (:360-366).
      - Keep `verify_event_readback` and `_event_matches_expected`; the surviving verified primitives use them. Confirm with `rg`.
      - Fix the `append_events_atomic` docstring (:461-466), which says the single-event append "remains the compatibility path". That is no longer true.
-     - If `notify_file_written` is now unused in `store.py`, remove the import. Do not touch it anywhere else.
+     - `kernel.atomic.notify_file_written` loses its only `src/` caller (store.py:314) and would turn `test_no_dead_symbols` red. Delete it from `src/kernel/atomic.py` (:72-80) and from its `__all__` (:40).
+     - Delete its test in `tests/kernel/test_atomic.py` (:452-, and drop the name from the :22 import). Keep `notify_written` and its tests.
+     - Fix the docstring at `src/specify_cli/cli/commands/agent/mission_finalize_commit.py:1057`, which names it: appends are now recorded by `notify_written` after the atomic replace.
+     - `tests/specify_cli/test_locked_frontmatter_writers.py:524` tests the door's in-place notify behaviour. Delete that test. If the file's intent covers status-log writes generally, retarget it to assert that `append_events_atomic` notifies through `notify_written`. Record which you did.
   2. In `status/_unsafe.py`, drop the three names from the import and from `__all__`. Fix the docstring at :18, which uses `append_event` as its ImportError example (pick a surviving primitive), and the Family 3 comment at :83.
   3. In `status/__init__.py:75-77`, fix the comment that lists the retired primitives. This is a one-line recorded leeway edit; WP03 owns the file.
   4. In `status/design.py:79`, fix the claim that every writer "appends through the same inode". The atomic path replaces the file.
@@ -182,12 +200,12 @@ Requirements: FR-001, FR-002, FR-003, FR-005, NFR-004, SC-001.
 
 - **Steps:**
   1. In `tests/architectural/dead_symbol_allowlist.yaml`, remove the `append_to_index` (:1277) and `append_event_log` (:1287) entries.
-  2. In `tests/architectural/_baselines.yaml`, lower the counts that track that allowlist. The squad expects 229→228 and 85→83, but verify the real keys and numbers by running `tests/architectural/test_no_dead_symbols.py` and the baseline ratchet test that reads `_baselines.yaml`. Shrinkage only warns, but keep the ledger truthful.
+  2. In `tests/architectural/_baselines.yaml`, lower the counts that track that allowlist. The allowlist entries were already removed in the red commit (T005). Both sit in `widened_grandfathered_470`, so expect 85→83 there. `allowlist_entries` 229→228 is probably wrong. Verify the real keys and numbers by running `tests/architectural/test_no_dead_symbols.py` and the baseline ratchet test that reads `_baselines.yaml`. Shrinkage only warns, but keep the ledger truthful.
   3. Run the gate files on their own:
      ```bash
      PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_status_unsafe_allowlist.py tests/architectural/test_status_events_writes_gate.py tests/architectural/test_no_dead_symbols.py -q
      ```
-     Also run the baselines ratchet file, then `tests/status`, `tests/specify_cli/coordination`, `tests/specify_cli/invocation`, the 18 retargeted files and `make test-fast`.
+     Also run `tests/architectural/test_ruff_format_exclude_ratchet.py` (test_store.py and test_store_sanitized.py are on the formatter-debt ratchet, pyproject :2183/:2059; keep them unformatted), `tests/kernel/test_atomic.py`, `tests/specify_cli/test_locked_frontmatter_writers.py`, the baselines ratchet file, then `tests/status`, `tests/specify_cli/coordination`, `tests/specify_cli/invocation`, the 18 retargeted files and `make test-fast`.
   4. Run `mypy` on `store.py`, `_unsafe.py`, `status_service.py` and `invocations_cmd.py`. Then run `ruff check` and `ruff format --check --force-exclude` on every changed file.
 
 ## Test Strategy

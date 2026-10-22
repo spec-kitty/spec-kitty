@@ -8,14 +8,14 @@ requirement_refs:
 - FR-007
 - SC-002
 - C-001
+planning_base_branch: feat/event-write-hygiene
+merge_target_branch: feat/event-write-hygiene
+branch_strategy: Planning artifacts for this mission were generated on feat/event-write-hygiene. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/event-write-hygiene unless the human explicitly redirects the landing branch.
 subtasks:
 - T010
 - T011
 - T012
 phase: 'Phase 3 - #6607'
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-10-22T13:30:00+00:00'
   actor: system
@@ -37,7 +37,9 @@ owned_files:
 - tests/status/test_hermetic_ambient_git.py
 - tests/status/test_lifecycle_events.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP03 – Dead hosted lifecycle builder and public-imports gate (#6607, part 1)
@@ -62,8 +64,8 @@ Check `spec-kitty agent tasks status --mission event-write-hygiene-01M5HS55` for
 
 - **Delete the dead hosted-era lifecycle builder family** in `src/specify_cli/status/lifecycle_events.py`. This is the operator's ruling; none of these has a `src/` caller:
   - `_validate_lifecycle_payload` (:342). It holds the private import `spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL` at :368.
-  - `_canonical_lifecycle_payload_for_saas` (:376).
-  - `build_saas_lifecycle_queue_event` (:407).
+  - `_canonical_lifecycle_payload_for_saas` (:381).
+  - `build_saas_lifecycle_queue_event` (:408).
   - `repo_root_for_lifecycle_log` (:398), the public alias kept only for the removed sync handler. Keep the private `_repo_root_for_lifecycle_log`, which `migrate_lifecycle_envelope.py:76` and the module itself still use.
   - Remove their facade exports in `status/__init__.py` (:289, :305, :563, :580) and their entries in `lifecycle_events.__all__` (:1287, :1288).
 - **Widen `tests/architectural/test_events_tracker_public_imports.py`, red first.** It currently scans only `src/specify_cli` and bans only `._internal` modules. After this WP it scans every production root and bans any private `spec_kitty_events` / `spec_kitty_tracker` import. It gets no allowlist.
@@ -126,7 +128,7 @@ Check `spec-kitty agent tasks status --mission event-write-hygiene-01M5HS55` for
 
 - **Steps**:
   1. In `tests/status/test_lifecycle_events.py`:
-     - delete the tests of `_validate_lifecycle_payload` (around :940-1045) and `build_saas_lifecycle_queue_event` (around :1050-), including the `_EVENT_TYPE_TO_MODEL` private import at :1013;
+     - delete the tests of `_validate_lifecycle_payload` (from about :926) and `build_saas_lifecycle_queue_event` (around :1050-), including the `_EVENT_TYPE_TO_MODEL` private import at :1013;
      - keep every other test.
   2. In `tests/architectural/test_status_module_boundary.py:131-132`, update the comment or allowlist that names `build_saas_lifecycle_queue_event` / `repo_root_for_lifecycle_log`. Read the test to see whether it pins an import-boundary exemption for these names, and shrink that exemption.
   3. These five tests use `repo_root_for_lifecycle_log` and are owned by this WP:
@@ -136,7 +138,7 @@ Check `spec-kitty agent tasks status --mission event-write-hygiene-01M5HS55` for
      - `tests/specify_cli/write_side/test_characterization_root_walks.py`
      - `tests/status/test_hermetic_ambient_git.py`
 
-     Read each use:
+     Only two of the five use the **public** alias: `test_simple_case_flat_topology.py` and `test_characterization_root_walks.py`. The other three name only the private `_repo_root_for_lifecycle_log`, so verify them and leave them unchanged. Read each use:
      - if it only resolves a repo root, switch it to `kernel`'s / charter's canonical resolver (`resolve_canonical_root` as imported in `lifecycle_events.py`), or to the private `_repo_root_for_lifecycle_log` through the `lifecycle_events` module;
      - if it monkeypatches the public alias to observe the hosted path, retarget it to what it actually observes, or drop that patch when it only guarded the deleted builder.
 
