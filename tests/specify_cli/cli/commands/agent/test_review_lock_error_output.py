@@ -89,6 +89,16 @@ def test_unreadable_lock_at_acquire_is_a_named_refusal(tmp_path: Path, monkeypat
     assert lock.read_text() == "{}"
 
 
+def test_prepare_review_workspace_excludes_the_lock_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _repo(tmp_path)
+    monkeypatch.setattr("specify_cli.review.lock._get_isolation_config", lambda root: None)
+    workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
+
+    workflow._prepare_review_workspace(workspace, repo, "WP01", "claude")
+
+    assert ".spec-kitty/" in (repo / ".git" / "info" / "exclude").read_text().splitlines()
+
+
 def test_foreign_lock_check_names_an_unreadable_lock(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     _corrupt_lock(repo)
