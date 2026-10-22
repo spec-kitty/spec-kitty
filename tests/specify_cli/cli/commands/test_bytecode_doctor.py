@@ -25,7 +25,7 @@ from typer.testing import CliRunner
 
 import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _bytecode_doctor
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 from tests._support.pyc_corruption import corrupt_non_code_body as _corrupt_non_code_body
 from tests._support.pyc_corruption import corrupt_truncated_body as _corrupt_truncated_body
 
@@ -165,26 +165,17 @@ class TestScanBytecodeCache:
         assert result.findings == []
         assert result.unreadable_count == 0
 
-    def test_unreadable_pyc_is_skipped_not_flagged_but_counted(self, fake_pkg: Path) -> None:
+    def test_unreadable_pyc_is_skipped_not_flagged_but_counted(self, fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """An unreadable cache is never a finding -- its body was never inspected --
 
         but must not silently make an audit that skipped part of the cache report
         "clean" as if it had checked everything (#4130 fold: fail-closed honesty).
         """
         pyc = _init_pyc(fake_pkg)
-        os.chmod(pyc, 0o000)
-        try:
-            if not mode_bits_enforced(pyc):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
-                    "file (running as root, or a filesystem that ignores mode "
-                    "bits), so the unreadable branch cannot be constructed here."
-                )
-            result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
-            assert result.findings == []
-            assert result.unreadable_count == 1
-        finally:
-            os.chmod(pyc, 0o644)
+        deny_path_method(monkeypatch, "read_bytes", pyc)  # chmod(0o000) does not deny root (#5691)
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        assert result.findings == []
+        assert result.unreadable_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -325,40 +316,22 @@ class TestDoctorBytecodeCli:
 
     def test_json_output_surfaces_unreadable_count(self, fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         pyc = _init_pyc(fake_pkg)
-        os.chmod(pyc, 0o000)
-        try:
-            if not mode_bits_enforced(pyc):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
-                    "file (running as root, or a filesystem that ignores mode "
-                    "bits), so the unreadable branch cannot be constructed here."
-                )
-            monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
+        deny_path_method(monkeypatch, "read_bytes", pyc)  # chmod(0o000) does not deny root (#5691)
+        monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
 
-            result = runner.invoke(doctor_module.app, ["bytecode", "--json"])
+        result = runner.invoke(doctor_module.app, ["bytecode", "--json"])
 
-            assert result.exit_code == 0  # unreadable is not itself a finding
-            payload = json.loads(result.output)
-            assert payload["unreadable_count"] == 1
-        finally:
-            os.chmod(pyc, 0o644)
+        assert result.exit_code == 0  # unreadable is not itself a finding
+        payload = json.loads(result.output)
+        assert payload["unreadable_count"] == 1
 
     def test_human_output_surfaces_unreadable_count(self, fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         pyc = _init_pyc(fake_pkg)
-        os.chmod(pyc, 0o000)
-        try:
-            if not mode_bits_enforced(pyc):
-                pytest.skip(
-                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
-                    "file (running as root, or a filesystem that ignores mode "
-                    "bits), so the unreadable branch cannot be constructed here."
-                )
-            monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
+        deny_path_method(monkeypatch, "read_bytes", pyc)  # chmod(0o000) does not deny root (#5691)
+        monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
 
-            result = runner.invoke(doctor_module.app, ["bytecode"])
+        result = runner.invoke(doctor_module.app, ["bytecode"])
 
-            assert result.exit_code == 0
-            assert "1" in result.output
-            assert "unreadable" in result.output.lower()
-        finally:
-            os.chmod(pyc, 0o644)
+        assert result.exit_code == 0
+        assert "1" in result.output
+        assert "unreadable" in result.output.lower()

@@ -9,6 +9,7 @@ import pytest
 
 from specify_cli.asset_preservation import guard_destructive_removal
 from specify_cli.tool_surface.operations import OwnershipProof
+from tests._support.eacces import deny_removal_from
 
 pytestmark = pytest.mark.unit
 
@@ -120,7 +121,7 @@ def test_absent_path_is_a_noop(tmp_path: Path) -> None:
 # --- owned but read-only-attributed ⇒ the guard still removes (regression) -
 
 
-def test_owned_read_only_file_is_removed_by_the_guard(tmp_path: Path) -> None:
+def test_owned_read_only_file_is_removed_by_the_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A package-owned file whose containing directory was installed without
     the write bit (e.g. a read-only package install) must still be removed —
     ownership is proven, so the guard retries after making it writable rather
@@ -130,6 +131,9 @@ def test_owned_read_only_file_is_removed_by_the_guard(tmp_path: Path) -> None:
     path = parent / "x.md"
     path.write_bytes(b"x")
     parent.chmod(0o555)  # r-xr-xr-x: no write bit, blocks unlink of children
+    # Root ignores the parent's mode bits, so the first unlink would succeed
+    # and the retry would never run; deny it at the seam for every uid (#5691).
+    deny_removal_from(monkeypatch, parent)
     try:
         verdict = guard_destructive_removal(path, tmp_path, prover=_AlwaysOwned())
     finally:
@@ -138,7 +142,7 @@ def test_owned_read_only_file_is_removed_by_the_guard(tmp_path: Path) -> None:
     assert not path.exists()
 
 
-def test_owned_read_only_tree_is_removed_by_the_guard(tmp_path: Path) -> None:
+def test_owned_read_only_tree_is_removed_by_the_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A package-owned directory that is itself read-only (and carries a
     read-only file inside) must still be removed in full — ownership is
     proven, so the guard retries the rmtree after making the blocking members
@@ -149,6 +153,7 @@ def test_owned_read_only_tree_is_removed_by_the_guard(tmp_path: Path) -> None:
     member.write_bytes(b"a")
     member.chmod(0o444)  # read-only file
     d.chmod(0o555)  # read-only dir: blocks unlinking members inside it
+    deny_removal_from(monkeypatch, d)  # the same denial for root (#5691)
     try:
         verdict = guard_destructive_removal(d, tmp_path, prover=_AlwaysOwned(), is_tree=True)
     finally:

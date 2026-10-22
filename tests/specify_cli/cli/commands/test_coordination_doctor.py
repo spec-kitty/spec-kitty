@@ -10,7 +10,6 @@ invariant: the ``merge.path_is_under_worktrees`` import is function-local and no
 from __future__ import annotations
 
 import json as _json
-import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,7 @@ from kernel.git import GitCommandError, GitPath, StatusEntry
 from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
 from specify_cli.consolidation.state import ConsolidationState, load_state, save_state
-from tests._support.eacces import mode_bits_enforced
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -395,24 +394,14 @@ def test_collect_findings_unstattable_mission_candidate_is_not_silently_skipped(
     specs.mkdir()
     (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        with pytest.raises(OSError):
-            cd._collect_coordination_findings(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs / "m-link")
+    with pytest.raises(OSError):
+        cd._collect_coordination_findings(tmp_path)
 
 
 def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silently_skipped(
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """The `_apply_coord_staleness_fixes` twin of the test above (same `#3194` shape)."""
     vault = tmp_path / "vault"
@@ -421,20 +410,10 @@ def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silent
     specs.mkdir()
     (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
 
-    canary = vault / "canary"
-    canary.write_text("{}", encoding="utf-8")
-    os.chmod(vault, 0o000)
-    try:
-        if not mode_bits_enforced(canary):
-            pytest.skip(
-                "SKIPPED HONESTLY, not passed: this process can stat through a "
-                "0o000 directory (running as root, or a filesystem that ignores "
-                "mode bits), so the branch cannot be constructed here."
-            )
-        with pytest.raises(OSError):
-            cd._apply_coord_staleness_fixes(tmp_path)
-    finally:
-        os.chmod(vault, 0o700)
+    # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
+    deny_path_method(monkeypatch, "stat", specs / "m-link")
+    with pytest.raises(OSError):
+        cd._apply_coord_staleness_fixes(tmp_path)
 
 
 # --- H2 / cycle invariants ---------------------------------------------------

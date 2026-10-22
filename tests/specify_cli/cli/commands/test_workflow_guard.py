@@ -18,7 +18,6 @@ what the operator actually sees at the command boundary.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -26,6 +25,7 @@ import pytest
 
 from specify_cli import _run_app_with_error_hook
 from specify_cli.cli.commands import workflow as workflow_module
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -160,24 +160,19 @@ def test_workflow_import_wrong_top_level_type_presents_clean_error(tmp_path: Pat
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32" or os.geteuid() == 0,
-    reason="chmod 0o000 does not deny reads on Windows or for root",
-)
 def test_workflow_import_unreadable_file_presents_clean_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """#4738: permission-denied on the source file is the same clean error, no OSError traceback."""
     source = tmp_path / "denied.yaml"
     source.write_text(VALID_WORKFLOW_YAML, encoding="utf-8")
-    os.chmod(source, 0o000)
+    # Deny the read at the seam: chmod(0o000) denies neither root nor Windows (#5691).
+    for attr in ("read_text", "read_bytes"):
+        deny_path_method(monkeypatch, attr, source)
     project_root = tmp_path / "project"
 
-    try:
-        exit_code = _invoke(
-            ["import", str(source), "--project-root", str(project_root)],
-            monkeypatch=monkeypatch,
-        )
-    finally:
-        os.chmod(source, 0o644)
+    exit_code = _invoke(
+        ["import", str(source), "--project-root", str(project_root)],
+        monkeypatch=monkeypatch,
+    )
 
     assert exit_code == 1
     captured = capsys.readouterr()

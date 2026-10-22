@@ -25,6 +25,7 @@ from specify_cli.bootstrap.env_file import (
     parse_env_file,
 )
 from kernel.paths import get_runtime_state_root
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -250,17 +251,13 @@ class TestFailPolicy:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
     ) -> None:
         home_env_path = _write_home_env(monkeypatch, tmp_path, "FOO=bar\n")
-        home_env_path.chmod(0o000)
-        try:
-            if os.access(home_env_path, os.R_OK):
-                pytest.skip("filesystem/user does not enforce chmod 000 (e.g. running as root)")
+        # Deny the read at the seam rather than chmod(0o000), which root reads through (#5691).
+        deny_path_method(monkeypatch, "read_text", home_env_path)
 
-            with pytest.raises(OperatorEnvFileUnreadableError) as excinfo:
-                load_operator_env_file(start=repo_dir, environ={})
+        with pytest.raises(OperatorEnvFileUnreadableError) as excinfo:
+            load_operator_env_file(start=repo_dir, environ={})
 
-            assert str(home_env_path) in str(excinfo.value)
-        finally:
-            home_env_path.chmod(0o644)
+        assert str(home_env_path) in str(excinfo.value)
 
     def test_malformed_line_is_skipped_bootstrap_survives(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path

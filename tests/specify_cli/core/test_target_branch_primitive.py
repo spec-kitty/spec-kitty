@@ -11,13 +11,12 @@ Design contract:
 
 from __future__ import annotations
 
-import os
-import stat
 from pathlib import Path
 
 import pytest
 
 from specify_cli.core.paths import MissionMetaReadError, read_target_branch_from_meta
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -161,8 +160,7 @@ def test_non_object_json_raises_mission_meta_read_error(tmp_path: Path) -> None:
         read_target_branch_from_meta(feature_dir)
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root ignores file permissions")
-def test_io_error_raises_mission_meta_read_error(tmp_path: Path) -> None:
+def test_io_error_raises_mission_meta_read_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """I/O failure reading meta.json → MissionMetaReadError (fail-closed).
 
     RED pre-fix: the old code silently returned the fallback branch.
@@ -172,13 +170,9 @@ def test_io_error_raises_mission_meta_read_error(tmp_path: Path) -> None:
     feature_dir.mkdir()
     meta_path = feature_dir / "meta.json"
     meta_path.write_text('{"target_branch": "main"}', encoding="utf-8")
-    meta_path.chmod(stat.S_IWRITE)  # write-only — deny read
-    # On Linux, write-only means mode 0o200 (no read bit).
-    # We need to explicitly revoke the read bit:
-    meta_path.chmod(0o200)
+    # Deny the read at the seam: root reads a chmod(0o200) file (#5691).
+    for attr in ("read_text", "read_bytes"):
+        deny_path_method(monkeypatch, attr, meta_path)
 
-    try:
-        with pytest.raises(MissionMetaReadError):
-            read_target_branch_from_meta(feature_dir)
-    finally:
-        meta_path.chmod(0o644)  # restore so tmp_path cleanup can delete it
+    with pytest.raises(MissionMetaReadError):
+        read_target_branch_from_meta(feature_dir)

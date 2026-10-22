@@ -872,12 +872,15 @@ def test_rmtree_writable_removes_a_read_only_tree_on_every_supported_python(tmp_
     import sys
 
     from specify_cli.git import destructive_guard
+    from tests._support.eacces import deny_removal_from
 
     tree = tmp_path / "ro"
     (tree / "sub").mkdir(parents=True)
     (tree / "sub" / "f.txt").write_text("x", encoding="utf-8")
     os.chmod(tree / "sub" / "f.txt", stat.S_IRUSR)
     os.chmod(tree / "sub", stat.S_IRUSR | stat.S_IXUSR)
+    # Root ignores the read-only parent, so the retry hook would never run (#5691).
+    deny_removal_from(monkeypatch, tree / "sub")
     fake = _FakeRmtree(shutil.rmtree)
     monkeypatch.setattr(sys, "version_info", (*version, 0, "final", 0))
     if version >= (3, 12):

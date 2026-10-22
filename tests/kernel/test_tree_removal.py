@@ -11,6 +11,7 @@ import pytest
 
 from kernel import tree_removal
 from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
+from tests._support.eacces import deny_removal_from
 
 
 def _tree(root: Path) -> Path:
@@ -124,11 +125,13 @@ def test_a_missing_path_is_false_or_raises(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission bits")
-def test_a_read_only_member_is_still_removed(tmp_path: Path) -> None:
+def test_a_read_only_member_is_still_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     target = _tree(tmp_path)
     member = target / "deep" / "f.txt"
     member.chmod(stat.S_IREAD)
     (target / "deep").chmod(stat.S_IREAD | stat.S_IEXEC)
+    # Root ignores the read-only parent, so the retry hook would never run (#5691).
+    deny_removal_from(monkeypatch, target / "deep")
 
     assert remove_tool_owned_tree(target, tool_root=tmp_path / "owned", reason="test") is True
     assert not target.exists()
