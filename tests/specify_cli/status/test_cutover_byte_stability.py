@@ -136,7 +136,7 @@ def _no_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the transitions local — no status fan-out, no dossier sync."""
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
 # ── 1. Byte-stability (SC-004 / NFR-003) — the headline ─────────────────────
 
 

@@ -77,8 +77,9 @@ def tasks_are_finalized(mission_dir: Path) -> bool:
     Inode replacement (adjacent hazard, examined): the event-log append
     primitives write a temp file and ``os.replace()`` it over
     ``status.events.jsonl`` (``append_raw_rows_atomic``), as
-    ``status.json``/``decisions/index.json`` do; ``_rollback`` instead opens
-    in ``"ab"`` mode and truncates in place. A rename cannot tear a read:
+    ``status.json``/``decisions/index.json`` do; the rollback cut
+    (``mission_write._rollback_events_locked``) instead opens ``"r+b"`` and
+    truncates in place with ``ftruncate``. A rename cannot tear a read:
     a reader that already holds an fd open before the rename keeps reading
     the old inode's complete content, and a reader that opens after gets
     the fully-new inode's complete content. No reader here can observe a

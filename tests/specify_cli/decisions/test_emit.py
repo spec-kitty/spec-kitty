@@ -373,7 +373,7 @@ def test_emit_decision_opened_survives_a_fanout_exception(
     events = _read_events(tmp_path, MISSION_SLUG)
     assert len(events) == 1
     assert events[0]["event_type"] == DECISION_POINT_OPENED
-    assert "Zeitgeist fan-out failed" in caplog.text
+    assert "Lifecycle fan-out failed" in caplog.text
 
 
 def test_emit_decision_resolved_fanout_envelope_matches_the_local_event(
@@ -429,4 +429,4 @@ def test_emit_decision_resolved_survives_a_fanout_exception(
     events = _read_events(tmp_path, MISSION_SLUG)
     assert len(events) == 1
     assert events[0]["event_type"] == DECISION_POINT_RESOLVED
-    assert "Zeitgeist fan-out failed" in caplog.text
+    assert "Lifecycle fan-out failed" in caplog.text

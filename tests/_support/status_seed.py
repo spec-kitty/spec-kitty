@@ -7,8 +7,8 @@ log use this helper so fixtures take the same write path. Rows are
 serialized by ``store.serialize_event_line`` exactly as before.
 
 The atomic path replaces the file (new inode, mode 0600), adds a trailing
-newline to an existing log that lacks one, reads in text mode (a CRLF log is
-rewritten with LF endings) and refuses a symlinked log with ``StoreError``.
+newline to an existing log that lacks one, reads and writes in text mode (so
+line endings follow the platform's newline translation) and refuses a symlinked log with ``StoreError``.
 Do not seed into a log whose raw bytes the test asserts on.
 """
 

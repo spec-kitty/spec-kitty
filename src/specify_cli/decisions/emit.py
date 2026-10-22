@@ -11,9 +11,9 @@ The payload is validated by the Pydantic model before serialization.
 
 After the local JSONL append succeeds, both events are also offered on the
 same best-effort ``event.publish`` fan-out path already used by
-``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_fanout``
-→ ``specify_cli.status.zeitgeist_bridge``). Fan-out is fire-and-forget: a
-relay outage, missing credential, or codec rejection is logged and dropped,
+``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_fanout``;
+open-core registers no handler). Fan-out is fire-and-forget: a handler
+failure is logged and dropped,
 never raised, and can never roll back or affect the local write that already
 happened above it.
 
@@ -169,12 +169,11 @@ def _queue_decision_fanout(
     outage or codec rejection can never affect the canonical local write.
     ``fire_lifecycle_fanout`` and every handler behind it already catch
     and log their own failures; the ``except`` here is one more belt against
-    a defect in that chain reaching this seam, matching every other slot
-    wrapper in ``zeitgeist_bridge.py`` (e.g. ``lifecycle_moment_handler``) --
-    never let fan-out raise into a decision-emission caller.
+    a defect in that chain reaching this seam -- never let fan-out raise into
+    a decision-emission caller.
 
-    ``repo_root`` (#5181): the caller's own ``repo_root`` argument, threaded
-    through so the drain gate reads THIS repo's posture, never the process CWD.
+    ``repo_root`` (#5181): the caller's own ``repo_root`` argument, accepted by
+    :func:`fire_lifecycle_fanout` for API stability and not forwarded to handlers.
     """
     from specify_cli.status import fire_lifecycle_fanout
 
@@ -190,7 +189,7 @@ def _queue_decision_fanout(
         fire_lifecycle_fanout(envelope=envelope, log_path=events_path, repo_root=repo_root)
     except Exception:
         logger.warning(
-            "Zeitgeist fan-out failed for %s; canonical decision log unaffected",
+            "Lifecycle fan-out failed for %s; canonical decision log unaffected",
             event_dict["event_type"],
             exc_info=True,
         )

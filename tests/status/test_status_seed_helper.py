@@ -37,8 +37,9 @@ def events() -> list[StatusEvent]:
 
 
 def _log_bytes(feature_dir: Path) -> bytes:
+    """Log content with platform newline translation undone (text mode writes CRLF on Windows)."""
     log: Path = feature_dir / store.EVENTS_FILENAME
-    return log.read_bytes()
+    return log.read_bytes().replace(b"\r\n", b"\n")
 
 
 def test_bytes_equal_canonical_serialization(tmp_path: Path, events: list[StatusEvent]) -> None:

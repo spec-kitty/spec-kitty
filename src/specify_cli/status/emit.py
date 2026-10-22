@@ -1314,7 +1314,7 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str, repo_
     / :func:`_status_fan_out`): when the installed ``spec_kitty_events`` lacks
     ``WPResolvedBindingChanged`` the fan-out is a **logged, intentional skip**,
     never a swallowed ``ValidationError``, and canonical local state is untouched.
-    The concrete payload model is built by the registered sync handler once 6.2.0
+    The concrete payload model is built by a registered transport handler once 6.2.0
     ships; the status layer only feature-detects via the gate and hands off kwargs
     (the same handoff shape as :func:`_status_fan_out` — no local type definition).
 
@@ -1520,8 +1520,8 @@ def _status_fan_out(
     """Conditionally fan out a status event via the registered handlers.
 
     Routes through specify_cli.status.adapters.fire_status_fanout, which
-    is non-raising and a no-op when no sync handler has been registered
-    (e.g., 0.1x branch or test environments without sync imported).
+    is non-raising and a no-op when no transport handler has been registered
+    (open-core registers none).
     Canonical status persistence is never affected by handler failures.
 
     Genesis compatibility gate (T022, WP04):
@@ -1567,7 +1567,7 @@ def _status_fan_out(
         # time so a transport persists Event.occurred_at = StatusEvent.at, not the
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
-        # The emitting checkout root, so the Zeitgeist bridge resolves relay
-        # credentials from it instead of the process cwd (#125).
+        # The emitting checkout root, so a transport handler resolves per-repo
+        # context from it instead of the process cwd (#125).
         repo_root=repo_root,
     )
