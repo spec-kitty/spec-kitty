@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/architectural/test_events_tracker_public_imports.py (all 6 production roots, alias.name, red at 78730d04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:13.083040+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
