@@ -378,6 +378,11 @@ def review_lock_refusal(
     return "\n".join(lines)
 
 
+def review_lock_raced_refusal(path: str) -> str:
+    """Refusal text for a lock that read as corrupt once and may have been mid-write (the lane update's fail-closed leg)."""
+    return f"{REVIEW_LOCK_UNREADABLE}: refusing to update the lane; the review lock {path} changed while it was read. Re-run the review."
+
+
 def _claim_line(claimed: bool) -> str:
     """What the refusal says about the review claim (see :func:`review_lock_refusal`)."""
     if claimed:
