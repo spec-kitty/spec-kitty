@@ -26,7 +26,7 @@ from specify_cli.coordination import status_transition as st
 from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
-pytest_plugins = ("tests.conftest_saas_sink",)
+pytest_plugins = ("tests.conftest_fanout_sink",)
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _FULL_ULID = "01KVPR00WP05EMIT000000000B"

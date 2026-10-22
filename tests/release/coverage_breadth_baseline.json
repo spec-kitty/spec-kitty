@@ -32,9 +32,9 @@
     },
     "node_ids": [
       "tests/status/test_emit_durability.py::TestT015Responsiveness::test_verdict_recording_completes_under_two_seconds",
+      "tests/status/test_fanout_timeout.py::test_hanging_handler_returns_within_three_seconds",
+      "tests/status/test_fanout_timeout.py::test_hanging_lifecycle_handler_does_not_block",
       "tests/status/test_locking_key.py::test_contended_bounded_take_stays_under_five_seconds",
-      "tests/status/test_saas_fanout_timeout.py::test_hanging_lifecycle_handler_does_not_block",
-      "tests/status/test_saas_fanout_timeout.py::test_hanging_saas_handler_returns_within_three_seconds",
       "tests/status/test_tail_reader.py::test_tail_events_zero_real_sleep_stays_under_budget"
     ]
   },
