@@ -341,10 +341,41 @@ def export_tree(repo: Path, rev: str, *paths: str) -> None:
 # Operator-sanctioned corrections (#6061, #6205, #6238) are read from this pinned
 # commit, never HEAD: HEAD may legitimately re-edit a sanctioned file, which
 # would silently change the fixture. 2ff2f1deb5 holds their final sanctioned bytes.
-# When _OPERATOR_SANCTIONED_CORRECTIONS gains an entry sanctioned after this commit,
-# move the pin to that commit; when an entry inside the export is added or removed,
-# update FULL_CORPUS_SANCTIONED_COUNT with it.
 SANCTIONED_AT = "2ff2f1deb542ecec9a637bd872e91cef3437fee9"
+
+# The corrected files this fixture overlays: the archive gate's former
+# operator-sanctioned carve-out entries that exist in the exported historical
+# corpus. The list is pinned here, not read from the gate, because the gate
+# drains its carve-out once a correction is main's baseline (#4956) while this
+# fixture still rebuilds the pre-correction history. Every path exists at
+# SANCTIONED_AT, and the full-corpus export contains all of them.
+SANCTIONED_OVERLAY_PATHS: tuple[str, ...] = (
+    "kitty-specs/005-refactor-mission-system/status.events.jsonl",
+    "kitty-specs/005-refactor-mission-system/status.json",
+    "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md",
+    "kitty-specs/055-agent-skills-pack/status.events.jsonl",
+    "kitty-specs/055-agent-skills-pack/status.json",
+    "kitty-specs/057-doctrine-stack-init-and-profile-integration/status.events.jsonl",
+    "kitty-specs/057-doctrine-stack-init-and-profile-integration/status.json",
+    "kitty-specs/062-fix-doctrine-migration-test-failures/status.events.jsonl",
+    "kitty-specs/062-fix-doctrine-migration-test-failures/status.json",
+    "kitty-specs/079-post-555-release-hardening/status.json",
+    "kitty-specs/ci-scoping-gate-reliability-01KZP80D/status.events.jsonl",
+    "kitty-specs/ci-scoping-gate-reliability-01KZP80D/status.json",
+    "kitty-specs/drg-reachability-metric-wiring-01KZS5VR/status.events.jsonl",
+    "kitty-specs/drg-reachability-metric-wiring-01KZS5VR/status.json",
+    "kitty-specs/expected-artifacts-loader-unification-01M1C9VQ/status.events.jsonl",
+    "kitty-specs/expected-artifacts-loader-unification-01M1C9VQ/status.json",
+    "kitty-specs/next-committed-state-authority-01M1CA8W/status.events.jsonl",
+    "kitty-specs/next-committed-state-authority-01M1CA8W/status.json",
+    "kitty-specs/post-convergence-governance-01M1TMPH/status.events.jsonl",
+    "kitty-specs/sync-sleep-count-3136-01KZ9B5A/status.events.jsonl",
+    "kitty-specs/sync-sleep-count-3136-01KZ9B5A/status.json",
+    "kitty-specs/up-mission-type-seam-01KZY1JB/status.events.jsonl",
+    "kitty-specs/up-mission-type-seam-01KZY1JB/status.json",
+    "kitty-specs/up-org-doctrine-consumers-01M05YAB/status.events.jsonl",
+    "kitty-specs/up-org-doctrine-consumers-01M05YAB/status.json",
+)
 FULL_CORPUS_SANCTIONED_COUNT = 25
 
 
@@ -352,12 +383,12 @@ def _apply_sanctioned_corrections(repo: Path) -> list[str]:
     """Overlay the operator-sanctioned corrected files onto the exported corpus.
 
     Only paths that already exist in the exported tree are rewritten; absent
-    paths are skipped and never created. The path set is the gate's own
-    ``_OPERATOR_SANCTIONED_CORRECTIONS`` (no duplicated list). The narrower
-    non-full fixture contains none of them, so the overlay applies 0 there.
+    paths are skipped and never created. The path set is
+    ``SANCTIONED_OVERLAY_PATHS``. The narrower non-full fixture contains none of
+    them, so the overlay applies 0 there.
     """
     applied: list[str] = []
-    for path in sorted(gate._OPERATOR_SANCTIONED_CORRECTIONS):
+    for path in sorted(SANCTIONED_OVERLAY_PATHS):
         target = repo / path
         if not target.is_file():
             continue
@@ -397,7 +428,7 @@ def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
     if full:
         assert len(applied) == FULL_CORPUS_SANCTIONED_COUNT, (
             f"sanctioned overlay applied {len(applied)} paths, expected {FULL_CORPUS_SANCTIONED_COUNT}; "
-            "update FULL_CORPUS_SANCTIONED_COUNT when _OPERATOR_SANCTIONED_CORRECTIONS changes"
+            "update FULL_CORPUS_SANCTIONED_COUNT when SANCTIONED_OVERLAY_PATHS changes"
         )
     if applied:
         git(repo, "add", "-f", ".")
