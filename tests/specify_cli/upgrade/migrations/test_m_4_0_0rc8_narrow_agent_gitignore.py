@@ -237,10 +237,16 @@ def test_legacy_entry_list_is_frozen() -> None:
 
 
 def test_runner_narrows_an_rc7_project_end_to_end(tmp_path: Path) -> None:
+    from specify_cli.upgrade.autocommit import capture_upgrade_baseline, commit_touched_checkout
+
     project = _project(tmp_path, f"{SPEC_KITTY_GITIGNORE_MARKER}\n.claude/\n.kiro/\n", "claude")
     ProjectMetadata(version="4.0.0rc7", initialized_at=now_utc()).save(project / ".kittify")
     _touch(project, ".claude/settings.json", ".kiro/steering/team.md")
     assert _is_ignored(project, ".claude/settings.json")
+    git = ["git", "-C", str(project), "-c", "user.name=t", "-c", "user.email=t@example.com"]
+    subprocess.run([*git, "add", ".gitignore", ".kittify"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "init"], check=True)
+    baseline = capture_upgrade_baseline(project)
 
     MigrationRegistry.clear()
     auto_discover_migrations()
@@ -249,6 +255,11 @@ def test_runner_narrows_an_rc7_project_end_to_end(tmp_path: Path) -> None:
     assert NarrowAgentGitignoreMigration.migration_id in result.migrations_applied, result.errors
     assert not _is_ignored(project, ".claude/settings.json")
     assert not _is_ignored(project, ".kiro/steering/team.md")
+    # Files the run un-ignored are the team's to review: the upgrade commit must not sweep them in.
+    _committed, committed_paths, _warning = commit_touched_checkout(project, baseline, "4.0.0rc7", "4.0.0rc8")
+    assert ".gitignore" in committed_paths
+    assert ".claude/settings.json" not in committed_paths
+    assert ".kiro/steering/team.md" not in committed_paths
 
 
 def test_backfill_rows_appended_after_operator_lines_are_still_spec_kittys(tmp_path: Path) -> None:
