@@ -698,8 +698,8 @@ def emit_artifact_phase_local(
     "dormant mask"): the canonical pydantic payload models in
     ``spec_kitty_events.project_lifecycle`` declare ``extra="forbid"``,
     so ``summary`` / ``wp_count`` remain Completed-only. ``artifact_path`` is
-    local lifecycle metadata for Started events; the SaaS fan-out path strips
-    it before strict canonical validation.
+    local lifecycle metadata for Started events and is persisted in the local
+    log only; the canonical Started payload models do not declare it.
     """
     from spec_kitty_events.project_lifecycle import (
         PlanCompletedPayload,
@@ -951,8 +951,9 @@ def emit_mission_reopened(
     rather than this event's ``cleared_merge`` payload being an unconditional
     record of what is now on disk.
 
-    This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
-    is intentionally kept off the SaaS strict-validation model map.
+    This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note):
+    core persists it to the local lifecycle log and runs no hosted
+    validation or queueing for it.
 
     Fail-closed (#1926): a mission can only be re-opened once it has *reached
     completion* (merged, or all WPs terminal). Re-opening a mission that never
