@@ -5,7 +5,7 @@ stream that records project initialization, mission creation,
 spec/plan/tasks artifact lifecycle, and work-package creation. Lifecycle
 events land on disk synchronously *before* any best-effort outbox
 fan-out, so local dashboards and TeamSpace import always have a complete
-history even when the scoped sync boundary is unavailable.
+history even when a fan-out handler is unavailable.
 
 Two log targets exist:
 
@@ -952,7 +952,7 @@ def emit_mission_reopened(
     record of what is now on disk.
 
     This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note):
-    core persists it to the local lifecycle log and runs no hosted
+    core persists it to the local lifecycle log and runs no handler
     validation or queueing for it.
 
     Fail-closed (#1926): a mission can only be re-opened once it has *reached

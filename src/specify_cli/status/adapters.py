@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 # Wall-time bound (seconds) for a single status/lifecycle fan-out handler. The
 # fan-out contract is "fan-out failures never block canonical persistence" — a
-# guarantee that must cover a *hanging* handler (e.g. a transport polling a
-# stopped daemon with a large offline-queue backlog), not just a raising one.
+# guarantee that must cover a *hanging* handler (e.g. a handler that blocks
+# on I/O), not just a raising one.
 # Handlers run in a short-lived daemon thread joined with this timeout; on
 # timeout the caller (canonical persistence) proceeds and the worker is left to
 # unwind on its own. Generous enough for a legitimate enqueue; a non-positive

@@ -1544,7 +1544,7 @@ def _status_fan_out(
         )
         return
 
-    # WPStatusChangeMetadata lives in the CORE status layer (not sync/INTEGRATION),
+    # WPStatusChangeMetadata lives in the CORE status layer (not the INTEGRATION layer),
     # so importing it here does not cross the CORE→INTEGRATION boundary that
     # test_integration_boundary.py enforces; the actual transport wiring still routes
     # only through the status/adapters observer registry (fire_status_fanout).
@@ -1565,7 +1565,7 @@ def _status_fan_out(
         mission_id=event.mission_id,
         # Producer occurrence time: thread the canonical local lane-transition
         # time so a transport persists Event.occurred_at = StatusEvent.at, not the
-        # sync-emission clock (Rule R-T-01 in spec-kitty-events).
+        # emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         # The emitting checkout root, so a transport handler resolves per-repo
         # context from it instead of the process cwd (#125).
