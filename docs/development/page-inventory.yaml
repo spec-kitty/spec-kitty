@@ -1856,6 +1856,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/event-ledger-writers-and-readers.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/execution-lanes.md
   tag: current
   divio_type: none
@@ -3905,6 +3911,12 @@
 - path: docs/development/reference/coverage-signals.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/reference/events-in-core.md
+  tag: current
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null

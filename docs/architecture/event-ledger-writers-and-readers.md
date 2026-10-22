@@ -1,0 +1,271 @@
+---
+title: Event Ledger Writers and Readers
+description: 'Current-state map of every event log and ledger core writes and reads, the target the event ADRs set, and a cited gap table with remedies and tracker items.'
+doc_status: active
+updated: '2026-10-22'
+type: explanation
+audience: docs/context/audience/internal/system-architect.md
+related:
+- docs/architecture/status-model.md
+- docs/development/reference/events-in-core.md
+- docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md
+- docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md
+- docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md
+- docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md
+- docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md
+---
+# Event Ledger Writers and Readers
+
+This page maps **who writes and who reads every append-only event log and ledger in
+core today**, states the target the event ADRs set, and lists the gaps between the two
+with evidence, the ADR clause each one misses, a remedy and a tracker item. It is a
+point-in-time grounding (core `main` at `fcb0ce13`, 2026-10-22; `spec-kitty-events`
+locked at 11.0.0 in `uv.lock`, upstream at 11.2.1). Line numbers drift; the symbol
+names are the stable part.
+
+For the lane state machine itself (lanes, guards, CLI commands) read the
+[status model](status-model.md). For contributor rules ("how do I write or read an
+event today") read [Events in core](../development/reference/events-in-core.md).
+
+## Scope and vocabulary
+
+- **Event log**: an append-only JSONL file whose rows are facts (`status.events.jsonl`,
+  `canonical-events.jsonl`, `run.events.jsonl`, `decisions.events.jsonl`,
+  `mission-events.jsonl`, the glossary logs, `kitty-ops/*.jsonl`). These are what
+  ADR 2026-10-14-1 calls "event logs" and what its single-writer rule covers.
+- **State ledger**: an append-only or state file that records configuration or
+  bookkeeping, not domain facts: the migration ledger (`.kittify/migration-ledger.jsonl`
+  and `.kittify/migrations/clone-local.jsonl`, ADR 2026-10-17-1) and the activation
+  ledger (`.kittify/charter/activation.yaml`, a YAML state file). They appear here
+  only so a reader does not confuse them with the event ledger. Never write bare
+  "the ledger".
+- **Produce seam**: `src/specify_cli/status/adapters.py`, the in-process
+  publish/subscribe surface. Open-core registers no handler, so every `fire_*` call is
+  a no-op until a transport owner registers one. "Sync" names nothing live here.
+
+## Current state: writers
+
+Rows are grouped by file. "Contract writer" means the row is written through
+`spec_kitty_events.persistence.append_event`, the library's fail-closed ledger write
+contract (`spec-kitty-events` `docs/api/ledger-write-contract.md`).
+
+| Log | Writer (file:line) | Row shape | Contract writer? | Locked? | Fires seam? |
+|---|---|---|---|---|---|
+| `kitty-specs/<m>/status.events.jsonl`, lane transitions, flat shell | `status/transition_pipeline.py:245` `prepare_transition` builds the event; `status/emit.py:831` `_persist_prepared` → `status/store.py:496` `append_event_stream_atomic_verified` → `store.py:369` `append_raw_rows_atomic` (temp file, fsync, `os.replace`) | `StatusEvent`, flat, no version, no clock; serialized by `store.py:293` `serialize_event_line` | No | Yes (`feature_status_lock`) | Yes, after the lock (`emit.py:1027-1035`) |
+| same file, lane transitions, coordination shell | `coordination/status_transition.py:1598` `emit_status_transition_transactional` → `coordination/transaction.py:985` `BookkeepingTransaction.append_events` → `coordination/status_service.py` `append_event_stream_log` | same | No | Yes | Yes, deferred until after the commit (`coordination/outbound.py:103`) |
+| same file, inner-state annotations | `status/emit.py:1212` `emit_inner_state_changed` | `InnerStateChanged`, no version | No | Yes | Yes |
+| same file plus `.kittify/canonical-events.jsonl`, internal lifecycle events | `status/lifecycle_events.py:523` `persist_lifecycle_event_local` → `:249` `_atomic_append` → `append_raw_rows_atomic`; file names at `:120-121` | local envelope `"5.0.0"`, marked `canonical-producer-exempt: #1198` (`:303`, `:314`) | No | Yes | Yes (`fire_lifecycle_saas_fanout`) |
+| same file, decision points | `decisions/emit.py:117` `_append_raw_event` → `append_raw_rows_atomic` | `DECISIONPOINT_SCHEMA_VERSION` payload; a line count stands in for a Lamport value | No, though the contract covers DecisionPoint ledgers | Yes | Yes |
+| same file, retrospective run-terminus (superseded, no new callers) | `retrospective/events.py`, `append_raw_rows_atomic` under `retro_status_lock` | own envelope | No | Yes | No |
+| same file, retrospective lifecycle | `retrospective/lifecycle_events.py` (`_append_retro_lifecycle_event`, `_locked_append`) | integer `schema_version` | No | Yes | **No** |
+| same file, backfill migrations and whole-log rewrites | `migration/backfill_runtime_state.py`, `migration/verdict_provenance_backfill.py`, `migration/rebuild_state.py`, `consolidation/bookkeeping_projection.py`, the merge driver `event_log_merge.py` | synthesized or rewritten rows | No | Mostly | No |
+| `.kittify/events/glossary/<mission_id>.events.jsonl` | `src/glossary/events.py:41` imports `spec_kitty_events.persistence.append_event`; torn-tail repair under a lock | package models | **Yes, the only user** | Yes | No |
+| `kitty-ops/<op>.jsonl`, `ops-index.jsonl`, `op-closures.jsonl` | `invocation/writer.py:233` `write_started`, `:260` `write_completed`, `:194` `_append_line_no_follow` (`O_APPEND`, `O_NOFOLLOW`), `:42` `append_op_closure` | Op record schema v2 | No | Per-file create | No |
+| `kitty-ops/lifecycle.jsonl` | `invocation/lifecycle.py:57` `append_lifecycle_record`, plain `open("a")` at `:65` | Op lifecycle record | No | **No** | No |
+| `kitty-ops/propagation-errors.jsonl` | `invocation/propagator.py`, plain append from a background thread | own dict | No | **No** | No |
+| `.kittify/runtime/runs/<run>/run.events.jsonl` | `src/runtime/next/_internal_runtime/engine.py:107` `_append_event` (`open("a")` + fsync), marked `canonical-producer-exempt: #1248` (`:109`) | `{event_type, timestamp, payload}`, no `event_id`, no version | No | **No** | No |
+| `kitty-specs/<m>/decisions.events.jsonl` | `events/decision_log.py:248` `DecisionGitLog._append_to_file`, plain `open("a")` at `:252`, then `safe_commit` | sanitized `mission_next` payload | No | **No** | No |
+| `kitty-specs/<m>/mission-events.jsonl` | `mission_v1/events.py:60` `_write_event`, plain `open("a")` | own dict | No | **No** | No |
+| `kitty-specs/<m>/policy-audit.jsonl`, `.kittify/archive/archived-missions.jsonl`, `.kittify/encoding-provenance/global.jsonl` | `policy/audit.py`, `missions/_archive.py`, `charter/activation/_io.py` | own dicts | No | **No** | No |
+| Migration ledger (state ledger) | `upgrade/ledger.py:248` `Ledger.append`, `:255` `append_many`: full-file atomic rewrite, deliberately not `O_APPEND` | `{id, applied_at, result, identity, content_hash, cli_version}` | n/a | No lock | n/a |
+| Activation ledger (state ledger) | `charter.activation.activation_ledger` `prepare_ledger_write` | YAML state | n/a | n/a | n/a |
+
+What holds today:
+
+- `status.events.jsonl` has a disciplined write funnel. Raw append primitives are
+  importable only from the nine modules in `status/_unsafe.py:75-113`
+  (`ALLOWED_CALLERS`, shrink-only), and `tests/architectural/test_status_events_writes_gate.py`
+  fails on any write to that file outside `status/store.py` and its ledgered
+  out-of-store sites, with a lock-composition census and a non-vacuity floor.
+- The validation step is pure: `prepare_transition` does no writes, locks, git or
+  fan-out (`status/transition_pipeline.py:27-35`).
+- One family already writes through the contract: glossary (#6399, PR #6425).
+
+What does not hold:
+
+- There is **no single canonical writer**. About fifteen append implementations live in
+  more than twelve modules and write at least six row shapes. No `EventBridge` module
+  exists in `src/`.
+- Eight writers append with an unlocked `open("a")` and no torn-tail check, and none of
+  their files has a writes gate.
+- Two whole-log writers serialize with their own `json.dumps(..., sort_keys=True)`
+  (`migration/rebuild_state.py`, `event_log_merge.py`) instead of
+  `store.serialize_event_line`, which calls itself "the one authority for the on-disk
+  row shape" (`store.py:293-300`).
+- The flat `store.append_event` door (`store.py:303`) is a non-atomic `open("a")` with
+  no production caller. Its two wrappers (`append_event_verified` through
+  `status_service.append_event_log`, and `append_primary_checkout_event_verified`) have
+  none either.
+
+## Current state: readers
+
+| Reader | file:line | Reads | Through | Order |
+|---|---|---|---|---|
+| `reduce` | `status/reducer.py:200` (`:205` calls `reduce_parsed`) | typed `StatusEvent` list | `spec_kitty_events.diary.reduce_parsed` | wall clock `at`, then `event_id`, with the approved-departure lift |
+| `materialize_snapshot` / `materialize` | `status/reducer.py:397` (`:401`), `:435` | the log, read twice (stream + raw) | `spec_kitty_events.status.reduce`, a re-export of `diary.reduce` (`parse_diary` then `reduce_parsed`) | same |
+| lane reader, views, aggregate | `status/lane_reader.py`, `status/views.py`, `status/aggregate.py` | `store.read_events` | `reduce` | same |
+| orchestrator-api | `orchestrator_api/commands.py`, `wp_lifecycle.py`, `consolidation.py` | store | `reduce` / `materialize` | same |
+| consolidation gate | `consolidation/reconciliation.py` `build_approved_wp_set` | store | `materialize_snapshot` | same |
+| tail | `status/tail_reader.py` `poll_once`; CLI `cli/commands/events.py` (`events tail`, only `status.events.jsonl`) | raw bytes with a cursor | none (stream) | file offset |
+| preflight actor lookup | `consolidation/preflight.py` `_latest_actor_for_transition` | `read_events_lenient` | none | **append order** (documented as deliberate) |
+| changelog acceptance | `release/changelog.py:129-155` `_wp_lane_from_event_log` | raw `json.loads` loop over `mission_dir` | none | **last `to_lane` in file order** |
+| status-surface guard | `coordination/status_surface_guard.py` | raw lines, event ids only | none | set membership |
+| retrospective readers | `retrospective/summary.py`, `gate.py`, `generator.py` | raw rows | own fold | own `lamport` field |
+| Mission Status Read API (Java) | `services/mission-status-api/.../reducer/StatusReducer.java`, ordering `AtThenEventId.java` | the log | own port of `reduce_parsed` | plain `(at, event_id)`, **no approved-departure lift** |
+| Read API reference oracle | `tests/contract/_mission_status_*.py` | the log | `materialize_snapshot`, `tail_reader` | same as the CLI |
+| migration ledger | `upgrade/ledger.py`, `registry.py` `migration_settled`, `spec-kitty migrate ledger` | both partitions | own normalizer | last record per id in file order |
+
+**There is one reducer, not two.** Every reducer-based CLI lane read (`reduce`, `materialize_snapshot`, `materialize`) reaches the same wall-clock fold,
+`diary.reduce_parsed`, through two parsers. The raw readers in the table (changelog acceptance, the preflight actor lookup, the retrospective folds) bypass it; see G-13. The ordering key is the writer's `at`, then
+`event_id`; since `spec-kitty-events` 10.5.1 a non-seed departure from `approved` is lifted
+to sort after the approval it followed (the #4941 fix, PR #6261). The Lamport reducer
+`spec_kitty_events.status.reduce_status_events` is not on the CLI path, and CLI lane rows
+carry no Lamport clock. What remains open is narrower than #4941 was: a non-approval
+transition minted on a clock behind the event it follows still sorts before that event.
+
+**The read API contract.** `contracts/mission-status/openapi.yaml:4` is `1.0.0-SNAPSHOT`
+(unreleased until the `contract-mission-status-v1.0.0` tag). The Java service in
+`services/mission-status-api/` serves the project, Mission list, SSE events and both artifact
+routes (#957, PRs #6401 and #6427). `getMission`, `getWorkPackage` and
+`getWorkPackageDetail` still return 404 by design, pinned by `OutOfScopeRoutesTest` (#6409).
+No CLI command starts the service and it is not in the wheel.
+
+## Current state at a glance
+
+```mermaid
+flowchart LR
+  subgraph Domain
+    PT["prepare_transition<br/>(pure)"]
+    RT["runtime run loop<br/>RuntimeEventEmitter (Protocol)"]
+  end
+  subgraph Writers["Writers (no single writer yet)"]
+    EMIT["status/emit.py<br/>flat shell"]
+    TX["BookkeepingTransaction<br/>coordination shell"]
+    LC["lifecycle_events.py<br/>'5.0.0' envelope"]
+    DP["decisions/emit.py"]
+    RETRO["retrospective/*"]
+    GL["glossary/events.py"]
+    OTHER["engine.py, decision_log.py,<br/>mission_v1, invocation/*,<br/>policy, archive (plain append)"]
+  end
+  STORE["status/store.py<br/>append_raw_rows_atomic"]
+  LIB["spec_kitty_events.persistence<br/>append_event"]
+  SEL[("status.events.jsonl")]
+  GLL[("glossary/*.events.jsonl")]
+  OL[("run, decisions, mission,<br/>kitty-ops logs")]
+  PT --> EMIT & TX
+  EMIT & TX & LC & DP & RETRO --> STORE --> SEL
+  GL --> LIB --> GLL
+  OTHER --> OL
+  EMIT & TX & LC & DP -.fire_*.-> SEAM["status/adapters.py<br/>(no handler registered)"]
+  SEL --> RED["diary.reduce_parsed<br/>(wall clock)"]
+  RED --> CLI["CLI readers,<br/>orchestrator-api,<br/>consolidation gate"]
+  SEL --> JAVA["Java read API<br/>(at, event_id), no lift"]
+  SEL --> RAW["raw readers:<br/>release/changelog.py,<br/>preflight, tail"]
+```
+
+## Target, as the ADRs set it
+
+- **One canonical event writer, the EventBridge**, an adapter in `specify_cli` behind a
+  domain-owned port grown from `RuntimeEventEmitter`. It is the only module that appends
+  to any event log, and an empty-allowlist gate proves it (ADR 2026-10-14-1 D-1, D-2,
+  Confirmation).
+- **Contract rows only.** Each persisted row is a `spec-kitty-events` row envelope whose
+  `schema_version` is the row version, around a typed payload carrying its own payload
+  version. The 3.0.0 envelope stays the wire form; the library ships the row-to-wire
+  mapping (ADR 2026-10-14-1 D-3, D-3a; ADR 2026-10-13-2 D-1).
+- **The internal lifecycle events are retired**: both `status/lifecycle_events.py` and
+  `retrospective/lifecycle_events.py` go, and each fact becomes a canonical library
+  event, added upstream first (ADR 2026-10-14-1 D-4).
+- **Git and filesystem effects become internal consumers**: synchronous ones inside the
+  unit of work (roll the append back on failure), asynchronous ones idempotent by
+  `event_id` and rerunnable (ADR 2026-10-14-1 D-5).
+- **The ledger is the publication seam**, default on: subscribers read it by cursor
+  (`events tail`, the read API); the in-process seam fires for local adapters; nothing
+  hosted lives in open-core (ADR 2026-10-13-2 D-2; ADR 2026-10-06-1 Amendment 2026-10-12).
+- **Two retention tiers**: committed logs are never pruned; local logs follow a
+  `ledger.retention` policy with a dry-run-first cleanup command (ADR 2026-10-13-2 D-3).
+- **One read port**: every CLI status read goes through it, and the Java service is
+  conformance-gated against the Python reducer (ADR 2026-10-01-2 D-5 as amended, D-9 to D-11).
+- **Merge semantics unchanged** (ADR 2026-10-14-1, Technical Story). ADR 2026-02-09-3 still
+  names a Lamport-primary order, which the CLI does not implement; see gap G-3.
+
+## Gap table
+
+| ID | Gap | Evidence | ADR clause | Proposed remedy | Tracker |
+|---|---|---|---|---|---|
+| G-1 | No single canonical writer; about fifteen append implementations | table above; no `EventBridge` in `src/`; `status/_unsafe.py:75-113` contains only `status.events.jsonl` writers | 2026-10-14-1 D-1, D-2 | Port skeleton grown from `RuntimeEventEmitter`, the WP transition first behind the two existing doors (`emit.py:831`, `transaction.py:985`), per the ADR's own migration-order default | file new (supersedes the premise of #1927) |
+| G-2 | No writes gate for event logs other than `status.events.jsonl` | `tests/architectural/test_status_events_writes_gate.py` covers one file | 2026-10-14-1 Confirmation (gate over `*.events.jsonl`, `canonical-events.jsonl`, `run.events.jsonl`, `mission-events.jsonl`, `kitty-ops/*.jsonl`) | Extend the gate to every named file, frozen at today's writers, draining with G-1 | file new (with G-1) |
+| G-3 | Docs say the status path is Lamport-ordered; it is wall clock | `status/reducer.py:17-18`, `:205`, `:401`; ADR 2026-10-14-1 "Reducer duality" bullet; ADR 2026-02-09-3 (sort "primary: `logical_clock`", "`status emit` ticks the logical clock", the gate "uses the Lamport reduction wrapper"); ADR 2026-10-01-2 (overview "through the Lamport reducer", "ports the Lamport reduction"); `docs/architecture/diagrams/01_context/README.md`, `02_containers/README.md`; `docs/plans/domains/api-dashboard-domain-plan.md` | 2026-02-09-3 Decision; 2026-10-01-2 D-5 | Factual amendments (wording only); whether to make ordering truly Lamport-primary is an operator decision needing a clock on CLI rows (events #72) | file new (#6213 closed after step 1 only) |
+| G-4 | Java read API does not port the #4941 approved-departure lift | `StatusReducer.java` Javadoc on `PORTED_EVENTS_VERSION` ("NOT yet ported"); `AtThenEventId.java` plain `(at, event_id)`; no golden covers the clock-ahead case | 2026-10-01-2 D-11 (conformance to the Python reducer) | Add the clock-ahead golden, port the lift before more read routes ship | #6268 |
+| G-5 | Eight unlocked plain appends, no torn-tail refusal | `invocation/lifecycle.py:65`, `events/decision_log.py:252`, `mission_v1/events.py:60-66`, `engine.py:107-123`, `policy/audit.py`, `missions/_archive.py`, `invocation/propagator.py`, `charter/activation/_io.py` | 2026-10-14-1 D-1 | Route through `persistence.append_event` where a model exists; otherwise its `O_APPEND` single write and torn-tail check | file new (Op family: #6564) |
+| G-6 | Decision-point rows bypass the contract writer the library publishes for them | `decisions/emit.py:117-152`; `spec-kitty-events` `docs/api/ledger-write-contract.md`, "Unclocked envelopes" | 2026-10-13-2 D-1 ("the CLI then writes from the package's models") | Migrate this family next after glossary | #6412 |
+| G-7 | Internal lifecycle modules and their exemptions remain | `status/lifecycle_events.py` (`"5.0.0"`, `#1198` at `:303`, `:314`, `:443`); `retrospective/lifecycle_events.py`; 16 `canonical-producer-exempt` markers in `src/` | 2026-10-14-1 D-4 | Retire after G-1; payload models first (#6438) | #6185 (blocked on owner ruling), #6438 |
+| G-8 | Side effects still inline in the shells | `coordination/transaction.py` commit path; `events/decision_log.py` swallows a failed commit as a warning | 2026-10-14-1 D-5 | Consumers after G-1; make the decision-log commit failure a recorded, rerunnable failure | file new (later step) |
+| G-9 | No local retention policy | no `keep_runs` / `max_age_days` in `src/`; run journals grow unbounded | 2026-10-13-2 D-3 | `ledger.retention` plus a dry-run-first doctor cleanup that protects active and resumable Missions | file new (split out of #6185 item 4) |
+| G-10 | `events tail` tails only `status.events.jsonl`; `--json` has no effect | `cli/commands/events.py:71` (`noqa: ARG001`) | 2026-10-13-2 D-2 | Extend tail to the other logs once G-1 names them | file new (low) |
+| G-11 | Produce-seam names still say "saas" | `status/adapters.py:41`, `:128-130`, `:150-175`, `:217`, `:321`; env `SPEC_KITTY_SAAS_FANOUT_TIMEOUT`; stale `drain_posture` docstrings | 2026-10-13-2 follow-up debt (rename the `saas_fanout` slots) | Transport-neutral rename with an env alias and a stub-handler contract test | file new (only a comment on #6185) |
+| G-12 | CLI status reads do not go through one read port | `orchestrator_api/commands.py` and `tasks_status_cmd.py` call `reduce(...)` themselves; no read-port module | 2026-10-01-2 D-5 (amended: every CLI status read calls only that port) | Introduce the port, gate direct `reduce` callers | #5528 |
+| G-13 | Raw readers that bypass the reducer | `release/changelog.py:129-155` (last `to_lane` in file order, skips corrupt lines, reads `mission_dir` not the resolved status surface); `consolidation/preflight.py` append order | 2026-10-01-2 D-5 | Changelog through `get_wp_lane` and the placement seam; record the preflight order in the ordering ADR or align it | file new (changelog) |
+| G-14 | Core locks `spec-kitty-events` 11.0.0; upstream is 11.2.1 | `uv.lock`; `pyproject.toml:80` (`>=11.0.0,<12`) | 2026-10-13-2 D-1 (release order) | Refresh the lock to 11.2.x through the safe-adoption steps in the [contributor note](../development/reference/events-in-core.md#adopting-a-new-spec-kitty-events-release); it unblocks #6445, #6446 | file new (umbrella #6411) |
+| G-15 | Migration ledger behaviour the ADR does not record | `upgrade/migrations/base.py` keeps reselection for a `runs_first` migration whose `structural_detect` fires; `upgrade/ledger.py` read-modify-write takes no lock | 2026-10-17-1 ("collapses to 'is this id in the applicable ledger'") | Factual amendment recording the structural reselection, or an operator decision to remove it | file new (low) |
+| G-16 | Dead or duplicate write code | `store.py:303` `append_event` and its two wrappers have no production caller; `cli/commands/invocations_cmd.py` `append_to_index` duplicates `InvocationWriter._append_to_index` | 2026-10-14-1 D-1 ("the low-level append primitives become private to it") | Delete them in a campsite step | file new (low) |
+| G-17 | A lock bump runs too few consumer tests per PR | `scripts/ci/gate_selection.py:107-109`: `reducer_lock` fans out to `{upgrade, status}` only; consolidation, decisions, glossary, `runtime/next`, retrospective, migration and dossier import `spec_kitty_events` directly; the reducer-verdict pins (`tests/migration`), `tests/contract/spec_kitty_events_consumer/` and the corpus parity tests run nightly only | 2026-10-14-1 "What must stay true" (consolidation gates keep their verdicts) | Derive the fan-out from a census of `spec_kitty_events` importers, gate it against drift, and run the nightly-only event directories when `uv.lock` changes the events version | file new |
+| G-18 | Core imports a private library symbol that changes strictness | `status/lifecycle_events.py:368` imports `spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL`; membership switches strict validation on, and 11.1.0 adds entries whose `actor_id` is required | Shared Package Boundary ADR 2026-04-25-1 (public imports only) | Ask upstream for a public "is known type" predicate; ban `spec_kitty_events._*` imports in `tests/architectural/test_shared_package_boundary.py` | file new |
+| G-19 | The core reducer test is circular and partial | `tests/status/test_shared_reducer_materialization.py:17-25` replays 5 of the package's replay fixtures (the package ships more, e.g. `seed_lane_authority`) against the package's own reducer | 2026-10-01-2 D-11 (a conformance corpus) | Glob every packaged replay fixture; add a core-owned golden corpus (real Mission logs to expected lanes) that a bump must diff explicitly | file new (with G-17) |
+
+## Ordering of the work
+
+1. **Operator ruling on #6185**: who builds the producer and in which runtime. It is the
+   only blocker on the critical path.
+2. **No dependencies, in parallel**: G-17 and G-19 (test guardrails, before G-14), G-14
+   (lock refresh), G-3 (doc amendments), G-11 (seam rename), G-18, G-4 (#6268), #6409
+   (then close #957), G-16.
+3. **G-1 and G-2 together**: the port skeleton and the multi-file writes gate.
+4. **After G-1**: G-6, G-7 (#6438, the lifecycle half of #6185), G-5, G-9, then G-8 and G-10.
+5. **Read side, independent**: G-12 under #5528, G-13.
+
+## Why event changes are risky
+
+Two coupling points make a `spec-kitty-events` change or a writer change land
+somewhere unexpected:
+
+- **The consolidation gate reads status through the same reducer** (`build_approved_wp_set`
+  through `materialize_snapshot`). A reducer ordering change in the library changes which
+  work packages a `consolidate` lands. The approval-stamp bound, per-WP attribution and
+  the status-surface guard also read `policy_metadata.lane_head`, `review_result`, `force`
+  and actor provenance from the rows (ADR 2026-10-14-1, "What must stay true during the
+  migration").
+- **Two reducer implementations must agree**: the Python fold and the Java port. The
+  Java service records the library version it is coupled to (`PORTED_EVENTS_VERSION`),
+  and `ManifestCouplingTest` holds it equal to the version the conformance goldens were
+  generated with, but a behaviour change no golden exercises passes that check (G-4).
+
+The history of the recent bumps shows one recurring class: the library ships reducer
+behaviour changes as **patch** releases (its `COMPATIBILITY.md` records each), and the
+core tests that catch them sit in lanes the bump PR does not select.
+
+| Bump | Core PR | Red that followed | Cause | Fix |
+|---|---|---|---|---|
+| 10.4.0 | #5032 | envelope snapshot test (nightly) | no `tests/contract/snapshots/spec-kitty-events-10.4.0.json` | #5195 |
+| 10.4.2 | #6039 | 47 `SNAPSHOT_DRIFT` in the Mission-state audit (#6058); envelope snapshot | reducer changes changed the materialized snapshots; no snapshot (a `tests/migration` reducer-ordering red in nightly #6029 was first linked to this bump, but its triage calls it the #4941 residual, failing identically before the merge) | #6080, #6063, then 10.4.4 via #6088, #6092, #6094 |
+| 10.4.6 | #6205 | `tests/upgrade/test_mission_corpus_recovery.py` red on `main` (#6238) | rollback-seed rule changed the pinned corpus verdicts; a `uv.lock`-only change selected no upgrade or status shard | #6245 (re-pin, plus the `reducer_lock` router group) |
+| 11.0.0 | #6425 | caught in the PR: `LOCAL_ONLY_EVENT_TYPES` import removed | breaking removal in a major | same PR |
+
+Most other September and October nightly reds had unrelated causes; 10.5.1 (#6261) left no confirmed
+follow-on red. The guardrails added after each incident (`reducer_lock`, the
+`mission_state` group, in-PR snapshots) narrowed the class but did not close it (G-17).
+
+A related exposure: the pin `>=11.0.0,<12` lets a fresh install resolve a newer patch
+or minor than the one CI tested, so a user can run reducer verdicts core never tested.
+
+The contributor note lists the steps for adopting a new release safely.
+
+## Citations
+
+- ADR [2026-10-14-1](../adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md): one canonical event writer.
+- ADR [2026-10-13-2](../adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md): the ledger is the publication seam.
+- ADR [2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md): Mission Status Read API.
+- ADR [2026-02-09-3](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md): event-log merge semantics.
+- ADR [2026-10-17-1](../adr/4.x/2026-10-17-1-explicit-migration-ledger.md): migration ledger.
+- ADR [2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md): Team Kitty surfaces (Amendment 2026-10-12).
+- `spec-kitty-events` `docs/api/ledger-write-contract.md`, `docs/architecture/ordering-and-reduction.md`, `docs/api/versioning-and-compatibility.md`.

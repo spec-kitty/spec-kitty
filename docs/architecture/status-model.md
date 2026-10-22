@@ -24,13 +24,14 @@ related:
 
 The status model uses a single canonical append-only event log per mission as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
-> **Which reducer is deterministic?** The Lamport wrapper (`status.reducer.materialize`). A second, wall-clock reducer also ships; see [Known limitations](#known-limitations).
+> **Which reducer runs?** One: the wall-clock `spec_kitty_events.diary.reduce_parsed`, reached through `status.reducer.reduce` and through `materialize_snapshot` / `materialize`. It is deterministic but not Lamport-ordered; see [Known limitations](#known-limitations). Every other event log core writes and reads is mapped in [Event ledger writers and readers](event-ledger-writers-and-readers.md).
 
 > **This event log is the open-core producer's read model (2026-10-12 direction).** The
 > **Mission Status Read API** — the open-core **producer** surface (ADR
 > [`2026-10-01-2`](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
-> Accepted) — reads mission/WP status through the **Lamport** reducer (`status.reducer.materialize`),
-> not the wall-clock sibling, so its answer matches `status.json`. Its external Java form is to
+> Accepted) — is conformance-gated against `status.reducer.materialize_snapshot`, the same
+> wall-clock reducer every CLI reader uses, so its answer is meant to match `status.json`.
+> Its Java port does not yet carry the #4941 approved-departure lift (#6268). Its external Java form is to
 > start in-repo and be extracted when its contract freezes; `contracts/mission-status/` and the
 > conformance fixtures stay canonical beside this Python reducer. Consumers (Team Kitty /
 > "Multiplayer Mode") read that API across its contract, never this log directly.
@@ -58,13 +59,20 @@ The status model uses a single canonical append-only event log per mission as th
 
 ## Known limitations
 
-- **Two reducers ship.** "Deterministic reducer" means the **Lamport** wrapper
-  (`status.reducer.materialize` / `reduce_shared_state`), which honors ADR
-  [`2026-02-09-3`](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md) (causal order,
-  reviewer-rollback precedence); the consolidation reconciliation gate reads through it.
-  The wall-clock last-writer-wins `reduce_parsed` (`spec_kitty_events.diary`) also ships
-  and does not honor that ADR: its rejection-after-approval case was fixed in #4990
-  (spec_kitty_events 10.4.0), and the remaining ordering bug is open as #4941.
+- **One reducer, ordered by wall clock.** `status.reducer.reduce` calls
+  `spec_kitty_events.diary.reduce_parsed` directly (`status/reducer.py:205`), and
+  `materialize_snapshot` calls `reduce_shared_state` (`:401`), which is
+  `spec_kitty_events.status.reduce`, a re-export of `diary.reduce` (`parse_diary`, then
+  `reduce_parsed`). Lane transitions are ordered by the writer's `at`, then `event_id`;
+  CLI lane rows carry no Lamport clock, and the Lamport reducer
+  `reduce_status_events` is not on the CLI path. So the CLI does not implement the
+  Lamport-primary order of ADR
+  [`2026-02-09-3`](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md). The consolidation
+  reconciliation gate reads through the same reducer. Two ordering cases are fixed in
+  the library: a stale approval overriding a committed rejection (#4990, 10.4.0) and a
+  rejection minted after a clock-ahead approval (#4941, 10.5.1: a non-seed departure from
+  `approved` sorts after the approval it followed). A non-approval transition minted on a
+  clock behind the event it follows still sorts before that event.
 
 ## CLI Commands
 

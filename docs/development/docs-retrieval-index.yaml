@@ -5515,6 +5515,20 @@ pages:
     - {slug: "try-it", text: "Try It", level: 2}
     - {slug: "how-to-guides", text: "How-To Guides", level: 2}
     - {slug: "reference-2", text: "Reference", level: 2}
+  - path: "docs/architecture/event-ledger-writers-and-readers.md"
+    title: "Event Ledger Writers and Readers"
+    divio_type: "explanation"
+    abstract: "Current-state map of every event log and ledger core writes and reads, the target the event ADRs set, and a cited gap table with remedies and tracker items."
+    anchors:
+    - {slug: "scope-and-vocabulary", text: "Scope and vocabulary", level: 2}
+    - {slug: "current-state-writers", text: "Current state: writers", level: 2}
+    - {slug: "current-state-readers", text: "Current state: readers", level: 2}
+    - {slug: "current-state-at-a-glance", text: "Current state at a glance", level: 2}
+    - {slug: "target-as-the-adrs-set-it", text: "Target, as the ADRs set it", level: 2}
+    - {slug: "gap-table", text: "Gap table", level: 2}
+    - {slug: "ordering-of-the-work", text: "Ordering of the work", level: 2}
+    - {slug: "why-event-changes-are-risky", text: "Why event changes are risky", level: 2}
+    - {slug: "citations", text: "Citations", level: 2}
   - path: "docs/architecture/execution-lanes.md"
     title: "Execution Lanes"
     divio_type: "none"
@@ -11628,6 +11642,15 @@ pages:
     - {slug: "decision-aid-real-regression-or-expected-scope-difference", text: "Decision aid: real regression, or expected scope difference?", level: 2}
     - {slug: "where-each-signal-is-configured", text: "Where each signal is configured", level: 2}
     - {slug: "known-caveats-and-follow-ups", text: "Known caveats and follow-ups", level: 2}
+  - path: "docs/development/reference/events-in-core.md"
+    title: "Events in core"
+    divio_type: "reference"
+    abstract: "Contributor rules for writing and reading event logs in core today, what not to do, and how to adopt a new spec-kitty-events release without a red nightly."
+    anchors:
+    - {slug: "writing-events", text: "Writing events", level: 2}
+    - {slug: "reading-events", text: "Reading events", level: 2}
+    - {slug: "adopting-a-new-spec-kitty-events-release", text: "Adopting a new `spec-kitty-events` release", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/index.md"
     title: "Reference (contributor policy & ledgers)"
     divio_type: "none"

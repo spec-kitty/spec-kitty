@@ -34,6 +34,7 @@ here when you want the mental model behind a capability rather than step-by-step
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in structured-prompt-driven-development artifact set.
 - [Status model](status-model.md) and [mission transition gates](mission-gates.md) — how lane state is recorded and guarded.
+- [Event ledger writers and readers](event-ledger-writers-and-readers.md) — who writes and reads each event log today, and the gaps against the event ADRs.
 - [Post-merge partition authority](post-merge-partition-authority.md) — which bytes win after consolidation, and which surface readers trust.
 
 The full list is in the [architecture index](index.md).

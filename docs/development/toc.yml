@@ -47,6 +47,8 @@
       href: reference/quality-and-tech-debt-standing-orders.md
     - name: Read-side placement-seam classification ledger
       href: reference/read-side-seam-classification.md
+    - name: Events in core
+      href: reference/events-in-core.md
     - name: Red main and release readiness
       href: reference/red-main-and-release-readiness.md
     - name: Terminology guard exemption policy

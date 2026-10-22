@@ -26,6 +26,8 @@
   href: kanban-workflow.md
 - name: Status Model
   href: status-model.md
+- name: Event Ledger Writers and Readers
+  href: event-ledger-writers-and-readers.md
 - name: Mission Transition Gates
   href: mission-gates.md
 - name: Acceptance Scenario Contract

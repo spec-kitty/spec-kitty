@@ -70,6 +70,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 ## Status, trail & workflow models
 
 - [Status model (operator reference)](status-model.md) — the append-only event-log lane state machine, the `--mission` selector, and `mission_id` ULID identity.
+- [Event ledger writers and readers](event-ledger-writers-and-readers.md) — every event log core writes and reads today, the target the event ADRs set, and the cited gap table.
 - [Trail model](trail-model.md) — how every standalone dispatch writes an auditable JSONL trail for accountability and provenance.
 - [Host-surface parity matrix](host-surface-parity.md) — how each supported host surface teaches the governance-injection contract, with per-surface parity status.
 - [Spec Kitty mission workflow (canonical authority)](spec-kitty-mission-workflow.md) — the nine-phase end-to-end mission workflow and the focused-PR path.
