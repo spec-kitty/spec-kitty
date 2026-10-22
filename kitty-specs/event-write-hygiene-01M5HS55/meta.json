@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-22T12:25:15.672058+00:00",
+  "flattened": false,
+  "friendly_name": "Event write hygiene: retire dead write doors and private events imports",
+  "mid8": "01M5HS55",
+  "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+  "mission_number": null,
+  "mission_slug": "event-write-hygiene-01M5HS55",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Ahead of the one-canonical-writer work (ADR 2026-10-14-1), core still carries write doors nobody uses, a private library import that a lock refresh could turn into a break, and hosted-era 'saas' names on the event produce seam. This mission deletes them behind red-first gates without changing behaviour, so the remaining write surface is exactly what the canonical writer will wrap.",
+  "purpose_tldr": "Remove dead event-log write doors and core's private spec-kitty-events import, and give the status produce seam transport-neutral names.",
+  "slug": "event-write-hygiene-01M5HS55",
+  "target_branch": "feat/event-write-hygiene",
+  "topology": "single_branch"
+}
