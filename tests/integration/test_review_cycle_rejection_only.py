@@ -33,7 +33,6 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from tests._support.status_seed import seed_status_event
 
-
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_SLUG = "001-rejection-only-feature"

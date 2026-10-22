@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Tuple
 
@@ -21,6 +20,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceSummary,
@@ -29,13 +29,13 @@ from specify_cli.acceptance import (
     perform_acceptance,
 )
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.cli.commands import accept as accept_module
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.task_utils import LANES
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.store import StoreError, append_annotations_atomic_verified
+from specify_cli.task_utils import LANES
 from tests._support.status_seed import seed_status_event
-from specify_cli.cli.commands import accept as accept_module
 from tests.lane_test_utils import write_mission_meta, write_single_lane_manifest
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.

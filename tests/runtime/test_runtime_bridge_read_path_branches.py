@@ -44,8 +44,8 @@ from runtime.next.runtime_bridge_query import QueryModeValidationError, _query_r
 from specify_cli.coordination.workspace import CoordinationWorkspaceUnavailable
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from tests._support.status_seed import seed_status_event
 from tests._owned_fixtures import mint_test_fact
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

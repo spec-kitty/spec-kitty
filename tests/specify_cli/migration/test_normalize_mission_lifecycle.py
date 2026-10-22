@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import json
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.migration.normalize_mission_lifecycle import normalize_repo
 from specify_cli.status.lifecycle import generate_lifecycle_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import write_derived_views
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

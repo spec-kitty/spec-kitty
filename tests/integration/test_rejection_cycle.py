@@ -24,7 +24,6 @@ from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -29,13 +29,12 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionArtifactKind
-
-from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs, seam_coord_router
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     MissionHandle,
     TasksPorts,
 )
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs, seam_coord_router
 from specify_cli.missions._read_path_resolver import (
     resolve_feature_dir_for_mission,
     resolve_planning_read_dir,

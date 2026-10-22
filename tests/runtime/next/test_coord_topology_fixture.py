@@ -61,8 +61,8 @@ from specify_cli.missions._read_path_resolver import (
     coord_feature_dir as _compose_coord_feature_dir,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.wp_state import wp_state_for
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

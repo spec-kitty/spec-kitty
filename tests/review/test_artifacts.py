@@ -26,8 +26,8 @@ from specify_cli.status import (
     StatusEvent,
     emit_inner_state_changed,
 )
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.models import Lane, WPInnerStateDelta
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 

@@ -37,6 +37,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands.agent.tasks_transition_core import (
+    _GUARDS,
     Emit,
     MoveTaskRequest,
     RefuseExit1,
@@ -46,7 +47,6 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     _guard_done_exit,
     _guard_rejected_verdict,
     _guard_subtasks,
-    _GUARDS,
     _ownership_role_allowance,
     _planned_rollback_message,
     arbiter_persist_signal,

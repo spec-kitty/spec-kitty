@@ -99,9 +99,9 @@ def test_generate_progress_json_creates_file(tmp_path):
 
 def test_materialize_all_features_via_function(tmp_path):
     """Direct call to write_derived_views + progress/lifecycle for two features."""
-    from specify_cli.status.views import write_derived_views
     from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
+    from specify_cli.status.views import write_derived_views
 
     mission_slugs = ["003-alpha", "003-beta"]
     for slug in mission_slugs:
@@ -146,8 +146,9 @@ def test_materialize_output_json_structure(tmp_path):
 
 def test_materialize_command_no_project(tmp_path):
     """materialize exits with code 1 when not in a spec-kitty project."""
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     with patch("specify_cli.cli.commands.materialize.locate_project_root", return_value=None):
         with pytest.raises(typer.Exit) as exc_info:
@@ -157,8 +158,9 @@ def test_materialize_command_no_project(tmp_path):
 
 def test_materialize_command_all_features(tmp_path):
     """materialize processes all features when no --mission given."""
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     _setup_feature(tmp_path, "005-alpha", {"WP01": "done"})
     _setup_feature(tmp_path, "005-beta", {"WP01": "planned"})
@@ -175,8 +177,9 @@ def test_materialize_command_all_features(tmp_path):
 
 def test_materialize_command_single_feature(tmp_path):
     """materialize --mission processes only the specified mission."""
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     _setup_feature(tmp_path, "006-target", {"WP01": "done"})
 
@@ -209,8 +212,9 @@ def test_materialize_single_mission_resolves_via_read_path_resolver(
     directly (no subprocess) with a patched project root, so it is genuinely a
     fast unit test.
     """
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     # Production-shaped identity: a real 26-char ULID, mid8 = first 8 chars.
     mission_id = "01KVGCE8R8QJ3K5ZJ9E5008XYZ"
@@ -239,8 +243,9 @@ def test_materialize_single_mission_resolves_via_read_path_resolver(
 
 def test_materialize_command_feature_not_found(tmp_path):
     """materialize exits 1 when --mission slug does not exist."""
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     (tmp_path / "kitty-specs").mkdir(parents=True)
 
@@ -252,8 +257,9 @@ def test_materialize_command_feature_not_found(tmp_path):
 
 def test_materialize_command_json_output(tmp_path):
     """materialize --json outputs a machine-readable summary."""
-    from specify_cli.cli.commands.materialize import materialize
     import typer
+
+    from specify_cli.cli.commands.materialize import materialize
 
     _setup_feature(tmp_path, "007-json", {"WP01": "done"})
 
@@ -284,9 +290,9 @@ def test_materialize_if_stale_creates_on_missing(tmp_path):
 
 def test_materialize_if_stale_skips_when_fresh(tmp_path):
     """materialize_if_stale does not regenerate when derived files are up-to-date."""
-    from specify_cli.status.views import materialize_if_stale, write_derived_views
     from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
+    from specify_cli.status.views import materialize_if_stale, write_derived_views
 
     feature_dir = _setup_feature(tmp_path, "009-fresh", {"WP01": "done"})
     derived_dir = tmp_path / ".kittify" / "derived"
@@ -322,10 +328,11 @@ def test_materialize_if_stale_skips_when_fresh(tmp_path):
 
 def test_materialize_if_stale_regenerates_when_stale(tmp_path):
     """materialize_if_stale regenerates when event log is newer than derived files."""
-    from specify_cli.status.views import materialize_if_stale, write_derived_views
+    import os
+
     from specify_cli.status.lifecycle import generate_lifecycle_json
     from specify_cli.status.progress import generate_progress_json
-    import os
+    from specify_cli.status.views import materialize_if_stale, write_derived_views
 
     feature_dir = _setup_feature(tmp_path, "010-regen", {"WP01": "done"})
     derived_dir = tmp_path / ".kittify" / "derived"
@@ -478,10 +485,11 @@ def test_materialize_all_reports_remote_only_coord_mission_in_errors(tmp_path: P
 
 def test_materialize_mission_flag_on_prefix_coord_mission_seeds_once(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """``--mission`` on a pre-fix EMPTY coordination Mission seeds the surface exactly once."""
+    import subprocess
+
     from mission_runtime import MissionTopology
     from specify_cli.coordination.coord_seed import COORD_SEED_TRAILER
     from tests._factories.coord_mission import make_prefix_coord_mission
-    import subprocess
 
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.COORD, worktree="empty")
 

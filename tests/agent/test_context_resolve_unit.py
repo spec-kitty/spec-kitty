@@ -4,16 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import context
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-from specify_cli.status.models import StatusEvent, Lane
-
-
-import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

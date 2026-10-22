@@ -20,8 +20,8 @@ from kernel.clock import now_utc_iso
 from mission_runtime import MissionTopology
 from specify_cli.lanes.recovery import RecoveryState, reconcile_status
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from tests._factories.coord_mission import event_ids, make_prefix_coord_mission
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast]
 

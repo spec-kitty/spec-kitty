@@ -18,17 +18,16 @@ from typing import Any
 import pytest
 
 from kernel.locks import LockAcquireTimeout
-
+from runtime.next import runtime_bridge_decision_log as decision_log
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
+from runtime.next import runtime_bridge_guards as bridge_guards
+from runtime.next import runtime_bridge_query
+from runtime.next._internal_runtime import DiscoveryContext
+from runtime.next.decision import DecisionKind
 from tests._factories import provision_test_charter
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.runtime._next_mission_scaffold import analysis_is_current
-from runtime.next.decision import DecisionKind
-from runtime.next._internal_runtime import DiscoveryContext
-from runtime.next import runtime_bridge_decision_mapping as decision_mapping
-from runtime.next import runtime_bridge_decision_log as decision_log
-from runtime.next import runtime_bridge_query
-from runtime.next import runtime_bridge_guards as bridge_guards
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -77,8 +76,8 @@ def _scaffold_project(
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
+    from specify_cli.status.models import Lane, StatusEvent
     from tests._support.status_seed import seed_status_event
-    from specify_cli.status.models import StatusEvent, Lane
 
     # Map legacy aliases to canonical lane names
     _lane_alias = {"doing": "in_progress"}
@@ -487,12 +486,13 @@ class TestWPIteration:
             },
         )
 
-        from runtime.next.runtime_bridge import (
-            get_or_start_run,
-            decide_next_via_runtime,
-        )
-        from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from runtime.next._internal_runtime import NullEmitter
+        from runtime.next._internal_runtime import next_step as runtime_next_step
         from runtime.next._internal_runtime.engine import _read_snapshot
+        from runtime.next.runtime_bridge import (
+            decide_next_via_runtime,
+            get_or_start_run,
+        )
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -525,12 +525,13 @@ class TestWPIteration:
             },
         )
 
-        from runtime.next.runtime_bridge import (
-            get_or_start_run,
-            decide_next_via_runtime,
-        )
-        from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from runtime.next._internal_runtime import NullEmitter
+        from runtime.next._internal_runtime import next_step as runtime_next_step
         from runtime.next._internal_runtime.engine import _read_snapshot
+        from runtime.next.runtime_bridge import (
+            decide_next_via_runtime,
+            get_or_start_run,
+        )
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -611,8 +612,8 @@ class TestRuntimeResultFlow:
 class TestAnswerDecisionViaRuntime:
     def test_snapshot_read_failure_is_tolerated(self, monkeypatch, tmp_path: Path) -> None:
         """Decision answers should continue even when snapshot hydration fails."""
-        from runtime.next import runtime_bridge, runtime_bridge_io
         import runtime.next._internal_runtime.engine as runtime_engine
+        from runtime.next import runtime_bridge, runtime_bridge_io
 
         repo_root = tmp_path / "project"
         repo_root.mkdir()
@@ -851,7 +852,6 @@ class TestAnswerDecision:
         repo_root = _scaffold_project(tmp_path)
 
         from mission_runtime import ActionContextError
-
         from runtime.next.runtime_bridge import answer_decision_via_runtime
 
         with pytest.raises(ActionContextError) as excinfo:
@@ -870,8 +870,8 @@ class TestAnswerDecision:
         """Answering when no decisions pending raises error."""
         repo_root = _scaffold_project(tmp_path)
 
-        from runtime.next.runtime_bridge import answer_decision_via_runtime
         from runtime.next._internal_runtime.schema import MissionRuntimeError
+        from runtime.next.runtime_bridge import answer_decision_via_runtime
 
         with pytest.raises(MissionRuntimeError, match="not found"):
             answer_decision_via_runtime(
@@ -1246,8 +1246,8 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
         from runtime.next.runtime_bridge_composition import _check_composed_action_guard
+        from runtime.next.runtime_bridge_guards import _check_requirement_mapping_ready
 
         # Sanity: the pre-existing requirement-mapping check is clean here --
         # the assertion below is not incidentally passing because of it.
@@ -2062,8 +2062,8 @@ class TestMissionRoutesThroughCoordinationOwnedCheckout:
 
     def test_owned_checkout_reads_topology_off_the_fact_without_consulting_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         import mission_runtime
-        from tests._owned_fixtures import mint_test_fact
         from runtime.next.runtime_bridge_decision_log import _mission_routes_through_coordination
+        from tests._owned_fixtures import mint_test_fact
 
         owned_root = tmp_path / "owned-checkout"
         feature_dir = owned_root / "kitty-specs" / "owned-mission"

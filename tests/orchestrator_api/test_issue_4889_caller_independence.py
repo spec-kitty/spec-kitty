@@ -38,8 +38,8 @@ from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import WorkspaceContext, find_context_for_wp, save_context
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.regression]
 

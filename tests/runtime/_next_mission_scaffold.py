@@ -15,12 +15,16 @@ from pathlib import Path
 
 from mission_runtime import MissionTopology as _MissionTopology
 from runtime.next.decision import AnalysisVerdict
+from tests._support.org_pack_config import write_org_packs
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission as _golden_create_mission,
+)
+from tests.integration.test_placement_partition_golden_path import (
     _init_git_repo as _golden_init_git_repo,
+)
+from tests.integration.test_placement_partition_golden_path import (
     _materialize_coord_worktree as _golden_materialize_coord_worktree,
 )
-from tests._support.org_pack_config import write_org_packs
 from tests.lane_test_utils import write_single_lane_manifest
 
 __all__ = [

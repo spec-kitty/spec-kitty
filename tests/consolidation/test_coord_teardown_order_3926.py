@@ -29,17 +29,17 @@ from types import SimpleNamespace
 import pytest
 
 from kernel.git import GitCommandError
-from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
-from specify_cli.coordination.types import Refused
-from specify_cli.lanes.branch_naming import coord_dir_name
 from specify_cli.consolidation import executor as ex
-from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
-from specify_cli.consolidation.state import ConsolidationState
-from specify_cli.mission_metadata import load_meta
 from specify_cli.consolidation import (
     phase_teardown,
     run_state,
 )
+from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
+from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
+from specify_cli.coordination.types import Refused
+from specify_cli.lanes.branch_naming import coord_dir_name
+from specify_cli.mission_metadata import load_meta
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 

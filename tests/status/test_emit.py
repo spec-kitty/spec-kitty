@@ -21,7 +21,6 @@ import specify_cli.status.emit as emit_module
 import specify_cli.status.transition_pipeline as _pipeline_module
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status import adapters
-from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.emit import (
     TransitionError,
     _build_done_evidence,
@@ -44,8 +43,8 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.store import EVENTS_FILENAME, read_event_stream, read_events
+from specify_cli.status.wp_metadata import WPMetadata
 from tests._support.status_seed import seed_status_event
-
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
 pytestmark = pytest.mark.fast

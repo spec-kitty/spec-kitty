@@ -29,8 +29,8 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.review.cycle import is_non_resolvable_review_ref
 from specify_cli.status import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

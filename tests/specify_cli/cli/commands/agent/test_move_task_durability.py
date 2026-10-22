@@ -50,7 +50,6 @@ from specify_cli.agent_tasks_ports import (
     RealCoordCommitRouter,
     TasksPorts,
 )
-from specify_cli.coordination import status_transition as _status_transition
 from specify_cli.cli.commands.agent import tasks_move_task as _tmt
 from specify_cli.cli.commands.agent import tasks_move_task_executor as _tmt_executor
 from specify_cli.cli.commands.agent import tasks_verdict_persistence as _tvp
@@ -58,6 +57,7 @@ from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     _read_transactional_wp_lane,
 )
+from specify_cli.coordination import status_transition as _status_transition
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.review import cycle as _review_cycle
@@ -67,6 +67,7 @@ from specify_cli.review.cycle import (
     resolve_review_cycle_pointer,
 )
 from specify_cli.review.verdict_commit_queue import VerdictSaveBusy, verdict_save_queue_is_held
+from specify_cli.status import TransitionError, TransitionRequest, read_events
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -76,9 +77,8 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.reducer import event_sourced_review_result
 from specify_cli.status.store import append_annotations_atomic_verified
-from tests._support.status_seed import seed_status_event
-from specify_cli.status import TransitionError, TransitionRequest, read_events
 from tests._perf_helpers import assert_timing_budget
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,

@@ -54,7 +54,6 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,

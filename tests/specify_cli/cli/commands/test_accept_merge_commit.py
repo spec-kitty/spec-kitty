@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 import typer
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,

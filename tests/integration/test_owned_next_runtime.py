@@ -25,12 +25,12 @@ import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import MissionTopology, OwnedCheckout, OwnedRefusalCode
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
 from tests._factories import provision_test_charter
 from tests.integration.conftest import OwnedCheckouts
 from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current, seed_wp_lane
-from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

@@ -26,14 +26,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import MissionMetaReadError
-from specify_cli.status.lifecycle import generate_lifecycle_json
-from specify_cli.status.lifecycle import _fallback_created_at, _last_merge_marker_at
+from specify_cli.status.lifecycle import _fallback_created_at, _last_merge_marker_at, generate_lifecycle_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import reduce
 from specify_cli.status.store import EVENTS_FILENAME
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import write_derived_views
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

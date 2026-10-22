@@ -5,17 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import specify_cli.workspace.context as workspace_context_module
 
+import specify_cli.workspace.context as workspace_context_module
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import (
-    WorkspaceContext,
     ActiveWPResolution,
-    build_normalized_wp_index,
+    WorkspaceContext,
     build_feature_context_index,
+    build_normalized_wp_index,
     clear_workspace_resolution_caches,
     find_orphaned_contexts,
     list_contexts,
@@ -25,7 +24,7 @@ from specify_cli.workspace.context import (
     resolve_workspace_for_wp,
     save_context,
 )
-
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

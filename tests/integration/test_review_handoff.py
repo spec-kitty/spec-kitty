@@ -17,8 +17,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-from specify_cli.status.models import StatusEvent, Lane
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo

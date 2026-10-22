@@ -488,8 +488,7 @@ def test_landed_pin_commit_is_reported_when_index_refresh_fails(
     repo_root, feature_dir, coord_root, mission_slug, coord_branch, _recorded_pin = _prepare_coord_mission(tmp_path, monkeypatch)
     initial_tip = _git(repo_root, "rev-parse", TARGET_BRANCH)
     lane_path = f"kitty-specs/{mission_slug}/lanes.json"
-    from specify_cli.git import commit_helpers
-    from specify_cli.git import ref_advance
+    from specify_cli.git import commit_helpers, ref_advance
 
     run_git = commit_helpers._run_git_for_commit
     run_ref_git = ref_advance._run_git
@@ -563,8 +562,7 @@ def test_landed_pin_commit_is_reported_when_index_refresh_raises_oserror(
     repo_root, feature_dir, coord_root, mission_slug, coord_branch, _recorded_pin = _prepare_coord_mission(tmp_path, monkeypatch)
     initial_tip = _git(repo_root, "rev-parse", TARGET_BRANCH)
     lane_path = f"kitty-specs/{mission_slug}/lanes.json"
-    from specify_cli.git import commit_helpers
-    from specify_cli.git import ref_advance
+    from specify_cli.git import commit_helpers, ref_advance
 
     run_git = commit_helpers._run_git_for_commit
     run_ref_git = ref_advance._run_git

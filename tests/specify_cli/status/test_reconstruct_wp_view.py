@@ -31,11 +31,10 @@ from specify_cli.status import (
     emit_resolved_binding,
     reconstruct_wp_view,
 )
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.models import ReviewOverride
+from specify_cli.status.models import Lane, ReviewOverride, StatusEvent
 from specify_cli.status.reducer import wp_snapshot_state
 from specify_cli.status.resolved_binding import RESOLVED_MODEL_ABSENT
-from tests._support.status_seed import seed_status_event
+from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.wp_view import (
     AuthoredGroup,
     ResolvedGroup,
@@ -43,7 +42,7 @@ from specify_cli.status.wp_view import (
     _authored_group,
     _resolved_group,
 )
-from specify_cli.status.wp_metadata import WPMetadata
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

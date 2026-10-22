@@ -9,12 +9,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.reducer import materialize_to_json, reduce
-
-
-import pytest
 
 pytestmark = [pytest.mark.integration]
 
@@ -139,8 +137,8 @@ class TestReducerParity:
 
     def test_materialize_to_file_matches_expected(self, tmp_path: Path):
         """Write events to disk, materialize, and compare with expected."""
-        from tests._support.status_seed import seed_status_event
         from specify_cli.status.reducer import materialize
+        from tests._support.status_seed import seed_status_event
 
         events = _load_sample_events()
         expected = _load_expected_snapshot()

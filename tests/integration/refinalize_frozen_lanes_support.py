@@ -25,8 +25,8 @@ from typer.testing import CliRunner
 from mission_runtime import MissionTopology
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
-from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes import persistence as lanes_persistence
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.status import emit_status_transition

@@ -33,8 +33,8 @@ from specify_cli.cli.commands.agent.tasks import (
     _filter_runtime_state_paths,
     _validate_ready_for_review,
 )
-from specify_cli.dossier.snapshot import save_snapshot
 from specify_cli.dossier.models import MissionDossierSnapshot
+from specify_cli.dossier.snapshot import save_snapshot
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.preflight import is_dossier_snapshot
 from tests._support.status_seed import seed_status_event

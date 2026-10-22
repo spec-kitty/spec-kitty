@@ -28,16 +28,16 @@ from specify_cli.consolidation.reconciliation import (
     _closed_world_anchors,
     _collect_authored,
     _fully_canceled_lane_commits,
-    _UnreadableCanceledLane,
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
+    _UnreadableCanceledLane,
 )
 from specify_cli.consolidation.wp_attribution import (
     Attributed,
     Unattributable,
     UnattributableReason,
-    lane_exempt_commits,
     _outside_after_anchors,
+    lane_exempt_commits,
     lane_own_commits,
     resolve_canceled_wp,
 )

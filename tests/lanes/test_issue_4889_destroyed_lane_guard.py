@@ -48,12 +48,12 @@ from specify_cli.lanes.worktree_allocator import (
 from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.workspace.context import (
     WorkspaceContext,
     get_context_path,
     save_context,
 )
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.regression]
 

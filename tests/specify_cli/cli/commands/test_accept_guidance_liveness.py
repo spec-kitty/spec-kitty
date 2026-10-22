@@ -45,8 +45,8 @@ from pathlib import Path
 
 import pytest
 import typer
-from kernel.clock import now_utc_iso
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,

@@ -38,7 +38,7 @@ from specify_cli.agent_tasks_ports import (
     RealRender,
     TasksPorts,
 )
-from specify_cli.cli.commands.agent.tasks import _MoveTaskArgs, _do_move_task
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.review.cycle import (

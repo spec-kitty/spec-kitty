@@ -13,11 +13,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from tests.lane_test_utils import write_single_lane_manifest
-from tests._support.status_seed import seed_status_event
-from specify_cli.status.models import StatusEvent, Lane
 from runtime.next._internal_runtime.schema import NextDecision
-
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -26,7 +22,9 @@ from runtime.next.decision import (
     _state_to_action,
     decide_next,
 )
-
+from specify_cli.status.models import Lane, StatusEvent
+from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import write_single_lane_manifest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -121,14 +119,14 @@ def _advance_runtime_to_step(
     (discovery -> specify -> plan -> tasks -> implement -> review -> accept).
     """
     from runtime.next.runtime_bridge import get_or_start_run
-
     from specify_cli.mission import get_mission_type
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime import NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step
     from runtime.next._internal_runtime.engine import _read_snapshot
 
     # Keep advancing until the target step is issued
@@ -164,14 +162,14 @@ def _complete_all_steps(
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
     from runtime.next.runtime_bridge import get_or_start_run
-
     from specify_cli.mission import get_mission_type
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime import NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step
 
     # There are 9 steps: each needs to be issued + completed
     for _ in range(20):  # generous upper bound
@@ -567,7 +565,7 @@ class TestInReviewLaneDecision:
 
     def test_implement_skips_in_review_wp(self, feature_only_in_review: Path) -> None:
         """Implement state must not pick up in_review WPs for review redirect."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         repo_root = feature_only_in_review.parent.parent
         action, wp_id, ws = _state_to_action(
@@ -583,8 +581,8 @@ class TestInReviewLaneDecision:
 
     def test_implement_prefers_for_review_over_in_review(self, feature_for_review_and_in_review: Path) -> None:
         """Implement fallback picks for_review WPs, not in_review ones."""
-        from unittest.mock import patch
         from types import SimpleNamespace
+        from unittest.mock import patch
 
         repo_root = feature_for_review_and_in_review.parent.parent
         fake_ws = SimpleNamespace(worktree_path=Path("/nonexistent/fake-worktree"))
@@ -606,8 +604,8 @@ class TestInReviewLaneDecision:
 
     def test_review_picks_for_review_not_in_review(self, feature_for_review_and_in_review: Path) -> None:
         """Review state picks for_review WPs, explicitly skipping in_review."""
-        from unittest.mock import patch
         from types import SimpleNamespace
+        from unittest.mock import patch
 
         repo_root = feature_for_review_and_in_review.parent.parent
         fake_ws = SimpleNamespace(worktree_path=Path("/nonexistent/fake-worktree"))

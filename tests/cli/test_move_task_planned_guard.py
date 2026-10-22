@@ -27,11 +27,11 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     TasksPorts,
 )
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent

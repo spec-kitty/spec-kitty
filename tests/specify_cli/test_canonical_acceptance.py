@@ -22,7 +22,6 @@ from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -1004,9 +1003,9 @@ def _append_cancellation_event(
     operator-authored provenance (FR-001); ``operator=False`` leaves a synthetic
     cancellation (FR-003 blocker).
     """
-    from kernel.clock import now_utc_iso
     from ulid import ULID
 
+    from kernel.clock import now_utc_iso
     from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
     from specify_cli.status.store import append_annotations_atomic_verified
 

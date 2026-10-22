@@ -298,8 +298,8 @@ def _seed_execution_begun(coord: CoordMission, mission_dir_name: str) -> None:
     bootstrap genesis event finalize's own first run just wrote (today's
     real time), silently losing this claim back to "planned".
     """
-    from mission_runtime import MissionArtifactKind, placement_seam
     from kernel.clock import now_utc_iso
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.status.models import Lane, StatusEvent
     from tests._support.status_seed import seed_status_event
 
@@ -844,12 +844,12 @@ def test_apply_finalize_commit_router_result_text_mode_renders_surfaces_on_uncha
     render (never the bare "Tasks unchanged" fallback, which is only for the
     pre-``surfaces`` legacy empty case).
     """
+    from specify_cli.cli.commands.agent.mission_finalize import (
+        _apply_finalize_commit_router_result,
+        _CommitOutcome,
+    )
     from specify_cli.coordination.commit_outcome import SurfaceOutcome
     from specify_cli.coordination.commit_router import CommitRouterResult
-    from specify_cli.cli.commands.agent.mission_finalize import (
-        _CommitOutcome,
-        _apply_finalize_commit_router_result,
-    )
 
     router_result = CommitRouterResult(
         status="unchanged",
@@ -869,12 +869,12 @@ def test_apply_finalize_commit_router_result_text_mode_renders_surfaces_on_error
     """Text mode, legacy-error arm: surface lines print FIRST, then the actionable
     error line -- never the bare diagnostic alone (WP13-review binding correction).
     """
+    from specify_cli.cli.commands.agent.mission_finalize import (
+        _apply_finalize_commit_router_result,
+        _CommitOutcome,
+    )
     from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
     from specify_cli.coordination.commit_router import CommitRouterResult
-    from specify_cli.cli.commands.agent.mission_finalize import (
-        _CommitOutcome,
-        _apply_finalize_commit_router_result,
-    )
 
     router_result = CommitRouterResult(
         status="error",

@@ -31,21 +31,20 @@ from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
 )
 from specify_cli.core.dependency_graph import DependencyReadiness, parse_wp_dependencies
-from specify_cli.lanes.recovery import RECOVERY_ACTOR
-from specify_cli.lanes.recovery import _get_recovery_transitions
+from specify_cli.lanes.recovery import RECOVERY_ACTOR, _get_recovery_transitions
 from specify_cli.status.dependency_verdict import UNRESOLVABLE_MARKER, readiness_from_snapshot, wp_lanes_from_snapshot
 from specify_cli.status.emit import TransitionError, emit_status_transition, emit_status_transition_batch
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import GuardContext, Lane, StatusEvent, StatusSnapshot, TransitionRequest
 from specify_cli.status.reducer import reduce
 from specify_cli.status.store import read_events
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.transition_context import TransitionContext
 from specify_cli.status.transition_pipeline import prepare_transition
 from specify_cli.status.transitions import validate_transition
 from specify_cli.status.validate import validate_transition_legality
 from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.wp_state import wp_state_for
+from tests._support.status_seed import seed_status_event
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

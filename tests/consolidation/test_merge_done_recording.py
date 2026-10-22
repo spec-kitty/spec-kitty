@@ -10,13 +10,6 @@ from unittest.mock import Mock, patch
 import pytest
 import typer
 
-from specify_cli.status import (
-    InnerStateChanged,
-    ReviewOverride,
-    WPInnerStateDelta,
-)
-from specify_cli.status._unsafe import append_annotations_atomic_verified
-
 from specify_cli.cli.commands.consolidate import (
     BaselineMergeCommitError,
     _assert_baseline_merge_commit_on_target,
@@ -29,6 +22,12 @@ from specify_cli.cli.commands.consolidate import (
 # WP09 (T048 / TAO-3): the merge-side restore compensator was retired to the single
 # owner compensator; the byte-restore/unlink round-trip below re-points onto it.
 from specify_cli.coordination.atomic_write import restore_generated_artifact_snapshots
+from specify_cli.status import (
+    InnerStateChanged,
+    ReviewOverride,
+    WPInnerStateDelta,
+)
+from specify_cli.status._unsafe import append_annotations_atomic_verified
 
 pytestmark = pytest.mark.fast
 

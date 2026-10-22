@@ -34,6 +34,8 @@ from mission_runtime import MissionTopology as _MissionTopology
 from runtime.next.decision import DecisionKind
 from tests.integration.test_placement_partition_golden_path import (
     _create_mission as _golden_create_mission,
+)
+from tests.integration.test_placement_partition_golden_path import (
     _init_git_repo as _golden_init_git_repo,
 )
 from tests.runtime._next_mission_scaffold import (

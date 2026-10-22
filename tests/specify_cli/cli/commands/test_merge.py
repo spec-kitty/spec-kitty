@@ -47,8 +47,10 @@ from specify_cli.cli.commands.consolidate import (
     _mark_wp_merged_done,
     _target_bookkeeping_status_paths,
     _validate_mission_slug_path_segment,
-    consolidate as merge,
     merge_removed_stub,
+)
+from specify_cli.cli.commands.consolidate import (
+    consolidate as merge,
 )
 
 # WP09 (T048): the merge-side snapshot-trust helper + capture were retired; the

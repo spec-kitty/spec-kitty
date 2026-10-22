@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from io import StringIO
 from pathlib import Path
 
@@ -40,6 +39,7 @@ import typer
 from rich.console import Console
 
 import specify_cli.cli.commands.accept as accept_cmd
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import AcceptanceError
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,

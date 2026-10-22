@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 
 from specify_cli.post_merge.review_artifact_consistency import (
     find_rejected_review_artifact_conflicts,

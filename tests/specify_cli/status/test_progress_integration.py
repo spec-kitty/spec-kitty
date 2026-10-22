@@ -15,7 +15,6 @@ from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
 from specify_cli.status.progress import compute_weighted_progress
 from tests._support.status_seed import seed_status_event
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -306,10 +305,10 @@ class TestBackwardCompatWithoutWeighted:
     def test_missing_weighted_percentage_returns_none(self):
         """When weighted_percentage is not in data, JS fallback would use done/total."""
         # This test verifies the Python side: _compute_wp_progress with no event log
-        from runtime.next.decision import _compute_wp_progress
-
         # Empty directory -- no tasks
         import tempfile
+
+        from runtime.next.decision import _compute_wp_progress
 
         with tempfile.TemporaryDirectory() as td:
             result = _compute_wp_progress(Path(td))

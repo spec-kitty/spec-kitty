@@ -36,6 +36,7 @@ from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, RealCoordCommitRouter, default_ports
 from specify_cli.cli.commands.agent import app as agent_app
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.review.cycle import (
@@ -43,7 +44,6 @@ from specify_cli.review.cycle import (
     create_rejected_review_cycle,
     next_review_feedback_source_path,
 )
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status import TransitionRequest
 from tests._factories import make_mission
 from tests._factories.coord_mission import make_fork_fixture

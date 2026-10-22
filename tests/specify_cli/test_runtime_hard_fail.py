@@ -23,7 +23,6 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import EVENTS_FILENAME
 from tests._support.status_seed import seed_status_event
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

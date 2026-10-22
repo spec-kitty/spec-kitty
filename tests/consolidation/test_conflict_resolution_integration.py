@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
 from specify_cli.status.store import read_events
 from tests._support.status_seed import seed_status_event
-
-import pytest
 
 pytestmark = pytest.mark.git_repo
 

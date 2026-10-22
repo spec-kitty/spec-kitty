@@ -83,8 +83,6 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
-
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.core.stale_detection import LIVE_CLAIM_PROCESS_REASON, check_wp_staleness
@@ -95,6 +93,7 @@ from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     validate_task_metadata,
 )
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.fast
 

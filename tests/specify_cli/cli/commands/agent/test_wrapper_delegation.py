@@ -10,8 +10,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.mission import app
 from specify_cli.cli.commands.agent import workflow
+from specify_cli.cli.commands.agent.mission import app
 from specify_cli.cli.commands.consolidate import ConsolidateOptions
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status.models import Lane, StatusEvent

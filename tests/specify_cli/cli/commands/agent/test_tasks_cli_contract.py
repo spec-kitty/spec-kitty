@@ -50,8 +50,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import _apply_short_help_options
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from tests import _click_universe as typer_click
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands._help_snapshot import (
     force_wide_help_console,

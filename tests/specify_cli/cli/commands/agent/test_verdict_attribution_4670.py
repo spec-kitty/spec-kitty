@@ -248,7 +248,7 @@ def test_resolver_fills_identity_directly(tmp_path: Path, monkeypatch: pytest.Mo
     """Same as the approval case, but pins the behavior at the resolver seam
     itself (FR-005): the fix must be behavioral (event-log resolution), not
     merely a change to the printed/generated command text."""
-    from specify_cli.cli.commands.agent.tasks_move_task import _mt_resolve_active_reviewer_identity, _MoveTaskState
+    from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState, _mt_resolve_active_reviewer_identity
 
     mission_slug = f"{_MISSION_SLUG}-resolver"
     repo, feature_dir = _build_mission(tmp_path, monkeypatch, mission_slug)

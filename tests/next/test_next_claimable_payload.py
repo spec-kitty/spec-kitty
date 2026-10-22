@@ -21,8 +21,8 @@ import pytest
 from runtime.next.decision import DecisionKind, _state_to_action
 from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.runtime._next_mission_scaffold import analysis_is_current
 

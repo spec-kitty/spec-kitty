@@ -33,12 +33,12 @@ the identical verdict — is added on top of @rayjohnson's originals.
 
 from __future__ import annotations
 
-from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from kernel.clock import UTC, datetime, timedelta
 from tests.integration.coord_topology_fixture import (  # noqa: F401
     CoordTopologyContext,
     FlatTopologyContext,

@@ -37,8 +37,8 @@ from specify_cli.status.store import (
     is_non_lane_event,
     read_event_stream,
 )
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.wp_state import annotate
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

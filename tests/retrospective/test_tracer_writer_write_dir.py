@@ -24,8 +24,8 @@ from specify_cli.coordination.write_seam import WriteSeamResult
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.retrospective.tracer_writer import append_tracer_finding
 from tests._factories.coord_mission import (
-    CoordMission,
     COORD_TOPOLOGIES,
+    CoordMission,
     make_coord_mission,
     make_prefix_coord_mission,
 )

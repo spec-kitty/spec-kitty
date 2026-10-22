@@ -726,8 +726,8 @@ class TestEmitRetrospectiveEvent:
 class TestStatusSnapshotRetrospectiveField:
     def test_retrospective_absent_by_default(self, tmp_path: Path) -> None:
         """When no retrospective events exist, snapshot.retrospective is None."""
-        from tests._support.status_seed import seed_status_event
         from specify_cli.status.models import Lane, StatusEvent
+        from tests._support.status_seed import seed_status_event
 
         feature_dir = tmp_path / "kitty-specs" / "test-mission"
         feature_dir.mkdir(parents=True)

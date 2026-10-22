@@ -20,8 +20,8 @@ from specify_cli.git.commit_helpers import SafeCommitHeadMismatch, SafeCommitPat
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import Lane, StatusEvent
 from specify_cli.status.store import read_events
-from tests._support.status_seed import seed_status_event
 from tests._support.git_cli import git_out
+from tests._support.status_seed import seed_status_event
 
 # Markers are per test: the pure bundle/text seams are ``fast``; everything that runs git is
 # ``git_repo`` (pytest.ini: ``fast`` means no subprocess and no git).

@@ -61,13 +61,13 @@ import json
 from pathlib import Path
 
 import pytest
+from spec_kitty_events.diary import _RUNTIME_SLOTS
 
 import specify_cli.status as _status_facade
 from specify_cli.frontmatter import FrontmatterManager
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
-from spec_kitty_events.diary import _RUNTIME_SLOTS
-from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils import WorkPackage
+from tests._support.status_seed import seed_status_event
 from tests.architectural._ast_scan import parse_file
 
 pytestmark = pytest.mark.architectural

@@ -480,6 +480,7 @@ class TestLoadCoordBranchMeta:
 
     def test_returns_coord_when_present(self, tmp_path: Path) -> None:
         import json
+
         from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
 
         (tmp_path / "meta.json").write_text(
@@ -544,6 +545,7 @@ class TestTransactionPathFor:
 
     def test_falls_back_to_legacy_when_coord_missing(self, tmp_path: Path) -> None:
         import json
+
         from specify_cli.cli.commands.agent.workflow import _load_coord_branch_meta
 
         # Legacy mission: mission_id present but no coordination_branch.
@@ -1017,7 +1019,9 @@ class TestCommitWorkflowChange:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         import json
+
         import typer
+
         from specify_cli.cli.commands.agent import workflow
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
@@ -1124,6 +1128,7 @@ class TestPrintCommitSummary:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         import json as _json
+
         from specify_cli.cli.commands.agent import workflow
 
         workflow._reset_workflow_receipts()

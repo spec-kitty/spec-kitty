@@ -32,18 +32,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.mission_loader.command import run_custom_mission
-from specify_cli.mission_loader.registry import get_runtime_contract_registry
-from specify_cli.mission_step_contracts.executor import (
-    StepContractExecutionContext,
-)
 from runtime.next._internal_runtime.discovery import DiscoveryContext
 from runtime.next._internal_runtime.engine import (
     MissionRunRef,
     _read_snapshot,
-    next_step as engine_next_step,
     provide_decision_answer,
     start_mission_run,
+)
+from runtime.next._internal_runtime.engine import (
+    next_step as engine_next_step,
 )
 from runtime.next._internal_runtime.events import NullEmitter
 from runtime.next._internal_runtime.schema import (
@@ -52,8 +49,12 @@ from runtime.next._internal_runtime.schema import (
 )
 from runtime.next.decision import Decision, DecisionKind
 from runtime.next.runtime_bridge_composition import _dispatch_via_composition
+from specify_cli.mission_loader.command import run_custom_mission
+from specify_cli.mission_loader.registry import get_runtime_contract_registry
+from specify_cli.mission_step_contracts.executor import (
+    StepContractExecutionContext,
+)
 from tests._factories import provision_test_charter
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

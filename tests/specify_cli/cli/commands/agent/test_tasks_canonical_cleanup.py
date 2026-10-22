@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -20,8 +20,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-from specify_cli.status.models import StatusEvent, Lane
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast

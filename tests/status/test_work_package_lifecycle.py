@@ -15,7 +15,6 @@ from specify_cli.status.store import (
     read_event_stream,
     read_events,
 )
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
@@ -26,6 +25,7 @@ from specify_cli.status.work_package_lifecycle import (
     start_implementation_status,
     start_review_status,
 )
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

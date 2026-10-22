@@ -17,7 +17,6 @@ from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
-
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"

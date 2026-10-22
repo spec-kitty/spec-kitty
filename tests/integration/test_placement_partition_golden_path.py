@@ -45,9 +45,9 @@ from typer.testing import CliRunner
 
 from mission_runtime import MissionArtifactKind, MissionTopology
 from specify_cli.acceptance.matrix import read_acceptance_matrix
-from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.mission_creation import MissionCreationResult, create_mission_core
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
@@ -677,8 +677,8 @@ def test_protected_primary_event_only_mark_status_succeeds_without_commit(
         "# Tasks\n\n## WP01\nSubtasks: T001\n",
         encoding="utf-8",
     )
-    from tests._support.status_seed import seed_status_event
     from specify_cli.status.models import Lane, StatusEvent
+    from tests._support.status_seed import seed_status_event
 
     seed_status_event(
         result.feature_dir,

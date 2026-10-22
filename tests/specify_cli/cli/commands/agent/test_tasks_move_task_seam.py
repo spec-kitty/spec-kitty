@@ -46,14 +46,14 @@ import pytest
 from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
 from specify_cli.cli.commands.agent import tasks_move_task_executor as _tmt_executor
 from specify_cli.cli.commands.agent.tasks_move_task import (
-    _MoveTaskState,
     _binding_role_for_lane,
+    _MoveTaskState,
     _mt_approval_policy_metadata,
     _mt_hop_policy_metadata,
 )
 from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.resolved_binding import ResolvedBinding
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

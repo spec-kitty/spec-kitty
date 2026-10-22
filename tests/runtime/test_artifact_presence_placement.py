@@ -14,8 +14,8 @@ from runtime.next import runtime_bridge_composition as composition
 from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
 from tests._owned_fixtures import mint_test_fact
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

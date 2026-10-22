@@ -156,16 +156,16 @@ from specify_cli.review.cycle import (
 from specify_cli.status import materialize as _materialize
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from specify_cli.status.store import read_events
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.transitions import validate_transition
+from tests._support.status_seed import seed_status_event
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     _build_coord_topology,
 )
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_move_task_durability import (
-    _FaultInjectableCoordRouter,
     _build_wp_file,
+    _FaultInjectableCoordRouter,
     _git_head_has_file,
     _git_status,
     _init_repo,

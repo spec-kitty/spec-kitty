@@ -20,6 +20,7 @@ import pytest
 import typer
 
 from specify_cli.consolidation import done_bookkeeping as db
+from specify_cli.consolidation import phase_claim
 from specify_cli.status import (
     CurrentWpState,
     EventStream,
@@ -28,7 +29,6 @@ from specify_cli.status import (
     ReviewOverride,
     WPInnerStateDelta,
 )
-from specify_cli.consolidation import phase_claim
 
 if TYPE_CHECKING:
     from tests._factories.coord_mission import CoordMission
@@ -804,6 +804,8 @@ def _build_approved_prefix_coord_mission(tmp_path: Path) -> tuple[CoordMission, 
     from tests._factories.coord_mission import make_prefix_coord_mission
     from tests.terminus.conftest import (
         CoordMission as TerminusMission,
+    )
+    from tests.terminus.conftest import (
         _approve_events,
         _commit_planning_artifacts,
         _cut_lane_branch,

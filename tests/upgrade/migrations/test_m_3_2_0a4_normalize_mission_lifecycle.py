@@ -10,11 +10,11 @@ import pytest
 from specify_cli.status.lifecycle import generate_lifecycle_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.views import write_derived_views
 from specify_cli.upgrade.migrations.m_3_2_0a4_normalize_mission_lifecycle import (
     NormalizeMissionLifecycleMigration,
 )
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

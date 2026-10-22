@@ -13,17 +13,16 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
+from specify_cli.cli.commands.accept import accept
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
-from specify_cli.cli.commands.accept import accept
 from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
-
 from specify_cli.workspace.context import clear_workspace_resolution_caches
+from tests._support.status_seed import seed_status_event
 from tests.status.test_transition_request_owned import claim_counter
-from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 __all__ = ["claim_counter"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -277,6 +276,7 @@ def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
 
 def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
     from types import SimpleNamespace
+
     from runtime.next import runtime_bridge as rb
     from tests._factories import provision_test_charter
 
@@ -783,8 +783,8 @@ def test_accept_no_commit_updates_only_owned_matrix(ready_accept_checkouts):
 
 
 def test_accept_commits_metadata_matrix_and_cutover_only_in_owned(ready_accept_checkouts, monkeypatch):
-    from specify_cli.migration import runtime_state_cutover
     from specify_cli.core.owned_mission import resolve_owned_mission
+    from specify_cli.migration import runtime_state_cutover
 
     cutovers = []
     real_stamp = runtime_state_cutover.stamp_accept_cutover

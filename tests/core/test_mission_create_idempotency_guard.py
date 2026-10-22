@@ -30,16 +30,15 @@ from ulid import ULID
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import (
-    _create_mission_core_failure_atomic,
     MissionAlreadyExistsError,
     MissionCreationError,
     MissionCreationResult,
+    _create_mission_core_failure_atomic,
     create_mission_core,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
-
 from tests._factories import provision_test_charter
+from tests._support.status_seed import seed_status_event
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]

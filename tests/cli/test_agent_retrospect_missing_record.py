@@ -7,9 +7,9 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.charter_pack_synthesizer import SynthesisResult
 from specify_cli.cli.commands.agent import app
 from specify_cli.context.mission_resolver import ResolvedMission
-from specify_cli.charter_pack_synthesizer import SynthesisResult
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest

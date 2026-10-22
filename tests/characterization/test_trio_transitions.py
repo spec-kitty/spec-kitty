@@ -26,11 +26,11 @@ to ``tmp_path``, per the ``unit`` marker's contract in ``pytest.ini``).
 
 from __future__ import annotations
 
-from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import UTC, datetime, timedelta
 from specify_cli.acceptance import AcceptanceError, _collect_snapshot_wps, _status_read_feature_dir
 from specify_cli.cli.commands.agent.workflow import _canonical_status_feature_dir
 from specify_cli.status import EVENTS_FILENAME, Lane, StatusEvent

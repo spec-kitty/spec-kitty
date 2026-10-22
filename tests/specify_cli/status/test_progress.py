@@ -18,7 +18,6 @@ from specify_cli.status.progress import (
 from specify_cli.status.reducer import reduce
 from tests._support.status_seed import seed_status_event
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

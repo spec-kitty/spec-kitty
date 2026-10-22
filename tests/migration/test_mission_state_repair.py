@@ -18,7 +18,6 @@ from specify_cli.migration.mission_state import (
     teamspace_dry_run,
 )
 
-
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
@@ -1814,8 +1813,8 @@ class _ConcurrentWriter:
             mission_lock_key,
         )
         from specify_cli.status.locking import feature_status_lock
-        from tests._support.status_seed import seed_status_event
         from specify_cli.workspace.root_resolver import resolve_status_lock_root
+        from tests._support.status_seed import seed_status_event
 
         try:
             root = resolve_status_lock_root(self.mission, self.repo)

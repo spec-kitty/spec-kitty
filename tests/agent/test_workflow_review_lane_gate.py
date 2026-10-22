@@ -4,26 +4,25 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
-
+from kernel.clock import now_utc
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.coordination.types import CommitReceipt
 from specify_cli.coordination.workspace import CoordinationWorkspace
-from specify_cli.lanes.lifecycle_sync import LaneAutoRebaseSyncError
 from specify_cli.frontmatter import write_frontmatter
-from specify_cli.status.emit import emit_status_transition
+from specify_cli.lanes.lifecycle_sync import LaneAutoRebaseSyncError
 from specify_cli.status import RollbackPoint
-from tests._support.status_seed import seed_status_event
-from specify_cli.status.models import StatusEvent, Lane, TransitionRequest
+from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.task_utils import extract_scalar, split_frontmatter
+from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -217,8 +216,8 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
 
     assert result.exit_code == 0
     # Lane is event-log-only; verify canonical state via event log
-    from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})
@@ -663,8 +662,8 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 
     assert result.exit_code == 0, result.stdout
     # Lane is event-log-only; verify canonical state via event log
-    from specify_cli.status.store import read_events
     from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
     events = read_events(feature_dir)
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get("WP01", {})

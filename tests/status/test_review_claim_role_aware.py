@@ -32,8 +32,8 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.store import append_annotations_atomic_verified
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.transitions import validate_transition
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 

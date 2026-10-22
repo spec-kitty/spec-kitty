@@ -25,7 +25,6 @@ from specify_cli.review.arbiter import (
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
 
-
 pytestmark = pytest.mark.fast
 
 

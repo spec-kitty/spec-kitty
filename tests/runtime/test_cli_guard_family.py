@@ -13,8 +13,8 @@ from runtime.next import runtime_bridge as rb
 from runtime.next.runtime_bridge import _check_cli_guards
 from runtime.next.runtime_bridge_cores import (
     _GUARD_TABLES,
-    _evaluate_plan_guards,
     UnregisteredMissionFamilyError,
+    _evaluate_plan_guards,
     evaluate_guards_strict,
 )
 from runtime.next.runtime_bridge_io import gather_artifact_presence

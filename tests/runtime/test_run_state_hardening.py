@@ -434,7 +434,6 @@ def test_progress_query_logs_when_weighted_progress_is_unavailable(tmp_path: Pat
     """The fallback is a logged warning, never a silent swallow; the lane
     counts are still returned."""
     import specify_cli.status as status_pkg
-
     from runtime.next.decision import _compute_wp_progress
 
     feature_dir = tmp_path / "kitty-specs" / "042-mission"

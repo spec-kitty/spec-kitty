@@ -49,8 +49,8 @@ from specify_cli.status.models import (
     actor_identity_str,
 )
 from specify_cli.status.store import append_annotations_atomic_verified
-from tests._support.status_seed import seed_status_event
 from tests import _click_universe as typer_click
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.utils import run
 

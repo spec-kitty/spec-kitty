@@ -22,11 +22,11 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event

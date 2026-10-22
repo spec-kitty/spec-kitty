@@ -27,8 +27,8 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.reducer import reduce as reduce_snapshot
 from specify_cli.status.store import read_event_stream
-from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils.support import activity_entries
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.unit
 

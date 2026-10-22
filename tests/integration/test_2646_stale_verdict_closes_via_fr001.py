@@ -55,7 +55,6 @@ from specify_cli.agent_utils.status import show_kanban_status
 from specify_cli.review.cycle import create_rejected_review_cycle
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     FlatTopologyContext,

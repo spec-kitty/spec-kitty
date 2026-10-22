@@ -25,9 +25,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from kernel.clock import now_utc_iso
 from ulid import ULID
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import AcceptanceSummary, collect_feature_summary
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
@@ -42,8 +42,8 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_annotations_atomic_verified
-from tests._support.status_seed import seed_status_event
 from specify_cli.task_utils import LANES
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 # Real ``git`` + subprocess CLI invocation — excluded from the mutmut sandbox.

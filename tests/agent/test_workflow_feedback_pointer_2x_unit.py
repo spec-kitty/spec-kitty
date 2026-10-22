@@ -8,12 +8,12 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from tests.branch_contract import IS_2X_BRANCH
 from specify_cli.cli.commands.agent import workflow, workflow_cores
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
+from tests.branch_contract import IS_2X_BRANCH
 
 pytestmark = [
     pytest.mark.skipif(not IS_2X_BRANCH, reason="2.x-only review feedback pointer contract"),
