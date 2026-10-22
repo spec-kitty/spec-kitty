@@ -1,0 +1,251 @@
+schema_version: 1
+mission_id: 01M5HS55TRH6AWB06AYE819FAH
+mission_slug: event-write-hygiene-01M5HS55
+mission_number: 240
+friendly_name: 'Event write hygiene: retire dead write doors and private events imports'
+mission_type: software-dev
+target_branch: feat/event-write-hygiene
+created_at: '2026-10-22T17:01:23.991544+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-22T17:01:23.991544+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-005
+  category: tooling
+  summary: 'Tracer: [2026-10-22][implement] status.json records `agent_profile: __resolved_profile_absent__`'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-22][implement] status.json records `agent_profile: __resolved_profile_absent__`** for claims made
+    with `--profile` but no `--invocation-id` Op (WP03). Expected per the implement-review skill (absence is recorded explicitly),
+    but surprising to read. Candidate docs note; no gap filed.'
+- id: h-004
+  category: tooling
+  summary: 'Tracer: [2026-10-22][setup] JDK 25 present but not on PATH.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-22][setup] JDK 25 present but not on PATH.** Temurin 25 is at `/usr/lib/jvm/temurin-25`, while `java`
+    on PATH is 21 (the profile export of #6325 did not reach this shell). It is not needed for this Python-only mission. Disposition:
+    noted, no gap filed.'
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-013
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-10-22][plan] Census folds (`research-census.md`).'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-10-22][plan] Census folds (`research-census.md`).**\n  - 190 files are codemodded, including the identity
+    spy at `refinalize_frozen_lanes_support.py:311`, which is deleted, and 45 function-local imports.\n  - The `conftest_saas_sink`
+    patch becomes fail-loud: an unconditional `setattr` that raises when the target is missing, so the `call_count == 0` assertions
+    cannot pass vacuously.\n  - The `append_to_index` \"index entry without op file\" seed becomes a raw fixture line written
+    by the test.\n  - `emit._saas_fan_out*` is in scope (operator: no stale names).\n  - `status/design.py:79`'s same-inode
+    claim gets corrected.\n  - The `coverage_breadth_baseline.json` node IDs follow the test rename."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-22][post-spec squad] Extend existing gates; add no new scanners.'
+  evidence_refs:
+  - e-015
+  details: "- **[2026-10-22][post-spec squad] Extend existing gates; add no new scanners.**\n  - The door bans ride on `test_status_unsafe_allowlist.STORE_APPEND_PRIMITIVES`
+    / `COORD_WRAPPER_DOORS`, the `test_store_writes_are_found` pin and `test_no_dead_symbols`.\n  - The private-import ban
+    extends `test_events_tracker_public_imports.py`, the real owner. G-18's pointer to `test_shared_package_boundary.py` was
+    wrong.\n  - Reason: single canonical authority."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-10-22][post-spec squad] Private-import gate covers `src/` only, with no allowlist.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-22][post-spec squad] Private-import gate covers `src/` only, with no allowlist.** Four test files
+    deliberately read `diary` privates to stay in step with the library. A test allowlist would be priced debt (charter burn-down
+    policy). An upstream request for public equivalents is proposed instead.'
+- id: n-012
+  category: tooling
+  summary: "Tracer: [2026-10-22][post-spec squad] The rename covers the seam's full residue, not only `adapters.py`."
+  evidence_refs:
+  - e-015
+  details: "- **[2026-10-22][post-spec squad] The rename covers the seam's full residue, not only `adapters.py`.** That includes
+    `emit._saas_fan_out*`, the seam log labels, `fanout_lifecycle_event_hosted` and the `conftest_saas_sink` plugin, with
+    path-keyed ledgers updated. Renaming only `adapters.py` would satisfy SC-003 on paper only."
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-10-22][post-spec squad] `repo_root_for_lifecycle_log` goes with the hosted builder.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-22][post-spec squad] `repo_root_for_lifecycle_log` goes with the hosted builder.** It existed only
+    for the removed sync handler.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-22][review WP02] Index census limits.'
+  evidence_refs:
+  - e-014
+  details: "- **[2026-10-22][review WP02] Index census limits.**\n  - Cheap to close: an `INDEX_PATH` alias. This is folded
+    at pre-PR.\n  - Out of scope: cross-module write helpers, nested-class methods and module-level code. These would need
+    a cross-module call graph, so the test docstring is to name them as known limits."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-22][review WP04] Pre-PR fold queue.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-10-22][review WP04] Pre-PR fold queue.** Two items: lower-case "Status fan-out" in the `adapters.py`
+    docstrings, and close the `INDEX_PATH` alias gap in the index census (from the WP02 review).'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-10-22][setup] origin/main was force-updated under the clone.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-22][setup] origin/main was force-updated under the clone.** Local `main` diverged by 50 commits from
+    a rewritten origin. It was realigned with `reset --hard origin/main` (no local work). Afterwards the auto-mode classifier
+    refused the next unrelated commands once. Workaround: rerun each separately.'
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-22][specify] Delete rather than replace.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-10-22][specify] Delete rather than replace.** Every door in #6614 and the builder holding the private
+    import in #6607 have no `src/` caller. Deletion, plus gates against reintroduction, is the smallest change that closes
+    G-11, G-16 and G-18 without pre-empting the EventBridge port (#6603).'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-22][specify] Delete the dead hosted builder (operator ruling).'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-22][specify] Delete the dead hosted builder (operator ruling).** The alternatives were the public
+    `validate_event` with its unknown-type `ValueError`, or a local explicit type set. Deleting removes the private import
+    and the latent 11.1.0 `actor_id` strictness break together.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-22][specify] No compatibility aliases (operator ruling).'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-22][specify] No compatibility aliases (operator ruling).** `spec-kitty/event-router` is frozen and
+    considered dead, so no old names are kept for it. The timeout env var `SPEC_KITTY_SAAS_FANOUT_TIMEOUT` goes too.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-22][specify] Test seeding moves to a helper over the atomic primitive.'
+  evidence_refs:
+  - e-014
+  details: '- **[2026-10-22][specify] Test seeding moves to a helper over the atomic primitive.** About 195 test files seeded
+    through the non-atomic door. They move to `tests/_support`, so tests exercise the write path production actually uses.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks/WP01-test-seeding-helper-and-codemod.md
+- id: e-006
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks/WP02-delete-dead-write-doors.md
+- id: e-007
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks/WP03-dead-hosted-builder-and-public-imports-gate.md
+- id: e-008
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks/WP04-transport-neutral-produce-seam.md
+- id: e-009
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/tasks/WP05-docs-adr-notes-changelog.md
+- id: e-010
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/status.events.jsonl
+- id: e-011
+  kind: event_range
+  path: kitty-specs/event-write-hygiene-01M5HS55/status.events.jsonl
+  range: 01M5HZKC1XF3MYSHPA9715WX38
+- id: e-012
+  kind: event_range
+  path: kitty-specs/event-write-hygiene-01M5HS55/status.events.jsonl
+  range: 01M5J5XF905F2ZE6WY9TZVFQ9P
+- id: e-013
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/analysis-report.md
+- id: e-014
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/traces/approach.md
+- id: e-015
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/traces/design-decisions.md
+- id: e-016
+  kind: file
+  path: kitty-specs/event-write-hygiene-01M5HS55/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
