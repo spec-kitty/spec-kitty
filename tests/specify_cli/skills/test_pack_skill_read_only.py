@@ -264,7 +264,7 @@ def _non_list_activation(root: Path, pack: Path) -> None:
 
 def _org_required(root: Path, pack: Path, charter: str = "org_name: acme-org\nskill_namespace: acme\nrequired_skills: [deploy-helper]\n") -> None:
     """Switch the project from an explicit activation to the org-required default (the org charter decides)."""
-    activation_ledger_path(root).write_text(yaml.safe_dump(_ledger_without_skills(root), sort_keys=False), encoding="utf-8")
+    support.write_config(root, pack, extra=CONFIG, ledger={})
     (pack / "org-charter.yaml").write_text(charter, encoding="utf-8")
 
 
