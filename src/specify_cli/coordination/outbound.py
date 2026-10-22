@@ -110,7 +110,7 @@ def _send_to_fanout(
         metadata=WPStatusChangeMetadata.from_status_event(
             event, policy_metadata=event.policy_metadata
         ),
-        # The emitting checkout root, so the Zeitgeist bridge resolves relay
-        # credentials from it instead of the process cwd (#125).
+        # The emitting checkout root, so a transport handler resolves per-repo
+        # context from it instead of the process cwd (#125).
         repo_root=repo_root,
     )

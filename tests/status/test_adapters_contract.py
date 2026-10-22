@@ -108,8 +108,10 @@ def test_raising_stub_is_swallowed_logged_and_later_stub_still_runs(caplog: pyte
 
 
 def test_adapters_source_carries_no_hosted_transport_vocabulary() -> None:
-    source = Path(adapters.__file__).read_text(encoding="utf-8")
-    assert "saas" not in source.lower()
+    source = Path(adapters.__file__).read_text(encoding="utf-8").lower()
+    # The removed Zeitgeist transport may be named as history; live hosted vocabulary may not.
+    for residue in ("saas", "drain_posture", "hosted"):
+        assert residue not in source, residue
 
 
 def test_no_handler_is_registered_after_import_in_a_fresh_interpreter() -> None:

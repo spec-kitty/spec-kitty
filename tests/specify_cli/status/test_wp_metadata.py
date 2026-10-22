@@ -658,7 +658,7 @@ class TestReadWpFrontmatter:
         # Keep the claim transition local — no status fan-out / dossier sync.
         import specify_cli.status.emit as status_emit
 
-        monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None, raising=False)
+        monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
         feature_dir = tmp_path / "kitty-specs" / "pid-snapshot"
         (feature_dir / "tasks").mkdir(parents=True)
         (feature_dir / "meta.json").write_text('{"status_phase": 0}', encoding="utf-8")

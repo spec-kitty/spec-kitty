@@ -890,5 +890,5 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 |-----------|---------------|
 | Pydantic Event model | External `spec-kitty-events` dependency, pinned at `c93dbfbf5243330349452a31d05bca2ece26ceea` (`pyproject.toml`) |
 | Retired sync transport | Deleted with issue #5; this appendix is historical only |
-| SaaS fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_status_fan_out`) |
+| Status fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_status_fan_out`) |
 | Retired public event API | Deleted with issue #5 |

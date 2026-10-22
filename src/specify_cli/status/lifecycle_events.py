@@ -344,9 +344,9 @@ def fanout_lifecycle_event(
     *,
     log_path: Path | None,
 ) -> None:
-    """Offer a persisted lifecycle *envelope* to registered hosted adapters.
+    """Offer a persisted lifecycle *envelope* to registered fan-out handlers.
 
-    This is the explicit hosted-effect half of lifecycle emission. It never
+    This is the explicit fan-out half of lifecycle emission. It never
     writes the local JSONL log; callers that need the traditional composed
     behavior should continue to use :func:`append_lifecycle_event`.
 
@@ -407,7 +407,7 @@ def persist_lifecycle_event_local(
     mission_slug: str | None = None,
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Persist a lifecycle event locally without invoking hosted adapters.
+    """Persist a lifecycle event locally without invoking fan-out handlers.
 
     Returns the persisted event envelope, or ``None`` when the append was
     skipped because an event with the same ``(event_type, dedup_keys)``
@@ -481,11 +481,11 @@ def append_lifecycle_event(
     mission_slug: str | None = None,
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Persist locally, then offer the same envelope to hosted fan-out.
+    """Persist locally, then offer the same envelope to the lifecycle fan-out.
 
     This preserves the historical composed behavior for existing callers.
     Local persistence remains authoritative: a skipped or failed local write
-    returns ``None`` and does not invoke a hosted adapter.
+    returns ``None`` and does not invoke a fan-out handler.
 
     ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
     straight through (owned-checkout-lifecycle-authority WP13, out-of-map
@@ -683,7 +683,7 @@ def emit_artifact_phase_local(
     at: str | None = None,
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Persist a Specify/Plan/Tasks phase locally without hosted fan-out.
+    """Persist a Specify/Plan/Tasks phase locally without fan-out.
 
     ``repo_root``: see :func:`persist_lifecycle_event_local` -- passed
     straight through (owned-checkout-lifecycle-authority WP09).
@@ -781,8 +781,8 @@ def emit_artifact_phase(
 ) -> dict[str, Any] | None:
     """Persist and fan out a Specify/Plan/Tasks lifecycle event.
 
-    Existing callers retain their composed local-write-plus-hosted-fan-out
-    behavior. Callers with their own hosted authority decision should use
+    Existing callers retain their composed local-write-plus-fan-out
+    behavior. Callers that decide fan-out separately should use
     :func:`emit_artifact_phase_local` and later submit the returned envelope
     to :func:`fanout_lifecycle_event` with the mission log path.
 

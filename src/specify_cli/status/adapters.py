@@ -215,7 +215,7 @@ def _fanout_force(kwargs: dict[str, Any]) -> Any:
 
 
 def fire_status_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
-    """Call all registered Status fan-out handlers with **kwargs.
+    """Call all registered status fan-out handlers with **kwargs.
 
     Guarantees:
     - Handlers called in registration order.
@@ -316,7 +316,7 @@ def fire_resolved_binding_fanout(*, repo_root: Path | None = None, **kwargs: Any
 
 
 def fire_lifecycle_fanout(*, repo_root: Path | None = None, **kwargs: Any) -> None:
-    """Call all registered lifecycle Status fan-out handlers with **kwargs.
+    """Call all registered lifecycle fan-out handlers with **kwargs.
 
     ``repo_root`` is accepted for API stability and not forwarded to handlers
     (they receive ``{envelope, log_path}``).

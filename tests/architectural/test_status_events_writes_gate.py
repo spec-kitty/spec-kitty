@@ -885,11 +885,13 @@ def _docstring_nodes(tree: ast.Module) -> set[int]:
 
 
 def _module_index_constants(tree: ast.Module) -> frozenset[str]:
-    """Module-level names bound to an exact index path literal, plus the canonical ``INDEX_PATH``."""
+    """Module-level names bound to an exact index path literal, plus ``INDEX_PATH`` under any import alias."""
     names = set(_INDEX_CONSTANT_NAMES)
     for node in tree.body:
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and node.value.value in _INDEX_LITERALS:
             names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.ImportFrom):
+            names.update(alias.asname for alias in node.names if alias.name in _INDEX_CONSTANT_NAMES and alias.asname)
     return frozenset(names)
 
 
@@ -964,6 +966,10 @@ def test_invocation_index_has_a_single_writer(src_source_tree: Mapping[Path, Sou
     function is reported when it names the index in code (never in a docstring)
     and contains, or calls a same-module function that contains, a write-mode
     file operation.
+
+    Known limits (recorded at review, not worth a cross-module call graph): a
+    write delegated to a helper in another module, a method of a nested class,
+    and module-level code are not followed.
     """
     found: set[tuple[str, str]] = set()
     for path, entry in src_source_tree.items():
@@ -995,6 +1001,11 @@ def test_index_census_is_not_vacuous() -> None:
         "INDEX = 'kitty-ops/ops-index.jsonl'\ndef _w(p):\n    p.write_text('x')\ndef w(d):\n    _w(d / INDEX)\n",
     )
     assert ("specify_cli.rogue", "w") in delegated
+    aliased = scan_index_writers_from_source(
+        "specify_cli.rogue",
+        "from specify_cli.invocation.writer import INDEX_PATH as _IDX\ndef w(root):\n    (root / _IDX).open('a').write('x')\n",
+    )
+    assert aliased == {("specify_cli.rogue", "w")}
     read_only = (
         "from specify_cli.invocation.writer import INDEX_PATH\n"
         "def _iter_records(repo_root, events_dir):\n"
