@@ -9,3 +9,10 @@
 - **[2026-10-22][post-spec squad] Private-import gate covers `src/` only, with no allowlist.** Four test files deliberately read `diary` privates to stay in step with the library. A test allowlist would be priced debt (charter burn-down policy). An upstream request for public equivalents is proposed instead.
 - **[2026-10-22][post-spec squad] The rename covers the seam's full residue, not only `adapters.py`.** That includes `emit._saas_fan_out*`, the seam log labels, `fanout_lifecycle_event_hosted` and the `conftest_saas_sink` plugin, with path-keyed ledgers updated. Renaming only `adapters.py` would satisfy SC-003 on paper only.
 - **[2026-10-22][post-spec squad] `repo_root_for_lifecycle_log` goes with the hosted builder.** It existed only for the removed sync handler.
+- **[2026-10-22][plan] Census folds (`research-census.md`).**
+  - 190 files are codemodded, including the identity spy at `refinalize_frozen_lanes_support.py:311`, which is deleted, and 45 function-local imports.
+  - The `conftest_saas_sink` patch becomes fail-loud: an unconditional `setattr` that raises when the target is missing, so the `call_count == 0` assertions cannot pass vacuously.
+  - The `append_to_index` "index entry without op file" seed becomes a raw fixture line written by the test.
+  - `emit._saas_fan_out*` is in scope (operator: no stale names).
+  - `status/design.py:79`'s same-inode claim gets corrected.
+  - The `coverage_breadth_baseline.json` node IDs follow the test rename.
