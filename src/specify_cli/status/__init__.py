@@ -284,7 +284,6 @@ from .lifecycle_events import (
     TASKS_STARTED,
     WP_CREATED,
     MissionNotCompletedError,
-    build_saas_lifecycle_queue_event,
     emit_artifact_phase,
     emit_artifact_phase_local,
     fanout_lifecycle_event_hosted,
@@ -300,7 +299,6 @@ from .lifecycle_events import (
     mission_event_log_path,
     project_event_log_path,
     read_lifecycle_events,
-    repo_root_for_lifecycle_log,
 )
 from .tail_reader import (
     EMPTY_DIGEST,
@@ -558,7 +556,6 @@ __all__ = [
     "latest_implementer_event",
     "WorkPackageClaimConflict",
     "WorkPackageStartRejected",
-    "build_saas_lifecycle_queue_event",
     "emit_artifact_phase",
     "emit_artifact_phase_local",
     "fanout_lifecycle_event_hosted",
@@ -575,7 +572,6 @@ __all__ = [
     "serialize_event_line",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
-    "repo_root_for_lifecycle_log",
     "EMPTY_DIGEST",
     "ResumeRefused",
     "TailCursor",

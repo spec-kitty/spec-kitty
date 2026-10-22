@@ -69,7 +69,7 @@ from specify_cli.coordination.surface_resolver import (
 from specify_cli.core.paths import get_main_repo_root, resolve_canonical_root
 from specify_cli.lanes.persistence import resolve_lanes_dir
 from specify_cli.status.aggregate import MissionStatus
-from specify_cli.status.lifecycle_events import repo_root_for_lifecycle_log
+from specify_cli.status import lifecycle_events
 from specify_cli.status.store import _SlugResolver
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
@@ -327,7 +327,7 @@ def test_flat_every_adopted_fragment_resolves_to_base(
     assert resolve_canonical_root(fd) == base
     assert get_main_repo_root(primary.repo_root) == base
     assert resolve_status_lock_root(fd, None) == base
-    assert repo_root_for_lifecycle_log(fd / "status.events.jsonl") == base
+    assert lifecycle_events._repo_root_for_lifecycle_log(fd / "status.events.jsonl") == base
     # store.py slug resolver anchors on the flat specs root (no ancestor escape).
     assert _SlugResolver(fd)._mission_specs_root == fd.parent
 

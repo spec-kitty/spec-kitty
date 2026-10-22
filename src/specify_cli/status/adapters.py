@@ -326,7 +326,7 @@ def fire_lifecycle_saas_fanout(*, repo_root: Path | None = None, **kwargs: Any) 
     caller's ``**kwargs`` only -- ``{envelope, log_path}``), so it is absorbed as
     an explicit parameter here and discarded rather than passed through. Callers
     still resolve it themselves (e.g.
-    ``lifecycle_events.repo_root_for_lifecycle_log(log_path)``) since this module
+    ``lifecycle_events._repo_root_for_lifecycle_log(log_path)``) since this module
     must not reach back into ``lifecycle_events``/``decisions`` at import time.
     """
     del repo_root

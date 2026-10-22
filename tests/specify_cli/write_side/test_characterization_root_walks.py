@@ -10,7 +10,7 @@ ancestor scans):
 
 * ``status/emit.py::_feature_status_lock_root``
 * ``status/work_package_lifecycle.py::_repo_root_for_lock``
-* ``status/lifecycle_events.py::repo_root_for_lifecycle_log``
+* ``status/lifecycle_events.py::_repo_root_for_lifecycle_log``
 * ``status/store.py::_SlugResolver._find_mission_specs_root``
 * ``coordination/status_transition.py::_repo_root_for_feature``
 
@@ -39,7 +39,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.paths import get_main_repo_root, resolve_canonical_root
 from specify_cli.lanes.persistence import resolve_lanes_dir
-from specify_cli.status.lifecycle_events import repo_root_for_lifecycle_log
+from specify_cli.status import lifecycle_events
 from specify_cli.status.store import _SlugResolver
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
@@ -73,7 +73,7 @@ def test_coord_root_walk_sites_current_values_before_oracle(
       helper follows the worktree pointer to the MAIN root via
       ``resolve_canonical_root`` (WP02 consolidation).
     * **Still walks to the worktree root** — ``coord::_repo_root_for_feature``
-      and ``lifecycle::repo_root_for_lifecycle_log`` resolve ``parent.parent`` =
+      and ``lifecycle::_repo_root_for_lifecycle_log`` resolve ``parent.parent`` =
       the COORD-WORKTREE root, NOT the canonical main root.
 
     Pinning BOTH values here is the before/after oracle (D-5): after the adoption
@@ -97,13 +97,13 @@ def test_coord_root_walk_sites_current_values_before_oracle(
 
     # Class 2 — integrated tree: BOTH class-2 sites converge on the canonical MAIN
     # root (FR-001 / R5 / D-12). ``coord::_repo_root_for_feature`` (WP05) and
-    # ``lifecycle::repo_root_for_lifecycle_log`` (WP03) both used to walk
+    # ``lifecycle::_repo_root_for_lifecycle_log`` (WP03) both used to walk
     # ``parent.parent`` to the COORD-WORKTREE root (the FR-001 divergence); both now
     # route through the canonical worktree-pointer resolver, so read and write
     # resolve the SAME canonical root (SC-002/SC-003).
     assert _repo_root_for_feature(coord_fd, None) == main_root
     log_path = coord_fd / "status.events.jsonl"
-    assert repo_root_for_lifecycle_log(log_path) == main_root
+    assert lifecycle_events._repo_root_for_lifecycle_log(log_path) == main_root
 
     # Guard that the coord worktree root genuinely differs from the main root
     # (topology sanity), so both class-2 adoptions above are provably non-trivial.
@@ -157,7 +157,7 @@ def test_primary_all_root_walk_sites_resolve_repo_root(
     assert resolve_canonical_root(fd) == expected
     assert resolve_status_lock_root(fd, None) == expected
     assert _repo_root_for_feature(fd, None) == expected
-    assert repo_root_for_lifecycle_log(fd / "status.events.jsonl") == expected
+    assert lifecycle_events._repo_root_for_lifecycle_log(fd / "status.events.jsonl") == expected
 
 
 # ---------------------------------------------------------------------------
