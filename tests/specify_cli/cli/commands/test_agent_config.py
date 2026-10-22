@@ -16,6 +16,7 @@ Structure: AAA (Arrange / Act / Assert).
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -588,3 +589,20 @@ class TestAgentIgnoreBlockRefresh:
         assert result.exit_code == 0, result.output
         assert ".gitignore not updated" in result.output
         assert load_agent_config(project).available == ["claude"]
+
+
+def test_sync_with_no_agent_list_removes_no_agent_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A legacy config without ``agents.available`` means every agent, so sync must not orphan-remove (#6474)."""
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  auto_commit: true\n", encoding="utf-8")
+    commands = tmp_path / ".claude" / "commands"
+    commands.mkdir(parents=True)
+    generated = commands / "spec-kitty.plan.md"
+    generated.write_text("generated\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["sync"])
+
+    assert result.exit_code == 0, result.output
+    assert generated.exists()
+    assert "Skipped orphan removal" in " ".join(result.output.split())

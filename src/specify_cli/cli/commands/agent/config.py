@@ -216,7 +216,7 @@ def _register_skill_agent(
         return False, f"Failed to install {agent_key} skills: {exc}"
 
 
-def _refresh_agent_ignore_block(repo_root: Path, config: AgentConfig) -> None:
+def _refresh_agent_ignore_block(repo_root: Path, config: AgentConfig, *, quiet: bool = False) -> None:
     """Keep the .gitignore agent-files block in step with *config* (#6474).
 
     Only an existing block is rewritten; a project without one gets it from
@@ -226,9 +226,10 @@ def _refresh_agent_ignore_block(repo_root: Path, config: AgentConfig) -> None:
     try:
         changed = GitignoreManager(repo_root).sync_agent_block(config.available, create=False)
     except (GitignoreBlockError, GitignorePathError, OSError) as exc:
-        console.print(f"[yellow]Warning:[/yellow] .gitignore not updated: {exc}")
+        if not quiet:
+            console.print(f"[yellow]Warning:[/yellow] .gitignore not updated: {exc}")
         return
-    if changed:
+    if changed and not quiet:
         console.print("[dim]Updated the Spec Kitty agent-files block in .gitignore[/dim]")
 
 
@@ -769,6 +770,16 @@ def sync_agents(
     regenerated: list[str] | None = [] if json_output else None
 
     # Remove orphaned directories
+    if remove_orphaned and not config.available and not config.explicit_agent_list:
+        # A legacy config with no ``agents.available`` means "every agent" everywhere else
+        # (get_agent_dirs_for_project, ignored_agent_keys); treating it as "no agent
+        # configured" here would delete every agent surface.
+        remove_orphaned = False
+        if not json_output:
+            console.print(
+                "[yellow]Skipped orphan removal:[/yellow] .kittify/config.yaml has no agents.available list. "
+                "Set agents.available explicitly (an empty list means no agents), then re-run sync."
+            )
     if remove_orphaned:
         changes_made = _remove_orphaned_agent_dirs(repo_root, config) or changes_made
 
@@ -779,6 +790,9 @@ def sync_agents(
     # Sync hooks
     if sync_hooks:
         changes_made = _sync_harness_hooks(repo_root, config) or changes_made
+
+    if changes_made:
+        _refresh_agent_ignore_block(repo_root, config, quiet=json_output)
 
     manifest_after = manifest_path.read_bytes() if manifest_path.exists() else None
     tracked_mutations = [".kittify/command-skills-manifest.json"] if manifest_before != manifest_after else []
