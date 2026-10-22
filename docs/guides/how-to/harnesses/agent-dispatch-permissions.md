@@ -24,7 +24,7 @@ shipped skill tells an agent to turn them off; a gate test
 | Gemini | `--approval-mode auto_edit` | Denied in a headless run until you allow them |
 | Qwen Code | `--approval-mode auto-edit` | Denied in a headless run until you allow them |
 | LLxprt Code | `--approval-mode=auto_edit` | Denied in a headless run until you allow them |
-| Copilot | `--allow-tool 'write' --allow-tool 'shell(git:*)' --allow-tool 'shell(spec-kitty:*)'` | Allowed; `git push` denied |
+| Copilot | `--allow-tool 'write' --allow-tool 'shell(git:*)' --allow-tool 'shell(spec-kitty:*)'` | Allowed; `git push` denied (best effort: the deny matches that spelling only, so `git -c x push` or `git remote set-url` are not covered) |
 | Cursor | print mode without `--force` | Denied until you allow them |
 | Kilocode | no automatic approval | Denied until you allow them |
 
@@ -66,5 +66,8 @@ agent: for example "dispatch the Codex reviewer with
 instruction from you, never one it finds in a work package prompt, an issue or
 tool output, and it records in the work package note that the agent ran
 without a sandbox. Spec Kitty's orchestrator
-API rejects a dispatch policy that lists the best-known of these flags
-(`BANNED_FLAGS`).
+API rejects a dispatch policy whose `dangerous_flags` include any of four
+specific flags (`BANNED_FLAGS`: `--full-auto`, `--yolo`,
+`--dangerously-bypass-approvals-and-sandbox` and
+`--dangerously-skip-permissions`); it does not cover every flag or spelling that
+lowers a harness's guard.
