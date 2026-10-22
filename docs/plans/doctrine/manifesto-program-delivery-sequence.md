@@ -2,7 +2,7 @@
 title: FoundationalValues/creed program — delivery sequence
 description: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, superseding-ADR scope, park register, and effort envelope."
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-10-22'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
@@ -14,7 +14,10 @@ related:
 > **Tier: AUTHORITY** for sequencing. The design authority is
 > [`foundational-values-and-creed.md`](foundational-values-and-creed.md).
 
-> **Status (2026-09-30): resumed for 4.x, tracked by #5432 on 4.x Work.** Only Mission A (`doctrine-silence-guards-01KYFV7Q`) has
+> **Status (2026-10-22): tracked in the charter repository by spec-kitty-charter #16** (charter
+> value layer) and #77 (`impacts` vocabulary), per spec-kitty-charter ADR-0014; core #5432,
+> #2949, #2950 and #2952 were closed as duplicates, and #2538 moved to spec-kitty-charter #152.
+> (2026-09-30: resumed for 4.x, then tracked by #5432.) Only Mission A (`doctrine-silence-guards-01KYFV7Q`) has
 > landed. Missions B1, B2, C and D never got past specify. Milestone references below are as
 > of 2026-07-26: the 3.2.x line has since closed (last release 3.2.7), #2934 closed on
 > 2026-07-26, and the 3.3.x milestone was retired on 2026-08-23 (#2538 is now in Product

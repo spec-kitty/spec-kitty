@@ -2,7 +2,7 @@
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
-updated: '2026-10-19'
+updated: '2026-10-22'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -55,11 +55,17 @@ shipped) and milestone #4 repurposed into **Product backlog**. The in-text "3.3.
 [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md). Where this plan's epics sit now:
 
 - **#2519** (charter authoring & lifecycle robustness, §3.1): open, on **CLI 4.x stable**.
-- **#2467 / #2468** (pack-split keystone, mission types as doctrine, §3.2) and **#2539**
-  (verified distribution): open, on **4.x Work**.
+- **#2467 / #2468** (pack-split keystone, mission types as doctrine, §3.2): moved
+  2026-10-22 to the charter repository as spec-kitty-charter #145 and #148, under the
+  pack ecosystem epic spec-kitty-charter #142. **#2539** keeps the execution-trust half
+  here, on **4.x Work**; pack verifiability moved to spec-kitty-charter #143.
 - **#645** (stable application API, §3.6): open, on **4.x Work**. **#3179** (doctrine/charter
   public API surface): **closed** 2026-09-26.
-- **#2216** (§3.2 governance tiers) and **#2652** (§3.3): open, still in **Product backlog**.
+- **#2216** (§3.2 governance tiers): closed 2026-10-22 as a duplicate of spec-kitty-charter
+  #55; spec-kitty-charter ADR-0012 (pack mutability policy) supersedes its design.
+  **#2652** (§3.3): open, still in **Product backlog**.
+- Moves and splits from 2026-10-22 are recorded in the migration table on
+  [#2216](https://github.com/spec-kitty/spec-kitty/issues/2216#issuecomment-6339908453).
 
 **§3.5 (meta.json fail-closed read routing) is DONE — strike the whole sub-area's open list.**
 Epic **#3259 is CLOSED**, and every child listed open — **#3230 / #3229 / #3228 / #3240** —
