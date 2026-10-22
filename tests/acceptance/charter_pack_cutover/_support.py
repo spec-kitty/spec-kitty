@@ -168,9 +168,14 @@ def _digest_targets(project: Path) -> Iterable[Path]:
             yield from (p for p in top.rglob("*") if p.is_file() and not p.is_symlink())
 
 
-def tree_digest(project: Path) -> str:
-    """Deterministic digest over ``.kittify/``, ``.gitignore`` and the agent directories (NFR-004)."""
-    lines = sorted(f"{p.relative_to(project).as_posix()}\0{file_digest(p)}" for p in _digest_targets(project))
+def tree_digest(project: Path, exclude: Iterable[str] = ()) -> str:
+    """Deterministic digest over ``.kittify/``, ``.gitignore`` and the agent directories (NFR-004).
+
+    *exclude* names project-relative POSIX paths left out of the digest.
+    """
+    skipped = set(exclude)
+    rels = ((p.relative_to(project).as_posix(), p) for p in _digest_targets(project))
+    lines = sorted(f"{rel}\0{file_digest(p)}" for rel, p in rels if rel not in skipped)
     return sha256_hex("\n".join(lines).encode())
 
 

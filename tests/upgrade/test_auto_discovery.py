@@ -123,8 +123,8 @@ class TestAutoDiscovery:
 
         The order authority moved from a target_version sort to the explicit
         manifest (ADR 2026-10-17-1, WP02): ``get_all()`` mirrors
-        ``load_order_manifest()`` exactly, with the one ``runs_first`` adoption
-        backfill leading at index 0.
+        ``load_order_manifest()`` exactly, with the ``# runs-first:`` lead block
+        (the adoption backfill at index 0) ahead of version order.
         """
         from specify_cli.upgrade.manifest import load_order_manifest
 

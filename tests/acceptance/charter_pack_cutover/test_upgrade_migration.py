@@ -37,6 +37,8 @@ from typing import Any
 import pytest
 from click.testing import Result
 
+from specify_cli.upgrade.ledger import CLONE_LOCAL_LEDGER_RELPATH, TRACKED_LEDGER_RELPATH, MigrationLedger
+
 from ._effective_set import ALL_BUILTIN, builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
 from ._support import active_charter, covers, describe, git, git_init_commit, load_yaml, output_of, read_json_output, run_cli, tree_digest
@@ -65,6 +67,21 @@ from .legacy_fixtures import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 CUTOVER_ID = "charter_pack_cutover"
+#: The lead-block entries that may run ahead of the cutover, in manifest order.
+CUTOVER_PREREQUISITES = ("4.0.0rc8_backfill_migration_ledger", "3.2.0rc35_charter_bundle_v2")
+_V1_SYNTHESIS_MANIFEST = f"""schema_version: '1'
+created_at: '2026-01-01T00:00:00+00:00'
+run_id: 01ABC
+adapter_id: fixture
+adapter_version: '1'
+artifacts:
+- kind: directive
+  slug: x
+  path: .kittify/doctrine/directives/x.directive.yaml
+  provenance_path: .kittify/charter/provenance/directive-x.yaml
+  content_hash: '{"0" * 64}'
+"""
+LEDGER_PARTITIONS = (TRACKED_LEDGER_RELPATH, CLONE_LOCAL_LEDGER_RELPATH)
 GOLDEN_DIR = REPO_ROOT / "tests" / "fixtures" / "charter_pack_cutover" / "golden_before"
 DEFAULT_PRESET = REPO_ROOT / "packs" / "built-in" / "presets" / "default.yaml"
 REPORT_KEYS = ("moved", "rewritten", "reset", "kept_for_review", "matches_minimal", "skills_removed", "skills_kept", "errors")
@@ -133,7 +150,25 @@ def test_fr012_cutover_runs_first(tmp_path: Path) -> None:
     assert result.exit_code == 0, describe(result)
     pending = [m["migration_id"] for m in read_json_output(result)["pending_migrations"]]
     assert pending, "control: the legacy fixture has pending migrations"
-    assert pending[0] == CUTOVER_ID, pending
+    # Only its prerequisites, the ledger adoption and the v1 bundle upgrade, may run
+    # ahead of the cutover (ADR 2026-10-17-1 §2, Amendment 2026-10-22).
+    assert CUTOVER_ID in pending, pending
+    ahead = pending[: pending.index(CUTOVER_ID)]
+    assert ahead == [step for step in CUTOVER_PREREQUISITES if step in ahead], pending
+
+
+@covers("FR-012")
+def test_fr012_v1_synthesis_manifest_upgrades_through_the_cutover(tmp_path: Path) -> None:
+    """A pre-rc35 project with a v1 bundle: the cutover reads the manifest only after bundle_v2."""
+    project = build("pre_rc35", tmp_path)
+    write_text(project / ".kittify" / "doctrine" / "directives" / "x.directive.yaml", "id: X\n")
+    write_text(project / ".kittify" / "charter" / "synthesis-manifest.yaml", _V1_SYNTHESIS_MANIFEST)
+    git_init_commit(project, "fixture: v1 synthesis manifest")
+    result, payload = upgrade(project)
+    assert result.exit_code == 0, describe(result)
+    assert not cutover_report(payload)["errors"]
+    manifest = (project / ".kittify" / "charter" / "synthesis-manifest.yaml").read_text(encoding="utf-8")
+    assert ".kittify/charter-packs/directives/x.directive.yaml" in manifest and ".kittify/doctrine" not in manifest
 
 
 @covers("FR-012", "US2-6")
@@ -143,8 +178,11 @@ def test_fr012_rc35_and_normalizer_recorded_skipped(tmp_path: Path) -> None:
     assert result.exit_code == 0, describe(result)
     skipped = set(payload["migrations_skipped"])
     assert {"3.2.0rc35_default_charter_pack", "normalize_activation_absence"} <= skipped, sorted(skipped)
-    metadata = (project / ".kittify" / "metadata.yaml").read_text(encoding="utf-8")
-    assert "3.2.0rc35_default_charter_pack" in metadata and "normalize_activation_absence" in metadata
+    # The migration ledger, not metadata.yaml, records what ran (ADR 2026-10-17-1).
+    ledger = run_cli(["migrate", "ledger", "--json"], project)
+    assert ledger.exit_code == 0, describe(ledger)
+    results = {step["id"]: step["result"] for step in read_json_output(ledger)["steps"]}
+    assert results["3.2.0rc35_default_charter_pack"] == results["normalize_activation_absence"] == "skipped", results
     assert "activated_tactics" not in active_charter(project), "the rc35 copy of default.yaml was written"
 
 
@@ -293,11 +331,19 @@ def test_fr012_project_root_moved(tmp_path: Path) -> None:
 @covers("FR-012", "EC:Both project roots present")
 def test_fr012_collision_refuses_and_moves_nothing(tmp_path: Path) -> None:
     project = build("both_roots_collision", tmp_path)
-    before = tree_digest(project)
+    # Only the ledger adoption, which runs ahead of the cutover, may write (ADR 2026-10-17-1 §6).
+    before = tree_digest(project, exclude=LEDGER_PARTITIONS)
+    attributes = project / ".gitattributes"
+    attributes_before = attributes.read_bytes() if attributes.exists() else None
     result, payload = upgrade(project)
     assert result.exit_code != 0, describe(result)
     assert COLLISION_PATH in report_text(cutover_report(payload), "errors")
-    assert tree_digest(project) == before
+    assert tree_digest(project, exclude=LEDGER_PARTITIONS) == before
+    assert (attributes.read_bytes() if attributes.exists() else None) == attributes_before, "a migration ran after the refusal"
+    # `migrate ledger` refuses on an unmigrated project (FR-011), so read the ledger directly.
+    ledger = MigrationLedger(project)
+    recorded = {record.id for record in (*ledger.read_tracked(), *ledger.read_clone_local())}
+    assert CUTOVER_ID not in recorded, "a failed runs_first migration records nothing"
     # Control: disjoint roots move everything.
     disjoint = build("both_roots_disjoint", tmp_path)
     ok, _ = upgrade(disjoint)

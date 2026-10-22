@@ -3,7 +3,7 @@ title: 'ADR: the applied-migration ledger is an explicit, two-partition record t
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
 date: '2026-10-17'
-updated: '2026-10-20'
+updated: '2026-10-22'
 ---
 
 **Status:** Accepted (2026-10-17).
@@ -486,3 +486,46 @@ nothing to do. Without a repository, `detect()` of such a migration reports "not
 only because there is nowhere to put the effect yet, so an `init` outside git used to seed
 the step as done, and the first upgrade after `git init` never installed it. A `detect()`
 error reads as "not in place", leaving the migration pending.
+
+## Amendment 2026-10-22 (#6582: the lead block, the charter-pack cutover after its prerequisites)
+
+§2 allowed a single `# runs-first:` lead, and §6 gave it to the ledger backfill. That moved the
+charter-pack cutover (`charter_pack_cutover`, spec FR-012 of mission
+`charter-pack-cutover-01M491G6`) from the head of the run, where its retired front-pull used to
+put it, back to its `4.0.0rc6` version slot. About forty pending migrations then ran ahead of it
+on a pre-cutover project, so a refused collision ("moves nothing") left `.gitattributes` merge
+driver lines behind, and FR-012 ("runs before every other pending migration") no longer held.
+
+**Decision (operator ruling, 2026-10-22).** The manifest's `# runs-first:` annotation marks an
+entry of the **lead block**: a contiguous prefix of annotated entries that run first, in the order
+listed, regardless of their `target_version`. The block holds the cutover and the two migrations
+it depends on:
+
+1. `4.0.0rc8_backfill_migration_ledger` leads, as §6 requires.
+2. `3.2.0rc35_charter_bundle_v2` follows. The cutover parses `.kittify/charter/synthesis-manifest.yaml`
+   with the current model, which accepts only schema `2`/`3`; only this migration upgrades a `v1`
+   bundle. Without it ahead, a pre-3.2.0rc35 project with a `v1` manifest failed at the cutover on
+   every run (found in pre-PR review; pinned by
+   `test_fr012_v1_synthesis_manifest_upgrades_through_the_cutover`). It changes only the charter
+   bundle under `.kittify/charter/` and is detect-gated.
+3. `charter_pack_cutover`. It cannot lead ahead of the backfill: its first-application check
+   (`_is_first_application`, which gates the one-time activation-list resets) reads the ledger, so
+   on a pre-ledger project that already applied the cutover it would redo those resets against
+   deliberate `[]` lists. The shipped migration is not edited (DIRECTIVE_044), so ordering is the
+   fix.
+
+FR-012 is read as "the cutover runs before every other pending *project* migration, after the
+migrations it depends on": the backfill only writes ledger records and the bundle upgrade only
+brings the charter bundle to the schema the cutover reads.
+
+**Residual.** On a constitution-era project (`.kittify/constitution/`, before `3.1.1_charter_rename`)
+the bundle upgrade now runs before the rename, finds no `.kittify/charter/`, and records `skipped`.
+Later migrations in the same run bring the bundle current: the resulting `.kittify/` tree equals
+the one the version-slot order produced. The step stays a re-skipped, `pending` row in
+`spec-kitty migrate ledger`, which is §3's behaviour for a not-needed migration.
+
+The build-time gate (`tests/architectural/test_migration_order_manifest.py`) now requires every
+`# runs-first:` entry to sit in the lead block and checks version monotonicity over the entries
+after it; the gate's `lead_block_length` is the one definition. The
+`runs_first` ClassVar is unchanged: it governs reselection, not order, and at most one migration
+sets it.

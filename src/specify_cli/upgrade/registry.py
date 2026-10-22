@@ -68,7 +68,8 @@ class MigrationRegistry:
         (the planted classes test registries register), which sort after every
         manifest entry. Every registered migration IS in the manifest, so the
         real registry is returned in pure manifest order (the annotated
-        runs-first backfill leads, ahead of its later version slot).
+        runs-first lead block, the backfill, the bundle v2 upgrade and the
+        cutover, leads ahead of its later version slots).
 
         Returns:
             List of migration instances in manifest order (version fallback for

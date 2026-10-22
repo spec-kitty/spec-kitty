@@ -228,7 +228,8 @@ class BaseMigration(ABC):
     #: application); at most one registered migration may set it. It does NOT
     #: govern execution ORDER -- ordering is owned solely by
     #: ``order_manifest.txt`` (the manifest's ``# runs-first:`` annotation is the
-    #: distinct "ordering-lead" concept, e.g. the backfill at index 0). A
+    #: distinct "ordering-lead" concept: the lead block of the ledger backfill,
+    #: the v1 charter-bundle upgrade and the charter-pack cutover). A
     #: ``runs_first`` migration's ``detect()``/``structural_detect`` must be
     #: content-driven, never version-driven
     #: (charter-pack-cutover research/runtime-seams.md §1.2).

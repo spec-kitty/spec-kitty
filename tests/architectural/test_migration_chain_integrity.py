@@ -239,11 +239,11 @@ def test_migration_chain_is_consistent_and_uninterrupted(
         "expected at least one migration to register."
     )
 
-    # The order manifest may annotate one migration `# runs-first:` -- it leads
-    # the execution order regardless of its target_version (ADR 2026-10-17-1 §2:
-    # the ledger backfill must populate the ledger before any later selection
-    # reads it). ``get_all()`` therefore returns it FIRST, ahead of the lowest-
-    # version migration, which would read as a spurious backward step at index 1.
+    # The order manifest's `# runs-first:` entries form the lead block -- they lead
+    # the execution order regardless of their target_version (ADR 2026-10-17-1 §2,
+    # Amendment 2026-10-22: the ledger backfill, the charter bundle v2 upgrade, then
+    # the charter-pack cutover). ``get_all()`` therefore returns them FIRST, ahead of
+    # the lowest-version migration, which would read as a spurious backward step.
     # Its position is the manifest's, not version's, so it is NOT part of the
     # version-monotonic chain: exclude it from the walk here. Its own version slot
     # is still bounded by ``test_migration_chain_does_not_exceed_current_project_version``.

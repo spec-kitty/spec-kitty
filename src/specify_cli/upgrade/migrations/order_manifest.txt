@@ -4,16 +4,21 @@
 # lines beginning with '#' are ignored. A trailing '# tie: <reason>' marks an
 # intentional equal-target_version run (the order among equal versions is the
 # auto-discovery / filename import order, preserved here explicitly). A trailing
-# '# runs-first: <reason>' marks the one entry that must lead regardless of its
-# target_version. The build-time gate tests/architectural/test_migration_order_manifest.py
-# enforces: every registered migration_id appears exactly once; every entry
-# resolves to a registered migration; the order is version-monotonic save for
-# annotated ties; and at most one runs_first lead.
+# '# runs-first: <reason>' marks an entry of the lead block: the annotated
+# entries at the top of the manifest run first, in the order listed, regardless
+# of their target_version (ADR 2026-10-17-1 §2, Amendment 2026-10-22). The
+# build-time gate tests/architectural/test_migration_order_manifest.py enforces:
+# every registered migration_id appears exactly once; every entry resolves to a
+# registered migration; the order is version-monotonic save for
+# annotated ties outside the lead block; and every runs-first entry sits in the
+# lead block (a contiguous prefix).
 #
 # DO NOT EDIT BY HAND to reorder history: this reproduces registry.get_all()
 # order for the existing migrations (NFR-004 parity).
 
 4.0.0rc8_backfill_migration_ledger  # runs-first: backfill must lead so the same upgrade run sees a populated ledger (ADR 2026-10-17-1 §6)
+3.2.0rc35_charter_bundle_v2  # runs-first: the cutover parses the synthesis manifest with the v2/v3 model, so a v1 bundle is upgraded first (ADR 2026-10-17-1 Amendment 2026-10-22)
+charter_pack_cutover  # runs-first: FR-012 (#3732), the cutover runs before every other pending migration after its prerequisites; its first-application check reads the ledger, so it follows the backfill
 0.2.0_specify_to_kittify
 0.4.8_gitignore_agents
 0.6.5_commands_rename
@@ -83,7 +88,6 @@
 3.2.0rc28_github_diff_attributes
 3.2.0rc30_fix_runtime_next_result_default
 3.2.0rc35_activate_builtin_mission_types
-3.2.0rc35_charter_bundle_v2  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
 3.2.0rc35_charter_manifest_defaults_repair  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
 3.2.0rc35_codex_to_skills  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
 3.2.0rc35_default_charter_pack  # tie: shares target_version 3.2.0rc35; auto-discovery import order preserved
@@ -134,7 +138,6 @@ migrate_lifecycle_envelope  # tie: shares target_version 3.2.6rc2; auto-discover
 4.0.0rc5_retire_bundled_dashboard  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
 4.0.0rc5_retire_single_owner_doctrine_ids  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
 4_0_0rc5_single_branch_code_lanes_restamp  # tie: shares target_version 4.0.0rc5; auto-discovery import order preserved
-charter_pack_cutover
 4.0.0rc7_exclude_spec_kitty
 4.0.0rc7_pack_level_backfill  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved
 4.0.0rc7_track_charter_pack_yaml  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved

@@ -3850,6 +3850,7 @@ pages:
     - {slug: "1-6-adoption-also-settles-the-version-floor-reverses-the-2026-10-18-metadata-only-ruling", text: "1. §6 adoption also settles the version floor (reverses the 2026-10-18 metadata-only ruling)", level: 3}
     - {slug: "2-3-the-run-s-requested-target-stays-an-upper-bound", text: "2. §3 the run's requested target stays an upper bound", level: 3}
     - {slug: "3-a-clone-local-effect-is-present-only-inside-a-git-repository", text: "3. A clone-local effect is \"present\" only inside a git repository", level: 3}
+    - {slug: "amendment-2026-10-22-6582-the-lead-block-the-charter-pack-cutover-after-its-prerequisites", text: "Amendment 2026-10-22 (#6582: the lead block, the charter-pack cutover after its prerequisites)", level: 2}
   - path: "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md"
     title: "ADR: one activation ledger persists deactivation, and nothing silently reinstalls it"
     divio_type: "none"

@@ -3,8 +3,11 @@
 ``migrations/order_manifest.txt`` is the single authority for execution order.
 Each content line is a ``migration_id``; blank lines and ``#``-only lines are
 ignored. A trailing ``# tie: <reason>`` marks an intentional equal-
-``target_version`` adjacency; a trailing ``# runs-first: <reason>`` marks the
-one entry that leads regardless of its version. The build-time gate
+``target_version`` adjacency; a trailing ``# runs-first: <reason>`` marks an
+entry of the *lead block*: the annotated entries at the top of the manifest,
+which run first in the order listed regardless of their versions (the ledger
+backfill, the v1 charter-bundle upgrade, then the charter-pack cutover; ADR
+2026-10-17-1 §2, Amendment 2026-10-22). The build-time gate
 (``tests/architectural/test_migration_order_manifest.py``) enforces the rules.
 """
 

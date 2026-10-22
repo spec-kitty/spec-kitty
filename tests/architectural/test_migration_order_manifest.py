@@ -8,16 +8,21 @@ migration set:
 2. resolves — every manifest entry resolves to a registered migration (no
    dangling entry);
 3. version-monotonic save annotated ties — target_versions are non-decreasing
-   down the manifest (the single runs-first lead excepted), and an
-   equal-version adjacency is allowed only when annotated ``# tie:``;
-4. at most one ``runs_first`` migration.
+   down the manifest after the lead block, and an equal-version adjacency is
+   allowed only when annotated ``# tie:``; every ``# runs-first:`` entry sits in
+   the lead block, a contiguous prefix whose entries run in the order listed
+   (ADR 2026-10-17-1 §2, Amendment 2026-10-22);
+4. at most one ``runs_first`` migration (the reselection ClassVar, distinct
+   from the manifest's ordering annotation).
 
 This module asserts the REAL manifest passes all four, and that each rule FAILs
-over a planted-fixture negative (orphan / dangling / non-monotonic / two
-runs_first).
+over a planted-fixture negative (orphan / dangling / non-monotonic / a
+runs-first entry outside the lead block / two runs_first).
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 from packaging.version import Version
@@ -42,16 +47,24 @@ def check_resolution(manifest_ids: list[str], registry_ids: list[str]) -> tuple[
     return orphans, danglers, duplicates
 
 
+def lead_block_length(entries: list[ManifestEntry]) -> int:
+    """The number of leading entries annotated ``# runs-first:`` (the lead block)."""
+    length = 0
+    for entry in entries:
+        if entry.runs_first_reason is None:
+            break
+        length += 1
+    return length
+
+
 def check_monotonic(entries: list[ManifestEntry], version_of: dict[str, str]) -> list[str]:
     """Return a list of ordering violations (empty = passes)."""
     failures: list[str] = []
-    leads = [e for e in entries if e.runs_first_reason is not None]
-    if len(leads) > 1:
-        failures.append(f"more than one runs-first lead: {[e.id for e in leads]}")
-    has_valid_lead = bool(leads) and entries and entries[0].runs_first_reason is not None and len(leads) == 1
-    if leads and not (entries and entries[0] is leads[0]):
-        failures.append("a runs-first lead is not the first manifest entry")
-    body = entries[1:] if has_valid_lead else entries
+    lead_length = lead_block_length(entries)
+    stray = [e.id for e in entries[lead_length:] if e.runs_first_reason is not None]
+    if stray:
+        failures.append(f"runs-first entries outside the lead block: {stray}")
+    body = entries[lead_length:]
     for prev, cur in zip(body, body[1:], strict=False):
         vp, vc = Version(version_of[prev.id]), Version(version_of[cur.id])
         if vc < vp:
@@ -90,7 +103,8 @@ def test_real_manifest_passes_every_rule() -> None:
     assert runs_first_count(migrations) <= 1
 
 
-def test_real_registry_has_exactly_one_runs_first_lead() -> None:
+def test_real_registry_has_exactly_one_runs_first_reselection_migration() -> None:
+    """The ``runs_first`` ClassVar governs reselection, not order (the manifest's lead block does)."""
     migrations = _live_registry()
     first = [m.migration_id for m in migrations if getattr(m, "runs_first", False)]
     assert first == ["charter_pack_cutover"]
@@ -144,3 +158,44 @@ def test_planted_two_runs_first_fails_the_gate() -> None:
 
     assert runs_first_count([_RunsFirst(), _RunsFirst()]) == 2  # > 1 trips the gate
     assert runs_first_count([_RunsFirst()]) <= 1  # one is fine
+
+
+def test_planted_lead_block_runs_in_listed_order_ahead_of_versions() -> None:
+    entries = [_entry("late", lead="adopt", line_no=1), _entry("early", lead="cut over", line_no=2), _entry("body", line_no=3)]
+    version_of = {"late": "9.0.0", "early": "5.0.0", "body": "1.0.0"}  # the lead block is exempt from version order
+    assert check_monotonic(entries, version_of) == []
+
+
+def test_planted_runs_first_outside_the_lead_block_fails_the_gate() -> None:
+    entries = [_entry("lead", lead="adopt", line_no=1), _entry("body", line_no=2), _entry("stray", lead="late lead", line_no=3)]
+    version_of = {"lead": "9.0.0", "body": "1.0.0", "stray": "2.0.0"}
+    failures = check_monotonic(entries, version_of)
+    assert failures == ["runs-first entries outside the lead block: ['stray']"]
+
+
+def _write_manifest(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "order_manifest.txt"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_lead_block_is_the_annotated_prefix(tmp_path: Path) -> None:
+    path = _write_manifest(
+        tmp_path,
+        "first  # runs-first: adopt\nsecond  # runs-first: cut over\nbody\nlater  # runs-first: stray\n",
+    )
+    assert lead_block_length(load_manifest_entries(path)) == 2
+
+
+def test_lead_block_is_empty_without_a_leading_annotation(tmp_path: Path) -> None:
+    path = _write_manifest(tmp_path, "body\nlater  # runs-first: stray\n")
+    assert lead_block_length(load_manifest_entries(path)) == 0
+
+
+def test_real_lead_block_is_the_backfill_bundle_v2_then_the_cutover() -> None:
+    """ADR 2026-10-17-1 §2, Amendment 2026-10-22: the ledger adoption leads, the v1 bundle
+    upgrade follows (the cutover parses the synthesis manifest as v2/v3), then the
+    charter-pack cutover runs before every other pending migration (FR-012, #3732)."""
+    entries = load_manifest_entries(MANIFEST_PATH)
+    lead = [entry.id for entry in entries[: lead_block_length(entries)]]
+    assert lead == ["4.0.0rc8_backfill_migration_ledger", "3.2.0rc35_charter_bundle_v2", "charter_pack_cutover"]

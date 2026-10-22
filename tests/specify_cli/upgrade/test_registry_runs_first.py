@@ -8,7 +8,8 @@ its id is not recorded in the partition that is authoritative for it, OR when
 checked-in order manifest; ``Version(target_version)`` is demoted to a fallback
 for migrations absent from the manifest (the planted classes these tests
 register). ``runs_first`` no longer front-pulls — the manifest owns order, and
-its one annotated runs-first lead (the backfill) leads by sitting at index 0.
+its annotated runs-first lead block (the backfill, the charter bundle v2 upgrade,
+then the charter-pack cutover) leads by sitting at the top.
 
 Planted migration classes only (plus one real-registry get_all smoke test): the
 global registry is snapshotted and restored around every test.
@@ -38,7 +39,7 @@ LEGACY_MARKER = "legacy-state.txt"
 #: The file a planted migration's ``structural_detect()`` looks for.
 STRUCTURAL_MARKER = "structural-state.txt"
 FIRST_ID = "planted_runs_first"
-#: The one annotated runs-first lead in the real order manifest.
+#: The first entry of the real order manifest's runs-first lead block.
 BACKFILL_ID = "4.0.0rc8_backfill_migration_ledger"
 
 
