@@ -147,33 +147,6 @@ def _warn_legacy(legacy_ids: list[str]) -> None:
         )
 
 
-def append_to_index(repo_root: Path, record: dict) -> None:  # type: ignore[type-arg]
-    """Append a lightweight index entry for one invocation.
-
-    Called by ``InvocationWriter.write_started()`` after the per-invocation
-    JSONL file is created.  Errors are silenced — a missing index entry means
-    ``_iter_records`` falls back to directory scanning.
-
-    Args:
-        repo_root: Repository root path.
-        record: Must contain ``invocation_id``, ``profile_id``, ``started_at``.
-    """
-    index_path = repo_root / INDEX_PATH
-    try:
-        index_path.parent.mkdir(parents=True, exist_ok=True)
-        entry = json.dumps(
-            {
-                "invocation_id": record.get("invocation_id", ""),
-                "profile_id": record.get("profile_id", ""),
-                "started_at": record.get("started_at", ""),
-            }
-        )
-        with index_path.open("a", encoding="utf-8") as f:
-            f.write(entry + "\n")
-    except OSError:
-        pass  # index is a performance aid; missing entries degrade gracefully
-
-
 def _iter_index_reverse(index_path: Path) -> Iterator[dict]:  # type: ignore[type-arg]
     """Yield index entries newest-first by reading the file in reverse chunks.
 

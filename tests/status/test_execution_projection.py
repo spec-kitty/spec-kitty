@@ -340,7 +340,7 @@ def coord_repo(tmp_path: Path) -> Path:
     test_status_transition.py``'s ``repo`` fixture + ``_seed_planned_on_coord``).
     Returns the repo root.
     """
-    from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+    from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
     from specify_cli.status.models import Lane, StatusEvent
 
     repo = tmp_path / "repo"
@@ -383,9 +383,9 @@ def coord_repo(tmp_path: Path) -> Path:
     worktree = repo / ".worktrees" / "seed-genesis"
     _git(repo, "worktree", "add", "-q", str(worktree), _COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / _COORD_MISSION_DIRNAME
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        seed_event,
+        [seed_event],
     )
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed genesis->planned")

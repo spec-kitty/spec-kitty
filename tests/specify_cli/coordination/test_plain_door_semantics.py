@@ -32,7 +32,7 @@ from typing import Any
 import pytest
 
 from specify_cli.coordination import status_transition as st
-from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 
@@ -68,21 +68,23 @@ def lanes_repo(tmp_path: Path) -> tuple[Path, Path]:
         json.dumps({"mission_slug": MISSION_SLUG, "mission_id": MISSION_ID, "topology": "lanes", "target_branch": "main"}) + "\n",
         encoding="utf-8",
     )
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.primary_checkout_append(feature_dir),
-        StatusEvent(
-            event_id="01SEEDLANES000000000000001",
-            mission_slug=MISSION_SLUG,
-            mission_id=MISSION_ID,
-            wp_id="WP01",
-            from_lane=Lane.GENESIS,
-            to_lane=Lane.PLANNED,
-            at="2026-05-31T00:00:00+00:00",
-            actor="seed",
-            force=False,
-            reason="seed",
-            execution_mode="worktree",
-        ),
+        [
+            StatusEvent(
+                event_id="01SEEDLANES000000000000001",
+                mission_slug=MISSION_SLUG,
+                mission_id=MISSION_ID,
+                wp_id="WP01",
+                from_lane=Lane.GENESIS,
+                to_lane=Lane.PLANNED,
+                at="2026-05-31T00:00:00+00:00",
+                actor="seed",
+                force=False,
+                reason="seed",
+                execution_mode="worktree",
+            )
+        ],
     )
     _git(repo, "add", "kitty-specs")
     _git(repo, "commit", "-q", "-m", "seed lanes mission")

@@ -29,7 +29,7 @@ import pytest
 
 from specify_cli.coordination.status_service import (
     EventLogWriteContract,
-    append_event_log,
+    append_event_stream_log,
 )
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.consolidation import executor as _executor
@@ -144,9 +144,9 @@ def _seed_planned_on_coord(repo: Path, wp_id: str, event_id: str) -> StatusEvent
     worktree = repo / ".worktrees" / f"seed-{wp_id.lower()}"
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / MISSION_SLUG
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.coordination_transaction_append(coord_feature_dir),
-        seed_event,
+        [seed_event],
     )
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", f"seed genesis->planned {wp_id}")

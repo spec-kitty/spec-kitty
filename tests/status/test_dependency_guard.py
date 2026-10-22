@@ -25,7 +25,7 @@ import specify_cli.coordination.status_transition as status_transition_module
 import specify_cli.status.emit as emit_module
 import specify_cli.status.reducer as reducer_module
 import specify_cli.status.transition_pipeline as pipeline_module
-from specify_cli.coordination.status_service import EventLogWriteContract, append_event_log
+from specify_cli.coordination.status_service import EventLogWriteContract, append_event_stream_log
 from specify_cli.coordination.status_transition import (
     emit_status_transition_batch_transactional,
     emit_status_transition_transactional,
@@ -740,7 +740,7 @@ def _seed_coord_surface(repo: Path, events: list[StatusEvent]) -> None:
     _git(repo, "worktree", "add", "-q", str(worktree), _COORD_BRANCH)
     coord_feature_dir = worktree / "kitty-specs" / _COORD_DIRNAME
     for event in events:
-        append_event_log(EventLogWriteContract.coordination_transaction_append(coord_feature_dir), event)
+        append_event_stream_log(EventLogWriteContract.coordination_transaction_append(coord_feature_dir), [event])
     _git(worktree, "add", "kitty-specs")
     _git(worktree, "commit", "-q", "-m", "seed coord status")
     _git(repo, "worktree", "remove", "-f", str(worktree))
@@ -748,7 +748,7 @@ def _seed_coord_surface(repo: Path, events: list[StatusEvent]) -> None:
 
 def _seed_primary_surface(repo: Path, events: list[StatusEvent]) -> None:
     for event in events:
-        append_event_log(EventLogWriteContract.primary_checkout_append(repo / "kitty-specs" / _COORD_DIRNAME), event)
+        append_event_stream_log(EventLogWriteContract.primary_checkout_append(repo / "kitty-specs" / _COORD_DIRNAME), [event])
 
 
 def _coord_claim(repo: Path) -> TransitionRequest:

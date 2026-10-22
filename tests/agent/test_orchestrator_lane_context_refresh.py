@@ -97,15 +97,15 @@ def _seed_events_on_coord(repo: Path, events: list[StatusEvent]) -> None:
     """
     from specify_cli.coordination.status_service import (
         EventLogWriteContract,
-        append_event_log,
+        append_event_stream_log,
     )
 
     worktree = repo / ".worktrees" / f"{MISSION_DIRNAME}-coord"
     _git(repo, "worktree", "add", "-q", str(worktree), COORD_BRANCH)
     for event in events:
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.coordination_transaction_append(worktree / "kitty-specs" / MISSION_DIRNAME),
-            event,
+            [event],
         )
     _git(worktree, "add", "-A")
     _git(worktree, "commit", "-q", "-m", "seed status events")

@@ -1054,7 +1054,7 @@ class FinalizeWriteLedger:
 
     Every write finalize makes through :func:`kernel.atomic.atomic_write` is recorded at the moment it
     happens (the writers hold the Mission write lock then), and the status files finalize's emissions
-    append to are recorded by :func:`kernel.atomic.notify_file_written` inside the appending hold. The write-scope restore acts on a path only
+    append to are recorded by :func:`kernel.atomic.notify_written` once the atomic replace has landed. The write-scope restore acts on a path only
     when it is in the ledger and the file still holds the recorded bytes: a file finalize never wrote,
     or one another writer changed since, is never put back.
     """

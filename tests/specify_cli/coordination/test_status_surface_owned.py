@@ -23,7 +23,7 @@ from specify_cli.coordination.status_service import (
     EventLogReadContract,
     EventLogWriteContract,
     StatusContractError,
-    append_event_log,
+    append_event_stream_log,
     read_event_log,
     read_event_stream_log,
 )
@@ -190,9 +190,9 @@ def test_owned_fact_accepts_read_and_append(make_owned_checkouts: Callable[..., 
     assert stream.transitions == []
 
     event = _status_event("wp06-t029-append")
-    append_event_log(
+    append_event_stream_log(
         EventLogWriteContract.primary_checkout_append(checkouts.mission_dir, owned=fact),
-        event,
+        [event],
     )
     events_after = read_event_log(EventLogReadContract.primary_checkout(checkouts.mission_dir, owned=fact))
     assert [written.event_id for written in events_after] == ["wp06-t029-append"]
@@ -208,9 +208,9 @@ def test_same_calls_without_owned_fact_still_refused(make_owned_checkouts: Calla
     with pytest.raises(StatusContractError, match="primary_checkout reads must not target coordination worktree paths"):
         read_event_stream_log(EventLogReadContract.primary_checkout(checkouts.mission_dir))
     with pytest.raises(StatusContractError, match="primary_checkout_append must not target coordination worktree paths"):
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.primary_checkout_append(checkouts.mission_dir),
-            _status_event("wp06-t029-refused"),
+            [_status_event("wp06-t029-refused")],
         )
 
 
@@ -267,9 +267,9 @@ def test_owned_fact_never_exempts_a_different_registered_coord_worktree(
     with pytest.raises(StatusContractError, match="primary_checkout reads must not target coordination worktree paths"):
         read_event_stream_log(EventLogReadContract.primary_checkout(coord_mission_dir))
     with pytest.raises(StatusContractError, match="primary_checkout_append must not target coordination worktree paths"):
-        append_event_log(
+        append_event_stream_log(
             EventLogWriteContract.primary_checkout_append(coord_mission_dir),
-            _status_event("wp06-t029-coord-refused"),
+            [_status_event("wp06-t029-coord-refused")],
         )
 
 
@@ -299,7 +299,7 @@ def _run(op: str, contract: EventLogContract) -> None:
         read_event_stream_log(contract)
     else:
         assert isinstance(contract, EventLogWriteContract)
-        append_event_log(contract, _status_event(f"wp06-t031-append-{op}"))
+        append_event_stream_log(contract, [_status_event(f"wp06-t031-append-{op}")])
 
 
 def _contract_for(op: str, *, feature_dir: Path, owned: OwnedCheckout | None, label: str = "primary") -> EventLogContract:

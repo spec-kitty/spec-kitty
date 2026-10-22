@@ -688,8 +688,9 @@ def test_store_writes_are_found(tree_scan: TreeScan) -> None:
     """Positive census: the scanner sees the store's own writes, so the gate is not empty."""
     store_sites = [site for site in tree_scan.events_writes if site.module == STORE_MODULE]
     assert store_sites, "the scanner found no status.events.jsonl write in store.py -- the gate matches nothing"
-    # append_event's ``path.open("a")`` and append_raw_rows_atomic's ``os.replace(tmp, path)``.
-    assert {(site.kind, site.mode) for site in store_sites} == {("Path.open", "a"), ("os.replace", "replace")}, store_sites
+    # The store's only write to the event log is the atomic rename in append_raw_rows_atomic
+    # (``os.replace(tmp, path)``); the plain in-place append door was deleted (#6614).
+    assert {(site.kind, site.mode) for site in store_sites} == {("os.replace", "replace")}, store_sites
     assert {site.module for site in tree_scan.events_writes if site.key not in ALLOWED_OUT_OF_STORE_WRITE_SITES} == {STORE_MODULE}
 
 
@@ -859,3 +860,158 @@ def test_lock_census_scanner_sees_both_call_shapes() -> None:
     assert has_lock_call_site(ast.parse("with mission_write_lock(feature_dir):\n    pass\n"))
     assert has_lock_call_site(ast.parse("with _mw.mission_write_lock(feature_dir):\n    pass\n"))
     assert not has_lock_call_site(ast.parse("lock = feature_status_lock\nfeature_status_lock_path(root, name)\n"))
+
+
+# ---------------------------------------------------------------------------
+# Invocation index single writer (#6614)
+# ---------------------------------------------------------------------------
+
+#: The only function in ``src/`` that may append to ``kitty-ops/ops-index.jsonl``.
+EXPECTED_INDEX_WRITERS: frozenset[tuple[str, str]] = frozenset({("specify_cli.invocation.writer", "InvocationWriter._append_to_index")})
+
+_INDEX_LITERALS: frozenset[str] = frozenset({"ops-index.jsonl", "kitty-ops/ops-index.jsonl"})
+_INDEX_CONSTANT_NAMES: frozenset[str] = frozenset({"INDEX_PATH"})
+
+
+def _docstring_nodes(tree: ast.Module) -> set[int]:
+    """``id()`` of every docstring ``Constant`` node, so prose mentions are never matched."""
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            first = node.body[0] if node.body else None
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+                found.add(id(first.value))
+    return found
+
+
+def _module_index_constants(tree: ast.Module) -> frozenset[str]:
+    """Module-level names bound to an exact index path literal, plus the canonical ``INDEX_PATH``."""
+    names = set(_INDEX_CONSTANT_NAMES)
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and node.value.value in _INDEX_LITERALS:
+            names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+    return frozenset(names)
+
+
+def _top_level_functions(tree: ast.Module) -> list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]:
+    """``(qualified name, node)`` for each top-level function and each method of a top-level class."""
+    found: list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]] = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            found.append((node.name, node))
+        elif isinstance(node, ast.ClassDef):
+            found.extend((f"{node.name}.{item.name}", item) for item in node.body if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef))
+    return found
+
+
+def _refers_to_index(fn: ast.AST, constants: frozenset[str], docstrings: set[int]) -> bool:
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in _INDEX_LITERALS and id(node) not in docstrings:
+            return True
+        if isinstance(node, ast.Name) and node.id in constants:
+            return True
+        if isinstance(node, ast.Attribute) and node.attr in constants:
+            return True
+    return False
+
+
+def _called_names(fn: ast.AST) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Name):
+                names.add(func.id)
+            elif isinstance(func, ast.Attribute):
+                names.add(func.attr)
+    return names
+
+
+def _writing_function_names(functions: list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]) -> set[str]:
+    """Short names of module functions containing a write-mode file operation, directly or via a same-module callee."""
+    direct = {qual.rsplit(".", 1)[-1] for qual, fn in functions if any(isinstance(n, ast.Call) and _classify_call(n) for n in ast.walk(fn))}
+    writing = set(direct)
+    grew = True
+    while grew:
+        grew = False
+        for qual, fn in functions:
+            short = qual.rsplit(".", 1)[-1]
+            if short not in writing and _called_names(fn) & writing:
+                writing.add(short)
+                grew = True
+    return writing
+
+
+def scan_index_writers(module: str, tree: ast.Module) -> set[tuple[str, str]]:
+    """Functions that refer to the invocation index (code constant, not prose) and perform a file write."""
+    functions = _top_level_functions(tree)
+    constants = _module_index_constants(tree)
+    docstrings = _docstring_nodes(tree)
+    writing = _writing_function_names(functions)
+    return {(module, qual) for qual, fn in functions if qual.rsplit(".", 1)[-1] in writing and _refers_to_index(fn, constants, docstrings)}
+
+
+def scan_index_writers_from_source(module: str, source: str) -> set[tuple[str, str]]:
+    return scan_index_writers(module, ast.parse(source))
+
+
+def test_invocation_index_has_a_single_writer(src_source_tree: Mapping[Path, SourceFile]) -> None:
+    """Only ``InvocationWriter._append_to_index`` appends to ``kitty-ops/ops-index.jsonl``.
+
+    A function census rather than a path census: the plain path resolver cannot
+    follow ``INDEX_PATH`` across modules, and the writer's shared
+    ``_append_line_no_follow`` staticmethod is called with different paths. A
+    function is reported when it names the index in code (never in a docstring)
+    and contains, or calls a same-module function that contains, a write-mode
+    file operation.
+    """
+    found: set[tuple[str, str]] = set()
+    for path, entry in src_source_tree.items():
+        assert isinstance(entry.tree, ast.Module)
+        found |= scan_index_writers(module_name_for(path), entry.tree)
+    assert found == EXPECTED_INDEX_WRITERS, (
+        f"kitty-ops/ops-index.jsonl is written outside specify_cli.invocation.writer: {sorted(found - EXPECTED_INDEX_WRITERS)}; "
+        f"missing expected writer: {sorted(EXPECTED_INDEX_WRITERS - found)}"
+    )
+
+
+_INDEX_WRITER_SOURCE = (
+    "INDEX_PATH = 'kitty-ops/ops-index.jsonl'\n"
+    "def append_to_index(repo_root, record):\n"
+    "    index_path = repo_root / INDEX_PATH\n"
+    "    with index_path.open('a', encoding='utf-8') as f:\n"
+    "        f.write('x')\n"
+)
+
+
+def test_index_census_is_not_vacuous() -> None:
+    """Planted writers are reported; read-only and prose-only mentions are not."""
+    planted = scan_index_writers_from_source("specify_cli.cli.commands.invocations_cmd", _INDEX_WRITER_SOURCE)
+    assert planted == {("specify_cli.cli.commands.invocations_cmd", "append_to_index")}
+    literal = scan_index_writers_from_source("specify_cli.rogue", "def w(d):\n    open(d / 'ops-index.jsonl', 'a').write('x')\n")
+    assert literal == {("specify_cli.rogue", "w")}
+    delegated = scan_index_writers_from_source(
+        "specify_cli.rogue",
+        "INDEX = 'kitty-ops/ops-index.jsonl'\ndef _w(p):\n    p.write_text('x')\ndef w(d):\n    _w(d / INDEX)\n",
+    )
+    assert ("specify_cli.rogue", "w") in delegated
+    read_only = (
+        "from specify_cli.invocation.writer import INDEX_PATH\n"
+        "def _iter_records(repo_root, events_dir):\n"
+        "    if repo_root is not None:\n"
+        "        index_path = repo_root / INDEX_PATH\n"
+        "    else:\n"
+        "        index_path = events_dir / 'ops-index.jsonl'\n"
+        "    return index_path.read_text()\n"
+    )
+    assert scan_index_writers_from_source("specify_cli.reader", read_only) == set()
+    prose = 'def started(p):\n    """Appends to kitty-ops/ops-index.jsonl afterwards."""\n    with p.open("x") as f:\n        f.write("")\n'
+    assert scan_index_writers_from_source("specify_cli.prose", prose) == set()
+
+
+def test_index_census_floor_finds_the_live_writer(src_source_tree: Mapping[Path, SourceFile]) -> None:
+    """The live scan sees the writer's own function, so the census is not matching nothing."""
+    writer = next(path for path in src_source_tree if module_name_for(path) == "specify_cli.invocation.writer")
+    entry = src_source_tree[writer]
+    assert isinstance(entry.tree, ast.Module)
+    assert ("specify_cli.invocation.writer", "InvocationWriter._append_to_index") in scan_index_writers("specify_cli.invocation.writer", entry.tree)
