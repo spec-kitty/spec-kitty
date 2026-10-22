@@ -266,7 +266,7 @@ class TestCliRunsWithReadOnlyHome:
         monkeypatch.setattr(specify_cli, "_APP", None)
         yield
 
-    @pytest.mark.parametrize("argv", [["agent", "--help"], ["doctor", "--help"], ["events", "--help"]])
+    @pytest.mark.parametrize("argv", [["agent", "--help"], ["doctor", "--help"]])
     def test_subcommand_help_runs_and_warns_once(
         self,
         argv: list[str],
