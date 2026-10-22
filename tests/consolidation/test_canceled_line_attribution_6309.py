@@ -194,6 +194,8 @@ _MIX_BASE = "if x:\n    a()\nb()\nc = 1\n"
 _MIX_CANCELED = "if x:\n    a()\n    b()\nc = 2\n"
 _DUP_BASE = "if x:\n    a()\nb()\nif y:\n    b()\n"
 _DUP_CANCELED = "if x:\n    a()\n    b()\nif y:\n    b()\n"
+_MOVED_BASE = "if p:\n  x\nq\nif r:\n    x\n"
+_MOVED_CANCELED = "if p:\n    x\nq\nif r:\n    x\n"
 
 
 @pytest.mark.parametrize(
@@ -210,6 +212,7 @@ _DUP_CANCELED = "if x:\n    a()\n    b()\nif y:\n    b()\n"
         pytest.param(_MIX_BASE, _MIX_CANCELED, "if x:\n    a()\nb()\nc = 3\n", False, id="mixed-real-edit-and-reindent-reindent-undone"),
         pytest.param(_DUP_BASE, _DUP_CANCELED, _DUP_CANCELED + "# approved\n", True, id="reindent-text-duplicated-elsewhere-and-kept"),
         pytest.param(_DUP_BASE, _DUP_CANCELED, _DUP_BASE + "# approved\n", False, id="reindent-text-duplicated-elsewhere-and-undone"),
+        pytest.param(_MOVED_BASE, _MOVED_CANCELED, "if p:\n    x\nq\n# approved\n", True, id="reindent-text-existed-elsewhere-that-copy-deleted"),
     ],
 )
 def test_whitespace_or_punctuation_only_part_of_a_canceled_change_is_not_superseded_by_an_unrelated_edit(
@@ -226,6 +229,19 @@ def test_whitespace_or_punctuation_only_part_of_a_canceled_change_is_not_superse
 
     expected = (frozenset(), {_PATH: (canceled, lane.blob(_PATH))}) if ships else (frozenset({canceled}), {})
     assert lane.content() == expected
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason="#6309 residual: a punctuation-only removal is judged by copy count; a byte-identical re-add elsewhere reads it as undone",
+)
+def test_punctuation_only_removal_readded_elsewhere_ideally_stays_live(tmp_path: Path) -> None:
+    lane = _lane(tmp_path, {_PATH: "a = 1\n)\nb = 1\n"})
+    canceled = lane.commit({_PATH: "a = 2\nb = 1\n"}, canceled=True)
+    lane.commit({_PATH: "a = 3\nb = 1\n)\n"})
+
+    assert lane.content() == (frozenset(), {_PATH: (canceled, lane.blob(_PATH))})
 
 
 @pytest.mark.parametrize("undone", [False, True], ids=["mode-kept", "mode-undone-by-approved-work"])

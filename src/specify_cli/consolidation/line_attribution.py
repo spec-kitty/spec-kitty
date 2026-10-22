@@ -35,7 +35,7 @@ Fail-closed, like every probe in :mod:`~specify_cli.consolidation.git_probes`: a
 git error or unparseable output raises :class:`GitProbeError`, so the caller
 REFUSEs rather than reading an unevaluable probe as "superseded". Cost is bounded:
 one forward blame per (final state, path), memoized, limited to history after the
-oldest canceled commit, plus one reverse blame and one diff per canceled commit
+oldest canceled commit, plus one exact (no ``-w``) blame only for a path with a whitespace-only added line, plus one reverse blame and one diff per canceled commit
 that removed non-trivial lines.
 
 Known limits (ADR 2026-09-29-1, Amendment 2026-10-22). Pinned as strict ``xfail``
@@ -43,8 +43,9 @@ in ``tests/consolidation/test_canceled_line_attribution_6309.py``: approved line
 inserted exactly at a canceled deletion's spot supersede it, canceled content
 copied into another file is not followed, and a rename whose old path is re-created
 is judged at the re-created path only. An approved WP that later re-indents the same lines
-identically is indistinguishable from the canceled re-indent and is refused (deliberate
-fail-closed over-refusal). Not pinned: a short line moved within the
+identically is attributed to the approved WP by the exact blame and so reads as its own work. A whitespace-only or
+punctuation-only REMOVAL is judged by a copy count (fewer copies than before), so an approved WP that re-adds a
+byte-identical copy elsewhere reads it as undone (pinned strict ``xfail``; main never judged pure removals). Not pinned: a short line moved within the
 file (below git's ``-M`` threshold) is caught only by the subset signal, and content inside a
 merge commit stays the existing residual. The rename lookup diffs the window from the
 newest canceled commit to the lane tip with no rename limit, and runs only when the
@@ -136,6 +137,7 @@ class LineAttribution:
         self._resolved: dict[str, str] = {}
         self._parents: dict[str, str | None] = {}
         self._forward: dict[tuple[str, str, str], tuple[BlameLine, ...]] = {}
+        self._exact: dict[tuple[str, str, str], tuple[BlameLine, ...]] = {}
         self._hunks: dict[tuple[str, str, bool], tuple[DiffHunk, ...]] = {}
 
     @property
@@ -186,7 +188,7 @@ class LineAttribution:
         added = (
             any(line.commit in canceled and not is_trivial_line(line.text) for line in final_blame)
             or any(self._all_added_lines_kept(sha, path, final_blame) for sha in canceled_shas)
-            or any(self._exact_change_kept(sha, path, final_blame) for sha in canceled_shas)
+            or any(self._exact_change_kept(sha, path, final_blame, judged_ref, final_path, floor) for sha in canceled_shas)
             or any(self._mode_or_empty_creation_kept(sha, path, judged_ref, final_path) for sha in canceled_shas)
         )
         if added:
@@ -230,6 +232,15 @@ class LineAttribution:
             revs = [f"{parent}..{final_ref}"] if parent is not None else [final_ref]
             self._forward[key] = blame_lines(self._repo, path, revs=revs, first_parent=True, ignore_whitespace=True, detect_moves=True)
         return self._forward[key]
+
+    def _exact_blame(self, final_ref: str, path: str, floor: str) -> tuple[BlameLine, ...]:
+        """A byte-for-byte forward blame (no ``-w``, no ``-M``): who last wrote each line, whitespace included."""
+        key = (final_ref, path, floor)
+        if key not in self._exact:
+            parent = self._parent(self._resolve(floor))
+            revs = [f"{parent}..{final_ref}"] if parent is not None else [final_ref]
+            self._exact[key] = blame_lines(self._repo, path, revs=revs, first_parent=True)
+        return self._exact[key]
 
     def _is_binary_change(self, sha: str, path: str) -> bool:
         """Did *sha* change *path* as a binary file (git prints ``-`` counts, or a root commit's blob holds a NUL)?"""
@@ -283,26 +294,26 @@ class LineAttribution:
         removed = [text for hunk in exact for text in hunk.removed if text.strip() and _normalized(text) not in judged]
         return added, removed
 
-    def _exact_change_kept(self, sha: str, path: str, final_blame: Sequence[BlameLine]) -> bool:
+    def _exact_change_kept(self, sha: str, path: str, final_blame: Sequence[BlameLine], final_ref: str, final_path: str, floor: str) -> bool:
         """The part of a canceled change that the whitespace-blind arms cannot see, still in the final state byte for byte.
 
         A re-indent (meaning in Python, YAML, Makefiles), a line-ending change or a lone
         punctuation line is invisible to ``-w`` blame and diff and to the trivial-line filter, so
-        those arms would read it as superseded, also when it rides along with a real edit. Such an
-        added line stays live while the final state holds more copies of it than the commit's parent
-        did (a copy that was already there, elsewhere, is not the change); a pure removal, while a
-        removed line has fewer copies than before. An approved work package that later re-indents the
-        same lines identically is indistinguishable from the canceled change and is refused too
-        (deliberate fail-closed over-refusal).
+        those arms would read it as superseded, also when it rides along with a real edit. An added
+        line of that kind stays live while an exact (no ``-w``) blame of the final state still
+        attributes a copy of it to *sha*: a copy that was already there elsewhere is not the change,
+        and one a later commit wrote is that commit's. A pure removal stays live while a removed
+        line has fewer copies than before (a count comparison, see the module's known limits).
         """
         added, removed = self._whitespace_only_lines(sha, path)
         if not added and not removed:
             return False
+        if added:
+            commit, wanted = self._resolve(sha), set(added)
+            return any(line.commit == commit and line.text in wanted for line in self._exact_blame(final_ref, final_path, floor))
         parent = self._parent(self._resolve(sha))
         before = Counter((blob_at(self._repo, parent, path) or b"").split(b"\n")) if parent is not None else Counter()
         final = Counter(line.text for line in final_blame)
-        if added:
-            return any(final[text] > before[text] for text in set(added))
         return parent is not None and any(final[text] < before[text] for text in set(removed))
 
     def _mode_or_empty_creation_kept(self, sha: str, path: str, final_ref: str, final_path: str) -> bool:
