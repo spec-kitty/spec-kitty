@@ -133,6 +133,19 @@ def test_tracked_unreadable_lock_offers_untrack(repo: Path) -> None:
     assert "git worktree add" not in message, "the workspace already exists"
 
 
+@pytest.mark.parametrize("exists", [True, False])
+def test_a_git_failure_refuses_instead_of_reading_as_no_lock(tmp_path: Path, exists: bool) -> None:
+    """Fail closed: a checkout git cannot read (here, not a repository) is not "no committed lock"."""
+    _write_lock(tmp_path, json.dumps({**_VALID, "pid": os.getpid()}))
+    ref = None if exists else "main"
+
+    message = review_lock_refusal(tmp_path, exists=exists, repo_root=tmp_path, checkout_ref=ref, branch="main")
+
+    assert message is not None
+    assert message.startswith(f"{REVIEW_LOCK_UNREADABLE}:")
+    assert "git could not check it" in message
+
+
 # --- review_lock_refusal: workspace still to be created -------------------
 
 

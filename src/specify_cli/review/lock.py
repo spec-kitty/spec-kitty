@@ -28,7 +28,7 @@ from typing import Any
 from specify_cli.core.process_liveness import is_process_alive
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
-from kernel.git import GitCommandError, is_tracked, run_git
+from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.guarded_read import read_guarded
 
 logger = logging.getLogger(__name__)
@@ -256,23 +256,30 @@ def _git_stdout(repo: Path, *args: str) -> str | None:
     return result.stdout.decode("utf-8", "replace") if result.returncode == 0 else None
 
 
-def _is_tracked(worktree: Path) -> bool:
-    """Whether git tracks the lock in *worktree*; a checkout git cannot read counts as untracked."""
-    try:
-        return is_tracked(worktree, LOCK_REL_PATH)
-    except GitCommandError:
-        return False
+def _git_unreadable(path: str, exc: GitCommandError) -> ReviewLockReadError:
+    """A git failure while checking the lock, as an unreadable-lock error: fail closed, never "no lock"."""
+    return ReviewLockReadError(path=path, reason=f"git could not check it: {exc}")
 
 
 def _committed_lock(repo_root: Path, ref: str) -> tuple[bool, ReviewLockReadError | None]:
-    """``(present, error)`` for the lock committed at *ref*; ``error`` is ``None`` when it is absent or readable."""
+    """``(present, error)`` for the lock committed at *ref*.
+
+    *error* is ``None`` when the lock is absent or readable. An absent *ref*
+    (worktree creation reports that) and an absent path count as "no lock";
+    any other git failure is an error, so it refuses instead of passing.
+    """
     spec = f"{ref}:{LOCK_REL_PATH}"
-    content = _git_stdout(repo_root, "show", spec)
+    try:
+        if run_git(repo_root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False).returncode == 1:
+            return False, None
+        content = blob_at(repo_root, ref, LOCK_REL_PATH)
+    except GitCommandError as exc:
+        return False, _git_unreadable(spec, exc)
     if content is None:
-        return False, None  # no lock committed at *ref* (or *ref* itself is absent: creation reports that)
+        return False, None
     try:
         _parse_lock(content)
-    except (json.JSONDecodeError, TypeError) as exc:
+    except (ValueError, TypeError) as exc:  # JSONDecodeError and UnicodeDecodeError are ValueErrors
         return True, ReviewLockReadError(path=spec, reason=str(exc))
     return True, None
 
@@ -315,7 +322,10 @@ def _lock_state(worktree: Path, *, exists: bool, repo_root: Path, checkout_ref: 
     except ReviewLockReadError as exc:
         error = exc
     # The index, not the file: a tracked lock deleted by a release (``D``) is still committed.
-    return _is_tracked(worktree), error
+    try:
+        return is_tracked(worktree, LOCK_REL_PATH), error
+    except GitCommandError as exc:
+        return False, error or _git_unreadable(str(worktree / LOCK_REL_PATH), exc)
 
 
 def review_lock_refusal(
