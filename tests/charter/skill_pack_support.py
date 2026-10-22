@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import yaml
 from ruamel.yaml import YAML
 
+from charter.activation.activation_ledger import LEDGER_KEYS
+from kernel.activation_ledger_store import activation_ledger_path
 from tests._factories.activation_ledger import seed_activation_ledger
 
 NAMESPACE = "acme"
@@ -79,18 +82,33 @@ def write_org_charter(pack_root: Path, *, required_skills: list[str] | None = No
 
 
 def write_config(
-    project_root: Path, pack_root: Path | None, *, extra: str = "", project_namespace: str | None = None, ledger: dict[str, Any] | None = None
+    project_root: Path,
+    pack_root: Path | None,
+    *,
+    extra: str = "",
+    project_namespace: str | None = None,
+    ledger: Mapping[str, Any] | None = None,
+    legacy: bool = False,
 ) -> Path:
-    """Write ``.kittify/config.yaml`` registering *pack_root* as the only org pack.
+    """Write ``.kittify/config.yaml`` registering *pack_root* as the only org pack, plus its activation.
 
-    Without *ledger* the activation keys land on the legacy ``config.yaml``
-    surface (an unmigrated project: legacy reads work, a deny write refuses).
-    With *ledger* they are seeded into ``.kittify/charter/activation.yaml``
-    (``mission_type_activations: [software-dev]`` plus *ledger*), the shape
-    ``init`` and the ledger migration produce; *extra* must then carry no
-    activation key.
+    The activation (``mission_type_activations: [software-dev]`` plus *ledger*)
+    is seeded into the activation ledger, ``.kittify/charter/activation.yaml``,
+    the shape ``init`` and the ledger migration produce (ADR 2026-10-19-1). A
+    re-call replaces the ledger, so a key left out of *ledger* is absent again.
+
+    ``legacy=True`` writes the same keys onto the pre-ledger ``config.yaml``
+    surface instead: an unmigrated project, whose reads use those keys and
+    whose deny writes refuse. Use it only for a test whose subject is that
+    surface. *extra* carries the non-activation config (``agents:`` ...); an
+    activation key in it raises, so a test cannot slip back onto the legacy
+    surface unnoticed.
     """
-    lines = [] if ledger is not None else ["mission_type_activations:", "  - software-dev"]
+    stray = sorted(set(yaml.safe_load(extra) or {}) & set(LEDGER_KEYS))
+    if stray:
+        raise ValueError(f"write_config: pass activation keys {stray} through ledger=, not extra=")
+    activation: dict[str, Any] = {"mission_type_activations": ["software-dev"], **(ledger or {})}
+    lines = [yaml.safe_dump(activation, sort_keys=False).rstrip("\n")] if legacy else []
     if pack_root is not None or project_namespace is not None:
         lines.append("charter_packs:")
     if pack_root is not None:
@@ -100,6 +118,7 @@ def write_config(
     config = project_root / ".kittify" / "config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text("".join(f"{line}\n" for line in lines) + extra, encoding="utf-8")
-    if ledger is not None:
-        seed_activation_ledger(project_root, mission_type_activations=["software-dev"], **ledger)
+    activation_ledger_path(project_root).unlink(missing_ok=True)  # a re-seed replaces, never merges
+    if not legacy:
+        seed_activation_ledger(project_root, **activation)
     return config

@@ -32,7 +32,8 @@ runner = CliRunner()
 SKILL_ID = "deploy-helper"
 RENDERED = "acme-deploy-helper"
 SOURCE_REF = "skills/deploy-helper.skill.yaml"
-CONFIG = "agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n"
+CONFIG = "agents:\n  available:\n    - claude\n    - codex\n"
+NOTHING_IN_FORCE: dict[str, list[str]] = {"activated_skills": []}
 
 
 @pytest.fixture
@@ -51,7 +52,7 @@ def project(tmp_path: Path, pack: Path, monkeypatch: pytest.MonkeyPatch) -> Path
     monkeypatch.setenv("HOME", str(home))
     root = tmp_path / "project"
     root.mkdir()
-    support.write_config(root, pack, extra=CONFIG)
+    support.write_config(root, pack, extra=CONFIG, ledger=NOTHING_IN_FORCE)
     save_manifest(install_all_skills(root, ["claude", "codex"], resolve_project_skill_catalog(root)), root)
     result = runner.invoke(charter_app, ["activate", "skill", SKILL_ID, "--repo-root", str(root), "--no-compile"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
@@ -189,14 +190,14 @@ def test_agent_with_an_absent_tool_folder_is_not_reported_missing(project: Path)
 
 def test_nothing_in_force_yields_no_missing_finding(project: Path) -> None:
     (project / ".kittify" / "skills-manifest.json").unlink()
-    support.write_config(project, None, extra=CONFIG)
+    support.write_config(project, None, extra=CONFIG, ledger=NOTHING_IN_FORCE)
     assert find_pack_skill_findings(project) == ()
 
 
 def test_agent_without_skill_support_is_never_missing(project: Path) -> None:
     """A configured tool that takes no skill files (``q``: wrapper-only) gets no ``missing`` finding."""
     (project / ".kittify" / "skills-manifest.json").unlink()
-    support.write_config(project, project.parent / "pack", extra=f"agents:\n  available:\n    - q\nactivated_skills:\n  - {SKILL_ID}\n")
+    support.write_config(project, project.parent / "pack", extra="agents:\n  available:\n    - q\n", ledger={"activated_skills": [SKILL_ID]})
     assert [f for f in find_pack_skill_findings(project) if f.kind == KIND_MISSING] == []
 
 
@@ -304,11 +305,11 @@ def test_namespace_change_orphans_the_old_copies_on_every_surface(project: Path,
     code, payload = _doctor(project, monkeypatch)
     assert code == 1 and [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
     # The same when the org charter, not an explicit list, puts the skill in force (nothing installed, no list).
-    support.write_config(project, pack, extra=CONFIG.replace("activated_skills: []\n", ""))
+    support.write_config(project, pack, extra=CONFIG)  # no activated_skills: the org-required set is in force
     support.write_org_charter(pack, required_skills=["deploy-helper"], namespace=None)
     (required,) = find_pack_skill_findings(project)
     assert required.kind == KIND_UNRESOLVABLE and "skill namespace" in required.message
     code, payload = _doctor(project, monkeypatch)
     assert code == 1 and [item["kind"] for item in payload["pack_skills"]] == [KIND_UNRESOLVABLE]
-    support.write_config(project, pack, extra=CONFIG)  # activated_skills: [] -> nothing in force
+    support.write_config(project, pack, extra=CONFIG, ledger=NOTHING_IN_FORCE)
     assert find_pack_skill_findings(project) == ()

@@ -23,6 +23,7 @@ from charter.activation.org_charter import (
     apply_org_charter_to_interview,
     load_org_charter_policies,
 )
+from tests._factories.activation_ledger import read_activation_ledger
 from tests.charter import skill_pack_support as support
 
 #: Kinds whose absent activation key already puts the org-required ids in force
@@ -126,6 +127,7 @@ def test_the_interview_never_seeds_a_kind_that_is_in_force_by_default(tmp_path: 
     interview = _Interview()
     messages = apply_org_charter_to_interview(interview, consumer)
 
+    assert "activated_skills" not in read_activation_ledger(consumer)
     assert "activated_skills" not in (consumer / ".kittify" / "config.yaml").read_text(encoding="utf-8")
     assert not [m for m in messages if "skills" in m]
     assert interview.selected_skills == []

@@ -11,13 +11,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from charter.activation.active_charter_service_builder import build_active_charter_service
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.manifest import load_manifest
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 from tests.charter import skill_pack_support as support
 
 pytestmark = [pytest.mark.integration]
@@ -44,8 +44,8 @@ def _activate(project: Path, kind: str, skill_id: str, *extra: str) -> tuple[int
 
 
 def _activated_skills(project: Path) -> list[str] | None:
-    data = yaml.safe_load((project / ".kittify" / "config.yaml").read_text(encoding="utf-8")) or {}
-    return data.get("activated_skills")
+    value = read_activation_ledger(project).get("activated_skills")
+    return None if value is None else list(value)
 
 
 def test_required_skill_is_projected_and_unlisted_skill_is_not_when_key_is_absent(tmp_path: Path) -> None:
@@ -87,10 +87,10 @@ def test_required_skills_of_two_org_packs_union_into_default_in_force(tmp_path: 
     config = project / ".kittify" / "config.yaml"
     config.parent.mkdir()
     config.write_text(
-        "mission_type_activations:\n  - software-dev\ncharter_packs:\n  org:\n    packs:\n"
-        + "".join(f"      - name: {p.name}\n        local_path: {p}\n" for p in packs),
+        "charter_packs:\n  org:\n    packs:\n" + "".join(f"      - name: {p.name}\n        local_path: {p}\n" for p in packs),
         encoding="utf-8",
     )
+    seed_activation_ledger(project, mission_type_activations=["software-dev"])
 
     assert set(build_active_charter_service(project).skills) == {"a", "b", "shared"}
 
@@ -102,7 +102,7 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     support.write_org_charter(pack, namespace="a")
     project = tmp_path / "project"
     project.mkdir()
-    support.write_config(project, pack, extra=AGENTS + "activated_skills: []\n", project_namespace="a-b")
+    support.write_config(project, pack, extra=AGENTS, project_namespace="a-b", ledger={"activated_skills": []})
     support.write_skill(project / ".kittify" / "charter-packs", "c")  # project namespace "a-b" -> a-b-c (collision)
 
     code, output = _activate(project, "skill", "b-c")
@@ -115,7 +115,7 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     assert code == 1
     assert "both render as" in output and "a-b-c" in output  # the cause
     assert "re-run this command" in output  # how to recover
-    # Config records the activation (documented), disk is untouched: nothing half-written.
+    # The activation ledger records the activation (documented), disk is untouched: nothing half-written.
     assert _activated_skills(project) == ["b-c", "c"]
     assert _skill_dirs(project) == {"a-b-c"}
     assert (project / ".claude" / "skills" / "a-b-c" / "SKILL.md").read_bytes() == before

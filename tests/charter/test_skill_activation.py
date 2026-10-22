@@ -10,7 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
@@ -35,16 +34,6 @@ runner = CliRunner()
 
 def _skill_ids_in_force(project: Path) -> set[str]:
     return set(build_active_charter_service(project).skills)
-
-
-def _on_the_ledger(project: Path) -> Path:
-    """Move the fixture's activation into the ledger: a deactivation records a deny entry, which only the ledger holds (FR-017)."""
-    config = project / ".kittify" / "config.yaml"
-    data = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
-    mission_types = data.pop("mission_type_activations")
-    config.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-    seed_activation_ledger(project, mission_type_activations=mission_types)
-    return project
 
 
 def _activated(project: Path, key: str) -> list[str] | None:
@@ -73,8 +62,8 @@ def project(tmp_path: Path) -> Path:
     for skill_id in ("required-one", "x", "y", "z"):
         support.write_skill(pack, skill_id)
     support.write_org_charter(pack, required_skills=["required-one"])
-    support.write_config(tmp_path, pack)
-    return _on_the_ledger(tmp_path)
+    support.write_config(tmp_path, pack)  # the ledger holds the activation, so a deactivation records a deny entry (FR-017)
+    return tmp_path
 
 
 # ---------------------------------------------------------------------------
@@ -103,8 +92,7 @@ def test_org_required_ids_union_dedupes_and_skips_malformed(tmp_path: Path) -> N
     config = tmp_path / ".kittify" / "config.yaml"
     config.parent.mkdir()
     config.write_text(
-        "mission_type_activations: [software-dev]\ncharter_packs:\n  org:\n    packs:\n"
-        + "".join(f"      - name: {r.name}\n        local_path: {r}\n" for r in (pack_a, pack_b, third)),
+        "charter_packs:\n  org:\n    packs:\n" + "".join(f"      - name: {r.name}\n        local_path: {r}\n" for r in (pack_a, pack_b, third)),
         encoding="utf-8",
     )
 
@@ -273,8 +261,8 @@ def cascade_project(tmp_path: Path) -> Path:
             ("skill:s3", "directive:dir-d", "suggests"),
         ],
     )
-    support.write_config(tmp_path, pack)
-    return _on_the_ledger(tmp_path)
+    support.write_config(tmp_path, pack)  # the ledger holds the activation, so a deactivation records a deny entry (FR-017)
+    return tmp_path
 
 
 def test_activate_skill_cascades_to_what_it_requires(cascade_project: Path) -> None:

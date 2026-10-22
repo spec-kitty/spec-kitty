@@ -13,7 +13,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
+from kernel.activation_ledger_store import activation_ledger_path
 from specify_cli.skills.catalog import resolve_project_skill_catalog
 from specify_cli.skills.installer import assess_skill_installation, install_all_skills
 from specify_cli.skills.manifest import save_manifest
@@ -24,12 +26,14 @@ from specify_cli.upgrade.migrations.m_3_0_3_globalize_skill_pack import Globaliz
 from specify_cli.upgrade.migrations.m_3_2_0rc35_spk_skill_pack import SpkSkillPackMigration
 from specify_cli.upgrade.assessment import prepare_upgrade_repairs
 from specify_cli.upgrade.runner import MigrationRunner
+from tests._factories.activation_ledger import read_activation_ledger
 from tests.charter import skill_pack_support as support
 
 pytestmark = [pytest.mark.integration]
 
 STAGING = Path(".kittify/runtime/pack-skills")
-CONFIG = "agents:\n  available:\n    - claude\n    - codex\nactivated_skills:\n  - deploy-helper\n"
+CONFIG = "agents:\n  available:\n    - claude\n    - codex\n"
+DEPLOY_HELPER_IN_FORCE: dict[str, list[str]] = {"activated_skills": ["deploy-helper"]}
 DETECTING = (RepairSkillPackMigration, GlobalizeSkillPackMigration, SpkSkillPackMigration)
 
 
@@ -52,7 +56,7 @@ def _project(tmp_path: Path, *, namespace: str | None = "acme") -> Path:
     support.write_org_charter(pack, namespace=namespace)
     root = tmp_path / "project"
     root.mkdir()
-    support.write_config(root, pack, extra=CONFIG)
+    support.write_config(root, pack, extra=CONFIG, ledger=DEPLOY_HELPER_IN_FORCE)
     return root
 
 
@@ -81,7 +85,7 @@ def test_read_only_resolution_leaves_an_existing_staging_root_untouched(tmp_path
 def test_an_unused_empty_staging_root_is_not_removed(tmp_path: Path) -> None:
     project = tmp_path / "plain"
     (project / STAGING).mkdir(parents=True)
-    support.write_config(project, None, extra="activated_skills: []\n")
+    support.write_config(project, None, ledger={"activated_skills": []})
     resolve_project_skill_catalog(project)
     assert (project / STAGING).is_dir()
 
@@ -243,15 +247,24 @@ def _non_utf8_body(root: Path, pack: Path) -> None:
     (pack / "skills" / "deploy-helper.skill.md").write_bytes(b"\xff\xfe not utf-8")
 
 
+def _ledger_without_skills(root: Path) -> dict[str, object]:
+    """The activation ledger's mapping less ``activated_skills`` (hand-edited below, past the seam's own validation).
+
+    Idempotent, as composed causes switch to the org-required default more than once.
+    """
+    data = read_activation_ledger(root)
+    assert data.pop("activated_skills", ["deploy-helper"]) == ["deploy-helper"]
+    return data
+
+
 def _non_list_activation(root: Path, pack: Path) -> None:
-    config = root / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8").replace("activated_skills:\n  - deploy-helper\n", "activated_skills: deploy-helper\n"), encoding="utf-8")
+    ledger = {**_ledger_without_skills(root), "activated_skills": "deploy-helper"}
+    activation_ledger_path(root).write_text(yaml.safe_dump(ledger, sort_keys=False), encoding="utf-8")
 
 
 def _org_required(root: Path, pack: Path, charter: str = "org_name: acme-org\nskill_namespace: acme\nrequired_skills: [deploy-helper]\n") -> None:
     """Switch the project from an explicit activation to the org-required default (the org charter decides)."""
-    config = root / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8").replace("activated_skills:\n  - deploy-helper\n", ""), encoding="utf-8")
+    activation_ledger_path(root).write_text(yaml.safe_dump(_ledger_without_skills(root), sort_keys=False), encoding="utf-8")
     (pack / "org-charter.yaml").write_text(charter, encoding="utf-8")
 
 

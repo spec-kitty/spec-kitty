@@ -42,7 +42,9 @@ pytestmark = [pytest.mark.integration]
 PACK_SKILL_STAGING = Path(".kittify/runtime/pack-skills")  # the documented staging root (plan decision 4)
 RENDERED = "acme-deploy-helper"
 AGENTS = ("claude", "codex")
-CONFIG_EXTRA = "agents:\n  available:\n    - claude\n    - codex\nactivated_skills:\n  - deploy-helper\n"
+CONFIG_EXTRA = "agents:\n  available:\n    - claude\n    - codex\n"
+DEPLOY_HELPER_IN_FORCE: dict[str, list[str]] = {"activated_skills": ["deploy-helper"]}
+NOTHING_IN_FORCE: dict[str, list[str]] = {"activated_skills": []}
 
 
 def _tree(root: Path) -> dict[str, object]:
@@ -84,7 +86,7 @@ def project(tmp_path: Path) -> Path:
     support.write_org_charter(pack, namespace="acme")
     root = tmp_path / "project"
     root.mkdir()
-    support.write_config(root, pack, extra=CONFIG_EXTRA)
+    support.write_config(root, pack, extra=CONFIG_EXTRA, ledger=DEPLOY_HELPER_IN_FORCE)
     return root
 
 
@@ -182,7 +184,7 @@ def test_changed_source_restages_and_a_deactivated_skill_is_unstaged(project: Pa
     assert "New body" in (staged_dir / RENDERED / "SKILL.md").read_text(encoding="utf-8")
     assert sorted(path.name for path in staged_dir.iterdir()) == [RENDERED]
 
-    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\nactivated_skills: []\n")
+    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\n", ledger=NOTHING_IN_FORCE)
     assert resolve_project_skill_catalog(project, builtin=shipped) is shipped
     assert not staged_dir.exists()
 
@@ -413,7 +415,7 @@ def test_a_locally_modified_pack_file_survives_retirement_and_is_reported(projec
     edited = project / ".claude" / "skills" / RENDERED / "SKILL.md"
     _edit_installed(edited, "my edits\n")
 
-    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n")
+    support.write_config(project, tmp_path / "pack", extra=CONFIG_EXTRA, ledger=NOTHING_IN_FORCE)
     projection = project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
 
     assert edited.read_text(encoding="utf-8") == "my edits\n"
@@ -426,13 +428,13 @@ def test_a_locally_modified_pack_file_survives_retirement_and_is_reported(projec
 
 def test_projection_is_empty_without_installable_agents_or_pack_skills(project: Path, tmp_path: Path) -> None:
     shipped = _fake_builtin(tmp_path, "spk-one")
-    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - q\nactivated_skills:\n  - deploy-helper\n")
+    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - q\n", ledger=DEPLOY_HELPER_IN_FORCE)
     assert project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped)) == PackSkillProjection()
 
-    support.write_config(project, tmp_path / "pack", extra=CONFIG_EXTRA.replace("  - deploy-helper\n", "[]\n").replace("activated_skills:\n", "activated_skills: "))
+    support.write_config(project, tmp_path / "pack", extra=CONFIG_EXTRA, ledger=NOTHING_IN_FORCE)
     assert project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped)) == PackSkillProjection()
 
-    support.write_config(project, None, extra="activated_skills: []\n")
+    support.write_config(project, None, ledger=NOTHING_IN_FORCE)
     assert project_pack_skills(project) == PackSkillProjection()
 
 
@@ -487,7 +489,7 @@ def test_an_unowned_same_name_directory_without_skill_md_is_left_alone(project: 
 def test_without_agents_the_projection_neither_stages_nor_refuses(project: Path, tmp_path: Path) -> None:
     """No project skill root to write into: even an unusable (namespaceless) pack skill is not an error yet."""
     support.write_org_charter(tmp_path / "pack", namespace=None)
-    support.write_config(project, tmp_path / "pack", extra="activated_skills:\n  - deploy-helper\n")
+    support.write_config(project, tmp_path / "pack", ledger=DEPLOY_HELPER_IN_FORCE)
     before = _tree(project)
 
     assert project_pack_skills(project) == PackSkillProjection()
