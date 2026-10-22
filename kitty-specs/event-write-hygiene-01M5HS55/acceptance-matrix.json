@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer; tests/specify_cli/invocation/cli/test_invocations.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:52.648560+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
