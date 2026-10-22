@@ -17,6 +17,8 @@ import typer
 
 from specify_cli.cli.commands.agent import workflow
 
+pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+
 
 def test_review_lock_refusal_is_rendered_and_escaped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     from specify_cli.review.lock import ReviewLock, ReviewLockError
