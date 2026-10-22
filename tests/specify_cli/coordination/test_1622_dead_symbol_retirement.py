@@ -59,6 +59,13 @@ def test_append_event_log_batch_deleted() -> None:
     )
 
 
+def test_append_event_log_deleted() -> None:
+    """append_event_log must not exist — the dead single-event door was deleted (#6614)."""
+    assert not hasattr(status_service, "append_event_log"), (
+        "append_event_log should have been deleted; callers use append_event_stream_log(contract, [event])."
+    )
+
+
 def test_read_wp_lane_actor_deleted() -> None:
     """read_wp_lane_actor must not exist — it was deleted in WP09 (be932d19a)."""
     assert not hasattr(status_service, "read_wp_lane_actor"), (

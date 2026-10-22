@@ -34,8 +34,8 @@ so every one of these shapes counts:
 3. ``from specify_cli.status import <append_* primitive>`` -- the facade
    shape this WP retired; re-promoting a primitive onto the facade makes
    the facade package itself an importer and fails here;
-4. ``from specify_cli.coordination.status_service import append_event_log |
-   append_event_stream_log`` -- the coordination wrappers that delegate to
+4. ``from specify_cli.coordination.status_service import
+   append_event_stream_log`` -- the coordination wrapper that delegates to
    the primitives (the door ``BookkeepingTransaction`` actually uses).
 
 ``store.py`` and ``_unsafe.py`` are the owners, not importers. Imports under
@@ -72,12 +72,9 @@ _OWNER_MODULES = frozenset({_STORE_MODULE, _UNSAFE_MODULE})
 STORE_APPEND_PRIMITIVES: frozenset[str] = frozenset(
     {
         "append_annotations_atomic_verified",
-        "append_event",
         "append_event_stream_atomic_verified",
-        "append_event_verified",
         "append_events_atomic",
         "append_events_atomic_verified",
-        "append_primary_checkout_event_verified",
         "append_primary_checkout_events_atomic_verified",
         "append_raw_rows_atomic",
     }
@@ -90,7 +87,7 @@ STORE_APPEND_PRIMITIVES: frozenset[str] = frozenset(
 _STORE_ONLY_PRIMITIVES: frozenset[str] = frozenset({"append_events_atomic"})
 
 #: Coordination-layer wrappers that delegate to the primitives (door shape 4).
-COORD_WRAPPER_DOORS: frozenset[str] = frozenset({"append_event_log", "append_event_stream_log"})
+COORD_WRAPPER_DOORS: frozenset[str] = frozenset({"append_event_stream_log"})
 
 #: Committed baseline for the shrink-only rule (contract section 1). Mirrors
 #: ``_unsafe.ALLOWED_CALLERS`` at the WP03 landing plus the WP07 addendum; the
@@ -260,14 +257,14 @@ def test_allowlist_entries_are_live(door_imports: list[DoorImport]) -> None:
 
 
 def test_facade_no_longer_exports_raw_appends() -> None:
-    """``from specify_cli.status import append_event`` is an ImportError (FR-010)."""
+    """``from specify_cli.status import append_raw_rows_atomic`` is an ImportError (FR-010)."""
     import specify_cli.status as facade
 
     for name in STORE_APPEND_PRIMITIVES:
         assert name not in facade.__all__, f"{name} is back on the status facade __all__"
         assert not hasattr(facade, name), f"{name} is reachable as an attribute of specify_cli.status"
     with pytest.raises(ImportError):
-        from specify_cli.status import append_event  # noqa: F401
+        from specify_cli.status import append_raw_rows_atomic  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +272,7 @@ def test_facade_no_longer_exports_raw_appends() -> None:
 # ---------------------------------------------------------------------------
 
 _SYNTHETIC_DOORS: tuple[tuple[str, str], ...] = (
-    ("from specify_cli.status._unsafe import append_event\n", f"{_UNSAFE_MODULE}:append_event"),
+    ("from specify_cli.status._unsafe import append_annotations_atomic_verified\n", f"{_UNSAFE_MODULE}:append_annotations_atomic_verified"),
     ("from specify_cli.status import _unsafe\n", f"{_STATUS_PKG}:_unsafe"),
     ("import specify_cli.status._unsafe\n", _UNSAFE_MODULE),
     ("from specify_cli.status.store import append_event_stream_atomic_verified\n", f"{_STORE_MODULE}:append_event_stream_atomic_verified"),
@@ -311,6 +308,6 @@ def test_allowlist_gate_ignores_benign_and_type_checking_imports() -> None:
     """Facade reads and ``TYPE_CHECKING``-guarded imports are not doors."""
     benign = "from specify_cli.status import read_events, feature_status_lock\nfrom specify_cli.status.store import EVENTS_FILENAME\n"
     assert scan_door_imports_from_source("specify_cli.synthetic.reader", benign) == []
-    guarded = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from specify_cli.status._unsafe import append_event\n"
+    guarded = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from specify_cli.status._unsafe import append_raw_rows_atomic\n"
     assert scan_door_imports_from_source("specify_cli.synthetic.typed", guarded) == []
-    assert scan_door_imports_from_source(_STORE_MODULE, "from specify_cli.status._unsafe import append_event\n") == []
+    assert scan_door_imports_from_source(_STORE_MODULE, "from specify_cli.status._unsafe import append_raw_rows_atomic\n") == []

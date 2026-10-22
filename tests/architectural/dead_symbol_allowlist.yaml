@@ -1273,8 +1273,6 @@ widened_grandfathered_470:
     name: INVALID_WP_OWNED_FILES_KITTY_SPECS
   - module: specify_cli.cli.commands.intake
     name: MAX_BRIEF_FILE_SIZE_BYTES
-  - module: specify_cli.cli.commands.invocations_cmd
-    name: append_to_index
   - module: specify_cli.cli.helpers
     name: check_version_compatibility
   - module: specify_cli.context.mission_resolver
@@ -1283,8 +1281,6 @@ widened_grandfathered_470:
     name: composite_key_from_file
   - module: specify_cli.contracts.anchoring
     name: has_diagnostic_locator_marker
-  - module: specify_cli.coordination.status_service
-    name: append_event_log
   - module: specify_cli.core.subtask_rows
     name: count_subtask_rows
   - module: specify_cli.core.subtask_rows
