@@ -90,6 +90,19 @@ def resolve_builtin_skill_catalog(*, local_repo: Path | None = None, prefer_loca
     return _local_checkout_catalog(local_repo)
 
 
+def builtin_skill_names() -> tuple[str, ...]:
+    """Names of the shipped built-in skills, sorted; empty when no catalog is found.
+
+    Names only, never a registry: a read-only caller (the ``.gitignore``
+    agent-files block, #6474) cannot hand it to ``assess_project_skills`` and
+    retire pack skills (#5193).
+    """
+    catalog = resolve_builtin_skill_catalog()
+    if catalog is None:
+        return ()
+    return tuple(sorted(skill.name for skill in catalog.discover_skills()))
+
+
 def _local_checkout_catalog(local_repo: Path | None) -> SkillRegistry | None:
     from specify_cli.template import get_local_repo_root
 

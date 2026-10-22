@@ -15,7 +15,8 @@ from pathlib import Path
 import pytest
 from kernel.clock import now_utc
 
-from specify_cli.agent_utils.ignore_entries import SECRET_ENTRIES, STATE_DIR_ENTRIES
+from specify_cli.agent_utils.ignore_entries import STATE_DIR_ENTRIES
+from specify_cli.agent_utils.ignore_entries import _SECRET_ENTRIES as SECRET_ENTRIES
 from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.gitignore_manager import AGENT_BLOCK_BEGIN, AGENT_BLOCK_END, SPEC_KITTY_GITIGNORE_MARKER
 from specify_cli.upgrade.metadata import ProjectMetadata

@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 __all__ = [
-    "SECRET_ENTRIES",
     "STATE_DIR_ENTRIES",
     "agent_ignore_entries",
     "ignored_agent_keys",
@@ -49,7 +48,7 @@ __all__ = [
 #: Credential and local-only files inside folders that otherwise hold team config.
 #: ``.codex/`` also covers a project-local ``CODEX_HOME`` (history, sessions, logs);
 #: the Gemini CLI family reads an API key from ``.env`` in its project folder.
-SECRET_ENTRIES: tuple[str, ...] = (
+_SECRET_ENTRIES: tuple[str, ...] = (
     ".codex/auth.json",
     ".codex/history.jsonl",
     ".codex/sessions/",
@@ -104,7 +103,7 @@ def agent_ignore_entries(project_path: Path, agent_keys: Sequence[str]) -> list[
     generated.update(_builtin_skill_dirs(agents))
     generated.update(_manifest_skill_dirs(project_path, agents))
     generated.update(_profile_files(project_path))
-    fixed = [*SECRET_ENTRIES, *STATE_DIR_ENTRIES]
+    fixed = [*_SECRET_ENTRIES, *STATE_DIR_ENTRIES]
     return fixed + sorted(generated - set(fixed))
 
 
@@ -154,12 +153,9 @@ def _builtin_skill_dirs(agents: Iterable[str]) -> set[str]:
     Read from the shipped catalog rather than the per-machine skills manifest,
     so every clone on one CLI version writes the same committed block.
     """
-    from specify_cli.skills.catalog import resolve_builtin_skill_catalog
+    from specify_cli.skills.catalog import builtin_skill_names
 
-    catalog = resolve_builtin_skill_catalog()
-    if catalog is None:
-        return set()
-    names = [skill.name for skill in catalog.discover_skills() if not _is_reserved_skill_name(skill.name)]
+    names = [name for name in builtin_skill_names() if not _is_reserved_skill_name(name)]
     roots = {root for root in (_primary_skill_root(key) for key in agents) if root is not None}
     return {f"{root}{name}/" for root in roots for name in names}
 

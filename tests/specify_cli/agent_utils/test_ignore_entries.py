@@ -9,11 +9,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.agent_utils.ignore_entries import (
-    SECRET_ENTRIES,
     STATE_DIR_ENTRIES,
     agent_ignore_entries,
     ignored_agent_keys,
 )
+from specify_cli.agent_utils.ignore_entries import _SECRET_ENTRIES as SECRET_ENTRIES
 from specify_cli.core.agent_config import AgentConfig, AgentConfigError, save_agent_config
 from specify_cli.core.config import AI_CHOICES
 from specify_cli.gitignore_manager import (

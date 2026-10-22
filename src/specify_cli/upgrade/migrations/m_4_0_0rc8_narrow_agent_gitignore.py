@@ -27,6 +27,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from kernel.git import GitCommandError, status_entries
+from specify_cli.agent_utils.ignore_entries import STATE_DIR_ENTRIES
 from specify_cli.core.agent_config import AgentConfigError
 from specify_cli.gitignore_manager import (
     SPEC_KITTY_GITIGNORE_MARKER,
@@ -91,7 +92,7 @@ _CURSOR_ENTRY = ".cursor/"
 _CURSOR_NEIGHBOURS = (".gemini/", ".qwen/")
 
 #: Folders the agent-files block ignores whole anyway; an operator's rule for them needs no warning.
-_STILL_IGNORED_FOLDERS: frozenset[str] = frozenset({".vibe/", ".pi/", ".letta/", ".github/copilot/"})
+_STILL_IGNORED_FOLDERS: frozenset[str] = frozenset(STATE_DIR_ENTRIES)
 
 _MAX_LISTED_PATHS = 20
 
