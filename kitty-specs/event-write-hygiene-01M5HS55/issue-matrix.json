@@ -85,7 +85,7 @@
       "wp": null
     },
     "#6614": {
-      "evidence_ref": "WP01 (seed codemod) + WP02 (door deletion, gates)",
+      "evidence_ref": "WP01 seed codemod + WP02 door deletion; gates: test_status_unsafe_allowlist, test_status_events_writes_gate (incl. ops-index single writer), test_no_dead_symbols",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,7 +93,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: context_only>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     }
   },
