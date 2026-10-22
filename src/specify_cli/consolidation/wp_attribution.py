@@ -956,7 +956,6 @@ __all__ = [
     "Unattributable",
     "UnattributableReason",
     "CanceledPathState",
-    "LiveCanceledContent",
     "canceled_spine_content",
     "first_governed_open_stamp",
     "is_migration_event",

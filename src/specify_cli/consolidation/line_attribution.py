@@ -56,7 +56,7 @@ from pathlib import Path
 from kernel.git import BlameLine, DiffHunk, GitCommandError, blame_lines, blob_at, changed_entries, diff_hunks, run_git
 from specify_cli.consolidation.git_probes import GitProbeError, path_state_at
 
-__all__ = ["CanceledSurvival", "LineAttribution", "is_trivial_line"]
+__all__ = ["LineAttribution"]
 
 # A rename status letter in ``git diff --name-status`` (``R<score>``).
 _RENAME = "R"

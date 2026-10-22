@@ -29,7 +29,7 @@ from pathlib import Path
 
 from kernel.git.runner import run_git
 
-__all__ = ["BlameLine", "DiffHunk", "blame_lines", "diff_hunks", "parse_blame_porcelain", "parse_zero_context_diff"]
+__all__ = ["BlameLine", "DiffHunk", "blame_lines", "diff_hunks"]
 
 Env = Mapping[str, str] | None
 
