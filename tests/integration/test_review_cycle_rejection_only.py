@@ -31,8 +31,7 @@ from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
-
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -166,7 +165,7 @@ def for_review_repo(
     _write_cli_wp(tasks_dir / f"{WP_SLUG}.md")
 
     # Drive event log: planned -> claimed -> in_progress -> for_review.
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000001",
@@ -174,7 +173,7 @@ def for_review_repo(
             to_lane=Lane.CLAIMED,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000002",
@@ -182,7 +181,7 @@ def for_review_repo(
             to_lane=Lane.IN_PROGRESS,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000003",
@@ -318,7 +317,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
 
     # WP starts at for_review (fixture). Move it into in_review for the FIRST
     # (real) review round.
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000004",
@@ -365,7 +364,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     # is exactly what a real ``move-task --to planned --review-feedback-file``
     # would never do (it always records the ``changes_requested`` result on
     # the SAME transition). Carrying it here mirrors that real write path.
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000005",
@@ -378,7 +377,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000006",
@@ -386,7 +385,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             to_lane=Lane.CLAIMED,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000007",
@@ -394,7 +393,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             to_lane=Lane.IN_PROGRESS,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000008",
@@ -402,7 +401,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             to_lane=Lane.FOR_REVIEW,
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000009",

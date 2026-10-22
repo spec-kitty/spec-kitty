@@ -31,7 +31,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -70,7 +70,7 @@ def _seed(
     from_lane: Lane,
     to_lane: Lane,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",
@@ -394,16 +394,16 @@ class TestHandleFormErrorsFallThrough:
         ``ValueError`` from the read-side resolver — never from the
         short-circuit. With the decline, the raise comes from the same
         resolver the pre-#3825 code reached."""
-        from specify_cli.core.paths import UnsafePathSegmentError
         from runtime.next.runtime_bridge import query_current_state
+        from specify_cli.core.paths import UnsafePathSegmentError
 
         with pytest.raises(UnsafePathSegmentError, match="traversal guard"):
             query_current_state("claude", "../foo", tmp_path)
 
     @pytest.mark.regression
     def test_advance_traversal_handle_still_raises_path_guard(self, tmp_path: Path) -> None:
-        from specify_cli.core.paths import UnsafePathSegmentError
         from runtime.next.runtime_bridge import decide_next_via_runtime
+        from specify_cli.core.paths import UnsafePathSegmentError
 
         with pytest.raises(UnsafePathSegmentError, match="traversal guard"):
             decide_next_via_runtime("claude", "../foo", "success", tmp_path)

@@ -53,8 +53,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
-
+from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -124,7 +123,7 @@ def _git_commit_marker(repo_root: Path, name: str, message: str) -> str:
 
 def _seed_execution_begun_event(repo_root: Path, mission_slug: str, wp_id: str) -> None:
     read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
-    append_event(
+    seed_status_event(
         read_dir,
         StatusEvent(
             event_id="01HXYZ4827EXECUTIONBEGUNEVT",

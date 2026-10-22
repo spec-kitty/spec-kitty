@@ -24,7 +24,8 @@ import pytest
 from specify_cli.status.lane_reader import get_wp_lane
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
+from specify_cli.status.store import EVENTS_FILENAME, read_events
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -138,7 +139,7 @@ class TestGetWpLaneAbsentFromSnapshot:
     def test_returns_uninitialized_member_for_absent_wp(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "060-lane-uninitialized"
         feature_dir.mkdir(parents=True)
-        append_event(
+        seed_status_event(
             feature_dir,
             _make_event(event_id="01HXYZ0000000000000000000A", wp_id="WP01"),
         )

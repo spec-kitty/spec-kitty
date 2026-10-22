@@ -28,7 +28,7 @@ from specify_cli.cli.commands.agent import workflow as workflow_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 IMPLEMENTER = "claude:opus:implementer-ivan:implementer"
@@ -86,7 +86,7 @@ def build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ReworkMiss
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "seed rework-loop fixture")
     # Seed ONLY genesis -> planned; every later hop is a real CLI move.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-genesis-planned",

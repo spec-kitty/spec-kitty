@@ -83,8 +83,6 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
-
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.core.stale_detection import LIVE_CLAIM_PROCESS_REASON, check_wp_staleness
@@ -95,6 +93,7 @@ from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     validate_task_metadata,
 )
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.fast
 
@@ -172,9 +171,9 @@ def _seed_mission(workflow_repo: Path, *, subtasks: tuple[str, ...] = ("T001",))
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", subtasks=subtasks)
     from specify_cli.status import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-planned",

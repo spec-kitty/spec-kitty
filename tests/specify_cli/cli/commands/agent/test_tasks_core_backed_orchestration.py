@@ -37,16 +37,15 @@ from unittest.mock import patch
 import pytest
 
 from mission_runtime import MissionArtifactKind
-
+from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks import (
     _do_map_requirements,
     _do_status,
     seam_coord_router,
 )
-from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
@@ -242,7 +241,7 @@ def _build_status_fixture(tmp_path: Path, mission_slug: str, lanes: dict[str, st
             ),
             encoding="utf-8",
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"test-{wp_id}-{lane}",

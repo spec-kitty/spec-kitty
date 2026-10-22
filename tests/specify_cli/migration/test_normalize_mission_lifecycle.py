@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import json
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.migration.normalize_mission_lifecycle import normalize_repo
 from specify_cli.status.lifecycle import generate_lifecycle_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
-from specify_cli.status.store import append_event
 from specify_cli.status.views import write_derived_views
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -59,7 +59,7 @@ def _write_task(feature_dir: Path, *, lane: str = "in_progress") -> None:
 
 def _append_event(feature_dir: Path, *, lane: str = "claimed") -> None:
     at = now_utc_iso()
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTNORM0000000000000001",

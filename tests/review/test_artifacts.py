@@ -26,8 +26,8 @@ from specify_cli.status import (
     StatusEvent,
     emit_inner_state_changed,
 )
-from specify_cli.status._unsafe import append_event
 from specify_cli.status.models import Lane, WPInnerStateDelta
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 
@@ -379,7 +379,7 @@ def _artifacts_append_terminal_event(
     to_lane: Lane,
     event_id: str,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

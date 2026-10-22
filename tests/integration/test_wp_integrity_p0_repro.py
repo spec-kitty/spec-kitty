@@ -49,10 +49,11 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from ulid import ULID
 
 from mission_runtime import CommitTarget
-from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.cli.commands.implement_planning_commit import _ensure_planning_artifacts_committed_git
+from specify_cli.coordination.planning_commit import PlanningPlacement
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -62,8 +63,7 @@ from specify_cli.lanes.worktree_allocator import (
 )
 from specify_cli.missions._create import ensure_coordination_branch
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
-from ulid import ULID
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -428,7 +428,7 @@ def test_3281_retry_reenters_self_heal_to_establish_post_materialize_ancestry(
     _git(repo, "checkout", "-q", "main")
 
     feature_dir = _ancestry_feature_dir(repo)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=str(ULID()),

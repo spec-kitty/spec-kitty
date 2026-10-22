@@ -34,7 +34,6 @@ import pytest
 import typer
 
 from mission_runtime import MissionArtifactKind
-from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
@@ -42,13 +41,14 @@ from specify_cli.agent_tasks_ports import (
     RealCoordCommitRouter,
     TasksPorts,
 )
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status import TransitionRequest
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -113,7 +113,7 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     """Seed a WP event so the canonical event log reports *to_lane* as current."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}-{len(list(feature_dir.glob('status.events*')))}",
@@ -148,7 +148,7 @@ def _seed_rejection_result_event(feature_dir: Path, wp_id: str) -> None:
     """
     from specify_cli.status.models import ReviewResult
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-rejected-{len(list(feature_dir.glob('status.events*')))}",

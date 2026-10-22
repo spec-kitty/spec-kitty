@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -42,7 +42,7 @@ def _seed(
     reason: str | None = None,
     reason_source: str | None = None,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",
@@ -172,8 +172,8 @@ class TestWpEnding:
     def test_absent_event_log_raises_fail_loud(self, tmp_path: Path) -> None:
         """A genuinely-absent committed status log RAISES — never a silent None
         (D6/C-003: the naive ``wp_snapshot_state`` swap this WP guards against)."""
-        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
         from runtime.next.committed_authority import wp_ending
+        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 
         missing_dir = tmp_path / "no-status-here"
         missing_dir.mkdir()
@@ -289,8 +289,8 @@ class TestMissionTerminalVerdict:
         read path (translated there to ``ActionContextError`` with the
         ``MISSION_AMBIGUOUS_SELECTOR`` read-path code), never to this
         module's raw surface."""
-        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
         from runtime.next.committed_authority import mission_terminal_verdict
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
         with patch(
             "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",

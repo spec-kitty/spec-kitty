@@ -61,8 +61,8 @@ from specify_cli.missions._read_path_resolver import (
     coord_feature_dir as _compose_coord_feature_dir,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
 from specify_cli.status.wp_state import wp_state_for
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -115,14 +115,14 @@ def claim_and_start_events(wp_id: str = _DEFAULT_WP_ID) -> list[dict[str, Any]]:
 
 def _write_events(feature_dir: Path, mission_slug: str, wp_events: list[dict[str, Any]] | None) -> None:
     """Write *wp_events* to ``feature_dir``'s ``status.events.jsonl`` via the
-    real ``specify_cli.status.store.append_event`` I/O path (never hand-
+    real ``tests._support.status_seed.seed_status_event`` I/O path (never hand-
     crafted JSON) -- an empty (zero-line) file when *wp_events* is falsy,
     which folds to ``Lane.UNINITIALIZED`` on read (WP01's own default-variant
     reuse case, tasks file T001 step 3)."""
     events_path = feature_dir / "status.events.jsonl"
     events_path.touch()
     for index, spec in enumerate(wp_events or []):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"wp02-fixture-{index:03d}",

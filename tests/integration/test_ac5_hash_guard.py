@@ -31,7 +31,8 @@ from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event, read_event_stream
+from specify_cli.status.store import read_event_stream
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -110,7 +111,7 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     _git(repo, "commit", "-m", "seed ac5 hash-guard fixture")
 
     # Seed genesis -> planned so the WP exists in the log at planned.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-planned",

@@ -22,14 +22,14 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -100,7 +100,7 @@ def _create_minimal_feature(tmp_path: Path) -> tuple[Path, Path]:
         execution_mode="direct_repo",
         reason="Test setup: skip to done",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
     # Pre-materialize status.json so it is part of the committed state and the
     # second run does not see it as an unexpected dirty artifact.

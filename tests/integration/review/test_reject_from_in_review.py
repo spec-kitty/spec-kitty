@@ -20,8 +20,8 @@ from specify_cli.status.models import (
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
-    append_event,
 )
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -76,7 +76,7 @@ def in_review_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
             Lane.IN_PROGRESS,
             Lane.FOR_REVIEW,
         ][idx - 2]
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{idx}",

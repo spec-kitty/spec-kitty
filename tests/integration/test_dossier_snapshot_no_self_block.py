@@ -33,11 +33,11 @@ from specify_cli.cli.commands.agent.tasks import (
     _filter_runtime_state_paths,
     _validate_ready_for_review,
 )
-from specify_cli.dossier.snapshot import save_snapshot
 from specify_cli.dossier.models import MissionDossierSnapshot
+from specify_cli.dossier.snapshot import save_snapshot
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.preflight import is_dossier_snapshot
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import (
     lane_branch_name,
     lane_worktree_path,
@@ -163,7 +163,7 @@ def snapshot_repo(tmp_path: Path) -> tuple[Path, Path, str]:
 
     # Seed status events: planned -> in_progress.
     for lane_val in ("planned", "in_progress"):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",

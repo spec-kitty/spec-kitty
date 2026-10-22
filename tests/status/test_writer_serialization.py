@@ -12,34 +12,33 @@ exactly that on main, so it is the reproduction vehicle here.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 import specify_cli.coordination.transaction as transaction_module
-from specify_cli.coordination.transaction import (
-    BookkeepingCommitFailed,
-    BookkeepingTransaction,
-)
-from specify_cli.retrospective.lifecycle_events import _append_retro_lifecycle_event
-from specify_cli.status.emit import build_status_event
-from specify_cli.status.models import StatusEvent
 
 # Part 2 -- SC-008 lock-held assertions, one per writer family (see below).
 import specify_cli.migration.backfill_runtime_state as brs
 import specify_cli.migration.verdict_provenance_backfill as vpb
 import specify_cli.status.store as status_store
 from kernel.clock import UTC, datetime
+from specify_cli.coordination.transaction import (
+    BookkeepingCommitFailed,
+    BookkeepingTransaction,
+)
 from specify_cli.decisions.emit import emit_decision_opened
 from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.migration.rebuild_state import rebuild_event_log
 from specify_cli.retrospective.events import FailedPayload, emit_retrospective_event
-from specify_cli.retrospective.lifecycle_events import Actor, emit_capture_failed
+from specify_cli.retrospective.lifecycle_events import Actor, _append_retro_lifecycle_event, emit_capture_failed
 from specify_cli.retrospective.schema import ActorRef
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status import (
@@ -48,9 +47,10 @@ from specify_cli.status import (
     emit_inner_state_changed,
     emit_status_transition,
 )
-from specify_cli.status.emit import emit_status_transition_batch
+from specify_cli.status.emit import build_status_event, emit_status_transition_batch
 from specify_cli.status.lifecycle_events import emit_wp_created_local
 from specify_cli.status.locking import _get_thread_locks
+from specify_cli.status.models import StatusEvent
 from tests.status.conftest import seed_wp_to_planned
 from tests.unit.migration._backfill_fixture import build_mission
 
@@ -224,6 +224,19 @@ def test_retro_append_waits_for_rollback_and_lands_after_truncate(
 # Families 1-3 were already locked: those cases are pins.
 
 
+_SEEDING = threading.local()
+
+
+@contextlib.contextmanager
+def _unrecorded() -> Iterator[None]:
+    """Hide fixture-seeding writes from every ``_HeldLocksAtWrite`` recorder."""
+    _SEEDING.active = True
+    try:
+        yield
+    finally:
+        _SEEDING.active = False
+
+
 class _HeldLocksAtWrite:
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.snapshots: list[tuple[Path, set[str]]] = []
@@ -231,11 +244,12 @@ class _HeldLocksAtWrite:
         original_replace = os.replace
 
         def _record(directory: Path) -> None:
-            self.snapshots.append((directory, set(_get_thread_locks())))
+            if not getattr(_SEEDING, "active", False):
+                self.snapshots.append((directory, set(_get_thread_locks())))
             original(directory)
 
         def _record_replace(src: Any, dst: Any, *args: Any, **kwargs: Any) -> None:
-            if Path(dst).name == status_store.EVENTS_FILENAME:
+            if Path(dst).name == status_store.EVENTS_FILENAME and not getattr(_SEEDING, "active", False):
                 self.snapshots.append((Path(dst).parent, set(_get_thread_locks())))
             original_replace(src, dst, *args, **kwargs)
 
@@ -262,7 +276,10 @@ def _git_sandbox(tmp_path: Path) -> Path:
 def _flat_mission(tmp_path: Path, name: str = "family-pin-01AAAAAA") -> Path:
     fd = _git_sandbox(tmp_path) / "kitty-specs" / name
     fd.mkdir(parents=True)
-    seed_wp_to_planned(fd, "WP01", slug=name)
+    # Fixture seeding is setup, not the writer under test: keep it invisible to
+    # the recorder so ``assert_locked_for`` still proves the family itself wrote.
+    with _unrecorded():
+        seed_wp_to_planned(fd, "WP01", slug=name)
     return fd
 
 
@@ -416,3 +433,11 @@ def test_batch_door_writes_only_while_holding_its_mission_lock(
     fd = _flat_mission(tmp_path)
     emit_status_transition_batch([TransitionRequest(feature_dir=fd, mission_slug=fd.name, wp_id="WP01", to_lane="claimed", actor="pin")])
     recorder.assert_locked_for(fd)
+
+
+def test_recorder_rejects_a_family_that_only_seeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Planted negative: a no-op family (fixture seed only) must not pass vacuously."""
+    recorder = _HeldLocksAtWrite(monkeypatch)
+    fd = _flat_mission(tmp_path)
+    with pytest.raises(AssertionError, match="no store write observed"):
+        recorder.assert_locked_for(fd)

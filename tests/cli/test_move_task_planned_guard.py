@@ -27,15 +27,15 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     TasksPorts,
 )
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
@@ -78,7 +78,7 @@ def _seed_bootstrap_planned(feature_dir: Path, wp_id: str) -> None:
     seeds the event log for a freshly-finalized mission -- WITHOUT writing
     ``lanes.json``, reproducing the #4758 escape this WP closes.
     """
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-bootstrap",
@@ -208,7 +208,7 @@ def test_move_task_already_past_planned_unaffected_by_missing_lanes_json(tmp_pat
     absence, matching the guard's stated scope (#4758 FR-002 is the
     ``planned`` escape specifically, not a blanket lanes.json requirement)."""
     feature_dir = _build_wp_file(tmp_path, _MISSION, _WP_ID)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{_WP_ID}-claimed",

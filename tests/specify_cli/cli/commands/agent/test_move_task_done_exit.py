@@ -31,7 +31,7 @@ from specify_cli.cli.commands.agent.status import app as status_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent import _rework_loop_harness as h
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -61,7 +61,7 @@ def _done_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, latest_ver
         for target in ("in_review", "approved"):
             r = h.move(m, h.WP, target, h.REVIEWER)
             assert r.exit_code == 0, r.output
-    append_event(
+    seed_status_event(
         m.feature_dir,
         StatusEvent(
             event_id=_DONE_SEED_EVENT_ID,

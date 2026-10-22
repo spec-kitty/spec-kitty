@@ -18,8 +18,8 @@ from specify_cli.status.models import (
     StatusSnapshot,
     VerificationResult,
 )
-from specify_cli.status.store import append_event
 from specify_cli.status.wp_state import wp_state_for
+from tests._support.status_seed import seed_status_event
 
 _THIS_DIR = Path(__file__).parent
 
@@ -132,7 +132,7 @@ def seed_wp_to_planned(
             encoding="utf-8",
         )
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=_make_seed_event_id(),

@@ -24,7 +24,7 @@ import typer
 from specify_cli.consolidation.preflight import _enforce_review_artifact_consistency
 from specify_cli.status import materialize
 from specify_cli.status.models import Lane, ReviewOverride, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # These are fast unit/CLI tests (tmp_path + status store + CliRunner; no real
 # git worktree), so they run in ``fast-tests-merge`` (-m "fast and not
@@ -66,7 +66,7 @@ def _feature_dir_with_blocking_rejection(root: Path) -> Path:
             reviewer="reviewer-renata", verdict="changes_requested", reference="x"
         ),
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
     return feature_dir
 
 

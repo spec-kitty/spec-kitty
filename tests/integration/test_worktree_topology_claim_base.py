@@ -15,7 +15,7 @@ import pytest
 
 from specify_cli.core.worktree_topology import materialize_worktree_topology
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.integration.coord_topology_fixture import CoordTopologyContext, coord_topology_mission
 
 __all__ = ["coord_topology_mission"]
@@ -34,7 +34,7 @@ def test_claim_committed_on_the_coordination_branch_gives_no_base(coord_topology
     )
     _git(ctx.repo, "commit", "-qam", "WP01 is a planning artifact")
     coord_root = ctx.coord_feature_dir.parents[1]
-    append_event(
+    seed_status_event(
         ctx.coord_feature_dir,
         StatusEvent(
             event_id="01CLAIMCOORDAAAAAAAAAAAAA1",

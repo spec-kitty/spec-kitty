@@ -155,16 +155,17 @@ from specify_cli.review.cycle import (
 )
 from specify_cli.status import materialize as _materialize
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
 from specify_cli.status.transitions import validate_transition
+from tests._support.status_seed import seed_status_event
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     _build_coord_topology,
 )
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_move_task_durability import (
-    _FaultInjectableCoordRouter,
     _build_wp_file,
+    _FaultInjectableCoordRouter,
     _git_head_has_file,
     _git_status,
     _init_repo,
@@ -302,7 +303,7 @@ def _seed_fixture(
         # this must stay the historical rejection's PREDECESSOR, not its
         # successor, or production code reads the WP's current lane as
         # ``in_progress`` (this event's own to_lane) instead of ``old_lane``.
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"test-{wp_id}-seed-rejection-event",
@@ -816,7 +817,7 @@ def test_uncommitted_rejection_is_visible_to_the_immediately_following_approval(
     # exists on disk afterward) -- seed it explicitly here, mirroring what the
     # UNMOCKED production ``_mt_hop_review_result`` wiring records for a real
     # ``in_review -> planned`` rejection hop.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{_WP_ID}-rejection-review-result",
@@ -881,7 +882,7 @@ def _seed_arbiter_fixture(repo: Path, mission: str, wp_id: str) -> Path:
         ("in_progress", "for_review"),
     )
     for seq, (from_lane, to_lane) in enumerate(chain, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"arb-matrix-{seq}",
@@ -895,7 +896,7 @@ def _seed_arbiter_fixture(repo: Path, mission: str, wp_id: str) -> Path:
                 execution_mode="worktree",
             ),
         )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="arb-matrix-4",
@@ -1301,7 +1302,7 @@ def _seed_coord_rejected_cycle(ctx: CoordTopologyContext, wp_id: str) -> None:
     # this function runs AFTER ``_seed_coord_wp_in_review`` at every call
     # site, so without the re-seed this rejection event would wrongly
     # become "current".
-    append_event(
+    seed_status_event(
         ctx.coord_feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-seed-rejection-event",
@@ -2724,7 +2725,7 @@ def test_sc004_busy_refusal_requires_independent_event_and_evidence_absence(
     event_wp = _sc004_seed(event_repo, mission, 1)[0]
     event_expected = {"reviewer-b": (event_wp, expected["reviewer-b"][1])}
     event_feature_dir = event_repo / "kitty-specs" / mission
-    append_event(
+    seed_status_event(
         event_feature_dir,
         StatusEvent(
             event_id="01SC004BUSYREFUSAL000001",
@@ -2896,7 +2897,7 @@ def test_sc004_event_serialization_mutant_reports_missing_authoritative_event(
         tmp_path / "coordination-transaction-mutant",
         write_husk_meta=False,
     )
-    append_event(
+    seed_status_event(
         coord.coord_feature_dir,
         StatusEvent(
             event_id="01SC004COORDINREVIEW00001",

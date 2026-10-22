@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -20,8 +20,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.store import append_event
-from specify_cli.status.models import StatusEvent, Lane
+from specify_cli.status.models import Lane, StatusEvent
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -49,7 +49,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _seed_lanes_json(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
@@ -825,7 +825,7 @@ class TestStatusCanonicalStaleFields:
         mission_slug = "077-status-json"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
 
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="status-json-wp03",
@@ -863,7 +863,7 @@ class TestStatusCanonicalStaleFields:
         mission_slug = "077-status-human"
         feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
 
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="status-human-wp03",

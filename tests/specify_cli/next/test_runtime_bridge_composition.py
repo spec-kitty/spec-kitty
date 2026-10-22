@@ -32,20 +32,19 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.mission_step_contracts.executor import (
-    StepContractExecutionContext,
-    StepContractExecutionError,
-)
 from runtime.next import runtime_bridge as rb
 from runtime.next._internal_runtime import MissionRunRef
-from runtime.next.runtime_bridge_retrospective import RetrospectiveGateRefused
 from runtime.next.runtime_bridge_composition import (
     _check_composed_action_guard,
     _dispatch_via_composition,
     _normalize_action_for_composition,
     _should_dispatch_via_composition,
 )
-
+from runtime.next.runtime_bridge_retrospective import RetrospectiveGateRefused
+from specify_cli.mission_step_contracts.executor import (
+    StepContractExecutionContext,
+    StepContractExecutionError,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -188,8 +187,9 @@ def test_should_dispatch_falls_through_for_unknown_mission_helper(
     tmp_path: Path,
 ) -> None:
     """Any mission type unknown to charter falls through (C-008)."""
-    from charter.activation.mission_type_profiles import UnknownMissionTypeError
     from unittest.mock import patch
+
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     with patch(
         "charter.activation.mission_type_profiles.resolve_mission_type_context",
@@ -959,6 +959,8 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
     """Drive the runtime engine until ``issued_step_id == target_step``."""
     from runtime.next._internal_runtime.engine import (
         _read_snapshot,
+    )
+    from runtime.next._internal_runtime.engine import (
         next_step as engine_next_step,
     )
     from runtime.next._internal_runtime.events import NullEmitter
@@ -976,7 +978,7 @@ def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: st
 def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a single status event so ``get_wp_lane`` returns ``lane`` for ``wp_id``."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{lane}",
@@ -989,7 +991,7 @@ def _seed_wp_event_for_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 @pytest.fixture()
@@ -1218,8 +1220,8 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1294,8 +1296,8 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1369,8 +1371,8 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next._internal_runtime.schema import NextDecision
-    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
     from runtime.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge_engine import advance_run_state_after_composition, plan_advance
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     snapshot_before = _read_snapshot(Path(run_ref.run_dir))
@@ -1743,13 +1745,14 @@ class TestCustomMissionComposition:
         """
         from charter.offering.missions.step_contracts import (
             MissionStepContract,
+        )
+        from charter.offering.missions.step_contracts import (
             MissionStepContractStep as MissionStep,
         )
-
+        from runtime.next.runtime_bridge import decide_next_via_runtime
         from specify_cli.mission_loader.registry import (
             get_runtime_contract_registry,
         )
-        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         repo_root, _feature_dir, mission_slug = composed_software_dev_project
         _advance_runtime_to_step(repo_root, mission_slug, "specify")
@@ -1896,7 +1899,7 @@ def _t027_seed_approved_wp(feature_dir: Path, wp_id: str) -> None:
     -- all WPs "handed off", so the WP-iteration pre-check proceeds to the
     guard check instead of staying in WP-iteration mode."""
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
@@ -1915,7 +1918,7 @@ def _t027_seed_approved_wp(feature_dir: Path, wp_id: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 _T027_QA_FAMILY = "qa"

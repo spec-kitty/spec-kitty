@@ -26,8 +26,9 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.reducer import reduce as reduce_snapshot
-from specify_cli.status.store import append_event, read_event_stream
+from specify_cli.status.store import read_event_stream
 from specify_cli.task_utils.support import activity_entries
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.unit
 
@@ -64,7 +65,7 @@ def _seed_history(feature_dir: Path, *, skip_note: str | None = None) -> None:
     *skip_note* is given, that one activity note is dropped from the stream
     (the two-sided mutation)."""
     for idx, (at, frm, to, reason) in enumerate(_HISTORY_ROWS, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"h{idx}",

@@ -48,8 +48,9 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
     actor_identity_str,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
 from tests import _click_universe as typer_click
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.utils import run
 
@@ -179,7 +180,7 @@ def _seed_wp_event(
         execution_mode="worktree",
         review_result=review_result,
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _seed_snapshot_agent(feature_dir: Path, wp_id: str, agent: str) -> None:
@@ -432,9 +433,9 @@ class TestGetLatestReviewCycleVerdict:
     def test_reads_verdict_from_single_cycle(self, tmp_path: Path) -> None:
         """A single review_result-carrying event resolves that verdict."""
         from specify_cli.status import event_sourced_review_result
-        from specify_cli.status._unsafe import append_event
+        from tests._support.status_seed import seed_status_event
 
-        append_event(
+        seed_status_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007SINGLE0000000000001",
@@ -471,9 +472,9 @@ class TestGetLatestReviewCycleVerdict:
         reducer.
         """
         from specify_cli.status import event_sourced_review_result
-        from specify_cli.status._unsafe import append_event
+        from tests._support.status_seed import seed_status_event
 
-        append_event(
+        seed_status_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007HIGHEST000000000001",
@@ -490,7 +491,7 @@ class TestGetLatestReviewCycleVerdict:
         )
         # Cycle 2 rework: back into review before the second verdict, so the
         # approve below causally follows this cycle rather than the reject.
-        append_event(
+        seed_status_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007HIGHEST000000000002",
@@ -504,7 +505,7 @@ class TestGetLatestReviewCycleVerdict:
                 execution_mode="worktree",
             ),
         )
-        append_event(
+        seed_status_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007HIGHEST000000000003",
@@ -518,7 +519,7 @@ class TestGetLatestReviewCycleVerdict:
                 execution_mode="worktree",
             ),
         )
-        append_event(
+        seed_status_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007HIGHEST000000000004",
@@ -1328,7 +1329,7 @@ class TestTasksStatusReviewWarnings:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
         result = self._invoke_status(tmp_path, mission_slug)
 

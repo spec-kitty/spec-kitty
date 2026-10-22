@@ -12,16 +12,15 @@ import json
 import os
 import subprocess
 import time
-from typing import Any
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
 
 from kernel.git_topology import NotAGitRepositoryError
 from kernel.locks import LockAcquireTimeout
-from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.cli.commands.agent import tasks as tasks_cli
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.agent.tasks import (
@@ -30,6 +29,7 @@ from specify_cli.cli.commands.agent.tasks import (
     app,
 )
 from specify_cli.coordination.commit_router import CommitRouterResult
+from tests.lane_test_utils import write_single_lane_manifest
 
 
 def _committed_result(ref: str = "main") -> CommitRouterResult:
@@ -42,15 +42,16 @@ def _unchanged_result(ref: str = "main") -> CommitRouterResult:
     return CommitRouterResult(status="unchanged", placement_ref=ref)
 
 
+from typer.testing import CliRunner
+
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
     feature_status_lock_path,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
-
-from typer.testing import CliRunner
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 
@@ -65,7 +66,7 @@ def _append_status_event(
     from_lane: Lane,
     to_lane: Lane,
 ) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{wp_id}-{to_lane.value}-{time.time_ns()}",

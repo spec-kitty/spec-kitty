@@ -7,26 +7,24 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
+from runtime.next.decision import Decision, DecisionKind
 from specify_cli.acceptance import AcceptanceSummary
 from specify_cli.acceptance.matrix import AcceptanceMatrix, write_acceptance_matrix
 from specify_cli.agent_utils.status import show_kanban_status
-from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, render_topology_json
 from specify_cli.context.models import MissionContext
-from runtime.next.decision import Decision, DecisionKind
+from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, render_topology_json
 from specify_cli.orchestrator_api.commands import app as orchestrator_app
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.policy.merge_gates import evaluate_merge_gates
-from specify_cli.verify_enhanced import run_enhanced_verify
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
 from specify_cli.status.views import write_derived_views
-
-
-import pytest
+from specify_cli.verify_enhanced import run_enhanced_verify
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 runner = CliRunner()
@@ -76,7 +74,7 @@ def _append_lane_event(
     event_id: str = "01TESTAAAAAAAAAAAAAAAAAAA1",
 ) -> None:
     mission_slug = mission_dir.name
-    append_event(
+    seed_status_event(
         mission_dir,
         StatusEvent(
             event_id=event_id,
@@ -383,7 +381,7 @@ def test_orchestrator_transition_payloads_emit_canonical_mission_fields(tmp_path
     # Seed WP01 out of the non-display 'genesis' state into 'planned' (as
     # finalize-tasks does) so start-implementation's composite transition is
     # legal (planned -> claimed -> in_progress).
-    append_event(
+    seed_status_event(
         mission_dir,
         StatusEvent(
             event_id="01TESTSEED0000000000000001",

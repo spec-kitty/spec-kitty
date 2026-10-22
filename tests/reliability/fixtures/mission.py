@@ -10,7 +10,7 @@ from typing import Any
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 DEFAULT_CREATED_AT = "2026-05-02T08:31:36.083678+00:00"
 DEFAULT_EVENT_AT = "2026-05-02T08:45:00+00:00"
@@ -241,7 +241,7 @@ def append_status_event(
         reason=reason,
         review_result=review_result,
     )
-    append_event(mission.mission_dir, event)
+    seed_status_event(mission.mission_dir, event)
     return event
 
 

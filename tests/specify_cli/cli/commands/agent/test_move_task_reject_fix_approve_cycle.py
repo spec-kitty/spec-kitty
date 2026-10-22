@@ -33,7 +33,7 @@ from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -49,7 +49,7 @@ def _git(repo: Path, *args: str) -> None:
 def _seed_hops(feature_dir: Path, hops: list[tuple], at_day: str) -> None:
     """Seed canonical lane transitions directly into the event log."""
     for idx, (frm, to) in enumerate(hops, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{at_day}-{idx}",

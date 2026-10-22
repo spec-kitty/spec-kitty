@@ -13,14 +13,14 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskState,
     _mt_resolve_active_gate_bindings,
 )
-from tests._owned_fixtures import mint_test_fact
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.review.gate_bindings import GateCoverage, resolve_gate_bindings_for_transition
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event
 from tests._factories import provision_test_charter
+from tests._owned_fixtures import mint_test_fact
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_mission_meta
 
 pytestmark = [pytest.mark.git_repo]
@@ -52,7 +52,7 @@ def _mission(root: Path, *, coord: bool, mission_type: str = "software-dev") -> 
         )
         status.mkdir(parents=True)
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
-    append_event(
+    seed_status_event(
         status,
         StatusEvent(
             event_id="test-WP01-in-progress",

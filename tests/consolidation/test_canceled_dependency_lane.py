@@ -28,16 +28,16 @@ from specify_cli.consolidation.reconciliation import (
     _closed_world_anchors,
     _collect_authored,
     _fully_canceled_lane_commits,
-    _UnreadableCanceledLane,
     _unreadable_canceled_dependency_lanes,
     _unreadable_canceled_dependency_refusal_text,
+    _UnreadableCanceledLane,
 )
 from specify_cli.consolidation.wp_attribution import (
     Attributed,
     Unattributable,
     UnattributableReason,
-    lane_exempt_commits,
     _outside_after_anchors,
+    lane_exempt_commits,
     lane_own_commits,
     resolve_canceled_wp,
 )
@@ -45,7 +45,7 @@ from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.lane_tip import record_tip
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -280,7 +280,7 @@ def _event_log(dep: Dep, events: list[StatusEvent] | None) -> _ClaimEventLog:
     feature_dir = dep.repo.parent / "feature"
     feature_dir.mkdir(exist_ok=True)
     for event in events or []:
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
     if events == []:
         (feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
     return _ClaimEventLog(feature_dir)

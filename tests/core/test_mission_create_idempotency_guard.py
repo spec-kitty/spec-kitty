@@ -30,16 +30,15 @@ from ulid import ULID
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import (
-    _create_mission_core_failure_atomic,
     MissionAlreadyExistsError,
     MissionCreationError,
     MissionCreationResult,
+    _create_mission_core_failure_atomic,
     create_mission_core,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
-
 from tests._factories import provision_test_charter
+from tests._support.status_seed import seed_status_event
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -101,7 +100,7 @@ def _cancel_only_wp(feature_dir: Path, mission_slug: str, wp_id: str = "WP01") -
     """Seed one WP genesis -> planned -> canceled: the whole mission's only
     recorded work package was called off (the 'canceled' abandonment facet)."""
     seed_wp_to_planned(feature_dir, wp_id, slug=mission_slug)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=_next_event_id(),

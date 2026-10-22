@@ -500,9 +500,9 @@ def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
     wins" intent while being correct under the causal reducer.
     """
     from specify_cli.status import event_sourced_review_result
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         tmp_path,
         StatusEvent(
             event_id="01HXYZPICKS0000000000001",
@@ -519,7 +519,7 @@ def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
     )
     # Cycle 2 rework: back into review before the second verdict, so the
     # approve below causally follows this cycle rather than the reject.
-    append_event(
+    seed_status_event(
         tmp_path,
         StatusEvent(
             event_id="01HXYZPICKS0000000000002",
@@ -533,7 +533,7 @@ def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
             execution_mode="worktree",
         ),
     )
-    append_event(
+    seed_status_event(
         tmp_path,
         StatusEvent(
             event_id="01HXYZPICKS0000000000003",
@@ -547,7 +547,7 @@ def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
             execution_mode="worktree",
         ),
     )
-    append_event(
+    seed_status_event(
         tmp_path,
         StatusEvent(
             event_id="01HXYZPICKS0000000000004",
@@ -614,9 +614,9 @@ def _append_review_result_event(
     verdict: str,
     event_id: str = "01HXYZREVIEW00000000000001",
 ) -> None:
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

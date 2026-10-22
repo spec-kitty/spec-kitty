@@ -25,12 +25,12 @@ import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import MissionTopology, OwnedCheckout, OwnedRefusalCode
+from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
 from tests._factories import provision_test_charter
 from tests.integration.conftest import OwnedCheckouts
 from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current, seed_wp_lane
-from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -810,14 +810,14 @@ def _merge_stale_copy_in_r(copy_dir: Path, mission_slug: str) -> None:
     import json
 
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     meta_path = copy_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["mission_number"] = 7
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     for wp_id in ("WP01", "WP02", "WP03", "WP04", "WP05"):
-        append_event(
+        seed_status_event(
             copy_dir,
             StatusEvent(
                 event_id=f"stale-{wp_id}-approved",

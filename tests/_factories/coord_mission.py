@@ -70,28 +70,30 @@ from typing import Literal
 from unittest.mock import patch
 
 import ulid as _ulid_mod
-from typer.testing import CliRunner
-
-from kernel.clock import now_utc, now_utc_iso
-from mission_runtime import MissionTopology
-from spec_kitty_events.decision_moment import OriginFlow as _EventOriginFlow, OriginSurface
+from spec_kitty_events.decision_moment import OriginFlow as _EventOriginFlow
+from spec_kitty_events.decision_moment import OriginSurface
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DecisionPointOpenedInterviewPayload
 from spec_kitty_events.mission_next import (
     DECISION_INPUT_REQUESTED,
     DecisionInputRequestedPayload,
     RuntimeActorIdentity,
 )
+from typer.testing import CliRunner
+
+from kernel.clock import now_utc, now_utc_iso
+from mission_runtime import MissionTopology
 from specify_cli.cli.commands.agent.mission import app as _mission_app
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.mission_creation import create_mission_core
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.decisions import store as decision_store
 from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, append_raw_rows_atomic
+from specify_cli.status.store import append_raw_rows_atomic
 from tests._factories import provision_test_charter
 from tests._support.git_template import clone_template
+from tests._support.status_seed import seed_status_event
 
 # Explicitly re-annotated: ``specify_cli.*`` is configured ``follow_imports =
 # "skip"`` for narrow-file mypy --strict runs (pyproject.toml), which collapses
@@ -614,7 +616,7 @@ def _append_extra_root_events(coord: CoordMission, count: int) -> None:
             force=False,
             execution_mode="direct_repo",
         )
-        append_event(coord.root_mission_dir, event)
+        seed_status_event(coord.root_mission_dir, event)
 
 
 def _convert_branch_to_remote_only(coord: CoordMission) -> None:

@@ -12,7 +12,6 @@ from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPIn
 from specify_cli.status.reducer import materialize_snapshot, reduce
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
-    append_event,
     read_event_stream,
     read_events,
 )
@@ -26,6 +25,7 @@ from specify_cli.status.work_package_lifecycle import (
     start_implementation_status,
     start_review_status,
 )
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -211,7 +211,7 @@ def test_backgrounded_implementation_start_does_not_strand_claimed(tmp_path: Pat
 
 def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -281,7 +281,7 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
     # ordering property holds at ANY future run date, including the system
     # clock advanced by ten years: it is derived relative to the call's own
     # execution moment, never a second fixed literal.
-    append_event(
+    seed_status_event(
         feature_dir,
         _event(
             "01EEEE0000000000000000005E",
@@ -338,7 +338,7 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
 def test_interrupted_implementation_claim_recovers_with_progress_event(tmp_path: Path) -> None:
     """If only a claim exists, the same actor records recovery into progress."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -359,7 +359,7 @@ def test_interrupted_implementation_claim_recovers_with_progress_event(tmp_path:
 
 def test_start_implementation_rejects_claimed_different_actor(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="other-agent"),
     )
@@ -381,7 +381,7 @@ def test_start_implementation_rejects_claimed_different_actor(tmp_path: Path) ->
 
 def test_interrupted_claim_by_different_actor_returns_claim_diagnostic(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="other-agent"),
     )
@@ -404,8 +404,8 @@ def test_interrupted_claim_by_different_actor_returns_claim_diagnostic(tmp_path:
 
 def test_start_implementation_noops_in_progress_same_actor(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
-    append_event(feature_dir, _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    seed_status_event(feature_dir, _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -423,8 +423,8 @@ def test_start_implementation_noops_in_progress_same_actor(tmp_path: Path) -> No
 
 def test_start_implementation_rejects_in_progress_different_actor(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
-    append_event(
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    seed_status_event(
         feature_dir,
         _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="other-agent"),
     )
@@ -453,8 +453,8 @@ def test_start_implementation_resumes_in_progress_user_actor_noop(tmp_path: Path
     prompt was regenerated, leaving a recovering orchestrator with no prompt
     file to point an implementer at (F-52/F-67)."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
-    append_event(
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    seed_status_event(
         feature_dir,
         _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="user"),
     )
@@ -504,7 +504,7 @@ def _seed_review_lane(feature_dir: Path, lane: Lane, *, implementer: str = "clau
         ("01AAAA0000000000000000005A", Lane.IN_REVIEW, Lane.APPROVED, "codex"),
     ]
     for event_id, src, dst, who in chain:
-        append_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, actor=who))
+        seed_status_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, actor=who))
         if dst == lane:
             return
     raise AssertionError(lane)
@@ -593,11 +593,11 @@ def test_operator_force_with_note_leaves_any_review_lane(tmp_path: Path, lane: L
 @pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS])
 def test_operator_force_is_refused_outside_review_lanes_before_any_write(tmp_path: Path, lane: Lane) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.GENESIS, to_lane=Lane.PLANNED))
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.GENESIS, to_lane=Lane.PLANNED))
     if lane != Lane.PLANNED:
-        append_event(feature_dir, _event("01AAAA0000000000000000002A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+        seed_status_event(feature_dir, _event("01AAAA0000000000000000002A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
     if lane == Lane.IN_PROGRESS:
-        append_event(feature_dir, _event("01AAAA0000000000000000003A", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
+        seed_status_event(feature_dir, _event("01AAAA0000000000000000003A", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS))
     before = len(read_events(feature_dir))
 
     with pytest.raises(WorkPackageStartRejected, match="--force only applies"):
@@ -608,7 +608,7 @@ def test_operator_force_is_refused_outside_review_lanes_before_any_write(tmp_pat
 
 def test_operator_force_on_done_stays_rejected(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01DDDD0000000000000000004D", from_lane=Lane.APPROVED, to_lane=Lane.DONE))
+    seed_status_event(feature_dir, _event("01DDDD0000000000000000004D", from_lane=Lane.APPROVED, to_lane=Lane.DONE))
 
     with pytest.raises(WorkPackageStartRejected, match="--force only applies"):
         _start_wp(feature_dir, tmp_path, review_lane_exit=True, operator_force_note="why")
@@ -640,7 +640,7 @@ def test_callers_without_review_lane_exit_keep_the_old_refusal(tmp_path: Path, l
 
 def test_start_implementation_rejects_unstartable_lane(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _event("01DDDD0000000000000000004D", from_lane=Lane.APPROVED, to_lane=Lane.DONE))
+    seed_status_event(feature_dir, _event("01DDDD0000000000000000004D", from_lane=Lane.APPROVED, to_lane=Lane.DONE))
 
     with pytest.raises(WorkPackageStartRejected, match="cannot start implementation"):
         start_implementation_status(
@@ -656,7 +656,7 @@ def test_start_implementation_rejects_unstartable_lane(tmp_path: Path) -> None:
 
 def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01CCCC0000000000000000003C", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW, actor="implementer"),
     )
@@ -678,7 +678,7 @@ def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Pat
 def test_slow_review_claim_uses_in_review_not_claimed(tmp_path: Path) -> None:
     """Review starts never reuse the implementation-only claimed lane."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01CCCC0000000000000000003C", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW, actor="implementer"),
     )
@@ -707,7 +707,7 @@ def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:
     annotation so the role-aware predicate is exercised; the same actor re-claim
     resolves to ALLOW (no_op)."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
     )
@@ -735,7 +735,7 @@ def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
     predicate (correctly) degrades to ALLOW. This is the SINGLE genuine reject
     site — the FSM/guard/parity surfaces carry no role and assert ALLOW."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
     )
@@ -764,7 +764,7 @@ def test_start_review_allows_second_reviewer_when_holder_binding_less(tmp_path: 
     than false-blocked. This prevents the mission's primary failure mode (never
     false-block a cross-profile review) from regressing into a hard block."""
     feature_dir = _feature_dir(tmp_path)
-    append_event(
+    seed_status_event(
         feature_dir,
         _event(
             "01DDDD0000000000000000004D",
@@ -875,11 +875,11 @@ def test_start_implementation_resume_is_not_regated_when_dependency_regresses(tm
         # ``start_implementation_status`` call below -- avoids mixing an absolute
         # hard-coded event timestamp with a live-clock production call
         # (tests/architectural/test_no_absolute_event_timestamp_mixture.py).
-        append_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, wp_id="WP01", at=now_utc_iso()))
-    append_event(feature_dir, _event("01BBBB000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, wp_id="WP02", at=now_utc_iso()))
-    append_event(feature_dir, _event("01BBBB000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, wp_id="WP02", at=now_utc_iso()))
+        seed_status_event(feature_dir, _event(event_id, from_lane=src, to_lane=dst, wp_id="WP01", at=now_utc_iso()))
+    seed_status_event(feature_dir, _event("01BBBB000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, wp_id="WP02", at=now_utc_iso()))
+    seed_status_event(feature_dir, _event("01BBBB000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, wp_id="WP02", at=now_utc_iso()))
     # The dependency regresses to in_progress afterwards (rework).
-    append_event(feature_dir, _event("01CCCC000000000000000001A", from_lane=Lane.APPROVED, to_lane=Lane.IN_PROGRESS, wp_id="WP01", at=now_utc_iso()))
+    seed_status_event(feature_dir, _event("01CCCC000000000000000001A", from_lane=Lane.APPROVED, to_lane=Lane.IN_PROGRESS, wp_id="WP01", at=now_utc_iso()))
 
     result = start_implementation_status(
         feature_dir=feature_dir,
@@ -934,7 +934,7 @@ def _seed_rework_verdict(feature_dir: Path, *, review_ref: str | None) -> None:
         (Lane.IN_REVIEW, Lane.IN_PROGRESS, _REVW, review_ref),
     ]
     for i, (frm, to, actor, ref) in enumerate(steps):
-        append_event(
+        seed_status_event(
             feature_dir,
             _rel_event(
                 f"01CCCC00000000000000000{i}A0",
@@ -1009,8 +1009,8 @@ def test_slot_occupant_resume_does_no_extra_event_read(tmp_path: Path, monkeypat
     import specify_cli.coordination.status_transition as st
 
     feature_dir = _feature_dir(tmp_path)
-    append_event(feature_dir, _rel_event("01DDDD0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="claude", minutes_ago=10))
-    append_event(feature_dir, _rel_event("01DDDD0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="claude", minutes_ago=9))
+    seed_status_event(feature_dir, _rel_event("01DDDD0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor="claude", minutes_ago=10))
+    seed_status_event(feature_dir, _rel_event("01DDDD0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="claude", minutes_ago=9))
 
     def _boom(**_kwargs: object) -> object:
         raise AssertionError("happy path must not read events")
@@ -1050,7 +1050,7 @@ _SEED_ACTOR = "migration:backfill_runtime_state"
 
 def _append_backfill_seed(feature_dir: Path) -> None:
     """The corpus seed shape: a ``planned -> claimed`` event by the backfill migration, appended last."""
-    append_event(feature_dir, _event("01AAAA0000000000000000009A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor=_SEED_ACTOR))
+    seed_status_event(feature_dir, _event("01AAAA0000000000000000009A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, actor=_SEED_ACTOR))
 
 
 @pytest.mark.regression

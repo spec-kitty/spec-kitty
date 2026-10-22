@@ -291,15 +291,15 @@ def _wp_task_file(feature_dir: Path, *, wp_id: str = "WP01") -> None:
 def _approve_wp(feature_dir: Path, *, wp_id: str = "WP01") -> None:
     """Write a real, event-sourced ``approved`` transition for ``wp_id``.
 
-    Uses the canonical ``append_event`` writer (mirrors
+    Uses the canonical ``seed_status_event`` writer (mirrors
     ``test_populate_criteria_from_review_evidence.py``) so
     ``collect_feature_summary``'s own status read -- not a hand-built
     snapshot -- puts the WP's lane into ``approved``.
     """
     from specify_cli.status import Lane, ReviewResult, StatusEvent
-    from specify_cli.status._unsafe import append_event
+    from tests._support.status_seed import seed_status_event
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"evt-{wp_id}-approved",

@@ -36,13 +36,13 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
 from tests._factories.coord_mission import (
     CoordMission,
     event_ids,
     make_fork_fixture,
     make_prefix_coord_mission,
 )
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -120,7 +120,7 @@ def _write_wp01_task_file(coord: CoordMission) -> None:
             planning_commit_sha="a" * 40,
         ),
     )
-    append_event(
+    seed_status_event(
         coord.root_mission_dir,
         StatusEvent(
             event_id=str(_ulid_mod.ULID()),
@@ -193,7 +193,7 @@ def _seed_wp01_planned_on_coord(coord: CoordMission) -> None:
         check=True,
         capture_output=True,
     )
-    append_event(
+    seed_status_event(
         coord.coord_mission_dir,
         StatusEvent(
             event_id=str(_ulid_mod.ULID()),
@@ -671,9 +671,8 @@ def test_status_transition_canonical_coord_mission_slug_owned_short_circuits(tmp
     """``identity.owned is not None`` returns ``owned.mission_slug`` with zero
     I/O -- ``seam_repo_root`` is never touched, so a nonexistent path proves
     no filesystem read happened."""
-    from tests._owned_fixtures import mint_test_fact
-
     from specify_cli.coordination.status_transition import _canonical_coord_mission_slug, _TransactionIdentity
+    from tests._owned_fixtures import mint_test_fact
 
     owned = mint_test_fact(
         repository_root=tmp_path / "does-not-exist-repo",
@@ -724,9 +723,8 @@ def test_status_transition_canonical_coord_mission_slug_degenerate_composition(t
 
 
 def test_transaction_canonical_coord_mission_slug_owned_short_circuits(tmp_path: Path) -> None:
-    from tests._owned_fixtures import mint_test_fact
-
     from specify_cli.coordination.transaction import _canonical_coord_mission_slug
+    from tests._owned_fixtures import mint_test_fact
 
     owned = mint_test_fact(
         repository_root=tmp_path / "does-not-exist-repo",

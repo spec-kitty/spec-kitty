@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
-from dataclasses import dataclass, field
-from functools import partial
 import importlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+import warnings
+from contextlib import ExitStack
+from dataclasses import dataclass, field
+from functools import partial
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
-import warnings
 
 import pytest
 from typer.testing import CliRunner
@@ -29,16 +29,15 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent import tasks as tasks_command
-from specify_cli.cli.commands.agent import tasks_move_task_gates
-from specify_cli.cli.commands.agent import tasks_move_task
+from specify_cli.cli.commands.agent import tasks_move_task, tasks_move_task_gates
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import gate_bindings, gate_registry, pre_review_gate
 from specify_cli.review.gate_budget import assess_scope_budget
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
 from specify_cli.workspace.context import ResolvedWorkspace
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -131,7 +130,7 @@ def _build_command_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordR
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-in-progress",
@@ -233,7 +232,7 @@ def _build_residue_fixture(
         json.dumps(meta),
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         primary_feature,
         StatusEvent(
             event_id="primary-WP01-in-progress",
@@ -252,7 +251,7 @@ def _build_residue_fixture(
     coord_feature = coordination / "kitty-specs" / _MISSION
     coord_feature.mkdir(parents=True)
     (coord_feature / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    append_event(
+    seed_status_event(
         coord_feature,
         StatusEvent(
             event_id="residue-WP01-in-progress",
@@ -1673,7 +1672,7 @@ def _build_binding_resolution_fixture(tmp_path: Path) -> tuple[TasksPorts, _Reco
         "---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="test-WP01-in-progress",

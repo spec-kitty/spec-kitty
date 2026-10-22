@@ -29,19 +29,19 @@ from types import SimpleNamespace
 import pytest
 
 from kernel.git import GitCommandError
-from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
-from specify_cli.coordination.types import Refused
-from specify_cli.lanes.branch_naming import coord_dir_name
 from specify_cli.consolidation import executor as ex
-from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
-from specify_cli.consolidation.state import ConsolidationState
-from specify_cli.mission_metadata import load_meta
 from specify_cli.consolidation import (
     phase_teardown,
     run_state,
 )
+from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
+from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
+from specify_cli.coordination.types import Refused
+from specify_cli.lanes.branch_naming import coord_dir_name
+from specify_cli.mission_metadata import load_meta
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -196,7 +196,7 @@ def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_work
     coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
     coord_dir = coord_path / "kitty-specs" / _SLUG
     coord_dir.mkdir(parents=True)
-    append_event(
+    seed_status_event(
         coord_dir,
         StatusEvent(
             event_id="01M1VRA2ZSEED00000000000000",

@@ -85,7 +85,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.paths import is_worktree_context
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -146,7 +146,7 @@ def _build_mission(repo_root: Path) -> Path:
     for ordinal, (from_lane, to_lane) in enumerate(
         (("planned", "claimed"), ("claimed", "in_progress")), start=1
     ):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"{_MID8}FC00000000000000{ordinal:04d}",
@@ -408,7 +408,7 @@ def _build_stale_worktree_mission(root: Path) -> tuple[Path, Path]:
 
     # Fork point: WP01 at "planned" only -- this is the snapshot the lane
     # worktree will carry forward, frozen, once created below.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{_LEGACY_MID8}FC000000000000001",
@@ -444,7 +444,7 @@ def _build_stale_worktree_mission(root: Path) -> tuple[Path, Path]:
     for ordinal, (from_lane, to_lane) in enumerate(
         (("planned", "claimed"), ("claimed", "in_progress")), start=2
     ):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"{_LEGACY_MID8}FC00000000000000{ordinal:02d}",

@@ -13,14 +13,14 @@ from runtime.next import runtime_bridge as rb
 from runtime.next.runtime_bridge import _check_cli_guards
 from runtime.next.runtime_bridge_cores import (
     _GUARD_TABLES,
-    _evaluate_plan_guards,
     UnregisteredMissionFamilyError,
+    _evaluate_plan_guards,
     evaluate_guards_strict,
 )
 from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.mission import get_mission_type
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -41,7 +41,7 @@ def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
         f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{lane}",

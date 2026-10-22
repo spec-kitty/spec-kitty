@@ -45,8 +45,8 @@ from pathlib import Path
 
 import pytest
 import typer
-from kernel.clock import now_utc_iso
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
@@ -58,7 +58,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 # Marked for mutmut sandbox skip — subprocess/git-backed fixture, mirroring
 # the sibling accept CLI regression suites (test_accept_clean_tree.py etc.).
@@ -146,7 +146,7 @@ def _build_accept_ready_mission_with_no_lane_branch(repo_root: Path) -> Path:
         "# WP01\nDone.\n"
     )
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTGUIDANCELIVE000",
@@ -165,7 +165,7 @@ def _build_accept_ready_mission_with_no_lane_branch(repo_root: Path) -> Path:
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTGUIDANCELIVE001",

@@ -14,9 +14,8 @@ from specify_cli.cli.commands.agent.tasks import app as status_app
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
-
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -143,7 +142,7 @@ def test_skill_documented_status_json_keys_match_live_emitter(
             ),
             encoding="utf-8",
         )
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"test-{wp_id}-{lane}",

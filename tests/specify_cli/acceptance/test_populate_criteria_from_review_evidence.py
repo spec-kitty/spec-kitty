@@ -10,7 +10,7 @@ never a new hand-filled artifact (NFR-005). Scope is deliberately narrow to
 
 These are pure-unit tests against :func:`~specify_cli.acceptance.matrix.
 populate_criteria_from_review_evidence` directly, seeding a real
-``status.events.jsonl`` via the canonical ``append_event`` writer (no git
+``status.events.jsonl`` via the canonical ``seed_status_event`` writer (no git
 required — filesystem only, mirroring ``tests/acceptance/
 test_provenance_and_deferral.py``'s approach to the sibling
 ``enforce_negative_invariants``).
@@ -28,7 +28,7 @@ from specify_cli.acceptance.matrix import (
     populate_criteria_from_review_evidence,
 )
 from specify_cli.status import Lane, ReviewResult, StatusEvent
-from specify_cli.status._unsafe import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -98,8 +98,8 @@ def test_populates_pending_code_review_criterion_when_all_wps_approved(
     populated" gap."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _approve_event("demo", "WP01"))
-    append_event(feature_dir, _approve_event("demo", "WP02", reviewer="reviewer-bob"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP02", reviewer="reviewer-bob"))
 
     updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
 
@@ -119,7 +119,7 @@ def test_does_not_re_judge_an_already_judged_criterion(tmp_path: Path) -> None:
     ``agent mission acceptance-verdict``."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
 
     original = _criterion(pass_fail="fail", verified_by="human", evidence="manual review")
     updated = populate_criteria_from_review_evidence(feature_dir, [original])
@@ -136,7 +136,7 @@ def test_ignores_non_code_review_proof_types(tmp_path: Path, proof_type: str) ->
     types need their own evidence this gate cannot fabricate."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
 
     updated = populate_criteria_from_review_evidence(feature_dir, [_criterion(proof_type=proof_type)])
 
@@ -149,7 +149,7 @@ def test_skips_empty_scaffold_placeholder(tmp_path: Path) -> None:
     preserved, unchanged from the negative-invariant gate's own rule."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
 
     updated = populate_criteria_from_review_evidence(feature_dir, [_criterion(description=SCAFFOLD_TODO_MARKER)])
 
@@ -161,8 +161,8 @@ def test_stays_pending_when_a_wp_is_not_yet_approved(tmp_path: Path) -> None:
     matrix exactly as it was -- ``pending`` -- never a partial derivation."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(feature_dir, _approve_event("demo", "WP01"))
-    append_event(feature_dir, _in_progress_event("demo", "WP02"))
+    seed_status_event(feature_dir, _approve_event("demo", "WP01"))
+    seed_status_event(feature_dir, _in_progress_event("demo", "WP02"))
 
     updated = populate_criteria_from_review_evidence(feature_dir, [_criterion()])
 
@@ -175,7 +175,7 @@ def test_stays_pending_when_review_evidence_chain_is_incomplete(tmp_path: Path) 
     gate never derives a verdict it cannot prove."""
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="evt-WP01-approved-no-evidence",
@@ -214,7 +214,7 @@ def test_stays_pending_when_a_wp_carries_a_stale_rejection_verdict(tmp_path: Pat
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
     # A genuine in_review -> planned rejection: the durable review_result slot.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="evt-WP01-rejected",
@@ -236,7 +236,7 @@ def test_stays_pending_when_a_wp_carries_a_stale_rejection_verdict(tmp_path: Pat
     # A forced planned -> approved that carries NO fresh review_result at
     # all -- the reducer inherits the stale rejection forward onto the
     # snapshot's review_result slot, even though the WP's LANE is approved.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="evt-WP01-force-approved",

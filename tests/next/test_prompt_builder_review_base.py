@@ -16,7 +16,7 @@ import pytest
 
 from runtime.next.prompt_builder import _completion_lines, _review_command_lines, _review_pathspecs
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -45,7 +45,7 @@ def mission_dir(tmp_path: Path) -> Path:
 
 
 def _claim(directory: Path) -> str:
-    append_event(
+    seed_status_event(
         directory,
         StatusEvent(
             event_id=_CLAIM_ID,

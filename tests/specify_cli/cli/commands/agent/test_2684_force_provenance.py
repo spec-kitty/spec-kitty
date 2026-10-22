@@ -47,7 +47,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 if TYPE_CHECKING:
@@ -73,7 +74,7 @@ def _seed_wp_in_lane(
         f"authoritative_surface: src/{wp_id.lower()}/\n---\n\n# {wp_id}\n\n## Activity Log\n",
         encoding="utf-8",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"seed-{wp_id}-{lane}",

@@ -19,9 +19,8 @@ import pytest
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.mission_metadata import load_meta, record_acceptance
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -183,7 +182,7 @@ def _setup_feature(
                     at=f"2026-03-18T{12 + counter:02d}:00:00+00:00",
                     policy_metadata=policy_metadata,
                 )
-                append_event(feature_dir, event)
+                seed_status_event(feature_dir, event)
                 # Stop if we've reached the target lane
                 if to_l == target_lane:
                     break
@@ -330,7 +329,7 @@ class TestCanonicalStateAuthority:
             / mission_slug
         )
         coord_feature_dir.mkdir(parents=True)
-        append_event(
+        seed_status_event(
             coord_feature_dir,
             _make_event(
                 mission_slug,
@@ -436,7 +435,7 @@ class TestCanonicalStateAuthority:
                 event_id=f"01TESTWP01{i:020d}",
                 at=f"2026-03-18T{12 + i:02d}:00:00+00:00",
             )
-            append_event(feature_dir, event)
+            seed_status_event(feature_dir, event)
 
         with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_entries", return_value=[]):
             mock_git.return_value.stdout = "main\n"
@@ -1004,13 +1003,13 @@ def _append_cancellation_event(
     operator-authored provenance (FR-001); ``operator=False`` leaves a synthetic
     cancellation (FR-003 blocker).
     """
-    from kernel.clock import now_utc_iso
     from ulid import ULID
 
+    from kernel.clock import now_utc_iso
     from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
     from specify_cli.status.store import append_annotations_atomic_verified
 
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=str(ULID()),

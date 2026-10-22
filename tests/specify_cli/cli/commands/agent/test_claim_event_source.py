@@ -67,14 +67,14 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
-
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import tasks as agent_tasks
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import Lane, StatusEvent, read_events, reduce
-from specify_cli.status.store import append_event, read_event_stream
+from specify_cli.status.store import read_event_stream
+from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.fast
 
@@ -94,7 +94,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str, *, actor: str = "tes
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _write_wp_file(path: Path, wp_id: str, *, subtasks: tuple[str, ...] = ("T001",)) -> None:
@@ -380,7 +380,7 @@ class TestInProgressUserActorResume:
         # The move-task-shaped history: planned (seeded) -> in_progress with
         # the ``user`` placeholder actor, exactly as a bare
         # ``move-task WP01 --to in_progress`` records it.
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id="test-WP01-user-in-progress",

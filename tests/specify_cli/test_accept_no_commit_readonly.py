@@ -23,18 +23,18 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 import typer
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -117,7 +117,7 @@ def _create_minimal_feature_with_lanes(tmp_path: Path) -> tuple[Path, Path]:
         execution_mode="direct_repo",
         reason="Test setup: skip to done",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
     from specify_cli.status.reducer import materialize
 
@@ -259,7 +259,7 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
     # transition's ``policy_metadata`` sidecar, FR-004). Skipping straight to
     # done, as before the #2816 event-sourced cutover, left the strict-accept
     # "missing agent in canonical runtime state" gate permanently red here.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTNOCOMMITCLI0000",
@@ -278,7 +278,7 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
             ),
         ),
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTNOCOMMITCLI0001",

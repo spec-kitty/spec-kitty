@@ -36,6 +36,7 @@ from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, RealCoordCommitRouter, default_ports
 from specify_cli.cli.commands.agent import app as agent_app
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.review.cycle import (
@@ -43,7 +44,6 @@ from specify_cli.review.cycle import (
     create_rejected_review_cycle,
     next_review_feedback_source_path,
 )
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.status import TransitionRequest
 from tests._factories import make_mission
 from tests._factories.coord_mission import make_fork_fixture
@@ -380,7 +380,7 @@ def test_has_prior_rejection_and_fix_mode_see_a_primary_only_local_only_cycle(
     from specify_cli.cli.commands.agent.workflow_executor import implement_try_render_fix_mode_prompt
     from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
     from specify_cli.status import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     repo = tmp_path / "repo"
     _init_repo(repo)
@@ -415,7 +415,7 @@ def test_has_prior_rejection_and_fix_mode_see_a_primary_only_local_only_cycle(
     ).write(sub_artifact_dir / "review-cycle-1.md")
 
     pointer = f"review-cycle://{mission_slug}/{wp_slug}/review-cycle-1.md"
-    append_event(
+    seed_status_event(
         status_dir,
         StatusEvent(
             event_id="coord-seed-reject-primary-only",

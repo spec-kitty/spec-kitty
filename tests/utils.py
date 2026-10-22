@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,10 +50,10 @@ def _seed_canonical_wp_state(
     from specify_cli.status.reducer import materialize, reduce
     from specify_cli.status.store import (
         append_annotations_atomic_verified,
-        append_event,
         read_event_stream,
         read_events,
     )
+    from tests._support.status_seed import seed_status_event
 
     feature_dir = repo_root / "kitty-specs" / feature
     canonical_target = _canonical_lane(lane)
@@ -77,7 +76,7 @@ def _seed_canonical_wp_state(
             execution_mode="direct_repo",
             reason="test fixture bootstrap",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
     event_stream = read_event_stream(feature_dir)
     runtime_state = reduce(

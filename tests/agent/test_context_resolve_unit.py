@@ -4,16 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import context
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.store import append_event
-from specify_cli.status.models import StatusEvent, Lane
-
-
-import pytest
+from specify_cli.status.models import Lane, StatusEvent
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -32,7 +30,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _write_wp(path: Path, wp_id: str, lane: str, dependencies: str = "[]") -> None:

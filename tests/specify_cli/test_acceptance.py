@@ -25,15 +25,15 @@ from __future__ import annotations
 
 import json
 import subprocess
-from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 from ulid import ULID
 
+from kernel.clock import now_utc_iso
 from specify_cli.acceptance import AcceptanceSummary, collect_feature_summary
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -101,7 +101,7 @@ def _emit_wp(feature_dir: Path, wp_id: str, to_lane: Lane) -> None:
         execution_mode="direct_repo",
         reason="Test setup",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _create_mission(

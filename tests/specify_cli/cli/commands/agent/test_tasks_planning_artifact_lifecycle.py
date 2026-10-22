@@ -11,8 +11,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
 from specify_cli.task_utils import WorkPackage
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -41,7 +41,7 @@ def _build_wp(tmp_path: Path, mission_slug: str, wp_id: str, execution_mode: str
 
 
 def _seed_event(feature_dir: Path, mission_slug: str, wp_id: str, from_lane: Lane, to_lane: Lane, execution_mode: str) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{wp_id}-{to_lane}",

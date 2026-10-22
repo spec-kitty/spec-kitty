@@ -38,7 +38,8 @@ from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
-from specify_cli.status.store import append_event, read_event_stream, read_events
+from specify_cli.status.store import read_event_stream, read_events
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -73,7 +74,7 @@ def _seed_events(feature_dir: Path, *, up_to: Lane) -> None:
     """Seed genesis -> ... -> *up_to* canonical transitions for WP01."""
     prev = Lane.GENESIS
     for idx, lane in enumerate(_FORWARD_SEQUENCE, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{idx}",

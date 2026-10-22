@@ -20,8 +20,8 @@ from specify_cli.status.lane_reader import (
     has_event_log,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import EVENTS_FILENAME, append_event
-
+from specify_cli.status.store import EVENTS_FILENAME
+from tests._support.status_seed import seed_status_event
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,7 +59,7 @@ def _write_event(feature_dir: Path, wp_id: str, to_lane: str, from_lane: str = "
         force=False,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ class TestEventLogExistsWPHasState:
             force=False,
             execution_mode="direct_repo",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
         assert get_wp_lane(feature_dir, "WP01") == "planned"
 
     def test_in_progress_lane(self, tmp_path: Path) -> None:
@@ -235,7 +235,7 @@ class TestEventLogExistsWPHasState:
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
         assert get_wp_lane(feature_dir, "WP01") == "done"
 
     def test_multiple_wps_correct_lanes(self, tmp_path: Path) -> None:

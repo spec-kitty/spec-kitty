@@ -54,7 +54,8 @@ from specify_cli.status.models import (
     StatusEvent,
     WPInnerStateDelta,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast]
 
@@ -72,7 +73,7 @@ _COORD_WP01_ANNOTATION = "01TESTAWP01NTE000000000004"
 
 def _seed_done(feature_dir: Path, *, event_id: str, wp_id: str, at: str) -> None:
     """Append a WPStatusChanged (transition) DONE event."""
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=event_id,

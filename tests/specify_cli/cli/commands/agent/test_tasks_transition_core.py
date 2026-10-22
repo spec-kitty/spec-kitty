@@ -37,6 +37,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands.agent.tasks_transition_core import (
+    _GUARDS,
     Emit,
     MoveTaskRequest,
     RefuseExit1,
@@ -46,7 +47,6 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     _guard_done_exit,
     _guard_rejected_verdict,
     _guard_subtasks,
-    _GUARDS,
     _ownership_role_allowance,
     _planned_rollback_message,
     arbiter_persist_signal,
@@ -64,7 +64,8 @@ from specify_cli.status.models import (
     SubtaskValue,
     WPInnerStateDelta,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event, read_event_stream
+from specify_cli.status.store import append_annotations_atomic_verified, read_event_stream
+from tests._support.status_seed import seed_status_event
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -814,7 +815,7 @@ def _phase1_feature_dir(
     feature_dir = tmp_path / "kitty-specs" / "t008-mission"
     (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(json.dumps({"status_phase": "1"}), encoding="utf-8")
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=("01KX" + wp_id).ljust(26, "0")[:26],
@@ -1275,7 +1276,7 @@ def _sentinel_mission(root: Path, slug: str) -> Path:
     (feature_dir / "tasks.md").write_text("# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8")
     (feature_dir / "spec.md").write_text("# Spec\n\nFR-001 do a thing.\n", encoding="utf-8")
     for ordinal, (frm, to) in enumerate([("planned", "claimed"), ("claimed", "in_progress")], start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"{_MID8}FC00000000000000{ordinal:04d}",
@@ -1366,7 +1367,7 @@ def _blocked_mission(root: Path, slug: str) -> Path:
     (feature_dir / "spec.md").write_text("# Spec\n\nFR-001 do a thing.\n", encoding="utf-8")
     hops = [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "blocked")]
     for ordinal, (frm, to) in enumerate(hops, start=1):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"{_MID8}BC00000000000000{ordinal:04d}",

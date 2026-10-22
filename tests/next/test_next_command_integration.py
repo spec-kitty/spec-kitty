@@ -13,13 +13,11 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
-from specify_cli import app as cli_app
 from runtime.next.decision import DecisionKind
-
-import pytest
-
+from specify_cli import app as cli_app
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 from tests.runtime._next_mission_scaffold import analysis_is_current
@@ -180,8 +178,8 @@ def _write_invalid_runtime_mission(repo_root: Path, mission_type: str) -> None:
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
-    from specify_cli.status.store import append_event
-    from specify_cli.status.models import StatusEvent, Lane
+    from specify_cli.status.models import Lane, StatusEvent
+    from tests._support.status_seed import seed_status_event
 
     # Map legacy aliases to canonical lane names
     _lane_alias = {"doing": "in_progress"}
@@ -198,7 +196,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
@@ -233,10 +231,11 @@ def _advance_runtime_to_step(
     agent: str = "test-agent",
 ) -> None:
     """Advance the runtime run past steps until target_step_id is issued."""
+    from runtime.next._internal_runtime import NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step
+    from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
-    from runtime.next._internal_runtime.engine import _read_snapshot
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -270,9 +269,10 @@ def _complete_all_steps(
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
+    from runtime.next._internal_runtime import NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step
     from runtime.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -840,9 +840,9 @@ class TestNextCommandCLI:
         repo_root = _scaffold_project(tmp_path)
         monkeypatch.chdir(repo_root)
 
-        from specify_cli.mission import get_mission_type
-        from runtime.next.runtime_bridge import get_or_start_run
         from runtime.next._internal_runtime.engine import _read_snapshot
+        from runtime.next.runtime_bridge import get_or_start_run
+        from specify_cli.mission import get_mission_type
 
         mission_type = get_mission_type(repo_root / "kitty-specs" / "042-test-feature")
         run_ref = get_or_start_run("042-test-feature", repo_root, mission_type)

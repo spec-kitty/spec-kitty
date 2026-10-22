@@ -51,14 +51,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
-
 from specify_cli.analysis_report import write_analysis_report
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.implement_claim import _start_wp_implementation_status
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.regression]
 
@@ -85,7 +84,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         force=True,
         execution_mode="worktree",
     )
-    append_event(feature_dir, event)
+    seed_status_event(feature_dir, event)
 
 
 def _write_wp_file(path: Path, wp_id: str) -> None:

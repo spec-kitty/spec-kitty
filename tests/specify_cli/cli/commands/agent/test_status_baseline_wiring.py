@@ -19,12 +19,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent import tasks_status_cmd
-from specify_cli.cli.commands.agent.tasks_status_cmd import _StatusState, _st_load_work_packages
+from specify_cli.cli.commands.agent.tasks_status_cmd import _st_load_work_packages, _StatusState
 from specify_cli.core.stale_detection import LIVE_CLAIM_PROCESS_REASON, check_doing_wps_for_staleness
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified
 from specify_cli.workspace.context import ResolvedWorkspace
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast
 
@@ -62,7 +63,7 @@ def _seed_snapshot_runtime(
     then an ``InnerStateChanged`` delta carrying the runtime slots).
     """
     feature_dir.mkdir(parents=True, exist_ok=True)
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-in_progress",

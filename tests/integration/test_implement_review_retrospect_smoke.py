@@ -8,15 +8,14 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent import app
-from specify_cli.cli.commands.agent import workflow_cores
-from specify_cli.context.mission_resolver import ResolvedMission
-from specify_cli.charter_pack_synthesizer import SynthesisResult
-from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 from runtime.next.decision import _compute_wp_progress
+from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
+from specify_cli.charter_pack_synthesizer import SynthesisResult
+from specify_cli.cli.commands.agent import app, workflow_cores
+from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.review.cycle import create_rejected_review_cycle, resolve_review_cycle_pointer
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -63,7 +62,7 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
         [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW],
         start=1,
     ):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-{idx}",
@@ -88,7 +87,7 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
         feedback_source=feedback,
         reviewer_agent="codex",
     )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-rejected",
@@ -125,7 +124,7 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
         [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS), (Lane.IN_PROGRESS, Lane.FOR_REVIEW)],
         start=11,
     ):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-rework-{idx}",
@@ -139,7 +138,7 @@ def test_reject_fix_next_retrospect_smoke(tmp_path: Path) -> None:
                 execution_mode="worktree",
             ),
         )
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-approved",

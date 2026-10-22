@@ -48,7 +48,8 @@ from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.reducer import reduce as reduce_snapshot
-from specify_cli.status.store import append_event, read_event_stream
+from specify_cli.status.store import read_event_stream
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -93,7 +94,7 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
 
     # GENESIS -> PLANNED is seeded directly (mirrors test_fixmode_ownership_4673.py);
     # every hop under test below drives the REAL move-task CLI entry point.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="seed-genesis-planned",

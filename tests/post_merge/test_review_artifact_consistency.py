@@ -17,7 +17,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -473,7 +473,7 @@ def test_terminal_wp_event_sourced_changes_requested_blocks_without_artifact(
     """
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
-    append_event(
+    seed_status_event(
         mission.mission_dir,
         StatusEvent(
             event_id="01KQKV85APPROVEDNOARTIFACT1",

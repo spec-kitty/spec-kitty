@@ -36,7 +36,7 @@ from specify_cli.missions._archive import (
     resolve_terminal_state,
 )
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -86,7 +86,7 @@ def _drive_wp(feature_dir: Path, wp_id: str, chain: list[tuple[Lane, Lane]]) -> 
         # 26-char ULID-shaped id, unique per (wp, step).
         suffix = f"{wp_id}{idx:02d}"
         event_id = ("01HXYZ" + "0" * (26 - 6 - len(suffix)) + suffix).upper()
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=event_id[:26],

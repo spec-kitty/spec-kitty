@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event, read_events
-
-import pytest
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 
@@ -232,8 +233,8 @@ class TestDeduplicationPreservesDeterminism:
                              "2026-01-15T10:00:01+00:00",
                              mission_slug="099-dedup-test")
 
-        append_event(feature_dir, event1)
-        append_event(feature_dir, event2)
+        seed_status_event(feature_dir, event1)
+        seed_status_event(feature_dir, event2)
 
         # Both lines are in the file
         events_raw = read_events(feature_dir)

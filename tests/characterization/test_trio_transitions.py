@@ -26,15 +26,15 @@ to ``tmp_path``, per the ``unit`` marker's contract in ``pytest.ini``).
 
 from __future__ import annotations
 
-from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import UTC, datetime, timedelta
 from specify_cli.acceptance import AcceptanceError, _collect_snapshot_wps, _status_read_feature_dir
 from specify_cli.cli.commands.agent.workflow import _canonical_status_feature_dir
 from specify_cli.status import EVENTS_FILENAME, Lane, StatusEvent
-from specify_cli.status._unsafe import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit]
 
@@ -84,7 +84,7 @@ class TestCollectSnapshotWpsAcrossTheDecisionLoop:
         activity_issues: list[str] = []
 
         def _lane_after(event: StatusEvent) -> str | None:
-            append_event(feature_dir, event)
+            seed_status_event(feature_dir, event)
             snapshot = _collect_snapshot_wps("trio-mission", feature_dir, activity_issues)
             wp = snapshot.get("WP01")
             return wp.get("lane") if wp else None
@@ -124,8 +124,14 @@ class TestCollectSnapshotWpsAcrossTheDecisionLoop:
         "rewind" shape distinct from a reviewer rejection."""
         feature_dir = tmp_path / "kitty-specs" / "trio-mission"
         feature_dir.mkdir(parents=True)
-        append_event(feature_dir, _event(wp_id="WP01", from_lane=Lane.IN_PROGRESS, to_lane=Lane.BLOCKED, event_id="01BLOCK000000000000000001", seq=1, force=True))
-        append_event(feature_dir, _event(wp_id="WP01", from_lane=Lane.BLOCKED, to_lane=Lane.IN_PROGRESS, event_id="01BLOCK000000000000000002", seq=2, force=True))
+        seed_status_event(
+            feature_dir,
+            _event(wp_id="WP01", from_lane=Lane.IN_PROGRESS, to_lane=Lane.BLOCKED, event_id="01BLOCK000000000000000001", seq=1, force=True),
+        )
+        seed_status_event(
+            feature_dir,
+            _event(wp_id="WP01", from_lane=Lane.BLOCKED, to_lane=Lane.IN_PROGRESS, event_id="01BLOCK000000000000000002", seq=2, force=True),
+        )
         activity_issues: list[str] = []
 
         snapshot = _collect_snapshot_wps("trio-mission", feature_dir, activity_issues)

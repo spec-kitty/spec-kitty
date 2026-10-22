@@ -179,15 +179,19 @@ def _planning_lane_legacy_repo(tmp_path: Path) -> Path:
     shape, converting lane-b (WP02) to PLANNING_LANE_ID."""
     import json
 
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_DEP,
         _WP_SELF,
         _feature_dir,
-        _init_repo as _init_ancestry_repo,
         _write_meta_and_lanes,
     )
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
+        _init_repo as _init_ancestry_repo,
+    )
     from tests.utils import write_wp
 
     repo = tmp_path / "repo"
@@ -207,15 +211,17 @@ def _planning_lane_legacy_repo(tmp_path: Path) -> Path:
 def test_create_lane_workspace_records_claim_base_for_planning_wp(tmp_path: Path) -> None:
     """(a) implement_support.create_lane_workspace's planning arm records
     the claim base at write-checkout HEAD; a resumed call does not move it."""
-    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
-        _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
-        _WP_SELF,
-        _feature_dir,
-    )
     from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.implement_support import create_lane_workspace
     from specify_cli.lanes.persistence import read_lanes_json
     from specify_cli.workspace.context import ResolvedWorkspace
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
+        _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
+        _WP_SELF,
+        _feature_dir,
+    )
 
     repo = _planning_lane_legacy_repo(tmp_path)
     head = _git(repo, "rev-parse", "HEAD")
@@ -254,12 +260,14 @@ def test_create_lane_workspace_records_claim_base_for_planning_wp(tmp_path: Path
 def test_orchestrator_resolve_start_workspace_records_claim_base_for_planning_lane(tmp_path: Path) -> None:
     """(b) orchestrator_api._resolve_start_workspace's repo-root arm returns
     workspace_path == repo_root and records the claim base."""
+    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_SELF,
         _feature_dir,
     )
-    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_start_workspace
 
     repo = _planning_lane_legacy_repo(tmp_path)
     head = _git(repo, "rev-parse", "HEAD")
@@ -272,11 +280,13 @@ def test_orchestrator_resolve_start_workspace_records_claim_base_for_planning_la
 
 def test_orchestrator_resolve_existing_workspace_does_not_record_claim_base(tmp_path: Path) -> None:
     """(b) the read-only companion never writes the claim-base ref."""
+    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_existing_workspace
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_SELF,
     )
-    from specify_cli.orchestrator_api.wp_lifecycle import _resolve_existing_workspace
 
     repo = _planning_lane_legacy_repo(tmp_path)
 
@@ -442,6 +452,8 @@ def test_primary_fallback_arm_done_transition_clears_claim_base(tmp_path: Path) 
     its terminal hook must clear the ref too."""
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_DEP,
         _feature_dir,
         _write_meta_and_lanes,
@@ -478,6 +490,8 @@ def test_primary_fallback_arm_canceled_transition_clears_claim_base(tmp_path: Pa
     hook also clears the ref on ``canceled``, not just ``done``."""
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_DEP,
         _feature_dir,
         _write_meta_and_lanes,
@@ -545,10 +559,10 @@ def test_primary_fallback_arm_canceled_transition_clears_claim_base(tmp_path: Pa
 def _coord_fallback_transition(repo: Path, to_lane: str, *, force: bool = False) -> None:
     from unittest.mock import patch
 
+    from mission_runtime.context import CommitTarget
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.status.models import TransitionRequest
-    from mission_runtime.context import CommitTarget
 
     coord_target = CommitTarget(ref=CoordinationWorkspace.branch_name(_TXN_MISSION_SLUG, _TXN_MID8))
     with (
@@ -613,11 +627,13 @@ def test_for_review_gate_refuses_when_claim_base_ref_missing_even_with_qualifyin
     reason the ref is missing) must NOT pass the gate just because HEAD
     happens to carry a qualifying implementation commit -- the gate falls
     back to its ordinary refusal (for_review_gate.py's missing-ref branch)."""
+    from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
     from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _MISSION_SLUG as _ANCESTRY_MISSION_SLUG,
+    )
+    from tests.specify_cli.cli.commands.agent.test_claim_ancestry_gate import (
         _WP_SELF,
     )
-    from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
 
     repo = _planning_lane_legacy_repo(tmp_path)
     src_dir = repo / "src"
@@ -720,7 +736,7 @@ def _build_lanes_fixture_for_tip_clear(repo: Path, mission_slug: str, wp_ids: tu
 
 def _seed_wp_lane(repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
     from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from tests._support.status_seed import seed_status_event
 
     feature_dir = repo / "kitty-specs" / mission_slug
     chain = {
@@ -748,7 +764,7 @@ def _seed_wp_lane(repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> No
             force=False,
             execution_mode="worktree",
         )
-        append_event(feature_dir, event)
+        seed_status_event(feature_dir, event)
 
 
 def test_on_wp_terminal_clears_lane_tip_when_the_whole_lane_is_terminal(tmp_path: Path) -> None:

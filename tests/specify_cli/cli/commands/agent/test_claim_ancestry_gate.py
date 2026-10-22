@@ -43,7 +43,8 @@ from specify_cli.lanes.implement_support import (
 from specify_cli.lanes.worktree_allocator import ORPHANED_PIN_RECOVERY_HINT
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import reduce
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
 
@@ -190,7 +191,7 @@ def _seed_wp_lane(repo: Path, wp_id: str, lane: Lane) -> None:
     Bypasses ``emit_status_transition``'s FSM validation (and its
     sync-daemon side effects) deliberately -- ``reduce()`` is a pure fold
     over the event log; this writes directly through the same
-    ``append_event`` production entry point ``emit_status_transition`` itself
+    ``seed_status_event`` production entry point ``emit_status_transition`` itself
     calls, exercising the REAL reader (``read_events`` + ``reduce``) the
     predicate under test consumes.
 
@@ -215,7 +216,7 @@ def _seed_wp_lane(repo: Path, wp_id: str, lane: Lane) -> None:
         execution_mode="worktree",
         mission_id=_MISSION_ID,
     )
-    append_event(_feature_dir(repo), event)
+    seed_status_event(_feature_dir(repo), event)
     # Fail loudly if the reducer dropped the seed, instead of letting a test run on the wrong state (#6066).
     seeded = reduce(read_events(_feature_dir(repo))).work_packages[wp_id]["lane"]
     assert seeded == lane, f"seed {wp_id} -> {lane} was not applied; the log folds to {seeded}"

@@ -37,7 +37,7 @@ from specify_cli.cli.commands.agent.tasks import (
 )
 from specify_cli.review.lock import LOCK_DIR, LOCK_FILE, ReviewLock
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -79,7 +79,7 @@ def lane_worktree_repo(tmp_path: Path) -> tuple[Path, Path, str]:
     )
 
     for lane_val in ("planned", "in_progress", "for_review"):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",

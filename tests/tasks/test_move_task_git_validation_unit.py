@@ -13,9 +13,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 from typer.testing import CliRunner
-from specify_cli.cli.commands.agent.tasks import app, _validate_ready_for_review
-from specify_cli.status.store import append_event, read_events
-from specify_cli.status.models import StatusEvent, Lane
+
+from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review, app
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import read_events
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -100,7 +102,7 @@ Test content here.
     # Seed canonical status events so move_task hard-fail check passes.
     # The WP starts at "doing" (in_progress), so seed planned -> in_progress.
     for lane_val in ("planned", "in_progress"):
-        append_event(
+        seed_status_event(
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",
@@ -619,9 +621,8 @@ class TestMoveTaskCommitsLaneDeliverables:
 
 def test_lane_deliverable_paths_takes_status_entries(tmp_path: Path):
     """Typed status entries yield modified/untracked paths and BOTH sides of a rename."""
-    from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
-
     from kernel.git import GitPath, StatusEntry
+    from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
 
     entries = [
         StatusEntry(xy=" M", path=GitPath.parse("src/app.py")),  # modified

@@ -21,7 +21,7 @@ from specify_cli.cli.commands.agent import tasks_verdict_persistence, workflow_c
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.git_repo
 
@@ -53,7 +53,7 @@ def _foreign_anchor_mission(tmp_path: Path) -> tuple[Path, str]:
         body="**Issue**: #5180 feedback must survive a phantom status partition.\n",
     ).write(feature_dir / "tasks" / _WP_SLUG / "review-cycle-1.md")
     pointer = f"review-cycle://{_SLUG}/{_WP_SLUG}/review-cycle-1.md"
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01PHANTOM5180000000000001",

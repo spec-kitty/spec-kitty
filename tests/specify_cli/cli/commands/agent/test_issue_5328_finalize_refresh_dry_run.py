@@ -11,7 +11,7 @@ import typer
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_event
+from tests._support.status_seed import seed_status_event
 from tests.specify_cli.cli.commands.agent.test_feature_finalize_bootstrap import (
     MODULE,
     _common_patches,
@@ -102,7 +102,7 @@ def test_validate_only_reports_stale_pin_refresh_and_preserves_files(tmp_path: P
 
     # A real execution event freezes the original planning pin; the following
     # commit models a legitimate planning amendment that makes the pin stale.
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",

@@ -55,12 +55,12 @@ runner/hook it already covers.
 
 from __future__ import annotations
 
-import ctypes
 import contextlib
+import ctypes
 import json
 import os
-import signal
 import shlex
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -71,33 +71,32 @@ import pytest
 import typer
 
 from charter.offering.missions.step_contracts import GateBinding
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
     MissionHandle,
     TasksPorts,
 )
-from specify_cli.cli.commands.agent import tasks_move_task
-from specify_cli.cli.commands.agent import tasks_move_task_gates
+from specify_cli.cli.commands.agent import tasks_move_task, tasks_move_task_gates
 from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
-from specify_cli.review.gate_budget import BudgetClassification
 from specify_cli.review.gate_bindings import (
     GateCoverage,
     resolve_gate_bindings_for_transition,
 )
+from specify_cli.review.gate_budget import BudgetClassification
 from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.review.scope_source import DeclaredCommandScopeSource
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
-from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests._factories import provision_test_charter
+from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import write_mission_meta
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
@@ -302,7 +301,7 @@ def _build_wp_file(
 
 
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
-    append_event(
+    seed_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"test-{wp_id}-{to_lane}",
