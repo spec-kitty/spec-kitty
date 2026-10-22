@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
-from specify_cli.docs_links import INSTALL_AND_UPGRADE_URL
+from kernel.site_urls import INSTALL_AND_UPGRADE_URL
 
 if TYPE_CHECKING:
     from specify_cli.compat._detect.runtime import InstalledCliRuntime, UvRequirement

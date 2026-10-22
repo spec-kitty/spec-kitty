@@ -9,6 +9,11 @@ from urllib.parse import urlsplit
 import pytest
 from ruamel.yaml import YAML
 
+from specify_cli.compat._detect.install_method import InstallMethod
+from specify_cli.compat.remediation import RemediationIntent, _manual_note
+from specify_cli.compat.upgrade_hint import build_upgrade_hint
+
+from kernel import site_urls
 from kernel.site_urls import DOCS_BASE_URL, OWNED_DOMAIN
 from scripts.generate_schemas import SCHEMA_ID_BASE
 
@@ -42,3 +47,25 @@ def test_every_shipped_schema_id_starts_at_the_base() -> None:
     off_base = {name: schema_id for name, schema_id in ids.items() if schema_id is not None and not str(schema_id).startswith(SCHEMA_ID_BASE + "/")}
     assert off_base == {}
     assert sum(schema_id is not None for schema_id in ids.values()) >= 14
+
+
+def test_install_and_upgrade_page_exists() -> None:
+    assert (_REPO_ROOT / "docs" / f"{site_urls.INSTALL_AND_UPGRADE_PAGE}.md").is_file()
+
+
+@pytest.mark.parametrize("page", ["guides/x", "/guides/x", "guides/x/"])
+def test_docs_url_joins_one_slash(page: str) -> None:
+    assert site_urls.docs_url(page) == f"{DOCS_BASE_URL}/guides/x"
+
+
+def test_unknown_install_hint_links_the_install_guide() -> None:
+    note = build_upgrade_hint(InstallMethod.UNKNOWN).note
+    assert note is not None
+    assert site_urls.INSTALL_AND_UPGRADE_URL in note
+
+
+def test_unknown_upgrade_remediation_links_the_install_guide() -> None:
+    """Both call sites print the same link, so they cannot drift apart again."""
+    note = _manual_note("unknown", RemediationIntent.UPGRADE)
+    assert note is not None
+    assert site_urls.INSTALL_AND_UPGRADE_URL in note

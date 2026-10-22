@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from specify_cli.compat._detect.install_method import InstallMethod
 from specify_cli.compat.remediation import COMMAND_ALLOWLIST_MAX_LEN
-from specify_cli.docs_links import INSTALL_AND_UPGRADE_URL
+from kernel.site_urls import INSTALL_AND_UPGRADE_URL
 
 
 # ---------------------------------------------------------------------------

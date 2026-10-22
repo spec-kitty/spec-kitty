@@ -130,11 +130,7 @@ def test_detector_self_mutation(text: str, expected: list[str]) -> None:
 
 def test_no_unowned_branded_host_is_shipped() -> None:
     violations = _violations()
-    assert violations == {}, (
-        f"Branded hosts outside the owned domain {OWNED_DOMAIN!r} (#6468). Build first-party "
-        "URLs from kernel.site_urls (docs links through specify_cli.docs_links): "
-        f"{violations}"
-    )
+    assert violations == {}, f"Branded hosts outside the owned domain {OWNED_DOMAIN!r} (#6468). Build first-party URLs from kernel.site_urls: {violations}"
 
 
 def test_unowned_domain_is_gone_from_the_scanned_tree() -> None:
