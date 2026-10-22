@@ -226,6 +226,7 @@ The default numbers above are a proposal for the operator to confirm.
 
 ## Amendments
 
+- **2026-10-22, factual (#6607; Mission `event-write-hygiene-01M5HS55`):** the "Follow-up debt" bullet that records the `saas_fanout` slot names is discharged. The produce seam in `status/adapters.py` is renamed with no alias for any old name: `register_saas_fanout_handler` → `register_status_fanout_handler`, `register_lifecycle_saas_fanout_handler` → `register_lifecycle_fanout_handler`, `fire_saas_fanout` → `fire_status_fanout`, `fire_lifecycle_saas_fanout` → `fire_lifecycle_fanout`, `emit._saas_fan_out` → `emit._status_fan_out`, `queue_saas_emission` → `queue_fanout_emission`, `fanout_lifecycle_event_hosted` → `fanout_lifecycle_event`, and the env var `SPEC_KITTY_SAAS_FANOUT_TIMEOUT` → `SPEC_KITTY_STATUS_FANOUT_TIMEOUT` (the old name is ignored, not read as a fallback). Open-core still registers no default handler, so every `fire_*` call is a no-op until a transport owner registers one; `tests/status/test_adapters_contract.py` pins this. The decisions in this ADR are unchanged.
 - **2026-10-22, by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md):**
   - **Writer.** The rows D-1 lists are written by the Java write service (one per repository), not by a module inside the CLI.
   - **Confirmation.** The *shape* of the producer gate (one gate over many writers) is superseded by ADR 2026-10-14-1's single-writer gate, which ADR 2026-10-22-1 extends to two languages. The row-schema validation that gate asked for still applies.

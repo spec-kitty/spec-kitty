@@ -130,6 +130,7 @@ in 10 work packages. Concretely:
 - Architectural enforcement:
   - [`tests/architectural/test_shared_package_boundary.py`](../../../tests/architectural/test_shared_package_boundary.py)
   - [`tests/architectural/test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py)
+  - [`tests/architectural/test_events_tracker_public_imports.py`](../../../tests/architectural/test_events_tracker_public_imports.py) (public symbols only; see Amendment 2026-10-22)
 - Consumer contracts:
   - [`tests/contract/spec_kitty_events_consumer/`](../../../tests/contract/spec_kitty_events_consumer/)
   - [`tests/contract/spec_kitty_tracker_consumer/`](../../../tests/contract/spec_kitty_tracker_consumer/)
@@ -139,3 +140,9 @@ in 10 work packages. Concretely:
   - `.github/workflows/ci-quality.yml`'s `clean-install-verification` job (deleted per PROGRAM.md §2 / planning#57 — this repo runs no GitHub Actions)
   - [`tests/integration/test_clean_install_next.py`](../../../tests/integration/test_clean_install_next.py)
 - PR #779 (rejected, superseded): <https://github.com/Priivacy-ai/spec-kitty/pull/779>
+
+## Amendment 2026-10-22: the boundary covers public symbols, not only the public package (#6607)
+
+The boundary now means public **symbols**. A production import of a `_`-prefixed module segment or a `_`-prefixed imported name from `spec_kitty_events` or `spec_kitty_tracker` is a violation, even when the package itself is the permitted public one. Core's last such import, `spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL`, was deleted together with the dead hosted lifecycle builder that used it.
+
+`tests/architectural/test_events_tracker_public_imports.py` enforces this over all six production roots (`src/kernel`, `src/charter`, `src/glossary`, `src/runtime`, `src/mission_runtime`, `src/specify_cli`). It checks the imported name (`alias.name`) as well as the module path, and has no allowlist. It joins the enforcement references of this ADR beside `test_shared_package_boundary.py`.

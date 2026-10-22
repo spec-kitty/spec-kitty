@@ -1544,6 +1544,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-10-22-the-boundary-covers-public-symbols-not-only-the-public-package-6607", text: "Amendment 2026-10-22: the boundary covers public symbols, not only the public package (#6607)", level: 2}
   - path: "docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md"
     title: "ADR: Contract Pinning to the Resolved Package Version"
     divio_type: "none"
@@ -2190,6 +2191,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-22-the-seam-this-adr-cites-as-fire-saas-fanout-is-renamed-6607", text: "Amendment 2026-10-22: the seam this ADR cites as `fire_saas_fanout` is renamed (#6607)", level: 2}
   - path: "docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md"
     title: "ADR: Common Docs Consolidation — Reconciliation of Metadata, Structure, Redirects, Glossary Read-Path, ADR Migration, and Curation"
     divio_type: "none"
@@ -4592,6 +4594,8 @@ pages:
     - {slug: "spec-kitty-upgrade-never-ask", text: "SPEC_KITTY_UPGRADE_NEVER_ASK", level: 3}
     - {slug: "spec-kitty-simple-help", text: "SPEC_KITTY_SIMPLE_HELP", level: 3}
     - {slug: "spec-kitty-no-banner", text: "SPEC_KITTY_NO_BANNER", level: 3}
+    - {slug: "status-fan-out", text: "Status Fan-out", level: 2}
+    - {slug: "spec-kitty-status-fanout-timeout", text: "SPEC_KITTY_STATUS_FANOUT_TIMEOUT", level: 3}
     - {slug: "selector-compatibility-toggles", text: "Selector / Compatibility Toggles", level: 2}
     - {slug: "specify-repo-root", text: "SPECIFY_REPO_ROOT", level: 3}
     - {slug: "spec-kitty-suppress-feature-deprecation", text: "SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION", level: 3}

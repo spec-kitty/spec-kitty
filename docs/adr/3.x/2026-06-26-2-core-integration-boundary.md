@@ -283,3 +283,7 @@ This decision is correct when:
 - Current import direction: the `landscape` fixture in [`conftest.py`](../../../tests/architectural/conftest.py) and [`test_layer_rules.py`](../../../tests/architectural/test_layer_rules.py).
 - Historical ownership narrative: [`05_ownership_map.md`](../../architecture/05_ownership_map.md). Its companion manifest was deleted; the map is narrative only and does not define current package inventory or import direction.
 - Shared-package-boundary precedent: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md)
+
+## Amendment 2026-10-22: the seam this ADR cites as `fire_saas_fanout` is renamed (#6607)
+
+The "Relationship to #2173" section above names `fire_saas_fanout` as the established inversion seam. That function is now `fire_status_fanout` in `status/adapters.py`, and the lifecycle counterpart `fire_lifecycle_saas_fanout` is `fire_lifecycle_fanout`, with no alias. The #2173 quotation is historical and is left as written. The decision in this ADR is unchanged.
