@@ -498,6 +498,7 @@ pages:
     - {slug: "manual-conflict-resolution-human-decides", text: "Manual conflict resolution (human decides)", level: 3}
     - {slug: "reconciliation-note-terminus-merge-reconciliation-gate-terminus-merge-integrity-2026-09", text: "Reconciliation note — terminus merge/reconciliation gate (terminus-merge-integrity, 2026-09)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-22-accepted-the-ordering-is-wall-clock-now-lamport-primary-is-a-post-ga-direction", text: "Amendment 2026-10-22 (Accepted): the ordering is wall clock now; Lamport-primary is a post-GA direction", level: 2}
   - path: "docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md"
     title: "Cross-Repo Evidence-Based Completion"
     divio_type: "none"
@@ -3462,6 +3463,7 @@ pages:
     - {slug: "why-a-cli-started-daemon-when-the-dashboard-daemon-was-rejected", text: "Why a CLI-started daemon, when the dashboard daemon was rejected", level: 3}
     - {slug: "amendment-2026-10-19-the-activation-write-target-is-the-ledger-seam", text: "Amendment 2026-10-19: the activation write target is the ledger seam", level: 2}
     - {slug: "amendment-2026-10-20-accepted-language-tokens-joins-the-frozen-seam-6541", text: "Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)", level: 2}
+    - {slug: "amendment-2026-10-22-the-event-system-s-writer-is-no-longer-the-cli", text: "Amendment 2026-10-22: the event system's writer is no longer the CLI", level: 2}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
     divio_type: "none"
@@ -3798,6 +3800,7 @@ pages:
     - {slug: "a-producer-gate-over-twelve-writers", text: "A producer gate over twelve writers", level: 3}
     - {slug: "canonicalize-only-at-the-outbound-edge", text: "Canonicalize only at the outbound edge", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendments", text: "Amendments", level: 2}
   - path: "docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md"
     title: "ADR: QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger"
     divio_type: "none"
@@ -3907,6 +3910,33 @@ pages:
     - {slug: "negative", text: "Negative", level: 3}
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md"
+    title: "ADR: the Java write service is the canonical event writer, one resident service per repository"
+    divio_type: "none"
+    abstract: "The command side of the Mission Write API is the one event writer: one resident Java service per repository behind the CLI EventBridge port, a JVM fallback, no Python writer."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-the-canonical-event-writer-is-the-java-write-service", text: "D-1: the canonical event writer is the Java write service", level: 3}
+    - {slug: "d-2-one-resident-service-per-repository", text: "D-2: one resident service per repository", level: 3}
+    - {slug: "d-3-the-cli-decides-when-and-what-the-service-decides-how-and-where", text: "D-3: the CLI decides when and what; the service decides how and where", level: 3}
+    - {slug: "d-4-git-and-synchronous-consumers-run-inside-the-service-s-unit-of-work-derived", text: "D-4: git and synchronous consumers run inside the service's unit of work *(derived)*", level: 3}
+    - {slug: "d-5-native-first-jvm-jar-as-fallback-and-no-python-writer", text: "D-5: native first, JVM jar as fallback, and no Python writer", level: 3}
+    - {slug: "d-6-storage-is-a-port-only-the-file-adapter-ships-derived-from-the-ruled-alternate-deployments", text: "D-6: storage is a port; only the file adapter ships *(derived from the ruled alternate deployments)*", level: 3}
+    - {slug: "d-7-byte-exact-contract-for-every-row-the-service-writes-derived", text: "D-7: byte-exact contract for every row the service writes *(derived)*", level: 3}
+    - {slug: "d-8-the-read-service-stays-read-only-and-separate-derived", text: "D-8: the read service stays read-only and separate *(derived)*", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "migration-order-each-step-gated-on-the-previous-derived-a-default-the-operator-may-resequence", text: "Migration order (each step gated on the previous) *(derived; a default the operator may resequence)*", level: 3}
+    - {slug: "open-questions-each-with-a-default", text: "Open questions (each with a default)", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "python-in-process-eventbridge", text: "Python in-process EventBridge", level: 3}
+    - {slug: "a-native-binary-run-once-per-command", text: "A native binary run once per command", level: 3}
+    - {slug: "a-resident-daemon-per-worktree", text: "A resident daemon per worktree", level: 3}
+    - {slug: "a-resident-java-write-service-per-repository-chosen", text: "A resident Java write service per repository (chosen)", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

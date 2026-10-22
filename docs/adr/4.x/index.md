@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-22'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -78,3 +78,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-17 | [the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run](2026-10-17-1-explicit-migration-ledger.md) |
 | 2026-10-19 | [one activation ledger persists deactivation, and nothing silently reinstalls it](2026-10-19-1-activation-ledger-persists-deactivation.md) |
 | 2026-10-20 | [command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills](2026-10-20-1-command-skills-use-spec-conformant-names.md) |
+| 2026-10-22 | [the Java write service is the canonical event writer, one resident service per repository](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) |

@@ -3,11 +3,12 @@ title: 'ADR: an event-native core with one canonical event writer behind a domai
 description: 'One EventBridge module writes only spec-kitty-events contract events; the run loop calls its port; git and filesystem effects become internal consumers.'
 status: Accepted
 date: '2026-10-14'
+updated: '2026-10-22'
 ---
 
 # An event-native core with one canonical event writer behind a domain port
 
-**Status:** Accepted (2026-10-14). Decided by the operator on 2026-10-14; this record writes the decision down.
+**Status:** Accepted (2026-10-14). Decided by the operator on 2026-10-14; this record writes the decision down. Amended 2026-10-22 by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) (D-1, D-2, D-5 and the Confirmation; see Amendments at the end).
 
 **Date:** 2026-10-14
 
@@ -202,3 +203,18 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 - [ADR 2026-02-09-3](../2.x/2026-02-09-3-event-log-merge-semantics.md): event-log merge semantics.
 - [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md): hosted surfaces frozen.
 - `spec-kitty-events`: `contracts/versioning-and-compatibility.md`, `models.py` (`Event.schema_version`), `strict.py`.
+
+## Amendments
+
+- **2026-10-22, by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md)** (operator ruling 2026-10-22): the canonical writer is the Java write service.
+  - **D-1.** The one module that persists events is the Java write service's `event-log` module: the command side of the Mission Write API (#6117), one resident service per repository, keyed on the git common dir. It is no longer a module inside the CLI. "No other module appends to an event log" still holds, now across both languages.
+  - **D-2.** The domain still depends only on the EventBridge port, which stays in Python. The adapter in `specify_cli` is a client of the write service, not the writer. The CLI decides when and what to write; the service decides how and where.
+  - **D-5.** The synchronous consumers move inside the service's unit of work: the append, the status commit and the cut on failure. The asynchronous consumers, including the produce seam `status/adapters.py`, stay in the CLI or read the committed ledger by cursor.
+  - **Confirmation.** The single-writer proof becomes two gates: a Python writes gate with no appender left, and an ArchUnit rule that only `event-log` opens a ledger for writing. Rows are checked byte for byte against the `ledger_append` and `status_append` fixtures.
+  - **"What must stay true", the consolidation gates bullet.** "The `lane_head` probe stays a port the adapter fills" no longer holds. The probe moves into the write service's `GitPort`, and the CLI adapter no longer fills it. The gates' evidence fields are unchanged.
+  - **Unchanged.** D-3, D-3a and D-4.
+- **2026-10-22, factual (#4941, #6604):** the "Reducer duality" bullet under "What must stay true during the migration" is wrong about the code.
+  - Both `status.reducer.reduce` and `materialize_snapshot` reach the wall-clock `spec_kitty_events.diary.reduce_parsed`. That is one reducer with two parsers; neither path is a Lamport wrapper.
+  - #4941's library fix (the approved-departure lift, `spec-kitty-events` 10.5.1) has shipped. What remains is narrower: a non-approval transition minted on a clock behind the event it follows still sorts before it.
+  - The consolidation gates read through that same reducer.
+  - The Technical Story's "keeps ADR 2026-02-09-3 unchanged" now holds only for its merge rules. Its ordering is amended to wall clock for 4.0.0 (ADR 2026-02-09-3, Amendment 2026-10-22), and Lamport-primary ordering is a post-GA direction (#6609).

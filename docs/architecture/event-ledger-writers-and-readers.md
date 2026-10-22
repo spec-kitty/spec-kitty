@@ -165,10 +165,16 @@ flowchart LR
 
 ## Target, as the ADRs set it
 
-- **One canonical event writer, the EventBridge**, an adapter in `specify_cli` behind a
-  domain-owned port grown from `RuntimeEventEmitter`. It is the only module that appends
-  to any event log, and an empty-allowlist gate proves it (ADR 2026-10-14-1 D-1, D-2,
-  Confirmation).
+- **One canonical event writer: the Java write service** (ADR 2026-10-22-1, which amends
+  ADR 2026-10-14-1 D-1, D-2 and D-5).
+  - There is one resident service per repository, keyed on the git common dir. It is the
+    command side of the Mission Write API (#6117).
+  - The domain calls the Python **EventBridge port**, grown from `RuntimeEventEmitter`. Its
+    adapter in `specify_cli` sends commands to the service.
+  - The CLI decides when and what to write; the service decides how and where.
+  - A native image runs first, with a JVM jar as fallback. With neither, the write fails
+    closed, and there is no Python fallback writer.
+  - Two gates prove the single writer: a Python writes gate and an ArchUnit rule.
 - **Contract rows only.** Each persisted row is a `spec-kitty-events` row envelope whose
   `schema_version` is the row version, around a typed payload carrying its own payload
   version. The 3.0.0 envelope stays the wire form; the library ships the row-to-wire
@@ -186,8 +192,9 @@ flowchart LR
   `ledger.retention` policy with a dry-run-first cleanup command (ADR 2026-10-13-2 D-3).
 - **One read port**: every CLI status read goes through it, and the Java service is
   conformance-gated against the Python reducer (ADR 2026-10-01-2 D-5 as amended, D-9 to D-11).
-- **Merge semantics unchanged** (ADR 2026-10-14-1, Technical Story). ADR 2026-02-09-3 still
-  names a Lamport-primary order, which the CLI does not implement; see gap G-3.
+- **Ordering: wall clock for 4.0.0.** ADR 2026-02-09-3 Amendment 2026-10-22 records it,
+  together with from-lane continuity and the approved-departure lift; the merge rules are
+  kept. Lamport-primary ordering is a post-GA direction (#6609); see gap G-3.
 
 ## Gap table
 
@@ -215,8 +222,9 @@ flowchart LR
 
 ## Ordering of the work
 
-1. **Operator ruling on #6185**: who builds the producer and in which runtime. It is the
-   only blocker on the critical path.
+1. **Settled 2026-10-22**: the producer is the Java write service, and #6185 folds into
+   #6117's modules (ADR 2026-10-22-1). Its migration order (port, module extraction, Java
+   binding, lock spike, one file at a time) governs G-1, G-2, G-5 to G-8.
 2. **No dependencies, in parallel**: G-17 and G-19 (test guardrails, before G-14), G-14
    (lock refresh), G-3 (doc amendments), G-11 (seam rename), G-18, G-4 (#6268), #6409
    (then close #957), G-16.

@@ -3,6 +3,7 @@ title: 'ADR: the event ledger is the publication seam, on by default, with a ver
 description: 'Integrations read the committed ledger through a versioned row schema in spec-kitty-events; publication is on by default, apart from hosted drain; local logs get retention.'
 status: Accepted
 date: '2026-10-13'
+updated: '2026-10-22'
 ---
 
 # The event ledger is the publication seam, on by default, with a versioned row contract and local-log retention
@@ -224,6 +225,12 @@ The default numbers above are a proposal for the operator to confirm.
 - `spec-kitty-events`: `contracts/versioning-and-compatibility.md` (the versioning rules the row schema follows) and `diary.py` (the current row model and reducer).
 
 ## Amendments
+
+- **2026-10-22, by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md):**
+  - **Writer.** The rows D-1 lists are written by the Java write service (one per repository), not by a module inside the CLI.
+  - **Confirmation.** The *shape* of the producer gate (one gate over many writers) is superseded by ADR 2026-10-14-1's single-writer gate, which ADR 2026-10-22-1 extends to two languages. The row-schema validation that gate asked for still applies.
+  - **Unchanged.** D-2 (the committed ledger is the publication seam) and D-3 (retention).
+  - **Historical.** The "today `>=10.4.6,<11`" floor in D-1's release order: core consumes `spec-kitty-events>=11.0.0,<12` since #6425.
 
 - **2026-10-18 (#6410):** an Op record's auto-commit is now skipped where the record matches an ignore rule or the primary branch tracks no Op record (or cannot be shown to: the primary branch is unresolved, or a git probe failed). Such a record stays on disk, uncommitted. It belongs to neither tier: no retention policy prunes it and no cleanup command removes it, so it stays as durable as the working tree. D-3 is otherwise unchanged; it still governs committed Op records.
 - **2026-10-14:** the hosted surfaces this ADR fences were removed from open-core by #6164; the code is preserved in spec-kitty/event-router.

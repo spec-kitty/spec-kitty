@@ -20,7 +20,9 @@ related:
 > This page is the short version: what to call, what not to do.
 
 The target is one canonical event writer (ADR
-[2026-10-14-1](../../adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md)).
+[2026-10-14-1](../../adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md)):
+a resident Java write service per repository behind the Python EventBridge port (ADR
+[2026-10-22-1](../../adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md)).
 It does not exist yet. Until it does, follow the rules below so you do not add a writer
 that the migration has to remove later.
 

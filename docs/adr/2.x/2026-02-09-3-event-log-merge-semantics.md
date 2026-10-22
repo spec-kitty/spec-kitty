@@ -3,6 +3,7 @@ title: Event-Log Merge Semantics for Concurrent Agents
 description: Reconciles divergent status logs by concatenating, deduplicating, and replaying events with rollback-aware precedence, so a reviewer's rejection is never overwritten.
 status: Accepted
 date: '2026-02-09'
+updated: '2026-10-22'
 ---
 
 ## Context and Problem Statement
@@ -144,3 +145,20 @@ This ADR's chosen algorithm (Option 3, Lamport-primary) is therefore honored by 
 * Lamport Clocks — https://lamport.azurewebsites.net/pubs/time-clocks.pdf
 * Git Merge Strategies — https://git-scm.com/docs/merge-strategies
 * PRD: Feature Status State Model Remediation (Sections 2, 9, 12.1.2, 12.1.4)
+
+## Amendment 2026-10-22 (Accepted): the ordering is wall clock now; Lamport-primary is a post-GA direction
+
+Operator ruling, 2026-10-22: amend this record to what the code does, and pursue Lamport-primary ordering after 4.0.0 GA (#6609).
+
+- **Step 3 (Sort), as implemented.** The CLI writes no `logical_clock` on status rows, so the "primary: `logical_clock`" key does not apply. Every CLI status read reduces through the `spec-kitty-events` wall-clock fold, `spec_kitty_events.diary.reduce_parsed`:
+  - `status.reducer.reduce` calls it directly (`src/specify_cli/status/reducer.py:205`).
+  - `materialize_snapshot` reaches it through `spec_kitty_events.status.reduce`, a re-export of `diary.reduce` (`:401`).
+  - It orders transitions by the writer's `at`, then by `event_id`.
+- **The ordering decision for 4.0.0** is that wall-clock order, together with two rules:
+  - **From-lane continuity:** a stale approval cannot override a committed rejection (#4990, `spec-kitty-events` 10.4.0).
+  - **The approved-departure lift:** a non-seed departure from `approved` sorts after the approval it followed (#4941, 10.5.1).
+- **Reviewer-authority precedence is kept**, and so are the concatenate, deduplicate and reduce steps.
+- **Residual, named:** a non-approval transition minted on a clock behind the event it follows still sorts before that event.
+- **The Neutral consequence "`status emit` ticks the logical clock on every event"** is not true of the CLI and is withdrawn.
+- **The 2026-09 reconciliation note above is superseded.** The consolidation gate reads WP membership through `materialize_snapshot`, which is the same wall-clock fold as `reduce`. There is no separate Lamport wrapper, and #4990 is closed.
+- **Lamport-primary ordering** (a clock stamped on every row by the canonical writer, a clock-first reducer in `spec-kitty-events`, re-pinned goldens) is the post-GA direction in #6609. It needs its own ADR before it is built. #6117 decision 1, which recommends Lamport with a `(time, id)` tiebreak, is held to that direction and does not apply to 4.0.0.

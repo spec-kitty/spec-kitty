@@ -3,7 +3,7 @@ title: 'ADR: replace charter reads and writes through a staged Java service stra
 description: 'Define the staged transition from the Python charter implementation to a per-worktree Java read service and, later, Java write adapters.'
 status: Accepted
 date: '2026-10-03'
-updated: '2026-10-19'
+updated: '2026-10-22'
 ---
 # Replace charter reads and writes through a staged Java service strangler
 
@@ -469,3 +469,11 @@ mistaken for the service. A security review of the launcher precedes the cutover
 `charter.offering.api` gains one symbol, `LANGUAGE_TOKENS`: a read-only tuple of plain language tokens, in catalog order, derived once from the language catalog. The charter service and the conformance corpus need the token vocabulary, and a hand-copied list would drift from the catalog.
 
 Only the token list crosses the seam (operator decisions `seam_language_catalog` and `seam_language_export_shape`). The catalog records, their family data and the family expansion stay internal to `charter.offering.shared`. The census is module-keyed, so the catalog module is dispositioned `PUBLIC`, and the narrowing to the one symbol is enforced by `charter.offering.api.__all__` and `tests/charter_offering/test_language_tokens_seam.py`. Core reaches the tuple through the `charter.languages` facade. A conformance-corpus case for the token list belongs to epic #6099.
+
+## Amendment 2026-10-22: the event system's writer is no longer the CLI
+
+The rationale above says the event system "needs only its writer to be present" and that "the CLI appends to the `status.events.jsonl` ledger itself". [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) changes the writer:
+- Event logs are written by a resident Java write service, one per repository, that the CLI starts when it is down. That is the same launch-when-down choice this record makes for the charter service, for the same availability reason: after the cut-over the CLI cannot record a transition without it.
+- The Mission Status Read API is still a detached, read-only service that no spec-kitty command starts.
+
+This record's charter decisions are unchanged.
