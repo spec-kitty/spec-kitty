@@ -167,7 +167,7 @@ flowchart LR
 
 - **One canonical event writer: the Java write service** (ADR 2026-10-22-1, which amends
   ADR 2026-10-14-1 D-1, D-2 and D-5).
-  - There is one resident service per repository, keyed on the git common dir. It is the
+  - There is one resident service per repository, keyed on the git common dir *(derived; ADR 2026-10-22-1 D-2)*. It is the
     command side of the Mission Write API (#6117).
   - The domain calls the Python **EventBridge port**, grown from `RuntimeEventEmitter`. Its
     adapter in `specify_cli` sends commands to the service.

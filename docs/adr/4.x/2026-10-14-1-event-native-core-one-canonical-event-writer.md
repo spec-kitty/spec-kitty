@@ -207,7 +207,7 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 ## Amendments
 
 - **2026-10-22, by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md)** (operator ruling 2026-10-22): the canonical writer is the Java write service.
-  - **D-1.** The one module that persists events is the Java write service's `event-log` module: the command side of the Mission Write API (#6117), one resident service per repository, keyed on the git common dir. It is no longer a module inside the CLI. "No other module appends to an event log" still holds, now across both languages.
+  - **D-1.** The one module that persists events is the Java write service's `event-log` module: the command side of the Mission Write API (#6117), one resident service per repository, keyed on the git common dir *(derived; ADR 2026-10-22-1 D-2)*. It is no longer a module inside the CLI. "No other module appends to an event log" still holds, now across both languages.
   - **D-2.** The domain still depends only on the EventBridge port, which stays in Python. The adapter in `specify_cli` is a client of the write service, not the writer. The CLI decides when and what to write; the service decides how and where.
   - **D-5.** The synchronous consumers move inside the service's unit of work: the append, the status commit and the cut on failure. The asynchronous consumers, including the produce seam `status/adapters.py`, stay in the CLI or read the committed ledger by cursor.
   - **Confirmation.** The single-writer proof becomes two gates: a Python writes gate with no appender left, and an ArchUnit rule that only `event-log` opens a ledger for writing. Rows are checked byte for byte against the `ledger_append` and `status_append` fixtures.

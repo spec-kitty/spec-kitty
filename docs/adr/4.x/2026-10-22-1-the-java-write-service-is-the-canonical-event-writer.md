@@ -110,7 +110,7 @@ All lane worktrees of a repository then share one writer.
 
 ### D-3: the CLI decides when and what; the service decides how and where
 
-- **The CLI** owns the domain decision. The run loop and the transition shells call the Python **EventBridge port**. The port of ADR 2026-10-14-1 D-2 is kept; only its adapter changes (amended). The port's adapter in `specify_cli` sends a **command** with its request context: Mission identity, work package, intended transition, actor, evidence, and the caller's checkout.
+- **The CLI** owns the domain decision. The run loop and the transition shells call the Python **EventBridge port**. The port of ADR 2026-10-14-1 D-2 is kept (grown from `RuntimeEventEmitter`); only its adapter changes (amended). The port's adapter in `specify_cli` sends a **command** with its request context: Mission identity, work package, intended transition, actor, evidence, and the caller's checkout.
 - **The service** owns how and where:
   - It validates the command against the lane state machine and guards (open question 1).
   - It resolves the write location: which partition, worktree and branch.
@@ -154,7 +154,7 @@ All lane worktrees of a repository then share one writer.
 
 - `query-service` (`services/mission-status-api/`) keeps its guarantees: loopback-only, never writes, takes no lock, starts no process.
 - The write service is its own deployable, sharing `domain-model`.
-- The read API stays conformance-gated against the Python reducer. #6268 (the #4941 approved-departure lift) lands before the shared domain model is used to validate writes.
+- The read API stays conformance-gated against the Python reducer. #6268 (porting the #4941 approved-departure lift to the Java `StatusReducer`) lands before the shared domain model is used to validate writes.
 
 ### Consequences
 
@@ -194,7 +194,7 @@ All lane worktrees of a repository then share one writer.
 2. **Java binding** plus the `status_append` fixture family (events#92).
 3. **Lock-interop spike** (go/no-go), then the service writes **one file owned whole**. The glossary logs are the candidate, since they already use the contract writer (#6193).
 4. **The service takes `status.events.jsonl`**: every row family in one cut, commit and cut inside the service, and the Python appenders deleted in the same release.
-5. **The remaining logs:** run journal, decisions, Op records and lifecycle (ADR 2026-10-14-1 D-4). Then accept, then consolidation.
+5. **The remaining logs:** run journal, decisions, Op records and lifecycle (ADR 2026-10-14-1 D-4). Then the `accept` writes, then the consolidation bookkeeping writes.
 
 ### Open questions (each with a default)
 
