@@ -1,0 +1,38 @@
+# Occurrence map for event-write-hygiene-01M5HS55 (DIRECTIVE_035).
+# Primary rename: the produce-seam "saas" fan-out vocabulary becomes
+# transport-neutral. The same diff also REMOVES the dead write doors
+# (store.append_event and friends, append_event_log, append_to_index) and the
+# hosted lifecycle builder. Those are deletions governed by the gates named in
+# plan.md, not a rename, and are recorded under exceptions/notes below.
+
+target:
+  term: saas_fanout
+  replacement: status_fanout
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }                 # adapters/emit/lifecycle seam identifiers, no aliases (operator ruling)
+  import_paths:         { action: rename }                 # importers of the renamed names; tests move off store.append_event
+  filesystem_paths:     { action: manual_review }          # test-file renames (conftest_saas_sink, test_saas_*), path-keyed ledgers
+  serialized_keys:      { action: manual_review }          # coverage/timing ledgers keyed by test path; no wire/JSON field changes
+  cli_commands:         { action: do_not_change }          # no CLI command or flag is touched
+  user_facing_strings:  { action: rename_if_user_visible } # env var SPEC_KITTY_SAAS_FANOUT_TIMEOUT -> SPEC_KITTY_STATUS_FANOUT_TIMEOUT, docs
+  tests_fixtures:       { action: rename }                 # caplog assertions, monkeypatch targets, fixtures
+  logs_telemetry:       { action: manual_review }          # local diagnostic log labels ("SaaS fan-out"); no dashboard consumes them
+
+exceptions:
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Historical mission artefacts are immutable snapshots; only this mission's own directory is written."
+  - path: "kitty-specs/event-write-hygiene-01M5HS55/**"
+    action: manual_review
+    reason: "This mission's own planning, trace and status artefacts."
+  - path: "docs/reports/**"
+    action: do_not_change
+    reason: "Dated review reports are historical snapshots."
+  - path: "docs/changelog/CHANGELOG.md"
+    action: manual_review
+    reason: "Only the new [Unreleased] entry is added; released entries keep their historical names."
+  - path: "docs/adr/**"
+    action: manual_review
+    reason: "Accepted ADR bodies stay; only dated Amendment notes are appended."
