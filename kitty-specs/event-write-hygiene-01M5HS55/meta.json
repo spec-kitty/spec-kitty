@@ -28,6 +28,7 @@
   "purpose_context": "Ahead of the one-canonical-writer work (ADR 2026-10-14-1), core still carries write doors nobody uses, a private library import that a lock refresh could turn into a break, and hosted-era 'saas' names on the event produce seam. This mission deletes them behind red-first gates without changing behaviour, so the remaining write surface is exactly what the canonical writer will wrap.",
   "purpose_tldr": "Remove dead event-log write doors and core's private spec-kitty-events import, and give the status produce seam transport-neutral names.",
   "slug": "event-write-hygiene-01M5HS55",
+  "status_phase": "1",
   "target_branch": "feat/event-write-hygiene",
   "topology": "single_branch"
 }
