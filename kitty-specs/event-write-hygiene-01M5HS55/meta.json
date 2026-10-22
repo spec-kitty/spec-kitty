@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-22T17:00:38.307586+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7d45c7e0ed30c51deb9a0f495646eeab4ea5b1a8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-22T17:00:38.307586+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7d45c7e0ed30c51deb9a0f495646eeab4ea5b1a8",
   "change_mode": "bulk_edit",
   "contracts": "none",
   "contracts_rationale": "Hygiene mission: deletes dead code and renames an internal seam; adds no interface. The renamed registration API is pinned by the stub-handler contract test.",
