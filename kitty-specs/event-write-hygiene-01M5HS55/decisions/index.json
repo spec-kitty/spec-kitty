@@ -1,0 +1,100 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-22T12:25:47.112393Z",
+      "decision_id": "01M5HS66B8SZXZG87DZVT5PC7B",
+      "final_answer": "Delete the dead builder too: remove build_saas_lifecycle_queue_event, _canonical_lifecycle_payload_for_saas and _validate_lifecycle_payload (no src caller).",
+      "input_key": "strict_validation_approach",
+      "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+      "mission_slug": "event-write-hygiene-01M5HS55",
+      "opened_by": "cli",
+      "options": [
+        "Public validate_event",
+        "Local explicit type set",
+        "Delete the dead builder too"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Without the private _EVENT_TYPE_TO_MODEL, how does lifecycle_events decide strict validation?",
+      "rationale": null,
+      "resolved_at": "2026-10-22T12:25:50.235199Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.strict-validation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-22T12:25:53.214512Z",
+      "decision_id": "01M5HS6C9YQV3WR0HHDN5XS13Z",
+      "final_answer": "Codemod in this PR onto a tests/_support atomic seeding helper.",
+      "input_key": "test_seed_handling",
+      "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+      "mission_slug": "event-write-hygiene-01M5HS55",
+      "opened_by": "cli",
+      "options": [
+        "Codemod in this PR",
+        "Split into a follow-up"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How are the ~195 test files seeding via store.append_event handled?",
+      "rationale": null,
+      "resolved_at": "2026-10-22T12:25:56.177790Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.test-seeds",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-22T12:25:59.183237Z",
+      "decision_id": "01M5HS6J4FT64DRDVDRSWZHSDE",
+      "final_answer": "No aliases at all: spec-kitty/event-router is frozen/dead; no stale compatibility kept for it (env var SPEC_KITTY_SAAS_FANOUT_TIMEOUT dropped too).",
+      "input_key": "seam_rename_aliases",
+      "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+      "mission_slug": "event-write-hygiene-01M5HS55",
+      "opened_by": "cli",
+      "options": [
+        "Env var alias only",
+        "Also alias functions",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Keep deprecated aliases for renamed produce-seam names?",
+      "rationale": null,
+      "resolved_at": "2026-10-22T12:26:02.232341Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.seam-aliases",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-22T12:26:05.321262Z",
+      "decision_id": "01M5HS6R493RKGYMNDTHJT8PMZ",
+      "final_answer": "Yes, all of it (never merge).",
+      "input_key": "outward_actions",
+      "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+      "mission_slug": "event-write-hygiene-01M5HS55",
+      "opened_by": "cli",
+      "options": [
+        "Yes, all of it",
+        "Local only, ask first"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Post claims, push and open the draft PR?",
+      "rationale": null,
+      "resolved_at": "2026-10-22T12:26:08.300813Z",
+      "resolved_by": null,
+      "slot_key": "specify.process.outward",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5HS55TRH6AWB06AYE819FAH",
+  "version": 1
+}
