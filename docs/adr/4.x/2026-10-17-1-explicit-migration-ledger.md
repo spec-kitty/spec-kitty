@@ -524,6 +524,15 @@ Later migrations in the same run bring the bundle current: the resulting `.kitti
 the one the version-slot order produced. The step stays a re-skipped, `pending` row in
 `spec-kitty migrate ledger`, which is §3's behaviour for a not-needed migration.
 
+**Assumption (legacy `.specify/` layout).** The cutover now runs before `0.2.0_specify_to_kittify`,
+so on a project that still has `.specify/` the cutover finds no `.kittify/` inventory and records
+`skipped` in that run. This costs nothing: the CLI creates `.kittify/` before the migrations run, so
+`0.2.0_specify_to_kittify` itself skips ("`.kittify/` already exists - manual merge required") with
+or without this order, and a pre-0.2 project never reaches the cutover's inputs through the rename.
+A project whose `.kittify/` is brought to the legacy shape by hand converges on its next
+`spec-kitty upgrade`, because a `skipped` record does not settle the cutover. Checked with a
+throwaway `.specify/` project (two runs), not pinned by a test.
+
 The build-time gate (`tests/architectural/test_migration_order_manifest.py`) now requires every
 `# runs-first:` entry to sit in the lead block and checks version monotonicity over the entries
 after it; the gate's `lead_block_length` is the one definition. The
