@@ -96,7 +96,7 @@ Do these in one PR:
    This is the targeted blast radius of the bump, not a whole-repo run.
 5. **A/B any reducer change.** Run the reducer-pinning tests on the same tree with the
    old and new versions, and write the delta in the PR body. A changed verdict is a
-   decision for the reviewer, never an `xfail` added after merge.
+   decision for the reviewer, never an `xfail` added after the PR lands.
 6. **Check the Java read API.** If the release touches `diary.reduce_parsed`, the service's
    `StatusReducer.PORTED_EVENTS_VERSION` needs a port review, and a behaviour change needs
    a conformance golden that exercises it.
