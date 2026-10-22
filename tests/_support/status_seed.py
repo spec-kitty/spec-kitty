@@ -4,7 +4,7 @@ Production writes the status log only through the status FSM
 (``emit_status_transition`` / ``BookkeepingTransaction``), which persists
 through ``status.store``'s atomic primitives. Tests that need a pre-seeded
 log use this helper so fixtures take the same write path. Rows are
-serialized by ``store.serialize_event_line`` exactly as before.
+serialized by ``store.serialize_event_line``.
 
 The atomic path replaces the file (new inode, mode 0600), adds a trailing
 newline to an existing log that lacks one, reads and writes in text mode (so

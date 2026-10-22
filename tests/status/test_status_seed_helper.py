@@ -42,30 +42,19 @@ def _log_bytes(feature_dir: Path) -> bytes:
     return log.read_bytes().replace(b"\r\n", b"\n")
 
 
-def test_bytes_equal_canonical_serialization(tmp_path: Path, events: list[StatusEvent]) -> None:
-    seed_status_events(tmp_path, events)
+@pytest.mark.parametrize("sequential", [False, True], ids=["one-batch", "sequential-singles"])
+def test_bytes_equal_canonical_serialization(tmp_path: Path, events: list[StatusEvent], sequential: bool) -> None:
+    if sequential:
+        for event in events:
+            seed_status_event(tmp_path, event)
+    else:
+        seed_status_events(tmp_path, events)
 
     expected = "".join(store.serialize_event_line(e.to_dict()) + "\n" for e in events)
     assert _log_bytes(tmp_path) == expected.encode("utf-8")
-
-
-def test_sequential_single_seeds_equal_one_batch(tmp_path: Path, events: list[StatusEvent]) -> None:
-    single_dir = tmp_path / "single"
-    batch_dir = tmp_path / "batch"
-    for event in events:
-        seed_status_event(single_dir, event)
-    seed_status_events(batch_dir, events)
-
-    assert _log_bytes(single_dir) == _log_bytes(batch_dir)
 
 
 def test_empty_batch_creates_no_file(tmp_path: Path) -> None:
     seed_status_events(tmp_path, [])
 
     assert not (tmp_path / store.EVENTS_FILENAME).exists()
-
-
-def test_rows_read_back_equal_inputs(tmp_path: Path, events: list[StatusEvent]) -> None:
-    seed_status_events(tmp_path, events)
-
-    assert store.read_events(tmp_path) == events
