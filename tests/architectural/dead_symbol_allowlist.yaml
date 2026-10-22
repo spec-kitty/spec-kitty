@@ -283,16 +283,12 @@ categories:
     rationale: 'C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010). ``specify_cli.status._unsafe``
       is the enumerated, gate-facing door for the raw ``status.events.jsonl`` append primitives (they
       left the ``status`` facade so no runtime module can reach them without appearing in the shrink-only
-      ``ALLOWED_CALLERS`` census). Two of its public names have no cross-file ``src/`` caller BY DESIGN:
+      ``ALLOWED_CALLERS`` census). One of its public names has no cross-file ``src/`` caller BY DESIGN:
       * ``specify_cli.status._unsafe::ALLOWED_CALLERS`` -- consumed only by the architectural gate ``tests/architectural/test_status_unsafe_allowlist.py``
       (every door importer must be in it; it must stay a subset of the test''s committed BASELINE). A
-      runtime caller would defeat its purpose. * ``specify_cli.status._unsafe::append_event`` -- the unverified
-      single-row primitive, re-exported because the write-gates contract names every raw primitive on
-      this door; production writers use the ``_verified`` / ``_atomic`` variants, so its only importers
-      are tests (14 files) that seed event logs through the sanctioned door. Module-path tier: the alias
-      text collides with ``glossary``''s unrelated ``append_event`` re-export. Tracked with the mission''s
-      census-gate-rule note (#3895); drop these entries if the door is ever folded back or ``append_event``
-      retired.'
+      runtime caller would defeat its purpose. Tracked with the mission''s census-gate-rule note (#3895);
+      drop this entry if the door is ever folded back. (The unverified single-row ``append_event``
+      primitive this entry once also covered was deleted in #6614.)'
     requires_issue: false
   category_d_charter_code_topology_relocation_forward_api:
     rationale: 'D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664), plus the charter-pack-cutover-01M491G6 kernel path authority (#3732).
@@ -1117,9 +1113,6 @@ entries:
   category: category_c_path_conventions_forward_api
 - module: specify_cli.status._unsafe
   name: ALLOWED_CALLERS
-  category: category_c_fsm_write_path_unsafe_door
-- module: specify_cli.status._unsafe
-  name: append_event
   category: category_c_fsm_write_path_unsafe_door
 - module: kernel.charter_pack_paths
   name: DRG_DIRNAME
