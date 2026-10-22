@@ -11,6 +11,7 @@ Tests verify that:
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterator, Set as AbstractSet
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,6 +19,8 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.activation.exceptions import CharterActivationError
+from charter.activation.pack_context import PackContext
+from charter.drg import ArtifactKind
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.agent.workflow import app as workflow_app
 
@@ -33,11 +36,21 @@ runner = CliRunner()
 def _make_pack_context(
     *,
     activated_agent_profiles: frozenset[str] | None,
-) -> MagicMock:
-    """Build a mock PackContext with the given activated_agent_profiles."""
-    pack_ctx = MagicMock()
-    pack_ctx.activated_agent_profiles = activated_agent_profiles
-    return pack_ctx
+) -> PackContext:
+    """Build a real PackContext with the given activated_agent_profiles.
+
+    A real instance, not a mock: the gates ask ``admits()`` / ``allow_for()``,
+    and a MagicMock answers ``admits()`` with a truthy mock, so the gate would
+    never fire (#6581).
+    """
+    return PackContext(
+        activated_kinds=frozenset(),
+        activated_mission_types=frozenset(),
+        pack_roots=(),
+        org_pack_names=(),
+        repo_root=Path(),
+        activated_agent_profiles=activated_agent_profiles,
+    )
 
 
 def _make_project_context(
@@ -50,6 +63,43 @@ def _make_project_context(
         activated_agent_profiles=activated_agent_profiles
     )
     return proj_ctx
+
+
+@contextlib.contextmanager
+def _record_profile_verdicts() -> Iterator[list[tuple[str, bool]]]:
+    """Record every agent-profile ``PackContext.admits`` verdict.
+
+    A let-through test asserts the gate ran and admitted the profile, so it
+    cannot pass merely because the command failed earlier for another reason.
+    """
+    verdicts: list[tuple[str, bool]] = []
+    real_admits = PackContext.admits
+
+    def _spy(self: PackContext, kind: ArtifactKind, token: str, *, available: AbstractSet[str]) -> bool:
+        admitted: bool = real_admits(self, kind, token, available=available)
+        if kind is ArtifactKind.AGENT_PROFILE:
+            verdicts.append((token, admitted))
+        return admitted
+
+    with patch.object(PackContext, "admits", _spy):
+        yield verdicts
+
+
+def _make_implement_wp(tmp_path: Path, agent_profile: str) -> MagicMock:
+    """Build a WorkPackage stand-in whose ``path`` is a real WP file.
+
+    ``frontmatter`` feeds the charter precondition; ``path`` points at a file
+    with the same frontmatter, so a step that reads the WP from disk sees real
+    content instead of ``MagicMock().path`` (#6581).
+    """
+    frontmatter = f"work_package_id: WP01\nagent_profile: {agent_profile}\ntitle: Test WP\n"
+    wp_file = tmp_path / "kitty-specs" / "099-test" / "tasks" / "WP01-test.md"
+    wp_file.parent.mkdir(parents=True, exist_ok=True)
+    wp_file.write_text(f"---\n{frontmatter}---\n\n# WP01\n", encoding="utf-8")
+    wp = MagicMock()
+    wp.frontmatter = frontmatter
+    wp.path = wp_file
+    return wp
 
 
 def _build_finalize_tasks_feature(
@@ -98,7 +148,7 @@ def _finalize_tasks_context(
     tmp_path: Path,
     feature_dir: Path,
     mock_proj_ctx: MagicMock,
-):
+) -> Iterator[None]:
     """Context manager that patches all infrastructure for finalize-tasks tests."""
     with (
         patch(
@@ -136,7 +186,7 @@ def _implement_context(
     tmp_path: Path,
     mock_wp: object,
     mock_proj_ctx: MagicMock,
-):
+) -> Iterator[None]:
     """Context manager that patches all infrastructure for implement gate tests."""
     with (
         patch(
@@ -199,7 +249,8 @@ class TestFinalizatTasksProfileGate:
         assert result.exit_code != 0, (
             f"Expected exit code != 0, got: {result.exit_code}\n{result.stdout}"
         )
-        # Assert: error message contains the profile name
+        # Assert: the gate refused, naming the profile
+        assert "Charter activation gate FAILED" in result.stdout
         assert "researcher-robbie" in result.stdout
 
     def test_passes_when_profile_is_activated(
@@ -216,11 +267,12 @@ class TestFinalizatTasksProfileGate:
             activated_agent_profiles=frozenset({"python-pedro", "researcher-robbie"})
         )
 
-        with _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx):
+        with _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx), _record_profile_verdicts() as verdicts:
             result = runner.invoke(mission_app, ["finalize-tasks", "--mission", "099-test"])
 
-        # Gate should not fire — command may succeed or fail for other reasons,
-        # but not due to the charter gate.
+        # The gate ran and admitted the profile; the command may still fail
+        # later for other reasons, but not at the charter gate.
+        assert ("researcher-robbie", True) in verdicts
         assert "Charter activation gate FAILED" not in result.stdout
 
     def test_skips_check_when_activated_profiles_is_none(
@@ -237,10 +289,11 @@ class TestFinalizatTasksProfileGate:
             activated_agent_profiles=None  # None means no restriction
         )
 
-        with _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx):
+        with _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx), _record_profile_verdicts() as verdicts:
             result = runner.invoke(mission_app, ["finalize-tasks", "--mission", "099-test"])
 
-        # Gate must not fire
+        # The gate ran and admitted the profile
+        assert ("researcher-robbie", True) in verdicts
         assert "Charter activation gate FAILED" not in result.stdout
 
 
@@ -252,25 +305,12 @@ class TestFinalizatTasksProfileGate:
 class TestImplementProfileGate:
     """FR-018 / C-006: agent action implement exits 1 before worktree creation."""
 
-    def _make_mock_wp(self, agent_profile: str | None) -> MagicMock:
-        """Create a mock WorkPackage with the given agent_profile in frontmatter."""
-        wp = MagicMock()
-        if agent_profile:
-            wp.frontmatter = (
-                f"work_package_id: WP01\n"
-                f"agent_profile: {agent_profile}\n"
-                f"title: Test WP\n"
-            )
-        else:
-            wp.frontmatter = "work_package_id: WP01\ntitle: Test WP\n"
-        return wp
-
     def test_hard_fails_when_profile_not_activated(
         self,
         tmp_path: Path,
     ) -> None:
         """agent action implement exits 1 when WP profile not in activated set."""
-        mock_wp = self._make_mock_wp("researcher-robbie")
+        mock_wp = _make_implement_wp(tmp_path, "researcher-robbie")
         mock_proj_ctx = _make_project_context(
             activated_agent_profiles=frozenset({"python-pedro", "reviewer-renata"})
         )
@@ -285,6 +325,7 @@ class TestImplementProfileGate:
         assert result.exit_code != 0, (
             f"Expected exit code != 0, got: {result.exit_code}\n{result.stdout}"
         )
+        assert "charter precondition FAILED" in result.stdout
         # Assert: no worktree created
         assert not (tmp_path / ".worktrees").exists(), (
             ".worktrees directory must NOT be created when gate fires"
@@ -295,18 +336,19 @@ class TestImplementProfileGate:
         tmp_path: Path,
     ) -> None:
         """Backward-compat: implement skips gate when activated_agent_profiles is None."""
-        mock_wp = self._make_mock_wp("researcher-robbie")
+        mock_wp = _make_implement_wp(tmp_path, "researcher-robbie")
         mock_proj_ctx = _make_project_context(
             activated_agent_profiles=None  # No restriction
         )
 
-        with _implement_context(tmp_path, mock_wp, mock_proj_ctx):
+        with _implement_context(tmp_path, mock_wp, mock_proj_ctx), _record_profile_verdicts() as verdicts:
             result = runner.invoke(
                 workflow_app,
                 ["implement", "WP01", "--agent", "claude", "--mission", "099-test"],
             )
 
-        # Gate must not fire
+        # The gate ran and admitted the profile
+        assert ("researcher-robbie", True) in verdicts
         assert "charter precondition FAILED" not in result.stdout
 
 
@@ -342,12 +384,7 @@ class TestResolutionCommandInErrorMessage:
         tmp_path: Path,
     ) -> None:
         """Error message from implement contains 'charter activate agent-profile'."""
-        mock_wp = MagicMock()
-        mock_wp.frontmatter = (
-            "work_package_id: WP01\n"
-            "agent_profile: researcher-robbie\n"
-            "title: Test WP\n"
-        )
+        mock_wp = _make_implement_wp(tmp_path, "researcher-robbie")
         mock_proj_ctx = _make_project_context(
             activated_agent_profiles=frozenset({"python-pedro"})
         )
@@ -413,12 +450,7 @@ class TestCharterActivationErrorRaised:
         tmp_path: Path,
     ) -> None:
         """agent action implement gate raises CharterActivationError for deactivated profile."""
-        mock_wp = MagicMock()
-        mock_wp.frontmatter = (
-            "work_package_id: WP01\n"
-            "agent_profile: researcher-robbie\n"
-            "title: Test WP\n"
-        )
+        mock_wp = _make_implement_wp(tmp_path, "researcher-robbie")
         mock_proj_ctx = _make_project_context(
             activated_agent_profiles=frozenset({"python-pedro"})
         )
