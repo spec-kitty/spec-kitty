@@ -18,13 +18,7 @@ Layer rule: ``kernel`` imports nothing upward, so every layer can read these.
 
 from __future__ import annotations
 
-__all__ = [
-    "DOCS_BASE_URL",
-    "INSTALL_AND_UPGRADE_PAGE",
-    "INSTALL_AND_UPGRADE_URL",
-    "OWNED_DOMAIN",
-    "docs_url",
-]
+__all__ = ["INSTALL_AND_UPGRADE_URL"]
 
 #: The one registrable domain Spec Kitty owns for its branded hosts.
 OWNED_DOMAIN = "spec-kitty.ai"
