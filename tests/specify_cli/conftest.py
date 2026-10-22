@@ -15,6 +15,7 @@ from collections.abc import Iterator
 import pytest
 
 from tests._support.charter_warning import rearmed_charter_warning
+from tests._support.migration_registry import restored_migration_registry
 
 from tests.integration.coord_topology_fixture import (  # noqa: F401 — pytest fixture re-export
     flat_topology_mission,
@@ -25,4 +26,11 @@ from tests.integration.coord_topology_fixture import (  # noqa: F401 — pytest 
 def _rearm_charter_ambient_warning() -> Iterator[None]:
     """Re-arm the once-per-process charter warning around each test (#5714; see tests/_support/charter_warning.py)."""
     with rearmed_charter_warning():
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _restore_migration_registry() -> Iterator[None]:
+    """Put back the registrations each test started with (#6563; see tests/_support/migration_registry.py)."""
+    with restored_migration_registry():
         yield
