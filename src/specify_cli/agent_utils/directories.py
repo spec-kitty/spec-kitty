@@ -52,9 +52,18 @@ AGENT_DIR_TO_KEY = {
 def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
     """Get agent directories to process based on project config.
 
-    Reads config.yaml to determine which agents are enabled.
-    Only returns directories for configured agents.
-    Falls back to all agents for legacy projects without config.
+    Reads config.yaml to determine which agents are enabled and returns
+    directories for configured agents only:
+
+    - ``available: [claude]`` returns ``[(".claude", "commands")]``.
+    - ``available: []`` returns ``[]``: an explicit empty list means no
+      CLI-managed agents (#6494), never every agent.
+    - No ``available`` list at all (no config file, or no ``agents``/``tools``
+      section) still returns every agent, for legacy projects; #6501 owns
+      that case.
+    - An unreadable or invalid config raises
+      :class:`~specify_cli.core.agent_config.AgentConfigError` naming the
+      remedy. It never widens to every agent.
 
     Args:
         project_path: Path to project root
@@ -62,41 +71,13 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
     Returns:
         List of (agent_root, subdir) tuples for configured agents
 
-    Examples:
-        >>> # Project with only Claude configured
-        >>> dirs = get_agent_dirs_for_project(Path("/path/to/project"))
-        >>> dirs
-        [('.claude', 'commands')]
-
-        >>> # Legacy project without config.yaml
-        >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
-        >>> len(dirs)
-        12  # All command-layer agents (command-skill agents use AGENT_SKILL_CONFIG; roo removed)
+    Raises:
+        AgentConfigError: ``.kittify/config.yaml`` cannot be read or validated.
     """
-    try:
-        from specify_cli.core.agent_config import (
-            AgentConfigError,
-            get_configured_agents,
-        )
+    from specify_cli.core.agent_config import load_agent_config
 
-        available = get_configured_agents(project_path)
+    config = load_agent_config(project_path)
+    if not config.available:
+        return [] if config.explicit_agent_list else list(AGENT_DIRS)
 
-        if not available:
-            # Empty config - fallback to all agents
-            return list(AGENT_DIRS)
-
-        # Filter AGENT_DIRS to only include configured agents
-        configured_dirs = []
-        for agent_root, subdir in AGENT_DIRS:
-            agent_key = AGENT_DIR_TO_KEY.get(agent_root)
-            if agent_key in available:
-                configured_dirs.append((agent_root, subdir))
-
-        return configured_dirs
-
-    except AgentConfigError:
-        raise
-    except Exception:
-        # Config missing or error reading - fallback to all agents
-        # This handles legacy projects gracefully
-        return list(AGENT_DIRS)
+    return [(agent_root, subdir) for agent_root, subdir in AGENT_DIRS if AGENT_DIR_TO_KEY.get(agent_root) in config.available]

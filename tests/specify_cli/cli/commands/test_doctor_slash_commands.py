@@ -422,3 +422,29 @@ class TestDoctorSkillsJson:
         payload = json.loads(result.output)
         assert payload["ok"] is False
         assert payload["slash_commands"]["gaps"][0]["status"] == "missing"
+
+
+class TestSlashCommandAgentsFailClosed:
+    """#6494: the slash-command audit never widens to every agent."""
+
+    def test_explicit_empty_list_audits_no_agent(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands._command_surface_doctor import _get_slash_command_agents
+        from specify_cli.core.agent_config import AgentConfig, save_agent_config
+
+        (tmp_path / ".kittify").mkdir()
+        save_agent_config(tmp_path, AgentConfig(available=[]))
+
+        assert _get_slash_command_agents(tmp_path) == []
+
+    def test_config_error_fails_the_audit_without_repairing(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands._command_surface_doctor import _load_and_optionally_repair_slash_commands
+
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify" / "config.yaml").write_text("agents: [unclosed\n", encoding="utf-8")
+
+        payload = _load_and_optionally_repair_slash_commands(tmp_path, fix=True)
+
+        assert payload["configured_agents"] == []
+        assert payload["repaired"] == []
+        assert payload["ok"] is False
+        assert "spec-kitty agent config list" in str(payload["errors"])

@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.agent_utils.directories import AGENT_DIRS
-from specify_cli.core.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import AgentConfig, AgentConfigError, save_agent_config
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
@@ -88,19 +88,32 @@ class TestGetAgentDirsForProject:
         assert (".kiro", "prompts") in agent_dirs
         assert (".llxprt", "commands") in agent_dirs
 
-    def test_fallback_when_config_empty(self, tmp_path):
-        """Test fallback when config.available is empty."""
+    def test_explicit_empty_list_means_no_agents(self, tmp_path):
+        """An explicit ``available: []`` means no CLI-managed agents (#6494)."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
 
         config = AgentConfig(available=[])
         save_agent_config(tmp_path, config)
 
-        agent_dirs = get_agent_dirs_for_project(tmp_path)
+        assert get_agent_dirs_for_project(tmp_path) == []
 
-        # Fallback for empty config also returns the canonical registry
-        # wholesale; see test_fallback_to_all_agents_when_no_config.
-        assert agent_dirs == list(AGENT_DIRS)
+    def test_agents_section_without_available_key_keeps_legacy_fallback(self, tmp_path):
+        """No ``available`` key at all is the legacy case #6501 owns, not #6494."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n", encoding="utf-8")
+
+        assert get_agent_dirs_for_project(tmp_path) == list(AGENT_DIRS)
+
+    def test_unreadable_config_fails_closed_with_remedy(self, tmp_path):
+        """A corrupt config never widens to every agent (#6494)."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents: [unclosed\n", encoding="utf-8")
+
+        with pytest.raises(AgentConfigError, match="spec-kitty agent config list"):
+            get_agent_dirs_for_project(tmp_path)
 
 
 class TestMigrationRespectsConfig:

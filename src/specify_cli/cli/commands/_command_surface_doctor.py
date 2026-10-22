@@ -64,15 +64,15 @@ __all__ = [
 
 
 def _get_slash_command_agents(project_path: Path) -> list[str]:
-    """Return configured slash-command agents (excludes Agent-Skills agents)."""
-    from specify_cli.core.agent_config import load_agent_config
-    from specify_cli.core.config import AGENT_COMMAND_CONFIG, configured_slash_agents
+    """Return configured slash-command agents (excludes Agent-Skills agents).
 
-    try:
-        config = load_agent_config(project_path)
-        available: list[str] = list(config.available)
-    except Exception:
-        available = list(AGENT_COMMAND_CONFIG)
+    An unreadable config raises ``AgentConfigError`` (reported as a failed
+    audit by the caller) instead of auditing and repairing every agent (#6494).
+    """
+    from specify_cli.core.agent_config import load_agent_config
+    from specify_cli.core.config import configured_slash_agents
+
+    available: list[str] = list(load_agent_config(project_path).available)
     # One filter (#6470): an agent without an AGENT_COMMAND_CONFIG row (every
     # command-skill agent, antigravity included) is never a slash-command agent.
     return sorted(configured_slash_agents(available))

@@ -194,3 +194,63 @@ class TestToolsKeyFallback:
         config = load_agent_config(tmp_path)
         assert config.available == []
         assert config.auto_commit is True
+
+
+class TestExplicitAgentList:
+    """``explicit_agent_list`` separates ``available: []`` from a missing list (#6494)."""
+
+    @pytest.mark.parametrize(
+        "content",
+        ["agents:\n  available: []\n", "agents:\n  available: [claude]\n", "tools:\n  available: []\n", "agents:\n  available: claude\n"],
+    )
+    def test_available_key_is_explicit(self, tmp_path: Path, content: str) -> None:
+        _write_config(tmp_path, content)
+
+        assert load_agent_config(tmp_path).explicit_agent_list is True
+
+    @pytest.mark.parametrize("content", [None, "", "agents: {}", "agents:\n  auto_commit: false\n", "vcs:\n  base_branch: main\n"])
+    def test_missing_available_key_is_not_explicit(self, tmp_path: Path, content: str | None) -> None:
+        if content is not None:
+            _write_config(tmp_path, content)
+
+        assert load_agent_config(tmp_path).explicit_agent_list is False
+
+    def test_flag_does_not_change_equality(self) -> None:
+        assert AgentConfig(available=[], explicit_agent_list=True) == AgentConfig()
+
+    def test_saved_config_round_trips_as_explicit(self, tmp_path: Path) -> None:
+        (tmp_path / ".kittify").mkdir()
+        save_agent_config(tmp_path, AgentConfig(available=[]))
+
+        assert load_agent_config(tmp_path).explicit_agent_list is True
+
+
+class TestConfigErrorRemedy:
+    @pytest.mark.parametrize(
+        "content",
+        ["agents: [unclosed\n", "just a scalar\n", "agents: [claude]\n", "agents:\n  available: {a: 1}\n", "agents:\n  available: [nope]\n"],
+    )
+    def test_every_config_error_names_the_remedy(self, tmp_path: Path, content: str) -> None:
+        _write_config(tmp_path, content)
+
+        with pytest.raises(AgentConfigError, match=r"spec-kitty agent config list"):
+            load_agent_config(tmp_path)
+
+
+class TestSaveKeepsALegacyListAbsent:
+    """#6494: changing a setting on a list-free config must not write ``available: []``."""
+
+    def test_legacy_config_stays_list_free_after_save(self, tmp_path: Path) -> None:
+        config_file = _write_config(tmp_path, "agents:\n  auto_commit: true\n")
+        config = load_agent_config(tmp_path)
+        config.auto_commit = False
+
+        save_agent_config(tmp_path, config)
+
+        assert "available" not in config_file.read_text(encoding="utf-8")
+        reloaded = load_agent_config(tmp_path)
+        assert reloaded.explicit_agent_list is False
+        assert reloaded.auto_commit is False
+
+    def test_a_config_built_in_code_states_its_list(self) -> None:
+        assert AgentConfig().explicit_agent_list is True

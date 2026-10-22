@@ -25,6 +25,15 @@ class AgentConfigError(GuardedReadError, RuntimeError):
     """Raised when .kittify/config.yaml cannot be parsed or validated."""
 
 
+# Appended to every AgentConfigError so the operator is told how to recover,
+# not only that the file is broken (#6494: fail closed, never fan out).
+CONFIG_ERROR_REMEDY = "Fix .kittify/config.yaml, then check the agent list with `spec-kitty agent config list`."
+
+
+def _config_error(message: str) -> AgentConfigError:
+    return AgentConfigError(f"{message}. {CONFIG_ERROR_REMEDY}")
+
+
 @dataclass
 class AgentConfig:
     """Full agent configuration.
@@ -37,11 +46,19 @@ class AgentConfig:
             (--auto-commit/--no-auto-commit) override this setting.
         lint_on_edit: Whether agents should receive automatic linting
             and type-checking feedback after editing files.
+        explicit_agent_list: Whether ``available`` is a stated list.
+            ``available: []`` with this set means "no CLI-managed agents".
+            A config built in code states its list; ``load_agent_config``
+            clears the flag when the file has no list (a legacy project,
+            #6501), and ``save_agent_config`` then keeps the list absent, so
+            changing another setting never turns "no list" into "no
+            agents" (#6494). Left out of equality.
     """
 
     available: list[str] = field(default_factory=list)
     auto_commit: bool = True
     lint_on_edit: bool = False
+    explicit_agent_list: bool = field(default=True, compare=False)
 
 
 def load_agent_config(repo_root: Path) -> AgentConfig:
@@ -60,7 +77,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
 
     if not config_file.exists():
         logger.warning(f"Config file not found: {config_file}")
-        return AgentConfig()
+        return AgentConfig(explicit_agent_list=False)
 
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -70,7 +87,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
             data = yaml.load(f)
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
-        raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
+        raise _config_error(f"Invalid YAML in {config_file}: {e}") from e
 
     if data is None:
         data = {}
@@ -83,7 +100,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     # not a silent default, so the operator learns their config is corrupt
     # instead of getting an unexplained "no agents configured".
     if not isinstance(data, dict):
-        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping at the top level, got {type(data).__name__}")
+        raise _config_error(f"Invalid config shape in {config_file}: expected a YAML mapping at the top level, got {type(data).__name__}")
 
     section = "agents"
     agents_data = data.get(section)
@@ -93,7 +110,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     if agents_data is None:
         agents_data = {}
     if not isinstance(agents_data, dict):
-        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping for {section}, got {type(agents_data).__name__}")
+        raise _config_error(f"Invalid config shape in {config_file}: expected a YAML mapping for {section}, got {type(agents_data).__name__}")
 
     # Parse settings from either the agents/tools dict or the top level
     auto_commit_raw = agents_data.get("auto_commit")
@@ -109,22 +126,28 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
 
     if not agents_data:
         logger.info("No agents section in config.yaml")
-        return AgentConfig(auto_commit=auto_commit, lint_on_edit=lint_on_edit)
+        return AgentConfig(auto_commit=auto_commit, lint_on_edit=lint_on_edit, explicit_agent_list=False)
 
     # Parse available agents
+    explicit_agent_list = "available" in agents_data
     available = agents_data.get("available", [])
     if isinstance(available, str):
         available = [available]
     if not isinstance(available, list):
-        raise AgentConfigError("Invalid agents.available in config.yaml: expected a list of agent keys")
+        raise _config_error("Invalid agents.available in config.yaml: expected a list of agent keys")
 
     invalid_agents = [agent for agent in available if agent not in AI_CHOICES]
     if invalid_agents:
         valid_agents = ", ".join(sorted(AI_CHOICES.keys()))
         unknown = ", ".join(sorted(invalid_agents))
-        raise AgentConfigError(f"Unknown agent key(s) in config.yaml: {unknown}. Valid agents: {valid_agents}")
+        raise _config_error(f"Unknown agent key(s) in config.yaml: {unknown}. Valid agents: {valid_agents}")
 
-    return AgentConfig(available=available, auto_commit=auto_commit, lint_on_edit=lint_on_edit)
+    return AgentConfig(
+        available=available,
+        auto_commit=auto_commit,
+        lint_on_edit=lint_on_edit,
+        explicit_agent_list=explicit_agent_list,
+    )
 
 
 def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
@@ -150,12 +173,14 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
         data = {}
         config_dir.mkdir(parents=True, exist_ok=True)
 
-    # Update agents section
-    data["agents"] = {
-        "available": config.available,
-        "auto_commit": config.auto_commit,
-        "lint_on_edit": config.lint_on_edit,
-    }
+    # Update agents section. A legacy config without a list keeps none: writing
+    # `available: []` would turn "every agent" into "no agents" (#6494).
+    agents: dict[str, object] = {}
+    if config.available or config.explicit_agent_list:
+        agents["available"] = config.available
+    agents["auto_commit"] = config.auto_commit
+    agents["lint_on_edit"] = config.lint_on_edit
+    data["agents"] = agents
 
     # Write back
     with open(config_file, "w") as f:
