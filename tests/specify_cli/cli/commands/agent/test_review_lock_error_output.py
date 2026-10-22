@@ -101,9 +101,9 @@ def test_foreign_lock_check_names_an_unreadable_lock(tmp_path: Path) -> None:
     _corrupt_lock(repo)
     workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
 
-    message = workflow._foreign_review_lock_message(workspace, repo, "claude")
+    refusal = workflow._foreign_review_lock_message(workspace, repo, "claude")
 
-    assert message is not None and message.startswith("REVIEW_LOCK_UNREADABLE")
+    assert refusal is not None and refusal.is_review_lock_code and refusal.text.startswith("REVIEW_LOCK_UNREADABLE")
 
 
 def test_review_checkout_ref_mirrors_worktree_creation(tmp_path: Path) -> None:
@@ -151,7 +151,7 @@ def test_foreign_lock_check_fails_closed_when_the_lock_changes_mid_read(tmp_path
     monkeypatch.setattr(workflow, "_review_lock_refusal_message", lambda *a, **k: None)
     workspace = SimpleNamespace(worktree_path=repo, branch_name="main", is_husk=False, exists=True)
 
-    message = workflow._foreign_review_lock_message(workspace, repo, "claude")
+    refusal = workflow._foreign_review_lock_message(workspace, repo, "claude")
 
-    assert message is not None and message.startswith("REVIEW_LOCK_UNREADABLE")
-    assert "changed while it was read" in message
+    assert refusal is not None and refusal.is_review_lock_code and refusal.text.startswith("REVIEW_LOCK_UNREADABLE")
+    assert "changed while it was read" in refusal.text

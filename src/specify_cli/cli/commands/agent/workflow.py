@@ -63,7 +63,7 @@ import subprocess
 import contextlib
 from pathlib import Path
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, NamedTuple
 
 import typer
 
@@ -2061,9 +2061,16 @@ def _refuse_review_lane(message: str) -> typer.Exit:
     return typer.Exit(1)
 
 
-def _foreign_review_lock_message(workspace: ResolvedWorkspace, main_repo_root: Path, agent: str | None) -> str | None:
-    """Refusal text when another agent holds a live review lock in *workspace*; ``None`` when it is free to move."""
-    from specify_cli.review.lock import REVIEW_LOCK_UNREADABLE, ReviewLock, ReviewLockReadError
+class _LockRefusal(NamedTuple):
+    """A refusal to move a review lane over its review lock: the text, and whether it is a ``REVIEW_LOCK_*`` one (printed unwrapped)."""
+
+    text: str
+    is_review_lock_code: bool
+
+
+def _foreign_review_lock_message(workspace: ResolvedWorkspace, main_repo_root: Path, agent: str | None) -> _LockRefusal | None:
+    """Refusal for a committed, unreadable or foreign live review lock in *workspace*; ``None`` when it is free to move."""
+    from specify_cli.review.lock import ReviewLock, ReviewLockReadError, review_lock_raced_refusal
 
     if not workspace.exists:
         return None
@@ -2072,13 +2079,14 @@ def _foreign_review_lock_message(workspace: ResolvedWorkspace, main_repo_root: P
     except ReviewLockReadError as exc:
         # Fail closed: a lock that read as corrupt is never "free to move",
         # even if a second read (racing a writer) would succeed.
-        raced = f"{REVIEW_LOCK_UNREADABLE}: refusing to update the lane; the review lock {exc.path} changed while it was read. Re-run the review."
-        return _review_lock_refusal_message(workspace, main_repo_root, None) or raced
+        text = _review_lock_refusal_message(workspace, main_repo_root, None) or review_lock_raced_refusal(exc.path)
+        return _LockRefusal(text, True)
     if lock is None or lock.is_stale() or lock.agent == (agent or "unknown"):
         return None
-    return (
+    return _LockRefusal(
         f"Refusing to update the lane: {workspace.worktree_path} has an active review by agent '{lock.agent}' "
-        f"on {lock.wp_id} (PID {lock.pid}). Wait for it to finish, then re-run."
+        f"on {lock.wp_id} (PID {lock.pid}). Wait for it to finish, then re-run.",
+        False,
     )
 
 
@@ -2172,9 +2180,9 @@ def _fast_forward_review_lane(workspace: ResolvedWorkspace, main_repo_root: Path
     except _LaneDiverged as exc:
         _lane_diverged_outcome(branch, action, str(exc))
         return
-    lock_message = _foreign_review_lock_message(workspace, main_repo_root, agent)
-    if lock_message is not None:
-        raise _refuse_review_lock(lock_message) if lock_message.startswith("REVIEW_LOCK_") else _refuse_review_lane(lock_message)
+    lock_refusal = _foreign_review_lock_message(workspace, main_repo_root, agent)
+    if lock_refusal is not None:
+        raise _refuse_review_lock(lock_refusal.text) if lock_refusal.is_review_lock_code else _refuse_review_lane(lock_refusal.text)
     try:
         advance_branch_ref(main_repo_root, branch, remote_sha, expected_old_sha=local_sha)
     except RefAdvanceDirtyWorktreeError as exc:
