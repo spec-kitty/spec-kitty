@@ -50,7 +50,7 @@ from specify_cli.status import (
 )
 from specify_cli.status.emit import emit_status_transition_batch
 from specify_cli.status.lifecycle_events import emit_wp_created_local
-from specify_cli.status.locking import _get_thread_locks
+from specify_cli.status.locking import _get_thread_locks, feature_status_lock
 from tests.status.conftest import seed_wp_to_planned
 from tests.unit.migration._backfill_fixture import build_mission
 
@@ -260,9 +260,13 @@ def _git_sandbox(tmp_path: Path) -> Path:
 
 
 def _flat_mission(tmp_path: Path, name: str = "family-pin-01AAAAAA") -> Path:
-    fd = _git_sandbox(tmp_path) / "kitty-specs" / name
+    root = _git_sandbox(tmp_path)
+    fd = root / "kitty-specs" / name
     fd.mkdir(parents=True)
-    seed_wp_to_planned(fd, "WP01", slug=name)
+    # Seed under the mission lock like every production writer, so the lock
+    # recorder (installed before the family runs) only sees locked writes.
+    with feature_status_lock(root, name):
+        seed_wp_to_planned(fd, "WP01", slug=name)
     return fd
 
 

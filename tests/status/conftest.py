@@ -18,8 +18,8 @@ from specify_cli.status.models import (
     StatusSnapshot,
     VerificationResult,
 )
-from tests._support.status_seed import seed_status_event
 from specify_cli.status.wp_state import wp_state_for
+from tests._support.status_seed import seed_status_event
 
 _THIS_DIR = Path(__file__).parent
 
