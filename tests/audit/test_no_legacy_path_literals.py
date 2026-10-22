@@ -169,7 +169,9 @@ _GLOBAL_STATE_SCAN_ROOTS = ("src/specify_cli", "src/kernel")
 #   * the keystone resolver itself — the ONE place the default home is computed,
 #   * asset-home modules (``.kittify`` — a different root, never ``.spec-kitty``),
 #   * Windows migration code (moves legacy data; must name the legacy dir),
-#   * the worktree-local review lock (``worktree / ".spec-kitty"`` — NOT home).
+#   * the worktree-local review lock (``worktree / ".spec-kitty"`` — NOT home),
+#   * the status lock's bare non-git fallback (``repo_root / ".spec-kitty"`` — NOT
+#     home; the same repository-local directory the review lock uses, #6367).
 _HOME_LITERAL_ALLOWLIST = frozenset(
     {
         "src/specify_cli/paths/windows_paths.py",
@@ -177,6 +179,7 @@ _HOME_LITERAL_ALLOWLIST = frozenset(
         "src/kernel/paths.py",
         "src/specify_cli/paths/windows_migrate.py",
         "src/specify_cli/review/lock.py",
+        "src/specify_cli/status/locking.py",
     }
 )
 
