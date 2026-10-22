@@ -17,11 +17,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as root_app
-from specify_cli.lanes.consolidation import merge_driver_attribute_lines
-from specify_cli.upgrade.init_seed import merge_attribute_seed_lines
-from specify_cli.upgrade.migrations import auto_discover_migrations
-from specify_cli.upgrade.migrations._merge_driver_seeding import MergeDriverSeedingMigration
-from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -66,22 +61,8 @@ def test_upgrade_after_init_makes_no_commit_and_no_tracked_change(tmp_path: Path
     assert (project / ".kittify" / "metadata.yaml").read_bytes() == metadata_before
 
 
-def test_init_writes_every_merge_line_an_upgrade_seeds(tmp_path: Path) -> None:
+def test_init_writes_the_legacy_issue_matrix_line_an_upgrade_seeds(tmp_path: Path) -> None:
     project = _committed_init_project(tmp_path)
     written = (project / ".gitattributes").read_text(encoding="utf-8").splitlines()
 
-    auto_discover_migrations()
-    seeded = {
-        driver.attributes_entry for migration in MigrationRegistry.get_all() if isinstance(migration, MergeDriverSeedingMigration) for driver in migration.drivers
-    }
-    assert seeded <= set(written)
-    assert set(merge_driver_attribute_lines()) <= set(written)
-
-
-def test_seed_lines_lead_with_the_registry_and_carry_no_duplicates() -> None:
-    lines = merge_attribute_seed_lines()
-    registry = merge_driver_attribute_lines()
-
-    assert lines[: len(registry)] == registry
-    assert len(lines) == len(set(lines))
-    assert "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix" in lines
+    assert "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix" in written
