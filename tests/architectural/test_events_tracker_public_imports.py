@@ -71,13 +71,29 @@ def _package_bound_names(tree: ast.Module) -> dict[str, str]:
     return bound
 
 
+def _attribute_chain(node: ast.Attribute) -> tuple[str, list[str]] | None:
+    """Return ``(root name, segments)`` for ``root.a.b`` or ``None`` when the root is not a Name."""
+    segments = [node.attr]
+    value = node.value
+    while isinstance(value, ast.Attribute):
+        segments.append(value.attr)
+        value = value.value
+    if not isinstance(value, ast.Name):
+        return None
+    return value.id, segments[::-1]
+
+
 def _private_attribute_findings(path: Path, tree: ast.Module) -> list[str]:
+    """Flag a private segment anywhere in an attribute chain rooted at a package-bound name."""
     bound = _package_bound_names(tree)
-    return [
-        f"{path}:{node.lineno} -> {bound[node.value.id]}.{node.attr}"
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in bound and _is_private_segment(node.attr)
-    ]
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Attribute) and _is_private_segment(node.attr)):
+            continue
+        chain = _attribute_chain(node)
+        if chain is not None and chain[0] in bound:
+            found.append(f"{path}:{node.lineno} -> {bound[chain[0]]}.{'.'.join(chain[1])}")
+    return found
 
 
 def test_cli_never_imports_private_events_or_tracker_names(tmp_path: Path) -> None:
@@ -116,6 +132,7 @@ def test_cli_never_imports_private_events_or_tracker_names(tmp_path: Path) -> No
                 "import spec_kitty_events.conformance.validators as v\nv._EVENT_TYPE_TO_MODEL\n",
                 "spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL",
             ),
+            ("import spec_kitty_events.status\nspec_kitty_events.status._reduce\n", "spec_kitty_events.status._reduce"),
         )
     ):
         fault = tmp_path / f"fault{index}.py"
