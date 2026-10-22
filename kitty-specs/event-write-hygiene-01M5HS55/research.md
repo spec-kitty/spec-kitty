@@ -47,3 +47,20 @@
 | The "byte-identical" claim needs a qualifier; the helper should batch | Accepted (R-3). |
 | ADR and doc factual updates; env var docs; breaking changelog entry | Accepted (IC-06). |
 | `ops-index.jsonl` is an index, not an event log | Accepted. The wording is corrected in data-model.md. |
+
+## Adversarial squad dispositions (post-tasks, reviewer lens)
+
+| Finding | Disposition |
+|---|---|
+| `kernel.atomic.notify_file_written` goes dead with the door; the frontmatter test re-tests vacuously | Accepted. WP02 T006 deletes it with its test and fixes the docstring. The frontmatter test moves from WP01 to WP02. |
+| FR-002/FR-003 not red first; the dead-symbol gate is never red | Accepted. The allowlist removals and the `hasattr` ban move into the T005 red commit. |
+| FR-007 and the edge case promised a test allowlist | Accepted. The spec is amended to the operator ruling (`src/` only, no allowlist, upstream ask). |
+| The identity spy would double-record | Accepted. The :311 line is always deleted. |
+| Wrong references in WP02 / WP03 / WP04 | Accepted. Corrected (allowlist line refs, lifecycle line numbers, the 2-of-5 alias users, the `test_coverage_breadth.py` path). |
+| Index census could over-match docstrings | Accepted. It matches exact non-docstring constants, with a docstring control and `_iter_records` as the read-only control. |
+| Baseline numbers | Accepted. Expect 85→83 in `widened_grandfathered_470`, verified by running the gate. |
+| Formatter-debt ratchet on renamed and door test files | Accepted. The ratchet test runs in WP02 and WP04, and `--force-exclude` is used. |
+| Docs index drift from Amendment headings; changelog style | Accepted. `docs_index.py --write` is mandatory, the index is owned by WP05, and `check_changelog_style` runs. |
+| Thread name and log text change | Accepted. Named as intended diffs in WP04. |
+| Comment-level "SaaS" sweep | Accepted. WP04 T017 adds a case-insensitive sweep over the seam's files. |
+| FR-001 wording stale | Accepted. The spec is reworded. |
