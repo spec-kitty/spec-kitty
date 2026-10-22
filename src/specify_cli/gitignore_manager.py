@@ -633,6 +633,7 @@ class GitignoreManager:
         if self.sync_agent_block(agent_keys):
             result.modified = True
         after = [line.strip() for line in (read_gitignore_text(self.gitignore_path) or "").splitlines()]
+        # Safe: ``sync_agent_block`` just wrote (or kept) a well-formed block, so both markers exist.
         begin = after.index(AGENT_BLOCK_BEGIN)
         end = after.index(AGENT_BLOCK_END)
         for entry in after[begin + 1 : end]:
