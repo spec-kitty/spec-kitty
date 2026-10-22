@@ -1,7 +1,7 @@
 {
-  "event_count": 32,
-  "last_event_id": "01M5J64FM4WM5A2R70JAMF2FBW",
-  "materialized_at": "2026-10-22T16:12:02.561671+00:00",
+  "event_count": 33,
+  "last_event_id": "01M5J7CJ8VPBXQ7MDP64SXFWDD",
+  "materialized_at": "2026-10-22T16:33:55.995116+00:00",
   "mission_number": "",
   "mission_slug": "event-write-hygiene-01M5HS55",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 1
   },
@@ -130,14 +130,27 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5J64FM4WM5A2R70JAMF2FBW",
-      "last_transition_at": "2026-10-22T16:12:02.561671+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5J7CJ8VPBXQ7MDP64SXFWDD",
+      "last_transition_at": "2026-10-22T16:33:55.995116+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-22T16:28:31Z – claude – shell_pid=20340 – T013 red first: b83b1398 (tests/status/test_adapters_contract.py + timeout test env retarget). Red on the old tree: contract file 7 failed/1 passed (AttributeError: no _status_handlers etc.), timeout file 3 failed (hanging-handler caplog, old-env and new-env cases). Renames in 09193941 (adapters + src callers, no aliases; SPEC_KITTY_SAAS_FANOUT_TIMEOUT has no effect, asserted). Intended non-identifier diffs: log labels, worker thread name f'{label}-handler', TimeoutError/_FanoutHandlerBusyError text, neutral docstrings, drain_posture docstrings replaced by one sentence. Sink + renames + ledgers in dfffa671 (fail-loud install_fanout_sink + planted missing-target test tests/status/test_fanout_sink_fails_loud.py); retargets in d63c1b9c.",
+        "- 2026-10-22T16:28:35Z – claude – shell_pid=20340 – Tests (PWHEADLESS=1 .venv/bin/python -m pytest ... -n auto --dist loadfile): tests/status tests/specify_cli/status tests/specify_cli/coordination tests/specify_cli/decisions tests/core tests/specify_cli/core = 4251 passed, 24 skipped; the other 23 owned/leeway test files = 340 passed, 2 xfailed; gates test_coverage_breadth, test_ruff_format_exclude_ratchet, test_timing_coverage_invariant, test_ledger_floor, test_no_legacy_terminology = 179 passed; make test-fast = 2454 passed, 8 skipped. ruff check + format --check --force-exclude clean; mypy on changed src only the known no-any-return errors (status_transition.py etc., pre-existing).",
+        "- 2026-10-22T16:28:38Z – claude – shell_pid=20340 – Leeway used (mechanical renames only): the 18 listed test files, status/__init__.py, status/lifecycle_events.py, plus further tests carrying old names (test_status_cli, test_emit_fanout_after_adapter, test_outbound, test_acceptance_support, test_ledger_floor and ~25 others), decisions/index_fold.py (quoted docstring), and pyproject.toml: also removed the stale [tool.ruff.format].exclude entry for tests/architectural/test_events_tracker_public_imports.py (WP02 reformatted it; the ratchet gate was red on it, not caused by WP04). Renamed test functions test_hanging_saas_handler_*/test_normal_/test_raising_ and coverage_breadth node ids (kept sorted).",
+        "- 2026-10-22T16:28:41Z – claude – shell_pid=20340 – Follow-ups: (1) out-of-scope saas names left unchanged: _saas_client_factory, get_saas_client, register_saas_client_factory, _get_saas_client_from_seam, saas_reachable, saas_gated, is_saas_sync_enabled, test_saas_sync_gate_selection_invariance.py, S310 comment, SPEC_KITTY_ENABLE_SAAS_SYNC fixtures; (2) coordination/status_transition.py reaches into emit._status_fan_out (existing private reach-in, unchanged); (3) docs/api/batch-api-contract.md:893 and docs/architecture/event-ledger-writers-and-readers.md:57,206 still carry old names (WP05)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 20340,
-      "shell_pid_created_at": "1792685515.59"
+      "shell_pid_created_at": "1792685515.59",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
