@@ -16,28 +16,12 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.task_utils.support import TaskCliError, extract_scalar, set_scalar
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_task_utils import test_set_scalar_updates_existing_key as test_set_scalar_updates_existing_key
+from tests.architectural._lifted_task_utils import test_set_scalar_refuses_append_on_miss as test_set_scalar_refuses_append_on_miss
+from tests.architectural._lifted_task_utils import (
+    test_set_scalar_never_appends_inline_review_feedback_key as test_set_scalar_never_appends_inline_review_feedback_key,
+)
 
 pytestmark = [pytest.mark.architectural]
-
-
-def test_set_scalar_updates_existing_key() -> None:
-    frontmatter = 'work_package_id: "WP01"\nlane: "planned"\n'
-    updated = set_scalar(frontmatter, "lane", "in_progress")
-    assert extract_scalar(updated, "lane") == "in_progress"
-    assert updated.count("lane:") == 1
-
-
-def test_set_scalar_refuses_append_on_miss() -> None:
-    frontmatter = 'work_package_id: "WP01"\n'
-    with pytest.raises(TaskCliError):
-        set_scalar(frontmatter, "lane", "planned")
-
-
-def test_set_scalar_never_appends_inline_review_feedback_key() -> None:
-    """The exact #3372 shape: an absent ``review_feedback`` key must NOT be
-    appended inline. Fail closed instead."""
-    frontmatter = 'work_package_id: "WP01"\ntitle: "Test"\n'
-    with pytest.raises(TaskCliError):
-        set_scalar(frontmatter, "review_feedback", "review-cycle://x/y/review-cycle-1.md")
-    assert "review_feedback" not in frontmatter

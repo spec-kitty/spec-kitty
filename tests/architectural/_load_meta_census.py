@@ -30,7 +30,10 @@ from pathlib import Path
 
 from tests.architectural._ast_scan import parse_file, qualname_by_line
 
-__all__ = ["ACCOUNTED_SITES", "ROUTE_HINT", "TARGET", "scan_load_meta_call_sites"]
+__all__ = ["ACCOUNTED_SITES", "ROUTE_HINT", "SRC_ROOT", "TARGET", "scan_load_meta_call_sites"]
+
+#: The live source tree both the gate and its source scan (#5015: one home for the root too).
+SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 
 #: The canonical reader name both ``load_meta`` definitions share (DEF A,
 #: ``mission_metadata.py``; DEF B, the ``task_utils`` path adapter).

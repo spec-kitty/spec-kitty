@@ -35,13 +35,9 @@ from typing import Any
 import pytest
 
 from specify_cli.core.paths import MissionMetaReadError
-from tests.architectural._load_meta_census import ACCOUNTED_SITES, scan_load_meta_call_sites
+from tests.architectural._load_meta_census import ACCOUNTED_SITES, SRC_ROOT, scan_load_meta_call_sites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-_THIS = Path(__file__).resolve()
-_REPO_ROOT = _THIS.parents[2]
-_SRC_ROOT = _REPO_ROOT / "src"
 
 #: Corrupt: truncated, syntactically invalid JSON — genuinely unparseable.
 _CORRUPT_META = '{"mission_id": "01JABCDEFGHJKMNPQRSTVWXYZ", '
@@ -103,7 +99,7 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
 
 def test_wp09_owned_files_retain_only_silent_sites() -> None:
     """WP09's batch-B routing is complete: no raise-contract readers remain."""
-    live = scan_load_meta_call_sites(_SRC_ROOT)
+    live = scan_load_meta_call_sites(SRC_ROOT)
     offenders = sorted(
         f"  {rel}::{qual} ({ACCOUNTED_SITES.get((rel, qual), (0, 'UNACCOUNTED'))[1]})"
         for (rel, qual) in live

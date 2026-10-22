@@ -17,53 +17,16 @@ from __future__ import annotations
 import os
 
 import pytest
-from typer.main import get_command
 
-from specify_cli import app as _typer_app
-from tests import _click_universe as typer_click
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_cli_no_visible_feature_alias import test_every_feature_flag_is_hidden as test_every_feature_flag_is_hidden
+from tests.architectural._lifted_cli_no_visible_feature_alias import test_zero_feature_flags_exist_cli_wide as test_zero_feature_flags_exist_cli_wide
 
 pytestmark = [pytest.mark.architectural]
-
-cli: typer_click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
 def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the upgrade-check opt-out set for every test (was a module-level ``setdefault``)."""
     monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
-
-
-def _walk_leaf_commands(group: typer_click.Group, prefix: tuple[str, ...] = ()):
-    for name, cmd in group.commands.items():
-        path = prefix + (name,)
-        if isinstance(cmd, typer_click.Group):
-            yield from _walk_leaf_commands(cmd, path)
-        else:
-            yield path, cmd
-
-
-def _param_declares_feature_flag(param: typer_click.Parameter) -> bool:
-    declared = list(getattr(param, "opts", []) or []) + list(getattr(param, "secondary_opts", []) or [])
-    return "--feature" in declared
-
-
-def test_zero_feature_flags_exist_cli_wide() -> None:
-    feature_options: list[str] = []
-    for path, cmd in _walk_leaf_commands(cli):
-        for param in cmd.params:
-            if _param_declares_feature_flag(param):
-                feature_options.append(" ".join(path))
-    assert feature_options == [], (
-        f"Found {len(feature_options)} '--feature' option(s) in CLI tree on "
-        f"command(s): {feature_options}. All --feature aliases must be removed "
-        "(Terminology Canon / FR-009)."
-    )
-
-
-def test_any_surviving_feature_flag_would_be_hidden() -> None:
-    offenders: list[str] = []
-    for path, cmd in _walk_leaf_commands(cli):
-        for param in cmd.params:
-            if _param_declares_feature_flag(param) and not getattr(param, "hidden", False):
-                offenders.append(" ".join(path))
-    assert not offenders, "--feature flag is visible on these commands (must be hidden=True):\n  " + "\n  ".join(offenders)

@@ -25,12 +25,24 @@ import pytest
 from pydantic import Field
 
 from charter.offering.drg.migration import extractor
-from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, Relation
 from specify_cli.drg_writers.registry import (
     DOCUMENT_WRITERS,
     MAPPING_WRITERS,
     MODEL_BRIDGES,
     MappingWriter,
+)
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_drg_writers_registry_completeness.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_drg_writers_registry_completeness import (
+    _full_node,
+    _expected_node_keys,
+)
+from tests.architectural._lifted_drg_writers_registry_completeness import (
+    test_every_mapping_writer_emits_every_declared_node_field as test_every_mapping_writer_emits_every_declared_node_field,
+)
+from tests.architectural._lifted_drg_writers_registry_completeness import (
+    test_every_mapping_writer_preserves_a_novel_node_field as test_every_mapping_writer_preserves_a_novel_node_field,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -40,16 +52,6 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # Fully-populated instances (W-1: totality is only meaningful when every field
 # carries a value, so an omit-when-empty rule cannot make the gate vacuous).
 # ---------------------------------------------------------------------------
-
-
-def _full_node() -> DRGNode:
-    return DRGNode(
-        urn="anti_pattern:big-ball-of-mud",
-        kind=NodeKind.ANTI_PATTERN,
-        label="Big Ball of Mud",
-        provenance="org:acme",
-        tags=["smell"],
-    )
 
 
 def _full_edge() -> DRGEdge:
@@ -73,10 +75,6 @@ def _full_graph() -> DRGGraph:
     )
 
 
-def _expected_node_keys() -> set[str]:
-    return set(DRGNode.model_fields) - extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
-
-
 def _expected_edge_keys() -> set[str]:
     return set(DRGEdge.model_fields) - extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
 
@@ -89,11 +87,6 @@ def _expected_edge_keys() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-class _NodeWithNovelFields(DRGNode):
-    novel_scalar: str | None = "planted-node-value"
-    novel_empty: list[str] = Field(default_factory=list)
-
-
 class _EdgeWithNovelFields(DRGEdge):
     novel_scalar: str | None = "planted-edge-value"
     novel_empty: list[str] = Field(default_factory=list)
@@ -101,12 +94,6 @@ class _EdgeWithNovelFields(DRGEdge):
 
 class _GraphWithNovelField(DRGGraph):
     novel_document_key: str = "planted-doc-value"
-
-
-def _mutated_node() -> _NodeWithNovelFields:
-    return _NodeWithNovelFields(
-        urn="anti_pattern:x", kind=NodeKind.ANTI_PATTERN, label="L", tags=["t"]
-    )
 
 
 def _mutated_edge() -> _EdgeWithNovelFields:
@@ -150,14 +137,6 @@ def test_the_three_hand_restating_writers_are_all_registered() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_every_mapping_writer_emits_every_declared_node_field() -> None:
-    node = _full_node()
-    for writer in MAPPING_WRITERS:
-        emitted = set(writer.node_to_mapping(node))
-        missing = _expected_node_keys() - emitted
-        assert not missing, f"{writer.name} dropped node field(s) {missing}"
-
-
 def test_every_mapping_writer_emits_every_declared_edge_field() -> None:
     edge = _full_edge()
     for writer in MAPPING_WRITERS:
@@ -169,16 +148,6 @@ def test_every_mapping_writer_emits_every_declared_edge_field() -> None:
 # ---------------------------------------------------------------------------
 # T005 / T007 — W-1a: a novel field (populated AND empty) survives every writer
 # ---------------------------------------------------------------------------
-
-
-def test_every_mapping_writer_preserves_a_novel_node_field() -> None:
-    node = _mutated_node()
-    for writer in MAPPING_WRITERS:
-        emitted = set(writer.node_to_mapping(node))
-        assert "novel_scalar" in emitted, f"{writer.name} dropped novel_scalar"
-        assert "novel_empty" in emitted, (
-            f"{writer.name} dropped novel_empty (the empty-value hole, W-1a)"
-        )
 
 
 def test_every_mapping_writer_preserves_a_novel_edge_field() -> None:

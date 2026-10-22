@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-22'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -85,6 +85,20 @@ closed — so the "known reds" below are already a different set than a month ag
   CI owns the full sweep), and
   `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci` for docs
   changes before declaring a branch green.
+- **An always-on `tests/architectural/test_lifted_*.py` gate re-runs an
+  out-of-matrix suite's invariant, so share its code; never copy it.** The
+  source suite runs only in the nightly and its lift runs on every PR, so a
+  copied predicate keeps enforcing the old rule after the source changes (#5008).
+  Since #5015, the code a lift shares with its source lives once, in
+  `tests/architectural/_lifted_<topic>.py`, and both files import it. That
+  includes tests: `from <home> import test_x as test_x` is what makes pytest
+  collect `test_x` in the importing module. The lift's docstring names its
+  source in double backticks.
+  `tests/architectural/test_lift_single_source.py` fails a lift that defines a
+  name its source, or a shared home, also defines, or that copies a body under
+  a new name. The name rule is strict: even an unrelated `REPO_ROOT` defined in
+  one file and bound in the other fails, so import it or rename it. To change a
+  lifted invariant, edit the shared home: both suites pick it up.
 - **No `git stash` in lane worktrees** — the stash stack is shared across
   worktrees, so a `pop` can steal a sibling lane's work-in-progress.
 - **`move-task` can hang on fan-out.** Background it and set

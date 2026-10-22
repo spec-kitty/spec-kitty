@@ -18,60 +18,12 @@ silently gone inert.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-import textwrap
-from pathlib import Path
-
 import pytest
 
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_lint import _lint_module as _lint_module
+from tests.architectural._lifted_lint import test_lint_clean_canonical_construction_zero_findings as test_lint_clean_canonical_construction_zero_findings
+from tests.architectural._lifted_lint import test_lint_hand_rolled_event_dict_fires_cp001 as test_lint_hand_rolled_event_dict_fires_cp001
+
 pytestmark = [pytest.mark.architectural]
-
-_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "lint_canonical_producers.py"
-
-
-def _load_lint_module(monkeypatch: pytest.MonkeyPatch):
-    spec = importlib.util.spec_from_file_location("lint_canonical_producers", _SCRIPT_PATH)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    monkeypatch.setitem(sys.modules, "lint_canonical_producers", module)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _lint_source(tmp_path: Path, source: str, monkeypatch: pytest.MonkeyPatch):
-    path = tmp_path / "candidate.py"
-    path.write_text(textwrap.dedent(source), encoding="utf-8")
-    lint = _load_lint_module(monkeypatch)
-    return lint.lint_paths([path])
-
-
-def test_clean_canonical_construction_yields_zero_findings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    findings = _lint_source(
-        tmp_path,
-        """
-        from spec_kitty_events.lifecycle import WPApprovedPayload
-
-        def make():
-            return WPApprovedPayload(
-                wp_id="WP01",
-                actor="claude",
-            )
-        """,
-        monkeypatch,
-    )
-    assert findings == []
-
-
-def test_hand_rolled_event_dict_still_fires_cp001(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    findings = _lint_source(
-        tmp_path,
-        """
-        def f():
-            x = {"event_type": "WPApproved", "payload": {"wp_id": "WP01"}}
-            return x
-        """,
-        monkeypatch,
-    )
-    codes = [f.code for f in findings]
-    assert "CP001" in codes, "canonical-producer lint has gone inert: a hand-rolled event dict no longer fires CP001"

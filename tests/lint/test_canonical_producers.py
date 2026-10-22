@@ -10,82 +10,31 @@ Issue: Priivacy-ai/spec-kitty#1248
 
 from __future__ import annotations
 
-import importlib.util
 import subprocess
 import sys
-import textwrap
-from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_lint.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_lint import (
+    _SCRIPT_PATH,
+    _write,
+    _lint_source,
+)
+from tests.architectural._lifted_lint import _lint_module as _lint_module
+from tests.architectural._lifted_lint import test_lint_clean_canonical_construction_zero_findings as test_lint_clean_canonical_construction_zero_findings
+from tests.architectural._lifted_lint import test_lint_hand_rolled_event_dict_fires_cp001 as test_lint_hand_rolled_event_dict_fires_cp001
+
 
 pytestmark = [pytest.mark.architectural]
-
-
-# Load the lint module by file path. The script lives in scripts/ which is
-# not a Python package on PYTHONPATH; importlib lets us treat it as a module
-# without polluting sys.path semantics.
-_SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "lint_canonical_producers.py"
-_LINT_MODULE_NAME = "lint_canonical_producers"
-
-#: Populated by the autouse ``_lint_module`` fixture below, once per module.
-lint: ModuleType
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _lint_module() -> Iterator[ModuleType]:
-    """Load the lint script once for this module's tests.
-
-    ``dataclass()`` on a class defined in a dynamically-loaded module looks
-    the class up via ``sys.modules[cls.__module__]``, so the module must be
-    registered there before ``exec_module`` runs. A module-scoped
-    ``pytest.MonkeyPatch.context()`` — not the function-scoped ``monkeypatch``
-    fixture, which a module-scoped fixture cannot depend on — keeps that
-    registration and undoes it once every test in this module has run.
-    """
-    global lint
-    with pytest.MonkeyPatch.context() as mp:
-        spec = importlib.util.spec_from_file_location(_LINT_MODULE_NAME, _SCRIPT_PATH)
-        assert spec is not None and spec.loader is not None
-        module = importlib.util.module_from_spec(spec)
-        mp.setitem(sys.modules, _LINT_MODULE_NAME, module)
-        spec.loader.exec_module(module)
-        lint = module
-        yield module
-
-
-def _write(tmp_path: Path, name: str, source: str) -> Path:
-    path = tmp_path / name
-    path.write_text(textwrap.dedent(source), encoding="utf-8")
-    return path
-
-
-def _lint_source(tmp_path: Path, source: str, name: str = "candidate.py"):
-    path = _write(tmp_path, name, source)
-    return lint.lint_paths([path])
 
 
 # --------------------------------------------------------------------------- #
 # Negative cases (canonical construction; lint must stay silent)               #
 # --------------------------------------------------------------------------- #
-
-
-def test_lint_clean_canonical_construction_zero_findings(tmp_path: Path) -> None:
-    findings = _lint_source(
-        tmp_path,
-        """
-        from spec_kitty_events.lifecycle import WPApprovedPayload
-
-        def make():
-            return WPApprovedPayload(
-                wp_id="WP01",
-                actor="claude",
-            )
-        """,
-    )
-    assert findings == []
 
 
 def test_lint_canonical_dict_inside_envelope_zero_findings(tmp_path: Path) -> None:
@@ -140,20 +89,6 @@ def test_lint_emit_with_name_bound_zero_findings(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # Positive cases (must fire)                                                   #
 # --------------------------------------------------------------------------- #
-
-
-def test_lint_hand_rolled_event_dict_fires_cp001(tmp_path: Path) -> None:
-    findings = _lint_source(
-        tmp_path,
-        """
-        def f():
-            x = {"event_type": "WPApproved", "payload": {"wp_id": "WP01"}}
-            return x
-        """,
-    )
-    codes = [f.code for f in findings]
-    assert "CP001" in codes
-    assert all(f.path.name == "candidate.py" for f in findings)
 
 
 def test_lint_dict_str_any_return_fires_cp002(tmp_path: Path) -> None:
@@ -508,11 +443,11 @@ def test_lint_dict_str_any_partial_event_key_still_fires_cp002(tmp_path: Path) -
     assert "CP002" in [f.code for f in findings]
 
 
-def test_lint_skips_unparseable_file(tmp_path: Path) -> None:
+def test_lint_skips_unparseable_file(tmp_path: Path, _lint_module: ModuleType) -> None:
     _write(tmp_path, "broken.py", "def f(:\n    pass\n")
     # Bad syntax -- lint refuses to emit canonical-producer findings on a
     # tree it can't parse. The other lints catch the syntax error.
-    findings = lint.lint_paths([tmp_path])
+    findings = _lint_module.lint_paths([tmp_path])
     assert findings == []
 
 

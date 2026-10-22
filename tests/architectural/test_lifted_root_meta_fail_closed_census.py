@@ -22,11 +22,9 @@ from pathlib import Path
 import pytest
 
 from tests.architectural._ast_scan import parse_file
-from tests.architectural._load_meta_census import ACCOUNTED_SITES, ROUTE_HINT, scan_load_meta_call_sites
+from tests.architectural._load_meta_census import ACCOUNTED_SITES, ROUTE_HINT, SRC_ROOT, scan_load_meta_call_sites
 
 pytestmark = [pytest.mark.architectural]
-
-_SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 
 
 def test_no_unaccounted_load_meta_call_sites() -> None:
@@ -37,7 +35,7 @@ def test_no_unaccounted_load_meta_call_sites() -> None:
     directions, so neither a new unwrapped reader nor a stale ledger row can
     hide.
     """
-    live = scan_load_meta_call_sites(_SRC_ROOT)
+    live = scan_load_meta_call_sites(SRC_ROOT)
 
     unaccounted = {key: n for key, n in live.items() if key not in ACCOUNTED_SITES}
     assert not unaccounted, (
@@ -148,7 +146,7 @@ def test_census_has_exactly_one_home() -> None:
     under ``tests/`` -- annotated or not, public or ``_``-prefixed -- re-opens
     that split-brain, so it fails here.
     """
-    tests_root = _SRC_ROOT.parent / "tests"
+    tests_root = SRC_ROOT.parent / "tests"
     homes = sorted(
         path.relative_to(tests_root.parent).as_posix() for path in tests_root.rglob("*.py") if "__pycache__" not in path.parts and _defines_census(parse_file(path))
     )

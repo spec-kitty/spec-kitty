@@ -16,18 +16,12 @@ OS keyring.
 
 from __future__ import annotations
 
-import tomllib
-from pathlib import Path
-
 import pytest
 
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_packaging_windows_keyring import (
+    test_keyring_not_declared_in_project_dependencies as test_keyring_not_declared_in_project_dependencies,
+)
+
 pytestmark = [pytest.mark.architectural]
-
-
-def test_keyring_not_declared_in_project_dependencies() -> None:
-    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
-    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    dependencies = data["project"]["dependencies"]
-    assert all(not dep.startswith("keyring") for dep in dependencies), (
-        "CLI auth should use only the encrypted file store under ~/.spec-kitty/auth/, so pyproject.toml must not declare keyring."
-    )

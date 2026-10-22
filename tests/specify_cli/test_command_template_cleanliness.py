@@ -19,7 +19,6 @@ WP06: T026
 from __future__ import annotations
 
 from pathlib import Path
-import re
 
 import pytest
 
@@ -28,10 +27,19 @@ import pytest
 # ---------------------------------------------------------------------------
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_root_command_template_cleanliness.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_root_command_template_cleanliness import (
+    PROMPT_DRIVEN,
+    _PROMPT_STEPS_DIR,
+    _FORBIDDEN_HOME_LITERAL,
+    _template_content,
+)
+from tests.architectural._lifted_root_command_template_cleanliness import test_no_dev_specific_mission_slugs as test_no_dev_specific_mission_slugs
+from tests.architectural._lifted_root_command_template_cleanliness import test_no_absolute_user_paths as test_no_absolute_user_paths
+from tests.architectural._lifted_root_command_template_cleanliness import test_no_planning_repository_terminology as test_no_planning_repository_terminology
 
 # All full prompt-driven command templates.
-PROMPT_DRIVEN: list[str] = sorted(PROMPT_DRIVEN_COMMANDS)
 
 # Planning-workflow templates that MUST use "repository root checkout" terminology.
 # These are commands that explicitly direct agents on where to perform work.
@@ -46,14 +54,6 @@ PLANNING_WORKFLOW_TEMPLATES: list[str] = [
     "research",
 ]
 
-_PROMPT_STEPS_DIR = (
-    Path(__file__).parent.parent.parent
-    / "packs"
-    / "built-in"
-    / "missions"
-    / "mission-steps"
-    / "software-dev"
-)
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
 _ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
@@ -66,12 +66,6 @@ _ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
     _REPO_ROOT / "README.md",
     _REPO_ROOT / "CHANGELOG.md",
 )
-_FORBIDDEN_HOME_LITERAL = "/Users/" + "robe" + "rt/"
-
-
-def _template_content(command: str) -> str:
-    """Read and return the content of a command template file."""
-    return (_PROMPT_STEPS_DIR / command / "prompt.md").read_text(encoding="utf-8")
 
 
 def _active_codebase_files() -> list[Path]:
@@ -134,41 +128,9 @@ def test_no_057_mission_slug(command: str) -> None:
     )
 
 
-@pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_dev_specific_mission_slugs(command: str) -> None:
-    """Templates must not contain the 057- or 058- dev-time feature slugs.
-
-    The 057- and 058- slugs are development artifacts that leaked from source
-    templates during authoring. Generic example slugs like '014-checkout-flow'
-    or '020-my-feature' are legitimate documentation placeholders and are allowed.
-    """
-    content = _template_content(command)
-    # Check specifically for the dev-time feature slugs
-    for bad_slug in ("057-", "058-"):
-        assert bad_slug not in content, (
-            f"{command}.md contains dev-time feature slug '{bad_slug}' - "
-            f"strip before shipping to consumers"
-        )
-
-
 # ---------------------------------------------------------------------------
 # T026-c: No absolute machine-specific paths
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_absolute_user_paths(command: str) -> None:
-    """Templates must not contain absolute paths tied to a specific machine."""
-    content = _template_content(command)
-    assert _FORBIDDEN_HOME_LITERAL not in content, (
-        f"{command}.md contains a forbidden user-specific home path literal"
-    )
-    assert re.search(r"/Users/[^/]+/", content) is None, (
-        f"{command}.md contains macOS absolute user path '/Users/<user>/'"
-    )
-    assert re.search(r"/home/[^/]+/", content) is None, (
-        f"{command}.md contains Linux absolute user path '/home/<user>/'"
-    )
 
 
 def test_no_user_specific_home_literal_in_active_codebase() -> None:
@@ -212,32 +174,6 @@ def test_no_kittify_missions_read_instruction(command: str) -> None:
 # ---------------------------------------------------------------------------
 # T026-e: No deprecated planning-location terminology
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_planning_repository_terminology(command: str) -> None:
-    """Templates must not use deprecated planning-location terminology.
-
-    The correct phrase is 'repository root checkout'. Older variants caused
-    agents to confuse planning location with branch choice.
-    """
-    content = _template_content(command)
-    assert "planning repository" not in content.lower(), (
-        f"{command}.md uses deprecated 'planning repository' terminology - "
-        f"use 'repository root checkout' instead"
-    )
-    assert "planning repo" not in content.lower(), (
-        f"{command}.md uses deprecated 'planning repo' terminology - "
-        f"use 'repository root checkout' instead"
-    )
-    assert "project root checkout" not in content.lower(), (
-        f"{command}.md uses deprecated 'project root checkout' terminology - "
-        f"use 'repository root checkout' instead"
-    )
-    assert "main repository root" not in content.lower(), (
-        f"{command}.md uses ambiguous 'main repository root' terminology - "
-        f"use 'repository root checkout' instead"
-    )
 
 
 # ---------------------------------------------------------------------------

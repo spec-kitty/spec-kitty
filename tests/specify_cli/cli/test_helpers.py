@@ -12,24 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.helpers import get_project_root_or_exit
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_cli_project_root_resolution.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_cli_project_root_resolution import (
+    test_get_project_root_or_exit_succeeds_in_worktree as test_get_project_root_or_exit_succeeds_in_worktree,
+)
+from tests.architectural._lifted_cli_project_root_resolution import test_exit_git_resolution_failure_exits_1 as test_exit_git_resolution_failure_exits_1
+from tests.architectural._lifted_cli_project_root_resolution import test_exit_git_resolution_failure_json_envelope as test_exit_git_resolution_failure_json_envelope
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-
-def test_get_project_root_or_exit_succeeds_in_worktree(tmp_path: Path) -> None:
-    """get_project_root_or_exit returns main repo root when called from a git worktree."""
-    main_repo = tmp_path / "main_repo"
-    (main_repo / ".kittify").mkdir(parents=True)
-    worktrees_dir = main_repo / ".git" / "worktrees" / "test_lane"
-    worktrees_dir.mkdir(parents=True)
-
-    worktree = tmp_path / "worktree"
-    worktree.mkdir()
-    (worktree / ".git").write_text(f"gitdir: {worktrees_dir}\n")
-
-    result = get_project_root_or_exit(start=worktree)
-    assert result == main_repo
 
 
 # ---------------------------------------------------------------------------
@@ -67,51 +58,3 @@ def test_git_resolution_failure_message_passes_unavailable_detail_through(
 
     assert "no git binary on PATH" in message
     assert "git init" not in message
-
-
-def test_exit_git_resolution_failure_exits_1(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The human render prints the message and exits 1 (no traceback)."""
-    import io
-
-    import typer
-    from rich.console import Console
-
-    from charter.resolution import NotInsideRepositoryError
-    from specify_cli.cli import helpers as helpers_mod
-    from specify_cli.cli.helpers import exit_git_resolution_failure
-
-    buf = io.StringIO()
-    monkeypatch.setattr(helpers_mod, "console", Console(file=buf, force_terminal=False, highlight=False))
-
-    with pytest.raises(typer.Exit) as excinfo:
-        exit_git_resolution_failure(NotInsideRepositoryError(tmp_path), tmp_path)
-
-    assert excinfo.value.exit_code == 1
-    assert "git init" in buf.getvalue()
-
-
-def test_exit_git_resolution_failure_json_envelope(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """The --json render emits one canonical error envelope on stdout."""
-    import json
-
-    import typer
-
-    from charter.resolution import NotInsideRepositoryError
-    from specify_cli.cli.helpers import exit_git_resolution_failure
-
-    with pytest.raises(typer.Exit) as excinfo:
-        exit_git_resolution_failure(NotInsideRepositoryError(tmp_path), tmp_path, json_output=True)
-
-    assert excinfo.value.exit_code == 1
-    captured = capsys.readouterr()
-    assert captured.err == ""
-    envelope = json.loads(captured.out)
-    assert envelope["ok"] is False
-    assert envelope["error"]["code"] == "git_resolution_failed"
-    assert "git init" in envelope["error"]["message"]

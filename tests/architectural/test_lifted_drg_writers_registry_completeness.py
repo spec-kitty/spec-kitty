@@ -17,51 +17,14 @@ has never seen before, must both survive every registered mapping writer.
 from __future__ import annotations
 
 import pytest
-from pydantic import Field
 
-from charter.offering.drg.migration import extractor
-from charter.offering.drg.models import DRGNode, NodeKind
-from specify_cli.drg_writers.registry import MAPPING_WRITERS
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_drg_writers_registry_completeness import (
+    test_every_mapping_writer_emits_every_declared_node_field as test_every_mapping_writer_emits_every_declared_node_field,
+)
+from tests.architectural._lifted_drg_writers_registry_completeness import (
+    test_every_mapping_writer_preserves_a_novel_node_field as test_every_mapping_writer_preserves_a_novel_node_field,
+)
 
 pytestmark = [pytest.mark.architectural]
-
-
-def _full_node() -> DRGNode:
-    return DRGNode(
-        urn="anti_pattern:big-ball-of-mud",
-        kind=NodeKind.ANTI_PATTERN,
-        label="Big Ball of Mud",
-        provenance="org:acme",
-        tags=["smell"],
-    )
-
-
-def _expected_node_keys() -> set[str]:
-    return set(DRGNode.model_fields) - extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
-
-
-class _NodeWithNovelFields(DRGNode):
-    novel_scalar: str | None = "planted-node-value"
-    novel_empty: list[str] = Field(default_factory=list)
-
-
-def _mutated_node() -> _NodeWithNovelFields:
-    return _NodeWithNovelFields(urn="anti_pattern:x", kind=NodeKind.ANTI_PATTERN, label="L", tags=["t"])
-
-
-def test_every_mapping_writer_emits_every_declared_node_field() -> None:
-    assert MAPPING_WRITERS  # non-empty, so the scan is not vacuous
-    node = _full_node()
-    for writer in MAPPING_WRITERS:
-        emitted = set(writer.node_to_mapping(node))
-        missing = _expected_node_keys() - emitted
-        assert not missing, f"{writer.name} dropped node field(s) {missing}"
-
-
-def test_every_mapping_writer_preserves_a_novel_node_field() -> None:
-    """A field DRGEdge.__init__ never declared before still survives every writer."""
-    node = _mutated_node()
-    for writer in MAPPING_WRITERS:
-        emitted = set(writer.node_to_mapping(node))
-        assert "novel_scalar" in emitted, f"{writer.name} dropped novel_scalar"
-        assert "novel_empty" in emitted, f"{writer.name} dropped novel_empty (the empty-value hole, W-1a)"

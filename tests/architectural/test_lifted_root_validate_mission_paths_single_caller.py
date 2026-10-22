@@ -18,63 +18,12 @@ offending caller rather than an opaque count mismatch).
 
 from __future__ import annotations
 
-import ast
-from pathlib import Path
-
 import pytest
 
-import specify_cli
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_root_validate_mission_paths_single_caller import (
+    test_validate_mission_paths_has_single_production_caller as test_validate_mission_paths_has_single_production_caller,
+)
 
 pytestmark = [pytest.mark.architectural]
-
-_TARGET = "validate_mission_paths"
-_EXPECTED_CALLERS: frozenset[str] = frozenset({"acceptance/summary_core.py::evaluate_path_conventions"})
-
-
-def _package_root() -> Path:
-    return Path(specify_cli.__file__).resolve().parent
-
-
-class _CallSiteVisitor(ast.NodeVisitor):
-    def __init__(self, module_rel: str) -> None:
-        self._module_rel = module_rel
-        self._func_stack: list[str] = []
-        self.callers: set[str] = set()
-
-    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        self._func_stack.append(node.name)
-        self.generic_visit(node)
-        self._func_stack.pop()
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._visit_function(node)
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self._visit_function(node)
-
-    def visit_Call(self, node: ast.Call) -> None:
-        func = node.func
-        name: str | None = None
-        if isinstance(func, ast.Name):
-            name = func.id
-        elif isinstance(func, ast.Attribute):
-            name = func.attr
-        if name == _TARGET:
-            enclosing = self._func_stack[-1] if self._func_stack else "<module>"
-            self.callers.add(f"{self._module_rel}::{enclosing}")
-        self.generic_visit(node)
-
-
-def _production_callers() -> set[str]:
-    root = _package_root()
-    callers: set[str] = set()
-    for path in root.rglob("*.py"):
-        module_rel = path.relative_to(root).as_posix()
-        visitor = _CallSiteVisitor(module_rel)
-        visitor.visit(ast.parse(path.read_text(encoding="utf-8")))
-        callers.update(visitor.callers)
-    return callers
-
-
-def test_validate_mission_paths_has_single_production_caller() -> None:
-    assert _production_callers() == set(_EXPECTED_CALLERS)

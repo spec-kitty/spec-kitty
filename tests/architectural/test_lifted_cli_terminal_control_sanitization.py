@@ -15,46 +15,15 @@ rendering), which duplicate the same seam behavior through heavier imports.
 
 from __future__ import annotations
 
-import io
-
 import pytest
-from rich.table import Table
 
-from specify_cli.cli.console import CliConsole
+# The tests live once, in the shared home this gate and its source import
+# (#5015); importing them is what makes pytest collect them in this module.
+from tests.architectural._lifted_cli_terminal_control_sanitization import (
+    test_machine_json_output_remains_plain_and_round_trips as test_machine_json_output_remains_plain_and_round_trips,
+)
+from tests.architectural._lifted_cli_terminal_control_sanitization import (
+    test_render_str_and_segment_rendering_share_the_policy as test_render_str_and_segment_rendering_share_the_policy,
+)
 
 pytestmark = [pytest.mark.architectural]
-
-SAFE_TEXT = "Zoë Ölafsdóttir 日本語 🐱"
-HOSTILE_SUFFIX = "\x1b[2J\x1b]0;x\x07\x1b"
-HOSTILE_TEXT = f"{SAFE_TEXT}{HOSTILE_SUFFIX}"
-
-
-def _console() -> tuple[CliConsole, io.StringIO]:
-    buffer = io.StringIO()
-    return CliConsole(file=buffer, width=160, no_color=True, highlight=False), buffer
-
-
-def test_machine_json_output_remains_plain_and_round_trips() -> None:
-    console, buffer = _console()
-    console.emit_json({"value": HOSTILE_TEXT})
-    emitted = buffer.getvalue().encode("utf-8")
-
-    assert SAFE_TEXT.encode("utf-8") in emitted
-    assert b"\\u001b[2J" in emitted
-    assert b"\\u001b]0;x" in emitted
-    assert b"\x1b" not in emitted
-
-
-def test_render_str_and_segment_rendering_share_the_policy() -> None:
-    console, _ = _console()
-    rendered_text = console.render_str(f"[red]{HOSTILE_TEXT}[/red]")
-    assert SAFE_TEXT in rendered_text.plain
-    assert "\x1b" not in rendered_text.plain
-
-    table = Table()
-    table.add_column("Value")
-    table.add_row(HOSTILE_TEXT)
-    segments = list(console.render(table))
-    rendered = "".join(segment.text for segment in segments)
-    assert SAFE_TEXT in rendered
-    assert "\x1b" not in rendered

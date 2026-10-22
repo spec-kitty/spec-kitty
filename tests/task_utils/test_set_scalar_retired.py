@@ -24,6 +24,14 @@ import pytest
 
 from specify_cli.task_utils.support import TaskCliError, extract_scalar, set_scalar, split_frontmatter
 
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_task_utils.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_task_utils import test_set_scalar_updates_existing_key as test_set_scalar_updates_existing_key
+from tests.architectural._lifted_task_utils import test_set_scalar_refuses_append_on_miss as test_set_scalar_refuses_append_on_miss
+from tests.architectural._lifted_task_utils import (
+    test_set_scalar_never_appends_inline_review_feedback_key as test_set_scalar_never_appends_inline_review_feedback_key,
+)
+
 # [fast, unit] (not git_repo): the one review-cycle case does a light, isolated
 # `git init` in tmp_path (<1s, parallel-safe), so these belong in the fast lane.
 # tests/task_utils/ is a new top-level dir that only the fast-tests-core-misc
@@ -39,14 +47,6 @@ pytestmark = [pytest.mark.fast, pytest.mark.unit]
 # ---------------------------------------------------------------------------
 
 
-def test_set_scalar_updates_existing_key() -> None:
-    frontmatter = 'work_package_id: "WP01"\nlane: "planned"\n'
-    updated = set_scalar(frontmatter, "lane", "in_progress")
-    assert extract_scalar(updated, "lane") == "in_progress"
-    # No duplicate key is introduced by the update.
-    assert updated.count("lane:") == 1
-
-
 def test_set_scalar_update_preserves_trailing_comment() -> None:
     frontmatter = 'work_package_id: "WP01"\nlane: "planned"  # keep me\n'
     updated = set_scalar(frontmatter, "lane", "in_progress")
@@ -57,20 +57,6 @@ def test_set_scalar_update_preserves_trailing_comment() -> None:
 # ---------------------------------------------------------------------------
 # FR-006 guard 2: append-on-miss is FAIL-CLOSED (never appends an inline key)
 # ---------------------------------------------------------------------------
-
-
-def test_set_scalar_refuses_append_on_miss() -> None:
-    frontmatter = 'work_package_id: "WP01"\n'
-    with pytest.raises(TaskCliError):
-        set_scalar(frontmatter, "lane", "planned")
-
-
-def test_set_scalar_never_appends_inline_review_feedback_key() -> None:
-    """The exact #3372 shape: an absent ``review_feedback`` key must NOT be
-    appended inline. Fail closed instead."""
-    frontmatter = 'work_package_id: "WP01"\ntitle: "Test"\n'
-    with pytest.raises(TaskCliError):
-        set_scalar(frontmatter, "review_feedback", "review-cycle://x/y/review-cycle-1.md")
 
 
 def test_set_scalar_refuses_append_even_with_history_anchor() -> None:

@@ -2,34 +2,30 @@
 
 from __future__ import annotations
 
-import io
 import subprocess
 from pathlib import Path
 
 import pytest
 import typer
-from rich.table import Table
 
 from specify_cli.agent_utils import status as status_module
-from specify_cli.cli.console import CliConsole
 from specify_cli.cli.commands import glossary as glossary_module
 from specify_cli.core import git_ops
 from specify_cli.status import Lane
 
-
-SAFE_TEXT = "Zoë Ölafsdóttir 日本語 🐱"
-HOSTILE_SUFFIX = "\x1b[2J\x1b]0;x\x07\x1b"
-HOSTILE_TEXT = f"{SAFE_TEXT}{HOSTILE_SUFFIX}"
-
-
-def _console() -> tuple[CliConsole, io.StringIO]:
-    buffer = io.StringIO()
-    return CliConsole(
-        file=buffer,
-        width=160,
-        no_color=True,
-        highlight=False,
-    ), buffer
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_cli_terminal_control_sanitization.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_cli_terminal_control_sanitization import (
+    SAFE_TEXT,
+    HOSTILE_TEXT,
+    _console,
+)
+from tests.architectural._lifted_cli_terminal_control_sanitization import (
+    test_machine_json_output_remains_plain_and_round_trips as test_machine_json_output_remains_plain_and_round_trips,
+)
+from tests.architectural._lifted_cli_terminal_control_sanitization import (
+    test_render_str_and_segment_rendering_share_the_policy as test_render_str_and_segment_rendering_share_the_policy,
+)
 
 
 def _assert_clean(output: str) -> None:
@@ -98,29 +94,3 @@ def test_git_error_output_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
         git_ops.run_command(["git", HOSTILE_TEXT], console=console)
 
     _assert_clean(buffer.getvalue())
-
-
-def test_machine_json_output_remains_plain_and_round_trips() -> None:
-    console, buffer = _console()
-    console.emit_json({"value": HOSTILE_TEXT})
-    emitted = buffer.getvalue().encode("utf-8")
-
-    assert SAFE_TEXT.encode("utf-8") in emitted
-    assert b"\\u001b[2J" in emitted
-    assert b"\\u001b]0;x" in emitted
-    assert b"\x1b" not in emitted
-
-
-def test_render_str_and_segment_rendering_share_the_policy() -> None:
-    console, _ = _console()
-    rendered_text = console.render_str(f"[red]{HOSTILE_TEXT}[/red]")
-    assert SAFE_TEXT in rendered_text.plain
-    assert "\x1b" not in rendered_text.plain
-
-    table = Table()
-    table.add_column("Value")
-    table.add_row(HOSTILE_TEXT)
-    segments = list(console.render(table))
-    rendered = "".join(segment.text for segment in segments)
-    assert SAFE_TEXT in rendered
-    assert "\x1b" not in rendered

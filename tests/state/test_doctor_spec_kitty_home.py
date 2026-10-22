@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.paths import get_runtime_root
 from specify_cli.state import doctor as doctor_mod
 from specify_cli.state.contract import (
     AuthorityClass,
@@ -24,15 +23,12 @@ from specify_cli.state.contract import (
     StateSurface,
 )
 from specify_cli.state.doctor import StateRootsReport, check_state_roots
+# The tests and helpers shared with this suite's always-on lift live once, in
+# ``tests/architectural/_lifted_state.py`` (#5015); importing a test is what makes pytest collect it here.
+from tests.architectural._lifted_state import test_reported_root_matches_runtime_root_with_env as test_reported_root_matches_runtime_root_with_env
+from tests.architectural._lifted_state import test_reported_root_matches_runtime_root_without_env as test_reported_root_matches_runtime_root_without_env
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-
-def _global_sync_root(report: StateRootsReport) -> Path:
-    """Return the resolved global-sync root from a state-roots report."""
-    return next(
-        r.resolved_path for r in report.roots if r.name == "global_sync"
-    )
 
 
 def _sync_config_present(report: StateRootsReport) -> bool:
@@ -40,28 +36,6 @@ def _sync_config_present(report: StateRootsReport) -> bool:
     return next(
         s.present for s in report.surfaces if s.surface.name == "sync_config"
     )
-
-
-def test_reported_root_matches_runtime_root_with_env(tmp_path, monkeypatch):
-    """SPEC_KITTY_HOME set: reported global-sync root == base == env value."""
-    env_root = tmp_path / "custom-home"
-    env_root.mkdir()
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(env_root))
-
-    report = check_state_roots(tmp_path)
-
-    assert _global_sync_root(report) == get_runtime_root().base == env_root
-
-
-def test_reported_root_matches_runtime_root_without_env(tmp_path, monkeypatch):
-    """SPEC_KITTY_HOME unset: reported root == base (default ~/.spec-kitty)."""
-    monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-
-    report = check_state_roots(tmp_path)
-
-    assert _global_sync_root(report) == get_runtime_root().base
-    assert _global_sync_root(report) == tmp_path / ".spec-kitty"
 
 
 def test_global_sync_surface_resolves_under_env_root(tmp_path, monkeypatch):
