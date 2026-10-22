@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#6117": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6164": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6185": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6599": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6603": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6607": {
+      "evidence_ref": "WP03 builder deletion + widened test_events_tracker_public_imports; WP04 seam rename + test_adapters_contract",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#6608": {
+      "evidence_ref": "Context citation only (epic / related work); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6614": {
+      "evidence_ref": "WP01 seed codemod + WP02 door deletion; gates: test_status_unsafe_allowlist, test_status_events_writes_gate (incl. ops-index single writer), test_no_dead_symbols",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

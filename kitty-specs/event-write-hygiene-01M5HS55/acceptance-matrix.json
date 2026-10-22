@@ -1,0 +1,119 @@
+{
+  "mission_slug": "event-write-hygiene-01M5HS55",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_status_unsafe_allowlist.py + test_status_events_writes_gate.py::test_store_writes_are_found (red at 82212d0c, green at HEAD)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:42.931139+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_no_dead_symbols.py + test_1622_dead_symbol_retirement.py::test_append_event_log_deleted (red at 82212d0c)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:48.012203+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_status_events_writes_gate.py::test_invocation_index_has_a_single_writer; tests/specify_cli/invocation/cli/test_invocations.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:52.648560+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_status_seed_helper.py (bytes == serialize_event_line); 189 codemodded files green (WP01 review: 3079+1837 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:57.441601+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "gate red-first commits 82212d0c / 78730d04 / b83b1398 with planted controls; 237 passed on acceptance run",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:03.119042+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "rg build_saas_lifecycle_queue_event|_validate_lifecycle_payload|_EVENT_TYPE_TO_MODEL src -> empty; tests/status/test_lifecycle_events.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:07.970810+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_events_tracker_public_imports.py (all 6 production roots, alias.name, red at 78730d04)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:13.083040+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "grep -ci saas src/specify_cli/status/adapters.py == 0; no aliases (rg old names in src empty)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:17.759493+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_adapters_contract.py + test_fanout_timeout.py + test_fanout_sink_fails_loud.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:23.660251+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP05 review approved b9713efa: gap rows G-11/G-16/G-18, 4 ADR amendments, env-var ref, breaking changelog; check_docs_freshness --ci errors=0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:28.213199+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "Deleted dead write doors and the hosted builder do not reappear in src",
+      "verification_method": "grep_absence",
+      "verification_command": "def append_event_verified|def append_primary_checkout_event_verified|def append_event_log\\b|def append_to_index|build_saas_lifecycle_queue_event|_EVENT_TYPE_TO_MODEL|SPEC_KITTY_SAAS_FANOUT|register_saas_fanout_handler|fire_saas_fanout",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    }
+  ]
+}
