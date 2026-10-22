@@ -28,6 +28,9 @@ pytestmark = [pytest.mark.architectural, pytest.mark.corpus, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# The fetched packs/ tree is scanned too: an offending string that arrives through an
+# open-packs pin bump must be fixed upstream in spec-kitty-open-packs and re-pinned,
+# never edited here.
 _SCAN_ROOTS: tuple[str, ...] = ("src", "packs")
 _TEXT_SUFFIXES: frozenset[str] = frozenset({".py", ".md", ".yaml", ".yml", ".json", ".toml", ".txt", ".sh", ".ps1", ".j2", ".jinja"})
 _SKIPPED_DIR_NAMES: frozenset[str] = frozenset({"__pycache__", ".git", "node_modules"})
