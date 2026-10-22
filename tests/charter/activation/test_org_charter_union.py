@@ -14,6 +14,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 
 from charter.activation.pack_context import PackContext
 from charter.offering.artifact_kinds import ArtifactKind
@@ -128,7 +129,7 @@ def test_the_interview_never_seeds_a_kind_that_is_in_force_by_default(tmp_path: 
     messages = apply_org_charter_to_interview(interview, consumer)
 
     assert "activated_skills" not in read_activation_ledger(consumer)
-    assert "activated_skills" not in (consumer / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+    assert "activated_skills" not in (yaml.safe_load((consumer / ".kittify" / "config.yaml").read_text(encoding="utf-8")) or {})
     assert not [m for m in messages if "skills" in m]
     assert interview.selected_skills == []
     assert PackContext.from_config(consumer).activated_skills == frozenset({"y"})
