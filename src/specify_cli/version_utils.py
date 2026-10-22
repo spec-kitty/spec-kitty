@@ -80,6 +80,10 @@ def cli_version() -> str:
     resolves the distribution name through ``packages_distributions()``, which
     reads the metadata of every installed distribution, and a command that
     never prints a version (``spec-kitty --help``) should not pay for that.
+
+    Monkeypatching ``specify_cli.__version__`` does not reach callers that use
+    ``cli_version()`` directly; patch ``cli_version`` (or clear its cache with
+    ``cli_version.cache_clear()``) instead.
     """
     if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
         return os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
