@@ -15,6 +15,8 @@ from typing import Any
 
 import pytest
 
+from kernel.git import GitCommandError
+from specify_cli.review import lock as lock_module
 from specify_cli.review.lock import (
     LOCK_REL_PATH,
     REVIEW_LOCK_COMMITTED,
@@ -25,6 +27,8 @@ from specify_cli.review.lock import (
 )
 
 pytestmark = pytest.mark.fast
+
+_NOT_A_REPO = "<not-a-repository>"
 
 _VALID = {"worktree_path": "/w", "wp_id": "WP01", "agent": "claude", "started_at": "2026-10-21T00:00:00+00:00", "pid": 1}
 
@@ -121,11 +125,25 @@ def test_tracked_unreadable_lock_offers_untrack(repo: Path) -> None:
     assert "git worktree add" not in message, "the workspace already exists"
 
 
-@pytest.mark.parametrize("exists", [True, False])
-def test_a_git_failure_refuses_instead_of_reading_as_no_lock(tmp_path: Path, exists: bool) -> None:
-    """Fail closed: a checkout git cannot read (here, not a repository) is not "no committed lock"."""
+@pytest.mark.parametrize(
+    ("exists", "returncode", "stderr"),
+    [
+        pytest.param(False, 128, "fatal: not a git repository", id="missing-workspace-outside-a-repository"),
+        pytest.param(True, 128, "fatal: unable to read index", id="existing-fatal-other-than-not-a-repository"),
+        pytest.param(True, 1, "error: not a git repository", id="existing-not-a-repository-text-but-wrong-exit"),
+        pytest.param(True, 255, "boom", id="existing-other-failure"),
+    ],
+)
+def test_a_git_failure_refuses_instead_of_reading_as_no_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exists: bool, returncode: int, stderr: str) -> None:
+    """Fail closed: a git failure other than "not inside a repository" is not "no committed lock"."""
     _write_lock(tmp_path, json.dumps({**_VALID, "pid": os.getpid()}))
     ref = None if exists else "main"
+
+    def fail(cwd: Path, path: str) -> bool:
+        raise GitCommandError(argv=("ls-files",), cwd=cwd, returncode=returncode, stderr=stderr)
+
+    if exists:
+        monkeypatch.setattr(lock_module, "is_tracked", fail)
 
     message = review_lock_refusal(tmp_path, exists=exists, repo_root=tmp_path, checkout_ref=ref, branch="main")
 
@@ -223,13 +241,20 @@ def test_tracked_lock_deleted_by_a_release_is_still_refused(repo: Path) -> None:
         pytest.param(None, False, "main", id="missing-without-committed-lock"),
         pytest.param(None, False, None, id="missing-without-a-ref"),
         pytest.param(None, False, "nope", id="missing-with-unknown-ref"),
+        pytest.param(json.dumps(_VALID), True, _NOT_A_REPO, id="existing-outside-any-repository"),
     ],
 )
 def test_no_refusal_without_a_tracked_or_unreadable_lock(repo: Path, tmp_path: Path, lock_content: str | None, exists: bool, ref: str | None) -> None:
     """An ordinary lock (untracked) or none passes, and an unresolvable ref is for worktree creation to report."""
     if lock_content is not None:
         _write_lock(repo, lock_content)
-    worktree = repo if exists else tmp_path / "lane"
+    if ref == _NOT_A_REPO:
+        # A workspace outside any repository cannot hold a tracked lock; the readable lock passes.
+        worktree, ref = tmp_path / "plain", None
+        worktree.mkdir()
+        _write_lock(worktree, lock_content or "")
+    else:
+        worktree = repo if exists else tmp_path / "lane"
 
     assert review_lock_refusal(worktree, exists=exists, repo_root=repo, checkout_ref=ref, branch="main") is None
 

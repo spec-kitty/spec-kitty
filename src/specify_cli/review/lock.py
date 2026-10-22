@@ -251,6 +251,10 @@ def _parse_lock(content: bytes | str) -> ReviewLock:
 # ---------------------------------------------------------------------------
 
 
+_GIT_FATAL_EXIT = 128
+_NOT_A_REPOSITORY = "not a git repository"
+
+
 def _git_stdout(repo: Path, *args: str) -> str | None:
     """``git -C <repo> <args>`` stdout, or ``None`` on a non-zero exit."""
     try:
@@ -263,6 +267,11 @@ def _git_stdout(repo: Path, *args: str) -> str | None:
 def _git_unreadable(path: str, exc: GitCommandError) -> ReviewLockReadError:
     """A git failure while checking the lock, as an unreadable-lock error: fail closed, never "no lock"."""
     return ReviewLockReadError(path=path, reason=f"git could not check it: {exc}")
+
+
+def _outside_any_repository(exc: GitCommandError) -> bool:
+    """Whether git failed because the directory is not inside a repository (exit 128, ``not a git repository``)."""
+    return exc.returncode == _GIT_FATAL_EXIT and _NOT_A_REPOSITORY in exc.stderr.lower()
 
 
 def _committed_lock(repo_root: Path, ref: str) -> tuple[bool, ReviewLockReadError | None]:
@@ -329,6 +338,8 @@ def _lock_state(worktree: Path, *, exists: bool, repo_root: Path, checkout_ref: 
     try:
         return is_tracked(worktree, LOCK_REL_PATH), error
     except GitCommandError as exc:
+        if _outside_any_repository(exc):
+            return False, error  # no repository, so nothing there can be tracked
         return False, error or _git_unreadable(str(worktree / LOCK_REL_PATH), exc)
 
 
