@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "test_no_dead_symbols.py + test_1622_dead_symbol_retirement.py::test_append_event_log_deleted (red at 82212d0c)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:48.012203+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
