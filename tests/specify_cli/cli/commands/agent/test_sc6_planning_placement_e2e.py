@@ -328,10 +328,10 @@ def _repo_snapshot(repo: Path) -> tuple[object, ...]:
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
 
 
 @pytest.mark.parametrize("topology", _TOPOLOGIES, ids=lambda t: t.name)

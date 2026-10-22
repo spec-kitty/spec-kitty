@@ -64,13 +64,13 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests focused on the transition + completeness gate.
 
     Mirrors ``test_infer_subtasks_primary.py``'s fixture: the real
-    (non-mocked) production route is exercised end-to-end, so SaaS fan-out
+    (non-mocked) production route is exercised end-to-end, so status fan-out
     and dossier sync -- both fire-and-forget side effects unrelated to this
     gate -- are neutralized rather than allowed to hit the network/daemon.
     """
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), *args],

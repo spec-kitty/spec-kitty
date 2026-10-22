@@ -174,10 +174,10 @@ def _run_finalize_with_override(
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
 
 
 def test_target_branch_override_reaches_wp_status_bookkeeping(

@@ -2,7 +2,7 @@
 
 PR #2172 review finding #1. The CORE↛INTEGRATION inversion routes mission
 creation through ``emit_mission_created_local`` (canonical lifecycle log +
-lifecycle SaaS fan-out) via the ``status/adapters.py`` registry instead of
+lifecycle fan-out) via the ``status/adapters.py`` registry instead of
 direct ``sync``/``tracker`` imports. After rebasing onto main's rewired
 lifecycle path (#2070/#1793 lifecycle/topology, #2134 status decompose, #2158
 dead-symbol gate), this test pins the observable behaviour the inversion must
@@ -10,11 +10,11 @@ preserve:
 
 * the canonical ``MissionCreated`` event is written **exactly once** (no drop,
   no double-write), and
-* the daemon/SaaS lifecycle fan-out (``fire_lifecycle_saas_fanout``) fires
+* the lifecycle fan-out (``fire_lifecycle_fanout``) fires
   **exactly once** for that event.
 
 It drives the *real* adapter registry — registering a spy observer through the
-public ``register_lifecycle_saas_fanout_handler`` API rather than patching the
+public ``register_lifecycle_fanout_handler`` API rather than patching the
 fire function — so a double-fire or drop introduced by the rewired lifecycle
 path would fail here.
 """
@@ -112,7 +112,7 @@ def _isolated_adapter_registry() -> Iterator[_RegistryFixture]:
 
     Uses the real registration API so the test exercises the same fan-out path
     production uses; resetting before and after prevents cross-test bleed and
-    keeps any process-wide ``sync`` registration from doing live SaaS work.
+    keeps any process-wide ``sync`` registration from doing live transport work.
     """
     status_adapters.reset_handlers()
 
@@ -121,7 +121,7 @@ def _isolated_adapter_registry() -> Iterator[_RegistryFixture]:
     def _lifecycle_spy(*, envelope: Any = None, **_kw: Any) -> None:
         lifecycle_events.append(dict(envelope or {}))
 
-    status_adapters.register_lifecycle_saas_fanout_handler(_lifecycle_spy)
+    status_adapters.register_lifecycle_fanout_handler(_lifecycle_spy)
     try:
         yield lifecycle_events
     finally:
@@ -146,12 +146,12 @@ def test_mission_created_fanout_fires_exactly_once(
         f"{[r.get('event_type') for r in rows]}"
     )
 
-    # Daemon/SaaS lifecycle publish fires exactly once for MissionCreated.
+    # Lifecycle publish fires exactly once for MissionCreated.
     mission_created_fanouts = [
         e for e in lifecycle_events if e.get("event_type") == "MissionCreated"
     ]
     assert len(mission_created_fanouts) == 1, (
-        f"Lifecycle SaaS fan-out must fire exactly once for MissionCreated; "
+        f"Lifecycle fan-out must fire exactly once for MissionCreated; "
         f"got {len(mission_created_fanouts)}: "
         f"{[e.get('event_type') for e in lifecycle_events]}"
     )

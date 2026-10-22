@@ -6,7 +6,7 @@ Mission ``fsm-write-path-integrity-01M1TZV6`` (WP06, T031/T032/T036/T039).
 (``coordination/status_transition.py``) write a coord-topology mission's
 transition through the flat shell on the coord worktree and then commit it
 with ``_commit_status_artifacts_to_coord``. Before this mission the flat
-shell's step-7 SaaS fan-out fired *inside* that call -- BEFORE the commit --
+shell's step-7 status fan-out fired *inside* that call -- BEFORE the commit --
 so a commit failure truncated the event back (``_restore_coord_status_
 artifacts``) after the outside world had already been told about it: a
 phantom announcement of an event that no longer exists (spec US2 scenario 1).
@@ -14,7 +14,7 @@ phantom announcement of an event that no longer exists (spec US2 scenario 1).
 The contract (``contracts/emit-pipeline.md`` §2, data-model §5 S-1) is that
 external fan-out fires only after the durable write completes in every coord
 arm: the transactional doors defer it behind ``BookkeepingTransaction.commit``
-(``queue_saas_emission``), and the fallback coord arms now call the flat shell
+(``queue_fanout_emission``), and the fallback coord arms now call the flat shell
 with ``fan_out=False``, commit, and fan out the committed tail afterwards.
 
 The fallback path is reached by forcing ``_transaction_topology_available``
@@ -50,9 +50,9 @@ from tests.specify_cli.coordination.test_status_transition import (
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _FAN_OUT_BOUNDARIES = (
-    "specify_cli.status.adapters.fire_saas_fanout",
-    "specify_cli.status.fire_saas_fanout",
-    "specify_cli.status.emit.fire_saas_fanout",
+    "specify_cli.status.adapters.fire_status_fanout",
+    "specify_cli.status.fire_status_fanout",
+    "specify_cli.status.emit.fire_status_fanout",
 )
 
 
@@ -77,10 +77,10 @@ def repo(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def order(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
-    """Record the relative order of durable commits and SaaS fan-outs.
+    """Record the relative order of durable commits and status fan-outs.
 
-    Patches the same three ``fire_saas_fanout`` boundaries as
-    ``tests.conftest_saas_sink.mock_saas_sink`` so every fan-out path (flat
+    Patches the same three ``fire_status_fanout`` boundaries as
+    ``tests.conftest_fanout_sink.mock_fanout_sink`` so every fan-out path (flat
     shell and deferred outbound) lands in one ordered log.
     """
     recorded: list[str] = []
@@ -145,7 +145,7 @@ def test_coord_fallback_announces_only_its_own_rows_when_writer_interleaves(
             st.emit_status_transition_transactional(other)
 
     monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", interleaved_commit)
-    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda event, *a, **k: seen.append(event.event_id))
+    monkeypatch.setattr(st._emit, "_status_fan_out", lambda event, *a, **k: seen.append(event.event_id))
     _emit_single(repo)
     assert len(seen) == len(set(seen)) == 2
 
@@ -183,7 +183,7 @@ def test_coord_fallback_holds_lock_through_commit_and_restore_but_not_fanout(
 
     monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", commit)
     monkeypatch.setattr(st, "_restore_coord_status_artifacts", restore)
-    monkeypatch.setattr(st._emit, "_saas_fan_out", fanout)
+    monkeypatch.setattr(st._emit, "_status_fan_out", fanout)
     if commit_fails:
         with pytest.raises(RuntimeError, match="injected commit failure"):
             _emit_single(repo)
@@ -210,7 +210,7 @@ def test_coord_fallback_refreshes_projection_only_after_commit_never_on_failure(
       the post-commit ``_fan_out_committed_coord_tail`` hook), and
     * a phantom projection on a commit failure -- ``.kittify/derived/<slug>/
       status.json`` would show the rolled-back event, the same hazard SC-002
-      forbids for SaaS fan-out.
+      forbids for status fan-out.
 
     The fix threads a separate ``refresh_projection=False`` through the flat
     shell (independent of ``fan_out``), so the ONLY refresh is the one
@@ -244,7 +244,7 @@ def test_coord_fallback_refreshes_projection_only_after_commit_never_on_failure(
     # (buggy) refresh routes through `_emit`'s binding, not this module's.
     monkeypatch.setattr(st._emit, "refresh_execution_projection", counting_refresh)
     monkeypatch.setattr(st, "_refresh_execution_projection", counting_refresh)
-    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(st._emit, "_status_fan_out", lambda *a, **k: None)
 
     derived_status = repo / ".kittify" / "derived" / MISSION_SLUG / "status.json"
 
@@ -300,7 +300,7 @@ def test_coord_fallback_batch_refreshes_projection_only_after_commit_never_on_fa
     # module's `_fan_out_committed_coord_tail`).
     monkeypatch.setattr(st._emit, "refresh_execution_projection", counting_refresh)
     monkeypatch.setattr(st, "_refresh_execution_projection", counting_refresh)
-    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(st._emit, "_status_fan_out", lambda *a, **k: None)
 
     derived_status = repo / ".kittify" / "derived" / MISSION_SLUG / "status.json"
 
@@ -346,7 +346,7 @@ def test_coord_recovery_failure_preserves_only_landed_status(
         raise SafeCommitRecoveryFailed("injected staging recovery failure", commit_sha=sha)
 
     monkeypatch.setattr(st, "_commit_status_artifacts_to_coord", recovery_failure)
-    monkeypatch.setattr(st._emit, "_saas_fan_out", lambda *a, **k: announced.append(True))
+    monkeypatch.setattr(st._emit, "_status_fan_out", lambda *a, **k: announced.append(True))
     with pytest.raises(SafeCommitRecoveryFailed, match="injected staging recovery failure"):
         _emit_single(repo)
     assert snapshot() == (emitted[0] if commit_landed else before)
@@ -377,7 +377,7 @@ def test_coord_fallback_commit_failure_announces_nothing(
     The commit is forced to fail after the flat shell has written the coord
     log. The arm's failure policy is preserved verbatim: the commit error
     propagates, the coord log is truncated back to the seed, and -- the fix --
-    NO SaaS fan-out fired for the event that no longer exists.
+    NO status fan-out fired for the event that no longer exists.
     """
     _seed_planned_on_coord(repo)
     _force_fallback_path(monkeypatch)

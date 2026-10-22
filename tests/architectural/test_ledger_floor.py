@@ -76,7 +76,7 @@ _FORBIDDEN_DIRS: tuple[str, ...] = ("specify_cli/decisions",)
 # reference ledger_posture (T024 hook sites). Re-grepped against live code
 # at WP05 authoring time:
 #   * `_fan_out_committed_coord_tail` -- the non-transactional coord-tail
-#     fan-out (the direct `_emit._saas_fan_out` call site).
+#     fan-out (the direct `_emit._status_fan_out` call site).
 #   * `_defer_fan_out` -- the shared choke point for both the single-door
 #     (`emit_status_transition_transactional`) and batch-door
 #     (`emit_status_transition_batch_transactional`) transactional paths.

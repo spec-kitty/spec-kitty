@@ -1,11 +1,11 @@
-"""SaaS-sink fanout deferral tests (T041, FR-022, NFR-009, SC-09).
+"""Status fan-out deferral tests (T041, FR-022, NFR-009, SC-09).
 
 Covers the two critical paths:
 
-1. **Success path**: ``queue_saas_emission`` registers the emission;
+1. **Success path**: ``queue_fanout_emission`` registers the emission;
    ``BookkeepingTransaction.commit`` succeeds; deferred outbound runs
    and the sink receives the event.
-2. **Rollback path**: ``queue_saas_emission`` registers the emission;
+2. **Rollback path**: ``queue_fanout_emission`` registers the emission;
    ``BookkeepingTransaction.commit`` fails (forced); rollback runs;
    the sink receives **zero** events (NFR-009 / SC-09).
 
@@ -22,7 +22,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.coordination.outbound import queue_fanout_emission
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingTransaction,
@@ -31,10 +31,10 @@ from specify_cli.status.emit import build_status_event
 from specify_cli.status.models import StatusEvent
 
 # Import the recording sink fixture by registering its module as a
-# pytest plugin.  Equivalent to ``from tests.conftest_saas_sink import
-# mock_saas_sink`` but avoids the unused-import warning and is the
+# pytest plugin.  Equivalent to ``from tests.conftest_fanout_sink import
+# mock_fanout_sink`` but avoids the unused-import warning and is the
 # pytest-idiomatic way to expose a cross-package fixture.
-pytest_plugins = ("tests.conftest_saas_sink",)
+pytest_plugins = ("tests.conftest_fanout_sink",)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -110,7 +110,7 @@ def _make_event(wp_id: str = "WP01") -> StatusEvent:
 # ---------------------------------------------------------------------------
 
 
-def test_saas_emits_after_commit_success(repo: Path, mock_saas_sink: Any) -> None:
+def test_fanout_emits_after_commit_success(repo: Path, mock_fanout_sink: Any) -> None:
     """On commit success, the deferred outbound fires and the sink receives
     exactly one event corresponding to the appended StatusEvent."""
     _write_modern_meta(repo)
@@ -125,23 +125,23 @@ def test_saas_emits_after_commit_success(repo: Path, mock_saas_sink: Any) -> Non
         operation="test_outbound_success",
     ) as txn:
         txn.append_event(event)
-        queue_saas_emission(txn, event)
+        queue_fanout_emission(txn, event)
         # commit() is called by __exit__ on the happy path; the
         # deferred outbound also runs in __exit__ after the commit.
 
     # After the context manager exits successfully, the sink should
     # have received exactly one call.
-    assert mock_saas_sink.call_count == 1, (
-        f"expected 1 SaaS emission; got {mock_saas_sink.call_count}"
+    assert mock_fanout_sink.call_count == 1, (
+        f"expected 1 fan-out emission; got {mock_fanout_sink.call_count}"
     )
-    assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
-    assert mock_saas_sink.last_kwargs["wp_id"] == event.wp_id
-    assert mock_saas_sink.last_kwargs["from_lane"] == str(event.from_lane)
-    assert mock_saas_sink.last_kwargs["to_lane"] == str(event.to_lane)
+    assert mock_fanout_sink.last_kwargs["metadata"].causation_id == event.event_id
+    assert mock_fanout_sink.last_kwargs["wp_id"] == event.wp_id
+    assert mock_fanout_sink.last_kwargs["from_lane"] == str(event.from_lane)
+    assert mock_fanout_sink.last_kwargs["to_lane"] == str(event.to_lane)
 
 
-def test_saas_emission_preserves_mission_slug_and_repo_root(
-    repo: Path, mock_saas_sink: Any,
+def test_fanout_emission_preserves_mission_slug_and_repo_root(
+    repo: Path, mock_fanout_sink: Any,
 ) -> None:
     """The deferred call routes through the canonical WPStatusChanged kwargs."""
     _write_modern_meta(repo)
@@ -156,10 +156,10 @@ def test_saas_emission_preserves_mission_slug_and_repo_root(
         operation="test_outbound_kwargs",
     ) as txn:
         txn.append_event(event)
-        queue_saas_emission(txn, event)
+        queue_fanout_emission(txn, event)
 
-    assert mock_saas_sink.call_count == 1
-    _, kwargs = mock_saas_sink.calls[-1]
+    assert mock_fanout_sink.call_count == 1
+    _, kwargs = mock_fanout_sink.calls[-1]
     assert kwargs["mission_slug"] == MISSION_SLUG
     assert kwargs["mission_id"] == MISSION_ID
     # #125: the emitting checkout root travels with the fan-out kwargs so the
@@ -186,10 +186,10 @@ def _install_rejecting_pre_commit_hook(repo: Path, hooks_dir: Path) -> None:
     _git(repo, "config", "core.hooksPath", str(hooks_dir))
 
 
-def test_saas_does_not_emit_on_commit_failure(
+def test_fanout_does_not_emit_on_commit_failure(
     repo: Path,
     tmp_path: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """SC-09 / NFR-009: a forced commit failure leaves the sink untouched."""
     _write_modern_meta(repo)
@@ -208,7 +208,7 @@ def test_saas_does_not_emit_on_commit_failure(
             operation="test_outbound_rollback",
         ) as txn:
             txn.append_event(event)
-            queue_saas_emission(txn, event)
+            queue_fanout_emission(txn, event)
             # __exit__'s implicit commit will fail because of the hook;
             # BookkeepingCommitFailed propagates and the deferred queue
             # is intentionally SKIPPED.
@@ -216,8 +216,8 @@ def test_saas_does_not_emit_on_commit_failure(
     with pytest.raises(BookkeepingCommitFailed, match=r"safe_commit (recovery )?failed on"):
         _commit_rejected_transaction()
 
-    # Critical assertion: no SaaS emission for a rolled-back commit.
-    assert mock_saas_sink.call_count == 0, (
-        f"NFR-009 violated: SaaS sink received {mock_saas_sink.call_count} "
+    # Critical assertion: no fan-out emission for a rolled-back commit.
+    assert mock_fanout_sink.call_count == 0, (
+        f"NFR-009 violated: fan-out sink received {mock_fanout_sink.call_count} "
         f"emission(s) after a forced commit failure; expected 0"
     )

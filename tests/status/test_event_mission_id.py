@@ -374,7 +374,7 @@ class TestRoundTripMissionId:
         """New events emitted by the pipeline must have mission_id == meta.json.mission_id."""
         feature_dir = feature_dir_with_meta
 
-        with patch("specify_cli.status.emit._saas_fan_out"):
+        with patch("specify_cli.status.emit._status_fan_out"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
@@ -397,7 +397,7 @@ class TestRoundTripMissionId:
         """T028: aggregate identity of new events (mission_id) must be a valid ULID."""
         feature_dir = feature_dir_with_meta
 
-        with patch("specify_cli.status.emit._saas_fan_out"):
+        with patch("specify_cli.status.emit._status_fan_out"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
@@ -424,7 +424,7 @@ class TestRoundTripMissionId:
 
         feature_dir = feature_dir_with_meta
 
-        with patch("specify_cli.status.emit._saas_fan_out"):
+        with patch("specify_cli.status.emit._status_fan_out"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
@@ -460,7 +460,7 @@ class TestRoundTripMissionId:
         expected_mission_id = meta["mission_id"]
         expected_slug = meta["mission_slug"]
 
-        with patch("specify_cli.status.emit._saas_fan_out"):
+        with patch("specify_cli.status.emit._status_fan_out"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,
@@ -491,7 +491,7 @@ class TestRoundTripMissionId:
         (feature_dir / "meta.json").write_text(json.dumps(meta_without_id), encoding="utf-8")
         _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
 
-        with patch("specify_cli.status.emit._saas_fan_out"):
+        with patch("specify_cli.status.emit._status_fan_out"):
             emit_status_transition(TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug=_MISSION_SLUG,

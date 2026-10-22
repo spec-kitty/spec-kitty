@@ -1,7 +1,7 @@
 """Transactional status-transition emission helpers.
 
 Production workflow callers must append status events through
-``BookkeepingTransaction`` so SaaS/dossier fanout runs only after the
+``BookkeepingTransaction`` so status/dossier fanout runs only after the
 bookkeeping commit succeeds.
 
 This module is the **transactional composition shell** of the status write
@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from mission_runtime import MissionArtifactKind, MissionTopology, TopologySurface, placement_seam
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
-from specify_cli.coordination.outbound import queue_saas_emission
+from specify_cli.coordination.outbound import queue_fanout_emission
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
@@ -469,7 +469,7 @@ def _fan_out_committed_coord_tail(
     resolved, or no repository root is known).
     """
     for event in stream.transitions:
-        _emit._saas_fan_out(
+        _emit._status_fan_out(
             event,
             mission_slug,
             repo_root,
@@ -1102,7 +1102,7 @@ def _defer_fan_out(
     """Step 7 of the transactional shell: fan-out fires only after commit success."""
     if prepared.annotation is not None:
         txn.defer_outbound(_deferred_resolved_binding_fan_out(prepared.annotation, mission_slug, txn.repo_root))
-    queue_saas_emission(
+    queue_fanout_emission(
         txn,
         event,
         mission_slug=mission_slug,

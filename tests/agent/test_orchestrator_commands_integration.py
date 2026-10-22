@@ -37,7 +37,7 @@ runner = CliRunner()
 def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────

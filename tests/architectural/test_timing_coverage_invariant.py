@@ -287,7 +287,7 @@ BASELINE_FUNCTIONAL_ASSERTIONS: dict[str, dict[str, int]] = {
         "not holder.is_alive()": 1,
         "str(expected_path) in message": 1,
     },
-    "tests/status/test_saas_fanout_timeout.py": {"any(('timed out' in record.getMessage().lower() for record in caplog.records))": 1, "entered.is_set()": 1},
+    "tests/status/test_fanout_timeout.py": {"any(('timed out' in record.getMessage().lower() for record in caplog.records))": 1, "entered.is_set()": 1},
     "tests/status/test_tail_reader.py": {"[event['event'] for event in yielded] == [event['event'] for event in events_to_write]": 1},
     "tests/stress/test_concurrent_emits.py": {
         "eid": 1,

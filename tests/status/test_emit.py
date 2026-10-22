@@ -1,6 +1,6 @@
 """Tests for the status emit orchestration pipeline.
 
-Covers the full emit_status_transition pipeline, _saas_fan_out,
+Covers the full emit_status_transition pipeline, _status_fan_out,
 TransitionError, force transitions, done-evidence contracts,
 alias resolution, and pipeline ordering guarantees.
 """
@@ -30,7 +30,7 @@ from specify_cli.status.emit import (
     _legacy_lane_mirror_enabled,
     _load_mission_id,
     _mirror_phase1_frontmatter_lane,
-    _saas_fan_out,
+    _status_fan_out,
     emit_status_transition,
     emit_status_transition_batch,
 )
@@ -1193,11 +1193,11 @@ class TestPhase1CompatibilityBridge:
             )
 
 
-# ── SaaS Fan-Out Tests ───────────────────────────────────────
+# ── Status Fan-Out Tests ───────────────────────────────────────
 
 
-class TestSaasFanOut:
-    """Tests for _saas_fan_out.
+class TestStatusFanOut:
+    """Tests for _status_fan_out.
 
     The fan-out seam is the status/adapters handler registry: production
     registrants died with the sync transport (issue #5), so these tests
@@ -1241,12 +1241,12 @@ class TestSaasFanOut:
         def _handler(**kwargs):
             captured.append(dict(kwargs))
 
-        adapters.register_saas_fanout_handler(_handler)
-        _saas_fan_out(event, "034-test-feature", None)
+        adapters.register_status_fanout_handler(_handler)
+        _status_fan_out(event, "034-test-feature", None)
 
         assert len(captured) == 1, "fan-out handler must be invoked exactly once"
         # ``occurred_at`` is the canonical local lane-transition time threaded
-        # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
+        # through _status_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
         assert captured[0] == {
             "wp_id": "WP01",
             "from_lane": "claimed",
@@ -1274,8 +1274,8 @@ class TestSaasFanOut:
             to_lane=Lane.CLAIMED,
         )
         captured: list[dict] = []
-        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
-        _saas_fan_out(event, "034-test-feature", None)
+        adapters.register_status_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _status_fan_out(event, "034-test-feature", None)
         assert len(captured) == 1
 
     def test_saas_exception_does_not_propagate(self):
@@ -1291,18 +1291,18 @@ class TestSaasFanOut:
         with patch("specify_cli.status.adapters.logger") as mock_logger:
             # Should not raise. After P1.3 the warning is logged by the
             # adapter (specify_cli.status.adapters) rather than by
-            # status.emit, since the try/except moved into fire_saas_fanout.
-            adapters.register_saas_fanout_handler(_boom)
-            _saas_fan_out(event, "034-test-feature", None)
+            # status.emit, since the try/except moved into fire_status_fanout.
+            adapters.register_status_fanout_handler(_boom)
+            _status_fan_out(event, "034-test-feature", None)
             mock_logger.warning.assert_called_once()
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
-        """Full emit succeeds even when SaaS fan-out fails."""
+        """Full emit succeeds even when status fan-out fails."""
 
         def _boom(**kwargs):
             raise RuntimeError("network down")
 
-        adapters.register_saas_fanout_handler(_boom)
+        adapters.register_status_fanout_handler(_boom)
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         event = emit_status_transition(
             TransitionRequest(
@@ -1685,7 +1685,7 @@ class TestBatchEmit:
 
     def test_batch_infers_review_readiness_and_builds_evidence(self, feature_dir: Path, valid_evidence_dict: dict) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"):
             events = emit_status_transition_batch(
                 [
                     TransitionRequest(
@@ -1718,7 +1718,7 @@ class TestBatchEmit:
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
 
         _seed_planned(feature_dir, "WP02", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"):
             done = emit_status_transition_batch(
                 [
                     TransitionRequest(
@@ -1782,7 +1782,7 @@ class TestBatchEmit:
     def test_batch_materialize_failure_keeps_persisted_events(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
-            patch.object(emit_module, "_saas_fan_out"),
+            patch.object(emit_module, "_status_fan_out"),
             patch.object(emit_module._reducer, "materialize", side_effect=RuntimeError("boom")),
         ):
             events = emit_status_transition_batch(
@@ -1803,13 +1803,13 @@ class TestBatchEmit:
         assert "Materialization failed after batch" in caplog.text
 
 
-# ── Genesis SaaS fan-out capability gate tests (T023, WP04) ──────────────────
+# ── Genesis status fan-out capability gate tests (T023, WP04) ──────────────────
 
 
-class TestGenesisSaasFanOutCompatibilityGate:
-    """Tests for the genesis compatibility gate in _saas_fan_out (T022/T023, WP04).
+class TestGenesisStatusFanOutCompatibilityGate:
+    """Tests for the genesis compatibility gate in _status_fan_out (T022/T023, WP04).
 
-    The gate in emit.py._saas_fan_out skips fan-out when the installed
+    The gate in emit.py._status_fan_out skips fan-out when the installed
     spec_kitty_events lacks the genesis lane, producing an explicit INFO log
     instead of a silently swallowed pydantic ValidationError.
 
@@ -1836,12 +1836,12 @@ class TestGenesisSaasFanOutCompatibilityGate:
         def fake_saas(**kwargs: object) -> None:
             captured.append(dict(kwargs))
 
-        _adapters.register_saas_fanout_handler(fake_saas)
+        _adapters.register_status_fanout_handler(fake_saas)
         try:
             # Ensure the capability flag reports no genesis support (mirror current 5.2.0 reality)
             with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", False):
                 caplog.set_level(logging.INFO, logger="specify_cli.status.emit")
-                # Build a genesis -> planned event and call _saas_fan_out directly
+                # Build a genesis -> planned event and call _status_fan_out directly
                 genesis_event = StatusEvent(
                     event_id="01GENESIS00000000000000001",
                     mission_slug="test-feature",
@@ -1854,12 +1854,12 @@ class TestGenesisSaasFanOutCompatibilityGate:
                     execution_mode="worktree",
                     reason="seed",
                 )
-                _saas_fan_out(genesis_event, "test-feature", None)
+                _status_fan_out(genesis_event, "test-feature", None)
 
             # The skip path must fire: no handler was called
-            assert len(captured) == 0, "SaaS fan-out handler must NOT be called for genesis when events lacks genesis"
+            assert len(captured) == 0, "status fan-out handler must NOT be called for genesis when events lacks genesis"
             # The explicit skip log must be present — NOT a ValidationError
-            assert "Skipping SaaS fan-out for genesis transition" in caplog.text, "Explicit skip log must be emitted when genesis fan-out is gated out"
+            assert "Skipping status fan-out for genesis transition" in caplog.text, "Explicit skip log must be emitted when genesis fan-out is gated out"
             assert "genesis lane (needs >=6.0.0)" in caplog.text
             # Canonical persistence is unaffected — no StoreError, the feature dir is intact
             assert feature_dir.exists()
@@ -1883,7 +1883,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
         def fake_saas(**kwargs: object) -> None:
             captured.append(dict(kwargs))
 
-        _adapters.register_saas_fanout_handler(fake_saas)
+        _adapters.register_status_fanout_handler(fake_saas)
         try:
             # Simulate 6.0.0+ (genesis-aware events installed)
             with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", True):
@@ -1899,10 +1899,10 @@ class TestGenesisSaasFanOutCompatibilityGate:
                     execution_mode="worktree",
                     reason="seed",
                 )
-                _saas_fan_out(genesis_event, "test-feature", None)
+                _status_fan_out(genesis_event, "test-feature", None)
 
             # The handler must have been called exactly once
-            assert len(captured) == 1, "SaaS fan-out handler must be called when events supports genesis"
+            assert len(captured) == 1, "status fan-out handler must be called when events supports genesis"
             call = captured[0]
             assert call["wp_id"] == "WP01"
             assert call["from_lane"] == "genesis"
@@ -1925,7 +1925,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
         def fake_saas(**kwargs: object) -> None:
             captured.append(dict(kwargs))
 
-        _adapters.register_saas_fanout_handler(fake_saas)
+        _adapters.register_status_fanout_handler(fake_saas)
         try:
             with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", False):
                 normal_event = StatusEvent(
@@ -1939,7 +1939,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
                     force=False,
                     execution_mode="worktree",
                 )
-                _saas_fan_out(normal_event, "test-feature", None)
+                _status_fan_out(normal_event, "test-feature", None)
 
             assert len(captured) == 1, "Normal (non-genesis) transition must still fan out with genesis-unaware events"
             call = captured[0]
@@ -1961,7 +1961,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
         def fake_saas(**kwargs: object) -> None:
             captured.append(dict(kwargs))
 
-        _adapters.register_saas_fanout_handler(fake_saas)
+        _adapters.register_status_fanout_handler(fake_saas)
         try:
             with patch.object(emit_module, "_EVENTS_SUPPORTS_GENESIS", True):
                 normal_event = StatusEvent(
@@ -1975,7 +1975,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
                     force=False,
                     execution_mode="worktree",
                 )
-                _saas_fan_out(normal_event, "test-feature", None)
+                _status_fan_out(normal_event, "test-feature", None)
 
             assert len(captured) == 1, "Normal (non-genesis) transition must still fan out with genesis-aware events"
         finally:
@@ -2014,7 +2014,7 @@ def _recording_lock(record: dict[str, object]) -> Iterator[Path]:
 class TestFlatShellFanOutSeam:
     """``fan_out=False`` skips step 7 entirely; persistence is unchanged.
 
-    ``tests/status/conftest.py`` neuters ``_saas_fan_out`` for this file, so
+    ``tests/status/conftest.py`` neuters ``_status_fan_out`` for this file, so
     these pins observe the seam at the shell's own call sites; the adapter-
     registry (zero handler calls) proof lives in
     ``tests/status/test_emit_fanout_after_adapter.py``.
@@ -2023,7 +2023,7 @@ class TestFlatShellFanOutSeam:
     def test_single_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
-            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_status_fan_out") as status_fan_out,
             patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
         ):
             event = emit_status_transition(
@@ -2035,7 +2035,7 @@ class TestFlatShellFanOutSeam:
                 fan_out=False,
             )
         assert event.to_lane == Lane.CLAIMED
-        saas_fan_out.assert_not_called()
+        status_fan_out.assert_not_called()
         binding_fan_out.assert_not_called()
         # Persistence is untouched by the seam: transition + annotation landed.
         stream = read_event_stream(feature_dir)
@@ -2045,7 +2045,7 @@ class TestFlatShellFanOutSeam:
     def test_single_fan_out_default_fires_after_release(self, feature_dir: Path) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
-            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_status_fan_out") as status_fan_out,
             patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
         ):
             event = emit_status_transition(
@@ -2055,14 +2055,14 @@ class TestFlatShellFanOutSeam:
                     annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
                 ),
             )
-        saas_fan_out.assert_called_once()
-        assert saas_fan_out.call_args.args[0] is event
+        status_fan_out.assert_called_once()
+        assert status_fan_out.call_args.args[0] is event
         binding_fan_out.assert_called_once()
 
     def test_batch_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         with (
-            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_status_fan_out") as status_fan_out,
             patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
         ):
             events = emit_status_transition_batch(
@@ -2077,7 +2077,7 @@ class TestFlatShellFanOutSeam:
                 fan_out=False,
             )
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
-        saas_fan_out.assert_not_called()
+        status_fan_out.assert_not_called()
         binding_fan_out.assert_not_called()
         assert len(read_event_stream(feature_dir).annotations) == 1
 
@@ -2096,7 +2096,7 @@ class TestFlatShellLockAndValidation:
             yield repo_root / key
 
         monkeypatch.setattr(emit_module, "feature_status_lock", recording_lock)
-        with patch.object(emit_module, "_saas_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"):
             emit_status_transition(_wp02_request(feature_dir, "claimed"))
         assert keys == ["demo-mission-01ABCDEF"]
 
@@ -2111,7 +2111,7 @@ class TestFlatShellLockAndValidation:
 
         monkeypatch.setattr(_pipeline_module, "validate_transition", counting)
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"):
             emit_status_transition(_wp02_request(feature_dir, "claimed"))
         assert len(calls) == 1
         assert calls[0][:2] == (Lane.PLANNED, Lane.CLAIMED)
@@ -2152,7 +2152,7 @@ class TestBatchShellLock:
         monkeypatch.setattr(emit_module._reducer, "materialize", spy("materialize", real_materialize))
         monkeypatch.setattr(emit_module, "_mirror_phase1_frontmatter_lane", spy("mirror", real_mirror))
 
-        with patch.object(emit_module, "_saas_fan_out") as fan_out:
+        with patch.object(emit_module, "_status_fan_out") as fan_out:
             events = emit_status_transition_batch(
                 [
                     _wp02_request(feature_dir, "claimed"),
@@ -2197,7 +2197,7 @@ class TestBatchShellLock:
         """
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         before = read_events(feature_dir)
-        with patch.object(emit_module, "_saas_fan_out"), pytest.raises(TransitionError, match="requires workspace context"):
+        with patch.object(emit_module, "_status_fan_out"), pytest.raises(TransitionError, match="requires workspace context"):
             emit_status_transition_batch(
                 [
                     _wp02_request(feature_dir, "claimed"),
@@ -2209,7 +2209,7 @@ class TestBatchShellLock:
     def test_batch_claimed_to_in_progress_with_explicit_workspace_context_succeeds(self, feature_dir: Path) -> None:
         """The #946 refusal is only for an OMITTED context; an explicit one passes."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"):
             events = emit_status_transition_batch(
                 [
                     _wp02_request(feature_dir, "claimed"),
@@ -2221,7 +2221,7 @@ class TestBatchShellLock:
     def test_batch_annotation_shares_its_transition_timestamp(self, feature_dir: Path) -> None:
         """D-3: a batch annotation is stamped with its own transition's ``at``."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch.object(emit_module, "_saas_fan_out"), patch.object(emit_module, "_resolved_binding_fan_out"):
+        with patch.object(emit_module, "_status_fan_out"), patch.object(emit_module, "_resolved_binding_fan_out"):
             events = emit_status_transition_batch(
                 [
                     _wp02_request(

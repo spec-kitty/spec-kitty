@@ -186,16 +186,16 @@ def _build_coord_topology(
 
 
 # ---------------------------------------------------------------------------
-# Helpers that disable SaaS fan-out in bootstrap tests
+# Helpers that disable status fan-out in bootstrap tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Silence SaaS fan-out so tests are hermetic."""
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Silence status fan-out so tests are hermetic."""
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *args, **kwargs: None)
 
 
 # ---------------------------------------------------------------------------

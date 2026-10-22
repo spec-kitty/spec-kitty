@@ -169,10 +169,10 @@ def _run_finalize(repo: Path, mission_slug: str, *extra_args: str) -> Result:
 
 
 @pytest.fixture(autouse=True)
-def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *a, **k: None)
 
 
 class TestValidateOnlyIsReadOnly:

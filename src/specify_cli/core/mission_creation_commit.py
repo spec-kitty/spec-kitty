@@ -279,12 +279,12 @@ def _build_create_result(
         scaffold_commit_skipped=commit_outcome.scaffold_commit_skipped,
     )
 
-    from specify_cli.status import fanout_lifecycle_event_hosted
+    from specify_cli.status import fanout_lifecycle_event
 
     if created_event is not None:
-        fanout_lifecycle_event_hosted(created_event, log_path=log_path)
+        fanout_lifecycle_event(created_event, log_path=log_path)
     if phase_event is not None:
-        fanout_lifecycle_event_hosted(phase_event, log_path=log_path)
+        fanout_lifecycle_event(phase_event, log_path=log_path)
 
     return MissionCreationResult(
         feature_dir=scaffold.feature_dir,

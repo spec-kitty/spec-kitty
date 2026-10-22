@@ -1745,7 +1745,7 @@ def _sc004_worker(  # noqa: C901 - one child-local fault-injection boundary
                         extra_patches=dict(_REVIEW_GATE_BYPASS),
                     )
                 )
-            stack.enter_context(patch("specify_cli.status.emit._saas_fan_out"))
+            stack.enter_context(patch("specify_cli.status.emit._status_fan_out"))
 
             if mode == "commit_mutant":
 

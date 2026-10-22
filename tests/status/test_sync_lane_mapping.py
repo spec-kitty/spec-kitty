@@ -1,4 +1,4 @@
-"""Tests for canonical 7-lane SaaS fan-out.
+"""Tests for canonical 7-lane status fan-out.
 
 Covers:
   T025 - All 7 canonical lanes pass through fan-out without collapse
@@ -18,7 +18,7 @@ import pytest
 from specify_cli.status import adapters
 from specify_cli.status.emit import (
     TransitionError,
-    _saas_fan_out,
+    _status_fan_out,
     emit_status_transition,
 )
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
@@ -46,7 +46,7 @@ def feature_dir(tmp_path: Path) -> Path:
 
 
 class TestCanonicalFanOut:
-    """Verify _saas_fan_out passes all 7 canonical lanes directly without collapse."""
+    """Verify _status_fan_out passes all 7 canonical lanes directly without collapse."""
 
     def _make_event(
         self,
@@ -84,12 +84,12 @@ class TestCanonicalFanOut:
 
         event = self._make_event(from_lane=from_lane, to_lane=to_lane)
         captured: list[dict] = []
-        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
-        _saas_fan_out(event, "039-test-feature", None)
+        adapters.register_status_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _status_fan_out(event, "039-test-feature", None)
 
         assert len(captured) == 1, "fan-out handler must be invoked exactly once"
         # ``occurred_at`` is the canonical local lane-transition time threaded
-        # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
+        # through _status_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
         assert captured[0] == {
             "wp_id": "WP01",
             "from_lane": str(from_lane),
@@ -114,8 +114,8 @@ class TestCanonicalFanOut:
         """planned->claimed is no longer a no-op (was collapsed to planned->planned)."""
         event = self._make_event(from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED)
         captured: list[dict] = []
-        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
-        _saas_fan_out(event, "039-test-feature", None)
+        adapters.register_status_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _status_fan_out(event, "039-test-feature", None)
         assert len(captured) == 1
 
 

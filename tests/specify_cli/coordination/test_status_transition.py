@@ -44,7 +44,7 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 
-pytest_plugins = ("tests.conftest_saas_sink",)
+pytest_plugins = ("tests.conftest_fanout_sink",)
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -155,13 +155,13 @@ def _seed_planned_on_coord(repo: Path) -> StatusEvent:
 
 def test_transactional_emit_fans_out_only_after_commit(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     _seed_planned_on_coord(repo)
     event = emit_status_transition_transactional(_request(repo))
 
-    assert mock_saas_sink.call_count == 1
-    assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
+    assert mock_fanout_sink.call_count == 1
+    assert mock_fanout_sink.last_kwargs["metadata"].causation_id == event.event_id
 
     show = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl")
     assert event.event_id in show.stdout
@@ -507,7 +507,7 @@ def test_transactional_read_does_not_create_coordination_worktree(repo: Path) ->
 
 def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     # Seed planned before installing the rejecting hook so the transition
     # under test is genesis-free (claimed is reachable from planned).
@@ -523,7 +523,7 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     with pytest.raises(BookkeepingCommitFailed):
         emit_status_transition_transactional(_request(repo))
 
-    assert mock_saas_sink.call_count == 0
+    assert mock_fanout_sink.call_count == 0
     # The coord branch still carries only the seed (genesis->planned); the
     # rolled-back claimed transition must NOT have been committed.
     committed = _git(
@@ -539,7 +539,7 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
 
 def test_transactional_emit_fails_closed_when_coordination_branch_missing(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """WP07 re-pin: the coordination arm now resolves through the single
     write-location accessor (``placement_seam(...).write_dir``), whose own
@@ -556,13 +556,13 @@ def test_transactional_emit_fails_closed_when_coordination_branch_missing(
     with pytest.raises(CoordinationBranchDeleted):
         emit_status_transition_transactional(_request(repo))
 
-    assert mock_saas_sink.call_count == 0
+    assert mock_fanout_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
 def test_transactional_batch_fails_closed_when_coordination_branch_missing(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """C-007: the batch door keeps the single door's fail-closed policy.
 
@@ -576,13 +576,13 @@ def test_transactional_batch_fails_closed_when_coordination_branch_missing(
     with pytest.raises(CoordinationBranchDeleted):
         emit_status_transition_batch_transactional([_request(repo)])
 
-    assert mock_saas_sink.call_count == 0
+    assert mock_fanout_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
 def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
     tmp_path: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """#4507 finding 2 regression: the fail-closed refusal message
     must compose the mission identity through the idempotent
@@ -652,7 +652,7 @@ def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
 
 def test_inner_state_annotation_degrades_when_coordination_branch_missing(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """#3460: an off-axis annotation emit must NEVER hard-fail on an
     unresolvable coord worktree the way the authoritative lane-hop transition
@@ -683,7 +683,7 @@ def test_inner_state_annotation_degrades_when_coordination_branch_missing(
     )
 
     assert isinstance(annotation, InnerStateChanged)
-    assert mock_saas_sink.call_count == 0
+    assert mock_fanout_sink.call_count == 0
     # Degraded to the PRIMARY, uncommitted write: the annotation lands on
     # the primary checkout's event log rather than a coord ref that could
     # never be committed to (the coord branch no longer exists).
@@ -759,7 +759,7 @@ def test_single_branch_annotation_degrades_only_for_a_protected_branch_refusal(
 
 def test_transactional_emit_fails_closed_on_malformed_meta(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     (repo / "kitty-specs" / MISSION_DIRNAME / "meta.json").write_text(
         "{bad json",
@@ -769,7 +769,7 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
     with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
         emit_status_transition_transactional(_request(repo))
 
-    assert mock_saas_sink.call_count == 0
+    assert mock_fanout_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
 
@@ -834,7 +834,7 @@ def test_transactional_batch_rejects_request_without_any_feature_dir(repo: Path)
 
 def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
     repo: Path,
-    mock_saas_sink: Any,
+    mock_fanout_sink: Any,
 ) -> None:
     """Starting a work package on a coordination-mode mission used to crash here.
 
@@ -1257,7 +1257,7 @@ def _claim_with_policy(feature_dir: Path, repo_root: Path) -> TransitionRequest:
     )
 
 
-def test_three_doors_build_the_same_event_and_validate_once_each(repo: Path, tmp_path: Path, mock_saas_sink: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_three_doors_build_the_same_event_and_validate_once_each(repo: Path, tmp_path: Path, mock_fanout_sink: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.coordination import status_transition as st
     from specify_cli.status import emit as status_emit
     from specify_cli.status import transition_pipeline

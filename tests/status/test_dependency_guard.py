@@ -54,7 +54,7 @@ _SLUG = "test-feature"
 
 @pytest.fixture(autouse=True)
 def _no_fan_out(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(emit_module, "_status_fan_out", lambda *args, **kwargs: None)
     monkeypatch.setattr(emit_module, "_resolved_binding_fan_out", lambda *args, **kwargs: None)
 
 

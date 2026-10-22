@@ -133,10 +133,10 @@ def _claim(feature_dir: Path, *, shell_pid: int, agent: str = "claude") -> None:
 
 @pytest.fixture(autouse=True)
 def _no_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the transitions local — no SaaS fan-out, no dossier sync."""
+    """Keep the transitions local — no status fan-out, no dossier sync."""
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None, raising=False)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None, raising=False)
 # ── 1. Byte-stability (SC-004 / NFR-003) — the headline ─────────────────────
 
 

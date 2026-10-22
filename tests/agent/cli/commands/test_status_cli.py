@@ -26,7 +26,7 @@ runner = CliRunner()
 def _extract_json(output: str) -> dict:
     """Extract the first JSON object from possibly multi-line output.
 
-    The SaaS fan-out and sync modules can print extra diagnostic lines
+    The status fan-out and sync modules can print extra diagnostic lines
     to stdout. This helper finds the first line that parses as JSON.
     """
     for line in output.strip().splitlines():
@@ -126,8 +126,8 @@ def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-feature"):
             "specify_cli.cli.commands.agent.status.get_main_repo_root",
             return_value=tmp_path,
         ),
-        "saas_fan_out": patch(
-            "specify_cli.status.emit._saas_fan_out",
+        "status_fan_out": patch(
+            "specify_cli.status.emit._status_fan_out",
         ),
     }
 
@@ -155,7 +155,7 @@ class TestEmitCommand:
     def test_emit_wp_argument_forms(self, tmp_path: Path, feature_dir: Path, wp_args: list[str], expected_error: str | None) -> None:
         _seed_planned(feature_dir)
         patches = _patch_detection(tmp_path)
-        with (patches["locate_project_root"], patches["get_main_repo_root"], patches["saas_fan_out"]):
+        with (patches["locate_project_root"], patches["get_main_repo_root"], patches["status_fan_out"]):
             result = runner.invoke(
                 app,
                 ["emit", *wp_args, "--to", "claimed", "--actor", "test-agent", "--mission", "034-test-feature"],
@@ -175,7 +175,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -206,7 +206,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -234,7 +234,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -288,7 +288,7 @@ class TestEmitCommand:
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
 
-                patches["saas_fan_out"],
+                patches["status_fan_out"],
             ):
                 r = runner.invoke(
                     app,
@@ -320,7 +320,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -353,7 +353,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -381,7 +381,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -411,7 +411,7 @@ class TestEmitCommand:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             result = runner.invoke(
                 app,
@@ -654,7 +654,7 @@ class TestEmitThenMaterialize:
             patches["locate_project_root"],
             patches["get_main_repo_root"],
 
-            patches["saas_fan_out"],
+            patches["status_fan_out"],
         ):
             emit_result = runner.invoke(
                 app,

@@ -131,7 +131,7 @@ def _event(n: int, wp_id: str, to_lane: Lane, from_lane: Lane) -> StatusEvent:
 def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     import specify_cli.status.emit as status_emit
 
-    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
+    monkeypatch.setattr(status_emit, "_status_fan_out", lambda *a, **k: None)
 
     repo = tmp_path / "repo"
     repo.mkdir()

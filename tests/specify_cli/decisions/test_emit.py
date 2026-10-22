@@ -312,7 +312,7 @@ def test_emit_decision_opened_fanout_sees_the_append_already_durable(
     def fake_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         seen_lines.extend(log_path.read_text().splitlines())
 
-    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_fanout", fake_fanout)
 
     emit_decision_opened(
         tmp_path, MISSION_SLUG, decision_id="01KAAAAAAAAAAAAAAAAAAAAAAA", entry=entry, actor=ACTOR
@@ -334,7 +334,7 @@ def test_emit_decision_opened_fanout_envelope_matches_the_local_event(
         captured["envelope"] = envelope
         captured["log_path"] = log_path
 
-    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_fanout", fake_fanout)
 
     emit_decision_opened(
         tmp_path, MISSION_SLUG, decision_id="01KCCCCCCCCCCCCCCCCCCCCCCC", entry=entry, actor=ACTOR
@@ -362,7 +362,7 @@ def test_emit_decision_opened_survives_a_fanout_exception(
     def exploding_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         raise RuntimeError("relay unreachable")
 
-    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_fanout", exploding_fanout)
     caplog.set_level(logging.WARNING)
 
     lamport = emit_decision_opened(
@@ -391,7 +391,7 @@ def test_emit_decision_resolved_fanout_envelope_matches_the_local_event(
     def fake_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         captured["envelope"] = envelope
 
-    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", fake_fanout)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_fanout", fake_fanout)
 
     emit_decision_resolved(
         tmp_path, MISSION_SLUG, decision_id="01KDDDDDDDDDDDDDDDDDDDDDDD", entry=entry, actor=ACTOR
@@ -418,7 +418,7 @@ def test_emit_decision_resolved_survives_a_fanout_exception(
     def exploding_fanout(*, envelope: dict, log_path: Path, repo_root: Path | None = None) -> None:
         raise RuntimeError("relay unreachable")
 
-    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", exploding_fanout)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_fanout", exploding_fanout)
     caplog.set_level(logging.WARNING)
 
     lamport = emit_decision_resolved(
