@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_status_seed_helper.py (bytes == serialize_event_line); 189 codemodded files green (WP01 review: 3079+1837 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T16:59:57.441601+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
