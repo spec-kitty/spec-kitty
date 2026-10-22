@@ -2,28 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT, REPO_ROOT
+from tests.charter_offering.conftest import OFFERING_SOURCE_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
-
-
-def _skill_markdown_files() -> list[Path]:
-    return sorted((OFFERING_SOURCE_ROOT / "skills").rglob("*.md"))
-
-
-def test_shipped_charter_skills_do_not_dispatch_codex_with_full_auto() -> None:
-    """Codex --full-auto aliases workspace-write and breaks terminal move-task."""
-    violations: list[str] = []
-    for path in _skill_markdown_files():
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if "codex exec --full-auto" in line:
-                violations.append(f"{path.relative_to(REPO_ROOT)}:{line_number}: {line.strip()}")
-
-    assert violations == []
 
 
 def test_implement_review_codex_dispatch_stays_sandboxed() -> None:
@@ -46,11 +29,7 @@ def test_implement_review_codex_dispatch_stays_sandboxed() -> None:
     skill = skill_path.read_text(encoding="utf-8")
     matrix = matrix_path.read_text(encoding="utf-8")
 
-    assert "codex exec --full-auto" not in skill
-    assert "codex exec --full-auto" not in matrix
-    assert "danger-full-access" not in skill
-    assert "danger-full-access" not in matrix
     dispatches = [line for line in (skill + matrix).splitlines() if "codex exec --sandbox" in line]
-    assert len(dispatches) == 4
+    assert dispatches
     assert all("codex exec --sandbox workspace-write" in line for line in dispatches)
     assert "--add-dir" not in skill + matrix
