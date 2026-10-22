@@ -128,9 +128,9 @@ _EXEMPT_FILES: frozenset[Path] = frozenset(
 # WP10 routed every prior ROUTE-deferred file: the lifecycle_events,
 # work_package_lifecycle, reducer.materialize_snapshot, doctor.run_doctor, and
 # aggregate.InvalidMissionSlug symbols were promoted onto the ``status`` facade
-# (``status/__init__.__all__``), and the sync SaaS fan-out handler now consumes
-# ``build_saas_lifecycle_queue_event`` / ``repo_root_for_lifecycle_log`` from the
-# facade instead of reaching into ``status.lifecycle_events`` internals. Three
+# (``status/__init__.__all__``). (The hosted-queue builder and the public
+# ``repo_root_for_lifecycle_log`` alias that the sync fan-out handler once consumed
+# from the facade were deleted with that handler, #6607.) Three
 # entries remain: the permanent import-time cycle-breaker, one temporary
 # WIRE-M2-03 entry pending a follow-up bead (see the module docstring above
 # for the full name-collision rationale on the latter), and one temporary

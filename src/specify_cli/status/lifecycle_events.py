@@ -339,126 +339,6 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
         return None
 
 
-def _validate_lifecycle_payload(event_type: str, payload: Mapping[str, Any]) -> None:
-    """Validate lifecycle payloads against the canonical events contract.
-
-    Delegates to ``spec_kitty_events.conformance.validate_event`` so every
-    event type the events package recognises (lifecycle, status, dossier,
-    build, …) is checked under the same canonical rules.
-
-    Phase-2 widening (issues Priivacy-ai/spec-kitty#1198 / #1200): we now
-    pass ``strict=True`` and raise on both ``model_violations`` and
-    ``schema_violations`` for known event types. The previous behavior
-    raised only on model violations, which let JSON-schema-level drift
-    (missing required fields, additionalProperties=false breaches) reach
-    the SaaS boundary as a runtime canary failure instead of a producer
-    emit-time error.
-
-    ``MissionReopened`` and ``FollowUpRecorded`` are validated like every
-    other known type: the local-only exemption was retired with
-    ``spec_kitty_events`` 11.0.0, which removed ``LOCAL_ONLY_EVENT_TYPES``
-    (#6399).
-
-    Unknown event types (event_type not in ``_EVENT_TYPE_TO_MODEL``) pass
-    through quietly so unrecognised types don't become sudden hard
-    failures. The producer lint catches the corresponding hand-rolled
-    dict at static analysis time.
-    """
-    from spec_kitty_events.conformance import validate_event
-    from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
-
-    if event_type not in _EVENT_TYPE_TO_MODEL:
-        return
-
-    result = validate_event(dict(payload), event_type, strict=True)
-    if result.model_violations or result.schema_violations:
-        model_details = [f"{v.field}: {v.message}" for v in result.model_violations]
-        schema_details = [f"{v.json_path}: {v.message}" for v in result.schema_violations]
-        details = "; ".join((*model_details, *schema_details))
-        raise ValueError(f"Lifecycle payload for {event_type!r} fails canonical contract: {details}")
-
-
-def _canonical_lifecycle_payload_for_saas(
-    event_type: str,
-    payload: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Project a local lifecycle payload to the strict SaaS wire shape.
-
-    Local Started events keep ``artifact_path`` so local replay and dashboards
-    can identify the artifact opened by the phase transition. The canonical
-    ``spec-kitty-events`` Started payloads intentionally do not expose that
-    field, so the SaaS fan-out strips it before strict validation and queueing.
-    """
-    projected = dict(payload)
-    if event_type.endswith("Started"):
-        projected.pop("artifact_path", None)
-    return projected
-
-
-def repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
-    """Public alias for :func:`_repo_root_for_lifecycle_log`.
-
-    Exposed on the ``status`` facade so the sync fan-out handler can resolve the
-    repo root for a lifecycle log without reaching into a ``status`` submodule
-    (repo-wide import-boundary contract). Pure helper, no side effects.
-    """
-    return _repo_root_for_lifecycle_log(log_path)
-
-
-def build_saas_lifecycle_queue_event(
-    envelope: Mapping[str, Any],
-    *,
-    build_id: str,
-    project_uuid: str,
-    project_slug: str | None,
-    node_id: str,
-    lamport_clock: int,
-) -> dict[str, Any] | None:
-    """Project a local lifecycle ``envelope`` to the strict SaaS queue event.
-
-    Encapsulates the lifecycle-specific shaping (canonical payload projection,
-    strict contract validation, and canonical-envelope assembly) so the sync
-    fan-out handler can build a queueable event without importing ``status``
-    internals directly (repo-wide import-boundary contract). Identity- and
-    clock-derived primitives are passed in by the caller, keeping this module
-    free of sync/identity/queue dependencies.
-
-    Returns ``None`` when the envelope is not a queueable lifecycle event
-    (missing/invalid ``event_type``, ``payload``, or ``aggregate_type``).
-    """
-    event_type = envelope.get("event_type")
-    payload = envelope.get("payload")
-    if not isinstance(event_type, str) or not isinstance(payload, Mapping):
-        return None
-
-    aggregate_type = envelope.get("aggregate_type")
-    if not isinstance(aggregate_type, str):
-        return None
-
-    saas_payload = _canonical_lifecycle_payload_for_saas(event_type, payload)
-    _validate_lifecycle_payload(event_type, saas_payload)
-
-    event_id = _generate_event_id()
-    aggregate_id = envelope.get("aggregate_id") or payload.get("mission_slug") or event_id
-    # canonical-producer-exempt: #1198 -- lifecycle-to-SaaS wire envelope.
-    return {
-        "event_id": event_id,
-        "event_type": event_type,
-        "aggregate_id": str(aggregate_id),
-        "aggregate_type": aggregate_type,
-        "schema_version": "3.0.0",
-        "build_id": build_id,
-        "payload": saas_payload,
-        "node_id": node_id,
-        "lamport_clock": lamport_clock,
-        "causation_id": None,
-        "correlation_id": event_id,
-        "timestamp": envelope.get("timestamp") or now_utc_iso(),
-        "project_uuid": project_uuid,
-        "project_slug": project_slug or envelope.get("project_slug"),
-    }
-
-
 def fanout_lifecycle_event_hosted(
     envelope: Mapping[str, Any],
     *,
@@ -470,17 +350,11 @@ def fanout_lifecycle_event_hosted(
     writes the local JSONL log; callers that need the traditional composed
     behavior should continue to use :func:`append_lifecycle_event`.
 
-    #5181/m2: passes *log_path*'s directory straight through as the drain
-    gate's ``project_root`` rather than pre-resolving it with
-    :func:`_repo_root_for_lifecycle_log` (git-only, no ``.kittify`` fallback)
-    and collapsing an unresolvable result to ``None`` here -- that pre-
-    resolution made "this log path could not be canonicalised" indistinguishable
-    from "no log path was ever given", so the drain gate fell back to the
-    process's CWD for the former instead of refusing (m2). An explicit,
-    non-``None`` ``project_root`` is never CWD-fallback-eligible in
-    :func:`hosted_posture.drain_posture` (see ``_resolve_repo_root``), so
-    handing it the raw path and letting IT canonicalise (and fail closed) is
-    correct and simpler.
+    Passes *log_path*'s directory straight through as the fan-out ``repo_root``
+    rather than pre-resolving it with :func:`_repo_root_for_lifecycle_log`
+    (git-only, no ``.kittify`` fallback), so an unresolvable log path is not
+    collapsed to ``None`` here (#5181/m2). Registered handlers receive only
+    ``envelope`` and ``log_path``; ``repo_root`` is absorbed by the adapter.
     """
     from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
@@ -824,8 +698,8 @@ def emit_artifact_phase_local(
     "dormant mask"): the canonical pydantic payload models in
     ``spec_kitty_events.project_lifecycle`` declare ``extra="forbid"``,
     so ``summary`` / ``wp_count`` remain Completed-only. ``artifact_path`` is
-    local lifecycle metadata for Started events; the SaaS fan-out path strips
-    it before strict canonical validation.
+    local lifecycle metadata for Started events and is persisted in the local
+    log only; the canonical Started payload models do not declare it.
     """
     from spec_kitty_events.project_lifecycle import (
         PlanCompletedPayload,
@@ -1077,8 +951,9 @@ def emit_mission_reopened(
     rather than this event's ``cleared_merge`` payload being an unconditional
     record of what is now on disk.
 
-    This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
-    is intentionally kept off the SaaS strict-validation model map.
+    This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note):
+    core persists it to the local lifecycle log and runs no hosted
+    validation or queueing for it.
 
     Fail-closed (#1926): a mission can only be re-opened once it has *reached
     completion* (merged, or all WPs terminal). Re-opening a mission that never
@@ -1284,6 +1159,4 @@ __all__ = [
     "emit_follow_up_recorded",
     "read_lifecycle_events",
     "has_non_bootstrap_status_history",
-    "repo_root_for_lifecycle_log",
-    "build_saas_lifecycle_queue_event",
 ]
