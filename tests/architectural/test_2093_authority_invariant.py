@@ -61,6 +61,7 @@ import json
 from pathlib import Path
 
 import pytest
+# Test-only private import: do not copy into production; the public-imports gate forbids it in src.
 from spec_kitty_events.diary import _RUNTIME_SLOTS
 
 import specify_cli.status as _status_facade
