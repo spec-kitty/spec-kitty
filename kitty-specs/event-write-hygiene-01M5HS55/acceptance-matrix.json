@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "gate red-first commits 82212d0c / 78730d04 / b83b1398 with planted controls; 237 passed on acceptance run",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-22T17:00:03.119042+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
