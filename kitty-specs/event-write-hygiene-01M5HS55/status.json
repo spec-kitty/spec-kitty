@@ -1,7 +1,7 @@
 {
-  "event_count": 24,
-  "last_event_id": "01M5J5F3QPQCNZE7N5C7PVBTZ3",
-  "materialized_at": "2026-10-22T16:00:22.262321+00:00",
+  "event_count": 25,
+  "last_event_id": "01M5J5XF905F2ZE6WY9TZVFQ9P",
+  "materialized_at": "2026-10-22T16:08:12.832491+00:00",
   "mission_number": "",
   "mission_slug": "event-write-hygiene-01M5HS55",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 2
+    "in_review": 0,
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -93,11 +93,11 @@
       "agent": "claude",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M5J5F3QPQCNZE7N5C7PVBTZ3",
-      "last_transition_at": "2026-10-22T16:00:22.262321+00:00",
+      "lane": "planned",
+      "last_event_id": "01M5J5XF905F2ZE6WY9TZVFQ9P",
+      "last_transition_at": "2026-10-22T16:08:12.832491+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-22T15:50:29Z – claude – shell_pid=10166 – T010 red-first commit: gate widened (all _PRODUCTION_ROOTS, alias.name private names, no allowlist). Red on current tree: 1 failed, sole offender src/specify_cli/status/lifecycle_events.py:368 -> spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL. Cmd: PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_events_tracker_public_imports.py -q -n auto --dist loadfile",
@@ -105,6 +105,12 @@
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/event-write-hygiene-01M5HS55/tasks/WP03-dead-hosted-builder-and-public-imports-gate/review-cycle-1.md",
+        "reference": "review-cycle://event-write-hygiene-01M5HS55/WP03-dead-hosted-builder-and-public-imports-gate/review-cycle-1.md",
+        "reviewer": "claude",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 819,
       "shell_pid_created_at": "1792684816.4",
