@@ -40,7 +40,7 @@ SKILL_ID = "deploy-helper"
 RENDERED = "acme-deploy-helper"
 AGENT_ROOTS = (".claude/skills", ".agents/skills")  # claude (native) + codex (shared)
 PROCEDURE_TEXT = "Substance carried by a procedure."
-AGENTS_CONFIG = "agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n"
+AGENTS_CONFIG = "agents:\n  available:\n    - claude\n    - codex\n"
 
 
 def _invoke(project: Path, verb: str, *args: str) -> str:
@@ -106,7 +106,7 @@ def project(tmp_path: Path, home: Path) -> Path:
     support.write_org_charter(pack, namespace="acme")
     root = tmp_path / "project"
     root.mkdir()
-    support.write_config(root, pack, extra=AGENTS_CONFIG)
+    support.write_config(root, pack, extra=AGENTS_CONFIG, ledger={"activated_skills": []})
     manifest = install_all_skills(root, ["claude", "codex"], resolve_project_skill_catalog(root))
     save_manifest(manifest, root)
     return root
@@ -158,9 +158,11 @@ def test_pack_skill_lifecycle_survives_every_retiring_path(project: Path, home: 
     assert manifest is not None and not [entry for entry in manifest.entries if entry.origin == ORIGIN_PACK]
 
     after = _snapshot(project, ignore=(PACK_SKILL_STAGING.as_posix(), ".kittify/skills-manifest.json"))
-    # The deactivation records an exclusion (ADR 2026-10-19-1); every other byte is back where it started.
-    config = ".kittify/config.yaml"
-    assert yaml.safe_load(after.pop(config)) == {**yaml.safe_load(before.pop(config)), "deactivated_skills": [SKILL_ID]}
+    # The deactivation records an exclusion in the activation ledger (ADR 2026-10-19-1); every other byte is back where it started.
+    ledger = ".kittify/charter/activation.yaml"
+    ledger_after, ledger_before = after.pop(ledger), before.pop(ledger)
+    assert isinstance(ledger_after, bytes) and isinstance(ledger_before, bytes)
+    assert yaml.safe_load(ledger_after) == {**yaml.safe_load(ledger_before), "deactivated_skills": [SKILL_ID]}
     assert _without_empty_runtime(after) == _without_empty_runtime(before)
     assert _snapshot(home) == home_before or all(RENDERED not in key for key in _snapshot(home))
 
@@ -184,8 +186,7 @@ def test_unowned_same_name_directory_is_preserved_and_reported(project: Path) ->
 
 
 def _reconfigure(project: Path, pack: Path, activated: list[str], *, project_namespace: str | None = None) -> None:
-    listed = "".join(f"  - {item}\n" for item in activated)
-    support.write_config(project, pack, extra=f"agents:\n  available:\n    - claude\n    - codex\nactivated_skills:\n{listed}", project_namespace=project_namespace)
+    support.write_config(project, pack, extra=AGENTS_CONFIG, project_namespace=project_namespace, ledger={"activated_skills": activated})
 
 
 def test_name_collision_fails_before_any_write(tmp_path: Path, project: Path) -> None:

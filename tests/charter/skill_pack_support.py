@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 from ruamel.yaml import YAML
+
+from tests._factories.activation_ledger import seed_activation_ledger
 
 NAMESPACE = "acme"
 
@@ -75,9 +78,19 @@ def write_org_charter(pack_root: Path, *, required_skills: list[str] | None = No
     (pack_root / "org-charter.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
 
 
-def write_config(project_root: Path, pack_root: Path | None, *, extra: str = "", project_namespace: str | None = None) -> Path:
-    """Write ``.kittify/config.yaml`` registering *pack_root* as the only org pack."""
-    lines = ["mission_type_activations:", "  - software-dev"]
+def write_config(
+    project_root: Path, pack_root: Path | None, *, extra: str = "", project_namespace: str | None = None, ledger: dict[str, Any] | None = None
+) -> Path:
+    """Write ``.kittify/config.yaml`` registering *pack_root* as the only org pack.
+
+    Without *ledger* the activation keys land on the legacy ``config.yaml``
+    surface (an unmigrated project: legacy reads work, a deny write refuses).
+    With *ledger* they are seeded into ``.kittify/charter/activation.yaml``
+    (``mission_type_activations: [software-dev]`` plus *ledger*), the shape
+    ``init`` and the ledger migration produce; *extra* must then carry no
+    activation key.
+    """
+    lines = [] if ledger is not None else ["mission_type_activations:", "  - software-dev"]
     if pack_root is not None or project_namespace is not None:
         lines.append("charter_packs:")
     if pack_root is not None:
@@ -86,5 +99,7 @@ def write_config(project_root: Path, pack_root: Path | None, *, extra: str = "",
         lines += ["  project:", f"    skill_namespace: {project_namespace}"]
     config = project_root / ".kittify" / "config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text("\n".join(lines) + "\n" + extra, encoding="utf-8")
+    config.write_text("".join(f"{line}\n" for line in lines) + extra, encoding="utf-8")
+    if ledger is not None:
+        seed_activation_ledger(project_root, mission_type_activations=["software-dev"], **ledger)
     return config

@@ -17,12 +17,11 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from click.testing import Result
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from charter.activation.activation_ledger import ActiveCharterConfigError
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import ActivationResult, ActiveCharterManager, _save_ledger
+from charter.activation.pack_manager import ActivationResult, ActiveCharterManager, resolve_activation_write_target
 from kernel.activation_ledger_store import activation_ledger_path
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter import deactivate as deactivate_module
@@ -218,15 +217,20 @@ def test_an_empty_write_on_a_fresh_project_creates_no_ledger(tmp_path: Path) -> 
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
 
-    _save_ledger(activation_ledger_path(tmp_path), {}, repo_root=tmp_path)
+    path, _data, save = resolve_activation_write_target(tmp_path)
+    assert path == activation_ledger_path(tmp_path)  # a fresh project writes the ledger, never config.yaml
+    save(path, {})
 
     assert not activation_ledger_path(tmp_path).exists()
+    assert (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8") == "{}\n"
 
 
 def test_an_empty_write_on_an_existing_ledger_still_empties_it(tmp_path: Path) -> None:
     root = _project(tmp_path)
 
-    _save_ledger(activation_ledger_path(root), {}, repo_root=root)
+    path, _data, save = resolve_activation_write_target(root)
+    assert path == activation_ledger_path(root)
+    save(path, {})
 
     assert activation_ledger_path(root).read_text(encoding="utf-8") == "{}\n"
 

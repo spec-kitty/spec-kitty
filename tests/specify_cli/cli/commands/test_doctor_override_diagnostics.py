@@ -800,6 +800,8 @@ _NO_PACKS_ORG_DRG: dict[str, object] = {
     "dangling_endpoints": [],
     "errors": [],
     "operating_procedures_unresolved": [],
+    # The activation ledger check (#6496, docs/api/charter-commands.md): a fresh project has no finding.
+    "activation_ledger": {"errors": [], "warnings": []},
 }
 
 
