@@ -15,7 +15,9 @@ from kernel.clock import now_utc_iso
 import json
 import sys
 import time
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -30,8 +32,9 @@ from specify_cli.cli.commands.invocations_cmd import (
     _iter_records,
     _read_first_line,
     _read_last_line,
-    append_to_index,
 )
+from specify_cli.invocation.record import OpStartedEvent
+from specify_cli.invocation.writer import InvocationWriter
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
@@ -81,6 +84,36 @@ def _write_started(
     path = events_dir / f"{invocation_id}.jsonl"
     path.write_text(json.dumps(record) + "\n", encoding="utf-8")
     return path
+
+
+def _seed_index_entry(repo_root: Path, record: Mapping[str, Any]) -> None:
+    """Append one raw index line, bypassing ``InvocationWriter``.
+
+    Needed where the writer cannot produce the fixture: bulk benchmark seeding
+    over hand-written op files, and an index row with no matching op file
+    (the dangling-entry shape the indexed reader must tolerate).
+    """
+    index_path = repo_root / INDEX_PATH
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    entry = {key: record[key] for key in ("invocation_id", "profile_id", "started_at")}
+    with index_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def _write_started_via_writer(repo_root: Path, *, invocation_id: str) -> Path:
+    """Write a real ``started`` event (op file plus index entry) through ``InvocationWriter``."""
+    event = OpStartedEvent(
+        invocation_id=invocation_id,
+        profile_id="implementer-fixture",
+        action="implement",
+        request_text="test request",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
+        actor="claude",
+        mode_of_work="task_execution",
+        started_at=now_utc_iso(),
+    )
+    return InvocationWriter(repo_root).write_started(event)
 
 
 def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done", closed_by: str = "agent") -> None:
@@ -135,7 +168,7 @@ def create_fixture_invocations(
         path = events_dir / f"{inv_id}.jsonl"
         path.write_text(json.dumps(record) + "\n", encoding="utf-8")
         if write_index:
-            append_to_index(repo_root, record)
+            _seed_index_entry(repo_root, record)
 
 
 # ---------------------------------------------------------------------------
@@ -320,9 +353,7 @@ class TestInvocationsListJSON:
         """Index path must also scan for completed before post-terminal links."""
         events_dir = _make_events_dir(tmp_path)
         invocation_id = _new_ulid()
-        path = _write_started(events_dir, invocation_id=invocation_id)
-        started = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
-        append_to_index(tmp_path, started)
+        path = _write_started_via_writer(tmp_path, invocation_id=invocation_id)
         _write_completed(path, invocation_id=invocation_id, outcome="done")
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"event": "artifact_link", "invocation_id": invocation_id, "ref": "spec.md"}) + "\n")
@@ -338,12 +369,9 @@ class TestInvocationsListJSON:
         live_id = _new_ulid()
         deleted_id = _new_ulid()
 
-        live_path = _write_started(events_dir, invocation_id=live_id)
-        append_to_index(
-            tmp_path,
-            json.loads(live_path.read_text(encoding="utf-8").splitlines()[0]),
-        )
-        append_to_index(
+        _write_started_via_writer(tmp_path, invocation_id=live_id)
+        # An index row whose op file was deleted (migration): the public writer cannot produce it.
+        _seed_index_entry(
             tmp_path,
             {
                 "invocation_id": deleted_id,
