@@ -1,6 +1,6 @@
 ---
 title: Environment Variables Reference
-description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
+description: Environment variable reference for Spec Kitty 3.2 runtime, CI, tracker, and test configuration.
 doc_status: active
 updated: '2026-10-22'
 related:
@@ -150,20 +150,19 @@ spec-kitty merge
 
 !!! warning "A shell `export` of either variable is machine-global"
 
-    `SPEC_KITTY_ENABLE_SAAS_SYNC` and `SPEC_KITTY_SAAS_URL` are ordinary process
-    environment variables. **Exported in a shell**, they have no project-scoped form —
+    `SPEC_KITTY_ENABLE_SAAS_SYNC` is an ordinary process environment variable.
+    **Exported in a shell**, it has no project-scoped form —
     a single `export` affects every project that shell subsequently touches, not just the
     repository you were standing in when you ran it.
 
     Hosted sync is **on by default** (#3980, Team Kitty launch defaults);
     `SPEC_KITTY_ENABLE_SAAS_SYNC` is now an opt-out. A shell `export` of the
-    opt-out (or of `SPEC_KITTY_SAAS_URL`) is still machine-global with no
-    project-scoped form.
+    opt-out is still machine-global with no project-scoped form.
 
     **The scoped alternative is the per-repo `.kitty.env` tier** (see
     [The `.kitty.env` file](#the-kittyenv-file) below): a value in
     `<repo>/.kittify/.kitty.env` only takes effect for `spec-kitty` invocations
-    whose resolved project root is that repo, so setting either variable there
+    whose resolved project root is that repo, so setting it there
     does not affect any other checkout on the machine.
 
     ```bash
@@ -194,77 +193,12 @@ per-repository decision unless written to the per-repo `.kitty.env` tier.
 **Example**:
 ```bash
 export SPEC_KITTY_ENABLE_SAAS_SYNC=0
-spec-kitty auth login
+spec-kitty agent tasks status
 ```
 
 **See also**:
 - [Launch-Readiness Behavior (Coming Soon)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/launch-readiness-future.md)
   (archived) for the launch-coordinator playbook behind the default flip.
-
-### SPEC_KITTY_SAAS_URL
-
-Configures the hosted endpoint; there is no built-in default (#4971) — set this or
-`config.toml [sync].server_url` before any explicit hosted command will do anything other than
-print setup guidance. Configuring an endpoint here is independent of whether live drain is
-on: even with an endpoint configured, no hosted traffic is sent automatically unless both drain
-scopes are also on (`spec-kitty moments drain status`; see
-[ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)).
-
-An explicitly exported value is always a real opinion (#4259): it wins over
-`config.toml [sync].server_url` regardless of what that file holds.
-
-**Upgrade migrations that touch the saved endpoint (`config.toml [sync].server_url`), not this
-variable:**
-- `m_4_0_0_retired_hosted_target` **deletes** a saved `server_url` naming the retired first-party
-  address (`https://app.spec-kitty.ai`, #4259) and prints setup guidance — it no longer rewrites
-  that value to a packaged default (there is none to rewrite to; FR-013). Every other saved value,
-  including a machine's own prior `https://team.spec-kitty.ai` migration, is left untouched.
-- `m_4_0_0rc5_hosted_endpoint_session_backfill` backfills `[sync].server_url` from a stored login
-  session's `issuer_url` when no endpoint is configured at all (D-6/FR-016) — treating a prior
-  successful `spec-kitty auth login` as explicit opt-in to the endpoint it logged into, so an
-  already-logged-in machine is not stranded by the removal of the packaged default. It never
-  backfills the retired first-party address, and it never touches drain posture (`[hosted] drain`
-  lives in the same file but is a separate, independently-gated opt-in — see
-  [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)).
-
-**Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
-`.kitty.env` (see the warning at the top of this section). Exporting this in a
-shell points every project that shell touches at the named instance.
-
-**Purpose**: configures which hosted endpoint auth, tracker discovery, and the Zeitgeist relay
-client talk to — one of only two ways to configure it at all (the other is
-`config.toml [sync].server_url`), since there is no built-in default.
-
-**Example**:
-```bash
-export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.example.internal
-spec-kitty auth login
-```
-
-**See also**:
-- [ADR: hosted interaction is opt-in, twice, with no packaged endpoint](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md)
-  -- the decision record for the no-packaged-default / two-scope-drain model this
-  variable now operates under.
-
-### SPEC_KITTY_SYNC_DISABLE
-
-The single process-wide kill switch for sync-adjacent work (#3980): truthy
-disarms hosted sync outright (`sync_active()`) and also suppresses
-moment-handler registration. Nothing else reads it.
-
-```bash
-export SPEC_KITTY_SYNC_DISABLE=1
-```
-
-### SPEC_KITTY_NO_MOMENT_HANDLERS
-
-Register no Zeitgeist moment handlers at import time (#3980) — the
-moment-handler import gate's own name. `SPEC_KITTY_SYNC_MINIMAL_IMPORT` is a
-deprecated alias of this gate and warns once when honored.
-
-```bash
-export SPEC_KITTY_NO_MOMENT_HANDLERS=1
-```
 
 ### SPEC_KITTY_SKIP_PRE_REVIEW_GATE
 
@@ -276,40 +210,6 @@ it no longer reads the sync-disable vocabulary. The per-invocation form is
 ```bash
 export SPEC_KITTY_SKIP_PRE_REVIEW_GATE=1
 ```
-
-### SPEC_KITTY_MACHINE_CLIENT_ID / SPEC_KITTY_MACHINE_CLIENT_SECRET / SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE
-
-The CI/machine credential for `spec-kitty auth login --machine` (#3277): a
-ServicePrincipal's `client_id` plus its `client_secret`, exchanged via the
-OAuth `client_credentials` grant with no browser, device flow, or prompt.
-
-**Scope**: process environment of the runner only. These are **never**
-candidates for `.kitty.env` — the secret is never committed — and
-`SPEC_KITTY_MACHINE_CLIENT_SECRET` is treated as secret-shaped everywhere
-(provisioning emits at most a commented blank template; diagnostics report
-name/presence only, never the value).
-
-**Purpose**: lets an unattended CI runner authenticate and run hosted
-commands with a machine identity the SaaS attributes and can revoke as a
-unit. The target server is selected by `SPEC_KITTY_SAAS_URL` exactly as for
-every other hosted flow.
-
-**Example**:
-```bash
-export SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
-export SPEC_KITTY_MACHINE_CLIENT_ID=01J...
-export SPEC_KITTY_MACHINE_CLIENT_SECRET=...   # or SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE=/run/secrets/...
-spec-kitty auth login --machine
-```
-
-A missing or rejected credential fails closed with a precise remediation —
-never a device-flow or browser prompt — and the secret value never appears
-in output, logs, or errors.
-
-**Removed**: `spec-kitty auth` was removed from open-core in
-[#6164](https://github.com/spec-kitty/spec-kitty/issues/6164); the former CI
-machine-authentication runbook went with it. The code is preserved in the
-`spec-kitty/event-router` repository.
 
 ---
 
@@ -373,9 +273,6 @@ surrounding quotes is stripped from the value:
 ```bash
 # .kittify/.kitty.env
 SPEC_KITTY_ENABLE_SAAS_SYNC=0
-SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.example.internal
-# SPEC_KITTY_SAAS_TOKEN=       (secret-shaped vars are provisioned as commented templates —
-#                                fill in by hand; never auto-populated with a live value)
 ```
 
 **Fail policy**: an absent file is normal (the default state for almost every project) and
@@ -387,14 +284,9 @@ inside the file it locates; a line defining it there is dropped with a warning.
 **The repo tier is checkout-controlled — treat it like a shell export from that repo, not
 like a scoped secret.** A committed `<repo>/.kittify/.kitty.env` is read and seeded into
 `os.environ` for anyone who clones the repo and runs `spec-kitty` inside it, on the same
-trust footing as a variable they exported themselves — including `SPEC_KITTY_SAAS_URL` and
-`SPEC_KITTY_TEAM_SLUG`. This is different from `.kittify/saas-auth.json`, which
-`load_auth_context` (`specify_cli/saas_client/auth.py`) explicitly refuses to pair with an
-already-set env token (#237/#264): the repo-tier `.kitty.env` carries no such refusal, because
-by the time `load_auth_context` runs its values are indistinguishable from the real shell
-environment. Do not run `spec-kitty` commands that touch a `SPEC_KITTY_SAAS_TOKEN` inside a
-freshly cloned, unreviewed repository without checking `.kittify/.kitty.env` first (`spec-kitty
-doctor env-file` shows what each tier supplies). Tracked as #289.
+trust footing as a variable they exported themselves. Check `.kittify/.kitty.env` in a
+freshly cloned, unreviewed repository before running `spec-kitty` there (`spec-kitty doctor
+env-file` shows what each tier supplies). Tracked as #289.
 
 **Provisioning**: `spec-kitty upgrade` runs an idempotent migration that creates the
 per-repo scaffold, registers the `env_file` pointer, and adds `.kitty.env` to both
@@ -599,9 +491,6 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
-| `SPEC_KITTY_SAAS_URL` | Configures the hosted endpoint; no built-in default | `https://spec-kitty-dev.example.internal` |
-| `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |
-| `SPEC_KITTY_NO_MOMENT_HANDLERS` | Register no moment handlers at import | `1` |
 | `SPEC_KITTY_SKIP_PRE_REVIEW_GATE` | Skip the pre-review regression gate | `1` |
 | `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |

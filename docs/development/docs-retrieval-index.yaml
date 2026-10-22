@@ -4566,7 +4566,7 @@ pages:
   - path: "docs/api/environment-variables.md"
     title: "Environment Variables Reference"
     divio_type: "none"
-    abstract: "Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration."
+    abstract: "Environment variable reference for Spec Kitty 3.2 runtime, CI, tracker, and test configuration."
     anchors:
     - {slug: "runtime-and-installation", text: "Runtime and Installation", level: 2}
     - {slug: "spec-kitty-home", text: "SPEC_KITTY_HOME", level: 3}
@@ -4578,11 +4578,7 @@ pages:
     - {slug: "spec-kitty-worktree-removal-delay", text: "SPEC_KITTY_WORKTREE_REMOVAL_DELAY", level: 3}
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
-    - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
-    - {slug: "spec-kitty-sync-disable", text: "SPEC_KITTY_SYNC_DISABLE", level: 3}
-    - {slug: "spec-kitty-no-moment-handlers", text: "SPEC_KITTY_NO_MOMENT_HANDLERS", level: 3}
     - {slug: "spec-kitty-skip-pre-review-gate", text: "SPEC_KITTY_SKIP_PRE_REVIEW_GATE", level: 3}
-    - {slug: "spec-kitty-machine-client-id-spec-kitty-machine-client-secret-spec-kitty-machine-client-secret-file", text: "SPEC_KITTY_MACHINE_CLIENT_ID / SPEC_KITTY_MACHINE_CLIENT_SECRET / SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE", level: 3}
     - {slug: "release-channel", text: "Release Channel", level: 2}
     - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
     - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
