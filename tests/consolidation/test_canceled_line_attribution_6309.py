@@ -190,6 +190,10 @@ def test_reindented_and_crlf_canceled_lines_stay_live(tmp_path: Path) -> None:
 
 _PY_BASE = "def f(x):\n    if x:\n        a()\n    b()\n"
 _PY_REINDENTED = "def f(x):\n    if x:\n        a()\n        b()\n"
+_MIX_BASE = "if x:\n    a()\nb()\nc = 1\n"
+_MIX_CANCELED = "if x:\n    a()\n    b()\nc = 2\n"
+_DUP_BASE = "if x:\n    a()\nb()\nif y:\n    b()\n"
+_DUP_CANCELED = "if x:\n    a()\n    b()\nif y:\n    b()\n"
 
 
 @pytest.mark.parametrize(
@@ -202,9 +206,13 @@ _PY_REINDENTED = "def f(x):\n    if x:\n        a()\n        b()\n"
         pytest.param("A = 1\nB = 2\n", "A = 1\r\nB = 2\r\n", "A = 1\nB = 2\nC = 3\n", False, id="crlf-only-conversion-undone"),
         pytest.param("x = call(1,\n    2\n", "x = call(1,\n    2\n)\n", "x = call(1,\n    2\n)\ny = 3\n", True, id="punctuation-only-closing-paren-added"),
         pytest.param("x = call(1,\n    2\n)\n", "x = call(1,\n    2\n", "x = call(1,\n    2\ny = 3\n", True, id="punctuation-only-closing-paren-removed"),
+        pytest.param(_MIX_BASE, _MIX_CANCELED, "if x:\n    a()\n    b()\nc = 3\n", True, id="mixed-real-edit-and-reindent-reindent-kept"),
+        pytest.param(_MIX_BASE, _MIX_CANCELED, "if x:\n    a()\nb()\nc = 3\n", False, id="mixed-real-edit-and-reindent-reindent-undone"),
+        pytest.param(_DUP_BASE, _DUP_CANCELED, _DUP_CANCELED + "# approved\n", True, id="reindent-text-duplicated-elsewhere-and-kept"),
+        pytest.param(_DUP_BASE, _DUP_CANCELED, _DUP_BASE + "# approved\n", False, id="reindent-text-duplicated-elsewhere-and-undone"),
     ],
 )
-def test_whitespace_or_punctuation_only_canceled_change_is_not_superseded_by_an_unrelated_append(
+def test_whitespace_or_punctuation_only_part_of_a_canceled_change_is_not_superseded_by_an_unrelated_edit(
     tmp_path: Path, base: str, canceled_content: str, approved_content: str, ships: bool
 ) -> None:
     """Fail-closed: a canceled re-indent, line-ending or lone-punctuation change is meaning-changing.

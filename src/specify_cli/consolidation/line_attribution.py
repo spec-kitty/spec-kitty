@@ -42,7 +42,9 @@ Known limits (ADR 2026-09-29-1, Amendment 2026-10-22). Pinned as strict ``xfail`
 in ``tests/consolidation/test_canceled_line_attribution_6309.py``: approved lines
 inserted exactly at a canceled deletion's spot supersede it, canceled content
 copied into another file is not followed, and a rename whose old path is re-created
-is judged at the re-created path only. Not pinned: a short line moved within the
+is judged at the re-created path only. An approved WP that later re-indents the same lines
+identically is indistinguishable from the canceled re-indent and is refused (deliberate
+fail-closed over-refusal). Not pinned: a short line moved within the
 file (below git's ``-M`` threshold) is caught only by the subset signal, and content inside a
 merge commit stays the existing residual. The rename lookup diffs the window from the
 newest canceled commit to the lane tip with no rename limit, and runs only when the
@@ -266,29 +268,42 @@ class LineAttribution:
         added = {_normalized(text) for hunk in self._canceled_hunks(sha, path) for text in hunk.added if not is_trivial_line(text)}
         return bool(added) and added <= {_normalized(line.text) for line in final_blame}
 
+    def _whitespace_only_lines(self, sha: str, path: str) -> tuple[list[bytes], list[bytes]]:
+        """``(added, removed)`` non-blank lines of *sha*'s byte-for-byte diff that the ``-w`` judgement does not account for.
+
+        A line is accounted for when its whitespace-normalised form is a non-trivial line of the
+        ``-w`` diff of a change that has a real edit (which the ``-w`` arms judge); the rest are re-indents, line-ending
+        changes and lone punctuation lines.
+        """
+        lines = [text for hunk in self._canceled_hunks(sha, path) for text in (*hunk.removed, *hunk.added)]
+        # Trivial lines of a change that also has a real edit stay under the trivial-line policy (ignored).
+        judged = {_normalized(text) for text in lines} if any(not is_trivial_line(text) for text in lines) else set()
+        exact = self._canceled_hunks(sha, path, exact=True)
+        added = [text for hunk in exact for text in hunk.added if text.strip() and _normalized(text) not in judged]
+        removed = [text for hunk in exact for text in hunk.removed if text.strip() and _normalized(text) not in judged]
+        return added, removed
+
     def _exact_change_kept(self, sha: str, path: str, final_blame: Sequence[BlameLine]) -> bool:
-        """A canceled change that only the whitespace-blind arms cannot see, still in the final state byte for byte.
+        """The part of a canceled change that the whitespace-blind arms cannot see, still in the final state byte for byte.
 
         A re-indent (meaning in Python, YAML, Makefiles), a line-ending change or a lone
         punctuation line is invisible to ``-w`` blame and diff and to the trivial-line filter, so
-        those arms would read it as superseded. When *sha*'s change at *path* has no non-trivial
-        line under ``-w`` yet a non-blank line changed byte for byte, it stays live while every such
-        added line is still in the final state, or, for a pure removal, while a removed line has
-        fewer copies than before.
+        those arms would read it as superseded, also when it rides along with a real edit. Such an
+        added line stays live while the final state holds more copies of it than the commit's parent
+        did (a copy that was already there, elsewhere, is not the change); a pure removal, while a
+        removed line has fewer copies than before. An approved work package that later re-indents the
+        same lines identically is indistinguishable from the canceled change and is refused too
+        (deliberate fail-closed over-refusal).
         """
-        if any(not is_trivial_line(text) for hunk in self._canceled_hunks(sha, path) for text in (*hunk.removed, *hunk.added)):
-            return False  # a real change: the -w arms judge it, so a real rework still supersedes
-        exact = self._canceled_hunks(sha, path, exact=True)
-        added = [text for hunk in exact for text in hunk.added if text.strip()]
-        removed = [text for hunk in exact for text in hunk.removed if text.strip()]
+        added, removed = self._whitespace_only_lines(sha, path)
+        if not added and not removed:
+            return False
+        parent = self._parent(self._resolve(sha))
+        before = Counter((blob_at(self._repo, parent, path) or b"").split(b"\n")) if parent is not None else Counter()
         final = Counter(line.text for line in final_blame)
         if added:
-            return all(final[text] > 0 for text in added)
-        parent = self._parent(self._resolve(sha))
-        if parent is None or not removed:
-            return False
-        before = Counter((blob_at(self._repo, parent, path) or b"").split(b"\n"))
-        return any(final[text] < before[text] for text in set(removed))
+            return any(final[text] > before[text] for text in set(added))
+        return parent is not None and any(final[text] < before[text] for text in set(removed))
 
     def _mode_or_empty_creation_kept(self, sha: str, path: str, final_ref: str, final_path: str) -> bool:
         """A canceled change with no line to blame: a mode change, or an empty file's creation, still in effect.
@@ -296,6 +311,7 @@ class LineAttribution:
         Neither adds nor removes a line, so blame and the hunks never see it. A mode change
         stays live while the final state has the mode it set; an empty file's creation, while
         the file still exists (what a survivor wrote into it is the survivor's, the file is not).
+        Relies on the caller having returned early for a deleted final path (*final_path* exists).
         """
         entry = tree_entry(self._repo, sha, path)
         if entry is None:
