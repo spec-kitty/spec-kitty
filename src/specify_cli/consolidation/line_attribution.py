@@ -24,6 +24,9 @@ This module answers the question by authorship instead (operator ruling on #6309
   commit's. An empty spot — the deletion simply stands — keeps it in effect.
 * **Renames** — when the path is absent from the final state, a rename of it (one
   source, one target) is followed and the target path is judged and reported.
+* **Whitespace-blind blind spots** — a canceled change that is only a re-indent, a
+  line-ending change or a lone punctuation line is invisible to ``-w`` and to the
+  trivial-line filter, so it is judged byte for byte (``_exact_change_kept``).
 * **Trivial lines** — blank, whitespace-only and punctuation-only lines are
   ignored on every arm, so a full rewrite that happens to keep a ``}`` or a blank
   line is not read as surviving canceled content.
@@ -49,6 +52,7 @@ path is gone from the final state.
 from __future__ import annotations
 
 import os
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -130,7 +134,7 @@ class LineAttribution:
         self._resolved: dict[str, str] = {}
         self._parents: dict[str, str | None] = {}
         self._forward: dict[tuple[str, str, str], tuple[BlameLine, ...]] = {}
-        self._hunks: dict[tuple[str, str], tuple[DiffHunk, ...]] = {}
+        self._hunks: dict[tuple[str, str, bool], tuple[DiffHunk, ...]] = {}
 
     @property
     def repo_root(self) -> Path:
@@ -177,8 +181,10 @@ class LineAttribution:
             return CanceledSurvival(None, judged_ref, added=False, deletion=False)
         canceled = frozenset(self._resolve(sha) for sha in canceled_shas)
         final_blame = self._forward_blame(judged_ref, final_path, floor)
-        added = any(line.commit in canceled and not is_trivial_line(line.text) for line in final_blame) or any(
-            self._all_added_lines_kept(sha, path, final_blame) for sha in canceled_shas
+        added = (
+            any(line.commit in canceled and not is_trivial_line(line.text) for line in final_blame)
+            or any(self._all_added_lines_kept(sha, path, final_blame) for sha in canceled_shas)
+            or any(self._exact_change_kept(sha, path, final_blame) for sha in canceled_shas)
         )
         if added:
             return CanceledSurvival(final_path, judged_ref, added=True, deletion=False)
@@ -220,9 +226,12 @@ class LineAttribution:
             self._forward[key] = blame_lines(self._repo, path, revs=revs, first_parent=True, ignore_whitespace=True, detect_moves=True)
         return self._forward[key]
 
-    def _canceled_hunks(self, sha: str, path: str) -> tuple[DiffHunk, ...]:
-        """What canceled commit *sha* removed and added at *path* (whitespace-only changes dropped)."""
-        key = (sha, path)
+    def _canceled_hunks(self, sha: str, path: str, *, exact: bool = False) -> tuple[DiffHunk, ...]:
+        """What canceled commit *sha* removed and added at *path*.
+
+        Whitespace-only changes are dropped unless *exact* asks for the byte-for-byte diff.
+        """
+        key = (sha, path, exact)
         if key not in self._hunks:
             parent = self._parent(self._resolve(sha))
             if parent is None:
@@ -231,7 +240,7 @@ class LineAttribution:
                 lines = tuple(blob.split(b"\n")) if blob else ()
                 self._hunks[key] = (DiffHunk(0, 0, 1, len(lines), (), lines),) if lines else ()
             else:
-                self._hunks[key] = diff_hunks(self._repo, parent, sha, path, ignore_whitespace=True)
+                self._hunks[key] = diff_hunks(self._repo, parent, sha, path, ignore_whitespace=not exact)
         return self._hunks[key]
 
     # -- the two arms ------------------------------------------------------
@@ -240,6 +249,30 @@ class LineAttribution:
         """The #5932 subset signal: every non-trivial line *sha* added is still in the final state."""
         added = {_normalized(text) for hunk in self._canceled_hunks(sha, path) for text in hunk.added if not is_trivial_line(text)}
         return bool(added) and added <= {_normalized(line.text) for line in final_blame}
+
+    def _exact_change_kept(self, sha: str, path: str, final_blame: Sequence[BlameLine]) -> bool:
+        """A canceled change that only the whitespace-blind arms cannot see, still in the final state byte for byte.
+
+        A re-indent (meaning in Python, YAML, Makefiles), a line-ending change or a lone
+        punctuation line is invisible to ``-w`` blame and diff and to the trivial-line filter, so
+        those arms would read it as superseded. When *sha*'s change at *path* has no non-trivial
+        line under ``-w`` yet a non-blank line changed byte for byte, it stays live while every such
+        added line is still in the final state, or, for a pure removal, while a removed line has
+        fewer copies than before.
+        """
+        if any(not is_trivial_line(text) for hunk in self._canceled_hunks(sha, path) for text in (*hunk.removed, *hunk.added)):
+            return False  # a real change: the -w arms judge it, so a real rework still supersedes
+        exact = self._canceled_hunks(sha, path, exact=True)
+        added = [text for hunk in exact for text in hunk.added if text.strip()]
+        removed = [text for hunk in exact for text in hunk.removed if text.strip()]
+        final = Counter(line.text for line in final_blame)
+        if added:
+            return all(final[text] > 0 for text in added)
+        parent = self._parent(self._resolve(sha))
+        if parent is None or not removed:
+            return False
+        before = Counter((blob_at(self._repo, parent, path) or b"").split(b"\n"))
+        return any(final[text] < before[text] for text in set(removed))
 
     def _deletion_in_effect(self, sha: str, path: str, final_ref: str, final_blame: Sequence[BlameLine], canceled: frozenset[str]) -> bool:
         """Is any non-trivial deletion of *sha* at *path* still in effect in *final_ref*?"""

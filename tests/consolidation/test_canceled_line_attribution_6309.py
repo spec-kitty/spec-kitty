@@ -177,6 +177,38 @@ def test_reindented_and_crlf_canceled_lines_stay_live(tmp_path: Path) -> None:
     assert lane.content() == (frozenset(), {_PATH: (canceled, lane.blob(_PATH))})
 
 
+_PY_BASE = "def f(x):\n    if x:\n        a()\n    b()\n"
+_PY_REINDENTED = "def f(x):\n    if x:\n        a()\n        b()\n"
+
+
+@pytest.mark.parametrize(
+    ("base", "canceled_content", "approved_content", "ships"),
+    [
+        pytest.param(_PY_BASE, _PY_REINDENTED, _PY_REINDENTED + "# approved\n", True, id="python-reindent-moves-b-into-the-if"),
+        pytest.param(_PY_BASE, _PY_REINDENTED, _PY_BASE + "# approved\n", False, id="python-reindent-undone-by-approved-work"),
+        pytest.param(_PY_BASE, _PY_REINDENTED, _PY_BASE.replace("    b()", "          b()") + "# approved\n", False, id="python-reindent-reworked-differently"),
+        pytest.param("A = 1\nB = 2\n", "A = 1\r\nB = 2\r\n", "A = 1\r\nB = 2\r\nC = 3\r\n", True, id="crlf-only-conversion"),
+        pytest.param("A = 1\nB = 2\n", "A = 1\r\nB = 2\r\n", "A = 1\nB = 2\nC = 3\n", False, id="crlf-only-conversion-undone"),
+        pytest.param("x = call(1,\n    2\n", "x = call(1,\n    2\n)\n", "x = call(1,\n    2\n)\ny = 3\n", True, id="punctuation-only-closing-paren-added"),
+        pytest.param("x = call(1,\n    2\n)\n", "x = call(1,\n    2\n", "x = call(1,\n    2\ny = 3\n", True, id="punctuation-only-closing-paren-removed"),
+    ],
+)
+def test_whitespace_or_punctuation_only_canceled_change_is_not_superseded_by_an_unrelated_append(
+    tmp_path: Path, base: str, canceled_content: str, approved_content: str, ships: bool
+) -> None:
+    """Fail-closed: a canceled re-indent, line-ending or lone-punctuation change is meaning-changing.
+
+    ``-w`` blame and diff ignore such a change, so it read as superseded and shipped; it stays live
+    unless approved work really replaced the bytes.
+    """
+    lane = _lane(tmp_path, {_PATH: base})
+    canceled = lane.commit({_PATH: canceled_content}, canceled=True)
+    lane.commit({_PATH: approved_content})
+
+    expected = (frozenset(), {_PATH: (canceled, lane.blob(_PATH))}) if ships else (frozenset({canceled}), {})
+    assert lane.content() == expected
+
+
 def test_lines_removed_then_readded_by_approved_work_are_its_own(tmp_path: Path) -> None:
     """An approved commit that re-adds a line after another removed it authored that line itself."""
     lane = _lane(tmp_path, {_PATH: _lines("BASE = 1")})
