@@ -10,6 +10,10 @@ the fetched ``packs/`` trees) for any host whose name carries ``spec-kitty`` and
 fails unless that host is ``spec-kitty.ai`` or one of its subdomains. Third-party
 hosts (``github.com``, harness vendors) are out of scope; ``github.com/spec-kitty``
 is owned through the organisation, not a domain.
+
+Because the scan covers the fetched ``packs/`` tree, an unowned host that arrives
+through an open-packs pin bump cannot be fixed here: fix it upstream in
+``spec-kitty-open-packs`` and re-pin (``spec-kitty charter pack vendor``).
 """
 
 from __future__ import annotations
