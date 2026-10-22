@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M5HTVMBP8AT6XWQMMJPV52BM",
-  "materialized_at": "2026-10-22T12:54:58.166746+00:00",
+  "event_count": 5,
+  "last_event_id": "01M5HTVP2C7ZPPJ7VHXAAHF5CV",
+  "materialized_at": "2026-10-22T12:54:59.916513+00:00",
   "mission_number": "",
   "mission_slug": "event-write-hygiene-01M5HS55",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -45,6 +45,13 @@
       "lane": "planned",
       "last_event_id": "01M5HTVMBP8AT6XWQMMJPV52BM",
       "last_transition_at": "2026-10-22T12:54:58.166746+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M5HTVP2C7ZPPJ7VHXAAHF5CV",
+      "last_transition_at": "2026-10-22T12:54:59.916513+00:00"
     }
   }
 }
