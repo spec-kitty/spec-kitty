@@ -90,9 +90,9 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "for_review",
@@ -103,7 +103,8 @@
         "- 2026-10-22T15:50:29Z – claude – shell_pid=10166 – T010 red-first commit: gate widened (all _PRODUCTION_ROOTS, alias.name private names, no allowlist). Red on current tree: 1 failed, sole offender src/specify_cli/status/lifecycle_events.py:368 -> spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL. Cmd: PWHEADLESS=1 .venv/bin/python -m pytest tests/architectural/test_events_tracker_public_imports.py -q -n auto --dist loadfile",
         "- 2026-10-22T15:54:39Z – claude – shell_pid=10166 – T011/T012 commit 0a53cdd1: deleted _validate_lifecycle_payload, _canonical_lifecycle_payload_for_saas, build_saas_lifecycle_queue_event, public repo_root_for_lifecycle_log; removed facade imports/__all__ in status/__init__.py and lifecycle_events.__all__; kept private _repo_root_for_lifecycle_log; fanout_lifecycle_event_hosted not renamed (WP04), docstring de-staled; removed 8+ dead tests from tests/status/test_lifecycle_events.py; test_simple_case_flat_topology and test_characterization_root_walks now call lifecycle_events._repo_root_for_lifecycle_log via module attr (no noqa); other 3 files only name the private helper, untouched; test_status_module_boundary comment updated; no facade snapshot test lists removed names. Tests: gate+status_module_boundary+shared_package_boundary+test_lifecycle_events+flat_topology+root_walks+post_mission_lifecycle_events+owned_lifecycle_acceptance_finalize+mission_setup_plan_phases: 184 passed; gate now green. make test-fast: 2442 passed, 8 skipped. ruff check/format --force-exclude and mypy (2 files) clean.",
         "Ready for review",
-        "- 2026-10-22T16:09:07Z – unknown – Cycle 2: rewrote stale emit_artifact_phase and emit_mission_reopened docstrings (no SaaS strip/model-map claims). tests/status/test_lifecycle_events.py + public-imports gate: 41 passed; ruff check/format clean."
+        "- 2026-10-22T16:09:07Z – unknown – Cycle 2: rewrote stale emit_artifact_phase and emit_mission_reopened docstrings (no SaaS strip/model-map claims). tests/status/test_lifecycle_events.py + public-imports gate: 41 passed; ruff check/format clean.",
+        "Cycle 2: stale docstrings fixed"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
