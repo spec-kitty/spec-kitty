@@ -13,8 +13,8 @@ requested command ran.
 The tests inject the failure at leaf I/O only (``asset_preparation.
 machine_file_lock`` and ``asset_preparation._write_asset``), the same seams
 ``tests/runtime/test_startup_torn_read_escalation.py`` uses, because ``chmod``
-does not bind uid 0. ``TestReadOnlyHomeSubprocess`` repeats the check with a
-real ``chmod 0o555`` home where the process is not root.
+does not bind uid 0. ``test_readonly_home_subprocess`` repeats the check with a real
+``chmod 0o555`` home where the process is not root.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ import errno
 import json
 import logging
 import os
-import subprocess
 import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -310,48 +309,3 @@ class TestCliRunsWithReadOnlyHome:
         payload = json.loads(capsys.readouterr().out)
         assert payload.get("kind") != "StartupAssetError"
         assert payload["error"] == {"code": "status_failed", "message": "Not in a spec-kitty project"}, payload
-
-
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX directory permissions")
-@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="chmod does not bind uid 0")
-class TestReadOnlyHomeSubprocess:
-    """A real ``chmod 0o555`` empty home, driving the CLI in a subprocess.
-
-    ``--version`` and the root ``--help`` exit before the startup assets are
-    prepared; they are controls. ``agent --help`` and the ``--json`` command
-    go through the root callback.
-    """
-
-    @pytest.mark.parametrize(
-        ("args", "expect_exit"),
-        [
-            (["--version"], 0),
-            (["--help"], 0),
-            (["agent", "--help"], 0),
-            (["agent", "tasks", "status", "--json"], 1),  # the command's own "not in a project" result
-        ],
-    )
-    def test_command_runs(self, args: list[str], expect_exit: int, tmp_path: Path) -> None:
-        home = tmp_path / "home"
-        home.mkdir(mode=0o555)
-        cwd = tmp_path / "cwd"
-        cwd.mkdir()
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("SPEC_KITTY_HOME", "XDG_"))}
-        env["HOME"] = str(home)
-        try:
-            result = subprocess.run(
-                [sys.executable, "-m", "specify_cli", *args],
-                cwd=cwd,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                check=False,
-            )
-        finally:
-            home.chmod(0o755)
-
-        assert "Traceback" not in result.stderr, result.stderr
-        assert result.returncode == expect_exit, result.stdout + result.stderr
-        if args[-1] == "--json":
-            assert json.loads(result.stdout)["error"]["code"] == "status_failed"
