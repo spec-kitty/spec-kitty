@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import shlex
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,7 +28,7 @@ from typing import Any
 from specify_cli.core.process_liveness import is_process_alive
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
-from kernel.git import GitCommandError, is_tracked
+from kernel.git import GitCommandError, is_tracked, run_git
 from kernel.guarded_read import read_guarded
 
 logger = logging.getLogger(__name__)
@@ -250,8 +249,11 @@ def _parse_lock(content: bytes | str) -> ReviewLock:
 
 def _git_stdout(repo: Path, *args: str) -> str | None:
     """``git -C <repo> <args>`` stdout, or ``None`` on a non-zero exit."""
-    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
-    return result.stdout if result.returncode == 0 else None
+    try:
+        result = run_git(repo, *args, check=False)
+    except GitCommandError:
+        return None  # git could not start (missing binary, unusable directory)
+    return result.stdout.decode("utf-8", "replace") if result.returncode == 0 else None
 
 
 def _is_tracked(worktree: Path) -> bool:
