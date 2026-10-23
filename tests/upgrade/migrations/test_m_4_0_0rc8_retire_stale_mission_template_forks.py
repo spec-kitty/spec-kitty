@@ -56,8 +56,9 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return root
 
 
-def test_overrides_stale_copy_is_removed_and_pack_copy_resolves(project: Path) -> None:
-    stale = _plant(project, "overrides/missions", "research", TASK_PROMPT, _fork("research", TASK_PROMPT))
+@pytest.mark.parametrize("eol", [b"\n", b"\r\n"], ids=["lf", "crlf-checkout"])
+def test_overrides_stale_copy_is_removed_and_pack_copy_resolves(project: Path, eol: bytes) -> None:
+    stale = _plant(project, "overrides/missions", "research", TASK_PROMPT, _fork("research", TASK_PROMPT).replace(b"\n", eol))
     assert resolve_template(TASK_PROMPT, project, "research").tier is ResolutionTier.OVERRIDE
 
     migration = RetireStaleMissionTemplateForksMigration()
@@ -111,15 +112,6 @@ def test_fork_only_stale_copy_is_removed_in_both_trees(project: Path, mission_ty
     assert result.success, result.errors
     assert not legacy.exists()
     assert not override.exists()
-
-
-def test_crlf_checkout_of_a_fork_is_still_proven_stale(project: Path) -> None:
-    crlf = _fork("research", TASK_PROMPT).replace(b"\n", b"\r\n")
-    stale = _plant(project, "overrides/missions", "research", TASK_PROMPT, crlf)
-
-    RetireStaleMissionTemplateForksMigration().apply(project)
-
-    assert not stale.exists()
 
 
 @pytest.mark.parametrize("tree", ["missions", "overrides/missions"])
