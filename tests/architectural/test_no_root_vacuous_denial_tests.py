@@ -239,9 +239,10 @@ def test_denies_owner_truth_table() -> None:
 
 def test_an_exempted_function_that_gains_a_kind_reds_the_gate() -> None:
     """An entry covers only the kinds it lists: a root skip added to a uid-independent test is caught."""
-    exemptions = _load_exemptions()
-    site, entry = next((site, entry) for site, entry in exemptions.items() if entry.category == "uid-independent")
-    live = {site: entry.kinds | {"uid-skip"}}
+    site = ("tests/test_x.py", "test_denied")
+    entry = Exemption(frozenset({"chmod-denial"}), "uid-independent", "inline")
+    exemptions = {site: entry}
+    gained = entry.kinds | {"uid-skip"}
 
-    assert unexempted_sites(live, exemptions) == {site: entry.kinds | {"uid-skip"}}
+    assert unexempted_sites({site: gained}, exemptions) == {site: gained}
     assert unexempted_sites({site: entry.kinds}, exemptions) == {}
