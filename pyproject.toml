@@ -1928,7 +1928,6 @@ exclude = [
     "tests/specify_cli/distribution/test_simple_index.py",
     "tests/specify_cli/distribution/test_upgrade_provider.py",
     "tests/specify_cli/dossier/test_integration.py",
-    "tests/specify_cli/drg_writers/test_registry_completeness.py",
     "tests/specify_cli/events/test_decision_log.py",
     "tests/specify_cli/git/test_commit_helpers.py",
     "tests/specify_cli/git/test_ref_advance_meta_diagnosability.py",
