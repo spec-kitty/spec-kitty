@@ -84,7 +84,11 @@ def test_frozen_template_sources_are_unchanged_and_nothing_new_appears() -> None
     (fetched from spec-kitty-open-packs). Edit them there; the files pinned
     here exist only so two shipped migrations keep their sources.
     """
-    assert _template_files_under_live_tree() == FROZEN_TEMPLATE_SOURCES
+    assert _template_files_under_live_tree() == FROZEN_TEMPLATE_SOURCES, (
+        "#5280: these bytes back shipped migrations 0.9.2/0.12.0 and must not change "
+        "(the migration ledger treats an edited shipped migration as drift); "
+        "edit the template in spec-kitty-open-packs (packs/built-in) instead"
+    )
 
 
 def test_every_frozen_markdown_template_is_a_known_fork_version() -> None:
