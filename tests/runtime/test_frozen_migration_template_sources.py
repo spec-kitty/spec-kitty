@@ -138,14 +138,16 @@ def test_runtime_resolution_never_serves_a_frozen_template(
     assert not resolved.path.resolve().is_relative_to(FROZEN_ROOT), resolved
 
 
-@pytest.mark.parametrize("mission_type", ["documentation", "research"])
+@pytest.mark.parametrize("mission_type", ["documentation", "plan", "research", "software-dev"])
 def test_packaged_mission_reads_templates_from_the_packs_copy(mission_type: str, tmp_path: Path) -> None:
+    """Every packaged mission type redirects, so each must have a packs ``templates/`` dir."""
     pack_templates = get_package_asset_root() / mission_type / "templates"
+    sample = next(p.name for p in sorted(pack_templates.iterdir()) if p.is_file())
 
     assert Mission(FROZEN_ROOT / mission_type).templates_dir == pack_templates
     mission = get_mission_by_name(mission_type, tmp_path / ".kittify")
     assert mission.templates_dir == pack_templates
-    assert mission.get_template("task-prompt-template.md") == pack_templates / "task-prompt-template.md"
+    assert mission.get_template(sample) == pack_templates / sample
 
 
 def test_project_mission_keeps_its_own_templates_dir(tmp_path: Path) -> None:

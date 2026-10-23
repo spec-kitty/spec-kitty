@@ -313,10 +313,12 @@ class Mission:
         """Get the templates directory for this mission.
 
         A built-in mission loaded from the packaged ``specify_cli/missions/``
-        tree reads its templates from the packs copy: the
-        ``documentation``/``research`` ``templates/`` there are frozen,
-        migration-only sources (#5280) that runtime must never serve. The packs
-        copy renamed ``plan-template.md`` / ``spec-template.md`` to
+        tree reads its templates from the packs copy. This holds for every
+        packaged mission (``documentation``, ``plan``, ``research``,
+        ``software-dev``): the packs tree carries a ``templates/`` directory
+        for each of them, and the ``documentation``/``research`` ``templates/``
+        in the packaged tree are frozen, migration-only sources (#5280) that
+        runtime must never serve. The packs copy renamed ``plan-template.md`` / ``spec-template.md`` to
         ``<type>-plan-template.md`` / ``<type>-spec-template.md``, and the packs
         tree must be present (``get_package_asset_root`` raises otherwise).
         """
