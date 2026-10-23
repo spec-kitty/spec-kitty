@@ -29,6 +29,9 @@ every ``tests/architectural/test_lifted_*.py``:
    argument names compared; empty bodies never match). So a copy cannot dodge
    rule 2 by renaming, nor by dropping the shared import.
 
+Rule 3 limit: a copy matches only on an identical body, so a copy that is both renamed AND edited is not
+caught by rule 3 (rule 1 still ties the lift to its source).
+
 There is no exemption list for rules 2 and 3: the census of 2026-10-22 drained
 every pair, so an intentional difference is a different body under a
 different name, and anything shared is imported.
@@ -284,7 +287,7 @@ def pair_violations(
 
 def test_every_lift_names_an_existing_source() -> None:
     lifts = lift_paths()
-    assert len(lifts) >= _LIFT_FLOOR, f"only {len(lifts)} lifts found (floor {_LIFT_FLOOR})"
+    assert len(lifts) >= _LIFT_FLOOR, f"only {len(lifts)} lifts found (floor {_LIFT_FLOOR}); if a lift was retired on purpose, lower _LIFT_FLOOR to match"
     unnamed = [lift.name for lift in lifts if lift.name not in SOURCELESS_LIFTS and not names_live_source(lift)]
     assert not unnamed, (
         "these lifts name no existing ``tests/...py`` source in their docstring; name the source the lift re-runs, "
@@ -300,7 +303,9 @@ def test_sourceless_allowlist_is_live() -> None:
 
 def test_no_lift_copies_its_source() -> None:
     pairs = lift_pairs()
-    assert len(pairs) >= _PAIR_FLOOR, f"only {len(pairs)} lift/source pairs found (floor {_PAIR_FLOOR})"
+    assert len(pairs) >= _PAIR_FLOOR, (
+        f"only {len(pairs)} lift/source pairs found (floor {_PAIR_FLOOR}); if a lift was retired on purpose, lower _PAIR_FLOOR to match"
+    )
     offenders: dict[str, list[str]] = {}
     for pair in pairs:
         lift, source = parse_file(pair.lift), parse_file(pair.source)
