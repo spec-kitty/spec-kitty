@@ -654,7 +654,7 @@ Exceptions discussed case-by-case. Strong justification required.
 
 **Spec Kitty** derives from GitHub's [Spec Kit](https://github.com/github/spec-kit). As the Spec Kit MIT license requires, `LICENSE` keeps GitHub's original copyright notice (`Copyright GitHub, Inc.`) next to Spec Kitty, Inc.'s, and both notices ship with every copy, including the wheel.
 
-**License:** MIT, for the whole codebase. See [`LICENSE`](../../LICENSE).
+**License:** MIT for Spec Kitty's own code. See [`LICENSE`](../../LICENSE). Third-party components bundled in this repository (the Gradle wrapper under `services/mission-status-api/`, Apache-2.0; HumanLayer's `show-me` skill, MIT) keep their own terms; see [`NOTICE`](../../NOTICE).
 
 ---
 

@@ -1,0 +1,39 @@
+Spec Kitty
+Copyright (c) 2026 Spec Kitty, Inc.
+
+Spec Kitty's own code is licensed under the MIT License; see LICENSE.
+
+This repository also bundles the third-party components listed below.
+Each remains under its own terms, which apply to that component only.
+
+-------------------------------------------------------------------------------
+GitHub Spec Kit
+Copyright GitHub, Inc.
+Licensed under the MIT License.
+
+Spec Kitty derives from GitHub's Spec Kit (https://github.com/github/spec-kit).
+As that license requires, the upstream copyright notice is retained in LICENSE
+and ships with every copy, including the wheel.
+
+-------------------------------------------------------------------------------
+Gradle Wrapper
+Copyright (c) 2015 the original authors
+Licensed under the Apache License, Version 2.0.
+
+Files: services/mission-status-api/gradlew
+       services/mission-status-api/gradlew.bat
+       services/mission-status-api/gradle/wrapper/gradle-wrapper.jar
+
+A copy of the License is available at
+http://www.apache.org/licenses/LICENSE-2.0
+
+-------------------------------------------------------------------------------
+HumanLayer "show-me" skill
+Copyright (c) 2026 HumanLayer
+Licensed under the MIT License.
+
+Files: src/charter/offering/skills/spk-practice-show-me/
+
+Provenance and the full license text are recorded alongside the skill, in
+src/charter/offering/skills/spk-practice-show-me/references/
+humanlayer-origin-and-license.md
