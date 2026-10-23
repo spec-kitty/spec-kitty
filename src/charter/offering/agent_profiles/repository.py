@@ -164,7 +164,8 @@ def _score_profile(
         context.complexity or "medium",
     )
     # When no context signals match (base_score=0), routing_priority becomes dominant.
-    return (base_score + profile.routing_priority / 100.0) * penalty * complexity_adj
+    routing_priority: int = profile.routing_priority
+    return (base_score + routing_priority / 100.0) * penalty * complexity_adj
 
 
 # ── Profile inheritance helpers ───────────────────────────────────────────────
@@ -270,7 +271,8 @@ class AgentProfileRepository:
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Return the shipped built-in profiles directory (``packs/built-in/agent_profiles/``)."""
-        return built_in_dir(ArtifactKind.AGENT_PROFILE)
+        profiles_dir: Path = built_in_dir(ArtifactKind.AGENT_PROFILE)
+        return profiles_dir
 
     @classmethod
     def _default_drg(cls) -> DRGGraph:
@@ -956,7 +958,8 @@ class AgentProfileRepository:
         seed = _profile_urn(profile_id)
         if seed not in agent_profile_seed_urns(self._drg):
             return frozenset()
-        return profile_channel_reachable(self._drg, {seed})
+        reached: frozenset[str] = profile_channel_reachable(self._drg, {seed})
+        return reached
 
     def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:
         """Procedure ids a loaded *profile* delivers through the profile channel.
