@@ -199,6 +199,11 @@ def test_self_mutation_reds_the_gate(tmp_path: Path, monkeypatch: pytest.MonkeyP
             [("test_a", "chmod-denial")],
             id="not-a-seam",
         ),
+        pytest.param(
+            "def test_a(a, b, monkeypatch):\n    deny_removal_from(monkeypatch, a)\n    b.chmod(0o000)\n",
+            [("test_a", "chmod-denial")],
+            id="seam-on-other-path",
+        ),
     ],
 )
 def test_detector_flags(tmp_path: Path, source: str, expected: list[tuple[str, str]]) -> None:

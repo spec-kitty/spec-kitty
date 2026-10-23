@@ -20,8 +20,10 @@ of the enclosing function (``<module>`` at module level):
   of an ``if`` whose body skips or returns;
 - ``chmod-denial`` -- a ``chmod`` / ``lchmod`` / ``fchmod`` call whose mode
   denies its owner: no read bit, or no write bit with an execute bit
-  (``0o000``, ``0o200``, ``0o500``, ``0o555``, ...), in a function whose own
-  body calls none of the ``eacces`` seam helpers. Any other ``monkeypatch``
+  (``0o000``, ``0o200``, ``0o500``, ``0o555``, ...), unless the function's own
+  body calls an ``eacces`` seam helper on the same path expression (compared
+  by ``ast.dump``, a heuristic: ``d`` pairs with ``d.chmod(...)``, not with
+  ``(d / "x").chmod(...)``). Any other ``monkeypatch``
   does not count: the destructive-guard rmtree test patched
   ``sys.version_info`` and still never reached its retry hook as root.
 
@@ -30,7 +32,8 @@ of the enclosing function (``<module>`` at module level):
 which replacing does not need write permission for, and the detector cannot
 tell a file from a directory. Modes it cannot evaluate statically (a named
 constant, a parameter default, ``p.stat().st_mode & ~...``) are not flagged
-either. Two functions with the same qualname in one file (conditional
+either, and neither is a chmod run through ``subprocess`` or a shell string
+(``subprocess.run(["chmod", "000", p])``). Two functions with the same qualname in one file (conditional
 definitions) share one key. These are accepted residuals; review catches them.
 """
 
@@ -145,9 +148,31 @@ def _is_access_skip(node: ast.AST) -> bool:
     return False
 
 
-def _installs_seam(scope: ast.AST) -> bool:
-    """Whether *scope*'s own body calls a seam helper from ``tests/_support/eacces.py``."""
-    return any(isinstance(node, ast.Call) and _call_name(node) in SEAM_HELPERS for node in _own_nodes(scope))
+def _seam_target(node: ast.Call) -> str | None:
+    """``ast.dump`` of the path a seam helper denies (its ``target`` / ``directory`` argument, the last positional)."""
+    for keyword in node.keywords:
+        if keyword.arg in {"target", "directory"}:
+            return ast.dump(keyword.value)
+    return ast.dump(node.args[-1]) if node.args else None
+
+
+def _chmod_target(node: ast.Call) -> str | None:
+    """``ast.dump`` of the path a chmod call changes: the receiver of ``p.chmod(m)``, else the first argument."""
+    func = node.func
+    if isinstance(func, ast.Attribute) and not (isinstance(func.value, ast.Name) and func.value.id in {"os", "Path"}):
+        return ast.dump(func.value)
+    return ast.dump(node.args[0]) if node.args else None
+
+
+def _installs_seam_for(scope: ast.AST, chmod: ast.Call) -> bool:
+    """Whether *scope*'s own body calls a seam helper (``tests/_support/eacces.py``) on the path *chmod* changes.
+
+    Heuristic: the two path expressions are compared by ``ast.dump``, so
+    ``deny_removal_from(mp, d)`` pairs with ``d.chmod(...)`` but not with
+    ``(d / "x").chmod(...)``.
+    """
+    wanted = _chmod_target(chmod)
+    return any(isinstance(node, ast.Call) and _call_name(node) in SEAM_HELPERS and _seam_target(node) == wanted for node in _own_nodes(scope))
 
 
 def _calls(node: ast.AST, name: str) -> bool:
@@ -180,7 +205,7 @@ def _scope_kinds(scope: ast.AST, decorators: list[ast.expr]) -> set[str]:
         elif isinstance(node, ast.Call) and _call_name(node) in _CHMOD_CALLS:
             mode_node = _chmod_mode(node)
             mode = None if mode_node is None else _mode_value(mode_node)
-            if mode is not None and denies_owner(mode) and not _installs_seam(scope):
+            if mode is not None and denies_owner(mode) and not _installs_seam_for(scope, node):
                 kinds.add("chmod-denial")
     return kinds
 
