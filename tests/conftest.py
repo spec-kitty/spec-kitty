@@ -26,6 +26,7 @@ from tests._support.pack_tree_guard import assert_pack_tree_current
 from kernel.clock import now_epoch
 from kernel.locks import LockAcquireTimeout, machine_file_lock
 from runtime.next._tmp_namespace import prompt_tmp_dir
+from tests._support.builtin_missions import copy_builtin_missions
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
@@ -1716,11 +1717,11 @@ def test_project(tmp_path: Path) -> Path:
     )
     scrub_repo_mission_overrides(project)
 
-    # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
-    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
+    # Copy the built-in missions (src/specify_cli/missions/ -> .kittify/missions/),
+    # with the canonical packs templates in place of the frozen forks (#5280).
     missions_dest = project / ".kittify" / "missions"
-    if missions_src.exists() and not missions_dest.exists():
-        shutil.copytree(missions_src, missions_dest)
+    if not missions_dest.exists():
+        copy_builtin_missions(missions_dest)
 
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 
@@ -1795,10 +1796,9 @@ def dual_branch_repo(tmp_path: Path) -> Path:
         symlinks=True,
     )
 
-    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
     missions_dest = repo / ".kittify" / "missions"
-    if missions_src.exists() and not missions_dest.exists():
-        shutil.copytree(missions_src, missions_dest)
+    if not missions_dest.exists():
+        copy_builtin_missions(missions_dest)
 
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(

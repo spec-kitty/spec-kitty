@@ -6,9 +6,10 @@ from pathlib import Path
 from specify_cli.mission import Mission
 
 pytestmark = pytest.mark.fast
-# Get source missions directory for testing
+# The canonical documentation mission templates live in the packs copy; the
+# src/specify_cli/missions/documentation/templates/ fork is frozen, migration-only (#5280).
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MISSION_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "documentation"
+MISSION_DIR = REPO_ROOT / "packs" / "built-in" / "missions" / "documentation"
 
 
 # T058: Test Divio Template Frontmatter

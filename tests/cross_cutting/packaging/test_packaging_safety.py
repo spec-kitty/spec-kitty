@@ -59,6 +59,23 @@ def test_wheel_contains_templates(build_artifacts: dict[str, Path]) -> None:
 
 
 @pytest.mark.slow
+def test_wheel_ships_the_frozen_migration_template_sources(build_artifacts: dict[str, Path]) -> None:
+    """The shipped 0.9.2 / 0.12.0 migrations read their sources from the wheel's own tree (#5280).
+
+    Their ``specify_cli/missions/{documentation,research}/templates/`` sources are
+    frozen in place (``tests/runtime/test_frozen_migration_template_sources.py``),
+    so the wheel must keep shipping every pinned file at that exact path.
+    """
+    from tests.runtime.test_frozen_migration_template_sources import FROZEN_TEMPLATE_SOURCES
+
+    with zipfile.ZipFile(build_artifacts["wheel"]) as zf:
+        shipped = set(zf.namelist())
+
+    missing = sorted(rel for rel in FROZEN_TEMPLATE_SOURCES if f"specify_cli/missions/{rel}" not in shipped)
+    assert missing == [], f"Wheel missing frozen migration sources: {missing}"
+
+
+@pytest.mark.slow
 def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) -> None:
     """Verify wheel only contains known package directories."""
     wheel_path = build_artifacts["wheel"]

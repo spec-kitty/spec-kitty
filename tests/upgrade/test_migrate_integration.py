@@ -208,6 +208,43 @@ class TestClassifyAsset:
         result = classify_asset(f, global_home, kittify)
         assert result == AssetDisposition.CUSTOMIZED
 
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            ("pack task prompt", AssetDisposition.IDENTICAL),
+            ("an older fork of the task prompt", AssetDisposition.SUPERSEDED),
+        ],
+    )
+    def test_project_mission_copy_is_compared_with_the_package_mission(
+        self, tmp_path: Path, content: str, expected: AssetDisposition
+    ) -> None:
+        """``missions/<type>/<rest>`` maps to ``package_root/<type>/<rest>`` (#6548, #5280).
+
+        Before, no counterpart was found, so a copy read as CUSTOMIZED and was moved
+        into ``overrides/``, where it shadowed every later pack update.
+        """
+        package_root = tmp_path / "packs" / "missions"
+        pack = package_root / "research" / "templates" / "task-prompt-template.md"
+        pack.parent.mkdir(parents=True)
+        pack.write_text("pack task prompt")
+
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "missions" / "research" / "templates" / "task-prompt-template.md"
+        f.parent.mkdir(parents=True)
+        f.write_text(content)
+
+        assert classify_asset(f, tmp_path / "global", kittify, package_root=package_root) == expected
+
+    def test_custom_project_mission_without_package_counterpart_stays_customized(self, tmp_path: Path) -> None:
+        package_root = tmp_path / "packs" / "missions"
+        package_root.mkdir(parents=True)
+        kittify = tmp_path / "project" / ".kittify"
+        f = kittify / "missions" / "erp" / "mission.yaml"
+        f.parent.mkdir(parents=True)
+        f.write_text("name: erp\n")
+
+        assert classify_asset(f, tmp_path / "global", kittify, package_root=package_root) == AssetDisposition.CUSTOMIZED
+
     def test_customized_file_no_global_counterpart(self, tmp_path: Path) -> None:
         """Shared asset with no global counterpart is CUSTOMIZED."""
         global_home = tmp_path / "global"

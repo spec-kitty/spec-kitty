@@ -659,6 +659,10 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # #6470: proven Spec Kitty .agent/workflows files are archived (copy, then
         # remove) through the guard's backup_parent branch, never deleted.
         "upgrade/migrations/m_4_0_0rc8_retire_antigravity_workflows.py",
+        # #5280: stale documentation/research fork copies are removed through
+        # guard_destructive_removal (known-fork hash proof) and replaced only
+        # after guard_destructive_overwrite proves the same.
+        "upgrade/migrations/m_4_0_0rc8_retire_stale_mission_template_forks.py",
     }
 )
 

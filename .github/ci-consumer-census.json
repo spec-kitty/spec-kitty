@@ -309,9 +309,34 @@
     "upgrade": {
       "consumes": [
         {
+          "path": "packs/built-in/missions/documentation/actions/accept/index.yaml",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py [template_repository]"
+        },
+        {
           "path": "packs/built-in/missions/documentation/expected-artifacts.yaml",
           "provenance": "runtime",
           "via": "tests/upgrade/migrations/test_m_3_0_3_globalize_skill_pack.py [dossier_manifest]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission-runtime.yaml",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/mission.yaml",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/documentation/templates/documentation-plan-template.md",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py [template_repository]"
+        },
+        {
+          "path": "packs/built-in/missions/mission-steps/documentation/accept/guidelines.md",
+          "provenance": "runtime",
+          "via": "tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py [template_repository]"
         },
         {
           "path": "packs/built-in/missions/mission_types/documentation.yaml",

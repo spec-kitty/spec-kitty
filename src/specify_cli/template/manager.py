@@ -268,9 +268,11 @@ def copy_specify_base_from_package(project_path: Path) -> TemplateCopyResult:
         missions_resource_candidates.append(MissionTemplateRepository.default_missions_root())
     except MissionsRootNotFound:
         pass
+    # `specify_data_root.joinpath("missions")` is deliberately not a candidate:
+    # its documentation/research `templates/` are frozen, migration-only fork
+    # sources (#5280) and must never be seeded into a project.
     missions_resource_candidates.extend(
         [
-            specify_data_root.joinpath("missions"),  # Legacy fallback
             specify_data_root.joinpath(".kittify", "missions"),  # Legacy fallback
             specify_data_root.joinpath("template_data", "missions"),  # Legacy fallback
         ]

@@ -258,8 +258,8 @@ _EDITED_TASKS_TEMPLATES = (
     "packs/built-in/missions/software-dev/templates/tasks-template.md",
     "packs/built-in/missions/documentation/templates/tasks-template.md",
     "packs/built-in/missions/research/templates/tasks-template.md",
-    "src/specify_cli/missions/documentation/templates/tasks-template.md",
-    "src/specify_cli/missions/research/templates/tasks-template.md",
+    # src/specify_cli/missions/{documentation,research}/templates/ are frozen,
+    # migration-only forks (#5280; tests/runtime/test_frozen_migration_template_sources.py).
 )
 
 

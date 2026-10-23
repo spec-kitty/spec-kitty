@@ -30,12 +30,11 @@ def research_project_root(tmp_path: Path) -> Path:
     kittify = project_dir / ".kittify"
     kittify.mkdir()
 
-    # Copy missions from current repo (new location in src/)
-    import shutil
+    # Copy the built-in missions, with the canonical packs templates in place
+    # of the frozen forks (#5280)
+    from tests._support.builtin_missions import copy_builtin_missions
 
-    src_missions = Path.cwd() / "src" / "specify_cli" / "missions"
-    if src_missions.exists():
-        shutil.copytree(src_missions, kittify / "missions")
+    copy_builtin_missions(kittify / "missions")
 
     # Set research as active mission
     active_link = kittify / "active-mission"

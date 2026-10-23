@@ -64,9 +64,19 @@ SHARED_ASSET_FILES = {"AGENTS.md"}
 def _find_package_counterpart(rel: Path, package_root: Path, mission: str) -> Path | None:
     """Locate the package-bundled counterpart for a project .kittify/ relative path.
 
-    Tries mission-specific path first, then direct path under package root.
-    Returns None if no counterpart exists in the package.
+    Tries mission-specific path first, then direct path under package root,
+    then (for a project mission copy ``missions/<type>/<rest>``) the package's
+    own ``<type>/<rest>``. Returns None if no counterpart exists in the package.
     """
+    # A project mission copy: ``package_root`` is itself the missions root, so
+    # ``missions/<type>/<rest>`` maps to ``package_root/<type>/<rest>``. Without
+    # this, a pack-identical copy read as CUSTOMIZED and was moved into
+    # ``.kittify/overrides/``, where it shadowed later pack updates (#6548, #5280).
+    if len(rel.parts) > 2 and rel.parts[0] == "missions":
+        pkg_path = package_root.joinpath(*rel.parts[1:])
+        if pkg_path.is_file():
+            return pkg_path
+
     # Try mission-specific path: package_root/{mission}/{rel}
     pkg_path = package_root / mission / str(rel)
     if pkg_path.exists() and pkg_path.is_file():

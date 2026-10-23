@@ -310,7 +310,20 @@ class Mission:
 
     @property
     def templates_dir(self) -> Path:
-        """Get the templates directory for this mission."""
+        """Get the templates directory for this mission.
+
+        A built-in mission loaded from the packaged ``specify_cli/missions/``
+        tree reads its templates from the packs copy: the
+        ``documentation``/``research`` ``templates/`` there are frozen,
+        migration-only sources (#5280) that runtime must never serve. The packs
+        copy renamed ``plan-template.md`` / ``spec-template.md`` to
+        ``<type>-plan-template.md`` / ``<type>-spec-template.md``, and the packs
+        tree must be present (``get_package_asset_root`` raises otherwise).
+        """
+        if self.path.resolve().parent == _packaged_missions_dir():
+            from specify_cli.runtime.home import get_package_asset_root  # noqa: PLC0415 -- lazy, mirrors the resolver import below
+
+            return get_package_asset_root() / self.path.name / "templates"
         return self.path / "templates"
 
     @property

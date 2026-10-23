@@ -18,6 +18,7 @@ from textwrap import dedent
 import pytest
 import yaml
 
+from tests._support.builtin_missions import copy_builtin_missions
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
@@ -233,7 +234,8 @@ def e2e_project(tmp_path: Path) -> Path:
 
     This is the foundation fixture for E2E tests. It:
     - Copies .kittify from the real repo root
-    - Copies missions from src/specify_cli/missions/
+    - Copies missions from src/specify_cli/missions/ (frozen fork templates
+      replaced by the packs copies, #5280)
     - Initializes git with main branch and initial commit
     - Checks out an E2E status commit branch for workflow write operations
     - Aligns metadata version with source to avoid mismatch errors
@@ -302,11 +304,11 @@ def e2e_project(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
 
-    # Copy missions from source location
-    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
+    # Copy the built-in missions, with the canonical packs templates in place
+    # of the frozen forks (#5280)
     missions_dest = project / ".kittify" / "missions"
-    if missions_src.exists() and not missions_dest.exists():
-        shutil.copytree(missions_src, missions_dest)
+    if not missions_dest.exists():
+        copy_builtin_missions(missions_dest)
 
     # Create .gitignore
     (project / ".gitignore").write_text(
