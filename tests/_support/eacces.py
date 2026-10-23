@@ -13,7 +13,9 @@ test must exercise the real kernel permission check itself, for example
 ``tests/specify_cli/core/test_safe_stat_predicates.py``, which pins that a real
 ``stat()`` through a ``0o000`` directory raises (`#3194`; the pattern
 ``test_ownership_3111.py`` established for `#3111`/`#3177` before that test
-was removed with the decisions resolver).
+was removed with the decisions resolver). Such a test must be listed in
+``tests/architectural/_exemptions/root_vacuous_denial.txt``; the gate
+``tests/architectural/test_no_root_vacuous_denial_tests.py`` fails on any other.
 
 Paths are compared RESOLVED (``Path(p).resolve() == Path(target).resolve()``),
 so a symlinked or relative spelling of the target is still denied. Arguments

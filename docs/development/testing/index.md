@@ -2,7 +2,7 @@
 title: Testing the Spec Kitty codebase
 description: How to run and write tests against the Spec Kitty codebase — the flakiness policy, parallel runs, local mutation testing, Playwright UI e2e, and time-dependent test discipline.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-22'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/development/index.md
@@ -23,6 +23,7 @@ local mutation testing, browser regressions, and time-dependent test discipline.
 - [Run mutation tests locally](run-mutation-tests.md) — `mutmut`-based assertion-quality checks.
 - [UI end-to-end tests (Playwright)](ui-e2e.md) — the browser-regression pattern (its dashboard targets were removed with the bundled dashboard).
 - [Write time-dependent tests](write-time-dependent-tests.md) — inject stable clocks; avoid wall-clock reads in assertions.
+- [Write permission-denied tests](permission-denied-tests.md) — inject `PermissionError` at the seam so a test gives the same verdict as root and as a regular user.
 
 ## See also
 

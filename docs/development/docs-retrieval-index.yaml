@@ -11856,6 +11856,16 @@ pages:
     - {slug: "tests-e2e", text: "tests/e2e", level: 2}
     - {slug: "tests-integration-top-level", text: "tests/integration (top level)", level: 2}
     - {slug: "tests-integration-subfolders", text: "tests/integration subfolders", level: 2}
+  - path: "docs/development/testing/permission-denied-tests.md"
+    title: "Write Permission-Denied Tests"
+    divio_type: "how-to"
+    abstract: "Inject PermissionError at the filesystem seam so a denied-access test gives the same verdict as root and as a regular user."
+    anchors:
+    - {slug: "pick-the-seam-the-code-under-test-calls", text: "Pick the seam the code under test calls", level: 2}
+    - {slug: "prove-the-test-bites", text: "Prove the test bites", level: 2}
+    - {slug: "when-the-real-kernel-check-is-the-point", text: "When the real kernel check is the point", level: 2}
+    - {slug: "the-gate", text: "The gate", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/testing/run-mutation-tests.md"
     title: "Run Mutation Tests Locally"
     divio_type: "how-to"

@@ -1,0 +1,49 @@
+# Exemptions for tests/architectural/test_no_root_vacuous_denial_tests.py (#5691).
+#
+# One line per function:
+#   <repo-relative path>::<qualname> [<kind>,...]  # <category>: <reason>
+# The kinds are exactly what the detector reports for that function, so a
+# function that gains a new kind (say a root skip on a uid-independent test)
+# goes red. Blank lines and '#'-prefixed comments are ignored. Every entry
+# needs a category and a reason.
+#
+# Shrink-only. A new denial test injects PermissionError at the seam with the
+# helpers in tests/_support/eacces.py (deny_open_in, deny_path_method,
+# deny_removal_from) instead of being added here. See
+# docs/development/testing/permission-denied-tests.md.
+#
+# Categories:
+#   kernel-check     the test must exercise the real kernel permission check
+#                    (a real stat through a locked directory, or a child
+#                    process no in-process seam reaches); it keeps chmod and
+#                    an honest skip as root.
+#   uid-independent  the detector's chmod shape matches, but the verdict is the
+#                    same for every uid (a coverage diff of a uid-0 run against
+#                    a regular-uid run, #5691, showed no branch only one of
+#                    them reaches).
+#   deferred-6595    charter/DRG/doctrine tests left for after the #6595 fixture
+#                    mission lands. Priced debt: owner stijn-dejongh, exit when
+#                    #6595 merges (tracked on #5691).
+
+# --- kernel-check ------------------------------------------------------------
+tests/specify_cli/core/test_safe_stat_predicates.py::test_real_eacces_through_a_locked_directory_raises_not_silently_false [chmod-denial,mode-bits-skip]  # kernel-check: pins that a real stat() through a 0o000 directory raises (#3194); the errno-mocked tests in the same file cover the logic for every uid
+tests/specify_cli/runtime/test_readonly_home_subprocess.py::test_subcommand_help_warns_once_on_stderr_with_read_only_home [uid-skip]  # kernel-check: a real 0o555 HOME seen by a child CLI process (#6473); no in-process seam reaches the subprocess
+tests/status/test_hermetic_ambient_git.py::_read_only_ancestor_git [chmod-denial]  # kernel-check: builds the read-only ancestor .git for the subprocess test below
+tests/status/test_hermetic_ambient_git.py::test_suite_records_events_under_read_only_ancestor_git [uid-skip]  # kernel-check: a child pytest run under a real read-only ancestor .git (#142); no in-process seam reaches the subprocess
+
+# --- uid-independent ---------------------------------------------------------
+tests/runtime/test_upgrade_preview_bootstrap.py::test_managed_tree_uses_portable_directory_mode [chmod-denial]  # uid-independent: the 0o555 tree is a copy source that is only read; the test asserts the destination's mode
+tests/runtime/test_upgrade_preview_bootstrap.py::test_skill_tree_uses_portable_directory_mode [chmod-denial]  # uid-independent: the 0o555 tree is a copy source that is only read; the test asserts the destination's mode
+tests/specify_cli/tool_surface/test_plugin_build_codex.py::test_codex_readonly_directory_finalization [chmod-denial]  # uid-independent: the 0o555 hook directories are a copy source that is only read; faults are injected by monkeypatch
+tests/runtime/test_windows_readonly_asset_delete.py::TestControlSimulationIsFaithful.test_bare_rmdir_of_readonly_dir_raises_under_sim [chmod-denial]  # uid-independent: the 0o555 directory is the rmdir target in a writable parent; the denial comes from the Windows simulation fixture
+tests/runtime/test_windows_readonly_asset_delete.py::TestSafeDeleteHelpers.test_installer_safe_unlink_and_rmdir [chmod-denial]  # uid-independent: the 0o555 directory is the rmdir target in a writable parent; the denial comes from the Windows simulation fixture
+tests/runtime/test_windows_readonly_asset_delete.py::TestWriteAssetDeletesReadOnlyManagedAssets.test_delete_readonly_directory [chmod-denial]  # uid-independent: the 0o555 directory is the rmdir target in a writable parent; the denial comes from the Windows simulation fixture
+tests/specify_cli/core/test_safe_delete.py::TestSafeRmdir.test_deletes_readonly_directory [chmod-denial]  # uid-independent: the 0o555 directory is the rmdir target in a writable parent, removable by every uid
+tests/specify_cli/core/test_safe_delete.py::TestSimulatedWindowsPermissionDenied.test_safe_rmdir_retries_after_permission_error [chmod-denial]  # uid-independent: the 0o555 directory is the rmdir target in a writable parent; the denial comes from the Windows simulation fixture
+
+# --- deferred-6595 -----------------------------------------------------------
+tests/charter_offering/drg/test_org_fragment_validation.py::test_permission_denied_fragment_is_a_finding [chmod-denial,uid-skip]  # deferred-6595: incidental; deny Path.read_text on the fragment instead of chmod(0) + uid skip
+tests/charter_offering/missions/test_mission_type_repository.py::TestLayeredMissionTypesUnreadableDirectoryLoudFail.test_unreadable_org_layer_directory_raises_naming_the_directory [chmod-denial,uid-skip]  # deferred-6595: incidental; deny the org-layer directory listing at the seam instead of chmod(0o000) + uid skip
+tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py::_write_chmod0_fragment [chmod-denial]  # deferred-6595: incidental; the helper's callers should deny the fragment read at the seam
+tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py::test_org_root_folds_fragment_false_on_permission_denied [chmod-denial,uid-skip]  # deferred-6595: incidental; deny the fragment read at the seam instead of chmod(0) + uid skip
+tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py::test_permission_denied_sibling_degrades_per_pack [uid-skip]  # deferred-6595: incidental; deny the sibling fragment read at the seam instead of chmod(0) + uid skip

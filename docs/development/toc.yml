@@ -82,6 +82,8 @@
       href: testing/ui-e2e.md
     - name: Write time-dependent tests
       href: testing/write-time-dependent-tests.md
+    - name: Write permission-denied tests
+      href: testing/permission-denied-tests.md
 - name: Reporting
   items:
     - name: Executive debrief house style

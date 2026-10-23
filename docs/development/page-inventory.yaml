@@ -3998,6 +3998,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/testing/permission-denied-tests.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/testing/run-mutation-tests.md
   tag: current
   divio_type: how-to
