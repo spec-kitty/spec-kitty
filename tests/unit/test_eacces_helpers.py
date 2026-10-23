@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 import shutil
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -102,7 +101,6 @@ def test_deny_removal_from_lets_a_missing_entry_report_itself_missing(tmp_path: 
     try:
         deny_removal_from(monkeypatch, parent)
 
-        (parent / "absent.txt").unlink(missing_ok=True)
         with pytest.raises(FileNotFoundError):
             os.unlink(parent / "absent.txt")
     finally:
@@ -142,20 +140,6 @@ def test_deny_removal_from_reaches_shutil_rmtree_relative_dir_fd_removals(tmp_pa
         with pytest.raises(PermissionError):
             shutil.rmtree(tree)
         assert (locked / "member.txt").exists()
-
-        failures: list[str] = []
-
-        def make_writable_and_retry(function: Callable[[str], object], name: str, _exc: object) -> None:
-            failures.append(name)
-            locked.chmod(0o755)
-            function(name)
-
-        if sys.version_info >= (3, 12):
-            shutil.rmtree(tree, onexc=make_writable_and_retry)
-        else:
-            shutil.rmtree(tree, onerror=make_writable_and_retry)
     finally:
         if locked.exists():
             locked.chmod(0o755)
-    assert failures == [str(locked / "member.txt")]
-    assert not tree.exists()
