@@ -385,7 +385,6 @@ def test_renamed_copy_is_caught_and_a_narrowing_is_not() -> None:
 def test_a_renamed_container_constant_is_a_copy() -> None:
     source = _tree("ALLOWLIST_PREFIXES = ('kitty-specs/', 'docs/changelog/')\n")
     assert renamed_copies(_tree("_PREFIXES = ('kitty-specs/', 'docs/changelog/')\n"), source) == {("_PREFIXES", "ALLOWLIST_PREFIXES")}
-    assert renamed_copies(_tree("_ONE = ('kitty-specs/',)\n_ROOT = 'kitty-specs/'\n"), source) == set()
 
 
 @pytest.mark.parametrize(
@@ -395,6 +394,11 @@ def test_a_renamed_container_constant_is_a_copy() -> None:
         pytest.param("class LiftErr(ValueError):\n    '''Doc.'''\n", "class SourceErr(RuntimeError):\n    '''Doc.'''\n", id="docstring-only-classes"),
         pytest.param("def _a(x):\n    return x\n", "def _b(y):\n    return y\n", id="different-arguments"),
         pytest.param("class A(ValueError):\n    code = 1\n", "class B(RuntimeError):\n    code = 1\n", id="different-bases"),
+        pytest.param(
+            "_ONE = ('kitty-specs/',)\n_ROOT = 'kitty-specs/'\n",
+            "ALLOWLIST_PREFIXES = ('kitty-specs/', 'docs/changelog/')\n",
+            id="single-element-container-or-scalar",
+        ),
     ],
 )
 def test_rule_three_ignores_what_is_not_a_copy(lift: str, source: str) -> None:
