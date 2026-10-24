@@ -15,8 +15,6 @@ from __future__ import annotations
 import codecs
 from dataclasses import dataclass
 
-import charset_normalizer
-
 from kernel.text_decode import detect_bom
 
 __all__ = ["CP1252_CODEC", "EncodingRecoveryResult", "recover"]
@@ -157,6 +155,10 @@ def _recover_strict_utf8(data: bytes) -> EncodingRecoveryResult | None:
 
 
 def _recover_single_byte(data: bytes, *, unsafe: bool) -> EncodingRecoveryResult:
+    # Imported here, not at module scope: every CLI start-up imports this
+    # module, and ``charset_normalizer`` costs about 18 ms there (#6638).
+    import charset_normalizer
+
     matches = charset_normalizer.from_bytes(data)
     candidates = tuple((match.encoding, 1.0 - match.chaos) for match in matches)
 

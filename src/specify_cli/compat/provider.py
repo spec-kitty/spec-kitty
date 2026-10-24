@@ -28,8 +28,6 @@ import re
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-import httpx
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -193,6 +191,10 @@ class PyPIProvider:
         Returns:
             A :class:`LatestVersionResult` describing the outcome.  Never raises.
         """
+        # Imported here, not at module scope: ``specify_cli.compat`` loads this
+        # module on every CLI start-up, and ``httpx`` costs about 70 ms there (#6638).
+        import httpx
+
         user_agent = _compat_user_agent()
         url = _PYPI_URL_TEMPLATE.format(package=package)
 
