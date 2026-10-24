@@ -1089,6 +1089,6 @@ class TestLayeredMissionTypesUnreadableDirectoryLoudFail:
         # Deny the listing at the seam the resolver calls: a chmod(0o000)
         # directory does not deny root or Windows (#5691, #6641).
         deny_path_method(monkeypatch, "iterdir", mt_dir)
-        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+        with pytest.raises(ValueError, match="cannot be read") as exc_info:
             resolve_layered_mission_types(builtin_dirs, ctx)
         assert str(mt_dir) in str(exc_info.value)
