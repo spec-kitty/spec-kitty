@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app as app
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -284,22 +284,17 @@ def test_unreadable_fragment_is_a_finding_not_a_traceback(tmp_path: Path) -> Non
         assert "Traceback" not in cli.output
 
 
-@pytest.mark.skipif(
-    os.name != "posix" or os.geteuid() == 0,
-    reason="chmod-based unreadability needs POSIX and a non-root user",
-)
-def test_permission_denied_fragment_is_a_finding(tmp_path: Path) -> None:
+def test_permission_denied_fragment_is_a_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A permission-denied fragment surfaces as ``unreadable_file``, not a crash."""
     from charter.offering.packs.pack_validator import validate_pack
 
     fragment = tmp_path / "drg" / "fragment.yaml"
     fragment.parent.mkdir()
     fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
-    fragment.chmod(0)
-    try:
-        result = validate_pack(tmp_path, check_drg_root=False)
-    finally:
-        fragment.chmod(0o644)
+    # Deny the read at the seam: chmod(0) denies neither root nor Windows (#5691, #6641).
+    deny_path_method(monkeypatch, "read_text", fragment)
+
+    result = validate_pack(tmp_path, check_drg_root=False)
     assert not result.ok
     assert len(result.errors) == 1
     finding = result.errors[0]

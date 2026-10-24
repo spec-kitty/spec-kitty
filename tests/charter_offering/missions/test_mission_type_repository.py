@@ -16,7 +16,6 @@ Covers:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +27,7 @@ from charter.offering.missions.mission_type_repository import (
     resolve_layered_mission_types,
 )
 from charter.offering.missions.models import MissionType
+from tests._support.eacces import deny_path_method
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -1073,11 +1073,8 @@ class TestLayeredMissionTypesUnreadableDirectoryLoudFail:
         resolve_layered_mission_types.cache_clear()
 
     def test_unreadable_org_layer_directory_raises_naming_the_directory(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        if os.name != "posix" or os.geteuid() == 0:
-            pytest.skip("chmod-based unreadability needs POSIX and a non-root user")
-
         org_root = tmp_path / "org"
         mt_dir = org_root / "mission_types"
         _write_layered_yaml(
@@ -1089,10 +1086,9 @@ class TestLayeredMissionTypesUnreadableDirectoryLoudFail:
             pack_roots=(builtin_dirs[0].parent, org_root), repo_root=tmp_path / "project"
         )
 
-        os.chmod(mt_dir, 0o000)
-        try:
-            with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
-                resolve_layered_mission_types(builtin_dirs, ctx)
-            assert str(mt_dir) in str(exc_info.value)
-        finally:
-            os.chmod(mt_dir, 0o755)
+        # Deny the listing at the seam the resolver calls: a chmod(0o000)
+        # directory does not deny root or Windows (#5691, #6641).
+        deny_path_method(monkeypatch, "iterdir", mt_dir)
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011 - message content is the assertion
+            resolve_layered_mission_types(builtin_dirs, ctx)
+        assert str(mt_dir) in str(exc_info.value)

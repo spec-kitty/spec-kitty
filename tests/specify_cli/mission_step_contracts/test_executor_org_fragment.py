@@ -17,7 +17,7 @@ only covers the graceful-degrade, never a valid fragment's nodes being folded.
 from __future__ import annotations
 
 import logging
-import os
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -32,6 +32,7 @@ from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutor,
 )
+from tests._support.eacces import deny_path_method
 
 pytestmark = pytest.mark.fast
 
@@ -412,7 +413,7 @@ def test_strict_load_still_raises_on_malformed_pack(tmp_path: Path) -> None:
 # consumer that previously tolerated that fault class must keep tolerating it
 # BY NAME. The per-pack degrade in ``load_org_drg`` and the
 # ``_org_root_folds_fragment`` probe are the two such consumers on the
-# mission-step composition path; each gets a chmod-0 regression test mirroring
+# mission-step composition path; each gets a permission-denied regression test mirroring
 # ``tests/charter_offering/drg/test_org_fragment_validation.py::
 # test_permission_denied_fragment_is_a_finding``, plus a directory-fragment
 # variant that exercises the same ``OSError`` channel on every platform
@@ -436,13 +437,21 @@ def _write_directory_fragment(root: Path) -> Path:
     return root
 
 
-def _write_chmod0_fragment(root: Path) -> Path:
-    """A pack whose ``drg/fragment.yaml`` is chmod-0 (permission-denied)."""
-    fragment = root / "drg" / "fragment.yaml"
-    fragment.parent.mkdir(parents=True, exist_ok=True)
-    fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
-    fragment.chmod(0)
-    return root
+def _permission_denied_fragment_writer(monkeypatch: pytest.MonkeyPatch) -> Callable[[Path], Path]:
+    """A writer for a pack whose ``drg/fragment.yaml`` read is permission-denied.
+
+    The read is denied at the seam rather than by ``chmod(0)``, which denies
+    neither root nor Windows (#5691, #6641).
+    """
+
+    def write(root: Path) -> Path:
+        fragment = root / "drg" / "fragment.yaml"
+        fragment.parent.mkdir(parents=True, exist_ok=True)
+        fragment.write_text("nodes: []\nedges: []\n", encoding="utf-8")
+        deny_path_method(monkeypatch, "read_text", fragment)
+        return root
+
+    return write
 
 
 def _healthy_plus_unreadable_chain(tmp_path: Path, write_unreadable) -> Path:
@@ -481,25 +490,16 @@ def test_unreadable_sibling_does_not_evict_healthy_fragment(tmp_path: Path, capl
     assert not any(_HEALTHY_PACK_NAME in r.getMessage() for r in drop_warnings)
 
 
-@pytest.mark.skipif(
-    os.name != "posix" or os.geteuid() == 0,
-    reason="chmod-based unreadability needs POSIX and a non-root user",
-)
-def test_permission_denied_sibling_degrades_per_pack(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """chmod-0 variant mirroring ``test_permission_denied_fragment_is_a_finding``.
+def test_permission_denied_sibling_degrades_per_pack(tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Permission-denied variant mirroring ``test_permission_denied_fragment_is_a_finding``.
 
     A permission-denied optional fragment degrades per-pack on the mission-step
     composition path (the squad's live repro: at the pre-fix head this raised
     ``PermissionError`` out of every dispatch for such a repo).
     """
-    repo = _healthy_plus_unreadable_chain(tmp_path, _write_chmod0_fragment)
-    try:
-        with caplog.at_level(logging.WARNING, logger=_CHARTER_DRG_LOGGER):
-            graph = StepContractExecutor._load_graph_degrading_malformed_org_pack(repo, org_roots=[])
-    finally:
-        fragment = tmp_path / "unreadable-pack" / "drg" / "fragment.yaml"
-        if fragment.exists():
-            fragment.chmod(0o644)
+    repo = _healthy_plus_unreadable_chain(tmp_path, _permission_denied_fragment_writer(monkeypatch))
+    with caplog.at_level(logging.WARNING, logger=_CHARTER_DRG_LOGGER):
+        graph = StepContractExecutor._load_graph_degrading_malformed_org_pack(repo, org_roots=[])
 
     node_urns = {str(node.urn) for node in graph.nodes}
     assert _HEALTHY_MARKER_URN in node_urns
@@ -556,12 +556,8 @@ def test_org_root_folds_fragment_tolerates_read_fault(tmp_path: Path, monkeypatc
     assert StepContractExecutor._org_root_folds_fragment(root) is False
 
 
-@pytest.mark.skipif(
-    os.name != "posix" or os.geteuid() == 0,
-    reason="chmod-based unreadability needs POSIX and a non-root user",
-)
-def test_org_root_folds_fragment_false_on_permission_denied(tmp_path: Path) -> None:
-    """Probe, chmod-0 variant mirroring ``test_permission_denied_fragment_is_a_finding``.
+def test_org_root_folds_fragment_false_on_permission_denied(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Probe, permission-denied variant mirroring ``test_permission_denied_fragment_is_a_finding``.
 
     The squad's live repro: at the pre-fix head this probe RAISED
     ``PermissionError`` instead of answering; at merge-base it answered
@@ -570,9 +566,7 @@ def test_org_root_folds_fragment_false_on_permission_denied(tmp_path: Path) -> N
     lost root, WARNED as such), never a traceback.
     """
     root = _fragment_shaped_root(tmp_path)
-    (root / "drg" / "fragment.yaml").chmod(0)
-    try:
-        folds = StepContractExecutor._org_root_folds_fragment(root)
-    finally:
-        (root / "drg" / "fragment.yaml").chmod(0o644)
-    assert folds is False
+    # Deny the loader's own read (unlike the seam-pinned test above, which
+    # replaces ``load_org_pack``), so the real read path reaches the probe.
+    deny_path_method(monkeypatch, "read_text", root / "drg" / "fragment.yaml")
+    assert StepContractExecutor._org_root_folds_fragment(root) is False

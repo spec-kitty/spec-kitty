@@ -25,11 +25,11 @@ pytestmark = [pytest.mark.architectural]
 Site = tuple[str, str]
 
 _EXEMPTIONS_FILE = Path(__file__).resolve().parent / "_exemptions" / "root_vacuous_denial.txt"
-_CATEGORIES = frozenset({"kernel-check", "uid-independent", "deferred-6595"})
+_CATEGORIES = frozenset({"kernel-check", "uid-independent"})
 
-#: Shrink-only ceiling: the entry count at landing (#5691). Lower it when an
-#: entry is removed; never raise it.
-_MAX_EXEMPTIONS = 17
+#: Shrink-only ceiling: 17 at landing (#5691), 12 once the deferred charter/DRG
+#: tests were converted (#6641). Lower it when an entry is removed; never raise it.
+_MAX_EXEMPTIONS = 12
 
 
 class Exemption(NamedTuple):
