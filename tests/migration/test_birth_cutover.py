@@ -45,6 +45,7 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 # private helpers is an established pattern in this suite (e.g.
 # tests/merge/test_executor_coord_reconcile.py imports from
 # tests/merge/test_issue_2367_bake_strand.py).
+from tests._support.legacy_mission import write_legacy_mission
 from tests.specify_cli.test_specify_topology_flag import (
     _git,
     _init_project,
@@ -489,58 +490,6 @@ def _anchor_mission_root(root: Path) -> Path:
     return root
 
 
-def _write_legacy_mission(feature_dir: Path, *, wp_id: str = "WP01") -> None:
-    """A mission shaped like the PRE-WP04/WP05 corpus: real ``shell_pid`` /
-    ``agent`` / subtask-checkbox runtime living in frontmatter/``tasks.md`` —
-    exactly what :func:`backfill_runtime_state` seeds from. Deliberately NOT
-    the born-reconciled shape (T042 above) — this is the migration-coexistence
-    population IC-08 must stay idempotent against."""
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_slug": feature_dir.name,
-                # A real, distinct ULID (production-shaped) -- NOT equal to the
-                # slug: backfill_runtime_state/verify_backfill collapse
-                # ``mission_id == slug`` to ``None`` on the seeded StatusEvent
-                # (the "no distinguishable id" convention), while a legacy
-                # readback with a MISSING mission_id key defaults it back to the
-                # slug -- an artificial mismatch that has nothing to do with
-                # this WP's two-target/atomicity behavior, so use a genuine
-                # ULID-shaped id here to sidestep it.
-                "mission_id": "01JMLEGACYCUTOVERDEMO0001",
-                "mid8": "LEGACY001",
-                "mission_number": None,
-                "mission_type": "software-dev",
-                "target_branch": "main",
-                "purpose_tldr": "legacy corpus fixture",
-                "purpose_context": "a pre-WP04 mission with real frontmatter runtime",
-                "created_at": "2026-01-01T00:00:00+00:00",
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    (tasks_dir / f"{wp_id}-work.md").write_text(
-        "---\n"
-        f"work_package_id: {wp_id}\n"
-        f"title: {wp_id} legacy work\n"
-        "agent: implementer-ivan\n"
-        'shell_pid: "4242"\n'
-        'shell_pid_created_at: "1735689600.0"\n'
-        "---\n"
-        f"# {wp_id}\n",
-        encoding="utf-8",
-    )
-    (feature_dir / "tasks.md").write_text(
-        f"## {wp_id} legacy work\n\n- [x] T001 Legacy completed task\n",
-        encoding="utf-8",
-    )
-
-
 def _write_issue_2985_mixed_mission(
     feature_dir: Path,
     *,
@@ -748,7 +697,7 @@ def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     from specify_cli.status.store import read_event_stream
 
     feature_dir = _anchor_mission_root(tmp_path) / "kitty-specs" / "legacy-crash-demo"
-    _write_legacy_mission(feature_dir)
+    write_legacy_mission(feature_dir)
 
     # Simulate "the crash happened right after the durable seed append but
     # before verify/flip": call ONLY the seed phase directly.
@@ -802,7 +751,7 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
 
     mission_root = _anchor_mission_root(tmp_path)
     birth_first_dir = mission_root / "kitty-specs" / "legacy-birth-first"
-    _write_legacy_mission(birth_first_dir, wp_id="WP01")
+    write_legacy_mission(birth_first_dir, wp_id="WP01")
     first = cutover_mission(birth_first_dir)
     assert first.flipped and first.seeded_count > 0
     events_after_first = (birth_first_dir / "status.events.jsonl").read_text(encoding="utf-8")
@@ -817,7 +766,7 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
     )
 
     migration_first_dir = mission_root / "kitty-specs" / "legacy-migration-first"
-    _write_legacy_mission(migration_first_dir, wp_id="WP01")
+    write_legacy_mission(migration_first_dir, wp_id="WP01")
     m_first = cutover_mission(migration_first_dir)
     assert m_first.flipped and m_first.seeded_count > 0
     events_m_after_first = (migration_first_dir / "status.events.jsonl").read_text(encoding="utf-8")
@@ -855,7 +804,7 @@ def test_two_target_spine_seeds_status_dir_and_flips_feature_dir(tmp_path: Path)
     # lock root inside the tmp-path (issue #2990).
     primary_dir = _anchor_mission_root(tmp_path / "primary") / "kitty-specs" / "split-demo"
     status_dir = _anchor_mission_root(tmp_path / "coord") / "kitty-specs" / "split-demo"
-    _write_legacy_mission(primary_dir)
+    write_legacy_mission(primary_dir)
     # The COORD leg carries ONLY meta.json (the seed-event write/verify-anchor
     # target); no tasks/ of its own is needed since the legacy read now
     # anchors on the PRIMARY leg (FR-002).
@@ -884,7 +833,7 @@ def test_two_target_spine_defaults_status_dir_to_feature_dir(tmp_path: Path) -> 
     from specify_cli.migration.runtime_state_cutover import cutover_mission
 
     feature_dir = _anchor_mission_root(tmp_path) / "kitty-specs" / "flat-demo"
-    _write_legacy_mission(feature_dir)
+    write_legacy_mission(feature_dir)
 
     result = cutover_mission(feature_dir)
 

@@ -22,7 +22,7 @@ from specify_cli.migration.runtime_state_cutover import (
     MissingMissionIdError,
     stamp_accept_cutover,
 )
-from tests.migration.test_birth_cutover import _write_legacy_mission
+from tests._support.legacy_mission import write_legacy_mission
 
 
 def _read_events(feature_dir: Path) -> str:
@@ -35,7 +35,7 @@ def test_accept_stamp_idempotent_rerun_is_byte_identical(tmp_path: Path) -> None
     mission seeds nothing new and leaves ``status.events.jsonl`` byte-stable.
     """
     feature_dir = tmp_path / "kitty-specs" / "legacy-accept-stamp-demo"
-    _write_legacy_mission(feature_dir)
+    write_legacy_mission(feature_dir)
 
     first = stamp_accept_cutover(feature_dir)
     assert first.flipped and first.seeded_count > 0, (
