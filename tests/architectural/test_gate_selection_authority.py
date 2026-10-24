@@ -303,7 +303,7 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     # #6166: the chosen target sets, pinned so a future routing change cannot silently shrink them
     # (DIRECTIVE_003 -- the PR records the set + the per-module reason in gate_selection.py).
     assert GROUP_MODULE_FANOUT["mission_pack_content"] == frozenset(
-        {"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review"}
+        {"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review", "upgrade"}
     )
     assert GROUP_MODULE_FANOUT["cli_lifecycle"] == frozenset({"agent", "core_misc"})
     assert GROUP_MODULE_FANOUT["mission_type_definitions"] == frozenset({"charter", "core_misc", "upgrade"})
@@ -390,6 +390,9 @@ _CONSUMED_PACK_SUBTREE_CASES = [
     ("packs/built-in/missions/mission_types/software-dev.yaml", "charter"),
     ("packs/built-in/missions/mission_types/software-dev.yaml", "core_misc"),
     ("packs/built-in/missions/mission_types/plan.yaml", "upgrade"),
+    # #6637: tests/upgrade/migrations/test_m_4_0_0rc8_retire_stale_mission_template_forks.py
+    # asserts the migration leaves the real pack template bytes in place.
+    ("packs/built-in/missions/research/templates/task-prompt-template.md", "upgrade"),
 ]
 
 

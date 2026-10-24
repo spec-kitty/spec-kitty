@@ -253,7 +253,8 @@ jobs:
             # Three regressions reached main (#6166) because such edits matched only the non-module
             # `corpus` group and selected zero modules. Not a module: select_modules fans it out to the
             # modules whose tests read that content (charter, next, missions, dossier,
-            # specify_cli_runtime, execution_context -- gate_selection.GROUP_MODULE_FANOUT). Gates no
+            # specify_cli_runtime, execution_context, review, upgrade --
+            # gate_selection.GROUP_MODULE_FANOUT). Gates no
             # router job BY DESIGN; the module matrix is its per-PR executor. The scope is
             # sub-tree-specific (not a blanket packs/built-in/missions/**): it leaves out the READMEs,
             # which no module test reads.

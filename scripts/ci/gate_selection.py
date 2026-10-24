@@ -89,8 +89,9 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # #6166 task A -- mission pack content beyond expected-artifacts.yaml (the mission-step
     # prompt/step contracts, per-type templates, mission.yaml, mission-runtime.yaml, actions/**,
     # governance-profile.yaml, built_in_step_contracts/**). Per-module evidence: the census
-    # ``via`` field (.github/ci-consumer-census.json).
-    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review"}),
+    # ``via`` field (.github/ci-consumer-census.json). upgrade (#6637): the rc8 template-fork
+    # retirement migration's tests assert a repaired project resolves the real pack template bytes.
+    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime", "review", "upgrade"}),
     # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs).
     "mission_type_definitions": frozenset({"charter", "core_misc", "upgrade"}),
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
