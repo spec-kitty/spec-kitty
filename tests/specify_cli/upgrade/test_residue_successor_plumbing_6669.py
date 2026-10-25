@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git import GitCommandError
 from specify_cli.context.mission_resolver import residue_notice, residue_notice_path
 from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
@@ -123,6 +124,48 @@ def test_partition_tasks_only_folder_is_a_mission_without_git(tmp_path: Path) ->
 
     assert missions == [tmp_path / "kitty-specs" / "legacy"]
     assert leftovers == [empty]
+
+
+def _corrupt_index(monkeypatch: pytest.MonkeyPatch, cwd: Path, *, timed_out: bool) -> None:
+    def _raise(_root: Path) -> frozenset[str]:
+        raise GitCommandError(argv=("ls-files",), cwd=cwd, returncode=128, stderr="corrupt index", timed_out=timed_out)
+
+    monkeypatch.setattr("specify_cli.upgrade.migrations._residue_successor.tracked_mission_paths", _raise)
+
+
+def test_partition_degrades_to_file_presence_on_a_non_timeout_git_error(git_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tasks = git_repo / "kitty-specs" / "legacy" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "WP01.md").write_text("x", encoding="utf-8")
+    # Tracked mode (the probe works) reads the untracked tasks-only folder as residue.
+    assert git_repo / "kitty-specs" / "legacy" in partition_kitty_specs(git_repo / "kitty-specs", git_repo)[1]
+
+    _corrupt_index(monkeypatch, git_repo, timed_out=False)
+    missions, leftovers = partition_kitty_specs(git_repo / "kitty-specs", git_repo)
+
+    assert git_repo / "kitty-specs" / "legacy" in missions
+    assert leftovers == []
+
+
+def test_partition_reraises_a_git_timeout(git_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _corrupt_index(monkeypatch, git_repo, timed_out=True)
+    with pytest.raises(GitCommandError):
+        partition_kitty_specs(git_repo / "kitty-specs", git_repo)
+
+
+def test_partition_for_a_worktree_checkout_root(git_repo: Path) -> None:
+    """WP03 shape: ``partition_kitty_specs(<wt>/kitty-specs, <wt>)`` for ``.worktrees/*``."""
+    wt = git_repo / ".worktrees" / "wt1"
+    _git(git_repo, "worktree", "add", "-q", "-b", "wt1-branch", str(wt))
+    leftover = wt / "kitty-specs" / "leftover" / "tasks"
+    leftover.mkdir(parents=True)
+    (leftover / "WP01.md").write_text("x", encoding="utf-8")
+
+    missions, residue = partition_kitty_specs(wt / "kitty-specs", wt)
+
+    assert missions == [wt / "kitty-specs" / "real-mission"]
+    assert residue == [wt / "kitty-specs" / "leftover"]
+    assert [residue_notice_path(w) for w in residue_warnings(residue, git_repo)] == [".worktrees/wt1/kitty-specs/leftover"]
 
 
 def test_partition_missing_kitty_specs_is_empty(tmp_path: Path) -> None:
