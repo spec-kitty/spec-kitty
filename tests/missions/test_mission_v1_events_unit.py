@@ -30,7 +30,6 @@ from specify_cli.mission_v1.events import (
     emit_event,
     _read_events,
 )
-from tests._support.eacces import deny_open_in
 
 
 # ---------------------------------------------------------------------------
@@ -122,10 +121,14 @@ class TestEmitEvent:
         readonly_dir = tmp_path / "readonly"
         readonly_dir.mkdir()
 
-        # Deny the append at the ``open`` seam instead of chmod: root bypasses
-        # directory mode bits, so a chmod-based setup gave a different verdict
-        # per uid (#5622).
-        deny_open_in(monkeypatch, events_module, readonly_dir / MISSION_EVENTS_FILE)
+        # Deny the append at the module's write seam instead of chmod: root
+        # bypasses directory mode bits, so a chmod-based setup gave a different
+        # verdict per uid (#5622). Since #6606 that seam is the interim locked
+        # append, not ``open``.
+        def _denied(path: Path, *_args: object, **_kwargs: object) -> None:
+            raise PermissionError(f"[Errno 13] Permission denied: {path}")
+
+        monkeypatch.setattr(events_module, "append_event_log_lines", _denied)
 
         with caplog.at_level(logging.WARNING):
             # This must NOT raise

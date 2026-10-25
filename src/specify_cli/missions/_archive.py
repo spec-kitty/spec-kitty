@@ -37,6 +37,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
@@ -249,9 +250,8 @@ def archive_registry_path(project_root: Path) -> Path:
 def append_archive_record(project_root: Path, record: ArchivedMission) -> Path:
     """Append one immutable ArchivedMission record to the registry."""
     path = archive_registry_path(project_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record.to_dict(), sort_keys=True) + "\n")
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    append_event_log_lines(path, [json.dumps(record.to_dict(), sort_keys=True)], create_parents=True)
     return path
 
 

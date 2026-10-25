@@ -20,6 +20,7 @@ from uuid import uuid4
 import yaml
 from pydantic import BaseModel, ConfigDict
 
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc, now_utc_iso
 from runtime.next.run_lock import run_cursor_lock
 from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
@@ -112,15 +113,10 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
         "timestamp": now_utc_iso(),
         "payload": payload,
     }
-    # Serialize before appending, then flush and fsync for durability. Append
-    # mode preserves earlier records, but a failed write or crash can still
-    # leave a partial final line; this is not an atomic record publication.
-    # The journal is per-run, single-writer.
-    line = json.dumps(event, sort_keys=True, default=str) + "\n"
-    with open(event_file, "a", encoding="utf-8") as handle:
-        handle.write(line)
-        handle.flush()
-        os.fsync(handle.fileno())
+    # One locked O_APPEND write plus fsync per event; a torn last line left
+    # by a crash is refused rather than extended (#6606).
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    append_event_log_lines(event_file, [json.dumps(event, sort_keys=True, default=str)])
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:

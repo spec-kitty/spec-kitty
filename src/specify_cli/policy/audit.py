@@ -18,6 +18,7 @@ from typing import Any
 
 import ulid as _ulid_mod
 
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 
 AUDIT_FILENAME = "policy-audit.jsonl"
@@ -72,8 +73,8 @@ def create_audit_event(
 def append_audit_event(feature_dir: Path, event: PolicyAuditEvent) -> None:
     """Append a policy audit event to the feature's audit log."""
     audit_path = feature_dir / AUDIT_FILENAME
-    with open(audit_path, "a", encoding="utf-8") as f:
-        f.write(event.to_json_line() + "\n")
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    append_event_log_lines(audit_path, [event.to_json_line()])
 
 
 def read_audit_events(feature_dir: Path) -> list[PolicyAuditEvent]:
