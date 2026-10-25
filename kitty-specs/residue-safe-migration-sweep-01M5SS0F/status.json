@@ -4,7 +4,7 @@
   "materialized_at": "2026-10-25T17:25:52.763800+00:00",
   "mission_number": "",
   "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
     "approved": 1,
