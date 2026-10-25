@@ -50,7 +50,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
-from specify_cli.context.mission_resolver import is_kitty_specs_residue
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
@@ -369,7 +370,7 @@ def cutover_mission(
     3. ``dry_run`` returns ``would_flip=verify.ok`` writing nothing;
     4. otherwise flip (:func:`_flip_phase`) and return ``flipped=True``.
 
-    A ``kitty-specs/`` child that is not a Mission (residue, #6627) returns
+    A ``kitty-specs/`` child that is residue, not a Mission (#6627) returns
     ``residue=True`` before step 1 and writes nothing. An explicit *owned*
     context names its Mission, so it skips that check.
 
@@ -419,7 +420,7 @@ def cutover_mission(
     status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
     if owned is None and is_kitty_specs_residue(feature_dir):
         # #6627: a residue directory is never seeded or given a meta.json stub by the flip.
-        logger.info("Skipping %s: not a Mission (residue directory)", feature_dir.name)
+        logger.info("Skipping %s", residue_notice(f"{KITTY_SPECS_DIR}/{feature_dir.name}"))
         return CutoverResult(slug=feature_dir.name, flipped=False, residue=True)
     if owned is not None:
         # Validate both legs before seed can perform its first write.
