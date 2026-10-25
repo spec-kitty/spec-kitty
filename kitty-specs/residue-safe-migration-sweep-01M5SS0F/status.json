@@ -70,7 +70,8 @@
         "- 2026-10-25T17:44:05Z – claude – shell_pid=29821 – Added settled_in_selection_view + shared _settled_in_view predicate (registry.py), _residue_successor.py (predecessor_settled, partition_kitty_specs, residue_warnings), 12 tests. Ran: pytest test_residue_successor_plumbing_6669.py = 12 passed; registry/auto-discovery/order-manifest set (17 files) = 310 passed 1 skipped; ruff check/format --force-exclude/mypy --strict exit 0.",
         "Ready for review",
         "- 2026-10-25T18:24:57Z – unknown – Cycle 2: pytest test_residue_successor_plumbing_6669.py = 15 passed; coverage _residue_successor 100% (30/30), registry 90% (84 stmts, 8 miss); ruff check, ruff format --check --force-exclude, mypy --strict clean. Added probe non-timeout degradation, timeout re-raise, worktree checkout_root tests.",
-        "Cycle 2: probe-branch tests + worktree pin"
+        "Cycle 2: probe-branch tests + worktree pin",
+        "Review passed (cycle 2): the _probe_tracked degrade and timeout branches are now tested through the module-level tracked_mission_paths seam that the code calls; a real git-worktree test pins checkout_root=<wt> and project-relative warnings; _residue_successor at 100% coverage, new registry lines covered; 15 passed; ruff, format and mypy --strict clean; source unchanged since cycle 1"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
