@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M5SWTR0FP9ZF45DX611N6VNJ",
-  "materialized_at": "2026-10-25T16:03:21.743099+00:00",
+  "event_count": 4,
+  "last_event_id": "01M5SWTSZK7D5T37XBJEJ3FP09",
+  "materialized_at": "2026-10-25T16:03:23.764009+00:00",
   "mission_number": "",
   "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
   "mission_type": "",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -38,6 +38,13 @@
       "lane": "planned",
       "last_event_id": "01M5SWTR0FP9ZF45DX611N6VNJ",
       "last_transition_at": "2026-10-25T16:03:21.743099+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M5SWTSZK7D5T37XBJEJ3FP09",
+      "last_transition_at": "2026-10-25T16:03:23.764009+00:00"
     }
   }
 }
