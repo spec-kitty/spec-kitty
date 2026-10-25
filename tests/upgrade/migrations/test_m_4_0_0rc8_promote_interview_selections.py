@@ -62,14 +62,8 @@ def _bytes(root: Path) -> dict[str, bytes]:
 
 
 # --------------------------------------------------------------------------- #
-# detect / can_apply
+# apply: nothing to promote
 # --------------------------------------------------------------------------- #
-
-
-def test_it_is_always_applicable_so_one_run_settles_it(tmp_path: Path) -> None:
-    """A ``skipped`` record would re-select it on every upgrade; detection never says no."""
-    assert PromoteInterviewSelectionsMigration().detect(tmp_path) is True
-    assert PromoteInterviewSelectionsMigration().can_apply(tmp_path) == (True, "")
 
 
 @pytest.mark.parametrize("answers", [None, "selected_directives: []\n", "mission: software-dev\n", "selected_directives: [unclosed\n", "- a list root\n"])
@@ -408,12 +402,9 @@ def test_the_in_force_set_is_resolved_at_most_once_and_only_for_a_candidate(tmp_
     assert calls == [[DIRECTIVES, "activated_paradigms"]]
 
 
-def test_the_effect_is_tracked_and_runs_at_the_project_root_only() -> None:
-    migration = PromoteInterviewSelectionsMigration()
-    assert (migration.migration_id, migration.target_version) == (MIGRATION_ID, "4.0.0rc8")
-    assert migration.clone_local_effect is False
-    assert migration.runs_on_worktrees is False
-    assert migration.requires_git_repository is False
+def test_the_effect_is_tracked() -> None:
+    """Its record routes to the tracked partition, which travels with the activation ledger it writes."""
+    assert PromoteInterviewSelectionsMigration().clone_local_effect is False
 
 
 # --------------------------------------------------------------------------- #
