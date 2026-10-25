@@ -55,6 +55,7 @@ _K_IDENTITY = "identity"
 _K_CONTENT_HASH = "content_hash"
 _K_CLI_VERSION = "cli_version"
 _K_CLONE_LOCAL = "clone_local"
+_K_SUPERSEDED_BY = "superseded_by"
 
 _PARTITION_TRACKED = "tracked"
 _PARTITION_CLONE_LOCAL = "clone-local"
@@ -66,6 +67,11 @@ class LedgerRecord:
 
     ``clone_local`` is serialized only when True: a tracked record omits the
     key entirely; a per-clone record carries ``clone_local: true``.
+
+    ``superseded_by`` is serialized only when set: the runner sets it on the
+    record of a superseded substitute's own run (``supersession.py``), so its
+    ``skipped`` reads apart from a ``skipped`` the shipped migration itself
+    recorded, which the adoption backfill copies unmarked (#6629).
     """
 
     id: str
@@ -75,6 +81,7 @@ class LedgerRecord:
     content_hash: str
     cli_version: str
     clone_local: bool = False
+    superseded_by: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -87,6 +94,8 @@ class LedgerRecord:
         }
         if self.clone_local:
             payload[_K_CLONE_LOCAL] = True
+        if self.superseded_by:
+            payload[_K_SUPERSEDED_BY] = self.superseded_by
         return payload
 
     @classmethod
@@ -100,6 +109,7 @@ class LedgerRecord:
             content_hash=data.get(_K_CONTENT_HASH, ""),
             cli_version=data.get(_K_CLI_VERSION, "unknown"),
             clone_local=bool(data.get(_K_CLONE_LOCAL, False)),
+            superseded_by=str(data.get(_K_SUPERSEDED_BY, "")),
         )
 
 
@@ -155,11 +165,13 @@ def build_record(
     *,
     cli_version: str | None = None,
     applied_at: datetime | None = None,
+    superseded_by: str = "",
 ) -> LedgerRecord:
     """Build a record for *migration*, routing-key and drift fields filled in.
 
     Identity and ``clone_local`` are read via defensive ``getattr`` so this
-    never import-depends on ``base.py``.
+    never import-depends on ``base.py``. *superseded_by* marks a superseded
+    substitute's own outcome; a record copied from legacy history leaves it empty.
     """
     return LedgerRecord(
         id=_migration_id_of(migration),
@@ -169,6 +181,7 @@ def build_record(
         content_hash=compute_content_hash(migration),
         cli_version=cli_version or current_cli_version(),
         clone_local=bool(getattr(migration, "clone_local_effect", False)),
+        superseded_by=superseded_by,
     )
 
 

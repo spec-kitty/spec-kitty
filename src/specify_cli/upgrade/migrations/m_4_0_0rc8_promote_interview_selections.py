@@ -27,13 +27,16 @@ Rules
   the activation ledger once ``4.0.0rc8_activation_ledger`` has moved the
   keys) and the one promotion primitive, so the deny guard applies and a
   deactivated id stays deactivated.
-* **Only where the superseded promotion never settled.** Since #2526 the
+* **Only where the superseded promotion never ran.** Since #2526 the
   interview record is not an activation source, so the promotion is a one-time
   backstop for a project crossing that change. When the Migration Ledger
   records ``unify_charter_activation_promote_answers`` as ``success`` (it ran,
-  or the ledger-adoption backfill settled it for a project created after it),
-  an interview id a present list lacks was removed, or was never in force; it
-  is not appended back (#6499).
+  or the ledger-adoption backfill settled it for a project created after it)
+  or as a ``skipped`` the shipped step recorded itself (the pre-ledger runner
+  wrote "Not applicable" when the interview had already promoted, and the
+  backfill copies it), an interview id a present list lacks was removed, or
+  was never in force; it is not appended back (#6499). The superseded
+  substitute's own ``skipped`` is marked ``superseded_by`` and does not count.
 * **One run settles it.** :meth:`detect` is always True and :meth:`apply`
   succeeds even when nothing is left to promote, so the runner records
   ``success``. A ``skipped`` record would re-select the migration on every
@@ -67,6 +70,7 @@ from charter.activation.api import (
 )
 from charter.drg import ArtifactKind
 
+from ..ledger import SETTLED_RESULT, LedgerRecord, MigrationLedger
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
@@ -90,6 +94,7 @@ _NOTHING_TO_PROMOTE = "No interview selections to promote: every selection is al
 _ALREADY_PROMOTED = "Interview selections were promoted by an earlier upgrade; nothing to promote"
 _NO_SELECTIONS = "No interview selections to promote"
 _SUPERSEDED_PROMOTION_ID = "unify_charter_activation_promote_answers"
+_SKIPPED_RESULT = "skipped"
 _SEEDED_LIST_HINT = (
     "{key} lists every available {token} ({listed}), as an upgrade before 4.0.0rc8 wrote it; the interview selected {selected}. "
     "To keep only those, run `spec-kitty charter interview --narrow-activation` or "
@@ -230,11 +235,22 @@ def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[s
     return hints
 
 
-def _shipped_promotion_settled(project_path: Path) -> bool:
-    """Whether the Migration Ledger records the superseded promotion as applied (``success``)."""
-    from ..ledger import SETTLED_RESULT, MigrationLedger
+def _shipped_promotion_ran(record: LedgerRecord) -> bool:
+    """Whether *record* says the shipped promotion itself ran: ``success``, or a ``skipped`` it recorded.
 
-    return any(record.id == _SUPERSEDED_PROMOTION_ID and record.result == SETTLED_RESULT for record in MigrationLedger(project_path).read_tracked())
+    The pre-ledger runner recorded ``skipped`` ("Not applicable") when the
+    interview had already promoted, and the adoption backfill copies that
+    record. The superseded substitute's own ``skipped`` carries
+    ``superseded_by`` and means the shipped step never ran.
+    """
+    return record.result == SETTLED_RESULT or (record.result == _SKIPPED_RESULT and not record.superseded_by)
+
+
+def _shipped_promotion_settled(project_path: Path) -> bool:
+    """Whether the Migration Ledger records that the superseded promotion ran (:func:`_shipped_promotion_ran`)."""
+    shipped = MigrationRegistry.get_by_id(_SUPERSEDED_PROMOTION_ID)
+    records = MigrationLedger(project_path).applicable_records_for(shipped)
+    return any(record.id == _SUPERSEDED_PROMOTION_ID and _shipped_promotion_ran(record) for record in records)
 
 
 def _unresolved_warning(unresolved: list[str]) -> str:

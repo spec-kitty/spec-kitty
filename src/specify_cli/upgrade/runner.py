@@ -947,12 +947,14 @@ class MigrationRunner:
         Routing, identity and the ``sha256:`` content_hash are filled in by
         :func:`ledger.build_record` (D3). A record with an identical
         ``(id, result)`` already present in the authoritative partition is a
-        no-op. Returns ``True`` when a new record was appended.
+        no-op. Returns ``True`` when a new record was appended. A superseded
+        substitute's record carries its ``superseded_by`` note, so its no-op
+        ``skipped`` never reads as the shipped migration's own result (#6629).
         """
         ledger = MigrationLedger(root)
         if any(record.id == migration.migration_id and record.result == result for record in ledger.applicable_records_for(migration)):
             return False
-        ledger.append(build_record(migration, result))
+        ledger.append(build_record(migration, result, superseded_by=getattr(migration, "superseded_by", "")))
         return True
 
     def _finalize_main_metadata(

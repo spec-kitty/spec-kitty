@@ -13,7 +13,9 @@ The substitute keeps the original's identity, routing key and defining module,
 so its ``content_hash`` stays the shipped module's hash and recorded history
 never reads as drift. Because a ``skipped`` record does not settle a
 migration, a superseded one is selected and re-skipped on every run; that is
-idempotent. ADR ``2026-10-17-1``, Amendment 2026-10-25.
+idempotent. The runner marks the substitute's record with its
+``superseded_by`` note, so a successor can tell that no-op apart from a
+``skipped`` the shipped migration recorded itself (#6629). ADR ``2026-10-17-1``, Amendment 2026-10-25.
 """
 
 from __future__ import annotations

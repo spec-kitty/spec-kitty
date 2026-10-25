@@ -58,6 +58,9 @@ PROMOTABLE_KINDS = (
 SELECTED_DIRECTIVES = ["DIRECTIVE_001", "DIRECTIVE_010", "DIRECTIVE_024"]
 SELECTED_PARADIGMS = ["domain-driven-design"]
 
+#: The shipped promotion the migration under test supersedes.
+SHIPPED_PROMOTION_ID = "unify_charter_activation_promote_answers"
+
 
 @pytest.fixture(autouse=True)
 def _real_registry() -> None:
@@ -118,10 +121,21 @@ def test_a_later_upgrade_never_undoes_an_operator_narrowing(tmp_path: Path) -> N
         assert read_activation_ledger(project)["activated_directives"] == narrowed
 
 
-def test_a_project_the_shipped_promotion_already_settled_keeps_its_narrowed_list(tmp_path: Path) -> None:
-    """An rc7 project: ledger adoption settles the shipped promotion, so ids the operator removed stay out (#6499)."""
+@pytest.mark.parametrize("applied", ["", "skipped"], ids=["version-stamped", "legacy-skip"])
+def test_a_project_the_shipped_promotion_already_settled_keeps_its_narrowed_list(tmp_path: Path, applied: str) -> None:
+    """An rc7 project keeps the ids the operator removed (#6499).
+
+    Ledger adoption settles the shipped promotion from the version stamp, or
+    copies the ``skipped`` ("Not applicable") record the pre-ledger runner wrote
+    when the interview had already promoted: either way the shipped step ran.
+    """
     project = _pre_ledger_interviewed_project(tmp_path)
     ProjectMetadata(version="4.0.0rc7", initialized_at=now_utc()).save(project / ".kittify")
+    if applied:
+        # ``save()`` no longer writes ``migrations.applied``; the pre-ledger runner did.
+        metadata = project / ".kittify" / "metadata.yaml"
+        entry = f"  - id: {SHIPPED_PROMOTION_ID}\n    applied_at: '{now_utc().isoformat()}'\n    result: {applied}\n"
+        metadata.write_text(metadata.read_text(encoding="utf-8") + f"migrations:\n  applied:\n{entry}", encoding="utf-8")
     narrowed = ["024-locality-of-change"]
     seed_activation_ledger(project, activated_directives=narrowed)
 

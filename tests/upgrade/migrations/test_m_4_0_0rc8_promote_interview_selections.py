@@ -24,6 +24,7 @@ from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError, S
 from specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections import MIGRATION_ID, PromoteInterviewSelectionsMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
 from specify_cli.upgrade.registry import MigrationRegistry
+from specify_cli.upgrade.supersession import superseded_note
 from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -151,14 +152,20 @@ def test_a_settled_shipped_promotion_means_nothing_is_appended(tmp_path: Path) -
     assert _bytes(project) == before
 
 
-def test_a_skipped_shipped_promotion_does_not_count_as_settled(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("superseded_by", "expected"),
+    [("", [ARCHITECTURE_STEM]), (superseded_note(MIGRATION_ID), [ARCHITECTURE_STEM, FIDELITY_STEM])],
+    ids=["a-legacy-skip-appends-nothing", "a-substitute-skip-still-promotes"],
+)
+def test_a_skipped_shipped_promotion_counts_only_when_the_shipped_step_recorded_it(tmp_path: Path, superseded_by: str, expected: list[str]) -> None:
+    """The shipped step's own "Not applicable" skip means it ran; the substitute's marked no-op skip does not."""
     project = _project(tmp_path, ARCHITECTURE_STEM, FIDELITY_ID)
     seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
-    MigrationLedger(project).append(build_record(UnifyCharterActivationMigration(), "skipped"))
+    MigrationLedger(project).append(build_record(UnifyCharterActivationMigration(), "skipped", superseded_by=superseded_by))
 
     PromoteInterviewSelectionsMigration().apply(project)
 
-    assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM, FIDELITY_STEM]
+    assert read_activation_ledger(project)[DIRECTIVES] == expected
 
 
 def test_a_declared_id_in_the_list_matches_the_stem_in_the_answers(tmp_path: Path) -> None:
