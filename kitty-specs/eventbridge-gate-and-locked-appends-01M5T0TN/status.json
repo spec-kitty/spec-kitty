@@ -1,7 +1,7 @@
 {
-  "event_count": 23,
-  "last_event_id": "01M5T7TK0TE6JEQYV99Z6AX1EN",
-  "materialized_at": "2026-10-25T19:15:30.970735+00:00",
+  "event_count": 24,
+  "last_event_id": "01M5T88RWCS62D342S7VCYA6WD",
+  "materialized_at": "2026-10-25T19:23:15.724719+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
-    "in_progress": 1,
+    "for_review": 3,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 1
   },
@@ -62,6 +62,9 @@
       "last_event_id": "01M5T7TK0TE6JEQYV99Z6AX1EN",
       "last_transition_at": "2026-10-25T19:15:30.970735+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "8 G-5 writers + glossary + next pairing guard; 10 torn/lock tests red before, 19 green after; blast radius 8940 passed, 2 failed -> 1 fixed (deny seam re-point), 1 environmental (stale editable install)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 13807,
@@ -80,14 +83,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5T5WSNH4EFFRZ7NTE08CASR",
-      "last_transition_at": "2026-10-25T18:41:46.139487+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5T88RWCS62D342S7VCYA6WD",
+      "last_transition_at": "2026-10-25T19:23:15.724719+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3658,
-      "shell_pid_created_at": "1792953640.64"
+      "shell_pid_created_at": "1792953640.64",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP04": {
       "actor": "claude",
