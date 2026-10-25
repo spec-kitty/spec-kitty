@@ -19,7 +19,7 @@ from charter.activation.effective_set import resolve_effective_sets
 from specify_cli.upgrade.ledger import MigrationLedger, build_record, compute_content_hash
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_4_0_0rc8_promote_interview_selections as module
-from charter.activation.api import UnrepresentableDirectiveIdError
+from charter.activation.api import PromotionOutcome, UnrepresentableDirectiveIdError
 from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError, SupersededMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections import MIGRATION_ID, PromoteInterviewSelectionsMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
@@ -206,20 +206,22 @@ def test_a_deactivated_selection_is_kept_deactivated(tmp_path: Path) -> None:
 
 
 def test_a_deactivated_only_selection_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A deactivated id is never "missing" enough to rewrite (and re-stamp) the activation ledger on every run."""
+    """The promotion primitive's deny guard decides, for the preview and the real run alike; nothing is promoted or re-stamped."""
     calls: list[Path] = []
     monkeypatch.setattr("charter.activation.api.restamp_bundle_hash", lambda root: calls.append(root) or True)
     project = _project(tmp_path, DECISIONS_ID)
     seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM], deactivated_directives=[DECISIONS_STEM])
     before = _bytes(project)
+    skipped = PromotionOutcome(skipped_denied={DIRECTIVES: [DECISIONS_STEM]}).skipped_denied_messages()
 
+    preview = PromoteInterviewSelectionsMigration().apply(project, dry_run=True)
     result = PromoteInterviewSelectionsMigration().apply(project)
 
     assert result.success, result.errors
-    assert result.changes_made == [module._NOTHING_TO_PROMOTE]
+    assert (preview.changes_made, preview.warnings) == (["dry-run: nothing would be promoted"], skipped)
+    assert (result.changes_made, result.warnings) == ([module._NOTHING_TO_PROMOTE], skipped)
     assert _bytes(project) == before
     assert calls == []
-    assert any(DECISIONS_STEM in warning and "deactivated" in warning for warning in result.warnings)
 
 
 def test_an_unresolvable_selection_is_reported(tmp_path: Path) -> None:

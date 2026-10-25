@@ -53,6 +53,7 @@ migration; an id it cannot resolve is reported, never dropped silently.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,9 +63,7 @@ from ruamel.yaml import YAML
 
 from charter.activation.api import (
     ActiveCharterConfigError,
-    PromotionOutcome,
     UnrepresentableDirectiveIdError,
-    load_activation_ledger,
     resolve_offering_root,
     resolve_selected_id_to_stem,
 )
@@ -178,39 +177,24 @@ def _present_lists(data: Mapping[str, Any], selections: _Selections) -> dict[Art
     return present
 
 
-@dataclass
-class _Promotions:
-    """Each present list's missing interview stems, and the deactivated ones left out."""
+def _promotions(present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> dict[str, list[str]]:
+    """``{activated_<kind>: [stems]}``: each present list's missing interview stems, in answers order.
 
-    missing: dict[str, list[str]] = field(default_factory=dict)
-    kept_deactivated: dict[str, list[str]] = field(default_factory=dict)
-
-
-def _promotions(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> _Promotions:
-    """``{activated_<kind>: [stems]}`` per present list, in answers order, less the deactivated stems.
-
-    A deactivated selection is left out here rather than by the promotion
-    primitive, so a project whose only "missing" selection is deactivated is
-    not rewritten (and re-stamped) on every run.
+    A deactivated stem is not filtered here: the promotion primitive applies
+    the effective deny (less the org required floor) and reports what it
+    skipped, so one rule decides (FR-006).
     """
-    promotions = _Promotions()
-    ledger = load_activation_ledger(project_path) if present else None
+    promotions: dict[str, list[str]] = {}
     for kind, listed in present.items():
         listed_stems = resolver.stems(kind, listed)
-        denied = resolver.stems(kind, ledger.deny_for(kind)) if ledger is not None else set()
-        missing = [stem for stem in selections.stems[_allow_key(kind)] if stem not in listed_stems]
-        kept = [stem for stem in missing if stem in denied]
-        if kept:
-            promotions.kept_deactivated[_allow_key(kind)] = kept
-        if allowed := [stem for stem in missing if stem not in denied]:
-            promotions.missing[_allow_key(kind)] = allowed
+        if missing := [stem for stem in selections.stems[_allow_key(kind)] if stem not in listed_stems]:
+            promotions[_allow_key(kind)] = missing
     return promotions
 
 
-def _kept_deactivated_warnings(kept: Mapping[str, list[str]]) -> list[str]:
-    """The promotion primitive's own wording for deactivated ids it would have skipped."""
-    messages: list[str] = PromotionOutcome(skipped_denied={key: list(ids) for key, ids in kept.items()}).skipped_denied_messages()
-    return messages
+def _discard(path: Path, data: dict[str, Any]) -> None:
+    """The ``save`` of a dry run: the promotion primitive plans and reports, nothing is written."""
+    del path, data
 
 
 def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> list[str]:
@@ -334,18 +318,14 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
         if _shipped_promotion_settled(project_path):
             nothing = "dry-run: nothing would be promoted" if dry_run else _ALREADY_PROMOTED
             return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
-        planned = _promotions(project_path, present, selections, resolver)
-        promotions = planned.missing
-        warnings.extend(_kept_deactivated_warnings(planned.kept_deactivated))
+        promotions = _promotions(present, selections, resolver)
         if selections.unresolved:
             warnings.append(_unresolved_warning(selections.unresolved))
 
-        if dry_run:
-            change = f"dry-run: would promote {promotions}" if promotions else "dry-run: nothing would be promoted"
-            return MigrationResult(success=True, changes_made=[change], warnings=warnings)
         if not promotions:
-            return MigrationResult(success=True, changes_made=[_NOTHING_TO_PROMOTE], warnings=warnings)
-        return self._promote(project_path, promotions, target_path, data, save, warnings)
+            nothing = "dry-run: nothing would be promoted" if dry_run else _NOTHING_TO_PROMOTE
+            return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
+        return self._promote(project_path, promotions, target_path, data, save, warnings, dry_run=dry_run)
 
     @staticmethod
     def _promote(
@@ -355,16 +335,29 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
         data: dict[str, Any],
         save: Callable[[Path, dict[str, Any]], None],
         warnings: list[str],
+        *,
+        dry_run: bool,
     ) -> MigrationResult:
-        """Write *promotions* (present keys only) through the one promotion primitive, then re-stamp the bundle."""
+        """Promote *promotions* (present keys only) through the one promotion primitive, then re-stamp the bundle.
+
+        A dry run hands the primitive a copy of *data* and a discarding
+        ``save``, so the preview is the primitive's own outcome (its deny guard
+        included) and nothing is written.
+        """
         from charter.activation.api import promote_activations, restamp_bundle_hash
 
+        if dry_run:
+            data, save = copy.deepcopy(data), _discard
         outcome = promote_activations(promotions, config_path=target_path, config_data=data, save=save, effective_sets={}, repo_root=project_path)
-        if any(plan.activated for plan in outcome.committed):
-            # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity.
-            restamp_bundle_hash(project_path)
-        changes = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in outcome.committed if plan.activated]
+        promoted = {plan.yaml_key: plan.activated for plan in outcome.committed if plan.activated}
         notes = [warning for plan in outcome.committed for warning in plan.warnings]
         notes.extend(outcome.skipped_denied_messages())
         notes.extend(outcome.left_absent_messages())
+        if dry_run:
+            change = f"dry-run: would promote {promoted}" if promoted else "dry-run: nothing would be promoted"
+            return MigrationResult(success=True, changes_made=[change], warnings=[*notes, *warnings])
+        if promoted:
+            # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity.
+            restamp_bundle_hash(project_path)
+        changes = [f"Promoted {ids} into {key}" for key, ids in promoted.items()]
         return MigrationResult(success=True, changes_made=changes or [_NOTHING_TO_PROMOTE], warnings=[*notes, *warnings])
