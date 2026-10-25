@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-25T20:39:02.354902+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "254a291a7c909b10b904ba966ea43836e000586c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-25T20:39:02.354902+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "254a291a7c909b10b904ba966ea43836e000586c",
   "contracts": "none",
   "contracts_rationale": "Internal migration-safety fix: no new API, CLI flag or payload schema. The doctor finding adds one code to an open finding set; the backfill-runtime-state --json residue key already exists (#6662).",
   "coordination_branch": "kitty/mission-residue-safe-migration-sweep-01M5SS0F",
