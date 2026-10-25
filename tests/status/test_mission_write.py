@@ -18,6 +18,7 @@ from typing import Any, BinaryIO
 import pytest
 
 import specify_cli.coordination.status_transition as st
+import specify_cli.coordination.status_service as status_service_module
 import specify_cli.coordination.transaction as transaction_module
 import specify_cli.status.mission_write as mw
 from kernel.git import GitCommandError, run_git
@@ -685,7 +686,7 @@ def test_transaction_rollback_still_cuts_unit_one_when_unit_two_never_landed(txn
     def _body() -> None:
         with txn:
             txn.append_event(_event("WP01"))
-            monkeypatch.setattr(transaction_module, "append_event_stream_log", _refused)
+            monkeypatch.setattr(status_service_module, "append_event_stream_log", _refused)
             txn.append_event(_event("WP02"))
 
     with pytest.raises(RuntimeError, match="append refused"):

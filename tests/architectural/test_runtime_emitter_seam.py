@@ -345,3 +345,36 @@ def test_bridge_guards_accept_equivalent_call_formatting(tmp_path: Path, monkeyp
     test_bridge_obtains_seam_only_through_factory()
     for needle in _BRIDGE_BYPASS_NEEDLES:
         test_bridge_never_hands_engine_paths_the_plain_seam(needle)
+
+
+# The EventBridge port's second half (#6603): the work package transition
+# binding. Open-core binds none outside tests, like the emitter factory above;
+# the write-service client (#6675) is the planned binder, and adding it here
+# is the planned exit, not a reason to delete this tripwire.
+_BIND_NAME = "bind_work_package_transition_port"
+_BIND_DEFINITION = "src/runtime/next/event_bridge.py"
+_ALLOWED_BIND_SITES: tuple[str, ...] = (_BIND_DEFINITION,)
+
+
+def _calls_name(source: str, name: str) -> bool:
+    """True if ``source`` calls ``name`` directly or through an ``import ... as`` alias."""
+    if re.search(rf"\b{name}\s*\(", source):
+        return True
+    return any(re.search(rf"\b{re.escape(alias)}\s*\(", source) for alias in re.findall(rf"\b{name}\s+as\s+(\w+)", source))
+
+
+def _bind_sites(root: Path) -> list[str]:
+    return [_relative(p) for p in _py_files(root) if _calls_name(p.read_text(encoding="utf-8"), _BIND_NAME)]
+
+
+def test_open_core_binds_no_work_package_transition_port() -> None:
+    """Only the definition module mentions a bind call; no ``src/`` module binds an adapter."""
+    assert _bind_sites(_REPO_ROOT / "src") == list(_ALLOWED_BIND_SITES), (
+        f"a src/ module binds a work package transition adapter: {_bind_sites(_REPO_ROOT / 'src')}. "
+        "Open-core ships the local file adapter as the unbound default (#6603)."
+    )
+
+
+def test_bind_scan_flags_a_binding_site(tmp_path: Path) -> None:
+    (tmp_path / "producer.py").write_text(f"from runtime.next.event_bridge import {_BIND_NAME} as _b\n_b(object())\n", encoding="utf-8")
+    assert _bind_sites(tmp_path) == [(tmp_path / "producer.py").as_posix()]

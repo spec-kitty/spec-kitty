@@ -79,9 +79,12 @@ ALLOWED_CALLERS: frozenset[str] = frozenset(
         # commits through; the only module that names the verified
         # primitives on behalf of the coordination pipeline.
         "specify_cli.coordination.status_service",
-        # Family 3 (coord shell): ``BookkeepingTransaction`` consumes the
-        # ``status_service`` wrapper door under its transaction-lifetime L1.
-        "specify_cli.coordination.transaction",
+        # The EventBridge local file adapter (#6603, ADR 2026-10-14-1 D-1):
+        # the work package transition door the three shells share (the flat
+        # shell, the batch door and ``BookkeepingTransaction``, family 3,
+        # which left this set when its unit moved behind the port). The
+        # primitives become private to the bridge.
+        "specify_cli.events.event_bridge",
         # Family 4: retrospective run-terminus (superseded -- no new callers),
         # ``append_raw_rows_atomic`` under ``retro_status_lock``.
         "specify_cli.retrospective.events",
