@@ -47,11 +47,11 @@
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "test",
+      "evidence": "tests/architectural/test_event_log_writes_gate.py (door, raw, unresolved censuses; red-first over origin/main reports the 10 routed appends); lane-e combined tree: 521 passed, 2 skipped (Mission tests + layer/boundary/lock gates)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T21:38:33.527793+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
