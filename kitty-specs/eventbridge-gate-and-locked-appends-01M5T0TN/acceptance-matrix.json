@@ -7,11 +7,11 @@
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "test",
+      "evidence": "tests/specify_cli/events/test_event_bridge.py (test_a_full_bridge_satisfies_the_event_bridge_port), tests/architectural/test_runtime_emitter_seam.py; lane-e combined tree: 521 passed, 2 skipped (Mission tests + layer/boundary/lock gates)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T21:38:09.083365+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
