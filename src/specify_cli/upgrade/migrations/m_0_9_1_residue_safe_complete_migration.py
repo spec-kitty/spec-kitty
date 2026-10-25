@@ -50,12 +50,12 @@ class ResidueSafeCompleteLaneMigration(_shipped.CompleteLaneMigration):
 
     def _has_remaining_lane_dirs(self, feature_path: Path) -> bool:
         """Lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
-        return super()._has_remaining_lane_dirs(feature_path) and not is_kitty_specs_residue(feature_path)
+        return bool(super()._has_remaining_lane_dirs(feature_path)) and not is_kitty_specs_residue(feature_path)
 
     def detect(self, project_path: Path) -> bool:
         if predecessor_settled(project_path, PREDECESSOR_ID):
             return False
-        return super().detect(project_path)
+        return bool(super().detect(project_path))
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         result = super().apply(project_path, dry_run)

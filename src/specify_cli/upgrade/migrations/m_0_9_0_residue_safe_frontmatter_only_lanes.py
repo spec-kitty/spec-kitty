@@ -57,12 +57,12 @@ class ResidueSafeFrontmatterOnlyLanesMigration(_shipped.FrontmatterOnlyLanesMigr
 
     def _is_legacy_format(self, feature_path: Path) -> bool:
         """Legacy lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
-        return super()._is_legacy_format(feature_path) and not is_kitty_specs_residue(feature_path)
+        return bool(super()._is_legacy_format(feature_path)) and not is_kitty_specs_residue(feature_path)
 
     def detect(self, project_path: Path) -> bool:
         if predecessor_settled(project_path, PREDECESSOR_ID):
             return False
-        return super().detect(project_path)
+        return bool(super().detect(project_path))
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         result = super().apply(project_path, dry_run)

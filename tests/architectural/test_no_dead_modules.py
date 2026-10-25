@@ -153,7 +153,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_0_7_3_update_scripts",
         "specify_cli.upgrade.migrations.m_0_8_0_remove_active_mission",
         "specify_cli.upgrade.migrations.m_0_8_0_worktree_agents_symlink",
-        "specify_cli.upgrade.migrations.m_0_9_1_residue_safe_complete_migration",  # #6669: residue-aware successor; auto-discovered, never statically imported (its 0.9.0 sibling is imported by it)
+        "specify_cli.upgrade.migrations.m_0_9_1_residue_safe_complete_migration",  # #6669: residue-aware successor; auto-discovered, never statically imported
         "specify_cli.upgrade.migrations.m_0_9_2_research_mission_templates",
         "specify_cli.upgrade.migrations.m_0_9_3_surface_repair_wiring",  # WP01: auto-discovered sentinel migration
         "specify_cli.upgrade.migrations.m_0_9_4_roo_deprecation",  # WP07: Roo Code deprecation; auto-discovered, never statically imported

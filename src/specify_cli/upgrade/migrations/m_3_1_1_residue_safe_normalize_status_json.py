@@ -49,7 +49,9 @@ class ResidueSafeNormalizeStatusJsonMigration(BaseMigration):
     """Normalise status.json files to a deterministic materialized_at, leaving residue folders alone."""
 
     migration_id = "3.1.1_residue_safe_normalize_status_json"
-    description = "Residue-safe status.json normalisation: replace wall-clock materialized_at with a deterministic value (issue #524), never in a kitty-specs/ residue folder"
+    description = (
+        "Residue-safe status.json normalisation: replace wall-clock materialized_at with a deterministic value (issue #524), never in a kitty-specs/ residue folder"
+    )
     target_version = "3.1.1"
 
     def detect(self, project_path: Path) -> bool:
