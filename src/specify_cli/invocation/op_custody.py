@@ -36,7 +36,6 @@ __all__ = [
     "OpWriteRefusal",
     "OpWriteRefused",
     "locate_op_record_root",
-    "op_write_refusal_message",
     "resolve_op_record_root",
 ]
 
@@ -139,7 +138,7 @@ class OpWriteRefusal:
     reason: str
 
 
-def op_write_refusal_message(refusal: OpWriteRefusal, record_root: Path, *, action: str) -> str:
+def _op_write_refusal_message(refusal: OpWriteRefusal, record_root: Path, *, action: str) -> str:
     """The operator-facing refusal; ``action`` is ``open the Op`` or ``close the Op``.
 
     It never suggests overriding the protected-branch guard.
@@ -159,4 +158,4 @@ class OpWriteRefused(InvocationError):
     def __init__(self, refusal: OpWriteRefusal, record_root: Path, *, action: str) -> None:
         self.refusal = refusal
         self.record_root = record_root
-        super().__init__(op_write_refusal_message(refusal, record_root, action=action))
+        super().__init__(_op_write_refusal_message(refusal, record_root, action=action))
