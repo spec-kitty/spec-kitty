@@ -93,6 +93,7 @@ _ANSWERS_RELATIVE_PATH = Path(".kittify") / "charter" / "interview" / "answers.y
 _NOTHING_TO_PROMOTE = "No interview selections to promote: every selection is already in force"
 _ALREADY_PROMOTED = "Interview selections were promoted by an earlier upgrade; nothing to promote"
 _NO_SELECTIONS = "No interview selections to promote"
+_NOTHING_PREVIEW = "dry-run: nothing would be promoted"
 _SUPERSEDED_PROMOTION_ID = "unify_charter_activation_promote_answers"
 _SKIPPED_RESULT = "skipped"
 _SEEDED_LIST_HINT = (
@@ -168,11 +169,11 @@ def _resolve_selections(answers: Mapping[str, Any], resolver: _StemResolver) -> 
 
 
 def _present_lists(data: Mapping[str, Any], selections: _Selections) -> dict[ArtifactKind, list[str]]:
-    """The present allow list of every kind the interview selected; an absent key is left out."""
+    """The present allow list of every kind the interview selected; an absent key or a non-list value is left out."""
     present: dict[ArtifactKind, list[str]] = {}
     for kind in PROMOTED_KINDS:
         listed = data.get(_allow_key(kind))
-        if _allow_key(kind) in selections.stems and listed is not None:
+        if _allow_key(kind) in selections.stems and isinstance(listed, list):
             present[kind] = [str(item) for item in listed]
     return present
 
@@ -316,14 +317,14 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
         present = _present_lists(data, selections)
         warnings = _seeded_list_hints(project_path, present, selections, resolver)
         if _shipped_promotion_settled(project_path):
-            nothing = "dry-run: nothing would be promoted" if dry_run else _ALREADY_PROMOTED
+            nothing = _NOTHING_PREVIEW if dry_run else _ALREADY_PROMOTED
             return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
         promotions = _promotions(present, selections, resolver)
         if selections.unresolved:
             warnings.append(_unresolved_warning(selections.unresolved))
 
         if not promotions:
-            nothing = "dry-run: nothing would be promoted" if dry_run else _NOTHING_TO_PROMOTE
+            nothing = _NOTHING_PREVIEW if dry_run else _NOTHING_TO_PROMOTE
             return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
         return self._promote(project_path, promotions, target_path, data, save, warnings, dry_run=dry_run)
 
@@ -351,10 +352,10 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
         outcome = promote_activations(promotions, config_path=target_path, config_data=data, save=save, effective_sets={}, repo_root=project_path)
         promoted = {plan.yaml_key: plan.activated for plan in outcome.committed if plan.activated}
         notes = [warning for plan in outcome.committed for warning in plan.warnings]
+        # Only present keys are promoted, so the primitive never leaves one absent.
         notes.extend(outcome.skipped_denied_messages())
-        notes.extend(outcome.left_absent_messages())
         if dry_run:
-            change = f"dry-run: would promote {promoted}" if promoted else "dry-run: nothing would be promoted"
+            change = f"dry-run: would promote {promoted}" if promoted else _NOTHING_PREVIEW
             return MigrationResult(success=True, changes_made=[change], warnings=[*notes, *warnings])
         if promoted:
             # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity.

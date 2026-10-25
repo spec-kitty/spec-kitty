@@ -148,7 +148,7 @@ def test_a_settled_shipped_promotion_means_nothing_is_appended(tmp_path: Path) -
 
     assert result.success, result.errors
     assert result.changes_made == [module._ALREADY_PROMOTED]
-    assert preview.changes_made == ["dry-run: nothing would be promoted"]
+    assert preview.changes_made == [module._NOTHING_PREVIEW]
     assert _bytes(project) == before
 
 
@@ -218,7 +218,7 @@ def test_a_deactivated_only_selection_writes_nothing(tmp_path: Path, monkeypatch
     result = PromoteInterviewSelectionsMigration().apply(project)
 
     assert result.success, result.errors
-    assert (preview.changes_made, preview.warnings) == (["dry-run: nothing would be promoted"], skipped)
+    assert (preview.changes_made, preview.warnings) == ([module._NOTHING_PREVIEW], skipped)
     assert (result.changes_made, result.warnings) == ([module._NOTHING_TO_PROMOTE], skipped)
     assert _bytes(project) == before
     assert calls == []
@@ -265,7 +265,7 @@ def test_a_promotion_restamps_the_bundle_hash(tmp_path: Path, monkeypatch: pytes
     ("legacy_skip", "preview", "applied"),
     [
         (False, f"dry-run: would promote {{'{DIRECTIVES}': ['{FIDELITY_STEM}']}}", [ARCHITECTURE_STEM, FIDELITY_STEM]),
-        (True, "dry-run: nothing would be promoted", [ARCHITECTURE_STEM]),
+        (True, module._NOTHING_PREVIEW, [ARCHITECTURE_STEM]),
     ],
     ids=["nothing-recorded", "adopting-a-legacy-skip"],
 )
@@ -301,7 +301,7 @@ def test_a_dry_run_with_nothing_to_promote_says_so(tmp_path: Path) -> None:
 
     result = PromoteInterviewSelectionsMigration().apply(project, dry_run=True)
 
-    assert result.changes_made == ["dry-run: nothing would be promoted"]
+    assert result.changes_made == [module._NOTHING_PREVIEW]
 
 
 def test_a_malformed_activation_ledger_fails_the_upgrade_without_a_traceback(tmp_path: Path) -> None:
