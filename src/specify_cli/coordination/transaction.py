@@ -33,10 +33,7 @@ from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
     _normalize_ref,
 )
-from specify_cli.coordination.status_service import (
-    EventLogWriteContract,
-    append_event_stream_log,
-)
+from specify_cli.coordination.status_service import EventLogWriteContract
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
@@ -48,6 +45,8 @@ from specify_cli.coordination.types import (
     Refused,
 )
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.events.event_bridge import work_package_transition_port
+from runtime.next.event_bridge import WorkPackageTransition
 from mission_runtime import CommitTarget, MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
@@ -1031,9 +1030,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             write_contract = EventLogWriteContract.coordination_transaction_append(self.feature_dir)
         self._attempted_event_ids.extend(unit_ids)
         try:
-            append_event_stream_log(
-                write_contract,
-                events,
+            # #6603: the unit goes through the EventBridge port; the local file
+            # adapter verifies ``write_contract`` and appends through
+            # ``status_service.append_event_stream_log``, as this door did before.
+            work_package_transition_port().record_work_package_transition(
+                WorkPackageTransition(write_location=self.feature_dir, rows=tuple(events), write_contract=write_contract)
             )
             # Re-materialise status.json so an external observer sees
             # consistent state immediately after the event is durable.

@@ -828,6 +828,20 @@ def _collapse_alias_in_place(
     )
 
 
+def _record_work_package_transition(feature_dir: Path, rows: list[StatusEvent | InnerStateChanged]) -> None:
+    """Hand one durability unit of the flat shells to the EventBridge port (#6603).
+
+    The flat and batch doors build the unit; the port's adapter persists it
+    (ADR 2026-10-14-1 D-2). With none bound, the local file adapter writes it
+    through ``store.append_event_stream_atomic_verified``, as these doors did
+    before. Imported here because ``specify_cli.events`` sits above this module.
+    """
+    from runtime.next.event_bridge import WorkPackageTransition
+    from specify_cli.events.event_bridge import work_package_transition_port
+
+    work_package_transition_port().record_work_package_transition(WorkPackageTransition(write_location=feature_dir, rows=tuple(rows)))
+
+
 def _persist_prepared(feature_dir: Path, prepared: PreparedTransition, event: StatusEvent) -> None:
     """Step 5 of the flat shell: atomic append -> materialize -> lane mirror.
 
@@ -842,10 +856,7 @@ def _persist_prepared(feature_dir: Path, prepared: PreparedTransition, event: St
     second, bespoke persistence path exists for verdicts.
     """
     annotation = prepared.annotation
-    _store.append_event_stream_atomic_verified(
-        feature_dir,
-        [event, *([annotation] if annotation is not None else [])],
-    )
+    _record_work_package_transition(feature_dir, [event, *([annotation] if annotation is not None else [])])
     try:
         _reducer.materialize(feature_dir)
     except Exception:
@@ -1171,7 +1182,7 @@ def emit_status_transition_batch(
 
         events = [event for event, _prepared, _request in built]
         annotations: list[InnerStateChanged] = [prepared.annotation for _event, prepared, _request in built if prepared.annotation is not None]
-        _store.append_event_stream_atomic_verified(feature_dir, [*events, *annotations])
+        _record_work_package_transition(feature_dir, [*events, *annotations])
 
         try:
             _reducer.materialize(feature_dir)
