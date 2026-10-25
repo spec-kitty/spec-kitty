@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: fix/residue-safe-migration-sweep
 merge_target_branch: fix/residue-safe-migration-sweep
 branch_strategy: Planning artifacts for this mission were generated on fix/residue-safe-migration-sweep. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/residue-safe-migration-sweep unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-residue-safe-migration-sweep-01M5SS0F
+base_commit: 530373e6ed8c1ffa607d98b8181fab9bcce170b9
+created_at: '2026-10-25T16:29:50.354524+00:00'
 subtasks:
 - T023
 - T024

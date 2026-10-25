@@ -15,5 +15,7 @@
   "purpose_tldr": "Stop spec-kitty upgrade from fabricating a Mission identity into leftover kitty-specs folders, and report the identities earlier upgrades already fabricated.",
   "slug": "residue-safe-migration-sweep-01M5SS0F",
   "target_branch": "fix/residue-safe-migration-sweep",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-25T16:29:04.972919+00:00"
 }
