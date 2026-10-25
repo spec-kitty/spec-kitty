@@ -13,5 +13,7 @@
   "purpose_tldr": "Give every event-log write one door to move behind the Java write service, and stop torn or interleaved lines in the unlocked logs.",
   "slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "target_branch": "issue-6603-6606-eventbridge-gate-and-locked-appends",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-25T17:33:10.883790+00:00"
 }
