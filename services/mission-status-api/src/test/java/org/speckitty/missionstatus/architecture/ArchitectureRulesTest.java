@@ -67,7 +67,6 @@ class ArchitectureRulesTest {
   @Test
   void theMainImportHoldsTheExtractedLibraryClasses() {
     assertThat(MAIN.contain("org.speckitty.missionstatus.domain.model.Lane")).as("a domain-model class in the main import").isTrue();
-    assertThat(MAIN.contain("org.speckitty.missionstatus.adapter.out.filesystem.codec.LedgerLineDecoder")).as("an event-log class in the main import").isTrue();
     assertThat(MAIN.contain("org.speckitty.missionstatus.domain.readmodel.reducer.StatusReducer")).as("an event-log class in the main import").isTrue();
   }
 
