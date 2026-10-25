@@ -148,7 +148,7 @@ class MigrationRegistry:
         with legacy_upgrade_scope(path):
             adopting = _pending_adoption_ids(ledger, all_migrations, path)
             for migration in all_migrations:
-                settled = migration_settled(ledger, migration) or migration.migration_id in adopting
+                settled = _settled_in_view(ledger, migration, adopting)
                 if not settled or migration.reselect_when_recorded(path):
                     selected.append(migration)
         return selected
@@ -179,6 +179,34 @@ def _pending_adoption_ids(ledger: MigrationLedger, migrations: list[BaseMigratio
         if migration.ledger_adoption and not migration_settled(ledger, migration):
             ids |= migration.adoption_settled_ids(project_path) - {migration.migration_id}
     return frozenset(ids)
+
+
+def _settled_in_view(ledger: MigrationLedger, migration: BaseMigration, adopting: frozenset[str]) -> bool:
+    """The one selection-view predicate: recorded as applied, or settled by a pending adoption (#6669)."""
+    return migration_settled(ledger, migration) or migration.migration_id in adopting
+
+
+def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
+    """True when ``get_applicable`` would treat *migration_id* as settled for *project_path* (#6669).
+
+    Uses the same predicate as :meth:`MigrationRegistry.get_applicable`
+    (:func:`_settled_in_view`): the id is a ``success`` record in its
+    authoritative ledger partition, or an unsettled ledger-adoption migration
+    will settle it on apply. ``ledger_adoption`` migrations are never target
+    capped, so every declared migration feeds the adoption probe. An unknown id
+    was never recorded and returns False.
+    """
+    # Lazy import: ``base`` must not load at registry import.
+    from .migrations.base import legacy_upgrade_scope
+
+    migration = MigrationRegistry.get_by_id(migration_id)
+    if migration is None:
+        return False
+    path = Path(project_path)
+    ledger = MigrationLedger(path)
+    with legacy_upgrade_scope(path):
+        adopting = _pending_adoption_ids(ledger, MigrationRegistry.get_all(), path)
+        return _settled_in_view(ledger, migration, adopting)
 
 
 def _within_target(migration: BaseMigration, to_version: str) -> bool:
