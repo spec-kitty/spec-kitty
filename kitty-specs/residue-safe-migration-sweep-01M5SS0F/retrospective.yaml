@@ -1,0 +1,274 @@
+schema_version: 1
+mission_id: 01M5SS0FBR3MKEB8X0CRYZC3AC
+mission_slug: residue-safe-migration-sweep-01M5SS0F
+mission_number: 241
+friendly_name: Residue-safe migration sweep and fabricated-identity audit
+mission_type: software-dev
+target_branch: fix/residue-safe-migration-sweep
+created_at: '2026-10-25T20:52:45.672497+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-25T20:52:45.672497+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-004
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-005
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Agent command copies absent.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-10-25][plan] Agent command copies absent.** This checkout has no generated `.claude/commands/`, so planning
+    runs through the published `spec-kitty.*` skills. Disposition: works, no gap.'
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-016
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-25][WP07]'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-25][WP07]** One `spec-kitty upgrade` run against a project holding all six residue folders plus two
+    controls proves the residue rule end to end and the once-per-folder notice collapse. Red-first evidence: the same guard,
+    run against `origin/main` 1ec38c99 in a scratch worktree, failed by writing `meta.json` and status files into the residue.
+    Review follow-ups were folded into WP07: one public `probe_tracked_mission_paths`, `residue_directories` in `backfill-wp-status`,
+    and the gate restricted to guarded seams.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Clean-source tests need a committed tree.'
+  evidence_refs:
+  - e-019
+  details: '- **[2026-10-25][plan] Clean-source tests need a committed tree.** `tests/upgrade/test_upgrade_cli_contract.py`
+    and the preview acceptance suites refuse with "Baseline source is dirty" while a mission edit is uncommitted. Commit or
+    stash before running them. Disposition: workaround, known.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] No contracts/.'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-10-25][plan] No contracts/.** The Mission adds no interface; `meta.json` records `contracts: none` with
+    a rationale.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Notice collapse in the runner'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-10-25][plan] Notice collapse in the runner** (DM 01M5SVE8QC28KRAZM25PR2N4PT). One shared notice text;
+    the runner shows each residue folder once per run.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Shallow clone reds.'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-10-25][plan] Shallow clone reds.** `tests/upgrade/test_mission_corpus_recovery.py` needs historical
+    commit `c0054153`, which the session's shallow clone lacks (exit 128). It is red on `origin/main` too. Disposition: environmental,
+    not chased."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Successor shape per predecessor.'
+  evidence_refs:
+  - e-017
+  details: "- **[2026-10-25][plan] Successor shape per predecessor.** Class-based migrations (0.9.x) are subclassed with per-folder
+    overrides; module-function migrations (2.0.6, 3.1.1) are re-walked over the frozen helpers.\n\n## Implement-review outcome
+    (2026-10-25)\n- WP01 approved cycle 2 (spy measured git at process level; corrupt-index degrade; doctor reason from shared
+    notice by ruling).\n- WP06 approved cycle 2 (load_meta census row; isolated tracked-meta negative).\n- WP02 approved cycle
+    2 (probe-branch tests). WP04, WP05, WP03 approved cycle 1.\n- Follow-ups folded into WP07: single probe helper, backfill-wp-status
+    residue reporting, cutover docstring, walker test gaps, LIVE_COORDINATION_SKIPS, partition_checkout_specs home, gate hop
+    restriction, 0.9.1 dry-run string test."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Doctor finding: all three signals, report only'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-10-25][specify] Doctor finding: all three signals, report only** (operator, #6668).'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Git-aware mode only when kitty-specs/ is tracked'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-10-25][specify] Git-aware mode only when kitty-specs/ is tracked** (operator). An ignored `kitty-specs/`
+    and a nested untracked project keep the file-presence rule.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Git-aware residue rule'
+  evidence_refs:
+  - e-018
+  details: '- **[2026-10-25][specify] Git-aware residue rule** (operator). In git-aware mode, residue means `is_mission_dir`
+    rejects the folder and no `spec.md`/`meta.json` is on disk. Committed tasks-only folders are an accepted cost.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Red-first P0 first.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-25][specify] Red-first P0 first.** The `p0_repro(issue=6669)` landed in its own `pr:p0-repro` PR
+    (#6672) before any fix, as the operator ruled for #6627.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Scope grew after the adversarial review.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-25][specify] Scope grew after the adversarial review.** A narrow fix (the rule plus superseding 2.0.6)
+    still left 3.1.1 and 0.9.0 writing into residue. The operator extended the supersession to 0.9.0, 0.9.1 and 3.1.1.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-10-25][specify] Supersede rather than edit'
+  evidence_refs:
+  - e-018
+  details: "- **[2026-10-25][specify] Supersede rather than edit** (operator; DIRECTIVE_044). The four successors sit in their
+    predecessors' slots, gated off where the predecessor is settled in the selection view."
+gaps:
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-10-25][plan] Tracer files route to the coordination branch.'
+  evidence_refs:
+  - e-019
+  details: "- **[2026-10-25][plan] Tracer files route to the coordination branch.** `spec-commit` sent `traces/*.md` to `kitty/mission-<slug>`
+    (a lifecycle surface) and the rest to the primary branch. The authored copies stayed untracked in the repository root
+    checkout and were removed by hand after a byte-identity check. Disposition: candidate gap. The procedure could say where
+    to author tracer files under coord topology.\n\n## Implement-review loop (2026-10-25)\n- `move-task --to for_review` runs
+    `make test-fast` twice (head + baseline worktree); 10-25 min per WP with parallel lanes on one machine. A foreground timeout
+    leaves the CLI child alive; a retry starts a second gate.\n- Each pre-review gate commits an unsigned `chore: Capture
+    baseline tests for WPxx` on the planning branch; re-signed by rebase --exec --reset-author after every gate.\n- Reviewer
+    verdicts land with --no-auto-commit: status.events.jsonl, status.json and review-cycle-N.md stay uncommitted in the coord
+    worktree until committed by"
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP01-git-aware-residue-rule.md
+- id: e-006
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP02-successors-2-0-6-and-3-1-1.md
+- id: e-007
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP03-lane-migration-successors.md
+- id: e-008
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP04-residue-notice-collapse.md
+- id: e-009
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP05-shared-walkers-and-gate.md
+- id: e-010
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP06-fabricated-identity-finding.md
+- id: e-011
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/tasks/WP07-red-first-guard-and-docs.md
+- id: e-012
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/status.events.jsonl
+  range: 01M5T081JKXV18X8H0C3YMCGFM
+- id: e-014
+  kind: event_range
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/status.events.jsonl
+  range: 01M5T4KR2MXPSKPEEQ8ENF1A5G
+- id: e-015
+  kind: event_range
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/status.events.jsonl
+  range: 01M5T1AAXHYMA9Y7TK2XDHMTFE
+- id: e-016
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/analysis-report.md
+- id: e-017
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/traces/approach.md
+- id: e-018
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/traces/design-decisions.md
+- id: e-019
+  kind: file
+  path: kitty-specs/residue-safe-migration-sweep-01M5SS0F/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
