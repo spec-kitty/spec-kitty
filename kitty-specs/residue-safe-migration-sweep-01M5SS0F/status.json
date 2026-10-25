@@ -126,7 +126,8 @@
         "Ready for review",
         "- 2026-10-25T17:26:53Z – unknown – out-of-map: tests/architectural/_load_meta_census.py gained a silent-by-contract row for fabricated_identity_finding (malformed meta.json is already reported by classify_meta_json); the engine holds no loaded meta to pass in",
         "- 2026-10-25T17:26:56Z – unknown – Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release tests/architectural/test_lifted_root_meta_fail_closed_census.py -n 4 --dist loadfile = 590 passed, 7 skipped; ruff check/format and mypy --strict clean; mutant (tracked-meta check removed) fails test_untracked_meta_json_is_a_negative",
-        "Cycle 2: review feedback addressed"
+        "Cycle 2: review feedback addressed",
+        "Review passed (cycle 2): census gate green with a verified silent-by-contract row (malformed meta.json yields CORRUPT_JSON ERROR from classify_meta_json in the same scan); untracked-meta negative now isolated and kills the mutant; .lock positive and tasks/ negative added; corpus test unmarked slow. 590 passed, 7 skipped; ruff/format clean; no src change since cycle 1."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
