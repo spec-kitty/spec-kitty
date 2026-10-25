@@ -84,7 +84,7 @@
     },
     "WP03": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -97,6 +97,7 @@
         "writer.py appends locked, identity check as precondition, family lock; 4 tests red before, 10 green after; tests/specify_cli/invocation 612 passed"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/eventbridge-gate-and-locked-appends-01M5T0TN-coord/kitty-specs/eventbridge-gate-and-locked-appends-01M5T0TN/tasks/WP03-op-record-appends-take-the-lock/review-cycle-1.md",
         "reference": "review-cycle://eventbridge-gate-and-locked-appends-01M5T0TN/WP03-op-record-appends-take-the-lock/review-cycle-1.md",
@@ -104,12 +105,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 7319,
-      "shell_pid_created_at": "1792957928.01",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T009": "done",
-        "T010": "done",
-        "T011": "done"
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned"
       }
     },
     "WP04": {
