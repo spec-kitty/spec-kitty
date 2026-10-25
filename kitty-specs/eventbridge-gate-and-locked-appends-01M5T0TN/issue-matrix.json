@@ -61,7 +61,7 @@
       "wp": null
     },
     "#6603": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "EventBridge port (WP04) + multi-log writes gate (WP05)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,8 +69,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#6606": {
       "evidence_ref": "<link or commit>",
