@@ -1,8 +1,10 @@
 """#5443 / FR-022 -- the upgrade commit carries the migration's own ``git rm --cached``.
 
-The 3.2.5 backfill ignores ``.agents/skills/`` and untracks what was already
-committed there (``git rm --cached``; the file stays on disk). The upgrade
-commit must record that removal, or the file stays tracked and ignored at once.
+The 3.2.0rc35 runtime hygiene migration ignores ``.kittify/encoding-provenance/``
+and untracks the provenance log already committed there (``git rm --cached``;
+the file stays on disk). The upgrade commit must record that removal, or the
+file stays tracked and ignored at once. (Until #6589 these tests rode the 3.2.5
+``.agents/skills/`` backfill, which is now a superseded no-op.)
 Real git through the ``spec-kitty upgrade --yes`` entry point, with a warm HOME
 so the upgrade actually commits.
 """
@@ -31,7 +33,10 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regress
 
 _SKILL = ".agents/skills/spec-kitty.plan/SKILL.md"
 _SKILL_BYTES = "demo skill\n"
-_EXTRA = {_SKILL: _SKILL_BYTES, ".claude/commands/spec-kitty.implement.md": MARKED_COMMAND_FILE}
+#: The committed local-runtime file 3.2.0rc35_kittify_runtime_git_hygiene untracks during the upgrade.
+_RUNTIME = ".kittify/encoding-provenance/global.jsonl"
+_RUNTIME_BYTES = '{"path": "src/app.py"}\n'
+_EXTRA = {_SKILL: _SKILL_BYTES, _RUNTIME: _RUNTIME_BYTES, ".claude/commands/spec-kitty.implement.md": MARKED_COMMAND_FILE}
 
 
 def _legacy(tmp_path: Path) -> tuple[Path, dict[str, str]]:
@@ -49,11 +54,11 @@ def test_upgrade_commits_migration_untrack(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
     commits = new_commit_files(project, env, head0)
-    assert ("D", _SKILL) in commits
-    assert _SKILL not in git(project, env, "ls-tree", "-r", "--name-only", "HEAD").stdout.split("\n")
-    assert (project / _SKILL).read_text(encoding="utf-8") == _SKILL_BYTES
-    assert git(project, env, "check-ignore", "-q", "--", _SKILL, check=False).returncode == 0
-    assert all(path != _SKILL for xy, path in status_z(project, env) if xy != "!!")
+    assert ("D", _RUNTIME) in commits
+    assert _RUNTIME not in git(project, env, "ls-tree", "-r", "--name-only", "HEAD").stdout.split("\n")
+    assert (project / _RUNTIME).read_text(encoding="utf-8") == _RUNTIME_BYTES
+    assert git(project, env, "check-ignore", "-q", "--", _RUNTIME, check=False).returncode == 0
+    assert all(path != _RUNTIME for xy, path in status_z(project, env) if xy != "!!")
     # the operator's staged unrelated file: still staged, in no commit
     assert "src/operator_staged.py" in staged(project, env)
     assert all(path != "src/operator_staged.py" for _s, path in commits)
@@ -71,7 +76,7 @@ def test_operator_staged_deletion_stays_staged(tmp_path: Path) -> None:
     result = run_upgrade(project, env)
     assert result.returncode == 0, result.stdout + result.stderr
     committed = new_commit_files(project, env, head0)
-    assert ("D", _SKILL) in committed
+    assert ("D", _RUNTIME) in committed
     assert ("D", "docs/old.md") not in committed
     assert git(project, env, "ls-tree", "HEAD", "docs/old.md").stdout.strip() != ""
     assert staged(project, env) == ["docs/old.md"]
@@ -85,13 +90,13 @@ def test_operator_untrack_the_migration_later_ignores_is_not_ours_to_commit(tmp_
     """
     project, env = _legacy(tmp_path)
     head0 = head(project, env)
-    git(project, env, "rm", "--cached", "-q", "--", _SKILL)
+    git(project, env, "rm", "--cached", "-q", "--", _RUNTIME)
     result = run_upgrade(project, env)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert ("D", _SKILL) not in new_commit_files(project, env, head0)
-    assert git(project, env, "ls-tree", "HEAD", _SKILL).stdout.strip() != ""
-    assert staged(project, env) == [_SKILL]
-    assert (project / _SKILL).read_text(encoding="utf-8") == _SKILL_BYTES
+    assert ("D", _RUNTIME) not in new_commit_files(project, env, head0)
+    assert git(project, env, "ls-tree", "HEAD", _RUNTIME).stdout.strip() != ""
+    assert staged(project, env) == [_RUNTIME]
+    assert (project / _RUNTIME).read_text(encoding="utf-8") == _RUNTIME_BYTES
 
 
 def test_rejecting_hook_commits_nothing_and_file_stays(tmp_path: Path) -> None:
@@ -101,8 +106,8 @@ def test_rejecting_hook_commits_nothing_and_file_stays(tmp_path: Path) -> None:
     run_upgrade(project, env)
     assert counter.exists(), "the hook never ran"
     assert head(project, env) == head0
-    assert git(project, env, "ls-tree", "HEAD", _SKILL).stdout.strip() != ""
-    assert (project / _SKILL).read_text(encoding="utf-8") == _SKILL_BYTES
+    assert git(project, env, "ls-tree", "HEAD", _RUNTIME).stdout.strip() != ""
+    assert (project / _RUNTIME).read_text(encoding="utf-8") == _RUNTIME_BYTES
 
 
 def test_file_present_at_every_step(tmp_path: Path) -> None:
@@ -111,7 +116,7 @@ def test_file_present_at_every_step(tmp_path: Path) -> None:
     seen = tmp_path / "presence"
     hook = project / ".git" / "hooks" / "pre-commit"
     hook.parent.mkdir(parents=True, exist_ok=True)
-    probe = f"os.path.exists({str(project / _SKILL)!r})"
+    probe = f"os.path.exists({str(project / _RUNTIME)!r})"
     hook.write_text(
         f"#!{sys.executable}\nimport os\nwith open({str(seen)!r}, 'a') as fh:\n    fh.write(('present' if {probe} else 'missing') + '\\n')\n",
         encoding="utf-8",
@@ -122,7 +127,7 @@ def test_file_present_at_every_step(tmp_path: Path) -> None:
     records = seen.read_text().split()
     assert records, "the hook never ran"
     assert set(records) == {"present"}
-    assert ("D", _SKILL) in new_commit_files(project, env, head0)
+    assert ("D", _RUNTIME) in new_commit_files(project, env, head0)
 
 
 def test_only_ignored_present_non_baseline_deletions_are_the_migrations_untracks(tmp_path: Path) -> None:

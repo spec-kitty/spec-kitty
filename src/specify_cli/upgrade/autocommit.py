@@ -451,8 +451,9 @@ def prepare_upgrade_commit_files(
 def migration_index_untracks(checkout: Path, baseline_paths: set[str] | None) -> list[Path]:
     """Paths a migration untracked on purpose: staged deletions of files that stay on disk, ignored.
 
-    The migration's own ``git rm --cached`` (3.2.5 skills / manifest, #3393) is only a
-    staged deletion until it is committed. A path qualifies when it was NOT already a
+    The migration's own ``git rm --cached`` (e.g. 3.2.0rc35's local-runtime untrack; the
+    3.2.5 skills / manifest untrack, #3393, is superseded since #6589) is only a staged
+    deletion until it is committed. A path qualifies when it was NOT already a
     staged deletion at baseline (an operator's own is never ours), its file still
     exists, git now ignores it, and it was not ignored before the run. An unreadable
     status yields no paths (FR-022: the probe must never turn a commit into a failure).

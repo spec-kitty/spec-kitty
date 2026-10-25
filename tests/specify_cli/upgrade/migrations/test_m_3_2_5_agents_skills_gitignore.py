@@ -13,7 +13,9 @@ land them in the repo.
 - a wholesale ``.agents/`` (or no-trailing-slash) variant counts as present
 - detect() ignores a commented-out entry
 - apply() is idempotent; dry-run reports without mutating
-- the backfill fires end-to-end via MigrationRunner on an already-current project
+- through the registry the backfill is a superseded no-op (#6589): the runner
+  records it ``skipped`` and writes nothing, in the main checkout and in a lane
+  worktree; a direct import keeps the shipped class above
 """
 
 from __future__ import annotations
@@ -220,13 +222,15 @@ def test_dry_run_reports_without_mutating(tmp_path: Path) -> None:
     assert _MANIFEST_ENTRY not in gitignore_text
 
 
-def test_backfill_fires_on_already_current_project(tmp_path: Path) -> None:
-    """The #2412 case: an initialised project with projected skills but no
-    ignore coverage — the upgrade backfill must hide the machine-local surfaces."""
+def test_backfill_is_a_superseded_no_op_through_the_runner(tmp_path: Path) -> None:
+    """#6589: the registry holds a superseded substitute, so even the #2412 shape
+    (projected skills, no ignore coverage) is recorded ``skipped`` and left as is;
+    ``4.0.0rc8_narrow_agent_gitignore`` owns the agent ignores now."""
     _init_git_repo(tmp_path)
     _write_metadata(tmp_path, "3.2.5")
     _write_gitignore(tmp_path, ".kittify/sync-state.json")
     _project_machine_local_skill(tmp_path)
+    before = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
 
     MigrationRegistry.clear()
     auto_discover_migrations()
@@ -234,12 +238,10 @@ def test_backfill_fires_on_already_current_project(tmp_path: Path) -> None:
     result = MigrationRunner(tmp_path).upgrade("3.2.5", include_worktrees=False)
 
     assert result.success
-    assert (
-        AgentsSkillsGitignoreBackfillMigration.migration_id
-        in result.migrations_applied
-    )
-    assert _is_ignored(tmp_path, _SKILL_FILE_PATH)
-    assert _is_ignored(tmp_path, _MANIFEST_ENTRY)
+    assert AgentsSkillsGitignoreBackfillMigration.migration_id not in result.migrations_applied
+    records = [r for r in MigrationLedger(tmp_path).read_tracked() if r.id == AgentsSkillsGitignoreBackfillMigration.migration_id]
+    assert [r.result for r in records][-1] == "skipped"
+    assert tmp_path.joinpath(".gitignore").read_text(encoding="utf-8") == before
 
 
 def test_runs_on_worktrees_is_true() -> None:
@@ -247,32 +249,24 @@ def test_runs_on_worktrees_is_true() -> None:
     assert AgentsSkillsGitignoreBackfillMigration.runs_on_worktrees is True
 
 
-def test_backfill_fires_on_worktree_checkout(tmp_path: Path) -> None:
-    """Migration reaches lane worktrees when include_worktrees=True is passed to
-    MigrationRunner.upgrade(), locking the runs_on_worktrees=True default together
-    with the #2392 upgrade-runner worktree-dispatch seam.
-
-    Both the main checkout and the worktree are missing the new entries; the
-    migration must land on both.  (If the main checkout already had the entries,
-    detect() would return False, migrations would be empty, and worktree_migrations
-    would be empty too — so the worktree dispatch path would be a no-op.)
-    """
+def test_superseded_backfill_leaves_a_worktree_checkout_alone(tmp_path: Path) -> None:
+    """#6589: the superseded backfill writes nothing in a lane worktree either,
+    even when include_worktrees=True reaches it through the #2392 worktree seam."""
     _init_git_repo(tmp_path)
     _write_metadata(tmp_path, "3.2.5")
-    _write_gitignore(tmp_path, ".kittify/sync-state.json")  # missing both new entries
+    _write_gitignore(tmp_path, ".kittify/sync-state.json")  # missing both old entries
 
     # Simulate a lane worktree: a subdirectory under .worktrees/ with kitty-specs/
     # so the runner recognises it as an upgradeable checkout.
     worktree = tmp_path / ".worktrees" / "001-test-feature-lane-1"
     (worktree / "kitty-specs").mkdir(parents=True)
-    _write_gitignore(worktree, ".kittify/sync-state.json")  # missing both new entries
+    _write_gitignore(worktree, ".kittify/sync-state.json")  # missing both old entries
+    before = (worktree / ".gitignore").read_text(encoding="utf-8")
 
     MigrationRegistry.clear()
     auto_discover_migrations()
     result = MigrationRunner(tmp_path).upgrade("3.2.5", include_worktrees=True)
 
     assert result.success
-    assert AgentsSkillsGitignoreBackfillMigration.migration_id in result.migrations_applied
-    wt_gitignore = (worktree / ".gitignore").read_text(encoding="utf-8")
-    assert _SKILLS_ROOT_ENTRY in wt_gitignore
-    assert _MANIFEST_ENTRY in wt_gitignore
+    assert AgentsSkillsGitignoreBackfillMigration.migration_id not in result.migrations_applied
+    assert (worktree / ".gitignore").read_text(encoding="utf-8") == before

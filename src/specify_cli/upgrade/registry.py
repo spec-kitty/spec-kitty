@@ -9,6 +9,7 @@ from packaging.version import InvalidVersion, Version
 
 from .ledger import SETTLED_RESULT, MigrationLedger
 from .manifest import load_order_manifest
+from .supersession import substitute_if_superseded
 
 if TYPE_CHECKING:
     from .migrations.base import BaseMigration
@@ -54,7 +55,9 @@ class MigrationRegistry:
             if first is not None:
                 raise ValueError(f"Migration {migration_class.__name__} sets runs_first, but {first.__name__} already does; at most one migration may run first")
 
-        cls._migrations[migration_id] = migration_class
+        # A superseded migration is registered as a recorded no-op; the decorator
+        # still returns the shipped class (supersession.py, #6589).
+        cls._migrations[migration_id] = substitute_if_superseded(migration_class)
         return migration_class
 
     @classmethod

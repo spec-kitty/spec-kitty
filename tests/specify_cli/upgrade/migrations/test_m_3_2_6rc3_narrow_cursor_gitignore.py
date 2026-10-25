@@ -10,8 +10,9 @@ once `.cursor/` is gitignored, those tracked files become unstageable.
 - apply() removes the blanket line and backfills the narrow entries
 - apply() preserves narrower, non-blocking .cursor/... patterns
 - apply() is idempotent; dry-run reports without mutating
-- the migration fires end-to-end via MigrationRunner on an already-current
-  project and actually un-ignores a tracked .cursor/rules/*.mdc file
+- through the registry the migration is a superseded no-op (#6589): the
+  runner records it ``skipped`` and writes nothing; a direct import keeps the
+  shipped class above
 """
 
 from __future__ import annotations
@@ -410,25 +411,23 @@ def test_invalid_utf8_is_rejected_without_byte_loss(tmp_path: Path) -> None:
     assert tmp_path.joinpath(".gitignore").read_bytes() == raw
 
 
-def test_migration_fires_and_unignores_tracked_rule_file(tmp_path: Path) -> None:
-    """The #2498 case: a team-tracked .cursor/rules/contributing.mdc must
-    become stageable again once the blanket entry is narrowed."""
+def test_superseded_migration_is_a_no_op_through_the_runner(tmp_path: Path) -> None:
+    """#6589: the registry holds a superseded substitute, so a run capped at
+    3.2.6rc3 records it ``skipped`` and leaves the blanket ``.cursor/`` row;
+    ``4.0.0rc8_narrow_agent_gitignore`` narrows it (the #2498 case is pinned in
+    test_m_4_0_0rc8_narrow_agent_gitignore.py)."""
     _init_git_repo(tmp_path)
     _write_metadata(tmp_path, "3.2.6rc2")
     _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
-    rules_dir = tmp_path / ".cursor" / "rules"
-    rules_dir.mkdir(parents=True)
-    (rules_dir / "contributing.mdc").write_text("# team rules\n", encoding="utf-8")
-
-    assert _is_ignored(tmp_path, ".cursor/rules/contributing.mdc")
 
     MigrationRegistry.clear()
     auto_discover_migrations()
     result = MigrationRunner(tmp_path).upgrade("3.2.6rc3", include_worktrees=False)
 
     assert result.success
-    assert NarrowCursorGitignoreMigration.migration_id in result.migrations_applied
-    assert not _is_ignored(tmp_path, ".cursor/rules/contributing.mdc")
+    assert NarrowCursorGitignoreMigration.migration_id not in result.migrations_applied
+    cursor_rows = [line for line in (tmp_path / ".gitignore").read_text(encoding="utf-8").splitlines() if line.startswith(".cursor")]
+    assert cursor_rows == [".cursor/"]
 
 
 def test_runs_on_worktrees_is_true() -> None:

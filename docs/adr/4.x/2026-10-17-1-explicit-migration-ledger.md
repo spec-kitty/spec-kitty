@@ -538,3 +538,49 @@ The build-time gate (`tests/architectural/test_migration_order_manifest.py`) now
 after it; the gate's `lead_block_length` is the one definition. The
 `runs_first` ClassVar is unchanged: it governs reselection, not order, and at most one migration
 sets it.
+
+## Amendment 2026-10-25 (#6589: superseding a shipped migration without editing it)
+
+**Correction.** The Consequences bullet on retired modules says the `skipped` record "keeps them
+from re-firing". It does not: §3 settles a migration only on a `success` record, so a
+`SupersededMigration` is selected and re-skipped on every run. That is harmless for a no-op, and it
+is why two live backfills could undo a later migration. `3.2.5_agents_skills_gitignore_backfill`
+and `3.2.6rc3_narrow_cursor_gitignore`, once recorded `skipped`, were selected again after
+`4.0.0rc8_narrow_agent_gitignore` removed their rows. Their `detect()` then went True, and they
+wrote `.agents/skills/` and the `.cursor/` rows back.
+
+**Decision (operator ruling, 2026-10-25).** Both are superseded by
+`4.0.0rc8_narrow_agent_gitignore`. Their modules are not edited (DIRECTIVE_044). Instead,
+`src/specify_cli/upgrade/supersession.py` holds `SUPERSEDED_MIGRATIONS` (superseded id → successor
+id). `MigrationRegistry.register` registers a `SupersededMigration` substitute for each listed id,
+built at register time. The substitute keeps:
+
+- the shipped class's id, `target_version`, `description`, routing key (`clone_local_effect`),
+  `identity`, `requires_git_repository` and `runs_on_worktrees`;
+- its defining module, so `content_hash` stays the shipped module's hash and recorded history never
+  reads as drift.
+
+The decorator still returns the shipped class, so a direct import keeps the old behaviour (its
+unit tests stay valid). Every registry consumer sees the no-op: selection, the runner, the
+worktree loop, `upgrade --dry-run`, `migrate ledger`, the init seed and the adoption backfill.
+The successor must come later in `order_manifest.txt`; `tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py`
+pins that, the byte-identical hash, and the no-re-add behaviour for a pre-ledger and a
+ledger-era project.
+
+**This is now the way to supersede a shipped migration.** The three earlier precedents
+(`m_2_1_2_fix_glossary_context_skill`, `m_3_2_x_normalize_activation_absence`,
+`m_3_2_0rc35_default_charter_pack`) were rewritten in place before the ledger and its hash existed.
+Do not repeat that.
+
+**Accepted loss.** A project upgrading from before 3.2.5 no longer gets two things the 3.2.5 backfill
+provided:
+
+- the `.kittify/skills-manifest.json` ignore row (`4.0.0rc8_narrow_agent_gitignore` keeps that row
+  but does not add it);
+- the `git rm --cached` of committed projected skills (#3393), so those files stay tracked while
+  the rc8 agent-files block ignores them.
+
+`upgrade --dry-run --verbose` and `migrate ledger` keep listing both ids as pending/`skipped`, and the runner reports them as "not needed" (its `detect()` is False before `can_apply` returns the `superseded_by` text); marking superseded ids in that read surface is left for later. A run capped below 4.0.0rc8 (`upgrade --target 3.2.6rc3`) no longer narrows a blanket `.cursor/`
+row; the rc8 migration does. The #5443 upgrade-commit tests now use the untrack of
+`3.2.0rc35_kittify_runtime_git_hygiene`. Other shipped migrations with the same re-selection shape
+(`0.4.8_gitignore_agents`, `3.1.2_globalize_commands`, #6547) are not changed here.

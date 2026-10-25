@@ -51,8 +51,9 @@ def is_projected_skills_path(rel_posix: str, manifest_owned: set[str]) -> bool:
     must stay tracked.
 
     Both callers remove a path from the index: the shipped 3.2.5 gitignore backfill
-    (``git rm --cached``, frozen, so its call cannot change) and the upgrade commit that
-    carries that untrack (``upgrade/autocommit.py``). There is deliberately no
+    (``git rm --cached``, frozen, so its call cannot change; registered as a superseded
+    no-op since #6589, so only a direct import still reaches it) and the upgrade commit
+    that carries that untrack (``upgrade/autocommit.py``). There is deliberately no
     ``for_deletion`` switch (WP09 rework, squad m2): a dotted path is never spec-kitty's to
     *write or keep managing*, so a future caller asking that question needs its own predicate
     that excludes legacy paths, rather than a default that silently admits them.
