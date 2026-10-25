@@ -98,7 +98,7 @@ A project owner whose earlier upgrade already committed a fabricated identity ru
 
 ### Edge Cases
 
-- **Accepted cost (operator ruling):** in git-aware mode, any pre-identity folder with no `spec.md` and no `meta.json` on disk is residue and left untouched. That covers both committed and never-committed folders holding only `tasks/` and `tasks.md`. The residue notice and the `RESIDUE_DIRECTORY` audit detail tell the operator how to make it a Mission again: add a `spec.md` or `meta.json`.
+- **Accepted cost (operator ruling):** in git-aware mode, any pre-identity folder with no `spec.md` and no `meta.json` on disk is residue and left untouched. That covers both committed and never-committed folders holding only `tasks/` and `tasks.md`. The upgrade's residue notice tells the operator how to make it a Mission again: add a `spec.md` or `meta.json` (the upgrade reads markers on disk). The `RESIDUE_DIRECTORY` audit detail says to commit one, because the audit's Mission check reads tracked markers in a git project (outside git, adding one is enough), and then run `spec-kitty upgrade`.
 - A Mission whose tracked `spec.md` was deleted in the working tree is still a Mission: git still tracks the marker. It is repaired, not skipped.
 - A Mission whose tracked `meta.json` is missing from the working tree is out of scope here. Today it can be given a fresh identity in the working tree (not auto-committed). That is tracked as its own issue (see Dependencies).
 - Git cannot be started (not installed, or an unusable checkout): today's file-presence rule applies, and no upgrade step crashes.
