@@ -116,6 +116,14 @@ categories:
       a structural auto-exempt for the doctor-register seam, mirroring ``_is_registered_migration_class``
       so future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.'
     requires_issue: false
+  category_c_eventbridge_port_seam_6675:
+    rationale: 'C. EventBridge port seam (#6603). ``EventBridgePort`` (the emitter plus the work package transition
+      entry point) and ``bind_work_package_transition_port`` / ``reset_work_package_transition_port`` are the
+      composition-root binding surface the Java write service client plugs into (#6675). Open-core binds no
+      adapter by design (``test_open_core_binds_no_work_package_transition_port``), so they have no src/ caller
+      until #6675 lands; their sibling ``register_runtime_emitter_factory`` is allowlisted for the same reason.
+      Burns down when #6675 binds the adapter at the composition root.'
+    requires_issue: false
   category_c_branch_naming_failover_seam:
     rationale: C. Branch-naming legacy-failover seam. Both symbols are LIVE -- the gate only counts cross-file
       src/ ``__all__`` importers, so a test-only hook and an intra-module env read are invisible to it
@@ -977,6 +985,15 @@ entries:
 - module: specify_cli.lanes.branch_naming
   name: reset_legacy_failover_warning
   category: category_c_branch_naming_failover_seam
+- module: runtime.next._internal_runtime.events
+  name: EventBridgePort
+  category: category_c_eventbridge_port_seam_6675
+- module: runtime.next.event_bridge
+  name: bind_work_package_transition_port
+  category: category_c_eventbridge_port_seam_6675
+- module: runtime.next.event_bridge
+  name: reset_work_package_transition_port
+  category: category_c_eventbridge_port_seam_6675
 - module: specify_cli.cli.commands.consolidate
   name: BaselineMergeCommitError
   category: category_c_merge_decomp_shim_reexport_2057

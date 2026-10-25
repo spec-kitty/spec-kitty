@@ -32,7 +32,10 @@ if TYPE_CHECKING:
 # loads ``status.emit``, which calls this adapter, so a module-level import
 # would be a cycle.
 
-__all__ = ["LocalFileEventBridge", "work_package_transition_port"]
+# Only names another src/ module imports are exported; the rest stay importable (tests use them).
+__all__ = [
+    "work_package_transition_port",
+]
 
 
 class LocalFileEventBridge:

@@ -37,8 +37,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+# Only names another src/ module imports are exported; the rest stay importable (tests use them).
 __all__ = [
-    "TransitionRow",
     "WorkPackageTransition",
     "WorkPackageTransitionPort",
     "bind_work_package_transition_port",

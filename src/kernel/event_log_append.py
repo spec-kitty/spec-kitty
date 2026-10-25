@@ -61,20 +61,13 @@ from kernel.git_topology import GitTopologyUnavailableError, NotAGitRepositoryEr
 from kernel.locks import LOCK_DIRECTORY, LockAcquireTimeout, machine_file_lock
 from kernel.no_follow import NoFollowPathError, open_no_follow
 
+# Only names another src/ module imports are exported; the rest stay importable (tests use them).
 __all__ = [
-    "EVENT_LOG_LOCK_SUBDIRECTORY",
-    "EVENT_LOG_LOCK_TIMEOUT_S",
-    "NON_GIT_LOCK_SUFFIX",
     "EventLogAppendError",
-    "EventLogLockTimeoutError",
-    "EventLogLockUnavailableError",
-    "EventLogShortWriteError",
     "EventLogSymlinkError",
     "EventLogTornTailError",
-    "Precondition",
     "append_event_log_lines",
     "event_log_lock",
-    "event_log_lock_path",
 ]
 
 #: Directory under ``<git-common-dir>/spec-kitty-locks/`` that holds the per-log lock files.

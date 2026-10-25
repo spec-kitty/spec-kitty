@@ -7,11 +7,11 @@ refuses a torn last line and writes the row bytes it wrote before.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import parse_iso
 from kernel.event_log_append import EventLogTornTailError
 from specify_cli.invocation.lifecycle import append_lifecycle_record, lifecycle_log_path
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _log_propagation_error
@@ -26,7 +26,7 @@ def _record() -> ProfileInvocationRecord:
     return ProfileInvocationRecord(
         canonical_action_id="implement::do",
         phase="started",
-        at=datetime(2026, 4, 28, 12, 0, 0, tzinfo=UTC),
+        at=parse_iso("2026-04-28T12:00:00+00:00"),
         agent="claude",
         mission_id="01HMISSION0000000000000000",
         wp_id="WP01",

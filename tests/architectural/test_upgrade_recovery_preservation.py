@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from _pytest.fixtures import SubRequest
 from kernel.clock import UTC, datetime
+from kernel.event_log_append import EventLogTornTailError
 
 from specify_cli.invocation.lifecycle import append_lifecycle_record
 from specify_cli.invocation.record import ProfileInvocationRecord
@@ -247,11 +248,19 @@ def test_historical_bytes_are_not_reserialized(
     git(archive_repo, "commit", "-m", "Historical shape")
     git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     run_gate(archive_repo, monkeypatch)
-    append(archive_repo)
     if historical and not historical.endswith(b"\n"):
+        # #6606: the interim event-log lock refuses to extend a torn tail, so the
+        # append never lands and the historical bytes stay as they were.
+        with pytest.raises(EventLogTornTailError):
+            append(archive_repo)
+        assert path.read_bytes() == historical
+        run_gate(archive_repo, monkeypatch)
+        # A writer that bypasses the lock (an older CLI) still trips the gate.
+        path.write_bytes(historical + b'{"phase":"started"}\n')
         with pytest.raises(AssertionError, match="unterminated historical boundary"):
             run_gate(archive_repo, monkeypatch)
     else:
+        append(archive_repo)
         run_gate(archive_repo, monkeypatch)
 
 
