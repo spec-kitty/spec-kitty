@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Internal migration-safety fix: no new API, CLI flag or payload schema. The doctor finding adds one code to an open finding set; the backfill-runtime-state --json residue key already exists (#6662).",
   "coordination_branch": "kitty/mission-residue-safe-migration-sweep-01M5SS0F",
   "created_at": "2026-10-25T14:56:36.207201+00:00",
   "flattened": false,

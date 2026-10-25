@@ -23,6 +23,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-10-25T15:39:04.300157Z",
+      "decision_id": "01M5SVE8QC28KRAZM25PR2N4PT",
+      "final_answer": "Each step emits the same shared residue text (one constant from the Mission resolver); the upgrade runner collapses repeated identical residue notices for the same folder across steps",
+      "input_key": "residue_notice_dedupe",
+      "mission_id": "01M5SS0FBR3MKEB8X0CRYZC3AC",
+      "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
+      "opened_by": "cli",
+      "options": [
+        "Each step warns with the shared text; the upgrade runner collapses identical residue notices across steps",
+        "Steps stay silent during upgrade; the runner prints one residue block after the migrations",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Up to five residue-aware steps (four successors plus the 3.2.0a4 normalization) can skip the same folder in one upgrade run. How is 'reported at most once per folder per run' enforced?",
+      "rationale": null,
+      "resolved_at": "2026-10-25T15:48:20.037223Z",
+      "resolved_by": null,
+      "slot_key": "plan.reporting.residue-notice-dedupe",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M5SS0FBR3MKEB8X0CRYZC3AC",
