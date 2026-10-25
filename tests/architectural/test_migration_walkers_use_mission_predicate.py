@@ -19,6 +19,11 @@ therefore only safe when it requires ``meta.json`` itself, filters through the
 predicate, or is a shipped migration whose registered class is a no-op because
 a residue-aware successor walks instead (``_SUPERSEDED``).
 
+Two successors (0.9.0, 0.9.1) take a third route: they SUBCLASS the shipped class, so the shipped walk
+still runs and is made safe only by the per-folder predicates and the frontmatter collector they override.
+Those entries are ``_SUBCLASS_GUARDED``; each override is pinned in ``_GUARDED_SEAMS`` to reach the residue
+predicate, and ``test_subclass_guarded_classification_is_true`` fails if an override disappears.
+
 Blind spots of the detector (``_find_raw_walker_calls``), so a walker can hide
 from the inventory below:
 
@@ -51,6 +56,7 @@ _REQUIRES_META = "touches only a directory that already has meta.json, which is 
 _READ_ONLY = "read-only"
 _GUARDED_DOWNSTREAM = "the shared seam it writes through checks is_mission_dir"
 _SUPERSEDED = "shipped migration registered as a no-op; its residue-aware successor walks instead"
+_SUBCLASS_GUARDED = "shipped walker live via subclass; guarded by the successor's overridden predicate"
 
 #: (module, enclosing function) -> how a residue directory is handled.
 _WALKER_INVENTORY: dict[tuple[str, str], str] = {
@@ -60,12 +66,14 @@ _WALKER_INVENTORY: dict[tuple[str, str], str] = {
     ("src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py", "detect"): _READ_ONLY,
     # The four shipped walkers below were _REQUIRES_STATE / _GUARDED_IDENTITY_ONLY ("rewrites only pre-existing
     # mission state"). Under the #6669 rule a folder holding only status.json or tasks/ is residue, so that claim is
-    # false for them; their registered classes are now recorded no-ops and the successors walk through
-    # partition_kitty_specs / is_kitty_specs_residue.
-    ("src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py", "_find_features_to_migrate"): _SUPERSEDED,
-    ("src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py", "detect"): _SUPERSEDED,
-    ("src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py", "_find_features_with_lanes"): _SUPERSEDED,
-    ("src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py", "detect"): _SUPERSEDED,
+    # false for them. 2.0.6 / 3.1.1: the registered class is a recorded no-op and the successor walks through
+    # partition_kitty_specs. 0.9.0 / 0.9.1: the successor SUBCLASSES the shipped class, so the shipped walk below
+    # still runs; it is safe only because the successor overrides _is_legacy_format / _has_remaining_lane_dirs
+    # (and, for 0.9.1, _normalize_all_frontmatter) to decide residue (see _SUBCLASS_SUCCESSORS).
+    ("src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py", "_find_features_to_migrate"): _SUBCLASS_GUARDED,
+    ("src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py", "detect"): _SUBCLASS_GUARDED,
+    ("src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py", "_find_features_with_lanes"): _SUBCLASS_GUARDED,
+    ("src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py", "detect"): _SUBCLASS_GUARDED,
     ("src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py", "_iter_feature_dirs"): _SUPERSEDED,
     ("src/specify_cli/upgrade/migrations/m_3_1_1_normalize_status_json.py", "_iter_feature_dirs"): _SUPERSEDED,
     # The one walk every successor shares (WP02): it splits the children through is_kitty_specs_residue.
@@ -105,6 +113,14 @@ _GUARDED_SEAMS = (
     ("src/specify_cli/migration/mission_state.py", "_select_mission_dirs"),
     ("src/specify_cli/context/mission_resolver.py", "is_kitty_specs_residue"),
     ("src/specify_cli/upgrade/migrations/_residue_successor.py", "partition_kitty_specs"),
+    ("src/specify_cli/upgrade/migrations/_residue_successor.py", "partition_checkout_specs"),
+    ("src/specify_cli/upgrade/migrations/_residue_successor.py", "is_residue"),
+    # Overrides that make the subclassed shipped 0.9.0 / 0.9.1 walks residue-safe (_SUBCLASS_GUARDED).
+    ("src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py", "_is_legacy_format"),
+    ("src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py", "_is_residue"),
+    ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_has_remaining_lane_dirs"),
+    ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_is_residue"),
+    ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_normalize_all_frontmatter"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_without_residue"),
 )
 
@@ -137,10 +153,6 @@ def _called_name(call: ast.Call) -> str | None:
     return call.func.attr if isinstance(call.func, ast.Attribute) else None
 
 
-def _calls_is_mission_dir(fn: ast.AST) -> bool:
-    return any(isinstance(node, ast.Call) and _called_name(node) in _PREDICATES for node in ast.walk(fn))
-
-
 def test_every_migration_walker_is_classified() -> None:
     sites = _walker_sites()
     assert sites, "no walker found; the scan did not execute"
@@ -159,14 +171,30 @@ def test_guarded_seam_calls_is_mission_dir(module: str, function: str) -> None:
     tree = ast.parse((_REPO_ROOT / module).read_text(encoding="utf-8"))
     matches = [fn for fn in _functions(tree) if fn.name == function]
     assert matches, f"{module}::{function} not found"
-    assert all(_calls_is_mission_dir(fn) for fn in matches), f"{module}::{function} must decide residue through is_mission_dir or is_kitty_specs_residue (#6627)"
+    assert all(_reaches_predicate(tree, fn) for fn in matches), f"{module}::{function} must decide residue through is_mission_dir or is_kitty_specs_residue (#6627)"
 
 
 _GUARDED_SEAM_NAMES = frozenset(function for _module, function in _GUARDED_SEAMS)
 
 
+_SEAM_STEMS = frozenset((module.rsplit("/", 1)[-1].removesuffix(".py"), function) for module, function in _GUARDED_SEAMS)
+
+
+def _imported_seam_names(tree: ast.AST) -> frozenset[str]:
+    """Names the module imports from a module that pins that very function in ``_GUARDED_SEAMS``."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        stem = node.module.rsplit(".", 1)[-1]
+        names.update(alias.asname or alias.name for alias in node.names if (stem, alias.name) in _SEAM_STEMS)
+    return frozenset(names)
+
+
 def _reaches_predicate(tree: ast.AST, fn: ast.AST, seen: frozenset[int] = frozenset()) -> bool:
-    """True when *fn* calls a predicate, directly or through a ``_GUARDED_SEAMS`` function of the same module.
+    """True when *fn* calls a predicate, directly or through a ``_GUARDED_SEAMS`` function.
+
+    A function imported from the module that pins it in ``_GUARDED_SEAMS`` counts as reaching it.
 
     A same-module hop is followed only into a function listed in ``_GUARDED_SEAMS``: those are
     individually pinned to call the predicate, so an arbitrary helper that happens to share a name
@@ -176,11 +204,12 @@ def _reaches_predicate(tree: ast.AST, fn: ast.AST, seen: frozenset[int] = frozen
         return False
     seen = seen | {id(fn)}
     local = {f.name: f for f in _functions(tree) if f.name in _GUARDED_SEAM_NAMES}
+    imported = _imported_seam_names(tree)
     for node in ast.walk(fn):
         if not isinstance(node, ast.Call):
             continue
         name = _called_name(node)
-        if name in _PREDICATES:
+        if name in _PREDICATES or name in imported:
             return True
         if name in local and _reaches_predicate(tree, local[name], seen):
             return True
@@ -233,6 +262,71 @@ def test_superseded_classification_is_true() -> None:
         ids = _declared_migration_ids(module)
         assert ids, f"{module} declares no migration_id"
         assert ids <= SUPERSEDED_MIGRATIONS.keys(), f"{module}: {sorted(ids - SUPERSEDED_MIGRATIONS.keys())} is not in SUPERSEDED_MIGRATIONS"
+
+
+#: shipped module -> (successor module, methods the successor overrides).
+_SUBCLASS_SUCCESSORS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py": (
+        "src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py",
+        ("_is_legacy_format",),
+    ),
+    "src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py": (
+        "src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py",
+        ("_has_remaining_lane_dirs", "_normalize_all_frontmatter"),
+    ),
+}
+
+
+def _subclasses_module(tree: ast.AST, shipped_module: str) -> list[ast.ClassDef]:
+    """Classes whose base is an attribute of an alias bound to *shipped_module* (``from . import <shipped> as _x``)."""
+    stem = shipped_module.rsplit("/", 1)[-1].removesuffix(".py")
+    aliases = {alias.asname or alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names if alias.name == stem}
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and any(isinstance(b, ast.Attribute) and isinstance(b.value, ast.Name) and b.value.id in aliases for b in node.bases)
+    ]
+
+
+def _overridden_methods(source: str, shipped_module: str) -> set[str]:
+    return {fn.name for cls in _subclasses_module(ast.parse(source), shipped_module) for fn in cls.body if isinstance(fn, ast.FunctionDef)}
+
+
+def test_subclass_guarded_classification_is_true() -> None:
+    """A _SUBCLASS_GUARDED shipped walker runs live through a subclass that overrides, and pins, its residue predicates."""
+    modules = {module for (module, _function), how in _WALKER_INVENTORY.items() if how == _SUBCLASS_GUARDED}
+    assert modules == set(_SUBCLASS_SUCCESSORS), "every _SUBCLASS_GUARDED module needs a _SUBCLASS_SUCCESSORS row, and no other"
+    for shipped, (successor, overrides) in _SUBCLASS_SUCCESSORS.items():
+        source = (_REPO_ROOT / successor).read_text(encoding="utf-8")
+        defined = _overridden_methods(source, shipped)
+        assert defined >= set(overrides), f"{successor} must keep overriding {sorted(set(overrides) - defined)}"
+        for override in overrides:
+            assert (successor, override) in _GUARDED_SEAMS, f"{successor}::{override} must be pinned in _GUARDED_SEAMS"
+
+
+def test_subclass_detector_notices_a_dropped_override() -> None:
+    """Self-mutation: a subclass without the override, or without the shipped base, no longer vouches."""
+    shipped = "src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py"
+    kept = "from . import m_0_9_0_frontmatter_only_lanes as _s\nclass A(_s.X):\n    def _is_legacy_format(self, p):\n        return 1\n"
+    dropped = "from . import m_0_9_0_frontmatter_only_lanes as _s\nclass A(_s.X):\n    def other(self, p):\n        return 1\n"
+    unrelated = "class A(X):\n    def _is_legacy_format(self, p):\n        return 1\n"
+    assert "_is_legacy_format" in _overridden_methods(kept, shipped)
+    assert "_is_legacy_format" not in _overridden_methods(dropped, shipped)
+    assert not _overridden_methods(unrelated, shipped)
+
+
+def test_override_dropping_its_predicate_call_fails_the_gate() -> None:
+    """Self-mutation: an override that stops reaching the predicate (directly or through its seam) is caught."""
+    legacy = "def _is_legacy_format(self, p):\n    return super()._is_legacy_format(p){}\n\n"
+    seam = "def _is_residue(self, p):\n    return {}\n"
+    keeps = legacy.format(" and not self._is_residue(p)") + seam.format("is_kitty_specs_residue(p)")
+    drops_call = legacy.format("") + seam.format("is_kitty_specs_residue(p)")
+    drops_seam_body = legacy.format(" and not self._is_residue(p)") + seam.format("False")
+    imports_seam = "from ._residue_successor import partition_checkout_specs\ndef _normalize_all_frontmatter(self, p):\n    return partition_checkout_specs(p)\n"
+    assert _reaches_predicate(*_parse_fn(keeps, "_is_legacy_format"))
+    assert not _reaches_predicate(*_parse_fn(drops_call, "_is_legacy_format"))
+    assert not _reaches_predicate(*_parse_fn(drops_seam_body, "_is_legacy_format"))
+    assert _reaches_predicate(*_parse_fn(imports_seam, "_normalize_all_frontmatter"))
 
 
 @pytest.mark.parametrize(("module", "function"), sorted(_UNDETECTED_WALKERS))
