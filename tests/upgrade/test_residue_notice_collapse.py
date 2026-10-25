@@ -53,14 +53,14 @@ _METADATA_YAML = (
 def test_identical_residue_notices_collapse_to_one(tmp_path: Path) -> None:
     notice = residue_notice("kitty-specs/x")
     target: list[str] = []
-    _append_warnings(target, [notice, f"slug: {notice}", notice], checkout_root=tmp_path, seen=set())
+    _append_warnings(target, [notice, f"slug: {notice}", notice], notice_root=tmp_path, seen=set())
     assert target == [notice]
 
 
 def test_different_folders_keep_one_line_each(tmp_path: Path) -> None:
     first, second = residue_notice("kitty-specs/x"), residue_notice("kitty-specs/y")
     target: list[str] = []
-    _append_warnings(target, [first, second, first], checkout_root=tmp_path, seen=set())
+    _append_warnings(target, [first, second, first], notice_root=tmp_path, seen=set())
     assert target == [first, second]
 
 
@@ -68,14 +68,14 @@ def test_non_residue_warnings_pass_through_unchanged_and_in_order(tmp_path: Path
     notice = residue_notice("kitty-specs/x")
     lines = ["plain", notice, "plain", "other", notice, "plain"]
     target: list[str] = ["existing"]
-    _append_warnings(target, lines, checkout_root=tmp_path, seen=set())
+    _append_warnings(target, lines, notice_root=tmp_path, seen=set())
     assert target == ["existing", "plain", notice, "plain", "other", "plain"]
 
 
 def test_first_line_seen_for_a_folder_is_kept(tmp_path: Path) -> None:
     notice = residue_notice("kitty-specs/x")
     target: list[str] = []
-    _append_warnings(target, [f"x: {notice}", notice], checkout_root=tmp_path, seen=set())
+    _append_warnings(target, [f"x: {notice}", notice], notice_root=tmp_path, seen=set())
     assert target == [f"x: {notice}"]
 
 
@@ -83,16 +83,16 @@ def test_same_relative_path_in_two_checkouts_is_two_folders(tmp_path: Path) -> N
     notice = residue_notice("kitty-specs/x")
     seen: set[Path] = set()
     target: list[str] = []
-    _append_warnings(target, [notice], checkout_root=tmp_path / "a", seen=seen)
-    _append_warnings(target, [notice], checkout_root=tmp_path / "b", seen=seen)
+    _append_warnings(target, [notice], notice_root=tmp_path / "a", seen=seen)
+    _append_warnings(target, [notice], notice_root=tmp_path / "b", seen=seen)
     assert target == [notice, notice]
 
 
 def test_nested_path_in_main_equals_relative_path_in_worktree(tmp_path: Path) -> None:
     seen: set[Path] = set()
     target: list[str] = []
-    _append_warnings(target, [residue_notice(".worktrees/wt1/kitty-specs/x")], checkout_root=tmp_path, seen=seen)
-    _append_warnings(target, [f"Worktree wt1: {residue_notice('kitty-specs/x')}"], checkout_root=tmp_path / ".worktrees" / "wt1", seen=seen)
+    _append_warnings(target, [residue_notice(".worktrees/wt1/kitty-specs/x")], notice_root=tmp_path, seen=seen)
+    _append_warnings(target, [f"Worktree wt1: {residue_notice('kitty-specs/x')}"], notice_root=tmp_path / ".worktrees" / "wt1", seen=seen)
     assert target == [residue_notice(".worktrees/wt1/kitty-specs/x")]
 
 

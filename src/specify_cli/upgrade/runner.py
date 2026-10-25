@@ -161,17 +161,18 @@ def _worktrees_to_upgrade(worktrees_dir: Path) -> list[Path]:
     return [worktree for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name) if worktree.is_dir() and not _is_integrating_worktree(worktree)]
 
 
-def _append_warnings(target: list[str], new: list[str], *, checkout_root: Path, seen: set[Path]) -> None:
+def _append_warnings(target: list[str], new: list[str], *, notice_root: Path, seen: set[Path]) -> None:
     """Append *new* to *target*, naming each residue folder at most once per run (#6669, FR-008).
 
     A residue notice is keyed on the resolved folder it names under
-    *checkout_root*; the first line seen for a folder is kept and later ones are
-    dropped. Every other warning is appended unchanged, in order.
+    *notice_root*, the checkout the notice's path is relative to; the first
+    line seen for a folder is kept and later ones are dropped. Every other
+    warning is appended unchanged, in order.
     """
     for line in new:
         rel_path = residue_notice_path(line)
         if rel_path is not None:
-            key = (checkout_root / rel_path).resolve()
+            key = (notice_root / rel_path).resolve()
             if key in seen:
                 continue
             seen.add(key)
@@ -344,7 +345,7 @@ class MigrationRunner:
         # Apply each migration to main project
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
-            _append_warnings(result.warnings, migration_result.warnings, checkout_root=self.project_path, seen=self._seen_residue)
+            _append_warnings(result.warnings, migration_result.warnings, notice_root=self.project_path, seen=self._seen_residue)
             # Preserve each migration's structured payload so the CLI --json
             # layer can surface schema-shaped reports (Finding 2 / review
             # cycle 1). We record applied and skipped results alike so
@@ -810,7 +811,7 @@ class MigrationRunner:
                     _append_warnings(
                         result["warnings"],
                         [f"Worktree {worktree.name}: {w}" for w in migration_result.warnings],
-                        checkout_root=worktree,
+                        notice_root=worktree,
                         seen=self._seen_residue,
                     )
                 else:
