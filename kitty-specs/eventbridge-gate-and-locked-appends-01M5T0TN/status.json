@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01M5T451R5YNZSTZMXTG1SZW31",
-  "materialized_at": "2026-10-25T18:11:19.429745+00:00",
+  "event_count": 15,
+  "last_event_id": "01M5T455DVRQMV0ZBMRF4EBCBX",
+  "materialized_at": "2026-10-25T18:11:23.195197+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 3
   },
@@ -25,9 +25,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5T451R5YNZSTZMXTG1SZW31",
-      "last_transition_at": "2026-10-25T18:11:19.429745+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5T455DVRQMV0ZBMRF4EBCBX",
+      "last_transition_at": "2026-10-25T18:11:23.195197+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Primitive + 25 tests green; red-first: collection error without the module"
