@@ -38,7 +38,7 @@ This Mission is step 0 of ADR 2026-10-22-1's migration order, and it closes the 
 - **Architectural alignment:** the port is in `runtime` and the adapter in `specify_cli`, following ADR 2026-10-14-1 open question 1's default. The primitive is in `kernel`. The layer chain is respected. Pass.
 - **ATDD / red-first:** every routed writer gets a torn-tail refusal test that is red before routing. The gate's synthetic floors are red against a scanner that matches nothing. Pass.
 - **Quality standing orders:** complexity is 15 or below, repeated literals become constants, there are no new suppressions, and the tracer files are seeded. Pass.
-- **Terminology:** "Mission" throughout; no "routing" without its sense ("routed through the lock" means the commit-path sense, append door). Pass.
+- **Terminology:** "Mission" throughout. Bare "routing" is avoided: an append "goes through" the locked door. Pass.
 
 ## Project Structure
 
