@@ -332,7 +332,7 @@ _UNSET = _Unset()
 #: The one operator-facing text for a ``kitty-specs/`` residue directory (#6627, #6668); every
 #: residue-aware step renders it through :func:`residue_notice`.
 RESIDUE_NOTICE = (
-    "not a Mission (residue directory {path}: not a tracked Mission, no mission_id and no spec.md or meta.json); "
+    "not a Mission (residue directory {path}: no mission_id, and no spec.md or meta.json on disk or in git); "
     "left untouched. Add a spec.md or meta.json to make it a Mission, or remove the folder."
 )
 _RESIDUE_NOTICE_HEAD, _, _RESIDUE_NOTICE_TAIL = RESIDUE_NOTICE.partition("{path}")
@@ -392,7 +392,12 @@ def is_kitty_specs_residue(
         return False
     root = repo_root if repo_root is not None else path.parent.parent
     if isinstance(tracked, _Unset):
-        tracked = tracked_mission_paths(root)
+        try:
+            tracked = tracked_mission_paths(root)
+        except GitCommandError as exc:
+            if exc.timed_out:
+                raise  # a timeout is a real failure, not an unusable checkout
+            tracked = None  # unusable git (e.g. a corrupt index): file-presence mode, never a crash
     if _git_aware_mode(tracked):
         return not is_mission_dir(path, repo_root=root, tracked=tracked)
     if any((path / name).exists() for name in _MISSION_CONTENT):

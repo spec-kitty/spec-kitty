@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-import specify_cli.context.mission_resolver as resolver
 from specify_cli.context.mission_resolver import (
     RESIDUE_NOTICE,
     is_kitty_specs_residue,
@@ -154,19 +153,29 @@ def test_fallback_for_an_untracked_project_nested_in_a_parent_repo(tmp_path: Pat
 
 
 class _GitSpy:
+    """Counts real ``git`` processes at the process boundary (``subprocess.Popen``).
+
+    Patching one module's ``run_git`` misses calls made through ``kernel.git``
+    helpers (``tracked_paths``, ``is_tracked``), so the count is taken where
+    every runner ends up.
+    """
+
     def __init__(self) -> None:
         self.calls = 0
-        self._real = resolver.run_git
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        self.calls += 1
-        return self._real(*args, **kwargs)
 
 
 @pytest.fixture()
-def spy(monkeypatch: pytest.MonkeyPatch) -> _GitSpy:
+def spy(tracked_repo: Path, monkeypatch: pytest.MonkeyPatch) -> _GitSpy:
     counting = _GitSpy()
-    monkeypatch.setattr(resolver, "run_git", counting)
+    real_init = subprocess.Popen.__init__
+
+    def counted_init(self: Any, args: Any, *rest: Any, **kwargs: Any) -> None:
+        argv = args if isinstance(args, (list, tuple)) else [args]
+        if argv and Path(str(argv[0])).name == "git":
+            counting.calls += 1
+        real_init(self, args, *rest, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", counted_init)
     return counting
 
 
@@ -177,14 +186,14 @@ def test_identity_bearing_folder_costs_no_git_call(tracked_repo: Path, spy: _Git
 
 
 def test_walk_with_precomputed_tracked_set_stays_within_the_git_budget(tracked_repo: Path, spy: _GitSpy) -> None:
-    """NFR-003: 50 identity-less folders with ``tracked=`` cost at most ``2 + 2 * 50`` git calls.
+    """NFR-003: the set plus 50 identity-less folders with ``tracked=`` cost exactly 2 git processes.
 
-    Measured: the set costs 1 (``rev-parse``) + 1 (``ls-files``) = 2; each folder then costs 0.
+    Measured at the process boundary: ``rev-parse`` + ``ls-files`` = 2; each folder then costs 0.
     """
     folders = [_folder(tracked_repo, f"{i:03d}-bulk", {"decisions/index.json": "{}"}) for i in range(100, 150)]
     tracked = tracked_mission_paths(tracked_repo)
     assert all(is_kitty_specs_residue(f, repo_root=tracked_repo, tracked=tracked) for f in folders)
-    assert spy.calls <= 2 + 2 * 50
+    assert spy.calls == 2
 
 
 def test_explicit_none_is_not_probed_again(tracked_repo: Path, spy: _GitSpy) -> None:
@@ -196,7 +205,7 @@ def test_explicit_none_is_not_probed_again(tracked_repo: Path, spy: _GitSpy) -> 
 
 def test_omitted_tracked_is_probed_when_needed(tracked_repo: Path, spy: _GitSpy) -> None:
     assert is_kitty_specs_residue(_folder(tracked_repo, "080-probe", {"decisions/index.json": "{}"}))
-    assert 0 < spy.calls <= 2
+    assert spy.calls == 2  # rev-parse + ls-files, once
 
 
 @pytest.mark.parametrize("prefix", ["", "001-slug: ", "Worktree wt1: "])
@@ -212,6 +221,16 @@ def test_notice_path_ignores_other_lines() -> None:
 def test_notice_names_the_git_aware_reason_and_the_remedy() -> None:
     text = residue_notice("kitty-specs/x")
     assert "kitty-specs/x" in text
-    assert "not a tracked Mission" in text
+    assert "no mission_id" in text and "on disk or in git" in text
     assert "Add a spec.md or meta.json" in text and "remove the folder" in text
     assert "{path}" in RESIDUE_NOTICE
+
+
+def test_corrupt_git_index_degrades_to_file_presence_instead_of_crashing(tracked_repo: Path) -> None:
+    folder = _tasks_only(tracked_repo)
+    (tracked_repo / ".git" / "index").write_bytes(b"not an index")
+    # rev-parse still succeeds but ls-files fails: unusable git, so content-bearing folders stay repairable.
+    assert not is_kitty_specs_residue(folder)
+    empty = tracked_repo / "kitty-specs" / "090-empty"
+    empty.mkdir()
+    assert is_kitty_specs_residue(empty)
