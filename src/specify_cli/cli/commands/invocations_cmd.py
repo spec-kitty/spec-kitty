@@ -39,6 +39,7 @@ from rich.table import Table
 
 from specify_cli.invocation.errors import LegacyRecordError
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, parse_op_event
+from specify_cli.invocation.op_custody import resolve_op_record_root
 from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.task_utils import find_repo_root
 
@@ -366,7 +367,9 @@ def list_invocations(
     content.  Use ``--profile`` to narrow to one agent profile.  Use
     ``--json`` for machine-readable output.
     """
-    repo_root = _get_repo_root()
+    # #6564: list the Op records of the checkout the command runs in, the
+    # same checkout ``dispatch`` and ``profile-invocation complete`` write to.
+    repo_root = resolve_op_record_root(_get_repo_root())
     events_dir = repo_root / EVENTS_DIR
     legacy_ids: list[str] = []
     records = list(_iter_records(events_dir, profile, limit, repo_root=repo_root, legacy_ids=legacy_ids))

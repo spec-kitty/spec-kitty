@@ -33,7 +33,8 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
-from specify_cli.git.commit_helpers import ProtectedBranchRefused
+from specify_cli.git.commit_helpers import ProtectedBranchRefused, SafeCommitError, preflight_commit
+from specify_cli.git.protection_policy import ProtectionConfigError
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
@@ -56,6 +57,7 @@ from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
 from specify_cli.invocation.task_class_map import task_type_for_verb
 from specify_cli.invocation.writer import (
+    EVENTS_DIR,
     OP_CLOSURES_RELATIVE_PATH,
     InvocationWriter,
     append_op_closure,
@@ -66,6 +68,9 @@ from specify_cli.invocation.writer import (
 logger = logging.getLogger(__name__)
 #: Bound for the work-tree probe of the Op-record auto-commit (#6410).
 _GIT_PROBE_TIMEOUT_SECONDS = 30
+#: Stand-in record path for the pre-write admission probe (#6564): ULID-shaped,
+#: so it is judged exactly like the record the command is about to write.
+_ADMISSION_PROBE_RECORD = Path(EVENTS_DIR) / "00000000000000000000000000.jsonl"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -85,6 +90,24 @@ class OpCommitOutcome:
     #: failed. Distinct from ``refusal``: nothing was refused, the record is
     #: simply kept on disk.
     skipped: str | None = None
+
+
+#: Error codes of the pre-write admission refusal (#6564).
+OP_WRITE_PROTECTED_BRANCH = "OP_WRITE_PROTECTED_BRANCH"
+OP_WRITE_PROTECTION_CONFIG_INVALID = "OP_WRITE_PROTECTION_CONFIG_INVALID"
+
+
+@dataclasses.dataclass(frozen=True)
+class OpWriteRefusal:
+    """Why an Op record may not be written in its checkout (#6564).
+
+    ``reason`` is the guard's answer (``protected branch 'main'``, or why the
+    protection configuration could not be read); it never names the
+    protected-branch override.
+    """
+
+    code: str
+    reason: str
 
 
 def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecommendation | None:
@@ -421,10 +444,17 @@ class ProfileInvocationExecutor:
         repo_root: Path,
         router: ActionRouter | None = None,
         propagator: InvocationSaaSPropagator | None = None,
+        *,
+        record_root: Path | None = None,
     ) -> None:
+        #: Project root: governance (charter, profiles, glossaries) is read here.
         self._repo_root = repo_root
+        #: Checkout that owns the Op records this executor writes and commits
+        #: (#6564). Defaults to the project root; the dispatch and complete
+        #: commands pass the invoking checkout (``resolve_op_record_root``).
+        self._record_root = record_root if record_root is not None else repo_root
         self._registry = ProfileRegistry(repo_root)
-        self._writer = InvocationWriter(repo_root)
+        self._writer = InvocationWriter(self._record_root)
         self._router = router
         self._propagator = propagator
         self._chokepoint: GlossaryChokepoint | None = None  # lazy-loaded on first invoke
@@ -666,7 +696,7 @@ class ProfileInvocationExecutor:
 
         try:
             if self._chokepoint is None:
-                self._chokepoint = GlossaryChokepoint(self._repo_root)
+                self._chokepoint = GlossaryChokepoint(self._repo_root, events_root=self._record_root)
             bundle = self._chokepoint.run(
                 request_text,
                 invocation_id=invocation_id,
@@ -829,10 +859,10 @@ class ProfileInvocationExecutor:
         # reads the spine fresh.
         if closed_by == "doctor_sweep":
             if self._doctor_sweep_closed_ids is None:
-                self._doctor_sweep_closed_ids = closed_invocation_ids(self._repo_root)
+                self._doctor_sweep_closed_ids = closed_invocation_ids(self._record_root)
             already_closed = invocation_id in self._doctor_sweep_closed_ids
         else:
-            already_closed = invocation_id in closed_invocation_ids(self._repo_root)
+            already_closed = invocation_id in closed_invocation_ids(self._record_root)
         if already_closed:
             raise AlreadyClosedError(invocation_id)
 
@@ -904,7 +934,7 @@ class ProfileInvocationExecutor:
         # in ``complete_invocation`` (the shared #4397 guard); re-reading the spine
         # here would restore the per-Op quadratic cost this fix removes (#4424).
         # Extend the snapshot so a later close in the same sweep sees this id.
-        append_op_closure(self._repo_root, completed)
+        append_op_closure(self._record_root, completed)
         if self._doctor_sweep_closed_ids is not None:
             self._doctor_sweep_closed_ids.add(invocation_id)
 
@@ -915,7 +945,7 @@ class ProfileInvocationExecutor:
     ) -> None:
         if evidence_content is None:
             return
-        evidence_base_dir = self._repo_root / ".kittify" / "evidence"
+        evidence_base_dir = self._record_root / ".kittify" / "evidence"
         promote_to_evidence(completed, evidence_base_dir, evidence_content)
 
     def _resolve_evidence_content(self, invocation_id: str, evidence_ref: str) -> str:
@@ -944,7 +974,7 @@ class ProfileInvocationExecutor:
         if evidence_path.is_absolute():
             return evidence_path
 
-        repo_root = self._repo_root.resolve()
+        repo_root = self._record_root.resolve()
         resolved_relative_path = (repo_root / evidence_path).resolve()
         if resolved_relative_path.is_relative_to(repo_root):
             return resolved_relative_path
@@ -956,7 +986,7 @@ class ProfileInvocationExecutor:
         artifact_refs: list[str] | None,
     ) -> None:
         for raw_ref in artifact_refs or []:
-            normalised = normalise_ref(raw_ref, self._repo_root)
+            normalised = normalise_ref(raw_ref, self._record_root)
             self._writer.append_correlation_link(
                 invocation_id,
                 kind="artifact",
@@ -1001,7 +1031,7 @@ class ProfileInvocationExecutor:
             return None
 
         symbolic = _subprocess.run(
-            ["git", "-C", str(self._repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+            ["git", "-C", str(self._record_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
             check=False,
             capture_output=True,
             text=True,
@@ -1012,7 +1042,7 @@ class ProfileInvocationExecutor:
                 return branch
 
         abbrev = _subprocess.run(
-            ["git", "-C", str(self._repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+            ["git", "-C", str(self._record_root), "rev-parse", "--abbrev-ref", "HEAD"],
             check=False,
             capture_output=True,
             text=True,
@@ -1046,7 +1076,7 @@ class ProfileInvocationExecutor:
                 message = f"op({profile_id}): {action} [{invocation_id[:8]}] (doctor sweep)"
             else:
                 op_path = self._writer.invocation_path(invocation_id)
-                relative_path = op_path.relative_to(self._repo_root)
+                relative_path = op_path.relative_to(self._record_root)
                 message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
 
             current_branch = self._current_branch()
@@ -1063,8 +1093,10 @@ class ProfileInvocationExecutor:
                 return self._record_op_commit(OpCommitOutcome(committed=False, refusal="detached HEAD"))
 
             safe_commit(
+                # The project root's protection policy applies as well as the
+                # record checkout's (#6564): preflight_commit ORs the two.
                 repo_root=self._repo_root,
-                worktree_root=self._repo_root,
+                worktree_root=self._record_root,
                 target=CommitTarget(ref=current_branch),
                 message=message,
                 paths=(relative_path,),
@@ -1086,10 +1118,52 @@ class ProfileInvocationExecutor:
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
 
+    def op_write_refusal(self) -> OpWriteRefusal | None:
+        """Say why no Op record may be written here, before anything is (#6564).
+
+        The Op record of a ``dispatch`` or agent close is committed on the
+        branch checked out in the record root. Where that commit would be
+        attempted and then refused by the protected-branch guard, writing the
+        record first only strands an uncommitted file on a protected branch, so
+        the caller refuses instead. The decision is the auto-commit's own:
+        the #6410 skip rules first (a repository that keeps no Op records
+        writes them locally, never commits), then the same ``preflight_commit``
+        that ``safe_commit`` runs. Returns ``None`` when the write is admitted;
+        any other commit problem (no worktree, detached HEAD) stays a
+        post-write report, as before. A protection configuration that cannot
+        be read refuses too: the guard cannot say the branch is unprotected.
+
+        Admission is judged when the command runs: a branch switch between the
+        open and the close is judged again at the close.
+        """
+        current_branch = self._current_branch()
+        if current_branch is None:
+            return None
+        if self._op_commit_skip_reason(_ADMISSION_PROBE_RECORD) is not None:
+            return None
+        try:
+            preflight_commit(
+                # The project root's protection policy applies as well as the
+                # record checkout's (#6564): preflight_commit ORs the two.
+                repo_root=self._repo_root,
+                worktree_root=self._record_root,
+                target=CommitTarget(ref=current_branch),
+                message="op(admission probe)",
+                paths=(_ADMISSION_PROBE_RECORD,),
+                capability=GuardCapability.STANDARD,
+            )
+        except ProtectedBranchRefused as exc:
+            return OpWriteRefusal(OP_WRITE_PROTECTED_BRANCH, f"protected branch {exc.destination_ref!r}")
+        except ProtectionConfigError as exc:
+            return OpWriteRefusal(OP_WRITE_PROTECTION_CONFIG_INVALID, str(exc))
+        except SafeCommitError as exc:
+            logger.info("Op write admission probe could not judge the commit: %r", exc)
+        return None
+
     def _inside_work_tree(self) -> bool:
         """True when the repository root is inside a git work tree."""
         inside = _subprocess.run(
-            ["git", "-C", str(self._repo_root), "rev-parse", "--is-inside-work-tree"],
+            ["git", "-C", str(self._record_root), "rev-parse", "--is-inside-work-tree"],
             check=False,
             capture_output=True,
             text=True,
@@ -1105,8 +1179,11 @@ class ProfileInvocationExecutor:
         """
         try:
             if self._primary_tracking is None:
-                self._primary_tracking = probe_primary_tracking(self._repo_root)
-            return op_commit_skip_reason(self._repo_root, relative_path, tracking=self._primary_tracking)
+                self._primary_tracking = probe_primary_tracking(self._record_root)
+            # Typed local: under the isolated-file ``follow_imports = "skip"``
+            # check the cross-module call is seen as ``Any``.
+            reason: str | None = op_commit_skip_reason(self._record_root, relative_path, tracking=self._primary_tracking)
+            return reason
         except OpCommitProbeError as exc:
             return f"git probe failed while deciding whether to commit the Op record: {exc}"
 

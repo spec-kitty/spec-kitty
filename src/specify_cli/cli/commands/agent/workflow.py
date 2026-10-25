@@ -1367,9 +1367,13 @@ def _read_op_started_event(invocation_id: str, repo_root: Path) -> OpStartedEven
     )
     from specify_cli.invocation.writer import InvocationWriter
 
+    from specify_cli.invocation.op_custody import locate_op_record_root
+
     validate_invocation_id(invocation_id)
     try:
-        path = InvocationWriter(repo_root).invocation_path(invocation_id)
+        # #6564: an Op opened from a linked worktree keeps its record there.
+        record_root = locate_op_record_root(repo_root, invocation_id) or repo_root
+        path = InvocationWriter(record_root).invocation_path(invocation_id)
         if not path.exists():
             raise ValueError(f"Op record not found for invocation_id={invocation_id!r}")
         lines = path.read_text(encoding="utf-8").splitlines()

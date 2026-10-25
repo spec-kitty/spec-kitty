@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import typer
 from specify_cli.cli.console import console
+from rich.markup import escape
 from rich.panel import Panel
 
 if TYPE_CHECKING:
@@ -32,11 +33,13 @@ from specify_cli.invocation.errors import (
     RouterAmbiguityError,
 )
 from specify_cli.invocation.executor import (
+    OP_WRITE_PROTECTED_BRANCH,
     InvocationPayload,
     ProfileInvocationExecutor,
     build_ambiguous_dry_run_payload,
 )
 from specify_cli.invocation.modes import ModeOfWork, derive_mode
+from specify_cli.invocation.op_custody import resolve_op_record_root
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
@@ -50,12 +53,51 @@ def _get_repo_root() -> Path:
     return result
 
 
-def _build_executor(repo_root: Path) -> ProfileInvocationExecutor:
-    """Construct the executor with router + SaaS propagator (FR-008 parity)."""
+def _build_executor(repo_root: Path, *, record_root: Path | None = None) -> ProfileInvocationExecutor:
+    """Construct the executor with router + SaaS propagator (FR-008 parity).
+
+    ``repo_root`` is where governance is discovered; ``record_root`` is the
+    checkout that owns the Op records (#6564, ``resolve_op_record_root``).
+    """
     registry = ProfileRegistry(repo_root)
     router = ActionRouter(registry)
-    propagator = InvocationSaaSPropagator(repo_root)
-    return ProfileInvocationExecutor(repo_root, router=router, propagator=propagator)
+    propagator = InvocationSaaSPropagator(record_root if record_root is not None else repo_root)
+    return ProfileInvocationExecutor(repo_root, router=router, propagator=propagator, record_root=record_root)
+
+
+def refuse_unadmitted_op_write(
+    executor: ProfileInvocationExecutor,
+    record_root: Path,
+    *,
+    action: str,
+    json_output: bool,
+) -> None:
+    """Exit 1 before any write when the Op record could not be committed here (#6564).
+
+    ``action`` names what was refused (``open the Op``, ``close the Op``).
+    The message never suggests overriding the protected-branch guard.
+    """
+    refusal = executor.op_write_refusal()
+    if refusal is None:
+        return
+    if refusal.code == OP_WRITE_PROTECTED_BRANCH:
+        problem = f"its Op record would be written in {record_root} on {refusal.reason}, where the record cannot be committed"
+        remedy = "Run the command from a topic branch, or from a worktree whose branch is not protected."
+    else:
+        problem = f"the branch protection settings for {record_root} cannot be read ({refusal.reason})"
+        remedy = "Fix the protection: block in .kittify/config.yaml, then run the command again."
+    message = f"Refusing to {action}: {problem}. Nothing was written. {remedy}"
+    if json_output:
+        error = {
+            "error": "op_write_refused",
+            "error_code": refusal.code,
+            "message": message,
+            "record_root": str(record_root),
+        }
+        typer.echo(json.dumps(error), err=True)
+    else:
+        console.print(f"[red]Error:[/red] {escape(message)}")
+    raise typer.Exit(1)
 
 
 def _detect_actor() -> str:
@@ -282,6 +324,7 @@ def _dispatch_impl(
     repo_root: Path,
     executor: ProfileInvocationExecutor,
     dry_run: bool = False,
+    record_root: Path | None = None,
 ) -> None:
     """Open a standalone Op and emit either JSON or rich console output.
 
@@ -332,6 +375,10 @@ def _dispatch_impl(
         _render_dry_run_rich_payload(payload)
         return
 
+    # #6564: admission comes before every write of the invoke path, the
+    # glossary events of the routing scan included.
+    op_root = record_root if record_root is not None else repo_root
+    refuse_unadmitted_op_write(executor, op_root, action="open the Op", json_output=json_output)
     try:
         payload = executor.invoke(request, profile_hint=profile_hint, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
@@ -362,7 +409,7 @@ def _dispatch_impl(
     from glossary.observation import ObservationSurface  # lazy import
 
     _surface = ObservationSurface()
-    _notices = _surface.collect_notices(repo_root, invocation_id=payload.invocation_id)
+    _notices = _surface.collect_notices(op_root, invocation_id=payload.invocation_id)
     _surface.render_notices(_notices, console)
 
 
@@ -389,7 +436,8 @@ def dispatch(
     nothing is submitted to the SaaS propagator.
     """
     repo_root = _get_repo_root()
-    executor = _build_executor(repo_root)
+    record_root = resolve_op_record_root(repo_root)
+    executor = _build_executor(repo_root, record_root=record_root)
     _dispatch_impl(
         request,
         profile,
@@ -398,4 +446,5 @@ def dispatch(
         repo_root=repo_root,
         executor=executor,
         dry_run=dry_run,
+        record_root=record_root,
     )

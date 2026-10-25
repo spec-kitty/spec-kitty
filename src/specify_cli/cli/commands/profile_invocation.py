@@ -14,13 +14,14 @@ import typer
 from rich.markup import escape
 from specify_cli.cli.console import console
 
-from specify_cli.cli.commands.dispatch import _build_executor
+from specify_cli.cli.commands.dispatch import _build_executor, refuse_unadmitted_op_write
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
     InvalidModeForEvidenceError,
 )
 from specify_cli.invocation.executor import OpCommitOutcome
+from specify_cli.invocation.op_custody import locate_op_record_root, resolve_op_record_root
 from specify_cli.invocation.writer import EVENTS_DIR, normalise_ref
 from specify_cli.task_utils import find_repo_root
 
@@ -157,7 +158,15 @@ def complete_invocation(
         )
 
     repo_root = _get_repo_root()
-    executor = _build_executor(repo_root)
+    # #6564: close the Op in the checkout that holds its record (the invoking
+    # one first), and judge admission there. An Op no checkout holds keeps
+    # the executor's own not-found error, so nothing is judged for it.
+    invoking_root = resolve_op_record_root(repo_root)
+    located_root = locate_op_record_root(repo_root, invocation_id, preferred=invoking_root)
+    record_root = located_root if located_root is not None else invoking_root
+    executor = _build_executor(repo_root, record_root=record_root)
+    if located_root is not None:
+        refuse_unadmitted_op_write(executor, record_root, action="close the Op", json_output=json_output)
     try:
         completed = executor.complete_invocation(
             invocation_id=invocation_id,
@@ -192,6 +201,6 @@ def complete_invocation(
         evidence_ref=completed.evidence_ref,
         artifact=artifact,
         commit=commit,
-        repo_root=repo_root,
+        repo_root=record_root,
         json_output=json_output,
     )

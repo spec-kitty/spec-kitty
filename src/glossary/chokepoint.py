@@ -111,6 +111,10 @@ class GlossaryChokepoint:
     Args:
         repo_root: Path to the project root used to locate seed files under
             ``.kittify/glossaries/``.
+        events_root: Checkout whose ``.kittify/events/glossary/`` receives the
+            invocation-scoped events this scan emits. Defaults to
+            ``repo_root``; an Op run from a linked worktree passes that
+            worktree, so its trail stays with its Op record (#6564).
         applicable_scopes: Frozenset of :class:`GlossaryScope` values to
             include.  Defaults to :data:`DEFAULT_APPLICABLE_SCOPES`.
     """
@@ -119,8 +123,11 @@ class GlossaryChokepoint:
         self,
         repo_root: Path,
         applicable_scopes: frozenset[GlossaryScope] | None = None,
+        *,
+        events_root: Path | None = None,
     ) -> None:
         self._repo_root = repo_root
+        self._events_root = events_root if events_root is not None else repo_root
         self._applicable_scopes: frozenset[GlossaryScope] = (
             applicable_scopes if applicable_scopes is not None else DEFAULT_APPLICABLE_SCOPES
         )
@@ -242,7 +249,7 @@ class GlossaryChokepoint:
         emit_term_candidate_observed(
             extracted_term,
             event_context,
-            repo_root=self._repo_root,
+            repo_root=self._events_root,
         )
 
     def _run_inner(
