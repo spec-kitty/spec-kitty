@@ -1,20 +1,20 @@
 {
-  "event_count": 21,
-  "last_event_id": "01M5T5WSNH4EFFRZ7NTE08CASR",
-  "materialized_at": "2026-10-25T18:41:46.139487+00:00",
+  "event_count": 29,
+  "last_event_id": "01M5T9XSVFM53GCM02G95XM4SA",
+  "materialized_at": "2026-10-25T19:52:13.423438+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -52,52 +52,84 @@
       }
     },
     "WP02": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5T4RZB7FQV040G01CAPT9ZK",
-      "last_transition_at": "2026-10-25T18:22:12.315301+00:00",
+      "lane": "approved",
+      "last_event_id": "01M5T9XDWWX2M1MZSCDN1Q84H5",
+      "last_transition_at": "2026-10-25T19:52:01.180895+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "8 G-5 writers + glossary + next pairing guard; 10 torn/lock tests red before, 19 green after; blast radius 8940 passed, 2 failed -> 1 fixed (deny seam re-point), 1 environmental (stale editable install)",
+        "Review passed (reviewer-renata). All 8 G-5 sites route through kernel.event_log_append.append_event_log_lines with the same serialisation (sort_keys/default=str/compact separators kept), create_parents only where the site mkdir'd before (lifecycle, propagator, decision_log, _archive, charter _io; mission_v1/audit/engine False), swallowing unchanged (propagator catches Exception; mission_v1 emit_event catches Exception; charter _io catches OSError and EventLogAppendError subclasses OSError). Glossary append+repair under event_log_lock; outer lock (<git-common>/spec-kitty-locks/event-logs/<digest>.lock or <log>.event-log.lock) is a different file from the repair lock <log>.lock, so no self-deadlock; real torn-tail repair tests in tests/agent/glossary pass. Pairing guard catches EventLogAppendError and warns. Re-pointed tests (fsync narrowed by inode, propagator patches the door, mission_v1 unit patches the door) are non-vacuous. Tests: invocation/runtime/next/specify_cli events,mission_v1,missions + tests/missions, policy, charter/activation, glossary: 4575 passed/12 skipped/1 failed = known environmental test_reassess_under_lock; tests/agent/glossary + tests/kernel/test_event_log_append.py 598 passed/9 skipped. ruff/format clean, no new suppressions; mypy errors in touched files identical to base (2 extra listed are pre-existing in unmodified retrospective_terminus.py/prompt_builder.py). Non-blocking: FR-010 test asserts lock/append ordering with a fake lock rather than a held real lock observing the wait, and its name mentions repair but repair is not exercised; byte tests compare against json.dumps formula, engine journal test checks fields not exact bytes; new files get mode 0o644 instead of 0o666&~umask (same under umask 022); tests/missions/test_mission_v1_events_unit.py edited outside owned_files and two test paths differ from owned_files (tests/charter/activation/, tests/specify_cli/missions/) — no overlap with other WPs."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 13807,
-      "shell_pid_created_at": "1792952504.32"
+      "review_result": {
+        "reference": "auto-approval:WP02:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14707,
+      "shell_pid_created_at": "1792956989.51",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5T5WSNH4EFFRZ7NTE08CASR",
-      "last_transition_at": "2026-10-25T18:41:46.139487+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M5T9XSVFM53GCM02G95XM4SA",
+      "last_transition_at": "2026-10-25T19:52:13.423438+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "writer.py appends locked, identity check as precondition, family lock; 4 tests red before, 10 green after; tests/specify_cli/invocation 612 passed"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 3658,
-      "shell_pid_created_at": "1792953640.64"
+      "role": "reviewer",
+      "shell_pid": 7319,
+      "shell_pid_created_at": "1792957928.01",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP04": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5T3BCYM44E2XE9W42FRDRRH",
-      "last_transition_at": "2026-10-25T17:57:18.917940+00:00",
+      "lane": "approved",
+      "last_event_id": "01M5T90QH064B5B0AFBTVZVBBM",
+      "last_transition_at": "2026-10-25T19:36:20.768989+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Port + adapter + 3 doors; 13 port tests (3 door tests red before); blast radius 5049 passed, 7 failed -> 6 fixed (spy re-point), 1 environmental (stale editable install in lane, green on base)",
+        "Review passed (reviewer-renata). Three doors (flat _persist_prepared, batch, BookkeepingTransaction.append_events) hand one WorkPackageTransition to work_package_transition_port(); unbound default LocalFileEventBridge calls the same store primitive (via _unsafe re-export) or status_service.append_event_stream_log, so bytes/ordering/readback are unchanged; prune-on-failure kept (append+materialize still inside try). Stdlib-only leaf verified (fresh import of specify_cli.status.emit and coordination.transaction OK; leaf loads no specify_cli/charter). ALLOWED_CALLERS is a swap (transaction out, events.event_bridge in). Tests: 10 named files 336 passed/1 skipped; DoD dirs (tests/status, specify_cli/status, coordination, specify_cli/coordination, runtime, specify_cli/events, test_status_events_writes_gate) 4912 passed/17 skipped/1 failed = known environmental test_reassess_under_lock dry-run preview. ruff/format clean, no new noqa/type-ignore, C901 clean, mypy: zero errors in new modules, remaining errors identical on base. Non-blocking: adapter adds a contract.feature_dir==write_location ValueError guard beyond spec (never fires: both from self.feature_dir); EventBridgePort/bind_* have no production caller by design (tripwire pins it); lane also re-pointed patches in tests/status/test_emit.py, test_emit_durability.py, test_transition_pipeline.py, tests/integration/test_legacy_mission_fallback.py outside owned_files (no other WP touches them)."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 20699,
-      "shell_pid_created_at": "1792951005.79",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2469,
+      "shell_pid_created_at": "1792956528.01",
       "subtasks": {
         "T012": "done",
         "T013": "done",
