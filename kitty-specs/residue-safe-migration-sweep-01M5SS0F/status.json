@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01M5SYB8J1WPKQSG7DGVMVYKQP",
-  "materialized_at": "2026-10-25T16:29:51.544741+00:00",
+  "event_count": 12,
+  "last_event_id": "01M5SZAEH5N7H9RGX74JZNFXT2",
+  "materialized_at": "2026-10-25T16:46:53.477170+00:00",
   "mission_number": "",
   "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 2,
+    "for_review": 1,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 5
   },
@@ -25,14 +25,24 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5SYA69MJDK71X2P0Q3BWRFH",
-      "last_transition_at": "2026-10-25T16:29:16.460769+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5SZAEH5N7H9RGX74JZNFXT2",
+      "last_transition_at": "2026-10-25T16:46:53.477170+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T16:38:53Z – claude – shell_pid=8973 – Tests: uv run --frozen pytest tests/context tests/specify_cli/migration/test_residue_dirs_left_untouched_6627.py tests/specify_cli/migration/test_normalize_mission_lifecycle.py tests/integration/migration/test_upgrade_residue_identity_6627.py -> 93 passed (before new file); new tests/context/test_is_kitty_specs_residue_git_aware.py + tests/architectural/test_migration_walkers_use_mission_predicate.py -> 30 passed. ruff check/format exit 0; mypy --strict exit 0 (needs --python-executable of uv venv; default run hits pre-existing platformdirs stub error in kernel/paths.py). T005: no #6627 verdicts changed (their fixtures have no tracked kitty-specs); only RESIDUE_SKIP_WARNING import re-pinned to residue_notice."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 8973,
-      "shell_pid_created_at": "1792945740.32"
+      "shell_pid_created_at": "1792945740.32",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
@@ -73,10 +83,19 @@
       "last_event_id": "01M5SYB8J1WPKQSG7DGVMVYKQP",
       "last_transition_at": "2026-10-25T16:29:51.544741+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T16:41:38Z – claude – shell_pid=8973 – Out-of-map: edited existing src/specify_cli/mission_metadata.py (added baseline_slug_fields; the module already existed and is already in the audit closure) and tests/audit routing needed no edit (derived test passes). Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release = 576 passed, 7 skipped. ruff/format/mypy --strict exit 0. Import closure of audit.engine: 835 -> 836 modules."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 8973,
-      "shell_pid_created_at": "1792945740.32"
+      "shell_pid_created_at": "1792945740.32",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP07": {
       "actor": "finalize-tasks",
