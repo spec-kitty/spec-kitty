@@ -31,6 +31,7 @@ from specify_cli.status import (
     ReviewOverride,
     ReviewResult,
     StatusEvent,
+    _actor_key,
     emission_event_verdict,
     resolve_lane_alias,
 )
@@ -298,9 +299,34 @@ def _mt_hop_review_ref(emit_review_ref: str | None, target: str, hop_review_resu
     return candidate if isinstance(candidate, str) and candidate.strip() else None
 
 
+#: #6630: hops that record a decision about a WP rather than pick it up. The
+#: review claim (``in_review``) resolved the binding; the verdict that follows
+#: must not overwrite it with explicit-absence sentinels.
+_VERDICT_LANES: frozenset[Lane] = frozenset({Lane.APPROVED, Lane.DONE, Lane.CANCELED})
+
+
+def _mt_hop_records_binding(st: _MoveTaskState, target: Lane | str) -> bool:
+    """Whether hop *target* may record ``st.resolved_binding`` as an annotation.
+
+    A pick-up always records it, explicit absence included, so a later bare
+    pick-up clears the previous actor's slots (SC-011). A verdict hop is not a
+    pick-up (#6630): without ``--profile``/``--model``/``--invocation-id`` it
+    records no binding, and the claim's binding carries forward. With one of
+    those flags the caller asked for the binding to be recorded, so it is. A
+    verdict that hands the WP to a different ``--agent`` records it too: the
+    claim's binding belongs to the previous agent, so explicit absence is the
+    honest value for the new one.
+    """
+    if resolve_lane_alias(target) not in _VERDICT_LANES:
+        return True
+    if st.profile is not None or st.model is not None or st.invocation_id is not None:
+        return True
+    return bool(st.agent) and _actor_key(st.agent) != _actor_key(st.current_agent)
+
+
 def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
     """Resolved actual for an off-transition agent reassignment."""
-    if not st.agent or st.resolved_binding is None:
+    if not st.agent or st.resolved_binding is None or not _mt_hop_records_binding(st, st.target_lane):
         return {}
     role = _binding_role_for_lane(st.target_lane) or "implementer"
     delta = st.resolved_binding.to_delta(role=role)

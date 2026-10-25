@@ -50,6 +50,8 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskState,
     _mt_approval_policy_metadata,
     _mt_hop_policy_metadata,
+    _mt_hop_records_binding,
+    _mt_reassignment_binding_fields,
 )
 from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent
 from specify_cli.status.resolved_binding import ResolvedBinding
@@ -907,6 +909,34 @@ class TestBindingRoleForLane:
     @pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, "blocked"])
     def test_other_lanes_have_no_role(self, lane: Lane | str) -> None:
         assert _binding_role_for_lane(lane) is None
+
+
+class TestVerdictHopRecordsNoBinding:
+    """#6630: a verdict hop without dispatch flags records no resolved binding."""
+
+    @pytest.mark.parametrize("lane", [Lane.APPROVED, Lane.DONE, Lane.CANCELED, "done"])
+    def test_verdict_without_flags_records_nothing(self, lane: Lane | str) -> None:
+        assert _mt_hop_records_binding(_make_state(), lane) is False
+
+    @pytest.mark.parametrize("flag", [{"profile": "reviewer-renata"}, {"model": "m"}, {"invocation_id": "01M5S2404XWJ9MHY5SH8629VYJ"}])
+    def test_verdict_with_a_dispatch_flag_records_it(self, flag: dict[str, str]) -> None:
+        assert _mt_hop_records_binding(_make_state(**flag), Lane.APPROVED) is True
+
+    @pytest.mark.parametrize("lane", [Lane.CLAIMED, Lane.IN_REVIEW, Lane.IN_PROGRESS, Lane.PLANNED, "doing"])
+    def test_pick_up_and_other_hops_still_record(self, lane: Lane | str) -> None:
+        assert _mt_hop_records_binding(_make_state(), lane) is True
+
+    def test_reassignment_on_a_verdict_carries_no_binding_fields(self) -> None:
+        st = _make_state(agent="claude", current_agent="claude", target_lane=Lane.APPROVED, resolved_binding=ResolvedBinding())
+        assert _mt_reassignment_binding_fields(st) == {}
+
+    def test_verdict_handing_off_to_another_agent_records_the_binding(self) -> None:
+        st = _make_state(agent="codex", current_agent="claude")
+        assert _mt_hop_records_binding(st, Lane.APPROVED) is True
+
+    def test_reassignment_on_a_non_verdict_hop_keeps_explicit_absence(self) -> None:
+        st = _make_state(agent="claude", target_lane=Lane.BLOCKED, resolved_binding=ResolvedBinding())
+        assert _mt_reassignment_binding_fields(st)["agent_profile"] == "__resolved_profile_absent__"
 
 
 class TestApprovalPolicyMetadata:

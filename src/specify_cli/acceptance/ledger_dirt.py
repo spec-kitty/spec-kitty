@@ -48,10 +48,17 @@ def is_mission_decision_ledger_entry(entry: StatusEntry, *, repo_root: Path, mis
 
 
 def mission_decision_ledger_files(entries: Iterable[StatusEntry], *, repo_root: Path, mission_slug: str) -> list[str]:
-    """Repo-relative decision-ledger files of the current Mission that are dirty (modified or untracked)."""
+    """Repo-relative decision-ledger files of the current Mission that are dirty (modified or untracked).
+
+    The decision service's runtime lock is never listed (#6628): it sits under
+    ``decisions/`` and so does not block the gate, but #5925 keeps it out of every
+    commit, and this list feeds accept's residual commit.
+    """
+    from specify_cli.coordination.coherence import is_decisions_runtime_lock
+
     found: list[str] = []
     for entry in entries:
         for path in _expand_entry(entry, repo_root):
-            if _is_ledger_file(path, mission_slug) and path not in found:
+            if _is_ledger_file(path, mission_slug) and not is_decisions_runtime_lock(path) and path not in found:
                 found.append(path)
     return found

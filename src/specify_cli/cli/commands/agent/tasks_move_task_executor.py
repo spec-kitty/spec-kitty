@@ -27,6 +27,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_hop_actor,
     _mt_hop_policy_metadata,
     _mt_hop_reason_source,
+    _mt_hop_records_binding,
     _mt_hop_review_ref,
     _mt_hop_review_result,
     _mt_plan_review_result,
@@ -248,8 +249,11 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 fallback_tool=hop_actor,
                 binding=st.resolved_binding,
             )
-            annotation_delta = st.resolved_binding.to_delta(role=binding_role)
-            if target == Lane.CLAIMED and st.agent:
+            # #6630: a verdict hop without dispatch flags records no binding, so
+            # the review claim's resolved profile is not cleared.
+            if _mt_hop_records_binding(st, target):
+                annotation_delta = st.resolved_binding.to_delta(role=binding_role)
+            if target == Lane.CLAIMED and st.agent and annotation_delta is not None:
                 # #4673/T012: thread the claim owner through the SAME
                 # annotation-delta channel ``role`` already rides here, not only
                 # the transition's ``policy_metadata`` sidecar. The shared

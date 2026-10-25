@@ -212,7 +212,10 @@ def _enforce_analysis_report_write_preflight(
             "error_code": "DIRTY_WORKTREE",
             _PAYLOAD_KEY_ERROR: "Refusing to record analysis report with pre-existing dirty working tree.",
             "dirty_paths": dirty_paths,
-            "remediation": ["Commit or stash existing changes, then rerun /spec-kitty.analyze."],
+            "remediation": [
+                "Commit or stash the listed paths, then rerun /spec-kitty.analyze.",
+                "Spec Kitty's own bookkeeping files, such as decisions/index.json.lock, are never listed here; do not commit them.",
+            ],
         }
         if json_output:
             _emit_json(payload)

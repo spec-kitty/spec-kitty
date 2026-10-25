@@ -108,3 +108,39 @@ def test_residual_scan_includes_the_untracked_new_dm_file(tmp_path: Path) -> Non
     assert f"{_KS}/decisions/index.json" in dirty
     assert f"{_KS}/decisions/DM-01NEW.md" in dirty
     assert f"{_KS}/stray.txt" not in dirty  # unmanaged untracked files are never swept into the commit
+
+
+# ---------------------------------------------------------------------------
+# #6628: the decision service's runtime lock is not a ledger file
+# ---------------------------------------------------------------------------
+
+_LOCK = f"?? {_KS}/decisions/index.json.lock"
+
+
+def test_runtime_lock_does_not_block_the_gate(tmp_path: Path) -> None:
+    assert _gate(tmp_path, [_INDEX, _NEW_DM, _LOCK]) == []
+
+
+def test_runtime_lock_is_never_listed_for_the_residual_commit(tmp_path: Path) -> None:
+    """#5925 keeps the lock on disk on purpose; accept must not stage it."""
+    files = mission_decision_ledger_files([_entry(line) for line in (_INDEX, _LOCK)], repo_root=tmp_path, mission_slug=_FEATURE)
+    assert files == [f"{_KS}/decisions/index.json"]
+
+
+def test_collapsed_ledger_directory_with_runtime_lock_lists_ledger_files_only(tmp_path: Path) -> None:
+    decisions = tmp_path / _KS / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "index.json").write_text("{}\n", encoding="utf-8")
+    (decisions / "index.json.lock").write_text("", encoding="utf-8")
+    entry = _entry(f"?? {_KS}/decisions/")
+    assert is_mission_decision_ledger_entry(entry, repo_root=tmp_path, mission_slug=_FEATURE) is True
+    assert mission_decision_ledger_files([entry], repo_root=tmp_path, mission_slug=_FEATURE) == [f"{_KS}/decisions/index.json"]
+
+
+def test_collapsed_directory_holding_only_the_runtime_lock_neither_blocks_nor_is_committed(tmp_path: Path) -> None:
+    decisions = tmp_path / _KS / "decisions"
+    decisions.mkdir(parents=True)
+    (decisions / "index.json.lock").write_text("", encoding="utf-8")
+    line = f"?? {_KS}/decisions/"
+    assert _gate(tmp_path, [line]) == []
+    assert mission_decision_ledger_files([_entry(line)], repo_root=tmp_path, mission_slug=_FEATURE) == []

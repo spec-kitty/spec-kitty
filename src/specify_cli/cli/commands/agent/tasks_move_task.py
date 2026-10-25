@@ -145,6 +145,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _binding_role_for_lane as _binding_role_for_lane,
     _mt_hop_review_ref as _mt_hop_review_ref,
     _mt_hop_reason_source as _mt_hop_reason_source,
+    _mt_hop_records_binding as _mt_hop_records_binding,
     _mt_hop_policy_metadata as _mt_hop_policy_metadata,
     _mt_approval_policy_metadata as _mt_approval_policy_metadata,
     _mt_hop_actor as _mt_hop_actor,

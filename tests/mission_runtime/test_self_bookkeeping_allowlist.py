@@ -26,6 +26,7 @@ unchanged.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -33,6 +34,7 @@ import pytest
 import typer
 
 from specify_cli.coordination.coherence import (
+    is_decisions_runtime_lock,
     is_self_bookkeeping_churn,
     is_toolchain_generated_churn,
 )
@@ -219,6 +221,49 @@ class TestSelfBookkeepingPredicate:
         """A sibling .kittify/ path must NOT be swept in by the audit matcher."""
         assert not is_self_bookkeeping_churn(".kittify/mission-state-audit-notes.txt")
 
+    # ------------------------------------------------------------------
+    # #6628 — the decision service's runtime lock, depth-exact
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            f"kitty-specs/{_MISSION_SLUG}/decisions/index.json.lock",
+            f"sub/kitty-specs/{_MISSION_SLUG}/decisions/index.json.lock",
+            f".worktrees/{_MISSION_SLUG}-coord/kitty-specs/{_MISSION_SLUG}/decisions/index.json.lock",
+            f"kitty-specs\\{_MISSION_SLUG}\\decisions\\index.json.lock",
+        ],
+    )
+    def test_decisions_runtime_lock_is_self_bookkeeping(self, path: str) -> None:
+        """#6628: ``decisions/service.py`` keeps ``index.json.lock`` on disk by
+        design (#5925), so its presence is spec-kitty bookkeeping, not dirt."""
+        assert is_self_bookkeeping_churn(path)
+        assert is_decisions_runtime_lock(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "src/app/decisions/index.json.lock",
+            f"kitty-specs/{_MISSION_SLUG}/index.json.lock",
+            f"kitty-specs/{_MISSION_SLUG}/decisions/sub/index.json.lock",
+            f"kitty-specs/{_MISSION_SLUG}/research/decisions/index.json.lock",
+            f"kitty-specs/{_MISSION_SLUG}/decisions/index.json",
+            f"kitty-specs/{_MISSION_SLUG}/decisions/other.json.lock",
+            f"kitty-specs/{_MISSION_SLUG}/decisions/index.json.lock.bak",
+            f"my-kitty-specs/{_MISSION_SLUG}/decisions/index.json.lock",
+            "decisions/index.json.lock",
+        ],
+    )
+    def test_identically_named_file_at_another_depth_is_not_exempt(self, path: str) -> None:
+        """#6628 / #4933 lesson: only the exact mission-ledger lock is exempt."""
+        assert not is_self_bookkeeping_churn(path)
+        assert not is_decisions_runtime_lock(path)
+
+    def test_lock_anchor_agrees_with_the_decision_service_filename(self) -> None:
+        from specify_cli.decisions.service import _LOCK_FILENAME
+
+        assert is_decisions_runtime_lock(f"kitty-specs/{_MISSION_SLUG}/decisions/{_LOCK_FILENAME}")
+
 
 # ---------------------------------------------------------------------------
 # The real dirty-tree preflight — FR-003 false-block fix + G-5 invariant.
@@ -274,3 +319,50 @@ def test_preflight_still_blocks_on_stale_primary_spec(tmp_path: Path) -> None:
             placement_ref=None,
             mission_slug=_MISSION_SLUG,
         )
+
+
+# ---------------------------------------------------------------------------
+# #6628 — the persistent decisions runtime lock through the real preflight
+# ---------------------------------------------------------------------------
+
+
+def _seed_committed_decisions(repo_root: Path, feature_dir: Path) -> Path:
+    decisions = feature_dir / "decisions"
+    decisions.mkdir()
+    (decisions / "index.json").write_text('{"decisions": []}\n', encoding="utf-8")
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-q", "-m", "seed decisions")
+    return decisions
+
+
+def test_preflight_passes_with_only_the_persistent_decisions_lock(tmp_path: Path) -> None:
+    """#6628: an untracked 0-byte ``decisions/index.json.lock`` is not dirt."""
+    repo_root = _init_repo(tmp_path)
+    decisions = _seed_committed_decisions(repo_root, _seed_committed_mission(repo_root))
+    (decisions / "index.json.lock").write_text("", encoding="utf-8")
+
+    _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)
+
+
+def test_preflight_still_refuses_a_genuinely_dirty_file_beside_the_lock(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo_root = _init_repo(tmp_path)
+    decisions = _seed_committed_decisions(repo_root, _seed_committed_mission(repo_root))
+    (decisions / "index.json.lock").write_text("", encoding="utf-8")
+    (decisions / "index.json").write_text('{"decisions": ["edited"]}\n', encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["dirty_paths"] == [f"kitty-specs/{_MISSION_SLUG}/decisions/index.json"]
+    assert payload["remediation"][0] == "Commit or stash the listed paths, then rerun /spec-kitty.analyze."
+    assert "do not commit them" in payload["remediation"][1]
+
+
+def test_preflight_refuses_an_identically_named_lock_at_another_depth(tmp_path: Path) -> None:
+    repo_root = _init_repo(tmp_path)
+    decisions = _seed_committed_decisions(repo_root, _seed_committed_mission(repo_root))
+    (decisions / "sub").mkdir()
+    (decisions / "sub" / "index.json.lock").write_text("", encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)

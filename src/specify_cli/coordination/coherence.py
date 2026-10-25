@@ -49,6 +49,7 @@ __all__ = [
     "coord_incoherent_done_wps",
     "is_coord_residue_churn",
     "is_coordination_kind_file",
+    "is_decisions_runtime_lock",
     "is_self_bookkeeping_churn",
     "is_status_state_path",
     "is_toolchain_generated_churn",
@@ -71,7 +72,8 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     OWN mission-identity ``meta.json`` (``kitty-specs/<mission>/meta.json``, depth-exact,
     including under a monorepo subdirectory, plus the legacy ``.kittify/meta.json``), the
     encoding-provenance ``.kittify/encoding-provenance/global.jsonl``, and
-    ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251) are spec-kitty's own bookkeeping,
+    ``kitty-ops/<ULID>.jsonl`` Op-record orphans (#2251) and the decision-service runtime
+    lock (:func:`is_decisions_runtime_lock`, #6628) are spec-kitty's own bookkeeping,
     not mission planning artifacts, and their churn must not block a dirty-state gate.
 
     #4933: the ``meta.json`` leg was previously exempted by BASENAME ALONE
@@ -167,7 +169,28 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
         return True
     if is_dossier_snapshot(normalized):
         return True
+    if is_decisions_runtime_lock(normalized):
+        return True
     return bool(kitty_ops_op_record.search(normalized))
+
+
+def is_decisions_runtime_lock(path: str | Path) -> bool:
+    r"""Return True for a Mission's decision-service runtime lock (#6628).
+
+    ``decisions/service.py`` (``_LOCK_FILENAME``) keeps
+    ``kitty-specs/<mission>/decisions/index.json.lock`` on disk, untracked, on
+    purpose: release truncates it and never unlinks it (#5925). Its presence is
+    spec-kitty's own bookkeeping, so no dirty-state gate may refuse on it, and no
+    committer may stage it.
+
+    Depth-exact, like the #4933 ``meta.json`` anchor: exactly one path component
+    under ``kitty-specs/`` (any monorepo or worktree prefix), then
+    ``decisions/index.json.lock``. A file with that name anywhere else is real
+    dirt. The literal is function-local for the same R-014 reason as
+    :func:`is_self_bookkeeping_churn`'s.
+    """
+    decisions_runtime_lock = re.compile(r"(?:^|/)kitty-specs/[^/]+/decisions/index\.json\.lock$")
+    return bool(decisions_runtime_lock.search(to_posix(path).rstrip("/")))
 
 
 def _derived_view_mission_dir(path: str | Path) -> str | None:
