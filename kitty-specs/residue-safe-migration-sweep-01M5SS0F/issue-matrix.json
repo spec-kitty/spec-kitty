@@ -1,7 +1,19 @@
 {
   "rows": {
+    "#5457": {
+      "evidence_ref": "Context: integrating worktrees skipped by upgrade (research R-xx)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5875": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope per spec C-005; cited for context",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6547": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope per spec C-005; cited for context",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6551": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope per spec C-005; cited for context",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6589": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context: supersession mechanism precedent (ADR 2026-10-17-1 Amendment 2026-10-25)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6627": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context: predecessor fix merged in PR #6662",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6655": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context: parallel PR touching upgrade/runner.py and CHANGELOG",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6662": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR reference (fix for #6627)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6668": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Closed by WP06 FABRICATED_IDENTITY_SUSPECTED audit finding",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: pr_or_commit_ref>",
-      "verdict": "not-applicable",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP06"
     },
     "#6669": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Closed by WP01-WP05 (residue rule, successors, walkers) and the WP07 guard",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,8 +117,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#6672": {
       "evidence_ref": "<auto-classified: no action required>",
@@ -121,7 +133,7 @@
       "wp": null
     },
     "#6673": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context: separate follow-up issue filed during this work",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,7 +141,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
