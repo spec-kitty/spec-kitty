@@ -163,3 +163,20 @@ def test_a_project_without_an_interview_settles_on_its_first_upgrade(tmp_path: P
     assert later.success, later.errors
     assert MIGRATION_ID not in later.migrations_applied
     assert read_activation_ledger(project)["activated_directives"] == narrowed
+
+
+def test_a_present_list_still_gains_interview_selections_when_only_the_substitute_ran(tmp_path: Path) -> None:
+    """Stamped below 3.2.6rc1, the shipped step never ran; the substitute's marked ``skipped`` must not read as its run."""
+    project = _pre_ledger_interviewed_project(tmp_path)
+    config = project / ".kittify" / "config.yaml"
+    # The legacy key: the activation-ledger migration moves it (a seeded activation.yaml would make it refuse).
+    config.write_text(config.read_text(encoding="utf-8") + "activated_directives:\n- 024-locality-of-change\n", encoding="utf-8")
+
+    result = MigrationRunner(project).upgrade(TARGET, include_worktrees=False)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)["activated_directives"] == [
+        "024-locality-of-change",
+        "001-architectural-integrity-standard",
+        "010-specification-fidelity-requirement",
+    ]

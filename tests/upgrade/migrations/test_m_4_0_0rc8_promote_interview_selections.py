@@ -200,7 +200,11 @@ def test_a_deactivated_selection_is_kept_deactivated(tmp_path: Path) -> None:
 
 
 def test_a_deactivated_only_selection_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The promotion primitive's deny guard decides, for the preview and the real run alike; nothing is promoted or re-stamped."""
+    """A deactivated-only selection: no write, no re-stamp, and the preview and real run report the primitive's skipped-denied warning.
+
+    The org-required floor of the deny rule is guarded by
+    ``test_a_deactivated_but_org_required_selection_is_promoted``.
+    """
     calls: list[Path] = []
     monkeypatch.setattr("charter.activation.api.restamp_bundle_hash", lambda root: calls.append(root) or True)
     project = _project(tmp_path, DECISIONS_ID)
@@ -216,6 +220,22 @@ def test_a_deactivated_only_selection_writes_nothing(tmp_path: Path, monkeypatch
     assert (result.changes_made, result.warnings) == ([module._NOTHING_TO_PROMOTE], skipped)
     assert _bytes(project) == before
     assert calls == []
+
+
+def test_a_deactivated_but_org_required_selection_is_promoted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A stale deny of an org-required id is inert (FR-006): the primitive's effective deny decides, not the raw deny list."""
+    monkeypatch.setattr(
+        "charter.activation.pack_context.read_org_required_tokens",
+        lambda root, kind, *, strict: [DECISIONS_STEM] if kind.plural == "directives" else [],
+    )
+    monkeypatch.setattr("charter.activation.api.restamp_bundle_hash", lambda root: True)
+    project = _project(tmp_path, DECISIONS_ID)
+    seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM], deactivated_directives=[DECISIONS_STEM])
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM, DECISIONS_STEM]
 
 
 def test_an_unresolvable_selection_is_reported(tmp_path: Path) -> None:
@@ -260,20 +280,25 @@ def test_a_promotion_restamps_the_bundle_hash(tmp_path: Path, monkeypatch: pytes
     [
         (False, f"dry-run: would promote {{'{DIRECTIVES}': ['{FIDELITY_STEM}']}}", [ARCHITECTURE_STEM, FIDELITY_STEM]),
         (True, module._NOTHING_PREVIEW, [ARCHITECTURE_STEM]),
+        (None, module._NOTHING_PREVIEW, [ARCHITECTURE_STEM]),
     ],
-    ids=["nothing-recorded", "adopting-a-legacy-skip"],
+    ids=["nothing-recorded", "adopting-a-legacy-skip", "adopting-a-version-stamp"],
 )
-def test_a_dry_run_previews_and_writes_nothing(tmp_path: Path, legacy_skip: bool, preview: str, applied: list[str]) -> None:
+def test_a_dry_run_previews_and_writes_nothing(tmp_path: Path, legacy_skip: bool | None, preview: str, applied: list[str]) -> None:
     """The preview writes nothing and agrees with the real run, also before ledger adoption has recorded anything."""
     MigrationRegistry.clear()
     auto_discover_migrations()
     project = _project(tmp_path, ARCHITECTURE_STEM, FIDELITY_ID)
     seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
+    stamp = "'2026-10-01T00:00:00+00:00'"
+    rc7 = f"spec_kitty:\n  version: 4.0.0rc7\n  initialized_at: {stamp}\n"
     if legacy_skip:
         # The pre-ledger runner's own record: an rc7 project where the interview had already promoted.
-        stamp = "'2026-10-01T00:00:00+00:00'"
         entry = f"  - id: {UnifyCharterActivationMigration.migration_id}\n    applied_at: {stamp}\n    result: skipped\n"
-        _write(project / ".kittify" / "metadata.yaml", f"spec_kitty:\n  version: 4.0.0rc7\n  initialized_at: {stamp}\nmigrations:\n  applied:\n{entry}")
+        _write(project / ".kittify" / "metadata.yaml", f"{rc7}migrations:\n  applied:\n{entry}")
+    elif legacy_skip is None:
+        # No applied list: the adoption backfill settles the shipped step from the rc7 version stamp.
+        _write(project / ".kittify" / "metadata.yaml", rc7)
     before = _bytes(project)
     ledger_before = MigrationLedger(project).read_all()
 

@@ -8,6 +8,7 @@ single-writer, no torn file).
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import subprocess
 from pathlib import Path
@@ -70,6 +71,10 @@ def test_record_round_trips_through_jsonl() -> None:
     assert restored.clone_local is False
     # tracked records omit the clone_local key entirely (ADR table)
     assert "clone_local" not in rec.to_dict()
+    # only a superseded substitute's own record carries superseded_by
+    assert "superseded_by" not in rec.to_dict()
+    marked = dataclasses.replace(rec, superseded_by="x")
+    assert LedgerRecord.from_dict(json.loads(json.dumps(marked.to_dict()))).superseded_by == "x"
 
 
 def test_clone_local_record_carries_the_flag() -> None:
