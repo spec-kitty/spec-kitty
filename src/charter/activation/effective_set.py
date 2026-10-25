@@ -2,10 +2,12 @@
 
 Answers a single question: *what is effective for an activation key while that
 key is absent?* Every absent-key reasoner asks it here — the interview
-promotion, the org-charter ``required_*`` union, the ``m_unify_charter_activation``
-upgrade step, the resynthesis preflight and ``ActiveCharterManager.activate`` —
-instead of reading a shipped id list, which is a strict subset of the offering
-and would narrow the set on promotion.
+promotion, the org-charter ``required_*`` union, the
+``4.0.0rc8_promote_interview_selections`` upgrade step (only for its
+seeded-list hint: it never writes an absent key, #6629), the resynthesis
+preflight and ``ActiveCharterManager.activate`` — instead of reading a shipped
+id list, which is a strict subset of the offering and would narrow the set on
+promotion.
 
 The answer spans the whole offering:
 

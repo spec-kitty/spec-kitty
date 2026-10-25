@@ -470,6 +470,12 @@ def test_registry_orders_fold_after_seed_migrations() -> None:
     (Ambient import-order registration -- e.g. a test module importing the fold
     first -- would NOT reflect the real ``spec-kitty upgrade`` order, so the
     registry is rebuilt from discovery here.)
+
+    ``unify_charter_activation_promote_answers`` is superseded (#6629): it stays
+    registered at this slot as a recorded no-op, so the ordering still holds but
+    it no longer seeds anything for the fold to relocate. Its successor,
+    ``4.0.0rc8_promote_interview_selections``, runs after the activation ledger
+    move and writes through the activation ledger.
     """
     from specify_cli.upgrade.migrations import auto_discover_migrations
     from specify_cli.upgrade.registry import MigrationRegistry

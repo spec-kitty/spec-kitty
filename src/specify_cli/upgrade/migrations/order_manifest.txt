@@ -143,6 +143,7 @@ migrate_lifecycle_envelope  # tie: shares target_version 3.2.6rc2; auto-discover
 4.0.0rc7_track_charter_pack_yaml  # tie: shares target_version 4.0.0rc7; auto-discovery import order preserved
 4.0.0rc8_project_intent_directive_rename
 4.0.0rc8_activation_ledger  # tie: shares target_version 4.0.0rc8; runs after the project-intent rename so the stem tokens it rewrites in the legacy activation keys are what move into the ledger
+4.0.0rc8_promote_interview_selections  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_activation_ledger; runs after it so it promotes into the activation ledger the move created
 4.0.0rc8_command_skill_hyphen_names  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_project_intent_directive_rename; runs after it
 4.0.0rc8_retire_antigravity_workflows  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_command_skill_hyphen_names; runs after it so legacy dotted skills are renamed before Antigravity is installed
 4.0.0rc8_retire_stale_mission_template_forks  # tie: shares target_version 4.0.0rc8 with 4.0.0rc8_retire_antigravity_workflows; runs after 0.9.2_research_mission_templates, 0.12.0_documentation_mission and 2.0.6_consistency_sweep so it repairs the fork copies they write or move into overrides (#5280)

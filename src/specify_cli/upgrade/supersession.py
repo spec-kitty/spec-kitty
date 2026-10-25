@@ -30,6 +30,10 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     # ``.cursor/`` rows back on the next upgrade.
     "3.2.5_agents_skills_gitignore_backfill": "4.0.0rc8_narrow_agent_gitignore",
     "3.2.6rc3_narrow_cursor_gitignore": "4.0.0rc8_narrow_agent_gitignore",
+    # It seeded an absent activated_<kind> key with the whole in-force set, which
+    # synthesis then read as an operator's activation (#6629); the successor
+    # never writes an absent key and promotes through the activation ledger.
+    "unify_charter_activation_promote_answers": "4.0.0rc8_promote_interview_selections",
 }
 
 #: Class attributes the substitute carries over from the shipped class.

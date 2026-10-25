@@ -378,6 +378,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # tests/upgrade/test_backfill_ledger.py and test_backfill_migration.py.
         "specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger",
         "specify_cli.upgrade.migrations.m_4_0_0rc8_project_intent_directive_rename",  # #6443: auto-discovered slug rename, never statically imported
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections",  # #6629: auto-discovered interview promotion, never statically imported
         # persistent-deactivation-ledger WP08: the activation-ledger move. Same
         # auto-discovered shape (@MigrationRegistry.register, never statically
         # imported; `migrate activation-ledger` reaches its planner through

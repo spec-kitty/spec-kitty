@@ -54,7 +54,12 @@ def _project(root: Path, *, populated: bool = False) -> Path:
         # bare project reach their real code paths.
         (kittify / "charter").mkdir()
         (kittify / "charter" / "charter.md").write_text("# Charter\n", encoding="utf-8")
-        (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
+        (kittify / "config.yaml").write_text(
+            "agents:\n  available:\n    - claude\nactivated_directives:\n  - 001-architectural-integrity-standard\n", encoding="utf-8"
+        )
+        # An interview selection the list lacks, so the interview promotion (#6629) reaches its write path.
+        (kittify / "charter" / "interview").mkdir()
+        (kittify / "charter" / "interview" / "answers.yaml").write_text("selected_directives:\n  - DIRECTIVE_024\n", encoding="utf-8")
         (root / "kitty-specs").mkdir()
         (root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
         (root / ".claude" / "commands").mkdir(parents=True)

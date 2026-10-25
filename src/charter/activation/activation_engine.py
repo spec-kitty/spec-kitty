@@ -94,6 +94,7 @@ __all__ = [
     "ActivationPlan",
     "DeactivationRefused",
     "EffectiveSet",
+    "PromotionOutcome",
     "RequiredArtifactDeactivationError",
     "UnknownActivationIdError",
     "check_deactivation_permitted",

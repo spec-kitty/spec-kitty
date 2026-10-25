@@ -432,9 +432,10 @@ def _build_retired_tactic(root: Path) -> None:
 
 
 def _build_answers_only_selection(root: Path) -> None:
+    """An interview selection the allow list lacks, plus one the fixture deactivated (it must stay out)."""
     post_ledger_fixture(root)
     _write(root / ".kittify" / "config.yaml", "agents:\n  available: [claude]\n")
-    _write(root / ".kittify" / "charter" / "interview" / "answers.yaml", "selected_directives:\n- DIRECTIVE_024\n")
+    _write(root / ".kittify" / "charter" / "interview" / "answers.yaml", "selected_directives:\n- DIRECTIVE_024\n- DIRECTIVE_003\n")
 
 
 def _build_legacy_bundle_file(root: Path) -> None:
@@ -477,7 +478,7 @@ BUILDERS: Mapping[str, Callable[[Path], None]] = {
     "3.2.0rc35_activate_builtin_mission_types": _build_mission_types_missing,
     "3.2.0rc35_unified_bundle": _build_plain,
     "3.2.6_retire_rtk_search_tooling": _build_retired_toolguide,
-    "unify_charter_activation_promote_answers": _build_answers_only_selection,
+    "4.0.0rc8_promote_interview_selections": _build_answers_only_selection,
     "consolidate_charter_bundle_fold": _build_legacy_bundle_file,
     "3.2.7_heal_provenance_paths": _build_absolute_provenance,
     "4_0_0rc5_heal_template_set_provenance": _build_absolute_template_set,
@@ -490,6 +491,7 @@ BUILDERS: Mapping[str, Callable[[Path], None]] = {
 #: Exempt by ordering (M3): ``detect()`` cannot be made True once a ledger exists (proven below).
 ORDER_EXEMPT: Mapping[str, str] = {
     "normalize_activation_absence": "SupersededMigration: detect() is always False",
+    "unify_charter_activation_promote_answers": "SupersededMigration: detect() is always False",
 }
 
 

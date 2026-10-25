@@ -122,6 +122,21 @@ from charter.activation.pack_manager import ActivationResult as ActivationResult
 # promotion (the activation ledger is in the bundle hash, FR-018). Public per
 # charter.activation.bundle_restamp.__all__.
 from charter.activation.bundle_restamp import restamp_bundle_hash as restamp_bundle_hash
+
+# The interview-selection promotion primitives the 4.0.0rc8 promote-interview-selections
+# upgrade step uses (#6629): the offering root, the selection-id resolver and its typed
+# refusal, the in-force set of an absent key, and the append-only promotion with its outcome. Public per
+# the respective modules' ``__all__``.
+from charter.activation.activation_engine import (
+    PromotionOutcome as PromotionOutcome,
+    promote_activations as promote_activations,
+)
+from charter.activation.catalog import resolve_offering_root as resolve_offering_root
+from charter.activation.effective_set import resolve_effective_sets as resolve_effective_sets
+from charter.activation.kind_vocabulary import (
+    UnrepresentableDirectiveIdError as UnrepresentableDirectiveIdError,
+    resolve_selected_id_to_stem as resolve_selected_id_to_stem,
+)
 from charter.activation.resolver import (
     UNKNOWN_SELECTION_DIAGNOSTIC as UNKNOWN_SELECTION_DIAGNOSTIC,
 )
@@ -205,8 +220,10 @@ __all__ = [
     "LedgerMigrationRefused",
     "LedgerMove",
     "LegacyRenameRefusedError",
+    "PromotionOutcome",
     "RenameReport",
     "RequiredOmission",
+    "UnrepresentableDirectiveIdError",
     "append_synthesized_activations",
     "apply_ledger_migration",
     "canonical_mission_type_key",
@@ -221,13 +238,17 @@ __all__ = [
     "load_yaml",
     "org_required_stems",
     "plan_ledger_migration",
+    "promote_activations",
     "read_mission_type",
     "refuse_unmigrated_deny_write",
     "rename_legacy_project_intent_directive",
     "required_not_in_force",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",
+    "resolve_effective_sets",
     "resolve_ledger_source",
+    "resolve_offering_root",
+    "resolve_selected_id_to_stem",
     "restamp_bundle_hash",
     "settle_project_languages",
     "store_language_settlement",

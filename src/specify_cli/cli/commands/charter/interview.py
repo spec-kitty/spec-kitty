@@ -116,9 +116,10 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     Only the three roots :class:`~charter.activation.interview.CharterInterview` actually
     captures (directives, tactics, paradigms) are promoted here — a project's
     ``answers.yaml`` may separately carry hand-authored non-root selections
-    (e.g. ``selected_styleguides``); those are the config-seeded migration's
-    job (``m_unify_charter_activation``, T023), not this per-interview-run
-    wiring. Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
+    (e.g. ``selected_styleguides``); those are the upgrade step's job
+    (``4.0.0rc8_promote_interview_selections``, which superseded
+    ``m_unify_charter_activation``, #6629), not this per-interview-run wiring.
+    Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
     primitive — the same append-only seam the migration uses — with the WP01
     ID-form resolver (:func:`charter.activation.kind_vocabulary.resolve_selected_id_to_stem`).
     An absent key is seeded from the effective set

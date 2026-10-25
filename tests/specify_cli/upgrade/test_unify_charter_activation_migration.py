@@ -13,6 +13,10 @@ answers-only paradigm to prove the zero-drop promotion path, so every test
 here builds its own ``.kittify`` tree from real built-in artifact ids
 (``010-specification-fidelity-requirement`` / ``DIRECTIVE_010``,
 ``domain-driven-design``) rather than mirroring this repo's own config.
+
+Superseded (#6629): the registry holds a recorded no-op under this id, and
+``4.0.0rc8_promote_interview_selections`` does the promotion. These tests pin
+the shipped class through its direct import, which keeps its behaviour.
 """
 
 from __future__ import annotations
@@ -25,7 +29,10 @@ from ruamel.yaml import YAML
 from charter.activation.effective_set import resolve_effective_sets
 from charter.activation.kind_vocabulary import resolve_selected_id_to_stem
 from charter.activation.pack_context import PackContext
+from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.migrations.base import SupersededMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
+from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -368,3 +375,13 @@ def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkey
     )
     assert stems == [_DIRECTIVE_010_STEM]
     assert unresolved == ["AMBIGUOUS-POLICY"]
+
+
+def test_the_registry_holds_a_superseded_substitute() -> None:
+    """#6629: the upgrade never runs the shipped promotion; its successor does."""
+    MigrationRegistry.clear()
+    auto_discover_migrations()
+    registered = MigrationRegistry.get_by_id(UnifyCharterActivationMigration.migration_id)
+
+    assert isinstance(registered, SupersededMigration)
+    assert "4.0.0rc8_promote_interview_selections" in registered.superseded_by

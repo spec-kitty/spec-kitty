@@ -1,0 +1,330 @@
+"""Promote interview selections into present activation lists, never into an absent key (#6629).
+
+Supersedes ``unify_charter_activation_promote_answers`` (3.2.6rc1, left
+byte-identical per DIRECTIVE_044 and registered as a recorded no-op through
+:data:`specify_cli.upgrade.supersession.SUPERSEDED_MIGRATIONS`). That migration
+promoted every ``answers.selected_<kind>`` id the activation list lacked, and
+seeded an *absent* ``activated_<kind>`` key with the kind's whole in-force set
+first. Runtime governance did not change, but ``charter synthesize`` read the
+seeded list as an operator's activation: it demanded one companion tactic per
+directive (38 on the built-in pack) and skipped the fresh-project seed, so
+``implement`` refused every work package (#6629). It also read only
+``.kittify/config.yaml``, so on a project whose keys had moved it wrote a
+second, stale list there (#6549).
+
+Rules
+-----
+* **An absent key is never written.** While ``activated_<kind>`` is absent,
+  every available artefact of that kind is in force, so a resolved interview
+  id is already in force or names no available artefact; an allow-list entry
+  for it would bring nothing into force and would only turn the "nothing
+  chosen yet" state into an operator's activation. This is the zero-drop
+  guarantee of the superseded migration, kept without materialising the key.
+* **A present list gains the interview ids it lacks**, compared as stems so a
+  list that spells an artefact by its declared id is not given a duplicate
+  (#6423). The write goes through the one activation write target
+  (:func:`charter.activation.pack_manager.resolve_activation_write_target`:
+  the activation ledger once ``4.0.0rc8_activation_ledger`` has moved the
+  keys) and the one promotion primitive, so the deny guard applies and a
+  deactivated id stays deactivated.
+* **Only where the superseded promotion never settled.** Since #2526 the
+  interview record is not an activation source, so the promotion is a one-time
+  backstop for a project crossing that change. When the Migration Ledger
+  records ``unify_charter_activation_promote_answers`` as ``success`` (it ran,
+  or the ledger-adoption backfill settled it for a project created after it),
+  an interview id a present list lacks was removed, or was never in force; it
+  is not appended back (#6499).
+* **One run settles it.** :meth:`detect` is always True and :meth:`apply`
+  succeeds even when nothing is left to promote, so the runner records
+  ``success``. A ``skipped`` record would re-select the migration on every
+  upgrade, and after an operator narrowed a list with ``charter activate
+  --only`` it would append the interview ids back.
+* **A list an earlier build seeded is reported, never narrowed** (#6499): when
+  a present list holds every available artefact of its kind and the interview
+  selected only some of them, the result warns and names the narrowing
+  commands (#6408).
+
+Only the built-in doctrine layer resolves interview ids, as in the superseded
+migration; an id it cannot resolve is reported, never dropped silently.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from ruamel.yaml import YAML
+
+from charter.activation.api import (
+    ActiveCharterConfigError,
+    PromotionOutcome,
+    UnrepresentableDirectiveIdError,
+    load_activation_ledger,
+    resolve_offering_root,
+    resolve_selected_id_to_stem,
+)
+from charter.drg import ArtifactKind
+
+from ..registry import MigrationRegistry
+from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
+
+MIGRATION_ID = "4.0.0rc8_promote_interview_selections"
+
+#: The kinds whose interview selections are promoted: the charter activation
+#: kinds an interview can select (the superseded migration's set).
+PROMOTED_KINDS: tuple[ArtifactKind, ...] = (
+    ArtifactKind.DIRECTIVE,
+    ArtifactKind.TACTIC,
+    ArtifactKind.STYLEGUIDE,
+    ArtifactKind.TOOLGUIDE,
+    ArtifactKind.PARADIGM,
+    ArtifactKind.PROCEDURE,
+    ArtifactKind.AGENT_PROFILE,
+    ArtifactKind.MISSION_STEP_CONTRACT,
+)
+
+_ANSWERS_RELATIVE_PATH = Path(".kittify") / "charter" / "interview" / "answers.yaml"
+_NOTHING_TO_PROMOTE = "No interview selections to promote: every selection is already in force"
+_ALREADY_PROMOTED = "Interview selections were promoted by an earlier upgrade; nothing to promote"
+_NO_SELECTIONS = "No interview selections to promote"
+_SUPERSEDED_PROMOTION_ID = "unify_charter_activation_promote_answers"
+_SEEDED_LIST_HINT = (
+    "{key} lists every available {token} ({listed}), as an upgrade before 4.0.0rc8 wrote it; the interview selected {selected}. "
+    "To keep only those, run `spec-kitty charter interview --narrow-activation` or "
+    "`spec-kitty charter activate {token} <id> --only`; `charter synthesize` then asks for companion tactics only for what you keep."
+)
+
+
+def _allow_key(kind: ArtifactKind) -> str:
+    return f"activated_{kind.plural}"
+
+
+def _selected_ids(answers: Mapping[str, Any], kind: ArtifactKind) -> list[str]:
+    raw = answers.get(f"selected_{kind.plural}")
+    return [str(item) for item in raw] if isinstance(raw, list) else []
+
+
+def _load_answers(project_path: Path) -> dict[str, Any]:
+    """The interview answers mapping; ``{}`` when absent, empty, malformed or not a mapping."""
+    path = project_path / _ANSWERS_RELATIVE_PATH
+    if not path.is_file():
+        return {}
+    try:
+        data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — an unreadable interview record holds no selection to promote
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+@dataclass
+class _Selections:
+    """The interview selections, resolved to built-in stems per activation key."""
+
+    stems: dict[str, list[str]] = field(default_factory=dict)
+    unresolved: list[str] = field(default_factory=list)
+
+
+class _StemResolver:
+    """Resolve declared ids and stems to activation stems, once per ``(kind, id)``."""
+
+    def __init__(self, offering_root: Path) -> None:
+        self._offering_root = offering_root
+        self._cache: dict[tuple[ArtifactKind, str], str | None] = {}
+
+    def stem(self, kind: ArtifactKind, raw_id: str) -> str | None:
+        key = (kind, raw_id)
+        if key not in self._cache:
+            try:
+                self._cache[key] = resolve_selected_id_to_stem(kind, raw_id, offering_root=self._offering_root)
+            except UnrepresentableDirectiveIdError:
+                self._cache[key] = None
+        return self._cache[key]
+
+    def stems(self, kind: ArtifactKind, raw_ids: Iterable[str]) -> set[str]:
+        """Every id of *raw_ids* as a stem; an id that resolves to none is kept as written."""
+        return {self.stem(kind, raw_id) or raw_id for raw_id in raw_ids}
+
+
+def _resolve_selections(answers: Mapping[str, Any], resolver: _StemResolver) -> _Selections:
+    selections = _Selections()
+    for kind in PROMOTED_KINDS:
+        stems: list[str] = []
+        for raw_id in _selected_ids(answers, kind):
+            stem = resolver.stem(kind, raw_id)
+            if stem is None:
+                selections.unresolved.append(f"{kind.operator_token}:{raw_id}")
+            elif stem not in stems:
+                stems.append(stem)
+        if stems:
+            selections.stems[_allow_key(kind)] = stems
+    return selections
+
+
+def _present_lists(data: Mapping[str, Any], selections: _Selections) -> dict[ArtifactKind, list[str]]:
+    """The present allow list of every kind the interview selected; an absent key is left out."""
+    present: dict[ArtifactKind, list[str]] = {}
+    for kind in PROMOTED_KINDS:
+        listed = data.get(_allow_key(kind))
+        if _allow_key(kind) in selections.stems and listed is not None:
+            present[kind] = [str(item) for item in listed]
+    return present
+
+
+@dataclass
+class _Promotions:
+    """Each present list's missing interview stems, and the deactivated ones left out."""
+
+    missing: dict[str, list[str]] = field(default_factory=dict)
+    kept_deactivated: dict[str, list[str]] = field(default_factory=dict)
+
+
+def _promotions(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> _Promotions:
+    """``{activated_<kind>: [stems]}`` per present list, in answers order, less the deactivated stems.
+
+    A deactivated selection is left out here rather than by the promotion
+    primitive, so a project whose only "missing" selection is deactivated is
+    not rewritten (and re-stamped) on every run.
+    """
+    promotions = _Promotions()
+    ledger = load_activation_ledger(project_path) if present else None
+    for kind, listed in present.items():
+        listed_stems = resolver.stems(kind, listed)
+        denied = resolver.stems(kind, ledger.deny_for(kind)) if ledger is not None else set()
+        missing = [stem for stem in selections.stems[_allow_key(kind)] if stem not in listed_stems]
+        kept = [stem for stem in missing if stem in denied]
+        if kept:
+            promotions.kept_deactivated[_allow_key(kind)] = kept
+        if allowed := [stem for stem in missing if stem not in denied]:
+            promotions.missing[_allow_key(kind)] = allowed
+    return promotions
+
+
+def _kept_deactivated_warnings(kept: Mapping[str, list[str]]) -> list[str]:
+    """The promotion primitive's own wording for deactivated ids it would have skipped."""
+    messages: list[str] = PromotionOutcome(skipped_denied={key: list(ids) for key, ids in kept.items()}).skipped_denied_messages()
+    return messages
+
+
+def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> list[str]:
+    """A warning for each present list that holds every available artefact while the interview selected fewer.
+
+    The in-force set is resolved once, only for the candidate kinds (a list
+    longer than the selection). Nothing is written: narrowing is an operator
+    decision (#6499, #6408).
+    """
+    candidates = {_allow_key(kind): kind for kind, listed in present.items() if len(listed) > len(selections.stems[_allow_key(kind)])}
+    if not candidates:
+        return []
+    # Lazy: resolving the in-force set builds the doctrine service; registry discovery must not pay for that.
+    from charter.activation.api import resolve_effective_sets
+
+    hints: list[str] = []
+    for key, entry in resolve_effective_sets(project_path, list(candidates)).items():
+        kind = candidates[key]
+        listed = resolver.stems(kind, present[kind])
+        selected = set(selections.stems[key])
+        if entry.resolved and entry.ids and listed == resolver.stems(kind, entry.ids) and selected < listed:
+            hints.append(_SEEDED_LIST_HINT.format(key=key, token=kind.operator_token, listed=len(listed), selected=len(selected)))
+    return hints
+
+
+def _shipped_promotion_settled(project_path: Path) -> bool:
+    """Whether the Migration Ledger records the superseded promotion as applied (``success``)."""
+    from ..ledger import SETTLED_RESULT, MigrationLedger
+
+    return any(record.id == _SUPERSEDED_PROMOTION_ID and record.result == SETTLED_RESULT for record in MigrationLedger(project_path).read_tracked())
+
+
+def _unresolved_warning(unresolved: list[str]) -> str:
+    return f"Unresolved interview selections skipped (not promoted): {', '.join(unresolved)}"
+
+
+@MigrationRegistry.register
+class PromoteInterviewSelectionsMigration(BaseMigration):
+    """Promote answers-only interview selections into present activation lists; never write an absent key."""
+
+    migration_id = MIGRATION_ID
+    description = (
+        "Promote interview selections (answers.yaml selected_<kind>) that a present activation list lacks "
+        "into it, through the activation ledger; an absent activated_<kind> key stays absent (#6629)."
+    )
+    target_version = "4.0.0rc8"
+    runs_on_worktrees = False
+
+    def detect(self, project_path: Path) -> bool:
+        """Always True, so one run records ``success`` and settles it (a ``skipped`` record re-selects it)."""
+        del project_path
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        """Always applicable; a project with nothing to promote is a no-op."""
+        del project_path
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        """Append each present list's missing interview selections; an absent key is never written.
+
+        An unreadable or malformed activation surface is the runner's recorded
+        failure (``MigrationStateUnreadableError``), as in ``4.0.0rc8_activation_ledger``,
+        never an uncaught traceback.
+        """
+        try:
+            return self._apply(project_path, dry_run)
+        except ActiveCharterConfigError as exc:
+            raise MigrationStateUnreadableError(exc.body) from exc
+
+    def _apply(self, project_path: Path, dry_run: bool) -> MigrationResult:
+        answers = _load_answers(project_path)
+        if not any(_selected_ids(answers, kind) for kind in PROMOTED_KINDS):
+            return MigrationResult(success=True, changes_made=[_NO_SELECTIONS])
+        try:
+            resolver = _StemResolver(resolve_offering_root())
+        except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
+            return MigrationResult(success=False, errors=[f"Could not resolve doctrine root: {exc}"])
+        selections = _resolve_selections(answers, resolver)
+
+        # Lazy (registry discovery stays cheap): the write target loads the activation surface.
+        from charter.activation.api import resolve_activation_write_target
+
+        target_path, data, save = resolve_activation_write_target(project_path)
+        present = _present_lists(data, selections)
+        warnings = _seeded_list_hints(project_path, present, selections, resolver)
+        if _shipped_promotion_settled(project_path):
+            nothing = "dry-run: nothing would be promoted" if dry_run else _ALREADY_PROMOTED
+            return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
+        planned = _promotions(project_path, present, selections, resolver)
+        promotions = planned.missing
+        warnings.extend(_kept_deactivated_warnings(planned.kept_deactivated))
+        if selections.unresolved:
+            warnings.append(_unresolved_warning(selections.unresolved))
+
+        if dry_run:
+            change = f"dry-run: would promote {promotions}" if promotions else "dry-run: nothing would be promoted"
+            return MigrationResult(success=True, changes_made=[change], warnings=warnings)
+        if not promotions:
+            return MigrationResult(success=True, changes_made=[_NOTHING_TO_PROMOTE], warnings=warnings)
+        return self._promote(project_path, promotions, target_path, data, save, warnings)
+
+    @staticmethod
+    def _promote(
+        project_path: Path,
+        promotions: dict[str, list[str]],
+        target_path: Path,
+        data: dict[str, Any],
+        save: Callable[[Path, dict[str, Any]], None],
+        warnings: list[str],
+    ) -> MigrationResult:
+        """Write *promotions* (present keys only) through the one promotion primitive, then re-stamp the bundle."""
+        from charter.activation.api import promote_activations, restamp_bundle_hash
+
+        outcome = promote_activations(promotions, config_path=target_path, config_data=data, save=save, effective_sets={}, repo_root=project_path)
+        if any(plan.activated for plan in outcome.committed):
+            # The activation ledger is in the bundle hash (FR-018): keep the manifest stamp in parity.
+            restamp_bundle_hash(project_path)
+        changes = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in outcome.committed if plan.activated]
+        notes = [warning for plan in outcome.committed for warning in plan.warnings]
+        notes.extend(outcome.skipped_denied_messages())
+        notes.extend(outcome.left_absent_messages())
+        return MigrationResult(success=True, changes_made=changes or [_NOTHING_TO_PROMOTE], warnings=[*notes, *warnings])
