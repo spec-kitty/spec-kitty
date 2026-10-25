@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5875": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope per spec C-005; cited for context",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6547": {
