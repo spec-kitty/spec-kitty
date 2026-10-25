@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01M5T90QH064B5B0AFBTVZVBBM",
-  "materialized_at": "2026-10-25T19:36:20.768989+00:00",
+  "event_count": 27,
+  "last_event_id": "01M5T915STFT1SWKT5XY09TV3Z",
+  "materialized_at": "2026-10-25T19:36:35.386986+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -52,23 +52,23 @@
       }
     },
     "WP02": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M5T7TK0TE6JEQYV99Z6AX1EN",
-      "last_transition_at": "2026-10-25T19:15:30.970735+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M5T915STFT1SWKT5XY09TV3Z",
+      "last_transition_at": "2026-10-25T19:36:35.386986+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "8 G-5 writers + glossary + next pairing guard; 10 torn/lock tests red before, 19 green after; blast radius 8940 passed, 2 failed -> 1 fixed (deny seam re-point), 1 environmental (stale editable install)"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 13807,
-      "shell_pid_created_at": "1792952504.32",
+      "role": "reviewer",
+      "shell_pid": 14707,
+      "shell_pid_created_at": "1792956989.51",
       "subtasks": {
         "T005": "done",
         "T006": "done",
@@ -112,7 +112,8 @@
       "last_transition_at": "2026-10-25T19:36:20.768989+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Port + adapter + 3 doors; 13 port tests (3 door tests red before); blast radius 5049 passed, 7 failed -> 6 fixed (spy re-point), 1 environmental (stale editable install in lane, green on base)"
+        "Port + adapter + 3 doors; 13 port tests (3 door tests red before); blast radius 5049 passed, 7 failed -> 6 fixed (spy re-point), 1 environmental (stale editable install in lane, green on base)",
+        "Review passed (reviewer-renata). Three doors (flat _persist_prepared, batch, BookkeepingTransaction.append_events) hand one WorkPackageTransition to work_package_transition_port(); unbound default LocalFileEventBridge calls the same store primitive (via _unsafe re-export) or status_service.append_event_stream_log, so bytes/ordering/readback are unchanged; prune-on-failure kept (append+materialize still inside try). Stdlib-only leaf verified (fresh import of specify_cli.status.emit and coordination.transaction OK; leaf loads no specify_cli/charter). ALLOWED_CALLERS is a swap (transaction out, events.event_bridge in). Tests: 10 named files 336 passed/1 skipped; DoD dirs (tests/status, specify_cli/status, coordination, specify_cli/coordination, runtime, specify_cli/events, test_status_events_writes_gate) 4912 passed/17 skipped/1 failed = known environmental test_reassess_under_lock dry-run preview. ruff/format clean, no new noqa/type-ignore, C901 clean, mypy: zero errors in new modules, remaining errors identical on base. Non-blocking: adapter adds a contract.feature_dir==write_location ValueError guard beyond spec (never fires: both from self.feature_dir); EventBridgePort/bind_* have no production caller by design (tripwire pins it); lane also re-pointed patches in tests/status/test_emit.py, test_emit_durability.py, test_transition_pipeline.py, tests/integration/test_legacy_mission_fallback.py outside owned_files (no other WP touches them)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
