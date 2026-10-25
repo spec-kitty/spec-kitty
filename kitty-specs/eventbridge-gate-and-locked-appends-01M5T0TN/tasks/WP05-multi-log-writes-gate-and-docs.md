@@ -24,9 +24,12 @@ agent_profile: architect-alphonso
 authoritative_surface: tests/architectural/
 create_intent:
 - tests/architectural/test_event_log_writes_gate.py
+- tests/architectural/_write_site_scan.py
 execution_mode: code_change
 owned_files:
 - tests/architectural/test_event_log_writes_gate.py
+- tests/architectural/_write_site_scan.py
+- tests/architectural/test_status_events_writes_gate.py
 - docs/architecture/event-ledger-writers-and-readers.md
 - docs/development/reference/events-in-core.md
 - docs/changelog/CHANGELOG.md
@@ -54,17 +57,18 @@ FR-005, FR-006, NFR-004 and the docs. This is ADR 2026-10-14-1's Confirmation ga
 
 ### T017 — `tests/architectural/test_event_log_writes_gate.py`
 
-- Reuse `scan_write_sites` and `module_name_for` from `test_status_events_writes_gate.py`, importing only non-test names.
+- Extract the scanner (`WriteSite`, the resolver, `scan_write_sites`, `module_name_for`) from `test_status_events_writes_gate.py` into `tests/architectural/_write_site_scan.py`. Both gates import it, and the status gate's behaviour is unchanged.
+- `canonical-events.jsonl` is written through `status.store` (`lifecycle_events.py`); state that it stays under the status lock and the `_unsafe` allowlist, not the interim lock.
 - Name the logs: `run.events.jsonl`, `decisions.events.jsonl`, `mission-events.jsonl`, `canonical-events.jsonl`, the glossary `*.events.jsonl` (not `status.events.jsonl`), the kitty-ops `lifecycle.jsonl`, `propagation-errors.jsonl`, `ops-index.jsonl` and `op-closures.jsonl`, plus `policy-audit.jsonl`, `archived-missions.jsonl`, `global.jsonl` and `.encoding-provenance.jsonl`.
 - Freeze three ledgers:
-  - **Door callers:** every call of `append_ledger_lines`, `ledger_lock` or `persistence.append_event` (any alias), keyed `(module, path expression)` with a count. Every entry is marked `#6193`, so a new caller fails.
-  - **Raw writes:** a resolved path that is a named log, or any `.jsonl`, outside `kernel.ledger_append` and `specify_cli.status.store`. Ledgered with reasons: migrations, merge drivers, the exclusive Op create, glossary repair. A new one fails.
+  - **Door callers:** every call of `append_event_log_lines`, `event_log_lock` or `persistence.append_event` (any alias), keyed `(module, path expression)` with a count. Every entry is marked `#6193`, so a new caller fails.
+  - **Raw writes:** a resolved path that is a named log, or any `.jsonl`, outside `kernel.event_log_append` and `specify_cli.status.store`. Ledgered with reasons: migrations, merge drivers, the exclusive Op create, glossary repair. A new one fails.
   - **Unresolved writes:** an unresolved path whose expression is ledger-named (`events`, `jsonl`, `ledger`, `log`) is pinned.
 - Live checks for every ledger entry; synthetic non-vacuity floors for each log and each door shape; a floor that the real tree has at least 10 door callers.
 
 ### T018 — The doors call the port
 
-AST pin: `_persist_prepared` and `BookkeepingTransaction.append_events` call `record_work_package_transition`, and name neither `append_event_stream_atomic_verified` nor `append_event_stream_log`.
+AST pin: `_persist_prepared`, `emit_status_transition_batch` and `BookkeepingTransaction.append_events` call `record_work_package_transition`, and name neither `append_event_stream_atomic_verified` nor `append_event_stream_log`.
 
 ### T019 — Docs
 

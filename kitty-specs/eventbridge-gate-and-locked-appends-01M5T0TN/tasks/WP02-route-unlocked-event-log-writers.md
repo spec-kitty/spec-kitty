@@ -22,7 +22,17 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/
 create_intent:
-- tests/kernel/test_locked_event_log_writers.py
+- src/runtime/next/next_invocation_lifecycle.py
+- tests/specify_cli/invocation/test_locked_lifecycle_and_propagation.py
+- tests/specify_cli/events/test_decision_log_locked_append.py
+- tests/specify_cli/mission_v1/test_events_locked_append.py
+- tests/runtime/test_run_journal_locked_append.py
+- tests/policy/test_audit_locked_append.py
+- tests/missions/test_archive_locked_append.py
+- tests/charter/test_encoding_provenance_locked_append.py
+- tests/glossary/test_events_locked_append.py
+- tests/runtime/test_run_state_hardening.py
+- tests/specify_cli/invocation/test_propagator.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/invocation/lifecycle.py
@@ -34,7 +44,17 @@ owned_files:
 - src/specify_cli/missions/_archive.py
 - src/charter/activation/_io.py
 - src/glossary/events.py
-- tests/kernel/test_locked_event_log_writers.py
+- src/runtime/next/next_invocation_lifecycle.py
+- tests/specify_cli/invocation/test_locked_lifecycle_and_propagation.py
+- tests/specify_cli/events/test_decision_log_locked_append.py
+- tests/specify_cli/mission_v1/test_events_locked_append.py
+- tests/runtime/test_run_journal_locked_append.py
+- tests/policy/test_audit_locked_append.py
+- tests/missions/test_archive_locked_append.py
+- tests/charter/test_encoding_provenance_locked_append.py
+- tests/glossary/test_events_locked_append.py
+- tests/runtime/test_run_state_hardening.py
+- tests/specify_cli/invocation/test_propagator.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -59,16 +79,16 @@ FR-008, FR-010, NFR-001: the eight G-5 sites and the glossary contract append ta
 
 ### T005 — Red-first
 
-`tests/kernel/test_locked_event_log_writers.py`, one parametrised case per writer:
+One test file per owning module (paths in `owned_files`; the tree mirrors the source):
 - Seed the target log with a torn tail (`b'{"x":1'`).
 - Call the writer's public entry: `append_lifecycle_record`, `_log_propagation_error`, `DecisionGitLog._append_to_file`, `mission_v1.events._write_event`, `engine._append_event`, `append_audit_event`, `append_archive_record`, `_write_provenance`.
-- Assert the file is byte-identical. For writers that swallow, assert no exception and the file unchanged; for writers that raise, assert `LedgerTornTailError`.
+- Assert the file is byte-identical. For writers that swallow, assert no exception and the file unchanged; for writers that raise, assert `EventLogTornTailError`.
 
 Also add one byte-stability case per writer (a clean log → the expected exact line). Run it before routing: the torn-tail cases are RED and the byte cases are green. Record the counts.
 
 ### T006 — invocation, decision log, Mission v1
 
-Each site replaces the `open("a")` block with `append_ledger_lines(path, [line_without_newline], create_parents=<as today>)`.
+Each site replaces the `open("a")` block with `append_event_log_lines(path, [line_without_newline], create_parents=<as today>)`.
 - `lifecycle.py` already does `mkdir`, so pass `create_parents=True` and drop the explicit mkdir.
 - `propagator.py` mkdirs: `create_parents=True`, and keeps catching `Exception`.
 - `decision_log.py` keeps its compact separators and keeps `mkdir`.
@@ -84,7 +104,13 @@ Each site replaces the `open("a")` block with `append_ledger_lines(path, [line_w
 
 ### T008 — Glossary
 
-`glossary/events.py::append_event` runs its library append, torn-tail repair and retry inside `ledger_lock(event_log_path)`. The repair's own sibling lock stays (it is inert under the outer lock). The docstring says the append is locked now, so the advisory torn-tail check is no longer racy.
+`glossary/events.py::append_event` runs its library append, torn-tail repair and retry inside `event_log_lock(event_log_path)`. The repair's own sibling lock stays (it is inert under the outer lock). The docstring says the append is locked now, so the advisory torn-tail check is no longer racy.
+
+### T008b — Fold the review findings
+
+- `next_invocation_lifecycle.py::_pair_previous_lifecycle_record` catches `EventLogAppendError` around `write_paired_completion`, logs a warning and continues, as the issuance path already does with `OSError`. Test it.
+- `tests/runtime/test_run_state_hardening.py:362-383` patches `os.fsync` process-wide, which the lock record write also calls. Narrow the patch to the journal fd, or assert through the primitive.
+- `tests/specify_cli/invocation/test_propagator.py:242` patches `builtins.open`. Re-point it at the primitive so it is not vacuous.
 
 ## Definition of Done
 

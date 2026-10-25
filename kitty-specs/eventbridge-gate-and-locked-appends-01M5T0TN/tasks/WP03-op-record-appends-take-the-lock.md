@@ -50,19 +50,19 @@ FR-009: the `kitty-ops` index, the closure spine and the per-Op appends take the
 
 `tests/specify_cli/invocation/test_writer_locked_appends.py`:
 - A torn per-Op file: `write_completed` and `append_correlation_link` refuse and the file is unchanged. Today a torn tail fails JSON parsing as `InvocationError`. Keep the same exception type for the parse failure, and assert it is byte-identical.
-- A torn `op-closures.jsonl`: `append_op_closure` raises `LedgerTornTailError`, and the file is unchanged.
+- A torn `op-closures.jsonl`: `append_op_closure` raises `EventLogTornTailError`, and the file is unchanged.
 - A torn index: `_append_to_index` swallows the error, and the index is unchanged (it was extended before).
-- While `ledger_lock(<file>)` is held, an append with a short timeout refuses.
+- While `event_log_lock(<file>)` is held, an append with a short timeout refuses.
 - A symlink is still refused.
 
 ### T010 — `_append_line_no_follow`
 
-It becomes `append_ledger_lines(path, [line.rstrip("\n")], no_follow=True, mode=0o600)`. Callers pass the line without the newline, so remove `+ "\n"` at the two call sites.
+It becomes `append_event_log_lines(path, [line.rstrip("\n")], no_follow=True, mode=0o600)`. Map `EventLogSymlinkError` the way a symlink `OSError` was handled before. Callers pass the line without the newline, so remove `+ "\n"` at the two call sites.
 
 ### T011 — Validated appends
 
 Replace `_validated_append_handle` with a helper `_append_validated(path, invocation_id, line, *, refuse_if_completed=False)`:
-- It calls `append_ledger_lines(path, [line], create=False, no_follow=True, precondition=check)`.
+- It calls `append_event_log_lines(path, [line], lock_anchor=self._dir, create=False, no_follow=True, precondition=check)`. The family anchor means one lock file serves every per-Op file (review finding 10). A torn tail maps to `InvocationError("Invocation record is unreadable")`, as before.
 - `check(existing: bytes)` parses the rows and raises `InvocationError` or `AlreadyClosedError` exactly as today.
 - `FileNotFoundError` maps to `InvocationError("Invocation record not found")`, and other `OSError`s to `InvocationWriteError`, matching today's messages.
 - Keep the symlink refusal from `invocation_path`.

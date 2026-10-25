@@ -1,6 +1,6 @@
 ---
 work_package_id: WP04
-title: EventBridge port behind the two transition doors
+title: EventBridge port behind the three transition doors
 dependencies: []
 requirement_refs:
 - FR-001
@@ -32,18 +32,21 @@ create_intent:
 execution_mode: code_change
 owned_files:
 - src/runtime/next/event_bridge.py
+- src/runtime/next/_internal_runtime/events.py
 - src/specify_cli/events/event_bridge.py
 - src/specify_cli/status/emit.py
 - src/specify_cli/coordination/transaction.py
 - src/specify_cli/status/_unsafe.py
 - tests/architectural/test_status_unsafe_allowlist.py
 - tests/specify_cli/events/test_event_bridge.py
+- tests/status/test_mission_write.py
+- tests/architectural/test_runtime_emitter_seam.py
 role: implementer
 tags: []
 tracker_refs: []
 ---
 
-# WP04: EventBridge port behind the two transition doors
+# WP04: EventBridge port behind the three transition doors
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -60,12 +63,14 @@ FR-001 to FR-004 (contract `contracts/event-bridge-port.md`). ADR 2026-10-14-1 D
 
 ## Subtasks
 
-### T012 — `src/runtime/next/event_bridge.py`
+### T012 — `src/runtime/next/event_bridge.py` (stdlib-only leaf) and `EventBridgePort`
+
+The leaf imports only the stdlib, because `_internal_runtime/__init__` loads `engine`, which loads `status.emit` (review finding 1). Add a fresh-interpreter import test: `python -c 'import specify_cli.status.emit'` with the leaf in place.
 
 - `TransitionRow(Protocol)`: `event_id`, `to_dict()`.
 - `WorkPackageTransition`: a frozen dataclass with `write_location: Path`, `rows: tuple[TransitionRow, ...]` (non-empty, checked in `__post_init__`) and `write_contract: object | None`.
 - `WorkPackageTransitionPort(Protocol)`: `record_work_package_transition(transition) -> None`.
-- `EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol)`.
+- `EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol)` is defined in `_internal_runtime/events.py`, beside the emitter it grows, and exported there.
 - A binding registry: `bind_work_package_transition_port`, `bound_work_package_transition_port`, `reset_work_package_transition_port`. Reject-on-conflict by `module.qualname` of `type(port)`; the same class rebinds.
 - No `specify_cli` import beyond what `_internal_runtime.events` already brings (no new runtime outbound ledger entry).
 
@@ -83,6 +88,10 @@ FR-001 to FR-004 (contract `contracts/event-bridge-port.md`). ADR 2026-10-14-1 D
 
 In `status/emit.py::_persist_prepared`, replace the direct store call with `work_package_transition_port().record_work_package_transition(WorkPackageTransition(feature_dir, (event, *annotation)))`. Materialize and mirror stay where they are.
 
+### T014b — Batch door
+
+`emit_status_transition_batch` (`status/emit.py`, about line 1174) hands `[*events, *annotations]` to the port as one `WorkPackageTransition` (review finding 5).
+
 ### T015 — Coordination shell
 
 In `BookkeepingTransaction.append_events`, replace `append_event_stream_log(write_contract, events)` with the port call carrying `write_contract`. The prune-on-failure path is unchanged.
@@ -97,7 +106,11 @@ In `BookkeepingTransaction.append_events`, replace `append_event_stream_log(writ
 - An empty unit raises.
 - A stub satisfying `EventBridgePort` type-checks.
 
-Add `specify_cli.events.event_bridge` to `ALLOWED_CALLERS` (and the test baseline) with the comment: "EventBridge local file adapter (#6603, ADR 2026-10-14-1 D-1): the work package transition door both shells share; the primitives become private to it".
+`ALLOWED_CALLERS` is a **swap**, so the shrink-only set does not grow:
+- `coordination.transaction` no longer imports a door, so it leaves. The stale-entry check enforces this.
+- `specify_cli.events.event_bridge` enters, with the comment: "EventBridge local file adapter (#6603, ADR 2026-10-14-1 D-1): the work package transition door the three shells share; the primitives become private to it".
+
+Also update the baseline in `test_status_unsafe_allowlist.py`. `tests/status/test_mission_write.py:688` patches `transaction_module.append_event_stream_log`; re-point it at the adapter. In `test_runtime_emitter_seam.py`, add a tripwire: no `src/` call of `bind_work_package_transition_port(` outside its definition module (open-core binds none).
 
 ## Definition of Done
 

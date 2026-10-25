@@ -11,10 +11,10 @@
         "WP01"
       ],
       "write_scope": [
-        "src/kernel/ledger_append.py",
+        "src/kernel/event_log_append.py",
         "src/kernel/locks.py",
         "src/specify_cli/core/checkout_file_lock.py",
-        "tests/kernel/test_ledger_append.py"
+        "tests/kernel/test_event_log_append.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -29,15 +29,20 @@
         "WP04"
       ],
       "write_scope": [
+        "src/runtime/next/_internal_runtime/events.py",
         "src/runtime/next/event_bridge.py",
         "src/specify_cli/coordination/transaction.py",
         "src/specify_cli/events/event_bridge.py",
         "src/specify_cli/status/_unsafe.py",
         "src/specify_cli/status/emit.py",
+        "tests/architectural/test_runtime_emitter_seam.py",
         "tests/architectural/test_status_unsafe_allowlist.py",
-        "tests/specify_cli/events/test_event_bridge.py"
+        "tests/specify_cli/events/test_event_bridge.py",
+        "tests/status/test_mission_write.py"
       ],
-      "predicted_surfaces": [],
+      "predicted_surfaces": [
+        "api"
+      ],
       "depends_on_lanes": [],
       "parallel_group": 0
     },
@@ -50,13 +55,23 @@
         "src/charter/activation/_io.py",
         "src/glossary/events.py",
         "src/runtime/next/_internal_runtime/engine.py",
+        "src/runtime/next/next_invocation_lifecycle.py",
         "src/specify_cli/events/decision_log.py",
         "src/specify_cli/invocation/lifecycle.py",
         "src/specify_cli/invocation/propagator.py",
         "src/specify_cli/mission_v1/events.py",
         "src/specify_cli/missions/_archive.py",
         "src/specify_cli/policy/audit.py",
-        "tests/kernel/test_locked_event_log_writers.py"
+        "tests/charter/test_encoding_provenance_locked_append.py",
+        "tests/glossary/test_events_locked_append.py",
+        "tests/missions/test_archive_locked_append.py",
+        "tests/policy/test_audit_locked_append.py",
+        "tests/runtime/test_run_journal_locked_append.py",
+        "tests/runtime/test_run_state_hardening.py",
+        "tests/specify_cli/events/test_decision_log_locked_append.py",
+        "tests/specify_cli/invocation/test_locked_lifecycle_and_propagation.py",
+        "tests/specify_cli/invocation/test_propagator.py",
+        "tests/specify_cli/mission_v1/test_events_locked_append.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -77,6 +92,7 @@
         "tests/specify_cli/invocation/test_writer_locked_appends.py"
       ],
       "predicted_surfaces": [
+        "api",
         "legacy-cleanup"
       ],
       "depends_on_lanes": [
@@ -93,7 +109,9 @@
         "docs/architecture/event-ledger-writers-and-readers.md",
         "docs/changelog/CHANGELOG.md",
         "docs/development/reference/events-in-core.md",
-        "tests/architectural/test_event_log_writes_gate.py"
+        "tests/architectural/_write_site_scan.py",
+        "tests/architectural/test_event_log_writes_gate.py",
+        "tests/architectural/test_status_events_writes_gate.py"
       ],
       "predicted_surfaces": [
         "legacy-cleanup"
@@ -106,8 +124,8 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-10-25T17:20:58.011835+00:00",
+  "computed_at": "2026-10-25T17:32:10.622087+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "1963865bed543c80d1875bde1fb98ab6ef21d0f6"
+  "planning_commit_sha": "294912a62adc53a5781908a6c2b1e20dbe4636ca"
 }

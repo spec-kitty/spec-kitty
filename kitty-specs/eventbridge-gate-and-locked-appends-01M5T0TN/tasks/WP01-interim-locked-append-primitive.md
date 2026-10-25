@@ -24,14 +24,14 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/kernel/
 create_intent:
-- src/kernel/ledger_append.py
-- tests/kernel/test_ledger_append.py
+- src/kernel/event_log_append.py
+- tests/kernel/test_event_log_append.py
 execution_mode: code_change
 owned_files:
-- src/kernel/ledger_append.py
+- src/kernel/event_log_append.py
 - src/kernel/locks.py
 - src/specify_cli/core/checkout_file_lock.py
-- tests/kernel/test_ledger_append.py
+- tests/kernel/test_event_log_append.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -60,23 +60,33 @@ Ship the one interim lock contract and single-write append (contract `contracts/
 - `src/specify_cli/core/checkout_file_lock.py` imports and re-exports it (`__all__` unchanged), so `status/locking.py` and `review/verdict_commit_queue.py` keep working untouched.
 - Validation: `tests/kernel`, `tests/status` and `tests/review` locking tests still pass.
 
-### T002 — `src/kernel/ledger_append.py`
+### T002 — `src/kernel/event_log_append.py`
 
-Public API:
-- `ledger_lock_path(ledger: Path) -> Path`. Rule: `git_common_dir(parent) / LOCK_DIRECTORY / "event-ledgers" / f"{digest}.lock"`, where the digest is `sha256(os.path.normcase(str(resolved_abs_path)))[:32]`. On a `GitTopologyError`, use the sibling `ledger.with_name(ledger.name + ".lock")`. Resolve with `Path.resolve()` (strict=False) after the parent exists.
-- `ledger_lock(ledger, *, timeout_s=LEDGER_LOCK_TIMEOUT_S)`: a context manager that holds `machine_file_lock(path, blocking=True, timeout_s=...)` and translates `LockAcquireTimeout` into `LedgerLockTimeoutError`.
-- `append_ledger_lines(ledger, lines, *, create=True, create_parents=False, no_follow=False, mode=0o644, precondition=None, timeout_s=...)`:
-  1. Validate framing: non-empty, each a `str` without `\n` or `\r` → `ValueError`.
-  2. `create_parents` → `mkdir(parents=True, exist_ok=True)`.
-  3. Under the lock, `os.open(O_RDWR | O_APPEND | O_BINARY | (O_CREAT if create) | (O_NOFOLLOW if no_follow))`. Without `O_NOFOLLOW` support, `is_symlink` refuses.
-  4. Read the existing bytes when a precondition is given (call it with them), otherwise the last byte only (`os.pread`/seek).
-  5. Refuse a torn tail.
-  6. One `os.write` of the UTF-8 joined unit, `os.fsync`, close; a short write raises.
-- Errors (subclass `OSError`, each with `.code`): `LedgerAppendError`, `LedgerTornTailError` (`LEDGER_TORN_TAIL`, message names the file and the remedy: "inspect the last line; cut the partial bytes after the last newline, then retry"), `LedgerLockTimeoutError` (`LEDGER_LOCK_TIMEOUT`), `LedgerShortWriteError` (`LEDGER_SHORT_WRITE`).
-- The module docstring states: interim, retires at the #6193 handover (ADR 2026-10-22-1 D-4), the Java writer takes the same lock file, and there is no row validation (operator ruling 2026-10-25).
-- Complexity is 15 or below; split the open/read/write steps into helpers.
+The public API follows `contracts/interim-ledger-lock.md`.
 
-### T003 — Unit tests (`tests/kernel/test_ledger_append.py`)
+**`event_log_lock_path(anchor: Path) -> Path`**
+- `git_common_dir(resolved_anchor.parent) / LOCK_DIRECTORY / "event-logs" / f"{digest}.lock"`, where the digest is `sha256(os.path.normcase(str(resolved)))[:32]`.
+- `NotAGitRepositoryError`: use `<anchor>.event-log.lock`. Never `<log>.lock`, which is glossary's repair lock and would self-deadlock under the outer lock.
+- `GitTopologyUnavailableError`: raise `EventLogLockUnavailableError`.
+
+**`event_log_lock(anchor, *, timeout_s=EVENT_LOG_LOCK_TIMEOUT_S)`**
+- A context manager over `machine_file_lock(path, blocking=True, timeout_s=...)`.
+- It translates `LockAcquireTimeout` into `EventLogLockTimeoutError`.
+
+**`append_event_log_lines(log, lines, *, lock_anchor=None, create=True, create_parents=False, no_follow=False, mode=0o644, precondition=None, timeout_s=...)`**
+1. Validate the framing: a non-empty sequence of `str`, with no `\n` or `\r` (`ValueError`).
+2. `create_parents` runs `mkdir`. Otherwise, a missing parent raises `FileNotFoundError` **before** any lock path is resolved: the lock must not create a directory (#6367 class).
+3. Under the lock on `lock_anchor or log`, open with `O_RDWR | O_APPEND | O_BINARY | (O_CREAT if create)`. `no_follow` goes through `kernel.no_follow.open_no_follow`, and `NoFollowPathError` maps to `EventLogSymlinkError`.
+4. Read the existing bytes with `lseek` + `read` (`pread` is POSIX-only): all of them when a precondition is given, else the last byte. Refuse a torn tail, then call the precondition.
+5. One `os.write` of the UTF-8 unit, then `os.fsync`. A short write raises.
+
+**Errors** (each an `OSError` subclass with a `.code`): `EventLogAppendError`, `EventLogTornTailError`, `EventLogLockTimeoutError`, `EventLogLockUnavailableError`, `EventLogSymlinkError`, `EventLogShortWriteError`. They are named `EventLog*` so they do not collide with `spec_kitty_events.persistence.LedgerTornTailError`.
+
+**Module docstring:** the module is interim and retires at the #6193 handover (ADR 2026-10-22-1 D-4). The Java writer takes the same lock file. There is no row validation (operator ruling 2026-10-25).
+
+Keep complexity at 15 or below.
+
+### T003 — Unit tests (`tests/kernel/test_event_log_append.py`)
 
 - One row, a multi-row unit, and the exact bytes.
 - Framing refusals.
@@ -85,14 +95,16 @@ Public API:
 - `create_parents`.
 - A precondition raise writes nothing.
 - No-follow refuses a symlink.
-- The lock path is the same from a worktree and from the main checkout (`git worktree add` in `tmp_path`), and uses the sibling outside git.
+- The lock path is the same from a worktree and from the main checkout (`git worktree add` in `tmp_path`); outside git it is `<anchor>.event-log.lock`; `GitTopologyUnavailableError` (monkeypatched) refuses.
+- A missing parent with `create_parents=False` raises `FileNotFoundError` and creates no directory.
+- A family anchor: two files under one directory get the same lock path.
 - `fsync` is called (monkeypatch).
 - The errors are `OSError`s.
 
 ### T004 — Concurrency and timeout
 
 - 8 `multiprocessing` processes × 50 rows → 400 parseable lines (NFR-002). Mark `slow` only if it exceeds 2 s.
-- Lock timeout: hold `ledger_lock` in the test, then append with `timeout_s=0.2` → `LedgerLockTimeoutError`, and nothing is written.
+- Lock timeout: hold `event_log_lock` in the test, then append with `timeout_s=0.2` → `EventLogLockTimeoutError`, and nothing is written.
 
 ## Definition of Done
 
