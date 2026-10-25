@@ -9,6 +9,7 @@ unchanged; see the status gate's docstring for the resolution rules.
 from __future__ import annotations
 
 import ast
+import os
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +66,8 @@ class _ModuleContext:
     events_aliases: frozenset[str]
     parents: Mapping[ast.AST, ast.AST]
     calls: tuple[ast.Call, ...]
+    #: Methods by name, only when the name is defined once in the module.
+    methods: Mapping[str, ast.FunctionDef]
 
 
 def _assignment_targets(node: ast.AST) -> Iterable[tuple[ast.expr, ast.expr]]:
@@ -112,7 +115,17 @@ def _build_context(tree: ast.Module) -> _ModuleContext:
             if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id in _SELF_NAMES:
                 self_attributes[target.attr] = (value, _enclosing_function(parents, node))
     calls = tuple(node for node in ast.walk(tree) if isinstance(node, ast.Call))
-    return _ModuleContext(functions, module_assignments, self_attributes, _events_aliases(tree), parents, calls)
+    return _ModuleContext(functions, module_assignments, self_attributes, _events_aliases(tree), parents, calls, _unique_methods(tree))
+
+
+def _unique_methods(tree: ast.Module) -> dict[str, ast.FunctionDef]:
+    seen: dict[str, list[ast.FunctionDef]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    seen.setdefault(item.name, []).append(item)
+    return {name: defs[0] for name, defs in seen.items() if len(defs) == 1}
 
 
 # ---------------------------------------------------------------------------
@@ -121,10 +134,20 @@ def _build_context(tree: ast.Module) -> _ModuleContext:
 
 
 class _Resolver:
-    """Best-effort static text of a path expression (only its tail matters)."""
+    """Best-effort static text of a path expression (only its tail matters).
 
-    def __init__(self, ctx: _ModuleContext) -> None:
+    Two options, both off for the status gate so its census is unchanged and
+    on for the multi-log gate: ``follow_methods`` also resolves
+    ``self.<method>(...)`` through the method's returns (a name defined once in
+    the module); ``common_suffix`` resolves values that disagree (a helper that
+    returns one of two log paths) to their shared tail, so a write to either is
+    still seen as a ``.jsonl`` write.
+    """
+
+    def __init__(self, ctx: _ModuleContext, *, follow_methods: bool = False, common_suffix: bool = False) -> None:
         self._ctx = ctx
+        self._follow_methods = follow_methods
+        self._common_suffix = common_suffix
 
     def resolve(self, expr: ast.expr, fn: ast.FunctionDef | None, depth: int = 0) -> str | None:
         if depth > _MAX_DEPTH:
@@ -175,6 +198,9 @@ class _Resolver:
             return self.resolve(func.value, fn, depth)
         if func.attr in {"joinpath", "with_name"} and expr.args:
             return self.resolve(expr.args[-1], fn, depth)
+        method = self._ctx.methods.get(func.attr) if self._follow_methods else None
+        if method is not None and isinstance(func.value, ast.Name) and func.value.id in _SELF_NAMES:
+            return self._function_return(method, depth)
         return None
 
     def _function_return(self, target: ast.FunctionDef, depth: int) -> str | None:
@@ -208,10 +234,13 @@ class _Resolver:
             return None
         return self._agree(self.resolve(argument, _enclosing_function(self._ctx.parents, argument), depth) for argument in arguments if argument is not None)
 
-    @staticmethod
-    def _agree(values: Iterable[str | None]) -> str | None:
+    def _agree(self, values: Iterable[str | None]) -> str | None:
         distinct = set(values)
-        return distinct.pop() if len(distinct) == 1 else None
+        if len(distinct) == 1:
+            return distinct.pop()
+        if not self._common_suffix or not distinct or None in distinct:
+            return None
+        return os.path.commonprefix([value[::-1] for value in distinct if value is not None])[::-1] or None
 
     _handlers = {
         ast.Constant: _constant,
@@ -338,6 +367,37 @@ def scan_write_sites(module: str, tree: ast.Module) -> list[WriteSite]:
         text = resolver.resolve(path, _enclosing_function(ctx.parents, node))
         sites.append(WriteSite(module, node.lineno, kind, mode, ast.unparse(path), text))
     return sites
+
+
+def _qualname(parents: Mapping[ast.AST, ast.AST], node: ast.AST) -> str:
+    """Dotted name of the innermost function enclosing ``node``, with its classes (``<module>`` outside any function)."""
+    names: list[str] = []
+    in_function = False
+    current = parents.get(node)
+    while current is not None:
+        if isinstance(current, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            names.append(current.name)
+            in_function = in_function or not isinstance(current, ast.ClassDef)
+        current = parents.get(current)
+    return ".".join(reversed(names)) if in_function else "<module>"
+
+
+def scan_attributed_write_sites(module: str, tree: ast.Module) -> list[tuple[str, WriteSite]]:
+    """``(enclosing function, site)`` for every write-mode file operation, resolving ``self.<method>()`` helpers too.
+
+    The module context is built only when the module holds a write, which
+    keeps a whole-tree scan inside the gate's time budget.
+    """
+    writes = [(node, classified) for node in ast.walk(tree) if isinstance(node, ast.Call) and (classified := classify_call(node)) is not None]
+    if not writes:
+        return []
+    ctx = _build_context(tree)
+    resolver = _Resolver(ctx, follow_methods=True, common_suffix=True)
+    found: list[tuple[str, WriteSite]] = []
+    for node, (kind, mode, path) in writes:
+        text = resolver.resolve(path, _enclosing_function(ctx.parents, node))
+        found.append((_qualname(ctx.parents, node), WriteSite(module, node.lineno, kind, mode, ast.unparse(path), text)))
+    return found
 
 
 def scan_write_sites_from_source(module: str, source: str) -> list[WriteSite]:

@@ -87,9 +87,12 @@ Until the Java write service owns a log (#6193), an append to any event log othe
   the `precondition` callback so it runs under the lock; `event_log_lock(path)` holds the
   lock for a read-modify-write such as the glossary contract write.
 - **The gate.** `tests/architectural/test_event_log_writes_gate.py` ledgers every caller of
-  the door and of `spec_kitty_events.persistence.append_event` by module and function,
-  fails any raw write to a named log or any other `.jsonl`, and pins raw writes whose path
-  reads like a log. A new caller is added to its ledger in the change that adds it.
+  the door and of `spec_kitty_events.persistence.append_event` (under any alias) by module
+  and function, fails a raw write whose path it resolves to a named log or any other
+  `.jsonl`, and pins raw writes whose path reads like a log. A new caller is added to its
+  ledger in the change that adds it. It cannot see a path that arrives only as a parameter
+  whose callers disagree, a path built from a glob, or an imported constant with a neutral
+  name, so do not lean on it: use the door.
 - **Retirement.** Each log's interim append, and its ledger entry, is deleted when the
   write service takes that log over whole (#6193); the module goes with the last one.
   Do not build new behaviour on it.

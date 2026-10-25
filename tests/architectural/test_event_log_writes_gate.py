@@ -8,7 +8,7 @@ drains as each log moves behind the EventBridge (#6193 hands each file over
 whole). ``status.events.jsonl`` keeps its own, stricter gate
 (``test_status_events_writes_gate.py``) and is not scanned here.
 
-Two censuses, both keyed without line numbers:
+Three censuses, all keyed without line numbers:
 
 * **Door callers.** Every call of the interim locked append
   (``kernel.event_log_append.append_event_log_lines`` / ``event_log_lock``,
@@ -20,12 +20,28 @@ Two censuses, both keyed without line numbers:
   log (a literal, a module constant, a ``self`` attribute, a same-module path
   helper, or a local assigned from one) is ledgered in
   ``EXPECTED_RAW_LOG_WRITERS`` with the reason it is not an append bypass. The
-  ledger is empty today: on the tree before #6606 this census reports exactly
-  the eight unlocked appends that change routed.
+  census resolves paths with the shared ``_write_site_scan`` resolver (the
+  status gate's), with ``self.<method>()`` helpers followed as well. On the
+  tree before #6606 it reports exactly the eight unlocked appends that change
+  routed; today it holds only writes that are not appends.
+* **Unresolved writes.** A raw write whose path names no log but whose
+  expression reads like one (``events``, ``jsonl``, ``ledger``, ``log``) is
+  pinned in ``EXPECTED_UNRESOLVED_LOG_WRITES`` with its reason.
 
-Residual: a raw write whose path arrives only as a parameter (a shared
-line-appender helper called with several logs) is not attributed to a log by
-the raw census; the door census still sees the routed form.
+The door ledger is keyed by function, not by the path expression the WP
+first named: one helper often appends to several logs through one parameter,
+while the function is stable. A new caller in another function fails, and an
+extra call in a ledgered function fails on the count. Accepted weakness: a
+ledgered function redirected to a different log still passes.
+
+Residuals the censuses cannot see: a path that arrives only as a parameter
+whose call sites disagree (the door census still sees a routed form); a path
+built from a glob (``m_3_3_0_op_record_schema_v2`` rewrites ``kitty-ops/*.jsonl``
+found by ``glob``); a path from an imported constant with a neutral name; a
+``self.<method>()`` helper whose name is defined in more than one class of the
+module.
+
+The gate's own scan of ``src/`` stays under NFR-004's 5 s (``timing`` test).
 
 ``canonical-events.jsonl`` is written through ``specify_cli.status.store``
 under the status lock and the ``status/_unsafe.py`` allowlist; its raw writes
@@ -40,6 +56,7 @@ floors feed synthetic writers to the same scanners.
 from __future__ import annotations
 
 import ast
+import time
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -48,7 +65,7 @@ from types import MappingProxyType
 
 import pytest
 
-from tests.architectural._write_site_scan import classify_call, module_name_for
+from tests.architectural._write_site_scan import module_name_for, scan_attributed_write_sites
 from tests.architectural.conftest import SourceFile
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
@@ -87,6 +104,7 @@ DOORS: Mapping[str, str] = MappingProxyType(
         "append_event": "spec_kitty_events.persistence",
     }
 )
+_DOOR_MODULES: frozenset[str] = frozenset(DOORS.values())
 #: Modules that own a door and so never count as its caller.
 _DOOR_OWNERS: frozenset[str] = frozenset({"kernel.event_log_append"})
 #: Modules whose raw writes are the durability mechanism, not a writer.
@@ -117,10 +135,22 @@ EXPECTED_DOOR_CALLERS: Mapping[tuple[str, str, str], int] = MappingProxyType(
 )
 
 #: Every raw writer of a gated log today: ``(module, function, family) -> reason``.
-#: Empty since #6606 routed the last unlocked append through the interim door;
-#: a whole-file rewrite, merge driver or repair that names a gated log in its
-#: write path must be ledgered here with its reason.
-EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType({})
+#: No unlocked append is left since #6606 routed the last one through the
+#: interim door; what remains is not an append. A whole-file rewrite, merge
+#: driver or repair that names a gated log in its write path is ledgered here
+#: with its reason.
+EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType(
+    {
+        ("glossary.events", "_repair_torn_tail", "glossary"): (
+            "torn-tail repair: appends the torn fragment to the `.torn` sidecar and truncates the ledger to its last "
+            "full line under its own repair lock; the append itself is the contract writer under the interim lock"
+        ),
+        ("specify_cli.invocation.writer", "InvocationWriter.write_started", "other .jsonl"): (
+            "exclusive create (mode 'x') of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, "
+            "so it can never append to or race another writer of that trail"
+        ),
+    }
+)
 
 _STATUS_GATE = "a status.events.jsonl write the status gate ledgers (test_status_events_writes_gate.py)"
 
@@ -130,10 +160,6 @@ _STATUS_GATE = "a status.events.jsonl write the status gate ledgers (test_status
 #: parameter lands here.
 EXPECTED_UNRESOLVED_LOG_WRITES: Mapping[tuple[str, str, str], str] = MappingProxyType(
     {
-        ("glossary.events", "_repair_torn_tail", "event_log_path"): (
-            "glossary torn-tail repair: moves the torn fragment to a `.torn` sidecar and truncates the ledger "
-            "under its own repair lock; the append itself goes through the contract writer"
-        ),
         ("specify_cli.consolidation.bookkeeping_projection", "_project_status_bookkeeping_to_target", "trusted_target_events_path"): _STATUS_GATE,
         ("specify_cli.status.mission_write", "_rollback_events_locked", "point.events_path"): _STATUS_GATE,
     }
@@ -157,7 +183,7 @@ class DoorCall:
 
 
 def _functions(tree: ast.Module) -> list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]:
-    """``(qualified name, node)`` for each top-level function, method and nested function."""
+    """``(qualified name, node)`` for each top-level function and method."""
     found: list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]] = []
 
     def visit(body: Iterable[ast.stmt], prefix: str) -> None:
@@ -171,17 +197,6 @@ def _functions(tree: ast.Module) -> list[tuple[str, ast.FunctionDef | ast.AsyncF
     return found
 
 
-def _door_aliases(tree: ast.Module) -> dict[str, str]:
-    """Local name -> door, for every ``from <owner> import <door> [as alias]``."""
-    aliases: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            for alias in node.names:
-                if DOORS.get(alias.name) == node.module:
-                    aliases[alias.asname or alias.name] = alias.name
-    return aliases
-
-
 def _call_name(node: ast.Call) -> str | None:
     func = node.func
     if isinstance(func, ast.Name):
@@ -191,40 +206,69 @@ def _call_name(node: ast.Call) -> str | None:
     return None
 
 
-def _door_of(node: ast.AST, aliases: Mapping[str, str]) -> str | None:
-    """The door a call opens: an imported alias, or ``<module>.<door>`` attribute access."""
-    if not isinstance(node, ast.Call):
-        return None
-    name = _call_name(node)
-    if name is not None and name in aliases:
-        return aliases[name]
-    func = node.func
-    if isinstance(func, ast.Attribute) and func.attr in DOORS and func.attr != "append_event":
-        return func.attr  # e.g. ``event_log_append.append_event_log_lines(...)``
-    return None
+class _DoorVisitor(ast.NodeVisitor):
+    """One pass over a module: its door imports, and every call that may open a door, with its enclosing function."""
+
+    def __init__(self) -> None:
+        self.names: dict[str, str] = {}
+        self.modules: dict[str, str] = {}
+        self.scope: list[str] = []
+        self.in_function = 0
+        self.candidates: list[tuple[str, ast.expr]] = []
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        for alias in node.names if node.module else ():
+            if DOORS.get(alias.name) == node.module:
+                self.names[alias.asname or alias.name] = alias.name
+            elif f"{node.module}.{alias.name}" in _DOOR_MODULES:
+                self.modules[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            if alias.name in _DOOR_MODULES:
+                self.modules[alias.asname or alias.name] = alias.name
+
+    def _enter(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef, function: bool) -> None:
+        self.scope.append(node.name)
+        self.in_function += function
+        self.generic_visit(node)
+        self.in_function -= function
+        self.scope.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._enter(node, True)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._enter(node, True)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._enter(node, False)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        func = node.func
+        if isinstance(func, ast.Name) or (isinstance(func, ast.Attribute) and func.attr in DOORS):
+            self.candidates.append((".".join(self.scope) if self.in_function else "<module>", func))
+        self.generic_visit(node)
+
+    def door_of(self, func: ast.expr) -> str | None:
+        """The door ``func`` names, judged after the whole module (imports included) was visited."""
+        if isinstance(func, ast.Name):
+            return self.names.get(func.id)
+        assert isinstance(func, ast.Attribute)
+        owner = ast.unparse(func.value)
+        if self.modules.get(owner, owner) == DOORS[func.attr]:
+            return func.attr  # ``<door module or its alias>.<door>(...)``
+        # The kernel door names are unique, so any ``x.<door>(...)`` counts; ``append_event`` is too common a name.
+        return func.attr if func.attr != "append_event" else None
 
 
 def scan_door_calls(module: str, tree: ast.Module) -> list[DoorCall]:
-    """Every door call in ``module``, attributed to its innermost enclosing function (``<module>`` at top level)."""
+    """Every door call in ``module`` under any import alias, attributed to its innermost enclosing function."""
     if module in _DOOR_OWNERS:
         return []
-    aliases = _door_aliases(tree)
-    owner_of: dict[int, str] = {}
-    for qual, fn in _functions(tree):
-        for node in ast.walk(fn):
-            owner_of[id(node)] = qual  # nested functions are visited later and overwrite their own nodes
-    nested: list[tuple[str, ast.AST]] = []
-    for qual, fn in _functions(tree):
-        nested.extend((f"{qual}.{inner.name}", inner) for inner in ast.walk(fn) if inner is not fn and isinstance(inner, ast.FunctionDef | ast.AsyncFunctionDef))
-    for qual, inner in nested:
-        for node in ast.walk(inner):
-            owner_of[id(node)] = qual
-    calls: list[DoorCall] = []
-    for node in ast.walk(tree):
-        door = _door_of(node, aliases)
-        if door is not None:
-            calls.append(DoorCall(module, owner_of.get(id(node), "<module>"), door))
-    return calls
+    visitor = _DoorVisitor()
+    visitor.visit(tree)
+    return [DoorCall(module, function, door) for function, func in visitor.candidates if (door := visitor.door_of(func)) is not None]
 
 
 def _family_of_text(text: str) -> str | None:
@@ -236,130 +280,42 @@ def _family_of_text(text: str) -> str | None:
     return None
 
 
-def _docstring_ids(tree: ast.Module) -> set[int]:
-    found: set[int] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-            first = node.body[0] if node.body else None
-            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
-                found.add(id(first.value))
-    return found
+def _is_log_shaped(expression: str) -> bool:
+    lowered = expression.lower()
+    return any(word in lowered for word in _LEDGER_WORDS)
 
 
-def _literal_families(node: ast.AST, docstrings: set[int]) -> set[str]:
-    families: set[str] = set()
-    for sub in ast.walk(node):
-        if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and id(sub) not in docstrings:
-            family = _family_of_text(sub.value)
-            if family is not None:
-                families.add(family)
-    return families
+def scan_write_censuses(module: str, tree: ast.Module) -> tuple[set[tuple[str, str, str]], set[tuple[str, str, str]]]:
+    """``(raw writers, unresolved writes)`` of ``module`` from one pass of the shared write-site scanner.
 
-
-def _module_constants(tree: ast.Module, docstrings: set[int]) -> dict[str, set[str]]:
-    """Module-level names and ``self.<attr>`` attributes whose value names a gated log -> its families."""
-    constants: dict[str, set[str]] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
-                    families = _literal_families(node.value, docstrings)
-                    if families:
-                        constants.setdefault(target.attr, set()).update(families)
-    for node in tree.body:
-        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) and node.value is not None else []
-        value = node.value if isinstance(node, ast.Assign | ast.AnnAssign) else None
-        if value is None:
-            continue
-        families = _literal_families(value, docstrings)
-        for target in targets:
-            if isinstance(target, ast.Name) and families:
-                constants[target.id] = families
-    return constants
-
-
-def _referenced_families(fn: ast.AST, constants: Mapping[str, set[str]], docstrings: set[int]) -> set[str]:
-    families = _literal_families(fn, docstrings)
-    for node in ast.walk(fn):
-        name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
-        if name is not None and name in constants:
-            families |= constants[name]
-    return families
-
-
-def _helper_families(
-    functions: list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]], constants: Mapping[str, set[str]], docstrings: set[int]
-) -> dict[str, set[str]]:
-    """Short name -> gated logs a same-module path helper returns (from what its ``return`` statements name)."""
-    helpers: dict[str, set[str]] = {}
-    for qual, fn in functions:
-        families: set[str] = set()
-        for node in ast.walk(fn):
-            if isinstance(node, ast.Return) and node.value is not None:
-                families |= _referenced_families(node.value, constants, docstrings)
-        if families:
-            helpers[qual.rsplit(".", 1)[-1]] = families
-    return helpers
-
-
-def _last_assignment(fn: ast.AST, name: str) -> ast.expr | None:
-    found: ast.expr | None = None
-    for node in ast.walk(fn):
-        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
-            found = node.value
-    return found
-
-
-def _path_families(path: ast.expr, fn: ast.AST, names: Mapping[str, set[str]], docstrings: set[int], depth: int = 0) -> set[str]:
-    """Gated logs a write's path expression names: literals, constants, ``self`` attributes, path helpers, locals."""
-    families = _referenced_families(path, names, docstrings)
-    for node in ast.walk(path):
-        if isinstance(node, ast.Name) and depth < 4 and not families:
-            assigned = _last_assignment(fn, node.id)
-            if assigned is not None and assigned is not path:
-                families |= _path_families(assigned, fn, names, docstrings, depth + 1)
-        if isinstance(node, ast.Call) and (called := _call_name(node)) is not None and called in names:
-            families |= names[called]
-    return families
-
-
-def _write_paths(module: str, tree: ast.Module) -> list[tuple[str, ast.expr, set[str]]]:
-    """``(function, path expression, families it names)`` for each raw write-mode file operation."""
+    A raw writer is ``(module, function, family)``: a write-mode file operation
+    whose path the shared resolver (``_write_site_scan``: literals, f-strings,
+    locals, module constants, ``self`` attributes, same-module path helpers and
+    ``self.<method>()`` helpers, parameters every call site agrees on) resolves
+    to a gated log or any other ``.jsonl``. ``status.events.jsonl`` is left to
+    its own gate. An unresolved write is ``(module, function, path
+    expression)``: its path names no log, but the expression reads like one.
+    """
     if module in _RAW_OWNERS:
-        return []
-    docstrings = _docstring_ids(tree)
-    constants = _module_constants(tree, docstrings)
-    functions = _functions(tree)
-    names = {**constants, **_helper_families(functions, constants, docstrings)}
-    found: list[tuple[str, ast.expr, set[str]]] = []
-    for qual, fn in functions:
-        for node in ast.walk(fn):
-            classified = classify_call(node) if isinstance(node, ast.Call) else None
-            if classified is not None:
-                found.append((qual, classified[2], _path_families(classified[2], fn, names, docstrings)))
-    return found
+        return set(), set()
+    raw: set[tuple[str, str, str]] = set()
+    unresolved: set[tuple[str, str, str]] = set()
+    for function, site in scan_attributed_write_sites(module, tree):
+        family = _family_of_text(site.path_text) if site.path_text is not None else None
+        if family is None:
+            if _is_log_shaped(site.path_expr):
+                unresolved.add((module, function, site.path_expr))
+        elif family != _STATUS_FAMILY:
+            raw.add((module, function, family))
+    return raw, unresolved
 
 
 def scan_raw_log_writers(module: str, tree: ast.Module) -> set[tuple[str, str, str]]:
-    """``(module, function, family)`` for each raw write-mode file operation whose path names a gated log.
-
-    The path names a log through a literal, a module constant, a ``self``
-    attribute set from one, a same-module path helper that returns one, or a
-    local variable assigned from any of those. Judged per write site, so a
-    function that writes one file and calls a helper naming another is not
-    reported. A path naming ``status.events.jsonl`` is left to its own gate.
-    """
-    return {(module, qual, family) for qual, _path, families in _write_paths(module, tree) for family in families - {_STATUS_FAMILY}}
+    return scan_write_censuses(module, tree)[0]
 
 
 def scan_unresolved_log_writes(module: str, tree: ast.Module) -> set[tuple[str, str, str]]:
-    """``(module, function, path expression)`` for each raw write whose path names no log but reads like one."""
-    found: set[tuple[str, str, str]] = set()
-    for qual, path, families in _write_paths(module, tree):
-        expression = ast.unparse(path)
-        if not families and any(word in expression.lower() for word in _LEDGER_WORDS):
-            found.add((module, qual, expression))
-    return found
+    return scan_write_censuses(module, tree)[1]
 
 
 @dataclass(frozen=True)
@@ -378,8 +334,9 @@ def scan_src_tree(src_source_tree: Mapping[Path, SourceFile]) -> TreeScan:
         assert isinstance(tree, ast.Module)
         module = module_name_for(path)
         door_calls.extend(scan_door_calls(module, tree))
-        raw |= scan_raw_log_writers(module, tree)
-        unresolved |= scan_unresolved_log_writes(module, tree)
+        module_raw, module_unresolved = scan_write_censuses(module, tree)
+        raw |= module_raw
+        unresolved |= module_unresolved
     return TreeScan(tuple(door_calls), frozenset(raw), frozenset(unresolved))
 
 
@@ -429,6 +386,14 @@ def test_no_new_unresolved_log_writes(tree_scan: TreeScan) -> None:
 def test_unresolved_ledger_is_live(tree_scan: TreeScan) -> None:
     stale = sorted(EXPECTED_UNRESOLVED_LOG_WRITES.keys() - tree_scan.unresolved_writes)
     assert not stale, f"Pinned unresolved writes that no longer exist (shrink the ledger): {stale}"
+
+
+@pytest.mark.timing
+def test_the_scan_meets_its_time_budget(src_source_tree: Mapping[Path, SourceFile]) -> None:
+    """NFR-004: the gate's scan of the full ``src/`` tree (already parsed) takes under 5 s."""
+    started = time.perf_counter()
+    scan_src_tree(src_source_tree)
+    assert time.perf_counter() - started < 5.0
 
 
 def test_the_gate_sees_todays_writers(tree_scan: TreeScan) -> None:
@@ -519,8 +484,58 @@ def test_door_calls_are_found_under_any_alias() -> None:
     )
 
 
+def test_a_raw_write_through_a_method_helper_and_a_helper_local_is_reported() -> None:
+    """Review cycle 1: the per-Op trail resolves through ``self.invocation_path(...)``; a helper may return a local."""
+    source = (
+        "class W:\n"
+        "    def invocation_path(self, op):\n        candidate = self._dir / f'{op}.jsonl'\n        return candidate\n"
+        "    def rogue(self, op):\n        path = self.invocation_path(op)\n        with path.open('a') as f:\n            f.write('x')\n"
+        "def journal(run):\n    p = run / 'run.events.jsonl'\n    return p\n"
+        "def step(run):\n    journal(run).open('a').write('x')\n"
+    )
+    assert scan_raw_log_writers("specify_cli.rogue", ast.parse(source)) == {
+        ("specify_cli.rogue", "W.rogue", "other .jsonl"),
+        ("specify_cli.rogue", "step", "run journal"),
+    }
+
+
+def test_a_helper_returning_one_of_two_logs_is_reported() -> None:
+    source = (
+        "def route(d):\n    if d:\n        return d / '.encoding-provenance.jsonl'\n    return Path('.kittify/encoding-provenance/global.jsonl')\n"
+        "def put(d):\n    p = route(d)\n    with p.open('a') as f:\n        f.write('x')\n"
+    )
+    assert scan_raw_log_writers("specify_cli.rogue", ast.parse(source)) == {("specify_cli.rogue", "put", "other .jsonl")}
+
+
+def test_a_module_level_raw_write_is_reported() -> None:
+    source = "open('kitty-ops/lifecycle.jsonl', 'a').write('x')\n"
+    assert scan_raw_log_writers("specify_cli.rogue", ast.parse(source)) == {("specify_cli.rogue", "<module>", "Op lifecycle")}
+
+
+@pytest.mark.parametrize(
+    "imports",
+    [
+        "import spec_kitty_events.persistence as p\n",
+        "from spec_kitty_events import persistence as p\n",
+    ],
+)
+def test_the_contract_writer_is_a_door_in_attribute_form(imports: str) -> None:
+    source = f"{imports}def f(row, log):\n    p.append_event(row, log)\n"
+    assert [call.key for call in scan_door_calls("specify_cli.rogue", ast.parse(source))] == [("specify_cli.rogue", "f", "append_event")]
+
+
+def test_the_contract_writer_is_a_door_under_its_full_dotted_name() -> None:
+    source = "import spec_kitty_events.persistence\ndef f(row, log):\n    spec_kitty_events.persistence.append_event(row, log)\n"
+    assert [call.key for call in scan_door_calls("specify_cli.rogue", ast.parse(source))] == [("specify_cli.rogue", "f", "append_event")]
+
+
+def test_a_door_imported_after_its_use_is_still_found() -> None:
+    source = "def f(p):\n    put(p, ['x'])\nfrom kernel.event_log_append import append_event_log_lines as put\n"
+    assert [call.key for call in scan_door_calls("specify_cli.rogue", ast.parse(source))] == [("specify_cli.rogue", "f", _LOCKED)]
+
+
 def test_an_unrelated_append_event_is_not_a_door() -> None:
-    source = "from specify_cli.status import append_event\ndef f(p):\n    append_event(p)\n"
+    source = "from specify_cli.status import append_event\nimport specify_cli.status as st\ndef f(p):\n    append_event(p)\n    st.append_event(p)\n"
     assert scan_door_calls("specify_cli.rogue", ast.parse(source)) == []
 
 
