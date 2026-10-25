@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
+  "mission_id": "01M5T0TN104YYNK795CF8A48BH",
+  "mission_branch": "kitty/mission-eventbridge-gate-and-locked-appends-01M5T0TN",
+  "target_branch": "issue-6603-6606-eventbridge-gate-and-locked-appends",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/ledger_append.py",
+        "src/kernel/locks.py",
+        "src/specify_cli/core/checkout_file_lock.py",
+        "tests/kernel/test_ledger_append.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/runtime/next/event_bridge.py",
+        "src/specify_cli/coordination/transaction.py",
+        "src/specify_cli/events/event_bridge.py",
+        "src/specify_cli/status/_unsafe.py",
+        "src/specify_cli/status/emit.py",
+        "tests/architectural/test_status_unsafe_allowlist.py",
+        "tests/specify_cli/events/test_event_bridge.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/_io.py",
+        "src/glossary/events.py",
+        "src/runtime/next/_internal_runtime/engine.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/invocation/lifecycle.py",
+        "src/specify_cli/invocation/propagator.py",
+        "src/specify_cli/mission_v1/events.py",
+        "src/specify_cli/missions/_archive.py",
+        "src/specify_cli/policy/audit.py",
+        "tests/kernel/test_locked_event_log_writers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/invocation/writer.py",
+        "tests/specify_cli/invocation/test_writer_locked_appends.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/architecture/event-ledger-writers-and-readers.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/events-in-core.md",
+        "tests/architectural/test_event_log_writes_gate.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-25T17:20:58.011835+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1963865bed543c80d1875bde1fb98ab6ef21d0f6"
+}
