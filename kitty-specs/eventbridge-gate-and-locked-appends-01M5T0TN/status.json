@@ -4,7 +4,7 @@
   "materialized_at": "2026-10-25T18:22:12.315301+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
     "approved": 1,
