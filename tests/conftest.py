@@ -1243,8 +1243,13 @@ def _create_test_venv(venv_dir: Path, source_version: str) -> None:
         install += ["-c", str(constraints)]
     try:
         subprocess.run(install, check=True)
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
         # Fallback for offline/dev shells where build deps cannot be downloaded.
+        print(
+            f"WARNING: pinned test-venv install failed (exit {exc.returncode}; constraints from uv.lock: {pins or 'none'}); "
+            "falling back to the offline seeded venv, whose dependency versions may diverge from uv.lock.",
+            file=sys.stderr,
+        )
         shutil.rmtree(venv_dir, ignore_errors=True)
         subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
         _seed_offline_test_venv(venv_dir, source_version)
