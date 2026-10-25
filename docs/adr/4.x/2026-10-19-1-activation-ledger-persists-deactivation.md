@@ -458,7 +458,9 @@ with the kind's whole in-force set before it appended the interview selections. 
 recorded no-op, superseded by `4.0.0rc8_promote_interview_selections` (ADR 2026-10-17-1,
 Amendment 2026-10-25, #6629). The successor:
 
-- writes through the activation ledger seam;
+- writes through the one activation write target (`resolve_activation_write_target`): the
+  activation ledger once `4.0.0rc8_activation_ledger` has moved the keys, and the legacy source in
+  place on a project not yet migrated;
 - appends only to a present list;
 - never writes an absent key.
 
@@ -467,8 +469,13 @@ operator chose a list". `charter synthesize` keeps its fresh-project seed and do
 companion tactic per directive.
 
 **Residual closed.** The deny-spelling residual above (the shipped promotion compared deny entries
-as raw spellings) is closed. The successor compares deny entries as stems, so a deny entry spelled
-by its declared id is honoured.
+as raw spellings) is closed. The successor leaves the deny check to the promotion primitive, which
+applies the effective deny in identity space (less the org required floor), so a deny entry
+spelled by its declared id is honoured.
+
+**Narrower scope, known.** The successor resolves interview selections against the built-in pack
+only, as the shipped step did. An interview id that only an org pack declares is reported as
+unresolved and not promoted.
 
 **Residual kept.** Two operator-time writers still turn an absent key into the full in-force set
 when they add to it:

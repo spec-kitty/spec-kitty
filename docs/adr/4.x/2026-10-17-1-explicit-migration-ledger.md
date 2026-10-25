@@ -609,17 +609,28 @@ had narrowed with `charter activate --only`.
 
 **Only where the shipped step never settled.** Since #2526 the interview record has not been an
 activation source, so promotion is a one-time backstop for a project that crosses that change.
-When the Migration Ledger records `unify_charter_activation_promote_answers` as `success`, a
+When the Migration Ledger records that `unify_charter_activation_promote_answers` ran, a
 present list that lacks an interview id has had it removed, or never had it in force, so the
-successor appends nothing. That record exists when the shipped step ran, or when the adoption
-backfill settled it for a project created after it. Appending would change activation silently
-(#6499). This adds a reading rule. A successor may read the tracked record of the migration it
-supersedes. It never branches on the record of any other migration: the Migration Ledger stays
-the selection authority, not a general state input.
+successor appends nothing. That is a `success` record (the shipped step ran, or the adoption
+backfill settled it for a project created after it) or a `skipped` record the shipped step wrote
+itself: the pre-ledger runner recorded `skipped` ("Not applicable") when the interview had already
+promoted, and the backfill copies it. The substitute's own `skipped` does not count. The runner
+marks it with the substitute's `superseded_by` note (an optional record field, written only when
+set), so the two read apart. On a project still being adopted, a dry run writes no record, so the
+successor also asks the pending adoption what it will record (`registry.pending_adoption_ids`,
+plus the legacy `skipped` in `metadata.yaml`), as selection does. Appending would change
+activation silently (#6499). This adds a reading rule. A successor may read the record of the
+migration it supersedes, through its authoritative partition. It never branches on the record of
+any other migration: the Migration Ledger stays the selection authority, not a general state input.
+
+**Residual.** A shipped `skipped` can also mean the step did nothing at all: it read only
+`.kittify/config.yaml`, so on a project whose keys were in `charter.yaml` and that had no
+`config.yaml` it skipped without promoting (#6549). The successor appends nothing there either.
+Interview-side promotion since #2526 covers most of those projects.
 
 **Version.** The successor sits at 4.0.0rc8. The ledger-adoption backfill settles only steps
 below both the recorded version and 4.0.0rc8, so it is never settled without running.
-`tests/specify_cli/upgrade/test_upgrade_keeps_absent_activation_6629.py` drives a project stamped
+`tests/upgrade/test_upgrade_keeps_absent_activation_6629.py` drives a project stamped
 below 3.2.6rc1 through the runner and `charter synthesize --dry-run --json`. On a project stamped
 above 3.2.6rc1, adoption settles the shipped step without running it in that upgrade, so a
 reproduction stamped there would never witness the bug.

@@ -125,7 +125,8 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     An absent key is seeded from the effective set
     (:func:`charter.activation.effective_set.resolve_effective_sets`, FR-015);
     when that set cannot be resolved the key stays absent and a warning names
-    it (#4400).
+    it (#4400). This seeding is the #6408 residual: unlike the upgrade, an
+    interview without ``--narrow-activation`` still turns an absent key into a list.
 
     Best-effort / non-fatal by contract: the caller wraps this in a broad
     ``except`` so a promotion failure never blocks the interview answers
