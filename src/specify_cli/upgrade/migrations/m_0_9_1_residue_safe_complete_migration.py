@@ -21,7 +21,7 @@ from specify_cli.frontmatter import FrontmatterError, FrontmatterManager, normal
 
 from ..registry import MigrationRegistry
 from . import m_0_9_1_complete_lane_migration as _shipped
-from ._residue_successor import partition_checkout_specs, predecessor_settled, residue_warnings
+from ._residue_successor import ResidueProbes, partition_checkout_specs, predecessor_settled, residue_warnings
 from .base import MigrationResult
 
 PREDECESSOR_ID = "0.9.1_complete_migration"
@@ -47,18 +47,35 @@ class ResidueSafeCompleteLaneMigration(_shipped.CompleteLaneMigration):
     migration_id = "0.9.1_residue_safe_complete_migration"
     description = "Residue-safe complete lane migration + clean up worktrees + normalize frontmatter, never in a kitty-specs/ residue folder"
 
+    _probes: ResidueProbes | None = None
+
+    def _is_residue(self, feature_path: Path) -> bool:
+        """Residue decision through this run's probe cache (one git probe per checkout); uncached outside detect/apply."""
+        if self._probes is None:
+            return is_kitty_specs_residue(feature_path)
+        return self._probes.is_residue(feature_path)
+
     def _has_remaining_lane_dirs(self, feature_path: Path) -> bool:
         """Lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
-        return bool(super()._has_remaining_lane_dirs(feature_path)) and not is_kitty_specs_residue(feature_path)
+        return bool(super()._has_remaining_lane_dirs(feature_path)) and not self._is_residue(feature_path)
 
     def detect(self, project_path: Path) -> bool:
         if predecessor_settled(project_path, PREDECESSOR_ID):
             return False
-        return bool(super().detect(project_path))
+        self._probes = ResidueProbes()
+        try:
+            return bool(super().detect(project_path))
+        finally:
+            self._probes = None
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        result = super().apply(project_path, dry_run)
-        _missions, residue = partition_checkout_specs(project_path)
+        # Probe every checkout before the shipped walk moves a file: a git timeout then aborts with nothing moved.
+        self._probes = ResidueProbes()
+        try:
+            _missions, residue = partition_checkout_specs(project_path, self._probes)
+            result = super().apply(project_path, dry_run)
+        finally:
+            self._probes = None
         result.warnings.extend(residue_warnings(residue, project_path))
         return result
 
@@ -68,7 +85,7 @@ class ResidueSafeCompleteLaneMigration(_shipped.CompleteLaneMigration):
         warnings: list[str] = []
         errors: list[str] = []
 
-        missions, _residue = partition_checkout_specs(project_path)
+        missions, _residue = partition_checkout_specs(project_path, self._probes)
         md_files = [md_file for mission_dir in missions for md_file in mission_dir.rglob("*.md")]
         if not md_files:
             changes.append("No markdown files found")

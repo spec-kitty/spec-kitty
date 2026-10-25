@@ -29,15 +29,18 @@ import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from kernel.clock import now_utc
+from kernel.git import GitCommandError
 from specify_cli.context.mission_resolver import residue_notice_path
 from specify_cli.status.transitions import CANONICAL_LANES
 from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.migrations import _residue_successor as residue_plumbing
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_0_9_0_frontmatter_only_lanes as shipped_090
 from specify_cli.upgrade.migrations import m_0_9_1_complete_lane_migration as shipped_091
@@ -646,14 +649,27 @@ def test_residue_is_left_byte_identical_when_the_successor_runs_inside_the_workt
     assert _notice_paths(result) == _expected_notices("kitty-specs/")
 
 
-@pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)
-def test_residue_alone_never_makes_detect_true(tmp_path: Path, old: str, new: str) -> None:
+def _consistent_project(tmp_path: Path) -> Path:
+    """A tracked project whose one real Mission needs no repair from any of the four successors."""
     repo = _tracked_project(tmp_path)
+    meta = json.loads(_full_meta("real-mission"))
+    meta.update(mission_id="01ARZ3NDEKTSV4RRFFQ69G5FAV", mission_number="", friendly_name="mission")
+    _write(repo / "kitty-specs" / "real-mission" / "meta.json", json.dumps(meta) + "\n")
+    _commit_all(repo, "complete meta")
+    return repo
+
+
+@pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)
+def test_residue_alone_never_makes_detect_true(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, old: str, new: str) -> None:
+    monkeypatch.setattr("specify_cli.upgrade.migrations.m_2_0_6_residue_safe_consistency_sweep._has_legacy_worktree_assets", lambda _project: False)
+    repo = _consistent_project(tmp_path)
     migration = _get(new)
     without_residue = migration.detect(repo)
+    assert without_residue is False, "the baseline must need no repair, or the residue check proves nothing"
+
     _plant_residue(repo / "kitty-specs")
 
-    assert migration.detect(repo) is without_residue
+    assert migration.detect(repo) is False
 
 
 @pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)
@@ -905,6 +921,219 @@ def test_c006_a_failed_predecessor_at_a_higher_version_is_settled_by_adoption(tm
 
     assert NEW_206 not in _selected(project, "3.0.0", "3.0.0")
     assert settled_in_selection_view(project, NEW_206) is True
+
+
+# ---------------------------------------------------------------------------
+# 9b. A git probe failure aborts before any file moves, and is a recorded failure
+# ---------------------------------------------------------------------------
+
+_PROBE_PATH = "specify_cli.upgrade.migrations._residue_successor.probe_tracked_mission_paths"
+
+
+def _timeout() -> GitCommandError:
+    return GitCommandError(argv=("ls-files",), cwd=Path("."), returncode=-1, stderr="timed out", timed_out=True)
+
+
+def _raise_timeout(_root: Path) -> frozenset[str] | None:
+    raise _timeout()
+
+
+@pytest.mark.parametrize("new", [NEW_090, NEW_091], ids=["0.9.0", "0.9.1"])
+def test_a_git_timeout_aborts_the_lane_successor_before_it_moves_a_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, new: str) -> None:
+    repo = _tracked_project(tmp_path)
+    mission = _dirty_mission(repo, "001-legacy")
+    _write(mission / "meta.json", json.dumps({"mission_id": "01ARZ3NDEKTSV4RRFFQ69G5FAW", "mission_slug": "001-legacy"}))
+    _plant_residue(repo / "kitty-specs")
+    before = _snapshot(repo)
+    monkeypatch.setattr(_PROBE_PATH, _raise_timeout)
+
+    with pytest.raises(GitCommandError):
+        _get(new).apply(repo)
+
+    assert _snapshot(repo) == before, "the partition is probed before the shipped walk may move anything"
+
+
+@pytest.mark.parametrize("new", [NEW_090, NEW_091], ids=["0.9.0", "0.9.1"])
+def test_a_lane_successor_probes_git_once_per_checkout_not_once_per_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, new: str) -> None:
+    repo = _tracked_project(tmp_path)
+    for slug in ("001-a", "002-b", "003-c"):
+        mission = _dirty_mission(repo, slug)
+        _write(mission / "meta.json", json.dumps({"mission_id": f"01ARZ3NDEKTSV4RRFFQ69G5F{slug[2]}", "mission_slug": slug}))
+    _plant_residue(repo / "kitty-specs")
+    calls: list[Path] = []
+    real = residue_plumbing.probe_tracked_mission_paths
+
+    def counting(root: Path) -> frozenset[str] | None:
+        calls.append(root)
+        return real(root)
+
+    monkeypatch.setattr(_PROBE_PATH, counting)
+    migration = _get(new)
+
+    assert migration.detect(repo) is True
+    assert calls == [repo]
+    calls.clear()
+    assert migration.apply(repo).success
+    assert calls == [repo]
+
+
+class _ProbeFailsIn(BaseMigration):
+    """A stub whose ``detect()`` or ``apply()`` lets a git failure escape, as a residue-aware walker can."""
+
+    migration_id = "stub_git_command_error"
+    description = "stub"
+    target_version = "3.1.0"
+    phase = "detect"
+
+    def detect(self, project_path: Path) -> bool:
+        del project_path
+        if self.phase == "detect":
+            raise _timeout()
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        del project_path
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        del project_path, dry_run
+        raise _timeout()
+
+
+@pytest.mark.parametrize("phase", ["detect", "apply"])
+def test_the_runner_records_a_git_command_error_as_a_failure_and_does_not_raise(tmp_path: Path, phase: str) -> None:
+    project = _plain_project(tmp_path)
+    ProjectMetadata(version="3.0.0", initialized_at=now_utc()).save(project / ".kittify")
+    migration = _ProbeFailsIn()
+    migration.phase = phase
+
+    result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+
+    assert status == "failed"
+    assert result.success is False
+    assert "git failed" in result.errors[0]
+    assert migration.migration_id in {record.id for record in MigrationLedger(project).applicable_records_for(migration)}
+
+
+def test_the_runner_records_a_probe_timeout_in_a_real_successor_as_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _tracked_project(tmp_path)
+    _dirty_mission(repo, "001-legacy")
+    _ledger_era(repo, unrecorded={PRED_090, NEW_090})
+    before = _snapshot(repo)
+    monkeypatch.setattr(_PROBE_PATH, _raise_timeout)
+
+    result, status = MigrationRunner(repo)._apply_migration(_get(NEW_090), ProjectMetadata.load(repo / ".kittify"), dry_run=False)
+
+    assert status == "failed"
+    assert not result.success
+    assert _snapshot(repo) == before
+
+
+# ---------------------------------------------------------------------------
+# 9c. Branches the cases above do not reach
+# ---------------------------------------------------------------------------
+
+_SUCCESSOR_206 = "specify_cli.upgrade.migrations.m_2_0_6_residue_safe_consistency_sweep"
+_SUCCESSOR_091 = "specify_cli.upgrade.migrations.m_0_9_1_residue_safe_complete_migration"
+
+
+def _lane_successor(migration_id: str) -> Any:
+    """The registered successor, typed loosely: the cases below call its private predicates."""
+    return _get(migration_id)
+
+
+def test_the_lane_predicates_decide_residue_without_a_probe_cache_outside_detect_and_apply(tmp_path: Path) -> None:
+    repo = _tracked_project(tmp_path)
+    mission = _dirty_mission(repo, "001-legacy")
+    _write(mission / "meta.json", json.dumps({"mission_id": "01ARZ3NDEKTSV4RRFFQ69G5FAW", "mission_slug": "001-legacy"}))
+    residue = _plant_residue(repo / "kitty-specs")[3]  # res-doing: lane files, but no Mission marker
+
+    assert _lane_successor(NEW_090)._is_legacy_format(mission) is True
+    assert _lane_successor(NEW_090)._is_legacy_format(residue) is False
+    assert _lane_successor(NEW_091)._has_remaining_lane_dirs(mission) is True
+    assert _lane_successor(NEW_091)._has_remaining_lane_dirs(residue) is False
+
+
+def test_a_stray_file_in_the_worktrees_directory_is_not_a_checkout(tmp_path: Path) -> None:
+    repo = _tracked_project(tmp_path)
+    _write(repo / ".worktrees" / "stray.txt", "x\n")
+
+    missions, residue = residue_plumbing.partition_checkout_specs(repo)
+
+    assert [m.name for m in missions] == ["real-mission"]
+    assert residue == []
+
+
+def test_a_stray_file_in_kitty_specs_is_neither_mission_nor_residue(tmp_path: Path) -> None:
+    repo = _tracked_project(tmp_path)
+    _write(repo / "kitty-specs" / "README.md", "x\n")
+
+    missions, residue = residue_plumbing.partition_kitty_specs(repo / "kitty-specs", repo)
+
+    assert [m.name for m in missions] == ["real-mission"]
+    assert residue == []
+
+
+def test_206_can_apply_needs_a_spec_project_root(tmp_path: Path) -> None:
+    assert _get(NEW_206).can_apply(tmp_path) == (False, "No .kittify/ or kitty-specs/ directory found")
+    assert _get(NEW_206).can_apply(_plain_project(tmp_path / "p")) == (True, "")
+
+
+def _mission_with_task(repo: Path) -> Path:
+    mission = repo / "kitty-specs" / "001-legacy"
+    _write(mission / "meta.json", json.dumps({"mission_id": "01ARZ3NDEKTSV4RRFFQ69G5FAW", "mission_slug": "001-legacy"}))
+    _write(mission / "tasks" / "WP01-x.md", LEGACY_WP)
+    return mission
+
+
+def test_091_reports_a_file_that_fails_to_normalise_as_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _tracked_project(tmp_path)
+    _mission_with_task(repo)
+
+    def _boom(_path: Path) -> bool:
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(f"{_SUCCESSOR_091}.normalize_file", _boom)
+
+    result = _get(NEW_091).apply(repo)
+
+    assert not result.success
+    assert any("Failed to normalize" in error and "disk on fire" in error for error in result.errors)
+
+
+def test_091_counts_an_already_normalised_file_as_skipped(tmp_path: Path) -> None:
+    repo = _tracked_project(tmp_path)
+    _mission_with_task(repo)
+    migration = _get(NEW_091)
+
+    first = migration.apply(repo)
+    second = migration.apply(repo)
+
+    assert "Normalized 1 files, skipped 0" in first.changes_made
+    assert "Normalized 0 files, skipped 1" in second.changes_made
+
+
+def test_206_detect_is_true_for_a_stale_legacy_asset_even_when_every_mission_is_consistent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(f"{_SUCCESSOR_206}._has_legacy_worktree_assets", lambda _project: False)
+    repo = _consistent_project(tmp_path)
+    assert _get(NEW_206).detect(repo) is False
+
+    class _Failed:
+        passed = False
+
+    monkeypatch.setattr(f"{_SUCCESSOR_206}.check_stale_legacy_assets", lambda _project: _Failed())
+
+    assert _get(NEW_206).detect(repo) is True
+
+
+def test_206_detect_is_true_for_a_legacy_worktree_asset_even_when_every_mission_is_consistent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(f"{_SUCCESSOR_206}._has_legacy_worktree_assets", lambda _project: False)
+    repo = _consistent_project(tmp_path)
+    assert _get(NEW_206).detect(repo) is False
+
+    monkeypatch.setattr(f"{_SUCCESSOR_206}._has_legacy_worktree_assets", lambda _project: True)
+
+    assert _get(NEW_206).detect(repo) is True
 
 
 # ---------------------------------------------------------------------------

@@ -283,13 +283,16 @@ def tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
 
 
 def probe_tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
-    """The one ``tracked=`` probe for residue-aware walkers (#6669): :func:`tracked_mission_paths`, hardened.
+    """The ``tracked=`` probe for residue-aware write seams and walkers (#6669): :func:`tracked_mission_paths`, hardened.
 
     A :class:`GitCommandError` (e.g. a corrupt index) degrades to ``None``
     ("probed, no usable git": the predicate's file-presence mode, never a
-    crash); a timeout is a real failure and is re-raised. Walkers call this once
-    per walk and pass the result as ``tracked=``; the lazy branch of
-    :func:`is_kitty_specs_residue` uses it too, so no seam owns a second copy.
+    crash); a timeout is a real failure and is re-raised. Write seams and
+    walkers call this once per walk and pass the result as ``tracked=``; the
+    lazy branch of :func:`is_kitty_specs_residue` uses it too. Read-only
+    reporters (the audit engine, the migration-state scan) deliberately call
+    :func:`tracked_mission_paths` directly, so a broken index surfaces to the
+    operator as an error rather than as a silently weaker answer.
     """
     try:
         return tracked_mission_paths(repo_root)

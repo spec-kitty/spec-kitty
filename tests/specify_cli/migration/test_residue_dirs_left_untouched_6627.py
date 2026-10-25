@@ -19,9 +19,11 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands._cutover_doctor import collect_cutover_audit
-from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice, residue_notice_path
+from kernel.git import GitCommandError
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice, residue_notice_path, tracked_mission_paths
 from specify_cli.migration.backfill_identity import backfill_mission
-from specify_cli.migration.normalize_mission_lifecycle import normalize_repo
+from specify_cli.migration.backfill_runtime_state import residue_mission_dirs
+from specify_cli.migration.normalize_mission_lifecycle import _repo_relative, normalize_repo
 from specify_cli.migration.runtime_state_cutover import cutover_mission, cutover_repo
 from specify_cli.upgrade.feature_meta import build_baseline_feature_meta, write_feature_meta
 from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import ConsistencySweepMigration
@@ -176,6 +178,40 @@ def test_normalize_repo_still_processes_an_untracked_legacy_mission(repo: Path) 
 
     assert [r.slug for r in results] == [mission.name]
     assert not any(residue_notice_path(w) for w in results[0].warnings)
+
+
+def test_normalize_repo_degrades_to_file_presence_mode_on_a_corrupt_git_index(repo: Path) -> None:
+    """The write seam probes through ``probe_tracked_mission_paths``: a broken index degrades, it does not crash (#6669)."""
+    residue = _residue(repo)
+    (repo / ".git" / "index").write_bytes(b"not an index")
+    with pytest.raises(GitCommandError):
+        tracked_mission_paths(repo)  # the raw call this seam used to make
+
+    results = normalize_repo(repo, dry_run=True)
+
+    assert [(r.slug, r.warnings) for r in results] == [(_RESIDUE, [residue_notice(f"kitty-specs/{_RESIDUE}")])]
+    assert _files(residue) == _LEFTOVERS
+
+
+def test_residue_mission_dirs_is_empty_without_kitty_specs(repo: Path) -> None:
+    assert residue_mission_dirs(repo, None) == []
+
+
+def test_residue_mission_dirs_is_empty_for_an_unknown_slug(repo: Path) -> None:
+    _residue(repo)
+
+    assert residue_mission_dirs(repo, "no-such-mission") == []
+
+
+def test_residue_mission_dirs_names_the_residue_folder(repo: Path) -> None:
+    residue = _residue(repo)
+
+    assert residue_mission_dirs(repo, None) == [residue]
+
+
+def test_repo_relative_falls_back_to_the_absolute_path_outside_the_repo(tmp_path: Path) -> None:
+    assert _repo_relative(tmp_path / "a" / "kitty-specs" / "x", tmp_path / "a") == "kitty-specs/x"
+    assert _repo_relative(tmp_path / "elsewhere" / "x", tmp_path / "a") == (tmp_path / "elsewhere" / "x").as_posix()
 
 
 def test_upgrade_chain_mints_no_identity_into_residue_but_does_for_an_uncommitted_mission(repo: Path) -> None:

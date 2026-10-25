@@ -27,14 +27,45 @@ def predecessor_settled(project_path: Path, predecessor_id: str) -> bool:
     return settled
 
 
-def partition_kitty_specs(kitty_specs: Path, checkout_root: Path) -> tuple[list[Path], list[Path]]:
+class ResidueProbes:
+    """One git probe per checkout root, shared by every residue decision of one detect or apply (#6669).
+
+    A successor that subclasses a shipped walker decides residue per folder through
+    overridden predicates. Without this cache each folder would probe git again, and a
+    git timeout would surface only after earlier folders had been repaired. Priming the
+    cache (``partition_checkout_specs(project, probes)``) before the first write makes a
+    timeout abort the run with nothing moved. A fresh instance per detect/apply keeps the
+    answer from outliving the tree it was probed on.
+    """
+
+    def __init__(self) -> None:
+        self._by_root: dict[Path, frozenset[str] | None] = {}
+
+    def tracked(self, checkout_root: Path) -> frozenset[str] | None:
+        """The ``tracked=`` set of *checkout_root*, probed on first use."""
+        if checkout_root not in self._by_root:
+            self._by_root[checkout_root] = probe_tracked_mission_paths(checkout_root)
+        return self._by_root[checkout_root]
+
+    def is_residue(self, folder: Path) -> bool:
+        """Whether the ``kitty-specs/`` child *folder* is residue, judged against its own checkout."""
+        root = folder.parent.parent
+        return is_kitty_specs_residue(folder, repo_root=root, tracked=self.tracked(root))
+
+
+def partition_kitty_specs(
+    kitty_specs: Path,
+    checkout_root: Path,
+    probes: ResidueProbes | None = None,
+) -> tuple[list[Path], list[Path]]:
     """Walk the children of *kitty_specs* once and split them into ``(missions, residue)`` (#6669).
 
-    Both lists are sorted. A missing *kitty_specs* returns ``([], [])``.
+    Both lists are sorted. A missing *kitty_specs* returns ``([], [])``. *probes*, when
+    given, supplies (and keeps) the git probe of *checkout_root*.
     """
     if not kitty_specs.is_dir():
         return [], []
-    tracked = probe_tracked_mission_paths(checkout_root)
+    tracked = probes.tracked(checkout_root) if probes is not None else probe_tracked_mission_paths(checkout_root)
     missions: list[Path] = []
     residue: list[Path] = []
     for child in sorted(kitty_specs.iterdir()):
@@ -52,20 +83,21 @@ def residue_warnings(residue: list[Path], project_path: Path) -> list[str]:
     return [residue_notice(folder.relative_to(project_path).as_posix()) for folder in residue]
 
 
-def partition_checkout_specs(project_path: Path) -> tuple[list[Path], list[Path]]:
+def partition_checkout_specs(project_path: Path, probes: ResidueProbes | None = None) -> tuple[list[Path], list[Path]]:
     """Split every ``kitty-specs/`` child into ``(missions, residue)``, in the main checkout and each ``.worktrees/*`` one.
 
-    A worktree's children are judged against that worktree as the checkout root.
+    A worktree's children are judged against that worktree as the checkout root. One probe per
+    checkout (through *probes* when given).
     """
     main_specs = project_path / KITTY_SPECS_DIR
-    missions, residue = partition_kitty_specs(main_specs, project_path)
+    missions, residue = partition_kitty_specs(main_specs, project_path, probes)
     worktrees_dir = project_path / _WORKTREES_DIR
     if worktrees_dir.is_dir():
         for worktree in sorted(worktrees_dir.iterdir()):
             if not worktree.is_dir():
                 continue
             wt_specs = worktree / KITTY_SPECS_DIR
-            wt_missions, wt_residue = partition_kitty_specs(wt_specs, worktree)
+            wt_missions, wt_residue = partition_kitty_specs(wt_specs, worktree, probes)
             missions.extend(wt_missions)
             residue.extend(wt_residue)
     return missions, residue

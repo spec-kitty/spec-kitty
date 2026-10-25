@@ -216,6 +216,26 @@ def test_a_second_run_starts_with_a_fresh_seen_set(tmp_path: Path) -> None:
         MigrationRegistry.clear()
 
 
+def test_upgrade_worktrees_only_starts_with_a_fresh_seen_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The no-migrations entry point resets the seen set too, so a runner reused across runs never swallows a notice."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    runner = MigrationRunner(root)
+    runner._seen_residue = {root / "kitty-specs" / "x"}
+    seen_on_entry: list[set[Path]] = []
+
+    def _record(self: MigrationRunner, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        seen_on_entry.append(set(self._seen_residue))
+        return {"warnings": [], "errors": [], "worktree_failures": []}
+
+    monkeypatch.setattr(MigrationRunner, "_upgrade_worktrees", _record)
+
+    runner.upgrade_worktrees_only(_TARGET_VERSION, dry_run=True)
+    runner.upgrade_worktrees_only(_TARGET_VERSION, dry_run=True)
+
+    assert seen_on_entry == [set(), set()]
+
+
 def test_json_payload_shows_the_collapsed_list(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     _init_repo(root)

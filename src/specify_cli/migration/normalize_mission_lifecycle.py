@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice, tracked_mission_paths
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, probe_tracked_mission_paths, residue_notice
 from specify_cli.migration.backfill_identity import (
     backfill_mission,
     backfill_wp_ids,
@@ -212,7 +212,7 @@ def normalize_repo(
         return results
 
     derived_dir = repo_root / ".kittify" / "derived"
-    tracked = tracked_mission_paths(repo_root)
+    tracked = probe_tracked_mission_paths(repo_root)
 
     for feature_dir in candidates:
         slug = feature_dir.name

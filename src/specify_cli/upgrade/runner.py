@@ -14,6 +14,7 @@ from typing import Any, cast
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
+from kernel.git import GitCommandError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError, resolve_canonical_repo_root
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.context.mission_resolver import residue_notice_path
@@ -478,6 +479,16 @@ class MigrationRunner:
             return self._not_inside_repository_skip(migration)
         except GitCommonDirUnavailableError as exc:
             return self._probe_unavailable_failure(metadata, migration, exc, dry_run=dry_run)
+        except GitCommandError as exc:
+            # A git probe a residue-aware walker made failed (e.g. a timeout): the tree state is unknown,
+            # so a recorded failure that stays retryable, never a crash (#6669).
+            return self._detect_failure(
+                metadata,
+                migration,
+                f"Cannot safely detect: git failed ({exc})",
+                f"Cannot safely detect {migration.migration_id}: git failed ({exc})",
+                dry_run=dry_run,
+            )
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return self._detect_failure(
                 metadata,
@@ -548,6 +559,12 @@ class MigrationRunner:
             result = MigrationResult(
                 success=False,
                 errors=[f"Cannot apply {migration.migration_id}: it needs a git repository and the probe could not run ({exc})"],
+            )
+        except GitCommandError as exc:
+            # Same as the probe failure above (#6669): a recorded failure, never a crash.
+            result = MigrationResult(
+                success=False,
+                errors=[f"Cannot apply {migration.migration_id}: git failed ({exc})"],
             )
         except (GitignorePathError, MigrationStateUnreadableError) as exc:
             return (

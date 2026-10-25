@@ -21,7 +21,7 @@ from specify_cli.context.mission_resolver import is_kitty_specs_residue
 
 from ..registry import MigrationRegistry
 from . import m_0_9_0_frontmatter_only_lanes as _shipped
-from ._residue_successor import partition_checkout_specs, predecessor_settled, residue_warnings
+from ._residue_successor import ResidueProbes, partition_checkout_specs, predecessor_settled, residue_warnings
 from .base import MigrationResult
 
 PREDECESSOR_ID = "0.9.0_frontmatter_only_lanes"
@@ -34,17 +34,34 @@ class ResidueSafeFrontmatterOnlyLanesMigration(_shipped.FrontmatterOnlyLanesMigr
     migration_id = "0.9.0_residue_safe_frontmatter_only_lanes"
     description = "Residue-safe flatten of task lanes to frontmatter-only, never in a kitty-specs/ residue folder"
 
+    _probes: ResidueProbes | None = None
+
+    def _is_residue(self, feature_path: Path) -> bool:
+        """Residue decision through this run's probe cache (one git probe per checkout); uncached outside detect/apply."""
+        if self._probes is None:
+            return is_kitty_specs_residue(feature_path)
+        return self._probes.is_residue(feature_path)
+
     def _is_legacy_format(self, feature_path: Path) -> bool:
         """Legacy lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
-        return bool(super()._is_legacy_format(feature_path)) and not is_kitty_specs_residue(feature_path)
+        return bool(super()._is_legacy_format(feature_path)) and not self._is_residue(feature_path)
 
     def detect(self, project_path: Path) -> bool:
         if predecessor_settled(project_path, PREDECESSOR_ID):
             return False
-        return bool(super().detect(project_path))
+        self._probes = ResidueProbes()
+        try:
+            return bool(super().detect(project_path))
+        finally:
+            self._probes = None
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        result = super().apply(project_path, dry_run)
-        _missions, residue = partition_checkout_specs(project_path)
+        # Probe every checkout before the shipped walk moves a file: a git timeout then aborts with nothing moved.
+        self._probes = ResidueProbes()
+        try:
+            _missions, residue = partition_checkout_specs(project_path, self._probes)
+            result = super().apply(project_path, dry_run)
+        finally:
+            self._probes = None
         result.warnings.extend(residue_warnings(residue, project_path))
         return result
