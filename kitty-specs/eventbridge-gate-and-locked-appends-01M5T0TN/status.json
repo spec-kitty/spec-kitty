@@ -1,10 +1,10 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M5T18SRV349QB0GZ6ZQ249DW",
-  "materialized_at": "2026-10-25T17:20:56.603469+00:00",
+  "event_count": 7,
+  "last_event_id": "01M5T1ZP777KGERX70HAHFZH09",
+  "materialized_at": "2026-10-25T17:33:26.621602+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
     "approved": 0,
@@ -13,17 +13,26 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M5T18GQC3Z2R7SX46TGBDF9D",
-      "last_transition_at": "2026-10-25T17:20:47.340160+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M5T1ZP777KGERX70HAHFZH09",
+      "last_transition_at": "2026-10-25T17:33:26.621602+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 11003,
+      "shell_pid_created_at": "1792949584.37"
     },
     "WP02": {
       "actor": "finalize-tasks",
