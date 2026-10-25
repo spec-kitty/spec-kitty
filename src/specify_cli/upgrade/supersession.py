@@ -30,6 +30,13 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     # ``.cursor/`` rows back on the next upgrade.
     "3.2.5_agents_skills_gitignore_backfill": "4.0.0rc8_narrow_agent_gitignore",
     "3.2.6rc3_narrow_cursor_gitignore": "4.0.0rc8_narrow_agent_gitignore",
+    # These four rewrote a ``kitty-specs/`` residue folder (a child with no
+    # ``spec.md`` / ``meta.json`` that git does not recognise as a Mission);
+    # each successor repairs the same Missions and leaves residue untouched.
+    "0.9.0_frontmatter_only_lanes": "0.9.0_residue_safe_frontmatter_only_lanes",  # #6669: residue-aware successor
+    "0.9.1_complete_migration": "0.9.1_residue_safe_complete_migration",  # #6669: residue-aware successor
+    "2.0.6_consistency_sweep": "2.0.6_residue_safe_consistency_sweep",  # #6669: residue-aware successor
+    "3.1.1_normalize_status_json": "3.1.1_residue_safe_normalize_status_json",  # #6669: residue-aware successor
 }
 
 #: Class attributes the substitute carries over from the shipped class.

@@ -153,7 +153,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_0_7_3_update_scripts",
         "specify_cli.upgrade.migrations.m_0_8_0_remove_active_mission",
         "specify_cli.upgrade.migrations.m_0_8_0_worktree_agents_symlink",
-        "specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes",
+        "specify_cli.upgrade.migrations.m_0_9_1_residue_safe_complete_migration",  # #6669: residue-aware successor; auto-discovered, never statically imported (its 0.9.0 sibling is imported by it)
         "specify_cli.upgrade.migrations.m_0_9_2_research_mission_templates",
         "specify_cli.upgrade.migrations.m_0_9_3_surface_repair_wiring",  # WP01: auto-discovered sentinel migration
         "specify_cli.upgrade.migrations.m_0_9_4_roo_deprecation",  # WP07: Roo Code deprecation; auto-discovered, never statically imported
@@ -165,7 +165,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_2_0_1_fix_generated_command_templates",
         "specify_cli.upgrade.migrations.m_2_0_1_tool_config_key_rename",
         "specify_cli.upgrade.migrations.m_2_0_2_charter_context_bootstrap",
-        "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep",
+        "specify_cli.upgrade.migrations.m_2_0_6_residue_safe_consistency_sweep",  # #6669: residue-aware successor; auto-discovered, never statically imported
         "specify_cli.upgrade.migrations.m_2_0_7_fix_stale_overrides",
         "specify_cli.upgrade.migrations.m_2_0_9_state_gitignore",
         "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack",
@@ -185,7 +185,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_1_1_charter_rename",
         "specify_cli.upgrade.migrations.m_3_1_1_direct_canonical_commands",
         "specify_cli.upgrade.migrations.m_3_1_1_event_log_merge_driver",
-        "specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json",
+        "specify_cli.upgrade.migrations.m_3_1_1_residue_safe_normalize_status_json",  # #6669: residue-aware successor; auto-discovered, never statically imported
         "specify_cli.upgrade.migrations.m_3_2_0rc35_codex_to_skills",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_update_planning_templates",
         "specify_cli.upgrade.migrations.m_3_2_0a4_normalize_mission_lifecycle",

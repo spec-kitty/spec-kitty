@@ -1,0 +1,71 @@
+"""Residue-aware successor of the 0.9.0 frontmatter-only lanes migration (#6669).
+
+``0.9.0_frontmatter_only_lanes`` is a shipped, byte-frozen migration
+(DIRECTIVE_044). It flattens the ``tasks/<lane>/`` folders of every
+``kitty-specs/`` child, including a residue folder that is not a Mission. It is
+listed in ``SUPERSEDED_MIGRATIONS``; this successor subclasses it, so every
+repair is inherited, and only decides which folders count as legacy.
+
+The shipped module is imported as an alias, never the class by name:
+``auto_discover_migrations`` skips reloading a module whose ``dir()`` holds a
+class with an already-registered ``migration_id``, so a name import of the
+shipped class would make this successor vanish after
+``MigrationRegistry.clear()``.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from specify_cli.context.mission_resolver import is_kitty_specs_residue
+from specify_cli.core.constants import KITTY_SPECS_DIR
+
+from ..registry import MigrationRegistry
+from . import m_0_9_0_frontmatter_only_lanes as _shipped
+from ._residue_successor import partition_kitty_specs, predecessor_settled, residue_warnings
+from .base import MigrationResult
+
+PREDECESSOR_ID = "0.9.0_frontmatter_only_lanes"
+_WORKTREES_DIR = ".worktrees"
+
+
+def partition_checkout_specs(project_path: Path) -> tuple[list[Path], list[Path]]:
+    """Split every ``kitty-specs/`` child into ``(missions, residue)``, in the main checkout and each ``.worktrees/*`` one.
+
+    A worktree's children are judged against that worktree as the checkout root.
+    """
+    main_specs = project_path / KITTY_SPECS_DIR
+    missions, residue = partition_kitty_specs(main_specs, project_path)
+    worktrees_dir = project_path / _WORKTREES_DIR
+    if worktrees_dir.is_dir():
+        for worktree in sorted(worktrees_dir.iterdir()):
+            if not worktree.is_dir():
+                continue
+            wt_specs = worktree / KITTY_SPECS_DIR
+            wt_missions, wt_residue = partition_kitty_specs(wt_specs, worktree)
+            missions.extend(wt_missions)
+            residue.extend(wt_residue)
+    return missions, residue
+
+
+@MigrationRegistry.register
+class ResidueSafeFrontmatterOnlyLanesMigration(_shipped.FrontmatterOnlyLanesMigration):
+    """Flatten directory-based task lanes in every Mission, leaving ``kitty-specs/`` residue folders alone."""
+
+    migration_id = "0.9.0_residue_safe_frontmatter_only_lanes"
+    description = "Residue-safe flatten of task lanes to frontmatter-only, never in a kitty-specs/ residue folder"
+
+    def _is_legacy_format(self, feature_path: Path) -> bool:
+        """Legacy lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
+        return super()._is_legacy_format(feature_path) and not is_kitty_specs_residue(feature_path)
+
+    def detect(self, project_path: Path) -> bool:
+        if predecessor_settled(project_path, PREDECESSOR_ID):
+            return False
+        return super().detect(project_path)
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        result = super().apply(project_path, dry_run)
+        _missions, residue = partition_checkout_specs(project_path)
+        result.warnings.extend(residue_warnings(residue, project_path))
+        return result
