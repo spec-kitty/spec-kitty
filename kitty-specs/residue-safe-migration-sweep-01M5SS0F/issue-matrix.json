@@ -73,7 +73,7 @@
       "wp": null
     },
     "#6662": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR reference (fix for #6627)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6668": {
