@@ -623,12 +623,22 @@ class _ImportScan:
     reducer_readers: tuple[str, ...]
 
 
+@functools.cache
+def _scan_live_tree() -> _ImportScan:
+    return _scan_tree(_REPO_ROOT)
+
+
 def _scan_imports(repo_root: Path | None) -> _ImportScan:
+    """The import scan of ``repo_root``; the live checkout's is computed once per process."""
+    return _scan_live_tree() if repo_root is None else _scan_tree(repo_root)
+
+
+def _scan_tree(repo_root: Path) -> _ImportScan:
     """One pass over ``src/**`` and ``tests/**``: the ``spec_kitty_events`` importers, and the ``src/**``
     readers of the CLI reducer, as sorted repo-relative POSIX paths. Only a file that mentions one of
     the names is decoded and parsed; such a file that does not parse RAISES, because an unreadable
     importer must red, not silently drop out of the fan-out."""
-    root = repo_root or _REPO_ROOT
+    root = repo_root
     events: list[str] = []
     readers: list[str] = []
     events_marker, reducer_marker = EVENTS_PACKAGE.encode(), _STATUS_PACKAGE.encode()
@@ -734,9 +744,13 @@ def derive_reducer_lock_fanout(
 # committed snapshot for the resolved version, so it would red on every new upstream release, compatible
 # or not, and bury a real break; the job reports a release without a snapshot as a notice instead.
 EVENTS_LATEST_EXCLUDED: frozenset[str] = frozenset({"tests/contract/test_events_envelope_matches_resolved_version.py"})
-EVENTS_LATEST_LANE_PATHS: tuple[str, ...] = (
+# The events consumers no module row owns (the registry's `spec-kitty-events consumers` entry); both lanes run them.
+_EVENTS_UNOWNED_CONSUMER_DIRS: tuple[str, ...] = (
     "tests/migration",
     "tests/contract/spec_kitty_events_consumer",
+)
+EVENTS_LATEST_LANE_PATHS: tuple[str, ...] = (
+    *_EVENTS_UNOWNED_CONSUMER_DIRS,
     "tests/status",
     "tests/consolidation",
     "tests/upgrade/test_mission_corpus_recovery.py",
@@ -748,8 +762,7 @@ EVENTS_LATEST_LANE_PATHS: tuple[str, ...] = (
 # out_of_matrix_test_dirs). ci-router.yml must name exactly these paths (GitHub Actions needs literal
 # YAML), pinned by tests/ci/test_reducer_lock_census.py.
 EVENTS_CONSUMER_PR_PATHS: tuple[str, ...] = (
-    "tests/migration",
-    "tests/contract/spec_kitty_events_consumer",
+    *_EVENTS_UNOWNED_CONSUMER_DIRS,
     "tests/contract/test_events_envelope_matches_resolved_version.py",
 )
 

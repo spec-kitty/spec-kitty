@@ -36,6 +36,7 @@ from scripts.ci.gate_selection import (
     EVENTS_LATEST_EXCLUDED,
     EVENTS_LATEST_LANE_PATHS,
     REDUCER_LOCK_UNOWNED_IMPORTERS,
+    _EVENTS_UNOWNED_CONSUMER_DIRS,
     ReducerLockCensus,
     _modules_for_test_paths,
     derive_reducer_lock_fanout,
@@ -170,6 +171,10 @@ _NIGHTLY = _REPO_ROOT / ".github" / "workflows" / "ci-nightly.yml"
 def test_events_latest_lane_paths_cover_every_census_test_file(census: ReducerLockCensus) -> None:
     paths = events_latest_lane_paths()
     assert paths[: len(EVENTS_LATEST_LANE_PATHS)] == EVENTS_LATEST_LANE_PATHS
+    # The unowned consumer dirs both lanes share are exactly the registry's `events consumers` entry.
+    registry_dirs = next(r["dirs"] for r in _REGISTRY["out_of_matrix_test_dirs"] if "tests/migration" in r["dirs"])
+    assert set(registry_dirs) == set(_EVENTS_UNOWNED_CONSUMER_DIRS)
+    assert set(_EVENTS_UNOWNED_CONSUMER_DIRS) <= set(EVENTS_CONSUMER_PR_PATHS)
     for path in EVENTS_LATEST_LANE_PATHS:
         assert (_REPO_ROOT / path).exists(), f"events-latest lane path {path} does not exist"
     for path in census.test_importers:
