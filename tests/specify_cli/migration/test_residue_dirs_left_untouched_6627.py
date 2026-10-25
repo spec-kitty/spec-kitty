@@ -19,9 +19,9 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands._cutover_doctor import collect_cutover_audit
-from specify_cli.context.mission_resolver import is_kitty_specs_residue
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice, residue_notice_path
 from specify_cli.migration.backfill_identity import backfill_mission
-from specify_cli.migration.normalize_mission_lifecycle import RESIDUE_SKIP_WARNING, normalize_repo
+from specify_cli.migration.normalize_mission_lifecycle import normalize_repo
 from specify_cli.migration.runtime_state_cutover import cutover_mission, cutover_repo
 from specify_cli.upgrade.feature_meta import build_baseline_feature_meta, write_feature_meta
 from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import ConsistencySweepMigration
@@ -164,7 +164,7 @@ def test_normalize_repo_reports_residue_and_writes_nothing(repo: Path) -> None:
 
     results = normalize_repo(repo)
 
-    assert [(r.slug, r.status, r.warnings) for r in results] == [(_RESIDUE, "skipped", [RESIDUE_SKIP_WARNING])]
+    assert [(r.slug, r.status, r.warnings) for r in results] == [(_RESIDUE, "skipped", [residue_notice(f"kitty-specs/{_RESIDUE}")])]
     assert _files(residue) == _LEFTOVERS
 
 
@@ -175,7 +175,7 @@ def test_normalize_repo_still_processes_an_untracked_legacy_mission(repo: Path) 
     results = normalize_repo(repo, dry_run=True)
 
     assert [r.slug for r in results] == [mission.name]
-    assert RESIDUE_SKIP_WARNING not in results[0].warnings
+    assert not any(residue_notice_path(w) for w in results[0].warnings)
 
 
 def test_upgrade_chain_mints_no_identity_into_residue_but_does_for_an_uncommitted_mission(repo: Path) -> None:
