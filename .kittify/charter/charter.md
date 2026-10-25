@@ -1,7 +1,15 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.5.0
+> Version: 1.6.0
+> Updated: 2026-10-25 — charter direction and hosted surfaces brought in line with the
+> recorded decisions: the Python charter stays in core until it is retired and is replaced
+> in place behind `charter.offering.api`, not extracted to its own repository (ADR
+> `2026-10-16-1`, Amendment 2026-10-19; ADR `2026-10-12-2` Superseded by
+> `spec-kitty-charter` ADR-0008 and ADR-0010; #645 closed via #6188); the GA gate's
+> charter leg is the frozen seam plus a green conformance corpus (epic #6099, re-scoped);
+> the hosted command-line entries are removed from open-core, not hidden (#6164; ADR
+> `2026-10-06-1`, Amendment 2026-10-14).
 > Updated: 2026-10-19 — the autonomous agent fleet (SkyKitty) is switched off (#6503):
 > Collaboration Strategy, Standing Order #7, Governance by Workflow Action (Merge), Agent
 > Push Authorization and PR Requirements no longer say fleet agents or a programme merge
@@ -368,19 +376,19 @@ noted where they bind harder than advisory.
 
 `spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
 
-**Charter (direction; a 4.0.0 GA-gating precondition).** The charter layer
-(`src/charter/offering/`, or all of `src/charter/`) is slated to become a third external
-contract package: an independently-released unit that callers consume only through its public
-surface (`charter.offering.api`), exactly as the CLI consumes `spec-kitty-events` and
-`spec-kitty-tracker`, and extracted into its own repository. Its precondition is **#645** —
-moving the ~129 `specify_cli → charter` imports onto that stable API — which is **now
-GA-gating** (see Branch and Release Strategy). The enforced module chain
-(`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`) and the
-shared-package-boundary gates will gain charter as an external contract package once the
-extraction lands. **This is a direction note only: it changes no gate and no layer rule in
-this mission.** Grounded in #3101, ADR `2026-08-02-1` (charter-wheel-assessment) and ADR
-`2026-04-25-1` (this boundary); the repository extraction is recorded in ADR
-`2026-10-12-2`; the extraction mechanics ride with a dedicated epic (to be filed).
+**Charter (direction; a 4.0.0 GA-gating precondition).** The charter is **not** a third
+external contract package, and nothing Python moves to `spec-kitty-charter`. The Python
+charter stays in core until it is retired: the offering's reads cut over to the
+`spec-kitty-charter` service through `charter.offering.api` (core's frozen seam), and the
+Python offering is replaced in place, not extracted; `charter.activation` stays in core until
+its post-GA rework (ADR `2026-10-16-1`, Amendment 2026-10-19). The 4.0.0 GA leg is that frozen
+seam plus a green conformance corpus (epic #6099, re-scoped); the move of the
+`specify_cli → charter` imports onto the seam is done (#645, closed via #6188). ADR
+`2026-10-03-1` (Amendment 2026-10-19) governs the seam routing. ADR `2026-10-12-2` (extraction
+to its own repository) is **Superseded** by `spec-kitty-charter` ADR-0008 and ADR-0010.
+`charter` stays an in-tree layer of the enforced chain
+(`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`); **no gate, layer
+rule or `pyproject.toml` package set changes for it.**
 
 ### Internal Runtime Boundary
 
@@ -461,7 +469,7 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 ### Release Versioning
 
-- **4.x** — Current active line: governed delivery from agreed intent to a verified result. **4.0.0 GA ships "done when done" — it is not date-gated.** Release candidates keep shipping to early adopters off `main` in the meantime, and red-CI-no-release (Standing Order #9) still holds per release candidate. The GA gate is no longer local-integrity-only: it is (a) **local CLI integrity** (the CLI never reports success while it loses, overwrites or strands local work), (b) **charter modular extraction** — moving the ~129 `specify_cli → charter` imports onto the stable charter API (#645) so the charter can ship as its own externally-released unit (direction; see Shared Package Boundaries) — and (c) the **mission-status API backend**, the open-core producer surface (ADR `2026-10-01-2`). The remaining open-core structural finish continues on 4.x after GA. Team Kitty is re-framed as **"Multiplayer Mode"**, the **consumer** side of that open-core producer API (UI/multiplayer surfaces consume it across its public contract); the standing "do not build toward Team Kitty" rule is **scoped-lifted** for (i) consumer-side UI/multiplayer built on the Mission Status Read API and (ii) the event-dispatch / produce-drain adapter seam (`status/adapters.py`), while everything else hosted (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator asks (ADR `2026-10-06-1`, Amendment 2026-10-12). The hosted CLI entries still ship hidden unless the drain posture is on; hosted interaction is off unless an operator opts in. The sync transport was retired in August 2026.
+- **4.x** — Current active line: governed delivery from agreed intent to a verified result. **4.0.0 GA ships "done when done" — it is not date-gated.** Release candidates keep shipping to early adopters off `main` in the meantime, and red-CI-no-release (Standing Order #9) still holds per release candidate. The GA gate is no longer local-integrity-only: it is (a) **local CLI integrity** (the CLI never reports success while it loses, overwrites or strands local work), (b) **the charter seam** — `charter.offering.api` frozen and its conformance corpus green (epic #6099; the `specify_cli → charter` import move is done, #645 via #6188; the charter stays in core and is replaced in place, not extracted — see Shared Package Boundaries) — and (c) the **mission-status API backend**, the open-core producer surface (ADR `2026-10-01-2`). The remaining open-core structural finish continues on 4.x after GA. Team Kitty is re-framed as **"Multiplayer Mode"**, the **consumer** side of that open-core producer API (UI/multiplayer surfaces consume it across its public contract); the standing "do not build toward Team Kitty" rule is **scoped-lifted** for (i) consumer-side UI/multiplayer built on the Mission Status Read API and (ii) the event-dispatch / produce-drain adapter seam (`status/adapters.py`), while everything else hosted (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator asks (ADR `2026-10-06-1`, Amendment 2026-10-12). The hosted CLI entries, their clients and the drain posture were removed from open-core in #6164 (code preserved in `spec-kitty/event-router`); nothing hosted ships. The sync transport was retired in August 2026.
 - **3.x** — Closed. The last release was **3.2.7** (2026-09-10). The planned 3.3.x cycle was retired on 2026-08-23 without shipping; its open work was re-triaged into 4.0.0 or CLI 4.x stable. Documents scoped to 3.2.x/3.3.x are historical records.
 - **1.x** — Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency.
 
