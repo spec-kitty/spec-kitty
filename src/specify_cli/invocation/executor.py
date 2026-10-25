@@ -15,7 +15,7 @@ import json as _json_mod
 import logging
 import subprocess as _subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 if TYPE_CHECKING:
     from charter.activation.context import CharterContextResult
@@ -45,6 +45,12 @@ from specify_cli.invocation.errors import (
     UnsupportedEvidenceError,
 )
 from specify_cli.invocation.modes import ModeOfWork
+from specify_cli.invocation.op_custody import (
+    OP_WRITE_PROTECTED_BRANCH,
+    OP_WRITE_PROTECTION_CONFIG_INVALID,
+    OpWriteRefusal,
+    OpWriteRefused,
+)
 from specify_cli.invocation.op_commit_policy import (
     OpCommitProbeError,
     PrimaryTracking,
@@ -66,6 +72,16 @@ from specify_cli.invocation.writer import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _OpCommitKwargs(TypedDict):
+    repo_root: Path
+    worktree_root: Path
+    target: CommitTarget
+    paths: tuple[Path, ...]
+    capability: GuardCapability
+
+
 #: Bound for the work-tree probe of the Op-record auto-commit (#6410).
 _GIT_PROBE_TIMEOUT_SECONDS = 30
 #: Stand-in record path for the pre-write admission probe (#6564): ULID-shaped,
@@ -90,24 +106,6 @@ class OpCommitOutcome:
     #: failed. Distinct from ``refusal``: nothing was refused, the record is
     #: simply kept on disk.
     skipped: str | None = None
-
-
-#: Error codes of the pre-write admission refusal (#6564).
-OP_WRITE_PROTECTED_BRANCH = "OP_WRITE_PROTECTED_BRANCH"
-OP_WRITE_PROTECTION_CONFIG_INVALID = "OP_WRITE_PROTECTION_CONFIG_INVALID"
-
-
-@dataclasses.dataclass(frozen=True)
-class OpWriteRefusal:
-    """Why an Op record may not be written in its checkout (#6564).
-
-    ``reason`` is the guard's answer (``protected branch 'main'``, or why the
-    protection configuration could not be read); it never names the
-    protected-branch override.
-    """
-
-    code: str
-    reason: str
 
 
 def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecommendation | None:
@@ -512,6 +510,9 @@ class ProfileInvocationExecutor:
                 Empty strings are treated as if not supplied (legacy fallback per
                 EDGE-005). Has no effect on the router-backed branch.
         """
+        # #6564: admission comes before every write of the invoke path, the
+        # glossary events of the routing scan included.
+        self.require_op_write_admitted(action="open the Op")
         invocation_id = _new_ulid()  # uses codebase-standard ulid library
 
         # 1-2a. Resolve (profile_id, action), the advisory model-routing
@@ -810,6 +811,8 @@ class ProfileInvocationExecutor:
 
         Raises ``AlreadyClosedError`` if already closed (idempotent guard).
         Raises ``InvocationError`` if invocation_id is not found.
+        Raises ``OpWriteRefused`` (an agent close only) before any write when the
+        record root's branch could not take the commit (#6564).
         Raises ``InvocationWriteError`` on filesystem failure.
         Raises ``UnsupportedEvidenceError`` (a pre-write check; no JSONL line is
         written) if the evidence is not UTF-8 text (#5397).
@@ -831,6 +834,12 @@ class ProfileInvocationExecutor:
         """
         # Step 1: Read started event for mode enforcement (FR-009).
         started_mode = self._read_started_mode(invocation_id)
+
+        # #6564: an agent close commits the record in the record root, so it
+        # is admitted there before any write; the doctor sweep records on the
+        # closure spine and is not judged here.
+        if closed_by == "agent":
+            self.require_op_write_admitted(action="close the Op")
 
         # Step 2: Enforce mode gate on evidence promotion BEFORE any write.
         # Scoped to the promotion: an Op whose mode cannot be read must still be
@@ -1093,19 +1102,8 @@ class ProfileInvocationExecutor:
                 return self._record_op_commit(OpCommitOutcome(committed=False, refusal="detached HEAD"))
 
             safe_commit(
-                # The project root's protection policy applies as well as the
-                # record checkout's (#6564): preflight_commit ORs the two.
-                repo_root=self._repo_root,
-                worktree_root=self._record_root,
-                target=CommitTarget(ref=current_branch),
+                **self._op_commit_kwargs(current_branch, relative_path),
                 message=message,
-                paths=(relative_path,),
-                # Op-record auto-commit targets the operator's CURRENT branch,
-                # which can be protected main; STANDARD asserts no
-                # protected-branch flow, so the guard refuses there and the
-                # outcome below carries the refusal (the Op record stays on
-                # disk, uncommitted).
-                capability=GuardCapability.STANDARD,
             )
             return self._record_op_commit(OpCommitOutcome(committed=True))
         except ProtectedBranchRefused as exc:
@@ -1117,6 +1115,33 @@ class ProfileInvocationExecutor:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
+
+    def _op_commit_kwargs(self, branch: str, path: Path) -> _OpCommitKwargs:
+        """The commit arguments admission and the real auto-commit share (#6564).
+
+        One builder, so the probe can never judge a different commit than the
+        one that is attempted afterwards.
+        """
+        return _OpCommitKwargs(
+            # The project root's protection policy applies as well as the
+            # record checkout's: preflight_commit ORs the two.
+            repo_root=self._repo_root,
+            worktree_root=self._record_root,
+            target=CommitTarget(ref=branch),
+            paths=(path,),
+            # Op-record auto-commit targets the operator's CURRENT branch,
+            # which can be protected main; STANDARD asserts no
+            # protected-branch flow, so the guard refuses there and the
+            # outcome carries the refusal (the Op record stays on disk,
+            # uncommitted).
+            capability=GuardCapability.STANDARD,
+        )
+
+    def require_op_write_admitted(self, *, action: str) -> None:
+        """Raise :class:`OpWriteRefused` when no Op record may be written here (#6564)."""
+        refusal = self.op_write_refusal()
+        if refusal is not None:
+            raise OpWriteRefused(refusal, self._record_root, action=action)
 
     def op_write_refusal(self) -> OpWriteRefusal | None:
         """Say why no Op record may be written here, before anything is (#6564).
@@ -1143,14 +1168,8 @@ class ProfileInvocationExecutor:
             return None
         try:
             preflight_commit(
-                # The project root's protection policy applies as well as the
-                # record checkout's (#6564): preflight_commit ORs the two.
-                repo_root=self._repo_root,
-                worktree_root=self._record_root,
-                target=CommitTarget(ref=current_branch),
+                **self._op_commit_kwargs(current_branch, _ADMISSION_PROBE_RECORD),
                 message="op(admission probe)",
-                paths=(_ADMISSION_PROBE_RECORD,),
-                capability=GuardCapability.STANDARD,
             )
         except ProtectedBranchRefused as exc:
             return OpWriteRefusal(OP_WRITE_PROTECTED_BRANCH, f"protected branch {exc.destination_ref!r}")

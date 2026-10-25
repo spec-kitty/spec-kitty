@@ -14,14 +14,15 @@ import typer
 from rich.markup import escape
 from specify_cli.cli.console import console
 
-from specify_cli.cli.commands.dispatch import _build_executor, refuse_unadmitted_op_write
+from specify_cli.cli.commands.dispatch import _build_executor
+from specify_cli.cli.op_write_refusal import exit_op_write_refused
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
     InvalidModeForEvidenceError,
 )
 from specify_cli.invocation.executor import OpCommitOutcome
-from specify_cli.invocation.op_custody import locate_op_record_root, resolve_op_record_root
+from specify_cli.invocation.op_custody import OpWriteRefused, locate_op_record_root, resolve_op_record_root
 from specify_cli.invocation.writer import EVENTS_DIR, normalise_ref
 from specify_cli.task_utils import find_repo_root
 
@@ -165,8 +166,6 @@ def complete_invocation(
     located_root = locate_op_record_root(repo_root, invocation_id, preferred=invoking_root)
     record_root = located_root if located_root is not None else invoking_root
     executor = _build_executor(repo_root, record_root=record_root)
-    if located_root is not None:
-        refuse_unadmitted_op_write(executor, record_root, action="close the Op", json_output=json_output)
     try:
         completed = executor.complete_invocation(
             invocation_id=invocation_id,
@@ -178,6 +177,8 @@ def complete_invocation(
             # (the only other closer) calls the executor directly (FR-003).
             closed_by="agent",
         )
+    except OpWriteRefused as e:
+        exit_op_write_refused(e, json_output=json_output)
     except InvalidModeForEvidenceError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(2) from e

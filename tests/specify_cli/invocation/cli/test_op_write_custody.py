@@ -127,9 +127,12 @@ def test_dispatch_refusal_is_readable_without_json(tmp_path: Path, monkeypatch: 
 
 def test_complete_on_protected_branch_tracking_op_records_refuses_before_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     primary = _primary(tmp_path, track_ops=True)
-    # An Op opened directly through the executor (which itself admits any
-    # caller), as an older CLI would have left it on main.
-    with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
+    # An Op as an older CLI would have left it on main: the executor now
+    # admits every caller, so its admission is lifted to seed the record.
+    with (
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+        patch.object(ProfileInvocationExecutor, "op_write_refusal", return_value=None),
+    ):
         invocation_id = ProfileInvocationExecutor(primary).invoke("implement the thing", profile_hint=PROFILE).invocation_id
     record = primary / EVENTS_DIR / f"{invocation_id}.jsonl"
     before = record.read_bytes()

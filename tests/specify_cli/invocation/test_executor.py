@@ -374,9 +374,15 @@ class TestAutoCommitOnCompleteInvocation:
         _init_git_repo(tmp_path, track_ops=True)
         _setup_fixture_profiles(tmp_path)
 
-        with patch(
-            "specify_cli.invocation.executor.build_charter_context",
-            return_value=_COMPACT_CTX,
+        # Admission refuses this write up front (#6564); lifting it models a
+        # branch switch between open and close, which the post-write
+        # refusal below still has to survive.
+        with (
+            patch(
+                "specify_cli.invocation.executor.build_charter_context",
+                return_value=_COMPACT_CTX,
+            ),
+            patch.object(ProfileInvocationExecutor, "op_write_refusal", return_value=None),
         ):
             executor = ProfileInvocationExecutor(tmp_path)
             payload = executor.invoke("implement feature", profile_hint="implementer-fixture")
@@ -668,9 +674,12 @@ class TestOpCommitSkip:
         checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
         executor = ProfileInvocationExecutor(tmp_path)
-        invocation_id = _open_op(executor)
+        # Admission is not under test here; it would also warm the decision cache.
+        with patch.object(executor, "op_write_refusal", return_value=None):
+            invocation_id = _open_op(executor)
 
         with (
+            patch.object(executor, "op_write_refusal", return_value=None),
             patch("specify_cli.invocation.executor.safe_commit") as mock_safe_commit,
             patch(
                 "specify_cli.invocation.executor.probe_primary_tracking",
@@ -695,8 +704,10 @@ class TestOpCommitSkip:
         checkout_issue_branch(tmp_path)
         _setup_fixture_profiles(tmp_path)
         executor = ProfileInvocationExecutor(tmp_path)
-        first_id = _open_op(executor)
-        second_id = _open_op(executor)
+        # Admission is not under test here; it would also warm the decision cache.
+        with patch.object(executor, "op_write_refusal", return_value=None):
+            first_id = _open_op(executor)
+            second_id = _open_op(executor)
         calls: list[object] = []
 
         def spy(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -711,6 +722,7 @@ class TestOpCommitSkip:
             run=spy, SubprocessError=subprocess.SubprocessError, TimeoutExpired=subprocess.TimeoutExpired
         )
         with (
+            patch.object(executor, "op_write_refusal", return_value=None),
             patch.object(op_commit_policy, "subprocess", spy_module),
             patch.object(kernel_runner, "subprocess", spy_module),
             patch("specify_cli.invocation.executor.safe_commit"),

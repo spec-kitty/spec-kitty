@@ -19,13 +19,14 @@ from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 from specify_cli.git.commit_helpers import SafeCommitDestinationNotFound
-from specify_cli.invocation.executor import (
+from specify_cli.invocation.executor import ProfileInvocationExecutor
+from specify_cli.invocation.op_custody import (
     OP_WRITE_PROTECTED_BRANCH,
-    OP_WRITE_PROTECTION_CONFIG_INVALID,
     OpWriteRefusal,
-    ProfileInvocationExecutor,
+    OpWriteRefused,
+    locate_op_record_root,
+    resolve_op_record_root,
 )
-from specify_cli.invocation.op_custody import locate_op_record_root, resolve_op_record_root
 from specify_cli.invocation.writer import EVENTS_DIR
 from tests.specify_cli.invocation._op_git import run_git, track_op_record_on_current_branch
 
@@ -71,7 +72,7 @@ def test_linked_worktree_owns_its_op_records(tmp_path: Path) -> None:
     assert resolve_op_record_root(primary, subdir) == lane.resolve()
 
 
-def test_primary_checkout_owns_its_op_records(tmp_path: Path) -> None:
+def test_repository_root_checkout_owns_its_op_records(tmp_path: Path) -> None:
     primary = _repo(tmp_path / "primary")
 
     assert resolve_op_record_root(primary, primary) == primary.resolve()
@@ -131,13 +132,6 @@ def test_detached_head_is_admitted(tmp_path: Path) -> None:
     assert ProfileInvocationExecutor(primary).op_write_refusal() is None
 
 
-def test_protected_branch_tracking_op_records_is_refused(tmp_path: Path) -> None:
-    primary = _repo(tmp_path / "primary")
-    track_op_record_on_current_branch(primary)
-
-    assert ProfileInvocationExecutor(primary).op_write_refusal() == OpWriteRefusal(OP_WRITE_PROTECTED_BRANCH, "protected branch 'main'")
-
-
 def test_branch_protected_only_by_the_primary_config_is_refused(tmp_path: Path) -> None:
     """The project root's protection policy applies to a worktree's Op record too."""
     primary = _repo(tmp_path / "primary")
@@ -153,17 +147,17 @@ def test_branch_protected_only_by_the_primary_config_is_refused(tmp_path: Path) 
     assert refusal == OpWriteRefusal(OP_WRITE_PROTECTED_BRANCH, "protected branch 'release'")
 
 
-def test_unreadable_protection_config_is_refused(tmp_path: Path) -> None:
-    primary = _repo(tmp_path / "primary")
+def test_invoke_refuses_by_itself_before_writing_anything(tmp_path: Path) -> None:
+    """Any caller of the executor is admitted, or refused with nothing written (#6564)."""
+    primary = _with_profiles(_repo(tmp_path / "primary"))
     track_op_record_on_current_branch(primary)
-    config = primary / ".kittify" / "config.yaml"
-    config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text("protection:\n  protected_branches: main\n", encoding="utf-8")
+    before = sorted((primary / EVENTS_DIR).glob("*.jsonl"))
 
-    refusal = ProfileInvocationExecutor(primary).op_write_refusal()
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX), pytest.raises(OpWriteRefused) as refused:
+        ProfileInvocationExecutor(primary).invoke("implement it", profile_hint=PROFILE)
 
-    assert refusal is not None
-    assert refusal.code == OP_WRITE_PROTECTION_CONFIG_INVALID
+    assert refused.value.refusal == OpWriteRefusal(OP_WRITE_PROTECTED_BRANCH, "protected branch 'main'")
+    assert sorted((primary / EVENTS_DIR).glob("*.jsonl")) == before
 
 
 def test_unprotected_branch_is_admitted(tmp_path: Path) -> None:
@@ -181,18 +175,6 @@ def test_other_commit_problems_are_left_to_the_close(tmp_path: Path) -> None:
 
     with patch("specify_cli.invocation.executor.preflight_commit", side_effect=refusal):
         assert ProfileInvocationExecutor(primary).op_write_refusal() is None
-
-
-def test_record_root_is_where_the_executor_writes(tmp_path: Path) -> None:
-    project = _with_profiles(tmp_path / "project")
-    record_root = tmp_path / "lane"
-    record_root.mkdir()
-
-    with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
-        payload = ProfileInvocationExecutor(project, record_root=record_root).invoke("implement it", profile_hint=PROFILE)
-
-    assert (record_root / EVENTS_DIR / f"{payload.invocation_id}.jsonl").is_file()
-    assert not (project / EVENTS_DIR).exists()
 
 
 # ---------------------------------------------------------------------------
@@ -260,22 +242,19 @@ def test_locate_prefers_the_invoking_checkout(tmp_path: Path) -> None:
     assert locate_op_record_root(primary, _ID, preferred=lane) == lane
 
 
-def test_locate_finds_a_record_in_another_worktree(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("holder", "preferred"),
+    [("lane", "primary"), ("primary", "lane")],
+    ids=["record-in-another-worktree", "older-record-in-the-root-checkout"],
+)
+def test_locate_finds_a_record_held_by_another_checkout(tmp_path: Path, holder: str, preferred: str) -> None:
     primary = _repo(tmp_path / "primary")
     lane = tmp_path / "lane"
     run_git(primary, "worktree", "add", "-b", "topic", str(lane))
-    _record(lane, _ID)
+    checkouts = {"primary": primary, "lane": lane.resolve()}
+    _record(checkouts[holder], _ID)
 
-    assert locate_op_record_root(primary, _ID, preferred=primary) == lane.resolve()
-
-
-def test_locate_finds_an_older_record_in_the_primary_checkout(tmp_path: Path) -> None:
-    primary = _repo(tmp_path / "primary")
-    lane = tmp_path / "lane"
-    run_git(primary, "worktree", "add", "-b", "topic", str(lane))
-    _record(primary, _ID)
-
-    assert locate_op_record_root(primary, _ID, preferred=lane) == primary
+    assert locate_op_record_root(primary, _ID, preferred=checkouts[preferred]) == checkouts[holder]
 
 
 @pytest.mark.parametrize("invocation_id", [_ID, "../../etc/passwd"])

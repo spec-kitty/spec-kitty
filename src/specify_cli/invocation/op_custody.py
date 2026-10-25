@@ -1,12 +1,11 @@
-"""Which checkout an Op record belongs to (#6564).
+"""Where an Op record belongs, and whether it may be written there (#6564).
 
-``find_repo_root`` maps a linked worktree back to the primary checkout on
-purpose: governance (the charter, profiles, glossaries) is discovered there.
-An Op record is different: it is the trail of work done in the checkout the
-command runs in, and it is committed on that checkout's branch. Writing it
-into the primary checkout from a feature worktree strands untracked files on
-the primary branch, where the protected-branch guard then refuses to commit
-them.
+``find_repo_root`` maps a linked worktree back to the repository root checkout
+on purpose: governance (the charter, profiles, glossaries) is discovered
+there. An Op record is different: it is the trail of work done in the checkout
+the command runs in, and it is committed on that checkout's branch. Writing it
+into the repository root checkout from a feature worktree strands untracked
+files on its protected branch, where the guard then refuses to commit them.
 
 * :func:`resolve_op_record_root` keeps the two apart: it returns the invoking
   checkout when that checkout belongs to the project's repository, and the
@@ -14,19 +13,36 @@ them.
 * :func:`locate_op_record_root` finds the checkout that already holds a given
   Op's record, so an Op opened in one checkout can be closed or claimed from
   another one of the same repository.
+* :class:`OpWriteRefusal` and :class:`OpWriteRefused` carry the answer to
+  "may a record be written there at all": the executor decides, this module
+  owns the vocabulary and the operator-facing message.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 
 from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.git.commit_helpers import is_worktree_of
+from specify_cli.invocation.errors import InvocationError
 from specify_cli.invocation.writer import InvocationWriter
 
-__all__ = ["locate_op_record_root", "resolve_op_record_root"]
+__all__ = [
+    "OP_WRITE_PROTECTED_BRANCH",
+    "OP_WRITE_PROTECTION_CONFIG_INVALID",
+    "OpWriteRefusal",
+    "OpWriteRefused",
+    "locate_op_record_root",
+    "op_write_refusal_message",
+    "resolve_op_record_root",
+]
+
+#: Error codes of the pre-write admission refusal (#6564).
+OP_WRITE_PROTECTED_BRANCH = "OP_WRITE_PROTECTED_BRANCH"
+OP_WRITE_PROTECTION_CONFIG_INVALID = "OP_WRITE_PROTECTION_CONFIG_INVALID"
 
 _GIT_TIMEOUT_SECONDS = 30
 _WORKTREE_LINE_PREFIX = "worktree "
@@ -57,8 +73,8 @@ def resolve_op_record_root(project_root: Path, start: Path | None = None) -> Pat
     """Return the checkout whose ``kitty-ops/`` holds the Op records of this command.
 
     That is the git checkout containing ``start`` (default: the working
-    directory) when it belongs to the project's repository: the primary
-    checkout or one of its linked worktrees. Anything else (no git checkout,
+    directory) when it belongs to the project's repository: the repository
+    root checkout or one of its linked worktrees. Anything else (no git checkout,
     or a checkout of a different repository) falls back to ``project_root``,
     which is what every Op command used before #6564.
 
@@ -95,7 +111,7 @@ def locate_op_record_root(project_root: Path, invocation_id: str, *, preferred: 
 
     Looks in ``preferred`` (the invoking checkout) first, then the project
     root, then every other checkout of the repository, so an Op opened in a
-    linked worktree, or by an older CLI in the primary checkout, is found from
+    linked worktree, or by an older CLI in the repository root checkout, is found from
     either side. An invalid id is never found.
     """
     seen: set[Path] = set()
@@ -108,3 +124,39 @@ def locate_op_record_root(project_root: Path, invocation_id: str, *, preferred: 
         if _holds_record(checkout, invocation_id):
             return checkout
     return None
+
+
+@dataclasses.dataclass(frozen=True)
+class OpWriteRefusal:
+    """Why an Op record may not be written in its checkout (#6564).
+
+    ``reason`` is the guard's answer (``protected branch 'main'``, or why the
+    protection configuration could not be read); it never names the
+    protected-branch override.
+    """
+
+    code: str
+    reason: str
+
+
+def op_write_refusal_message(refusal: OpWriteRefusal, record_root: Path, *, action: str) -> str:
+    """The operator-facing refusal; ``action`` is ``open the Op`` or ``close the Op``.
+
+    It never suggests overriding the protected-branch guard.
+    """
+    if refusal.code == OP_WRITE_PROTECTED_BRANCH:
+        problem = f"its Op record would be written in {record_root} on {refusal.reason}, where the record cannot be committed"
+        remedy = "Run the command from a topic branch, or from a worktree whose branch is not protected."
+    else:
+        problem = f"the branch protection settings for {record_root} cannot be read ({refusal.reason})"
+        remedy = "Fix the protection: block in .kittify/config.yaml, then run the command again."
+    return f"Refusing to {action}: {problem}. Nothing was written. {remedy}"
+
+
+class OpWriteRefused(InvocationError):
+    """The executor refused to write an Op record before writing anything (#6564)."""
+
+    def __init__(self, refusal: OpWriteRefusal, record_root: Path, *, action: str) -> None:
+        self.refusal = refusal
+        self.record_root = record_root
+        super().__init__(op_write_refusal_message(refusal, record_root, action=action))

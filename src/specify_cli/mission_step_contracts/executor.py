@@ -50,6 +50,7 @@ from charter.mission_steps import (
 )
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
+from specify_cli.invocation.op_custody import resolve_op_record_root
 from specify_cli.mission_step_contracts.profile_defaults import (
     _ACTION_PROFILE_DEFAULTS,
     _DEFAULT_PROFILE_ROLES,
@@ -186,7 +187,9 @@ class StepContractExecutor:
             project_dir=project_pack_root(repo_root) / "mission_step_contracts",
             org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
         )
-        self._invocation_executor = invocation_executor or ProfileInvocationExecutor(repo_root)
+        self._invocation_executor = invocation_executor or ProfileInvocationExecutor(
+            repo_root, record_root=resolve_op_record_root(repo_root)
+        )
         self._graph = graph
 
     def execute(
