@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M5T1ZP777KGERX70HAHFZH09",
-  "materialized_at": "2026-10-25T17:33:26.621602+00:00",
+  "event_count": 9,
+  "last_event_id": "01M5T3BCYM44E2XE9W42FRDRRH",
+  "materialized_at": "2026-10-25T17:57:18.917940+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -32,7 +32,13 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 11003,
-      "shell_pid_created_at": "1792949584.37"
+      "shell_pid_created_at": "1792949584.37",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
@@ -49,11 +55,15 @@
       "last_transition_at": "2026-10-25T17:20:52.087102+00:00"
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M5T18QN7DQEV9HM87M209913",
-      "last_transition_at": "2026-10-25T17:20:54.439669+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M5T3BCYM44E2XE9W42FRDRRH",
+      "last_transition_at": "2026-10-25T17:57:18.917940+00:00",
+      "shell_pid": 20699,
+      "shell_pid_created_at": "1792951005.79"
     },
     "WP05": {
       "actor": "finalize-tasks",
