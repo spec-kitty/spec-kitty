@@ -1,7 +1,7 @@
 {
-  "event_count": 40,
-  "last_event_id": "01M5TENZHF93KA6W7FZVTPS5RW",
-  "materialized_at": "2026-10-25T21:15:19.983798+00:00",
+  "event_count": 41,
+  "last_event_id": "01M5TFGYY4C7P7ANDHBWJTAAX3",
+  "materialized_at": "2026-10-25T21:30:04.100890+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -10,12 +10,12 @@
     "approved": 4,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -147,15 +147,15 @@
       }
     },
     "WP05": {
-      "actor": "claude",
+      "actor": "user",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M5TENZHF93KA6W7FZVTPS5RW",
-      "last_transition_at": "2026-10-25T21:15:19.983798+00:00",
+      "lane": "claimed",
+      "last_event_id": "01M5TFGYY4C7P7ANDHBWJTAAX3",
+      "last_transition_at": "2026-10-25T21:30:04.100890+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Gate from scratch draft plus the two WP gaps closed: any-.jsonl raw census (empty ledger) and pinned unresolved log-shaped writes (3). Red-first: over origin/main src the raw census reports exactly the eight G-5 appends. Door ledger keyed (module, function, door), not (module, path expression): function names are stable where path expressions are shared helpers. Docs: lock column, G-1/G-2 partly closed, G-5 closed, events-in-core interim section, changelog Fixed + Internal. Gates 32+28 passed; docs tests 395 passed; changelog style 0 errors."
@@ -168,13 +168,13 @@
         "reviewer": "claude",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T017": "planned",
-        "T018": "planned",
-        "T019": "planned"
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
       }
     }
   }
