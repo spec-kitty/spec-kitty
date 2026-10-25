@@ -1,13 +1,10 @@
 ---
 work_package_id: WP05
-title: Shared walkers and an honest walker gate
+title: Shared migration walkers skip residue
 dependencies:
 - WP01
-- WP02
-- WP03
 requirement_refs:
 - FR-003
-- FR-013
 planning_base_branch: fix/residue-safe-migration-sweep
 merge_target_branch: fix/residue-safe-migration-sweep
 branch_strategy: Planning artifacts for this mission were generated on fix/residue-safe-migration-sweep. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/residue-safe-migration-sweep unless the human explicitly redirects the landing branch.
@@ -15,12 +12,14 @@ subtasks:
 - T019
 - T020
 - T021
-- T022
-phase: Phase 3 - Guardrails
+phase: Phase 1 - Foundation
 history:
 - at: '2026-10-25T15:55:03Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
+- at: '2026-10-25T16:40:00Z'
+  actor: claude
+  action: 'Re-cut after the post-tasks adversarial review: walkers only; the gate reclassification moved to WP03'
 agent_profile: implementer-ivan
 authoritative_surface: src/specify_cli/migration/
 create_intent:
@@ -30,7 +29,6 @@ model: claude-sonnet-5-5
 owned_files:
 - src/specify_cli/migration/backfill_runtime_state.py
 - src/specify_cli/migration/runner.py
-- tests/architectural/test_migration_walkers_use_mission_predicate.py
 - tests/specify_cli/migration/test_residue_shared_walkers_6669.py
 role: implementer
 tags: []
@@ -38,7 +36,7 @@ task_type: implement
 tracker_refs: []
 ---
 
-# Work Package Prompt: WP05 – Shared walkers and an honest walker gate
+# Work Package Prompt: WP05 – Shared migration walkers skip residue
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -77,25 +75,28 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 ## Objectives & Success Criteria
 
-- `migration/backfill_runtime_state._mission_dirs` and `migration/runner._move_derived_files` skip residue folders, decided by `is_kitty_specs_residue` (FR-003). These back `migrate backfill-runtime-state`, `migrate backfill-wp-status` and the 3.0.0 canonical-context derived-file move.
-- `tests/architectural/test_migration_walkers_use_mission_predicate.py` is reclassified under the new definition (FR-013):
-  - `_REQUIRES_STATE` and `_REQUIRES_META` stay only where the new rule guarantees no write into residue. A folder with `meta.json` is never residue in either mode; a folder with only `status.json` or `tasks/` **is** residue in git-aware mode.
-  - The four superseded walkers point at their successor, and the successors are inventoried as `_FILTERS`.
-  - `_GUARDED_IDENTITY_ONLY` is removed.
-  - `_PREDICATES` and `_GUARDED_SEAMS` include every new seam.
-- Requirement refs: FR-003, FR-013.
+- Two shared walkers skip residue folders. The decision comes only from WP01's `is_kitty_specs_residue`, with `tracked` computed once per walk (FR-003):
+  - `migration/backfill_runtime_state._mission_dirs`, which backs `migrate backfill-runtime-state` and `migrate backfill-wp-status`;
+  - `migration/runner._move_derived_files`, the 3.0.0 canonical-context derived-file move.
+- A skipped folder is reported without naming it a second time during upgrade. Choose one approach and state it in the docstring:
+  - the per-Mission result carries a residue skip reason that uses `RESIDUE_NOTICE`, so WP04 collapses it; or
+  - the skip is logged only.
+
+  JSON shapes stay additive-only.
+- Real Missions are processed exactly as before.
+- This WP edits no gate file. WP03 reclassifies the walker inventory after this WP lands, so its `_FILTERS` labels are true.
+- Requirement refs: FR-003.
 
 ## Context & Constraints
 
-- WP01 delivers the rule. WP02 and WP03 deliver the four successors, so the gate inventory can name them.
-- The walker gate (`tests/architectural/test_migration_walkers_use_mission_predicate.py`) reuses `_find_raw_walker_calls` from `test_mission_resolver_walker_gate.py`. It does not see walkers that use a module constant instead of the `"kitty-specs"` literal. Do not widen its detector in this WP (out of scope). Document the limit in the module docstring instead.
-- `backfill_runtime_state._mission_dirs` feeds `backfill_runtime_state_repo` and `apply_wp_status_backfill_repo`. A residue folder must be skipped **and** reported, consistent with `cutover_repo`'s `residue=True` reporting. Decide on the smallest consistent signal (e.g. a skipped result with a residue reason) and keep the existing JSON shapes additive-only.
-- `migration/runner._move_derived_files` copies `status.json` into `.kittify/derived/`. It writes outside the folder, but it must still not treat residue as a Mission.
+- WP01 delivers the rule. Read the existing result dataclasses in `backfill_runtime_state.py` before deciding how a skip is reported.
+- `tests/architectural/test_json_contract_enumeration.py` must stay green.
 
 ## Branch Strategy
 
 - **Planning base branch**: fix/residue-safe-migration-sweep
 - **Merge target branch**: fix/residue-safe-migration-sweep
+- Execution worktrees are allocated per computed lane from `lanes.json`.
 
 ```bash
 spec-kitty agent action implement WP05 --agent claude --mission residue-safe-migration-sweep-01M5SS0F
@@ -105,40 +106,34 @@ spec-kitty agent action implement WP05 --agent claude --mission residue-safe-mig
 
 ### Subtask T019 – `backfill_runtime_state._mission_dirs`
 
-- Filter with `is_kitty_specs_residue(d, repo_root=repo_root, tracked=tracked)`, with `tracked` computed once per walk. Report skipped residue in the per-Mission result the same way an existing "skip" is reported. Read the file's existing result dataclass first.
-- Run `tests/specify_cli/migration/test_backfill_runtime_state*.py`, `tests/specify_cli/cli/commands/test_backfill_runtime_state_cli.py` and any `backfill-wp-status` tests (`git grep -l backfill_wp_status tests`).
+- Filter with `is_kitty_specs_residue(d, repo_root=repo_root, tracked=tracked)`. Keep the walker's variable name; the gate already sees it.
+- Find the covering suites with `git grep -l "backfill_runtime_state\|backfill_wp_status" tests`, and keep them green.
 
 ### Subtask T020 – `migration/runner._move_derived_files`
 
-- Skip residue the same way, with `tracked` computed once.
+- Apply the same filter, with `tracked` computed once.
 
-### Subtask T021 – Reclassify the walker inventory
+### Subtask T021 – Behaviour tests
 
-- For each `_WALKER_INVENTORY` entry, re-derive the label under the new rule and write the reason in a comment where it changed.
-- The superseded shipped walkers (`m_0_9_0`, `m_0_9_1`, `m_2_0_6`, `m_3_1_1`) get a label such as `_SUPERSEDED = "shipped migration registered as a no-op; its residue-aware successor walks instead"`. Add a test asserting every `_SUPERSEDED` module's migration id is a key of `SUPERSEDED_MIGRATIONS`.
-- The successors' walker functions are `_FILTERS`; `test_filters_classification_is_true` must pass. Add `is_kitty_specs_residue` callers to `_GUARDED_SEAMS`.
-
-### Subtask T022 – Behaviour tests
-
-- **File**: `tests/specify_cli/migration/test_residue_shared_walkers_6669.py` (`git_repo`). For each walker, a tracked project with one real Mission and one residue folder (`status.json`-only, `tasks/`-only): the residue folder is untouched and reported, and the Mission is processed.
+- **File**: `tests/specify_cli/migration/test_residue_shared_walkers_6669.py` (uses `git_repo`).
+- For each walker, set up a tracked project with one real Mission and two residue folders: one holding only `status.json`, one holding only `tasks/`. The residue folders stay untouched and the skip is reported as chosen above; the Mission is processed.
+- Add a non-git control: there, the same tasks-only folder is processed (fallback mode).
 
 ## Test Strategy
 
 ```bash
-uv run --frozen pytest tests/architectural/test_migration_walkers_use_mission_predicate.py tests/architectural/test_mission_resolver_walker_gate.py tests/specify_cli/migration -n 6 --dist loadfile -q
-uv run --frozen pytest tests/specify_cli/cli/commands/test_backfill_runtime_state_cli.py tests/integration/test_migration_backfill.py -q
+uv run --frozen pytest tests/specify_cli/migration -n 6 --dist loadfile -q
+uv run --frozen pytest tests/specify_cli/cli/commands/test_backfill_runtime_state_cli.py tests/integration/test_migration_backfill.py tests/architectural/test_json_contract_enumeration.py -q
 uv run --frozen mypy --strict src/specify_cli/migration/backfill_runtime_state.py src/specify_cli/migration/runner.py
 ```
 
 ## Risks & Mitigations
 
-- **Changing CLI JSON shapes**: additive-only. `tests/architectural/test_json_contract_enumeration.py` must stay green.
-- **Vacuous gate**: `test_filters_classification_is_true` keeps a `_FILTERS` label honest.
+- **CLI JSON shape changes**: keep them additive-only; the contract enumeration test guards this.
 
 ## Review Guidance
 
-- Re-derive two or three labels independently and check that they hold under the new rule.
-- Confirm the residue skip is reported, not silent.
+- Confirm the skip is reported, not silent, and that no folder is named twice during upgrade.
 
 ## Progress & Status
 

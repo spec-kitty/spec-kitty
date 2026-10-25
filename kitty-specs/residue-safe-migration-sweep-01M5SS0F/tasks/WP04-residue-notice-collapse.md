@@ -73,7 +73,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 - In one `spec-kitty upgrade` run, every residue folder skipped by any step is named **at least once and at most once** in the run's warnings, in both human and `--json` output. Up to 5 steps can skip it: four successors plus the 3.2.0a4 normalization (FR-008; DM 01M5SVE8QC28KRAZM25PR2N4PT: "runner collapses").
 - Only residue notices built from WP01's `RESIDUE_NOTICE` are collapsed. Every other warning passes through unchanged, in order.
-- The main checkout and each non-integrating worktree are collapsed separately: the same slug in two checkouts is two folders.
+- The collapse key is the **resolved folder path**: `(checkout_root / residue_notice_path(line)).resolve()`. One seen-set is shared by the main-checkout loop and the worktree loop. A main-checkout successor that walks `.worktrees/wt1/kitty-specs/x` and the worktree's own run that names `kitty-specs/x` therefore collapse to one line, while the same slug in two different checkouts stays two folders (post-tasks review M6).
 - Requirement refs: FR-008.
 
 ## Context & Constraints
@@ -81,7 +81,7 @@ Use language identifiers in code blocks: ````python`,````bash`
 - `src/specify_cli/upgrade/runner.py` collects warnings:
   - main checkout: `result.warnings.extend(migration_result.warnings)` (≈ line 325);
   - worktrees: `result["warnings"].extend([f"Worktree {worktree.name}: {w}" ...])` (≈ line 766).
-- The 3.2.0a4 migration prefixes the slug (`f"{result.slug}: {warning}"`), and the successors emit `RESIDUE_NOTICE` with the slug. Make sure both shapes produce an **identical** line for the same folder. Coordinate with WP01's chosen convention (the constant's comment documents whether it is slug-prefixed).
+- The frozen 3.2.0a4 migration prefixes the slug (`f"{result.slug}: {warning}"`), and worktree lines carry `Worktree <name>: `. Do not compare whole lines: WP01's `residue_notice_path(line)` extracts the embedded project-relative path from any prefix form. The first line seen for a folder is the one kept.
 - Check how the CLI renders warnings: `src/specify_cli/upgrade/outcome.py` and `cli/commands/upgrade.py`. Collapse at the single collection point, so both renderers see the collapsed list. Do not add a second rendering filter.
 - Keep complexity ≤ 15 in the touched runner methods. Extract a small pure helper, e.g. `_append_warnings(target: list[str], new: list[str], seen_residue: set[str])`.
 
@@ -102,8 +102,8 @@ spec-kitty agent action implement WP04 --agent claude --mission residue-safe-mig
 
 ### Subtask T017 – Collapse exact residue notices
 
-- Add a pure helper, `is_residue_notice(line: str) -> bool` or similar, in `runner.py`. It recognises a line built from `RESIDUE_NOTICE`, preferably by checking a stable marker exported next to the constant in `mission_resolver` (e.g. `RESIDUE_NOTICE_MARKER`) rather than duplicating text. If WP01 did not export a marker, add one there in a tiny, recorded out-of-map edit. Prefer asking for it in review over duplicating literals (Sonar S1192).
-- When extending warnings, drop a residue notice already present **in the same checkout's** list. Use a set per checkout.
+- Add a pure helper in `runner.py`, e.g. `_append_warnings(target: list[str], new: list[str], *, checkout_root: Path, seen: set[Path]) -> None`. It uses WP01's `residue_notice_path`; do not duplicate the notice text (Sonar S1192).
+- The runner owns one `seen: set[Path]` per `upgrade` run and passes it to both the main-checkout collection (≈ line 325) and the worktree collection (≈ line 766).
 
 ### Subtask T018 – Tests
 
@@ -111,7 +111,9 @@ spec-kitty agent action implement WP04 --agent claude --mission residue-safe-mig
 - **Cases**:
   1. Pure-helper tests: three identical residue notices collapse to one, two different folders keep two, and a non-residue duplicate warning is not collapsed (other warnings keep today's behaviour exactly).
   2. A runner-level test with two stub migrations registered (`MigrationRegistry.clear()` / register, as in `tests/upgrade/test_worktree_stamp_guard.py`). Each emits the same residue notice for folder X, and the `UpgradeResult.warnings` contains it once.
-  3. The worktree path keeps its `Worktree <name>: ` prefix and collapses within that worktree.
+  3. The worktree path keeps its `Worktree <name>: ` prefix. A main-checkout notice for `.worktrees/wt1/kitty-specs/x` and a worktree-run notice for `kitty-specs/x` in `wt1` collapse to one line.
+  4. The same slug `x` in the main checkout and in `wt1` (two different folders) gives two lines.
+  5. The `--json` payload shows the collapsed list.
 
 ## Test Strategy
 

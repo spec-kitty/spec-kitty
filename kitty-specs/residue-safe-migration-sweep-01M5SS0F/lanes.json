@@ -31,12 +31,16 @@
         "WP06"
       ],
       "write_scope": [
+        ".github/workflows/ci-router.yml",
         "src/specify_cli/audit/classifiers/fabricated_identity.py",
         "src/specify_cli/audit/engine.py",
         "src/specify_cli/audit/models.py",
+        "src/specify_cli/mission_metadata.py",
         "src/specify_cli/upgrade/feature_meta.py",
         "tests/audit/test_fabricated_identity_finding.py",
         "tests/audit/test_residue_directory_finding.py",
+        "tests/ci/test_mission_state_audit_routing.py",
+        "tests/release/ci_retirement_scrub.json",
         "tests/upgrade/test_feature_meta.py"
       ],
       "predicted_surfaces": [
@@ -54,13 +58,8 @@
       ],
       "write_scope": [
         "src/specify_cli/upgrade/migrations/_residue_successor.py",
-        "src/specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
-        "src/specify_cli/upgrade/migrations/m_3_1_1_residue_safe_normalize_status_json.py",
-        "src/specify_cli/upgrade/migrations/order_manifest.txt",
         "src/specify_cli/upgrade/registry.py",
-        "src/specify_cli/upgrade/supersession.py",
-        "tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py",
-        "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py"
+        "tests/specify_cli/upgrade/test_residue_successor_plumbing_6669.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -90,25 +89,6 @@
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-c",
-      "wp_ids": [
-        "WP03"
-      ],
-      "write_scope": [
-        "src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py",
-        "src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py",
-        "tests/specify_cli/upgrade/test_residue_safe_lane_successors_6669.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "legacy-cleanup"
-      ],
-      "depends_on_lanes": [
-        "lane-b"
-      ],
-      "parallel_group": 2
-    },
-    {
       "lane_id": "lane-e",
       "wp_ids": [
         "WP05"
@@ -116,19 +96,42 @@
       "write_scope": [
         "src/specify_cli/migration/backfill_runtime_state.py",
         "src/specify_cli/migration/runner.py",
-        "tests/architectural/test_migration_walkers_use_mission_predicate.py",
         "tests/specify_cli/migration/test_residue_shared_walkers_6669.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_1_residue_safe_normalize_status_json.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "src/specify_cli/upgrade/supersession.py",
+        "tests/architectural/test_migration_walkers_use_mission_predicate.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py",
+        "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py"
       ],
       "predicted_surfaces": [
         "api",
         "legacy-cleanup"
       ],
       "depends_on_lanes": [
-        "lane-a",
         "lane-b",
-        "lane-c"
+        "lane-e"
       ],
-      "parallel_group": 3
+      "parallel_group": 2
     },
     {
       "lane_id": "lane-g",
@@ -139,7 +142,8 @@
         "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
         "docs/changelog/CHANGELOG.md",
         "tests/integration/migration/test_upgrade_residue_identity_6627.py",
-        "tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py"
+        "tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py",
+        "tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -153,11 +157,11 @@
         "lane-e",
         "lane-f"
       ],
-      "parallel_group": 4
+      "parallel_group": 3
     }
   ],
-  "computed_at": "2026-10-25T16:03:32.101469+00:00",
+  "computed_at": "2026-10-25T16:27:28.730082+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "c34ce72dad0ccdb44a34a7a0fac0efe660a3cb80"
+  "planning_commit_sha": "c4a4021cdc7c093a4dde55d404704328cb27f886"
 }

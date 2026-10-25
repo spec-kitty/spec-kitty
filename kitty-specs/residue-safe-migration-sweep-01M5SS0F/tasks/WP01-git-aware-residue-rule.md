@@ -122,6 +122,7 @@ spec-kitty agent action implement WP01 --agent claude --mission residue-safe-mig
 - **Steps**:
   1. Add a small pure helper, for example `_git_aware_mode(tracked: frozenset[str] | None) -> bool`, which is True iff `tracked` is not `None` and not empty. `tracked_mission_paths(repo_root)` already returns `None` outside a work tree or when git cannot run, and an empty set when nothing under `kitty-specs/` is tracked: the ignored and nested-untracked cases.
   2. In `is_kitty_specs_residue`, compute `tracked` lazily via `tracked_mission_paths(repo_root)` only when the caller did not pass one, and only after the cheap no-git checks: markers on disk, identity in `meta.json`.
+  3. "Not passed" and "passed `None`" must differ: a walker that already probed and got `None` (no usable git) must not trigger a second probe per folder. Use a module-private sentinel default (`tracked: frozenset[str] | None | _Unset = _UNSET`), keep the public type hint readable, and test both paths (post-tasks review fold).
 - **Files**: `src/specify_cli/context/mission_resolver.py`.
 - **Notes**: never call git for a folder whose `spec.md` or `meta.json` exists on disk; it is not residue in either mode.
 
@@ -142,8 +143,12 @@ spec-kitty agent action implement WP01 --agent claude --mission residue-safe-mig
 
 - **Purpose**: one text for every step's residue warning (FR-008). The runner collapse in WP04 keys on it.
 - **Steps**:
-  1. In `mission_resolver.py`, add `RESIDUE_NOTICE = "{slug}: not a Mission (residue directory: no mission_id and no spec.md or meta.json); left untouched. Add a spec.md or meta.json to make it a Mission, or remove the folder."`, plus a tiny `residue_notice(slug: str) -> str` formatter. Adjust the wording if the review asks, but keep it a single constant.
-  2. `migration/normalize_mission_lifecycle.py`: replace `RESIDUE_SKIP_WARNING` with the shared text. The slug is prefixed by the 3.2.0a4 migration (`f"{result.slug}: {warning}"`), so expose a slug-less form, or make the constant slug-less and let callers prefix. Pick one convention and document it in the constant's comment. Keep `RESIDUE_SKIP_WARNING` as an alias only if a test imports it; prefer updating the test.
+  1. In `mission_resolver.py`, add `RESIDUE_NOTICE = "not a Mission (residue directory {path}: no mission_id and no spec.md or meta.json); left untouched. Add a spec.md or meta.json to make it a Mission, or remove the folder."` plus:
+     - `residue_notice(rel_path: str) -> str`, where `rel_path` is the folder's path **relative to the checkout being upgraded**, POSIX form (`kitty-specs/x`, or `.worktrees/wt1/kitty-specs/x` when a main-checkout step walks worktree specs). A slug alone is ambiguous: the same slug can exist in main and in a worktree (post-tasks review M6);
+     - `residue_notice_path(line: str) -> str | None`, which finds the notice anywhere in a warning line (callers may prefix it with `"<slug>: "` or `"Worktree <name>: "`) and returns the embedded `rel_path`. WP04 keys its collapse on this, so the text lives in one place (Sonar S1192).
+     Adjust the wording if review asks, but keep one constant.
+  2. `migration/normalize_mission_lifecycle.py`: replace `RESIDUE_SKIP_WARNING` with `residue_notice(<rel path from the repo root>)`. The frozen 3.2.0a4 migration prefixes `f"{result.slug}: "`, which `residue_notice_path` tolerates. Keep `RESIDUE_SKIP_WARNING` only if a test imports it; prefer updating the test.
+  3. Tests: round-trip `residue_notice_path(prefix + residue_notice(p)) == p` for the no-prefix, slug-prefix and `Worktree wt1: ` prefix forms; a non-residue line returns `None`.
 - **Files**: `mission_resolver.py`, `normalize_mission_lifecycle.py`.
 
 ### Subtask T004 – Unit tests for every mode and shape

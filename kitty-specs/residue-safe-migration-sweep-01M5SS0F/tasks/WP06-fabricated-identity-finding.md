@@ -24,18 +24,23 @@ history:
 agent_profile: implementer-ivan
 authoritative_surface: src/specify_cli/audit/
 create_intent:
+- src/specify_cli/mission_metadata.py
 - src/specify_cli/audit/classifiers/fabricated_identity.py
 - tests/audit/test_fabricated_identity_finding.py
 execution_mode: code_change
 model: claude-sonnet-5-5
 owned_files:
 - src/specify_cli/upgrade/feature_meta.py
+- src/specify_cli/mission_metadata.py
 - src/specify_cli/audit/classifiers/fabricated_identity.py
 - src/specify_cli/audit/models.py
 - src/specify_cli/audit/engine.py
 - tests/audit/test_fabricated_identity_finding.py
 - tests/audit/test_residue_directory_finding.py
 - tests/upgrade/test_feature_meta.py
+- tests/ci/test_mission_state_audit_routing.py
+- .github/workflows/ci-router.yml
+- tests/release/ci_retirement_scrub.json
 role: implementer
 tags: []
 task_type: implement
@@ -87,8 +92,8 @@ Use language identifiers in code blocks: ````python`,````bash`
   3. `mission_runtime.identity.mid8_from_slug(slug)` is non-empty and differs from `mission_id[:8]`. Do **not** use `resolve_mid8`, which always returns the declared prefix.
 - The detail lists the three matched signals and the remedy ("remove this folder's meta.json and status.json in a commit"), with no run-varying values. Nothing is written or deleted (FR-011, C-001).
 - Thresholds: the finding does not fail `--fail-on teamspace-blocker` or `--fail-on error`, and it does fail `--fail-on warning` (FR-011).
-- One owner for the baseline shape: `baseline_slug_fields()` in `upgrade/feature_meta.py`, used by `build_baseline_feature_meta` and by the classifier (FR-012).
-- `RESIDUE_DIRECTORY`'s detail gives a remedy that works. It currently points at `migrate backfill-identity`, which needs `meta.json`. The new text: "add a spec.md or meta.json to make it a Mission, or remove the folder" (spec Edge Cases).
+- One owner for the baseline shape: `baseline_slug_fields()` in a new, dependency-light `src/specify_cli/mission_metadata.py`. Both `upgrade/feature_meta.build_baseline_feature_meta` and the classifier import it (FR-012).
+- `RESIDUE_DIRECTORY`'s detail gives a remedy that works. It currently points at `migrate backfill-identity`, which needs `meta.json`. The audit decides residue with `is_mission_dir`, which reads **tracked** markers in a git project, so a marker merely added on disk is not enough there. The new text: "commit a spec.md or meta.json to make it a Mission (in a project outside git, adding one is enough), then run `spec-kitty upgrade`; or remove the folder" (post-tasks review M8).
 - 0 findings across this repository's `kitty-specs/` (NFR-002).
 - Requirement refs: FR-010, FR-011, FR-012, NFR-002, C-001.
 
@@ -100,7 +105,8 @@ Use language identifiers in code blocks: ````python`,````bash`
   - classifiers live in `src/specify_cli/audit/classifiers/`;
   - severities and codes are in `models.py`.
 - `doctor mission-state --audit` CI runs use `--fail-on teamspace-blocker` (`ci-router.yml`).
-- **Import direction**: `audit` may import `specify_cli.upgrade.feature_meta`. Check for a cycle (`feature_meta` imports `context.mission_resolver` and `core`). If one appears, move `baseline_slug_fields` to a neutral module (e.g. `specify_cli/mission_metadata.py`) and import it from both.
+- **Import weight (measured in the post-tasks review)**: importing `specify_cli.upgrade.feature_meta` from the audit pulls about 85 modules into the audit's import closure. It breaks `tests/ci/test_mission_state_audit_routing.py`, which pins the files that route a change to the `doctor mission-state --audit` CI job. Hence `mission_metadata.py`: it may import only the standard library and `kernel`.
+- Wire the new modules into the routing pin: add `src/specify_cli/mission_metadata.py`, the classifier and `**/mission_runtime/identity.py` (signal 3 imports `mid8_from_slug`) to the audit path set in `.github/workflows/ci-router.yml`, `tests/release/ci_retirement_scrub.json` and `tests/ci/test_mission_state_audit_routing.py`, in the form those files already use. Read all three before editing; they must agree.
 - This WP is independent of WP01–WP05 and can run in parallel.
 
 ## Branch Strategy
@@ -116,7 +122,7 @@ spec-kitty agent action implement WP06 --agent claude --mission residue-safe-mig
 
 ### Subtask T023 – `baseline_slug_fields(slug)`
 
-- Extract the slug-derived defaults from `build_baseline_feature_meta`: `mission_number` (the numeric prefix or `""`), `slug`, `mission_slug`, `friendly_name` (the slug tail with `-` replaced by spaces, or the slug). Return them as a dict.
+- Create `src/specify_cli/mission_metadata.py` (stdlib only). Extract the slug-derived defaults from `build_baseline_feature_meta`: `mission_number` (the numeric prefix or `""`), `slug`, `mission_slug`, `friendly_name` (the slug tail with `-` replaced by spaces, or the slug). Return them as a dict.
 - The builder uses the helper for those fields. Its output must be byte-identical for every existing test of `tests/upgrade/test_feature_meta.py`; add a parametrized equality test over several slugs (`042-x`, `my-mission-01M5JYRC`, `single`).
 
 ### Subtask T024 – Classifier `audit/classifiers/fabricated_identity.py`
@@ -153,7 +159,8 @@ spec-kitty agent action implement WP06 --agent claude --mission residue-safe-mig
 ## Test Strategy
 
 ```bash
-uv run --frozen pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py -q
+uv run --frozen pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release -q
+uv run --frozen python -X importtime -c "import specify_cli.audit.engine" 2>&1 | wc -l   # compare against origin/main; no large jump
 uv run --frozen mypy --strict src/specify_cli/audit/classifiers/fabricated_identity.py src/specify_cli/audit/engine.py src/specify_cli/audit/models.py src/specify_cli/upgrade/feature_meta.py
 ```
 

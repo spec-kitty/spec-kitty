@@ -41,6 +41,7 @@ owned_files:
 - tests/integration/migration/test_upgrade_residue_identity_6627.py
 - docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md
 - docs/changelog/CHANGELOG.md
+- tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py
 role: implementer
 tags: []
 task_type: implement
@@ -87,7 +88,9 @@ Use language identifiers in code blocks: ````python`,````bash`
 ## Objectives & Success Criteria
 
 - `tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py` (from PR #6672, cherry-picked onto this branch):
-  - covers all 5 leftover shapes of US1 (tasks WP, event log, status snapshot with and without a log, `tasks/doing/` lane file, `decisions/`), plus a real-Mission control in the same project;
+  - covers all 5 leftover shapes of US1 (tasks WP, event log, status snapshot with and without a log, `tasks/doing/` lane file, `decisions/`), plus two controls in the same project:
+    - a real Mission with identity;
+    - a **committed legacy Mission**: a tracked `spec.md`, no `meta.json`, and a tracked `tasks/doing/WP01-x.md`. It must still be migrated (identity minted, lane file moved), which proves the git-aware rule did not turn real pre-identity Missions into residue (post-tasks review M9);
   - asserts each residue folder is named in the upgrade output exactly once;
   - **loses its `@pytest.mark.p0_repro(issue=6669)` marker** and passes per PR (FR-009, ADR 2026-07-17-1);
   - its docstring says it was the red-first `p0_repro` and is now a per-PR guard, as the #6627 guard's docstring already does.
@@ -148,6 +151,10 @@ spec-kitty agent action implement WP07 --agent claude --mission residue-safe-mig
 - Under `### Added`, describe the #6668 doctor finding and its remedy, and state that it never deletes.
 
 ### Subtask T030 – Validate and record
+
+- **Corpus parity gate**: this mission's own coordination branch is live while the PR is open, so `tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py` lists it as an unlisted live-coordination skip. Add `"residue-safe-migration-sweep-01M5SS0F"` to `LIVE_COORDINATION_SKIPS`, with the reason "this Mission's coordination branch is live until it is consolidated (#6669)". Removing it is a closeout item for the merge.
+- **C-003 / C-004 check**: `git diff --stat origin/main -- src/specify_cli/status/ src/specify_cli/frontmatter.py src/specify_cli/upgrade/feature_meta.py` must show no behaviour change to the status model, the frontmatter writer or `backfill_mission`. `feature_meta.py` may show only the WP06 `baseline_slug_fields` extraction. Record the output in the WP history.
+- **Success-criteria trace**: SC-001 and SC-002 are covered by this guard. SC-003 (real Missions repaired as before) is covered by WP03's T015 parity cases and WP02's equivalence test. SC-004 (fabricated identities reported, never deleted) is covered by WP06's T026. Cite the test names in the WP history.
 
 - Walk through `kitty-specs/residue-safe-migration-sweep-01M5SS0F/quickstart.md`.
 - Run the NFR-001 command.
