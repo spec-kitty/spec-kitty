@@ -259,16 +259,39 @@ def test_a_promotion_restamps_the_bundle_hash(tmp_path: Path, monkeypatch: pytes
     assert calls == [project]
 
 
-def test_a_dry_run_previews_and_writes_nothing(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("legacy_skip", "preview", "applied"),
+    [
+        (False, f"dry-run: would promote {{'{DIRECTIVES}': ['{FIDELITY_STEM}']}}", [ARCHITECTURE_STEM, FIDELITY_STEM]),
+        (True, "dry-run: nothing would be promoted", [ARCHITECTURE_STEM]),
+    ],
+    ids=["nothing-recorded", "adopting-a-legacy-skip"],
+)
+def test_a_dry_run_previews_and_writes_nothing(tmp_path: Path, legacy_skip: bool, preview: str, applied: list[str]) -> None:
+    """The preview writes nothing and agrees with the real run, also before ledger adoption has recorded anything."""
+    MigrationRegistry.clear()
+    auto_discover_migrations()
     project = _project(tmp_path, ARCHITECTURE_STEM, FIDELITY_ID)
     seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
+    if legacy_skip:
+        # The pre-ledger runner's own record: an rc7 project where the interview had already promoted.
+        stamp = "'2026-10-01T00:00:00+00:00'"
+        entry = f"  - id: {UnifyCharterActivationMigration.migration_id}\n    applied_at: {stamp}\n    result: skipped\n"
+        _write(project / ".kittify" / "metadata.yaml", f"spec_kitty:\n  version: 4.0.0rc7\n  initialized_at: {stamp}\nmigrations:\n  applied:\n{entry}")
     before = _bytes(project)
+    ledger_before = MigrationLedger(project).read_all()
 
     result = PromoteInterviewSelectionsMigration().apply(project, dry_run=True)
 
     assert result.success, result.errors
-    assert result.changes_made == [f"dry-run: would promote {{'{DIRECTIVES}': ['{FIDELITY_STEM}']}}"]
+    assert result.changes_made == [preview]
     assert _bytes(project) == before
+    assert MigrationLedger(project).read_all() == ledger_before
+    for migration in MigrationRegistry.get_applicable("4.0.0rc7", "4.0.0rc8", project):
+        if migration.ledger_adoption:
+            migration.apply(project)
+    PromoteInterviewSelectionsMigration().apply(project)
+    assert read_activation_ledger(project)[DIRECTIVES] == applied
 
 
 def test_a_dry_run_with_nothing_to_promote_says_so(tmp_path: Path) -> None:

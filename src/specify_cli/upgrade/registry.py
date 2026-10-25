@@ -146,7 +146,7 @@ class MigrationRegistry:
         ledger = MigrationLedger(path)
         selected: list[BaseMigration] = []
         with legacy_upgrade_scope(path):
-            adopting = _pending_adoption_ids(ledger, all_migrations, path)
+            adopting = pending_adoption_ids(ledger, all_migrations, path)
             for migration in all_migrations:
                 settled = migration_settled(ledger, migration) or migration.migration_id in adopting
                 if not settled or migration.reselect_when_recorded(path):
@@ -172,7 +172,7 @@ class MigrationRegistry:
         cls._migrations.clear()
 
 
-def _pending_adoption_ids(ledger: MigrationLedger, migrations: list[BaseMigration], project_path: Path) -> frozenset[str]:
+def pending_adoption_ids(ledger: MigrationLedger, migrations: list[BaseMigration], project_path: Path) -> frozenset[str]:
     """Ids an unsettled ledger-adoption migration in *migrations* will settle when it applies (#6431)."""
     ids: set[str] = set()
     for migration in migrations:

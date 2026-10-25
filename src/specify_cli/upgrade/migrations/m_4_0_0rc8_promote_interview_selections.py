@@ -71,7 +71,8 @@ from charter.activation.api import (
 from charter.drg import ArtifactKind
 
 from ..ledger import SETTLED_RESULT, LedgerRecord, MigrationLedger
-from ..registry import MigrationRegistry
+from ..metadata import _LEGACY_MIGRATION_ID_MAP, ProjectMetadata
+from ..registry import MigrationRegistry, migration_settled, pending_adoption_ids
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 MIGRATION_ID = "4.0.0rc8_promote_interview_selections"
@@ -246,11 +247,34 @@ def _shipped_promotion_ran(record: LedgerRecord) -> bool:
     return record.result == SETTLED_RESULT or (record.result == _SKIPPED_RESULT and not record.superseded_by)
 
 
+def _adoption_records_shipped_promotion(project_path: Path, ledger: MigrationLedger) -> bool:
+    """Whether a pending ledger adoption will record that the superseded promotion ran.
+
+    A dry run writes no ledger record, so on a project being adopted the
+    preview asks what the adoption backfill will record, the way selection
+    does (:func:`~specify_cli.upgrade.registry.pending_adoption_ids`): a
+    ``success`` it settles, or the legacy ``skipped`` it copies from
+    ``metadata.yaml`` (which predates the substitute, so it is the shipped
+    step's own). After adoption nothing is pending and the ledger alone answers.
+    """
+    adopting = [migration for migration in MigrationRegistry.get_all() if migration.ledger_adoption and not migration_settled(ledger, migration)]
+    if not adopting:
+        return False
+    if _SUPERSEDED_PROMOTION_ID in pending_adoption_ids(ledger, adopting, project_path):
+        return True
+    metadata = ProjectMetadata.load(project_path / ".kittify")
+    legacy = metadata.applied_migrations if metadata is not None else []
+    return any(_LEGACY_MIGRATION_ID_MAP.get(record.id, record.id) == _SUPERSEDED_PROMOTION_ID and record.result == _SKIPPED_RESULT for record in legacy)
+
+
 def _shipped_promotion_settled(project_path: Path) -> bool:
-    """Whether the Migration Ledger records that the superseded promotion ran (:func:`_shipped_promotion_ran`)."""
+    """Whether the Migration Ledger records, or its pending adoption will record, that the superseded promotion ran."""
+    ledger = MigrationLedger(project_path)
     shipped = MigrationRegistry.get_by_id(_SUPERSEDED_PROMOTION_ID)
-    records = MigrationLedger(project_path).applicable_records_for(shipped)
-    return any(record.id == _SUPERSEDED_PROMOTION_ID and _shipped_promotion_ran(record) for record in records)
+    records = ledger.applicable_records_for(shipped)
+    if any(record.id == _SUPERSEDED_PROMOTION_ID and _shipped_promotion_ran(record) for record in records):
+        return True
+    return _adoption_records_shipped_promotion(project_path, ledger)
 
 
 def _unresolved_warning(unresolved: list[str]) -> str:
