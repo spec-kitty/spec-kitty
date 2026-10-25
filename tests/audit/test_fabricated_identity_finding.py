@@ -128,11 +128,30 @@ def test_absent_number_matches(tmp_path: Path) -> None:
 
 
 def test_untracked_meta_json_is_a_negative(tmp_path: Path) -> None:
+    # Only allow-listed files exist and only status.json is committed, so the folder fails
+    # solely on the "meta.json is git-tracked" clause of signal 1.
     _init(tmp_path)
     folder = _write(tmp_path)
-    (folder / "spec.md").write_text("# s\n", encoding="utf-8")
-    _git(tmp_path, "add", "kitty-specs/*/spec.md")
-    _git(tmp_path, "commit", "-q", "-m", "spec only")
+    _git(tmp_path, "add", "kitty-specs/*/status.json")
+    _git(tmp_path, "commit", "-q", "-m", "status only")
+    assert (folder / "meta.json").is_file()
+
+    assert _audit(tmp_path)[1] == []
+
+
+def test_stray_lock_file_is_allow_listed(tmp_path: Path) -> None:
+    repo = _committed_repo(tmp_path, extra=("foo.lock",))
+
+    assert len(_audit(repo)[1]) == 1
+
+
+def test_residue_task_file_is_a_negative(tmp_path: Path) -> None:
+    folder = _write(tmp_path)
+    (folder / "tasks").mkdir()
+    (folder / "tasks" / "WP01.md").write_text("x\n", encoding="utf-8")
+    _init(tmp_path)
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "init")
 
     assert _audit(tmp_path)[1] == []
 
@@ -161,7 +180,6 @@ def test_nothing_is_written(tmp_path: Path) -> None:
     assert subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True).stdout == ""
 
 
-@pytest.mark.slow
 def test_this_repository_corpus_has_no_matches() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     tracked = tracked_mission_paths(repo_root)
