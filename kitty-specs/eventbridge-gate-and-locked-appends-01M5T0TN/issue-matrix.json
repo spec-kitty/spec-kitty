@@ -96,6 +96,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6564": {
+      "evidence_ref": "Cited for context in the planning artifacts (exemption marker, prior fix, or numbered finding); this Mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6603": {
       "evidence_ref": "EventBridge port (WP04) + multi-log writes gate (WP05)",
       "fr": null,
