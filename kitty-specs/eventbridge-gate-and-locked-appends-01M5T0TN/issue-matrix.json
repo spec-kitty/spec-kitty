@@ -73,7 +73,7 @@
       "wp": "WP04"
     },
     "#6606": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Interim locked append (WP01) routed through the G-5 writers (WP02) and the Op-record appends (WP03)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#6675": {
       "evidence_ref": "<link or commit>",
