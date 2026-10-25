@@ -658,11 +658,23 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
 | `3.1.1_normalize_status_json` | `3.1.1_residue_safe_normalize_status_json` |
 
 - **New migrations, not substitutes.** A `SupersededMigration` substitute is a no-op by design, so
-  it cannot carry the repair. The successor must repair the same real Missions, so it subclasses the
-  shipped class (every repair is inherited) and overrides only what decides which folders count.
-  The shipped module is imported as a module alias, never the class by name: `auto_discover_migrations`
-  skips a module whose `dir()` holds a class with an already-registered `migration_id`, so a name
-  import would make the successor vanish after `MigrationRegistry.clear()`.
+  it cannot carry the repair. The successor must repair the same real Missions, in one of two
+  patterns:
+  - **Subclass (`0.9.0`, `0.9.1`).** The successor subclasses the shipped class, so the shipped walk
+    still runs and every repair is inherited. It is made residue-safe only by the methods it
+    overrides: `_is_legacy_format` (0.9.0), `_has_remaining_lane_dirs` and
+    `_normalize_all_frontmatter` (0.9.1). The walker gate pins each override to the residue predicate.
+  - **Re-implementation (`2.0.6`, `3.1.1`).** The successor subclasses `BaseMigration`, re-implements
+    `detect`/`apply` over the Mission folders that `partition_kitty_specs` returns (3.1.1 also its
+    status writer), and reuses the shipped module's helpers (`_repair_feature`,
+    `_needs_normalisation`, and so on). Nothing of the shipped class is inherited.
+
+  In both patterns the shipped module is imported as a module alias, or only its module-level
+  helpers, never the class by name: `auto_discover_migrations` skips a module whose `dir()` holds a
+  class with an already-registered `migration_id`, so a name import would make the successor vanish
+  after `MigrationRegistry.clear()`. Drift scope: each successor's `content_hash` covers its own
+  module only. A change to the shared `_residue_successor.py` or to the residue predicate is outside
+  drift scope, as for any other migration that imports helpers.
 - **Same slot.** Each successor sits immediately after its predecessor in `order_manifest.txt`, with
   a `# tie:` annotation, because the successor has the predecessor's `target_version`. A later step
   (the lifecycle normalisation, the status migrations) must see the successor's output exactly where
