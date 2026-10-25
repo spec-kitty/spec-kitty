@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-25T17:13:39.477067Z",
+      "decision_id": "01M5T0VEWMHT2R9EC6WK6WXAHS",
+      "final_answer": "Lock + torn-tail + single write only, no new validation. Operator ruling 2026-10-25 (#6117 comment, decision 2): the Java write service is authoritative for validation; do not grow new Python-side validation authority. Each writer keeps its current row bytes.",
+      "input_key": "append_validation",
+      "mission_id": "01M5T0TN104YYNK795CF8A48BH",
+      "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
+      "opened_by": "cli",
+      "options": [
+        "Lock + torn-tail + single write only, no new validation",
+        "Strict library validation where a model exists",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the locked append validate rows strictly through spec_kitty_events.persistence (the library model) where one exists, or only add the lock, torn-tail refusal and single write?",
+      "rationale": null,
+      "resolved_at": "2026-10-25T17:13:43.394735Z",
+      "resolved_by": null,
+      "slot_key": "specify.appends.validation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-25T17:13:47.497804Z",
+      "decision_id": "01M5T0VPQ9FD9CD7G846CPQGX5",
+      "final_answer": "Yes, every unlocked append. Operator ruling 2026-10-25 (#6117 decision 3, mission brief): the interim ledger lock extends to every unlocked append now, giving one lock contract. #6564 (Op-record placement) is merged, so the coordination point is settled.",
+      "input_key": "op_record_appends",
+      "mission_id": "01M5T0TN104YYNK795CF8A48BH",
+      "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
+      "opened_by": "cli",
+      "options": [
+        "Yes, every unlocked append",
+        "No, only the eight G-5 sites",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Do the kitty-ops Op-record appends in invocation/writer.py (ops-index, op-closures, <ULID>.jsonl), which G-5 does not list, take the same lock?",
+      "rationale": null,
+      "resolved_at": "2026-10-25T17:13:51.770509Z",
+      "resolved_by": null,
+      "slot_key": "specify.appends.op-records",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5T0TN104YYNK795CF8A48BH",
+  "version": 1
+}
