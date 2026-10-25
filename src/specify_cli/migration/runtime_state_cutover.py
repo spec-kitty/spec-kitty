@@ -65,6 +65,7 @@ from .backfill_runtime_state import (
     MigrationOrderingError,
     VerifyResult,
     _runtime_feature_dir,
+    probe_tracked_mission_paths,
     backfill_runtime_state,
     verify_backfill,
 )
@@ -372,7 +373,9 @@ def cutover_mission(
 
     A ``kitty-specs/`` child that is residue, not a Mission (#6627) returns
     ``residue=True`` before step 1 and writes nothing. An explicit *owned*
-    context names its Mission, so it skips that check.
+    context names its Mission, so it skips that check. :func:`cutover_repo` filters
+    residue itself with a once-per-walk ``tracked=`` set, so a Mission reaching this
+    check there carries a marker on disk and costs no git call.
 
     Steps 3–4 additionally record ``already_migrated`` — a read-only probe of
     whether the mission was already at snapshot authority BEFORE the flip
@@ -607,7 +610,12 @@ def cutover_repo(
                 )
 
     results: list[CutoverResult] = []
+    tracked = probe_tracked_mission_paths(repo_root)  # once per walk (#6669)
     for feature_dir in candidates:
+        if is_kitty_specs_residue(feature_dir, repo_root=repo_root, tracked=tracked):
+            logger.info("Skipping %s", residue_notice(f"{KITTY_SPECS_DIR}/{feature_dir.name}"))
+            results.append(CutoverResult(slug=feature_dir.name, flipped=False, residue=True))
+            continue
         try:
             results.append(cutover_mission(feature_dir, dry_run=dry_run))
         except PlacementMismatchError as exc:

@@ -86,6 +86,12 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
+from kernel.git import GitCommandError
+from specify_cli.context.mission_resolver import (
+    is_kitty_specs_residue,
+    residue_notice,
+    tracked_mission_paths,
+)
 from specify_cli.core.checkout_identity import (
     FailClosedRefusal,
     Intent,
@@ -1219,6 +1225,23 @@ class MissionSelectorRejectedError(ValueError):
     """
 
 
+def probe_tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
+    """Compute the once-per-walk ``tracked=`` set for :func:`is_kitty_specs_residue`.
+
+    Degrades to ``None`` ("probed, no usable git": file-presence mode) on a
+    :class:`GitCommandError`, exactly like the predicate's own lazy probe; a
+    timeout is a real failure and propagates.
+    """
+    tracked: frozenset[str] | None
+    try:
+        tracked = tracked_mission_paths(repo_root)
+    except GitCommandError as exc:
+        if exc.timed_out:
+            raise
+        tracked = None
+    return tracked
+
+
 def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
     """Return the contained mission directories a corpus walk should visit.
 
@@ -1227,6 +1250,13 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
     rule (``ensure_within_any`` under ``kitty-specs/``, a safe-segment selector,
     symlink escapes skipped or refused). An absent ``kitty-specs/`` or an unknown
     slug yields an empty list (with a warning), never an error.
+
+    A ``kitty-specs/`` child that is residue, not a Mission (#6669), is left out
+    of the walk, whether found by the scan or named by *mission_slug*. The git
+    ``tracked`` set is computed once per walk. Reporting choice: the skip is
+    logged only, through ``residue_notice`` (INFO); the per-Mission result types
+    are unchanged (additive-only JSON) and the folder is never named a second
+    time in upgrade output.
     """
     kitty_specs = repo_root / "kitty-specs"
     if not kitty_specs.is_dir():
@@ -1243,9 +1273,10 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
             return []
         selected = kitty_specs / mission_slug
         try:
-            return [ensure_within_any(selected, roots=[kitty_specs])]
+            contained = ensure_within_any(selected, roots=[kitty_specs])
         except ValueError as exc:
             raise MissionSelectorRejectedError(f"Mission directory resolves outside kitty-specs: {selected}") from exc
+        return _without_residue([contained], repo_root)
 
     candidates: list[Path] = []
     for entry in sorted(kitty_specs.iterdir()):
@@ -1258,7 +1289,19 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
                 "Skipping mission directory that resolves outside kitty-specs: %s",
                 entry,
             )
-    return candidates
+    return _without_residue(candidates, repo_root)
+
+
+def _without_residue(mission_dirs: list[Path], repo_root: Path) -> list[Path]:
+    """Drop residue folders from *mission_dirs*, probing git once for the whole walk."""
+    tracked = probe_tracked_mission_paths(repo_root)
+    kept: list[Path] = []
+    for mission_dir in mission_dirs:
+        if is_kitty_specs_residue(mission_dir, repo_root=repo_root, tracked=tracked):
+            logger.info("Skipping %s", residue_notice(f"kitty-specs/{mission_dir.name}"))
+            continue
+        kept.append(mission_dir)
+    return kept
 
 
 def backfill_runtime_state_repo(
