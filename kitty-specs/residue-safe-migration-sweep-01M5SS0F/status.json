@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M5SYA69MJDK71X2P0Q3BWRFH",
-  "materialized_at": "2026-10-25T16:29:16.460769+00:00",
+  "event_count": 11,
+  "last_event_id": "01M5SYB8J1WPKQSG7DGVMVYKQP",
+  "materialized_at": "2026-10-25T16:29:51.544741+00:00",
   "mission_number": "",
   "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -63,11 +63,15 @@
       "last_transition_at": "2026-10-25T16:03:25.814542+00:00"
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M5SWTYD7WWT27DYG09NFMWYP",
-      "last_transition_at": "2026-10-25T16:03:28.295630+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M5SYB8J1WPKQSG7DGVMVYKQP",
+      "last_transition_at": "2026-10-25T16:29:51.544741+00:00",
+      "shell_pid": 8973,
+      "shell_pid_created_at": "1792945740.32"
     },
     "WP07": {
       "actor": "finalize-tasks",
