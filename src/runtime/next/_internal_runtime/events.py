@@ -44,6 +44,7 @@ from runtime.next._internal_runtime.significance import (
 # and ``mission_metadata`` are already on the runtime outbound ledger
 # (``tests/architectural/test_layer_rules.py``), so these add no ledger entry.
 from specify_cli.mission_metadata import resolve_mission_identity
+from runtime.next.event_bridge import WorkPackageTransitionPort
 
 # Explicit re-exports so `from runtime.next._internal_runtime.events import X`
 # resolves under `mypy --strict` (otherwise `attr-defined` flags the indirected names).
@@ -61,6 +62,7 @@ __all__ = [
     "NextStepAutoCompletedPayload",
     "NextStepIssuedPayload",
     "RuntimeEventEmitter",
+    "EventBridgePort",
     "NullEmitter",
     "seed_runtime_emitter",
     "runtime_emitter_for_mission",
@@ -94,6 +96,18 @@ class RuntimeEventEmitter(Protocol):
     def emit_significance_evaluated(self, payload: SignificanceEvaluatedPayload) -> None: ...
 
     def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None: ...
+
+
+class EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol):
+    """The EventBridge port (ADR 2026-10-14-1 D-2), grown from :class:`RuntimeEventEmitter`.
+
+    It combines the emitter's Mission state advance entry points with the work
+    package transition entry point (``runtime.next.event_bridge``). The client
+    of the Java write service (#6675, #6193) implements this whole interface.
+    Until the run loop's facts move, the next migration step, Mission state
+    advance stays on :func:`runtime_emitter_for_mission`, and work package
+    transitions go through the binding in ``runtime.next.event_bridge``.
+    """
 
 
 def seed_runtime_emitter(emitter: RuntimeEventEmitter, snapshot: Any) -> None:

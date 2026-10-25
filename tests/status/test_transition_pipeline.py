@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 
 import specify_cli.status.emit as emit_module
+import specify_cli.status._unsafe as _unsafe_module
 import specify_cli.status.transition_pipeline as pipeline_module
 from kernel.clock import now_utc_iso
 from specify_cli.core.dependency_graph import DependencyReadiness
@@ -461,7 +462,7 @@ class _ReadCounters:
         self.appends = 0
         real_derive = emit_module._derive_from_lane
         real_read = emit_module._store.read_events
-        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_append = _unsafe_module.append_event_stream_atomic_verified
 
         def counting_derive(*args: Any, **kwargs: Any) -> Any:
             self.derive += 1
@@ -478,7 +479,7 @@ class _ReadCounters:
 
         monkeypatch.setattr(emit_module, "_derive_from_lane", counting_derive)
         monkeypatch.setattr(emit_module._store, "read_events", counting_read)
-        monkeypatch.setattr(emit_module._store, "append_event_stream_atomic_verified", observing_append)
+        monkeypatch.setattr(_unsafe_module, "append_event_stream_atomic_verified", observing_append)
 
 
 def test_emit_reads_log_once(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:

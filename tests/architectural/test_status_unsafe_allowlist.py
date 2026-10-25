@@ -98,7 +98,10 @@ BASELINE: frozenset[str] = frozenset(
         "specify_cli.status.emit",
         "specify_cli.status.lifecycle_events",
         "specify_cli.coordination.status_service",
-        "specify_cli.coordination.transaction",
+        # #6603: a swap, not a growth. ``coordination.transaction`` left (its
+        # unit now goes through the EventBridge port) and the port's local
+        # file adapter, the door the three transition shells share, entered.
+        "specify_cli.events.event_bridge",
         "specify_cli.retrospective.events",
         "specify_cli.retrospective.lifecycle_events",
         "specify_cli.migration.verdict_provenance_backfill",

@@ -33,7 +33,7 @@ import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-from specify_cli.coordination import transaction as transaction_module
+from specify_cli.coordination import status_service as status_service_module
 from specify_cli.coordination.status_service import (
     EventLogWriteContract,
     EventLogWriteTarget,
@@ -450,7 +450,9 @@ def test_legacy_routing_unaffected_but_modern_coordinationless_routes_to_repo_ro
     longer sits under a ``.worktrees/...`` path).
     """
     captured_targets: dict[str, EventLogWriteTarget] = {}
-    real_append_event_stream_log = transaction_module.append_event_stream_log
+    # #6603: the transaction hands its unit to the EventBridge local file
+    # adapter, which resolves the coordination wrapper on ``status_service``.
+    real_append_event_stream_log = status_service_module.append_event_stream_log
 
     def _spy_append_event_stream_log(
         contract: EventLogWriteContract,
@@ -460,7 +462,7 @@ def test_legacy_routing_unaffected_but_modern_coordinationless_routes_to_repo_ro
         real_append_event_stream_log(contract, events)
 
     monkeypatch.setattr(
-        transaction_module,
+        status_service_module,
         "append_event_stream_log",
         _spy_append_event_stream_log,
     )

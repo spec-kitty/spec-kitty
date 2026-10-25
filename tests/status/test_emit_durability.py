@@ -50,6 +50,7 @@ from typing import Any
 import pytest
 
 import specify_cli.status.emit as emit_module
+import specify_cli.status._unsafe as _unsafe_module
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import ReviewResult, TransitionRequest
 from specify_cli.status.reducer import event_sourced_review_result, materialize
@@ -190,7 +191,7 @@ class TestT013EventAppendIsAuthoritative:
             return None  # swallow the durability write entirely
 
         monkeypatch.setattr(
-            emit_module._store, "append_event_stream_atomic_verified", _neutered_append
+            _unsafe_module, "append_event_stream_atomic_verified", _neutered_append
         )
 
         _record_verdict(feature_dir, "WP01", _MISSION_SLUG, reference="PR#102")
@@ -352,14 +353,14 @@ class TestT014DurabilityStructuralGuarantees:
         _advance_to_in_review(feature_dir, "WP01", _MISSION_SLUG)
 
         call_count = {"n": 0}
-        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_append = _unsafe_module.append_event_stream_atomic_verified
 
         def _counting_append(*args: Any, **kwargs: Any) -> None:
             call_count["n"] += 1
             real_append(*args, **kwargs)
 
         monkeypatch.setattr(
-            emit_module._store, "append_event_stream_atomic_verified", _counting_append
+            _unsafe_module, "append_event_stream_atomic_verified", _counting_append
         )
 
         _record_verdict(feature_dir, "WP01", _MISSION_SLUG, reference="PR#301")

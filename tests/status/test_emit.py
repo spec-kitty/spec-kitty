@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import specify_cli.status.emit as emit_module
+import specify_cli.status._unsafe as _unsafe_module
 import specify_cli.status.transition_pipeline as _pipeline_module
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status import adapters
@@ -415,7 +416,7 @@ class TestEmitStatusTransition:
                 lock_state["held"] = False
 
         real_derive = emit_module._derive_from_lane
-        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_append = _unsafe_module.append_event_stream_atomic_verified
         real_materialize = emit_module._reducer.materialize
 
         def tracking_derive(*args: object, **kwargs: object):
@@ -436,7 +437,7 @@ class TestEmitStatusTransition:
         monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock, raising=False)
         monkeypatch.setattr(emit_module, "_derive_from_lane", tracking_derive)
         monkeypatch.setattr(
-            emit_module._store,
+            _unsafe_module,
             "append_event_stream_atomic_verified",
             tracking_append,
         )
@@ -2133,7 +2134,7 @@ class TestBatchShellLock:
 
         real_derive = emit_module._derive_from_lane
         real_prepare = emit_module.prepare_transition
-        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_append = _unsafe_module.append_event_stream_atomic_verified
         real_materialize = emit_module._reducer.materialize
         real_mirror = emit_module._mirror_phase1_frontmatter_lane
 
@@ -2148,7 +2149,7 @@ class TestBatchShellLock:
         monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock)
         monkeypatch.setattr(emit_module, "_derive_from_lane", spy("derive", real_derive))
         monkeypatch.setattr(emit_module, "prepare_transition", spy("prepare", real_prepare))
-        monkeypatch.setattr(emit_module._store, "append_event_stream_atomic_verified", spy("append", real_append))
+        monkeypatch.setattr(_unsafe_module, "append_event_stream_atomic_verified", spy("append", real_append))
         monkeypatch.setattr(emit_module._reducer, "materialize", spy("materialize", real_materialize))
         monkeypatch.setattr(emit_module, "_mirror_phase1_frontmatter_lane", spy("mirror", real_mirror))
 
