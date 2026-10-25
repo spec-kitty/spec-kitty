@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#5457": {
+      "evidence_ref": "Context: integrating worktrees skipped by upgrade (research R-xx)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5875": {
       "evidence_ref": "Out of scope per spec C-005; cited for context",
       "fr": null,
