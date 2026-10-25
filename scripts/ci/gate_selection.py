@@ -743,6 +743,17 @@ EVENTS_LATEST_LANE_PATHS: tuple[str, ...] = (
 )
 
 
+# The per-PR `tests (events consumers)` router job (#6605, operator ruling 2026-10-25): on a
+# ``reducer_lock`` match it runs the events consumers no module shard owns (all three are
+# out_of_matrix_test_dirs). ci-router.yml must name exactly these paths (GitHub Actions needs literal
+# YAML), pinned by tests/ci/test_reducer_lock_census.py.
+EVENTS_CONSUMER_PR_PATHS: tuple[str, ...] = (
+    "tests/migration",
+    "tests/contract/spec_kitty_events_consumer",
+    "tests/contract/test_events_envelope_matches_resolved_version.py",
+)
+
+
 def events_latest_lane_paths(repo_root: Path | None = None) -> tuple[str, ...]:
     """The ``events-latest`` nightly lane's pytest paths: EVENTS_LATEST_LANE_PATHS, then every
     ``tests/**/test_*.py`` ``spec_kitty_events`` importer they do not already contain, less

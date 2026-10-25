@@ -138,9 +138,9 @@ jobs:
       # Mission-type-definitions group (#6166 landing review): non-src, like mission_pack_content above;
       # gates no job BY DESIGN (fanned out to charter/core_misc/upgrade). Never in the unmatched loop.
       mission_type_definitions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_type_definitions }}
-      # Reducer-lock group (#6238): non-src, like mission_type_definitions above; gates no job BY DESIGN
-      # (fanned out via gate_selection.DEPENDENCY_MODULE_FANOUT to every module the spec_kitty_events import
-      # census routes, #6605). Never in the unmatched loop.
+      # Reducer-lock group (#6238): non-src, like mission_type_definitions above. Fanned out via
+      # gate_selection.DEPENDENCY_MODULE_FANOUT to every module the spec_kitty_events import census routes,
+      # and gates `tests (events consumers)` (#6605). Never in the unmatched loop.
       reducer_lock: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.reducer_lock }}
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
@@ -280,7 +280,7 @@ jobs:
             # uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet
             # selected neither the upgrade nor the status shard. Fanned out by
             # gate_selection.DEPENDENCY_MODULE_FANOUT, derived from the spec_kitty_events import census
-            # (#6605; outside the pack census); gates no router job BY DESIGN.
+            # (#6605; outside the pack census). It also gates the `tests (events consumers)` job (#6605).
             # Operator ruling (decision 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is NOT listed, so a
             # manifest rename or non-version edit never triggers the upgrade shards.
             reducer_lock:
@@ -1346,6 +1346,42 @@ jobs:
             --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
+  # The events consumers (#6605, operator ruling 2026-10-25): a uv.lock change also runs the
+  # spec-kitty-events consumer tests that no module shard owns -- the reducer-verdict pins
+  # (tests/migration), the consumer contract and the resolved-version envelope pin. All three are
+  # out_of_matrix_test_dirs, so before this job they ran only nightly, and the 10.4.0/10.4.2/10.4.4
+  # bumps reached main green (#5195, #6084, #6094). Gated on `reducer_lock` alone (uv.lock; pyproject.toml
+  # stays out, decision 01M4XV6HM7WHEB2B8QG67N29HT: `uv-lock` reds a range edit that would change the
+  # lock without committing it). Any lock change runs it, not only an events bump: ~20 s of tests, and
+  # no second, content-inspecting router authority. The path list is gate_selection.EVENTS_CONSUMER_PR_PATHS,
+  # pinned by tests/ci/test_reducer_lock_census.py. The nightly `events-latest` lane runs the same
+  # consumers against the newest allowed release.
+  tests-events-consumers:
+    name: tests (events consumers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [changes]
+    if: ${{ needs.changes.outputs.reducer_lock == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      - name: Run tests
+        run: |
+          uv run --frozen pytest -rs -m "not stress and not timing" -n 4 --dist loadfile \
+            tests/migration \
+            tests/contract/spec_kitty_events_consumer \
+            tests/contract/test_events_envelope_matches_resolved_version.py
+
   # The Mission-state audit (#5864). The upgrade witness used to audit the checkout's whole kitty-specs/
   # with this command and gate, but it runs only when upgrade code changes, so a Mission that landed with a
   # drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next unrelated upgrade PR instead of its own.
@@ -1439,6 +1475,7 @@ jobs:
       - tests-e2e
       - tests-corpus-blocking
       - tests-contract-tools
+      - tests-events-consumers
       - mission-state-audit
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:

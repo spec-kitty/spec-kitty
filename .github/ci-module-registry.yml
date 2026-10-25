@@ -741,7 +741,6 @@ out_of_matrix_test_dirs:
   - tests/cross_cutting/misc
   - tests/doctor
   - tests/git
-  - tests/migration
   - tests/performance
   - tests/retrospective
 
@@ -758,9 +757,23 @@ out_of_matrix_test_dirs:
     and its payload helper, the example round trip) run in 'tests (corpus-blocking)', which
     carries the corpus-marked tests with no other blocking per-PR home and is gated on the
     corpus path group.
+    The resolved-version envelope pin (tests/contract/test_events_envelope_matches_resolved_version.py)
+    runs in 'tests (events consumers)' on a uv.lock change (#6605).
     Not a disguised snapshot (#2979 class).
   dirs:
   - tests/contract
+
+- reason: >-
+    spec-kitty-events consumers no module row owns (#6605, operator ruling 2026-10-25): the
+    reducer-verdict pins in tests/migration and the consumer contract. Their per-PR home is
+    ci-router.yml's 'tests (events consumers)' job, gated on the reducer_lock group (uv.lock),
+    together with the resolved-version envelope pin, so a spec-kitty-events bump runs them in its
+    own PR; the nightly events-latest lane runs them against the newest release the range allows,
+    the nightly interpreter shards (tests/architectural/_interpreter_shard_roster.py) and make
+    test-full reach them too. A module row would make every status change pay for them.
+  dirs:
+  - tests/contract/spec_kitty_events_consumer
+  - tests/migration
 
 - reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
@@ -859,7 +872,6 @@ out_of_matrix_test_dirs:
   - tests/compat
   - tests/concurrency
   - tests/context
-  - tests/contract/spec_kitty_events_consumer
   - tests/contract/spec_kitty_tracker_consumer
   - tests/cross_branch
   - tests/cross_cutting/packaging

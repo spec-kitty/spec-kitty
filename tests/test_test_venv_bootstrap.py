@@ -13,6 +13,7 @@ import pytest
 
 from kernel.clock import now_epoch
 from tests import conftest as root_conftest
+from tests._support.lock_pins import lock_pin_constraints
 
 
 pytestmark = pytest.mark.fast
@@ -552,3 +553,40 @@ def test_two_spawned_windows_processes_publish_one_shared_venv(tmp_path: Path) -
     )
     count_path = tmp_path / ".pytest_cache" / "build-count.txt"
     assert len(count_path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_lock_pin_constraints_pin_single_version_registry_packages(tmp_path: Path) -> None:
+    """#6605: the shared venv installs the uv.lock pins, not the newest release the range allows."""
+    lock = tmp_path / "uv.lock"
+    lock.write_text(
+        """version = 1
+[[package]]
+name = "spec-kitty-events"
+version = "11.0.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "typing-extensions"
+version = "4.15.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "typing-extensions"
+version = "4.16.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "spec-kitty-cli"
+version = "9.9.9"
+source = { editable = "." }
+""",
+        encoding="utf-8",
+    )
+    assert lock_pin_constraints(lock) == ["spec-kitty-events==11.0.0"]
+    assert lock_pin_constraints(tmp_path / "absent.lock") == []
+
+
+def test_lock_pin_constraints_cover_the_repo_events_pin() -> None:
+    pins = lock_pin_constraints(root_conftest.REPO_ROOT / "uv.lock")
+    assert any(pin.startswith("spec-kitty-events==") for pin in pins)
+    assert not any(pin.startswith("spec-kitty-cli==") for pin in pins), "the editable project is never pinned"

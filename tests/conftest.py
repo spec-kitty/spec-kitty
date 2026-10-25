@@ -21,6 +21,7 @@ import pytest
 import yaml
 
 from tests._support.import_origin import assert_checkout_source
+from tests._support.lock_pins import lock_pin_constraints
 from tests._support.pack_tree_guard import assert_pack_tree_current
 
 from kernel.clock import now_epoch
@@ -1234,8 +1235,14 @@ def _create_test_venv(venv_dir: Path, source_version: str) -> None:
     """Create the test venv, with an offline-safe fallback."""
     subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
     pip = _venv_pip(venv_dir)
+    install = [str(pip), "install", "-e", str(REPO_ROOT)]
+    pins = lock_pin_constraints(REPO_ROOT / "uv.lock")
+    if pins:
+        constraints = venv_dir / "uv-lock-constraints.txt"
+        constraints.write_text("\n".join(pins) + "\n", encoding="utf-8")
+        install += ["-c", str(constraints)]
     try:
-        subprocess.run([str(pip), "install", "-e", str(REPO_ROOT)], check=True)
+        subprocess.run(install, check=True)
     except subprocess.CalledProcessError:
         # Fallback for offline/dev shells where build deps cannot be downloaded.
         shutil.rmtree(venv_dir, ignore_errors=True)

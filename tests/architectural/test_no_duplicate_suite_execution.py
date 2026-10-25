@@ -254,6 +254,14 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "maintainers; exit: when the tool tests carry no corpus marker and the module matrix owns them. "
         "tests/ci/test_contracts_workflows.py pins the job's shape and gating."
     ),
+    ("ci-router.yml", "tests-events-consumers"): (
+        "Path-routed lane: on a uv.lock change (the reducer_lock group), the spec-kitty-events consumers no "
+        "module shard owns -- tests/migration, tests/contract/spec_kitty_events_consumer and the resolved-version "
+        "envelope pin, all out_of_matrix_test_dirs -- so an events bump runs them in its own PR (#6605, operator "
+        "ruling 2026-10-25; the 10.4.0/10.4.2/10.4.4 bumps reached main green). No per-change job runs them "
+        "otherwise; the nightly events-latest lane is not change-triggered. tests/ci/test_reducer_lock_census.py "
+        "pins the job's paths and gating."
+    ),
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
     ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the blocking node-ids; advisory (continue-on-error), FR-009.",

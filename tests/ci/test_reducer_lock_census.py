@@ -14,6 +14,8 @@ fan-out from the importers themselves; these tests pin that:
 * the census is non-vacuous and fails closed (a seeded unowned importer is reported, an unparsable
   file raises);
 * a lock-only diff selects every derived module and nothing run-all;
+* the per-PR ``tests (events consumers)`` router job runs the out-of-matrix events consumers on a
+  ``reducer_lock`` match (operator ruling 2026-10-25);
 * the nightly ``events-latest`` lane (operator ruling 2026-10-22) runs every census test file
   against the newest spec-kitty-events the range allows, from a lock it never commits.
 """
@@ -30,6 +32,7 @@ from scripts.ci.gate_selection import (
     DEFAULT_REGISTRY_PATH,
     DEPENDENCY_MODULE_FANOUT,
     DEPENDENCY_GROUPS,
+    EVENTS_CONSUMER_PR_PATHS,
     EVENTS_LATEST_EXCLUDED,
     EVENTS_LATEST_LANE_PATHS,
     REDUCER_LOCK_UNOWNED_IMPORTERS,
@@ -193,3 +196,31 @@ def test_events_latest_job_resolves_newest_and_never_commits() -> None:
     checkout = next(step for step in job["steps"] if "actions/checkout" in str(step.get("uses", "")))
     assert checkout.get("with", {}).get("fetch-depth") == 0, "the corpus-recovery tests git-archive historical SHAs"
     assert "events-latest" in workflow["jobs"]["nightly-summary"]["needs"]
+
+
+_ROUTER = _REPO_ROOT / ".github" / "workflows" / "ci-router.yml"
+
+
+def _pytest_paths(run: str) -> list[str]:
+    """The ``tests/...`` arguments of the single pytest command in ``run``."""
+    command = " ".join(run.replace("\\\n", " ").split())
+    return [token for token in command.split() if token.startswith("tests/")]
+
+
+def test_events_consumers_job_runs_the_out_of_matrix_consumers_on_a_lock_change() -> None:
+    """#6605 (operator ruling 2026-10-25): a uv.lock change runs the events consumers no module
+    shard owns, in a router job the router gate blocks on."""
+    workflow = yaml.safe_load(_ROUTER.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["tests-events-consumers"]
+    assert job["name"] == "tests (events consumers)"
+    assert " ".join(str(job["if"]).split()) == "${{ needs.changes.outputs.reducer_lock == 'true' }}"
+    assert "tests-events-consumers" in workflow["jobs"]["router-gate"]["needs"]
+    runs = [str(step["run"]) for step in job["steps"] if "pytest" in str(step.get("run", ""))]
+    assert len(runs) == 1, "one pytest invocation, so the gate model sees exactly one execution"
+    assert tuple(_pytest_paths(runs[0])) == EVENTS_CONSUMER_PR_PATHS
+    checkout = next(step for step in job["steps"] if "actions/checkout" in str(step.get("uses", "")))
+    assert checkout.get("with", {}).get("fetch-depth") == 0
+    # The paths stay out of every module row, so this job is their only per-PR execution.
+    claimed = [d for row in _REGISTRY["modules"] for d in row.get("test_dirs") or ()]
+    for path in EVENTS_CONSUMER_PR_PATHS:
+        assert not any(path == d or path.startswith(f"{d}/") for d in claimed), f"{path} is also claimed by a module row"

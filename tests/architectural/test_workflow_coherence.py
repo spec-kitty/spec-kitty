@@ -336,11 +336,6 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   (charter/core_misc/upgrade). Gates no router job BY DESIGN; fanned out by
 #   ``GROUP_MODULE_FANOUT`` and pinned by the same test file.
 #
-# * ``reducer_lock`` (#6238) — ``uv.lock`` alone. Gates no router job BY DESIGN; fanned out to
-#   every ``spec_kitty_events`` consumer module by ``DEPENDENCY_MODULE_FANOUT``, derived from an
-#   import census (#6605; outside the pack census). ``pyproject.toml`` is
-#   deliberately absent (operator ruling).
-#
 # * the ``cli_cmd_*`` family (#6221) — the per-command fan-out groups generalising ``cli_lifecycle``
 #   to the rest of ``src/specify_cli/cli/commands/**``. Each gates no router job BY DESIGN:
 #   ``gate_selection.CLI_COMMAND_MODULE_FANOUT`` (non-census, like ``DEPENDENCY_MODULE_FANOUT``) fans
@@ -357,7 +352,6 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "mission_pack_content",
         "cli_lifecycle",
         "mission_type_definitions",
-        "reducer_lock",
         "cli_cmd_charter",
         "cli_cmd_consolidate",
         "cli_cmd_agent",
