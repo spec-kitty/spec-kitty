@@ -26,6 +26,9 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class VerificationTamperTest {
 
+  /** The library modules settings.gradle.kts includes (#6117 decision 12, #6192); a nested build needs each one's directory. */
+  private static final List<String> LIBRARY_MODULES = List.of("domain-model", "event-log");
+
   private static final String VERIFICATION_FAILURE = "Dependency verification failed for configuration";
   private static final Pattern A_JAR_CHECKSUM =
       Pattern.compile("(<artifact name=\"jackson-annotations-[^\"]+\\.jar\">\\s*<sha256 value=\")([0-9a-f]{8})");
@@ -73,6 +76,11 @@ class VerificationTamperTest {
       Files.copy(original.resolve(name), copy.resolve(name));
     }
     copyTree(original.resolve("gradle"), copy.resolve("gradle"));
+    // settings.gradle.kts includes the library modules (#6192): their build scripts, with no sources, keep the nested build whole.
+    for (String library : LIBRARY_MODULES) {
+      Files.createDirectories(copy.resolve(library));
+      Files.copy(original.resolve(library).resolve("build.gradle.kts"), copy.resolve(library).resolve("build.gradle.kts"));
+    }
     Path source = copy.resolve("src/main/java/org/speckitty/missionstatus/Nested.java");
     Files.createDirectories(source.getParent());
     Files.writeString(source, "package org.speckitty.missionstatus;\n\nfinal class Nested {}\n", StandardCharsets.UTF_8);

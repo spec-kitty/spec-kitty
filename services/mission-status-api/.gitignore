@@ -18,3 +18,5 @@
 !/src/test/java/org/speckitty/missionstatus/adapter/out/
 # ... and the same for the outbound port packages (application/query/port/out), the test trees and the architecture fixtures: any `out` package under src/.
 !/src/**/out/
+# ... and the same in the library modules (event-log holds adapter/out/filesystem/codec).
+!/*/src/**/out/

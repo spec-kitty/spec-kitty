@@ -18,6 +18,10 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api" }
 snakeyaml = { module = "org.yaml:snakeyaml" }
+# The streaming parser of the event-log library (#6192); version managed by the Boot BOM, as for the rest of Jackson 3.
+jackson-core = { module = "tools.jackson.core:jackson-core" }
+# Test-only in event-log: the planted data-binding violation of its boundary test.
+jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 assertj-core = { module = "org.assertj:assertj-core" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

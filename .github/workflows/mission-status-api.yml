@@ -127,7 +127,11 @@ jobs:
         if: always()
         with:
           name: junit-jvm
-          path: ${{ env.SERVICE_DIR }}/build/test-results
+          # The root project's results plus those of the two library modules (#6192).
+          path: |
+            ${{ env.SERVICE_DIR }}/build/test-results
+            ${{ env.SERVICE_DIR }}/domain-model/build/test-results
+            ${{ env.SERVICE_DIR }}/event-log/build/test-results
           if-no-files-found: warn
           overwrite: true
 

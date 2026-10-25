@@ -60,6 +60,17 @@ class ArchitectureRulesTest {
     assertThat(TESTS.contain("org.speckitty.missionstatus.application.query.MissionStatusQueryService")).as("test import holds no main class").isFalse();
   }
 
+  /**
+   * The domain-model and event-log libraries (#6192) reach the production import through the classpath, so rules 1, 4, 7 and 12 keep
+   * covering the classes moved out of this module. An import option that dropped library jars would make those rules vacuous for them.
+   */
+  @Test
+  void theMainImportHoldsTheExtractedLibraryClasses() {
+    assertThat(MAIN.contain("org.speckitty.missionstatus.domain.model.Lane")).as("a domain-model class in the main import").isTrue();
+    assertThat(MAIN.contain("org.speckitty.missionstatus.adapter.out.filesystem.codec.LedgerLineDecoder")).as("an event-log class in the main import").isTrue();
+    assertThat(MAIN.contain("org.speckitty.missionstatus.domain.readmodel.reducer.StatusReducer")).as("an event-log class in the main import").isTrue();
+  }
+
   @Test
   void theRuleSetDefinesTheFourteenRulesOfThePlanTableWithContiguousIds() {
     List<Rule> rules = ArchitectureRules.production();

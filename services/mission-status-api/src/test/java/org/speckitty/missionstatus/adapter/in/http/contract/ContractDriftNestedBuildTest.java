@@ -23,6 +23,9 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class ContractDriftNestedBuildTest {
 
+  /** The library modules settings.gradle.kts includes (#6117 decision 12, #6192); a nested build needs each one's directory. */
+  private static final List<String> LIBRARY_MODULES = List.of("domain-model", "event-log");
+
   private static final String CANNOT_FIND = "cannot find symbol";
 
   @Test
@@ -106,6 +109,12 @@ class ContractDriftNestedBuildTest {
     }
     copyTree(original.resolve("gradle"), copy.resolve("gradle"));
     copyTree(original.resolve("src/main/java"), copy.resolve("src/main/java"));
+    // settings.gradle.kts includes the library modules (#6192), and the service sources compile against them.
+    for (String library : LIBRARY_MODULES) {
+      Files.createDirectories(copy.resolve(library));
+      Files.copy(original.resolve(library).resolve("build.gradle.kts"), copy.resolve(library).resolve("build.gradle.kts"));
+      copyTree(original.resolve(library).resolve("src/main/java"), copy.resolve(library).resolve("src/main/java"));
+    }
   }
 
   private static void copyTree(Path from, Path to) throws IOException {

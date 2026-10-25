@@ -6,8 +6,9 @@ import java.security.MessageDigest
 import java.util.Properties
 import javax.xml.parsers.DocumentBuilderFactory
 
-// The COMPLETE build script of the Mission Status API service. Every later work package adds source files only; a need for a
-// task, a source set or a dependency that is missing here is a reviewed amendment to THIS file, never a parallel edit.
+// The build script of the Mission Status API service (the root project). Every later work package adds source files only; a need
+// for a task, a source set or a dependency that is missing here is a reviewed amendment to THIS file, never a parallel edit. The two
+// library modules (#6192) have their own short scripts, pinned by tests/ci/test_mission_status_api_build.py.
 //
 // Decisions recorded in research.md (WP02 spike record) that this script applies:
 //   - generated mode (openapi-generator 7.25.0, `spring` generator) limited to getProject and listMissions by a FILTER normalizer
@@ -19,6 +20,9 @@ import javax.xml.parsers.DocumentBuilderFactory
 //     native test binary reads (Review cycle 2 F1);
 //   - gradleTestKit() lives in its own `kit` source set (it breaks processTestAot on the test classpath);
 //   - jakarta.validation-api only, never spring-boot-starter-validation; no springdoc anywhere.
+//
+// This is the root project and the query-service deployable of #6117 decision 12. The two libraries it depends on, domain-model and
+// event-log (extracted by #6192), have their own short build scripts; this script aggregates their coverage into its JaCoCo gate.
 
 plugins {
     java
@@ -44,6 +48,9 @@ java {
 // ---------------------------------------------------------------------------------------------------------------------------
 
 dependencies {
+    // The two libraries of #6117 decision 12, extracted from this service by #6192.
+    implementation(project(":domain-model"))
+    implementation(project(":event-log"))
     implementation(libs.spring.boot.starter.web)
     // The generated interfaces and models need the annotations only; no validator runtime (a Hibernate Validator on the classpath
     // breaks the native test image, and performBeanValidation is off, so the application owns the pageSize clamp).
@@ -332,16 +339,28 @@ jacoco {
 }
 
 // Generated sources, config and the adapters are outside the coverage scope; domain.* and application.* are the scope.
-val coverageClassDirectories = sourceSets.main.get().output.classesDirs.asFileTree.matching {
-    exclude(
-        "org/speckitty/missionstatus/adapter/**",
-        "org/speckitty/missionstatus/config/**",
-    )
-}
+val coverageExcludes = arrayOf(
+    "org/speckitty/missionstatus/adapter/**",
+    "org/speckitty/missionstatus/config/**",
+)
+
+// The libraries extracted by #6192 keep the coverage scope their classes had in this service: their classes, sources and own test
+// runs join this report and these rules, so jacoco-class-floor.properties and the per-class limits still cover the moved domain.
+val libraryProjects = listOf(project(":domain-model"), project(":event-log"))
+val libraryTestTasks = libraryProjects.map { "${it.path}:test" }
+
+val coverageClassDirectories = files(
+    sourceSets.main.get().output.classesDirs.asFileTree.matching { exclude(*coverageExcludes) },
+    libraryProjects.map { library -> fileTree(library.layout.buildDirectory.dir("classes/java/main")) { exclude(*coverageExcludes) } },
+)
+val coverageSourceDirectories = files(libraryProjects.map { it.layout.projectDirectory.dir("src/main/java") })
+val libraryExecutionData = files(libraryProjects.map { it.layout.buildDirectory.file("jacoco/test.exec") })
 
 tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.test)
+    dependsOn(tasks.test, libraryTestTasks)
     classDirectories.setFrom(coverageClassDirectories)
+    additionalSourceDirs.from(coverageSourceDirectories)
+    executionData.from(libraryExecutionData)
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -349,8 +368,9 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 }
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(tasks.test)
+    dependsOn(tasks.test, libraryTestTasks)
     classDirectories.setFrom(coverageClassDirectories)
+    executionData.from(libraryExecutionData)
     violationRules {
         rule {
             element = "CLASS"
