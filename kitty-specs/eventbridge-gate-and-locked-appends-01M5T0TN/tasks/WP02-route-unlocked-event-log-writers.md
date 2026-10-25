@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: issue-6603-6606-eventbridge-gate-and-locked-appends
 merge_target_branch: issue-6603-6606-eventbridge-gate-and-locked-appends
 branch_strategy: Planning artifacts for this mission were generated on issue-6603-6606-eventbridge-gate-and-locked-appends. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6603-6606-eventbridge-gate-and-locked-appends unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-eventbridge-gate-and-locked-appends-01M5T0TN
+base_commit: 03da4bcad20b4018f29f4cf3ef18d21d68ac1b2c
+created_at: '2026-10-25T18:22:11.018212+00:00'
 subtasks:
 - T005
 - T006
