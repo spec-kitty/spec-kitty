@@ -1,7 +1,7 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M5T3QS4KG57RRVCZJX7HG3E3",
-  "materialized_at": "2026-10-25T18:04:04.627444+00:00",
+  "event_count": 13,
+  "last_event_id": "01M5T44Y6BWKK6ZGQ5RP2AA9ZT",
+  "materialized_at": "2026-10-25T18:11:15.787559+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -10,38 +10,39 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "actor": "user",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M5T3QS4KG57RRVCZJX7HG3E3",
-      "last_transition_at": "2026-10-25T18:04:04.627444+00:00",
+      "lane": "claimed",
+      "last_event_id": "01M5T44Y6BWKK6ZGQ5RP2AA9ZT",
+      "last_transition_at": "2026-10-25T18:11:15.787559+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Primitive + 25 tests green; red-first: collection error without the module"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/eventbridge-gate-and-locked-appends-01M5T0TN-coord/kitty-specs/eventbridge-gate-and-locked-appends-01M5T0TN/tasks/WP01-interim-locked-append-primitive/review-cycle-1.md",
         "reference": "review-cycle://eventbridge-gate-and-locked-appends-01M5T0TN/WP01-interim-locked-append-primitive/review-cycle-1.md",
         "reviewer": "claude-reviewer",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 29774,
-      "shell_pid_created_at": "1792951206.43",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
         "T001": "done",
         "T002": "done",
