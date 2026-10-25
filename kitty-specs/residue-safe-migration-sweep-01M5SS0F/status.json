@@ -102,7 +102,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-25T19:07:16Z – claude – shell_pid=6610 – Ran: Test Strategy file set (208 passed, 1 skipped); 6589 pins file 16 passed; tests/specify_cli/upgrade + tests/upgrade -n 8: 2649 passed, 15 skipped, 9 failed (all tests/upgrade/test_mission_corpus_recovery.py, known shallow-clone red). ruff check/format exit 0; mypy --strict on new modules + supersession exit 0 when base.py and shipped modules are included (follow_imports=skip artefact otherwise, same on shipped migrations). NFR-001 diff empty. No write-site gate fired for 3.1.1 successor; no out-of-map gate-entry edits. Gate files edited (in owned_files): test_no_dead_modules.py, test_migration_walkers_use_mission_predicate.py. 0.9.0 successor not added to dead-module allowlist (imported by 0.9.1 successor, would be stale).",
-        "Ready for review"
+        "Ready for review",
+        "Review passed: four residue-safe successors (0.9.0/0.9.1 subclass via module alias, 2.0.6/3.1.1 re-walk over frozen helpers) with settled-gated detect, inherited routing attrs, manifest ties, supersession entries; NFR-001 diff empty vs origin/main; repair parity verified against frozen modules; 9 targeted mutants, 8 killed; clear+rediscover probe ok; gates green. Non-blocking: partition_checkout_specs belongs in _residue_successor.py (follow-up); transitive _reaches_predicate could be narrowed to _GUARDED_SEAMS hops; dry-run 'Skip (no frontmatter)' string parity untested; lane-local test_no_dead_symbols red on WP01's residue_notice_path resolves with WP04."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
