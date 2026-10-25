@@ -929,9 +929,22 @@ def _called_names(fn: ast.AST) -> set[str]:
     return names
 
 
+#: The interim locked append door (#6606, ``kernel.event_log_append``): a call to
+#: it is a write, though it holds no raw write-mode file operation of its own.
+_LOCKED_APPEND_DOORS: frozenset[str] = frozenset({"append_event_log_lines"})
+
+
+def _is_write_call(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+    return name in _LOCKED_APPEND_DOORS or _classify_call(node) is not None
+
+
 def _writing_function_names(functions: list[tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]]) -> set[str]:
-    """Short names of module functions containing a write-mode file operation, directly or via a same-module callee."""
-    direct = {qual.rsplit(".", 1)[-1] for qual, fn in functions if any(isinstance(n, ast.Call) and _classify_call(n) for n in ast.walk(fn))}
+    """Short names of module functions that write (a write-mode file operation or the locked door), directly or via a same-module callee."""
+    direct = {qual.rsplit(".", 1)[-1] for qual, fn in functions if any(_is_write_call(n) for n in ast.walk(fn))}
     writing = set(direct)
     grew = True
     while grew:
@@ -996,6 +1009,8 @@ def test_index_census_is_not_vacuous() -> None:
     assert planted == {("specify_cli.cli.commands.invocations_cmd", "append_to_index")}
     literal = scan_index_writers_from_source("specify_cli.rogue", "def w(d):\n    open(d / 'ops-index.jsonl', 'a').write('x')\n")
     assert literal == {("specify_cli.rogue", "w")}
+    locked = scan_index_writers_from_source("specify_cli.rogue", "def w(d):\n    append_event_log_lines(d / 'ops-index.jsonl', ['x'])\n")
+    assert locked == {("specify_cli.rogue", "w")}
     delegated = scan_index_writers_from_source(
         "specify_cli.rogue",
         "INDEX = 'kitty-ops/ops-index.jsonl'\ndef _w(p):\n    p.write_text('x')\ndef w(d):\n    _w(d / INDEX)\n",
