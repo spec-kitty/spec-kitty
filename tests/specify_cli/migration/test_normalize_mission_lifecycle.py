@@ -119,6 +119,7 @@ def test_normalize_repo_skips_missing_meta_with_warning(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "042-missing-meta"
     (tmp_path / ".kittify").mkdir()
     _write_task(feature_dir)
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
 
     results = normalize_repo(tmp_path, dry_run=True)
 

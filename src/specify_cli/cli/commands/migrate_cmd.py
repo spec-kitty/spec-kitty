@@ -2056,6 +2056,7 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
                 "seeded_count": r.seeded_count,
                 "verify_ok": None if r.verify is None else r.verify.ok,
                 "failed": _cutover_failed(r, dry_run=dry_run),
+                "residue": r.residue,
                 "mismatches": (list(r.verify.mismatches) if (r.verify is not None and _cutover_failed(r, dry_run=dry_run)) else []),
                 "error": r.error,
             }

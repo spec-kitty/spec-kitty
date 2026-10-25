@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from kernel.git import is_tracked, run_git, tracked_paths
+from kernel.git import GitCommandError, is_tracked, run_git, tracked_paths
 from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
@@ -242,11 +242,18 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
 
 
 _MISSION_MARKER_FILES = ("spec.md", "meta.json")
+#: Mission artifacts whose presence keeps a directory out of :func:`is_kitty_specs_residue`.
+_MISSION_CONTENT = (*_MISSION_MARKER_FILES, "plan.md", "tasks.md", "tasks", "status.events.jsonl", "status.json", "lanes.json")
 
 
 def _git_prefix(repo_root: Path) -> str | None:
     """``git rev-parse --show-prefix`` for *repo_root* (``""`` at the toplevel); ``None`` outside a work tree."""
-    result = run_git(repo_root, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
+    try:
+        result = run_git(repo_root, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
+    except GitCommandError as exc:
+        if exc.not_run:
+            return None  # git is unavailable: callers degrade to the existence rule
+        raise
     if result.returncode != 0:
         return None
     lines = result.stdout.decode("utf-8", "replace").split("\n")
@@ -314,6 +321,31 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
         return any(is_tracked(base, rel) for rel in rels)
     except (OSError, ValueError):
         return _markers_exist(path)
+
+
+def is_kitty_specs_residue(path: Path, *, repo_root: Path | None = None, tracked: frozenset[str] | None = None) -> bool:
+    """Whether a write seam must leave the ``kitty-specs/`` child *path* untouched as residue (#6627).
+
+    The one rule for every seam that writes into (or mints an identity for) a
+    directory a ``kitty-specs/`` walker hands it: *path* holds none of the
+    Mission artifacts in :data:`_MISSION_CONTENT` **and** :func:`is_mission_dir`
+    rejects it. The first clause keeps every legacy or uncommitted Mission
+    repairable (one created while ``kitty-specs/`` was gitignored, before
+    0.12.1; a pre-identity Mission with only ``tasks/`` and ``tasks.md``; a
+    ``meta.json`` without ``mission_id`` that was never committed): a write seam
+    cannot tell such a directory from residue, so it errs toward repairing it.
+    What a branch switch strands (an untracked ``decisions/``, a ``*.lock``)
+    holds none of them, because git removes every tracked file on checkout.
+    The second clause keeps a Mission whose tracked marker is deleted in the
+    working tree. *repo_root*
+    defaults to the parent of ``kitty-specs/``; *tracked* is the optional batch
+    set of :func:`tracked_mission_paths`. A directory outside ``kitty-specs/``
+    is never residue here (the predicate is defined only for ``kitty-specs/``
+    children), so callers keep their own behaviour for it.
+    """
+    if path.parent.name != KITTY_SPECS_DIR or any((path / name).exists() for name in _MISSION_CONTENT):
+        return False
+    return not is_mission_dir(path, repo_root=repo_root if repo_root is not None else path.parent.parent, tracked=tracked)
 
 
 def _markers_exist(path: Path) -> bool:

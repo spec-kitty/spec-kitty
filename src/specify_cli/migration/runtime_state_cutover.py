@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
+from specify_cli.context.mission_resolver import is_kitty_specs_residue
 from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
@@ -114,6 +115,9 @@ class CutoverResult:
             aborted before verify (ordering error / backfill error).
         error: Human-readable abort reason (ordering error / backfill error), or
             ``None`` on a clean run.
+        residue: True iff *feature_dir* is not a Mission
+            (:func:`~specify_cli.context.mission_resolver.is_kitty_specs_residue`): the
+            run left it untouched, wrote nothing and is not a failure (#6627).
     """
 
     slug: str
@@ -123,6 +127,7 @@ class CutoverResult:
     seeded_count: int = 0
     verify: VerifyResult | None = None
     error: str | None = None
+    residue: bool = False
 
 
 def _seed_phase(
@@ -364,6 +369,10 @@ def cutover_mission(
     3. ``dry_run`` returns ``would_flip=verify.ok`` writing nothing;
     4. otherwise flip (:func:`_flip_phase`) and return ``flipped=True``.
 
+    A ``kitty-specs/`` child that is not a Mission (residue, #6627) returns
+    ``residue=True`` before step 1 and writes nothing. An explicit *owned*
+    context names its Mission, so it skips that check.
+
     Steps 3–4 additionally record ``already_migrated`` — a read-only probe of
     whether the mission was already at snapshot authority BEFORE the flip
     decision (#3212) — so a caller can tell "flipped this run" apart from "the
@@ -408,6 +417,10 @@ def cutover_mission(
         A :class:`CutoverResult` describing the outcome.
     """
     status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
+    if owned is None and is_kitty_specs_residue(feature_dir):
+        # #6627: a residue directory is never seeded or given a meta.json stub by the flip.
+        logger.info("Skipping %s: not a Mission (residue directory)", feature_dir.name)
+        return CutoverResult(slug=feature_dir.name, flipped=False, residue=True)
     if owned is not None:
         # Validate both legs before seed can perform its first write.
         feature_dir = _runtime_feature_dir(feature_dir, owned)

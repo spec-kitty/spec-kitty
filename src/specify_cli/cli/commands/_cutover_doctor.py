@@ -72,6 +72,7 @@ class CutoverAuditEntry:
 _NO_LEGACY_RUNTIME_REASON = "no legacy runtime to migrate"
 _WOULD_FLIP_REASON = "verify passed -- cut over (or already flipped)"
 _NOT_MIGRATED_REASON = "not yet migrated (no verify result)"
+_RESIDUE_REASON = "not a Mission (residue directory) -- nothing to cut over"
 
 
 def _reason_for(result: CutoverResult) -> str:
@@ -79,6 +80,8 @@ def _reason_for(result: CutoverResult) -> str:
 
     See the module docstring for the full derivation contract.
     """
+    if result.residue:
+        return _RESIDUE_REASON
     if result.error is not None:
         # ``CutoverResult`` resolves as ``Any`` under this narrow-file-path
         # mypy run (the ``specify_cli.*`` ``follow_imports = "skip"`` override
@@ -96,7 +99,7 @@ def _reason_for(result: CutoverResult) -> str:
 
 def _entry_for(result: CutoverResult) -> CutoverAuditEntry:
     return CutoverAuditEntry(
-        slug=result.slug, cut_over=result.would_flip, reason=_reason_for(result)
+        slug=result.slug, cut_over=result.would_flip or result.residue, reason=_reason_for(result)
     )
 
 

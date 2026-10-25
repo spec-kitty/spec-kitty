@@ -14,6 +14,7 @@ from kernel.clock import datetime, from_epoch, Clock, DEFAULT_CLOCK
 from pathlib import Path
 from typing import Any
 
+from specify_cli.context.mission_resolver import is_kitty_specs_residue
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission_metadata import write_meta
@@ -49,7 +50,7 @@ def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
+def write_feature_meta(feature_dir: Path, meta: dict[str, Any] | None) -> None:
     """Write ``meta.json``.  Delegates to :func:`feature_metadata.write_meta`.
 
     Kept for backward compatibility with migration code.
@@ -61,7 +62,12 @@ def write_feature_meta(feature_dir: Path, meta: dict[str, Any]) -> None:
 
     The replace runs under the Mission write lock, so it is serialized with every
     other ``meta.json`` writer of the Mission.
+
+    ``None`` (the baseline :func:`build_baseline_feature_meta` returns for a
+    directory that is not a Mission) writes nothing.
     """
+    if meta is None:
+        return
     with mission_write_lock(feature_dir, fallback_to_dir_name=True):
         write_meta(feature_dir, meta, validate=False)
 
@@ -138,8 +144,17 @@ def build_baseline_feature_meta(
     repo_root: Path,
     *,
     existing_meta: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build the minimum viable ``meta.json`` payload for a feature."""
+) -> dict[str, Any] | None:
+    """Build the minimum viable ``meta.json`` payload for a feature.
+
+    A ``kitty-specs/`` directory that is residue (:func:`is_kitty_specs_residue`,
+    such as an untracked ``decisions/`` leftover after a branch switch) gets no
+    baseline: *existing_meta* comes back unchanged (``None``, since residue has
+    no ``meta.json``), so a caller that writes only on a difference writes
+    nothing and no identity is fabricated for it (#6627).
+    """
+    if is_kitty_specs_residue(feature_dir, repo_root=repo_root):
+        return existing_meta
     feature_slug = feature_dir.name
     feature_number, _, slug_tail = feature_slug.partition("-")
     meta = dict(existing_meta or {})

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, tracked_mission_paths
 from specify_cli.migration.backfill_identity import (
     backfill_mission,
     backfill_wp_ids,
@@ -18,6 +19,10 @@ from specify_cli.migration.backfill_identity import (
 from specify_cli.status import derive_mission_lifecycle, generate_lifecycle_json
 from specify_cli.status import generate_progress_json
 from specify_cli.status import write_derived_views
+
+
+#: Warning for a ``kitty-specs/`` residue directory (:func:`is_kitty_specs_residue`, #6627).
+RESIDUE_SKIP_WARNING = "not a Mission (residue directory: no Mission files, only leftovers such as decisions/); left untouched"
 
 
 @dataclass
@@ -201,10 +206,16 @@ def normalize_repo(
         return results
 
     derived_dir = repo_root / ".kittify" / "derived"
+    tracked = tracked_mission_paths(repo_root)
 
     for feature_dir in candidates:
         slug = feature_dir.name
         result = NormalizeMissionLifecycleResult(slug=slug, status="skipped")
+        if is_kitty_specs_residue(feature_dir, repo_root=repo_root, tracked=tracked):
+            # #6627: residue (e.g. an untracked decisions/ leftover) is reported, never given an identity.
+            result.warnings.append(RESIDUE_SKIP_WARNING)
+            results.append(result)
+            continue
         meta = _load_meta_for_normalization(feature_dir, result)
         if meta is None:
             results.append(result)

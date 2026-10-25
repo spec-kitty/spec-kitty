@@ -1,15 +1,18 @@
-"""#6627 red-first repro: ``spec-kitty upgrade`` must not mint a Mission identity into residue.
+"""#6627 regression guard: ``spec-kitty upgrade`` must not mint a Mission identity into residue.
+
+Originally the red-first ``p0_repro`` reproduction for P0 #6627 (nightly lane only);
+the marker was removed when the fix landed (ADR 2026-07-17-1), so this now runs per PR.
 
 A Mission that ran ``agent decision open`` / ``resolve`` on a topic branch leaves
 ``kitty-specs/<slug>/decisions/index.json`` (and its ``.lock``) untracked. After a
 switch to another branch only those leftovers remain: the directory is residue,
 not a Mission (:func:`specify_cli.context.mission_resolver.is_mission_dir`, #5812).
 
-On ``main`` the ``2.0.6_consistency_sweep`` and ``3.2.0a4_normalize_mission_lifecycle``
-migrations enumerate every ``kitty-specs/`` directory. They write a baseline
+Before the fix the ``2.0.6_consistency_sweep`` and ``3.2.0a4_normalize_mission_lifecycle``
+migrations enumerated every ``kitty-specs/`` directory. They wrote a baseline
 ``meta.json`` with a freshly minted ``mission_id`` (a second identity for a real
 Mission's slug) plus a ``status.json`` into the residue directory, and the upgrade
-auto-commit commits both.
+auto-commit committed both.
 
 Runs the real ``upgrade`` CLI in-process over a scratch git repository.
 """
@@ -72,7 +75,6 @@ def _upgrade(project: Path) -> tuple[int, str]:
     return result.exit_code, result.output
 
 
-@pytest.mark.p0_repro(issue=6627)
 def test_upgrade_does_not_mint_identity_into_residue_directory(tmp_path: Path) -> None:
     project = tmp_path / "proj"
     residue = _build_project(project)
