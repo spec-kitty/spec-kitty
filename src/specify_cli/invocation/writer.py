@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -32,6 +33,8 @@ _RECORD_MODE = 0o600
 # RFC 3986 scheme followed by ``://``. Two or more characters so a Windows
 # drive letter (``C:/x``, ``C:\\x``) is never mistaken for a URL scheme (#5270).
 _URL_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+://")
+
+logger = logging.getLogger(__name__)
 
 
 def op_closures_path(repo_root: Path) -> Path:
@@ -179,6 +182,7 @@ class InvocationWriter:
             append_event_log_lines(path, [line], lock_anchor=self._dir, create=False, no_follow=True, mode=_RECORD_MODE, precondition=check)
         except FileNotFoundError as exc:
             raise InvocationError(f"Invocation record not found: {invocation_id}") from exc
+        # interim-locked-append: these refusal types retire with kernel.event_log_append at #6193.
         except EventLogSymlinkError as exc:
             raise InvocationWriteError(f"Failed to open invocation record safely: {exc}") from exc
         except EventLogTornTailError as exc:
@@ -202,9 +206,11 @@ class InvocationWriter:
         It powers the O(limit) reverse-scan in ``invocations list`` so that
         command meets NFR-008 (< 200 ms at 10 K files).
 
-        Errors are silenced — the index is a performance aid.  A missing or
-        truncated index causes ``invocations list`` to fall back to directory
-        scanning, which is correct but slower.
+        Errors do not fail the Op — the index is a performance aid.  A missing
+        index causes ``invocations list`` to fall back to directory scanning,
+        which is correct but slower.  A refused append is logged: a torn index
+        tail refuses every later row (#6606), and ``invocations list`` reads the
+        index while it exists.
         """
         index_path = self._dir / "ops-index.jsonl"
         try:
@@ -217,8 +223,9 @@ class InvocationWriter:
                 }
             )
             self._append_line_no_follow(index_path, entry)
-        except OSError:
-            pass  # index is a performance aid; silently degrade
+        except OSError as exc:
+            # The index is a performance aid: degrade, but never silently.
+            logger.warning("Op index entry for %s not written to %s: %s", record.invocation_id, index_path, exc)
 
     def write_started(self, record: OpStartedEvent) -> Path:
         """Write the ``started`` event. Returns the JSONL file path.

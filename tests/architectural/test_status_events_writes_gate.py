@@ -645,6 +645,8 @@ def scan_index_writers_from_source(module: str, source: str) -> set[tuple[str, s
     return scan_index_writers(module, ast.parse(source))
 
 
+# ``ops-index.jsonl`` is also censused by ``test_event_log_writes_gate.py`` (its door
+# caller and raw writers); this test pins the single writer function. Keep both.
 def test_invocation_index_has_a_single_writer(src_source_tree: Mapping[Path, SourceFile]) -> None:
     """Only ``InvocationWriter._append_to_index`` appends to ``kitty-ops/ops-index.jsonl``.
 

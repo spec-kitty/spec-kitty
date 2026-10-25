@@ -22,6 +22,12 @@ During the strangler, the CLI still resolves where a transition lands
 (ADR 2026-10-22-1 D-3), so a :class:`WorkPackageTransition` carries the
 resolved write location and the CLI's write contract beside its rows. The
 domain treats the contract as opaque; the adapter verifies it.
+
+The unit is the append only. The coordination shell still materializes,
+commits and, on failure, cuts the log in process around the port call, and
+``emit_inner_state_changed`` still appends standalone annotations without it.
+ADR 2026-10-22-1 makes append, status commit and cut one unit of work in the
+write service, so #6675 widens this port to that unit and routes that door.
 """
 
 from __future__ import annotations

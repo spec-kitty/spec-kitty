@@ -101,7 +101,7 @@ def test_index_append_never_extends_a_torn_tail(writer: InvocationWriter, tmp_pa
     index = tmp_path / EVENTS_DIR / "ops-index.jsonl"
     index.parent.mkdir(parents=True)
     index.write_bytes(_TORN)
-    writer.write_started(_started())  # the index is a performance aid: refused silently
+    writer.write_started(_started())  # the index is a performance aid: refused, the Op still starts
     assert index.read_bytes() == _TORN
 
 
@@ -171,3 +171,14 @@ def test_a_trail_without_a_started_event_is_refused(writer: InvocationWriter) ->
     with pytest.raises(InvocationError, match="no started event"):
         writer.append_correlation_link(_ID, ref="docs/x.md")
     assert path.read_bytes() == body
+
+
+def test_a_refused_index_append_is_logged_not_silent(writer: InvocationWriter, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """A torn index tail refuses every later index row; the drop is logged, so it is visible (pre-PR squad)."""
+    index = tmp_path / EVENTS_DIR / "ops-index.jsonl"
+    index.parent.mkdir(parents=True)
+    index.write_bytes(_TORN)
+    with caplog.at_level("WARNING", logger=writer_module.__name__):
+        writer.write_started(_started())
+    assert index.read_bytes() == _TORN
+    assert any("ops-index.jsonl" in record.getMessage() and "torn" in record.getMessage() for record in caplog.records)

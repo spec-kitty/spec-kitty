@@ -66,6 +66,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
+# interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
 from kernel.event_log_append import EventLogAppendError
 from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for
 

@@ -155,6 +155,8 @@ def _repair_torn_tail(event_log_path: Path) -> Path | None:
     Returns:
         The sidecar path, or ``None`` when the tail was already whole.
     """
+    # Belt and braces: every caller already holds the interim event-log lock on
+    # this log (#6606); the repair lock is a leaf below it and stays until #6193.
     lock_path = event_log_path.with_name(event_log_path.name + _REPAIR_LOCK_SUFFIX)
     quarantine_path = event_log_path.with_name(event_log_path.name + TORN_TAIL_SUFFIX)
     with (

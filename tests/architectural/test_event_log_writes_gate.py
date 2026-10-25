@@ -23,7 +23,8 @@ Three censuses, all keyed without line numbers:
   census resolves paths with the shared ``_write_site_scan`` resolver (the
   status gate's), with ``self.<method>()`` helpers followed as well. On the
   tree before #6606 it reports exactly the eight unlocked appends that change
-  routed; today it holds only writes that are not appends.
+  routed, plus the two Op-record appends in ``invocation/writer.py``: ten
+  in all. Today it holds only writes that are not appends.
 * **Unresolved writes.** A raw write whose path names no log but whose
   expression reads like one (``events``, ``jsonl``, ``ledger``, ``log``) is
   pinned in ``EXPECTED_UNRESOLVED_LOG_WRITES`` with its reason.
@@ -39,9 +40,13 @@ whose call sites disagree (the door census still sees a routed form); a path
 built from a glob (``m_3_3_0_op_record_schema_v2`` rewrites ``kitty-ops/*.jsonl``
 found by ``glob``); a path from an imported constant with a neutral name; a
 ``self.<method>()`` helper whose name is defined in more than one class of the
-module.
+module, or a path helper called on another receiver (``obj.path()``); a local
+inside an ``async def`` (the shared resolver follows ``def`` only); a door
+rebound to another name (``put = append_event_log_lines``) or captured as a
+bound attribute (``fn = persistence.append_event``).
 
-The gate's own scan of ``src/`` stays under NFR-004's 5 s (``timing`` test).
+The gate's own scan of ``src/`` stays under NFR-004's 5 s
+(``test_event_log_writes_gate_budget.py``, a ``timing``-only module).
 
 ``canonical-events.jsonl`` is written through ``specify_cli.status.store``
 under the status lock and the ``status/_unsafe.py`` allowlist; its raw writes
@@ -56,7 +61,6 @@ floors feed synthetic writers to the same scanners.
 from __future__ import annotations
 
 import ast
-import time
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -105,6 +109,19 @@ DOORS: Mapping[str, str] = MappingProxyType(
     }
 )
 _DOOR_MODULES: frozenset[str] = frozenset(DOORS.values())
+#: Calls that reach the EventBridge port's write door, which appends to
+#: ``status.events.jsonl`` without the lane FSM or the Mission status lock.
+_PORT_DOOR_NAMES: frozenset[str] = frozenset({"work_package_transition_port", "record_work_package_transition", "LocalFileEventBridge"})
+#: The port and its local adapter define the door; they are not its callers.
+_PORT_OWNERS: frozenset[str] = frozenset({"runtime.next.event_bridge", "specify_cli.events.event_bridge"})
+#: The only functions that may reach the port's write door: the three
+#: transition doors (the two flat ones through ``_record_work_package_transition``).
+EXPECTED_PORT_CALLERS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("specify_cli.status.emit", "_record_work_package_transition"),
+        ("specify_cli.coordination.transaction", "BookkeepingTransaction.append_events"),
+    }
+)
 #: Modules that own a door and so never count as its caller.
 _DOOR_OWNERS: frozenset[str] = frozenset({"kernel.event_log_append"})
 #: Modules whose raw writes are the durability mechanism, not a writer.
@@ -146,8 +163,9 @@ EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType(
             "full line under its own repair lock; the append itself is the contract writer under the interim lock"
         ),
         ("specify_cli.invocation.writer", "InvocationWriter.write_started", "other .jsonl"): (
-            "exclusive create (mode 'x') of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, "
-            "so it can never append to or race another writer of that trail"
+            "exclusive create (mode 'x') of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, so it "
+            "never appends to one. It writes outside the lock: a concurrent append can see the file before the started "
+            "row lands and refuse it (no started event, or a torn tail), a window that predates #6606"
         ),
     }
 )
@@ -215,6 +233,7 @@ class _DoorVisitor(ast.NodeVisitor):
         self.scope: list[str] = []
         self.in_function = 0
         self.candidates: list[tuple[str, ast.expr]] = []
+        self.port_callers: list[str] = []
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         for alias in node.names if node.module else ():
@@ -246,8 +265,11 @@ class _DoorVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         func = node.func
+        where = ".".join(self.scope) if self.in_function else "<module>"
         if isinstance(func, ast.Name) or (isinstance(func, ast.Attribute) and func.attr in DOORS):
-            self.candidates.append((".".join(self.scope) if self.in_function else "<module>", func))
+            self.candidates.append((where, func))
+        if _call_name(node) in _PORT_DOOR_NAMES:
+            self.port_callers.append(where)
         self.generic_visit(node)
 
     def door_of(self, func: ast.expr) -> str | None:
@@ -262,13 +284,25 @@ class _DoorVisitor(ast.NodeVisitor):
         return func.attr if func.attr != "append_event" else None
 
 
-def scan_door_calls(module: str, tree: ast.Module) -> list[DoorCall]:
-    """Every door call in ``module`` under any import alias, attributed to its innermost enclosing function."""
-    if module in _DOOR_OWNERS:
-        return []
+def _visit_doors(module: str, tree: ast.Module) -> tuple[list[DoorCall], set[tuple[str, str]]]:
+    """``(door calls, port-door callers)`` of ``module`` from one pass."""
     visitor = _DoorVisitor()
     visitor.visit(tree)
-    return [DoorCall(module, function, door) for function, func in visitor.candidates if (door := visitor.door_of(func)) is not None]
+    doors = (
+        [] if module in _DOOR_OWNERS else [DoorCall(module, function, door) for function, func in visitor.candidates if (door := visitor.door_of(func)) is not None]
+    )
+    ports = set() if module in _PORT_OWNERS else {(module, function) for function in visitor.port_callers}
+    return doors, ports
+
+
+def scan_door_calls(module: str, tree: ast.Module) -> list[DoorCall]:
+    """Every door call in ``module`` under any import alias, attributed to its innermost enclosing function."""
+    return _visit_doors(module, tree)[0]
+
+
+def scan_port_callers(module: str, tree: ast.Module) -> set[tuple[str, str]]:
+    """``(module, function)`` for each call that reaches the EventBridge port's write door."""
+    return _visit_doors(module, tree)[1]
 
 
 def _family_of_text(text: str) -> str | None:
@@ -323,21 +357,25 @@ class TreeScan:
     door_calls: tuple[DoorCall, ...]
     raw_writers: frozenset[tuple[str, str, str]]
     unresolved_writes: frozenset[tuple[str, str, str]]
+    port_callers: frozenset[tuple[str, str]]
 
 
 def scan_src_tree(src_source_tree: Mapping[Path, SourceFile]) -> TreeScan:
     door_calls: list[DoorCall] = []
     raw: set[tuple[str, str, str]] = set()
     unresolved: set[tuple[str, str, str]] = set()
+    port_callers: set[tuple[str, str]] = set()
     for path, entry in src_source_tree.items():
         tree = entry.tree
         assert isinstance(tree, ast.Module)
         module = module_name_for(path)
-        door_calls.extend(scan_door_calls(module, tree))
+        module_doors, module_ports = _visit_doors(module, tree)
+        door_calls.extend(module_doors)
+        port_callers |= module_ports
         module_raw, module_unresolved = scan_write_censuses(module, tree)
         raw |= module_raw
         unresolved |= module_unresolved
-    return TreeScan(tuple(door_calls), frozenset(raw), frozenset(unresolved))
+    return TreeScan(tuple(door_calls), frozenset(raw), frozenset(unresolved), frozenset(port_callers))
 
 
 @pytest.fixture(scope="module")
@@ -388,12 +426,22 @@ def test_unresolved_ledger_is_live(tree_scan: TreeScan) -> None:
     assert not stale, f"Pinned unresolved writes that no longer exist (shrink the ledger): {stale}"
 
 
-@pytest.mark.timing
-def test_the_scan_meets_its_time_budget(src_source_tree: Mapping[Path, SourceFile]) -> None:
-    """NFR-004: the gate's scan of the full ``src/`` tree (already parsed) takes under 5 s."""
-    started = time.perf_counter()
-    scan_src_tree(src_source_tree)
-    assert time.perf_counter() - started < 5.0
+def test_only_the_transition_doors_reach_the_port(tree_scan: TreeScan) -> None:
+    """The port's write door appends to ``status.events.jsonl`` with no FSM and no Mission lock (pre-PR squad)."""
+    assert tree_scan.port_callers == EXPECTED_PORT_CALLERS, (
+        "Only the work package transition doors may reach the EventBridge port's write door "
+        f"(new: {sorted(tree_scan.port_callers - EXPECTED_PORT_CALLERS)}, gone: {sorted(EXPECTED_PORT_CALLERS - tree_scan.port_callers)})"
+    )
+
+
+def test_a_new_port_caller_is_found() -> None:
+    source = (
+        "from specify_cli.events.event_bridge import LocalFileEventBridge, work_package_transition_port\n"
+        "def rogue(t):\n    work_package_transition_port().record_work_package_transition(t)\n"
+        "class R:\n    def m(self, t):\n        LocalFileEventBridge().record_work_package_transition(t)\n"
+    )
+    assert scan_port_callers("specify_cli.rogue", ast.parse(source)) == {("specify_cli.rogue", "rogue"), ("specify_cli.rogue", "R.m")}
+    assert scan_port_callers("specify_cli.events.event_bridge", ast.parse(source)) == set()
 
 
 def test_the_gate_sees_todays_writers(tree_scan: TreeScan) -> None:

@@ -378,3 +378,25 @@ def test_open_core_binds_no_work_package_transition_port() -> None:
 def test_bind_scan_flags_a_binding_site(tmp_path: Path) -> None:
     (tmp_path / "producer.py").write_text(f"from runtime.next.event_bridge import {_BIND_NAME} as _b\n_b(object())\n", encoding="utf-8")
     assert _bind_sites(tmp_path) == [(tmp_path / "producer.py").as_posix()]
+
+
+def _non_stdlib_imports(source: str) -> list[str]:
+    """Top-level packages a module imports that are neither the standard library nor ``__future__``."""
+    found: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            found.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            found.append("." * node.level + (node.module or ""))
+    return sorted(name for name in found if name.startswith(".") or (name.split(".")[0] not in sys.stdlib_module_names and name != "__future__"))
+
+
+def test_the_port_leaf_imports_only_the_standard_library() -> None:
+    """``runtime.next.event_bridge`` must stay stdlib-only: the status doors import it, so any runtime or CLI import is a cycle."""
+    source = (_REPO_ROOT / _BIND_DEFINITION).read_text(encoding="utf-8")
+    assert _non_stdlib_imports(source) == []
+
+
+def test_the_stdlib_leaf_scan_flags_a_project_import() -> None:
+    source = "from __future__ import annotations\nimport logging\nfrom specify_cli.status import emit\nfrom . import x\nimport runtime.next._internal_runtime\n"
+    assert _non_stdlib_imports(source) == [".", "runtime.next._internal_runtime", "specify_cli.status"]
