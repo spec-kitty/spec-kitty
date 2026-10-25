@@ -5,7 +5,7 @@ A folder is suspected only when all three signals hold (FR-010):
 1. ``meta.json`` is git-tracked and the folder holds nothing outside the allow-list
    ``{meta.json, status.json, status.events.jsonl, decisions/**, *.lock}``.
 2. ``meta.json``'s slug-derived fields equal :func:`baseline_slug_fields` of the slug.
-3. The slug ends in a mid8 that differs from ``mission_id[:8]``.
+3. The slug ends in a mid8 that differs from the declared one (:func:`resolve_mid8`).
 
 Read-only: nothing is written or deleted (FR-011, C-001).
 """
@@ -16,7 +16,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
-from mission_runtime.identity import mid8_from_slug
+from mission_runtime import mid8_from_slug, resolve_mid8
 from specify_cli.mission_metadata import baseline_slug_fields, load_meta
 
 from ..models import FABRICATED_IDENTITY_SUSPECTED, MissionFinding, Severity
@@ -82,7 +82,10 @@ def _signal_baseline_fields(slug: str, meta: dict[str, Any]) -> bool:
 def _signal_mid8_mismatch(slug: str, meta: dict[str, Any]) -> bool:
     mid8 = mid8_from_slug(slug)
     mission_id = meta.get("mission_id")
-    return bool(mid8) and isinstance(mission_id, str) and bool(mission_id) and mission_id[:8] != mid8
+    if not mid8 or not isinstance(mission_id, str):
+        return False
+    declared = resolve_mid8(slug, mission_id=mission_id)
+    return bool(declared) and declared != mid8
 
 
 def fabricated_identity_signals(
