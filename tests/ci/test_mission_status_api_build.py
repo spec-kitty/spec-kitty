@@ -442,6 +442,7 @@ def gitignore_violations(gitignore_text: str) -> list[str]:
             "!/src/test/java/org/speckitty/missionstatus/build/",
             "!/src/main/java/org/speckitty/missionstatus/adapter/out/",
             "!/src/**/out/",
+            "!/*/src/**/out/",
         )
         if needle not in lines
     ]
@@ -518,8 +519,19 @@ NEW_FILES_IN_OUT_PACKAGES = tuple(
         ("test", "architecture/fixture/application/query/port"),
         ("test", "architecture/fixture/adapter"),
     )
+) + tuple(
+    # The event-log library (#6192) holds the codec package under adapter/out, main and test.
+    f"event-log/src/{tree}/java/org/speckitty/missionstatus/adapter/out/NewFile.java"
+    for tree in ("main", "test")
 )
-STILL_IGNORED = ("build/classes/Foo.class", "build/libs/mission-status-api.jar", ".gradle/caches/x", "out/anything.txt")
+STILL_IGNORED = (
+    "build/classes/Foo.class",
+    "build/libs/mission-status-api.jar",
+    ".gradle/caches/x",
+    "out/anything.txt",
+    "domain-model/build/classes/Foo.class",
+    "event-log/build/libs/event-log.jar",
+)
 
 
 def _is_ignored(rel: str) -> bool:
@@ -536,6 +548,7 @@ def test_the_gitignore_pin_turns_red_when_a_negation_is_dropped_or_a_pattern_is_
     assert gitignore_violations(text.replace("!/src/main/java/org/speckitty/missionstatus/adapter/out/\n", ""))
     assert gitignore_violations(text.replace("/build/", "build/", 1))
     assert gitignore_violations(text.replace("!/src/**/out/\n", ""))
+    assert gitignore_violations(text.replace("!/*/src/**/out/\n", ""))
 
 
 # --- WP03: packaging exclusion (C-009) -------------------------------------------------------------------------------------------
@@ -2936,3 +2949,104 @@ def test_step_and_job_level_evasions_of_the_release_gates_each_turn_the_pins_red
     assert violations_after(lambda job: _steps(job)[5]["with"].update({"push-to-registry": True}))
     assert violations_after(lambda job: _steps(job)[5]["with"].update({"subject-path": "${{ runner.temp }}/release-assets/*"}))
     assert violations_after(lambda job: _steps(job)[5].update({"env": {"X": "1"}}))
+
+
+# --- #6192: the library modules of #6117 decision 12 -----------------------------------------------------------------------------
+# The root project is the query-service deployable; domain-model and event-log are libraries extracted from it. The Java side holds
+# each library's classes to its boundary (DomainModelBoundaryTest, EventLogBoundaryTest); these pins hold the declared dependencies,
+# so a framework or a second project dependency is refused before it is compiled in.
+
+LIBRARY_MODULES = ("domain-model", "event-log")
+# The only non-test dependency declarations each library may carry, in order.
+LIBRARY_DEPENDENCIES: dict[str, list[str]] = {
+    "domain-model": [],
+    "event-log": ['api(project(":domain-model"))', "implementation(libs.jackson.core)"],
+}
+QUERY_SERVICE_LIBRARY_DEPENDENCIES = ('implementation(project(":domain-model"))', 'implementation(project(":event-log"))')
+_INCLUDE = re.compile(r"^\s*include\((?P<args>[^)]*)\)", re.M)
+# Test-only configurations; testFixtures* is NOT one of them (its declarations are exported to consumers).
+_TEST_CONFIGURATION = re.compile(r"^test(Implementation|RuntimeOnly|CompileOnly|AnnotationProcessor)\(")
+
+
+def _library_script(name: str) -> Path:
+    return SERVICE / name / "build.gradle.kts"
+
+
+def _declarations(dependencies_block: str) -> list[str]:
+    """The dependency declarations of a ``dependencies { }`` body, comments and blank lines dropped."""
+    lines = (line.strip() for line in dependencies_block.splitlines())
+    return [line for line in lines if line and not line.startswith("//")]
+
+
+def library_script_violations(name: str, script_text: str) -> list[str]:
+    found: list[str] = []
+    if _LITERAL_COORDINATE.search(script_text) or _LITERAL_PLUGIN_VERSION.search(script_text) or _LITERAL_TOOL_VERSION.search(script_text):
+        found.append(f"{name}: a literal version (coordinates, plugins and tools take theirs from the catalog or the Boot BOM)")
+    if "JavaLanguageVersion.of(25)" not in script_text or "vendor" in (_block(script_text, "\njava {") or ""):
+        found.append(f"{name}: the Java toolchain is not an unconstrained JavaLanguageVersion.of(25)")
+    plugins = _block(script_text, "plugins") or ""
+    if "`java-library`" not in plugins:
+        found.append(f"{name}: not a java-library project")
+    if "spring.boot" in plugins or "org.springframework.boot" in plugins or "graalvm" in plugins or "openapi" in plugins:
+        found.append(f"{name}: a deployable plugin (Spring Boot, native image or the generator) is applied to a library")
+    if "libs.versions.jacoco" not in script_text:
+        found.append(f"{name}: the JaCoCo tool version does not come from the catalog (named floor)")
+    block = _block(script_text, "\ndependencies")
+    if block is None:
+        found.append(f"{name}: no dependencies block (named floor: the test libraries are declared there)")
+        return found
+    declared = _declarations(block)
+    production = [line for line in declared if not _TEST_CONFIGURATION.match(line)]
+    if production != LIBRARY_DEPENDENCIES[name]:
+        found.append(f"{name}: production dependencies {production}, expected exactly {LIBRARY_DEPENDENCIES[name]}")
+    if not any(line.startswith("testImplementation(libs.archunit") for line in declared):
+        found.append(f"{name}: ArchUnit is not on the test classpath (the boundary test needs it)")
+    return found
+
+
+def library_module_violations(settings_text: str, root_build_text: str, scripts: dict[str, str | None]) -> list[str]:
+    found: list[str] = []
+    included = [name for match in _INCLUDE.finditer(settings_text) for name in re.findall(r'"([^"]+)"', match.group("args"))]
+    if sorted(included) != sorted(LIBRARY_MODULES):
+        found.append(f"settings.gradle.kts includes {included}, expected exactly {list(LIBRARY_MODULES)}")
+    for declaration in QUERY_SERVICE_LIBRARY_DEPENDENCIES:
+        if declaration not in root_build_text:
+            found.append(f"the query service does not declare {declaration}")
+    for name in LIBRARY_MODULES:
+        script = scripts.get(name)
+        if script is None:
+            found.append(f"{name}: no build script")
+            continue
+        found.extend(library_script_violations(name, script))
+    return found
+
+
+def _real_library_scripts() -> dict[str, str | None]:
+    return {name: (_code(_library_script(name)) if _library_script(name).is_file() else None) for name in LIBRARY_MODULES}
+
+
+def test_the_library_modules_are_included_and_declare_only_their_boundary() -> None:
+    assert library_module_violations(_code(SETTINGS_SCRIPT), _code(BUILD_SCRIPT), _real_library_scripts()) == []
+
+
+def test_the_library_module_pin_turns_red_for_each_breach() -> None:
+    settings, root, scripts = _code(SETTINGS_SCRIPT), _code(BUILD_SCRIPT), _real_library_scripts()
+    domain, event_log = scripts["domain-model"], scripts["event-log"]
+    assert domain is not None and event_log is not None
+
+    def with_script(name: str, text: str | None) -> list[str]:
+        return library_module_violations(settings, root, {**scripts, name: text})
+
+    assert library_module_violations(settings.replace('include("domain-model", "event-log")', 'include("domain-model")'), root, scripts)
+    assert library_module_violations(settings + '\ninclude("command-cli")\n', root, scripts)
+    assert library_module_violations(settings, root.replace('implementation(project(":event-log"))', ""), scripts)
+    assert with_script("domain-model", None)
+    test_libraries = "    testImplementation(libs.junit.jupiter)"
+    assert with_script("domain-model", domain.replace(test_libraries, "    implementation(libs.jackson.core)\n" + test_libraries, 1))
+    assert with_script("event-log", event_log.replace(test_libraries, "    implementation(libs.spring.boot.starter.web)\n" + test_libraries, 1))
+    assert with_script("event-log", event_log.replace('api(project(":domain-model"))', 'api(project(":domain-model"))\n    implementation(project(":"))', 1))
+    assert with_script("event-log", event_log.replace("implementation(libs.jackson.core)", 'implementation("tools.jackson.core:jackson-core:3.0.0")', 1))
+    assert with_script("domain-model", domain.replace("JavaLanguageVersion.of(25)", "JavaLanguageVersion.of(21)", 1))
+    assert with_script("domain-model", domain.replace("`java-library`", '`java-library`\n    id("org.springframework.boot")', 1))
+    assert with_script("event-log", event_log.replace("testImplementation(libs.archunit.junit5)", "", 1))
+    assert with_script("domain-model", domain.replace(test_libraries, "    testFixturesApi(libs.jackson.core)\n" + test_libraries, 1))
