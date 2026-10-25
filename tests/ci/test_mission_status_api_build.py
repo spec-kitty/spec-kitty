@@ -2963,6 +2963,8 @@ LIBRARY_DEPENDENCIES: dict[str, list[str]] = {
     "event-log": ['api(project(":domain-model"))', "implementation(libs.jackson.core)"],
 }
 QUERY_SERVICE_LIBRARY_DEPENDENCIES = ('implementation(project(":domain-model"))', 'implementation(project(":event-log"))')
+# A top-level dependencies block starts a line (dependencyManagement and nested blocks do not match).
+_DEPENDENCIES_HEADER = re.compile(r"^dependencies\s*\{", re.M)
 _INCLUDE = re.compile(r"^\s*include\((?P<args>[^)]*)\)", re.M)
 # Test-only configurations; testFixtures* is NOT one of them (its declarations are exported to consumers).
 _TEST_CONFIGURATION = re.compile(r"^test(Implementation|RuntimeOnly|CompileOnly|AnnotationProcessor)\(")
@@ -2991,10 +2993,11 @@ def library_script_violations(name: str, script_text: str) -> list[str]:
         found.append(f"{name}: a deployable plugin (Spring Boot, native image or the generator) is applied to a library")
     if "libs.versions.jacoco" not in script_text:
         found.append(f"{name}: the JaCoCo tool version does not come from the catalog (named floor)")
-    block = _block(script_text, "\ndependencies")
-    if block is None:
-        found.append(f"{name}: no dependencies block (named floor: the test libraries are declared there)")
+    headers = _DEPENDENCIES_HEADER.findall(script_text)
+    if len(headers) != 1:
+        found.append(f"{name}: {len(headers)} top-level dependencies blocks, expected exactly one (named floor: the test libraries are declared there)")
         return found
+    block = _block(script_text, "\ndependencies") or ""
     declared = _declarations(block)
     production = [line for line in declared if not _TEST_CONFIGURATION.match(line)]
     if production != LIBRARY_DEPENDENCIES[name]:
@@ -3050,3 +3053,4 @@ def test_the_library_module_pin_turns_red_for_each_breach() -> None:
     assert with_script("domain-model", domain.replace("`java-library`", '`java-library`\n    id("org.springframework.boot")', 1))
     assert with_script("event-log", event_log.replace("testImplementation(libs.archunit.junit5)", "", 1))
     assert with_script("domain-model", domain.replace(test_libraries, "    testFixturesApi(libs.jackson.core)\n" + test_libraries, 1))
+    assert with_script("domain-model", domain + "\ndependencies {\n    implementation(libs.spring.boot.starter.web)\n}\n")
