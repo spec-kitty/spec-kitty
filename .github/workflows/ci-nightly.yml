@@ -1759,13 +1759,27 @@ jobs:
           # The envelope pin is left out of this lane (gate_selection.EVENTS_LATEST_EXCLUDED): a newer
           # release with no committed snapshot is reported here, not as a red.
           version="${resolved#spec-kitty-events==}"
-          if [ -n "$version" ] && [ ! -f "tests/contract/snapshots/spec-kitty-events-${version}.json" ]; then
+          if [ -z "$version" ]; then
+            echo "::error::could not resolve a spec-kitty-events version from the upgraded lock"
+            exit 1
+          fi
+          echo "RESOLVED_EVENTS_VERSION=$version" >> "$GITHUB_ENV"
+          if [ ! -f "tests/contract/snapshots/spec-kitty-events-${version}.json" ]; then
             echo "::notice::spec-kitty-events ${version} has no envelope snapshot yet; when core bumps to it, run scripts/snapshot_events_envelope.py"
           fi
 
       - name: Sync dev environment against the upgraded lock
         shell: bash
         run: uv sync --locked --all-extras
+      - name: Verify the installed spec-kitty-events is the resolved one
+        shell: bash
+        run: |
+          installed=$(uv run --no-sync python -c 'import importlib.metadata as m;print(m.version("spec-kitty-events"))')
+          if [ -z "${RESOLVED_EVENTS_VERSION:-}" ] || [ "$installed" != "$RESOLVED_EVENTS_VERSION" ]; then
+            echo "::error::installed spec-kitty-events '${installed}' != resolved '${RESOLVED_EVENTS_VERSION:-unknown}'; the lane would test the wrong release"
+            exit 1
+          fi
+          echo "::notice::events-latest tests spec-kitty-events ${installed}"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
 
