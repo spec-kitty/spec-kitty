@@ -32,6 +32,10 @@ from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, SupersededMigration
+from specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes import FrontmatterOnlyLanesMigration
+from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import CompleteLaneMigration
+from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import ConsistencySweepMigration
+from specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json import NormalizeStatusJsonMigration
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import AgentsSkillsGitignoreBackfillMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import NarrowAgentGitignoreMigration
@@ -45,6 +49,19 @@ SKILLS_BACKFILL = AgentsSkillsGitignoreBackfillMigration.migration_id
 CURSOR_BACKFILL = NarrowCursorGitignoreMigration.migration_id
 NARROW = NarrowAgentGitignoreMigration.migration_id
 TARGET = "4.0.0rc8"
+
+#: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills and the #6669 residue-aware pairs).
+SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
+    cls.migration_id: cls
+    for cls in (
+        AgentsSkillsGitignoreBackfillMigration,
+        NarrowCursorGitignoreMigration,
+        FrontmatterOnlyLanesMigration,
+        CompleteLaneMigration,
+        ConsistencySweepMigration,
+        NormalizeStatusJsonMigration,
+    )
+}
 
 #: Rows the two backfills write; the narrow block never contains them.
 BACKFILL_ROWS = (".agents/skills/", ".cursor/commands/", ".cursor/skills/", ".cursor/rules/spec-kitty.mdc")
@@ -120,12 +137,17 @@ def test_narrow_rows_survive_every_later_upgrade(tmp_path: Path, make_project: C
         assert _lines(project) == narrowed
 
 
-@pytest.mark.parametrize("original", [AgentsSkillsGitignoreBackfillMigration, NarrowCursorGitignoreMigration], ids=[SKILLS_BACKFILL, CURSOR_BACKFILL])
-def test_registered_class_is_a_superseded_substitute(tmp_path: Path, original: type[BaseMigration]) -> None:
-    registered = MigrationRegistry.get_by_id(original.migration_id)
+def test_the_shipped_class_table_covers_the_supersession_table() -> None:
+    assert SHIPPED_SUPERSEDED.keys() == SUPERSEDED_MIGRATIONS.keys()
+
+
+@pytest.mark.parametrize("superseded", sorted(SUPERSEDED_MIGRATIONS))
+def test_registered_class_is_a_superseded_substitute(tmp_path: Path, superseded: str) -> None:
+    original = SHIPPED_SUPERSEDED[superseded]
+    registered = MigrationRegistry.get_by_id(superseded)
 
     assert isinstance(registered, SupersededMigration)
-    assert NARROW in registered.superseded_by
+    assert SUPERSEDED_MIGRATIONS[superseded] in registered.superseded_by
     for attr in ("migration_id", "target_version", "description", "clone_local_effect", "identity", "requires_git_repository", "runs_on_worktrees"):
         assert getattr(registered, attr) == getattr(original, attr), attr
     # The drift key stays on the shipped module's bytes, so recorded history never reads as drift.
@@ -134,9 +156,9 @@ def test_registered_class_is_a_superseded_substitute(tmp_path: Path, original: t
     assert registered.can_apply(tmp_path) == (False, registered.superseded_by)
 
 
-def test_direct_import_still_returns_the_shipped_class() -> None:
-    assert not issubclass(AgentsSkillsGitignoreBackfillMigration, SupersededMigration)
-    assert not issubclass(NarrowCursorGitignoreMigration, SupersededMigration)
+@pytest.mark.parametrize("superseded", sorted(SUPERSEDED_MIGRATIONS))
+def test_direct_import_still_returns_the_shipped_class(superseded: str) -> None:
+    assert not issubclass(SHIPPED_SUPERSEDED[superseded], SupersededMigration)
 
 
 def test_every_supersession_entry_names_registered_manifest_migrations() -> None:

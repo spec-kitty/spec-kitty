@@ -50,7 +50,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
-from specify_cli.context.mission_resolver import is_kitty_specs_residue
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, probe_tracked_mission_paths, residue_notice
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
@@ -369,9 +370,16 @@ def cutover_mission(
     3. ``dry_run`` returns ``would_flip=verify.ok`` writing nothing;
     4. otherwise flip (:func:`_flip_phase`) and return ``flipped=True``.
 
-    A ``kitty-specs/`` child that is not a Mission (residue, #6627) returns
+    A ``kitty-specs/`` child that is residue, not a Mission (#6627) returns
     ``residue=True`` before step 1 and writes nothing. An explicit *owned*
-    context names its Mission, so it skips that check.
+    context names its Mission, so it skips that check. :func:`cutover_repo` filters
+    residue itself with a once-per-walk ``tracked=`` set. "Costs no git call" holds
+    only in git-aware mode (git tracks something under ``kitty-specs/``): there every
+    folder the walk lets through carries ``spec.md`` or ``meta.json`` on disk (bar a
+    tracked marker deleted on disk), and the predicate answers that before any git call. In file-presence mode (non-git,
+    unusable git, an ignored ``kitty-specs/``) a Mission holding only ``plan.md`` or
+    ``tasks.md`` also passes the walk, and this check then runs the predicate's own
+    lazy ``git`` probe, because it receives no ``tracked=`` set.
 
     Steps 3–4 additionally record ``already_migrated`` — a read-only probe of
     whether the mission was already at snapshot authority BEFORE the flip
@@ -419,7 +427,7 @@ def cutover_mission(
     status_dir = status_feature_dir if status_feature_dir is not None else feature_dir
     if owned is None and is_kitty_specs_residue(feature_dir):
         # #6627: a residue directory is never seeded or given a meta.json stub by the flip.
-        logger.info("Skipping %s: not a Mission (residue directory)", feature_dir.name)
+        logger.info("Skipping %s", residue_notice(f"{KITTY_SPECS_DIR}/{feature_dir.name}"))
         return CutoverResult(slug=feature_dir.name, flipped=False, residue=True)
     if owned is not None:
         # Validate both legs before seed can perform its first write.
@@ -606,7 +614,12 @@ def cutover_repo(
                 )
 
     results: list[CutoverResult] = []
+    tracked = probe_tracked_mission_paths(repo_root)  # once per walk (#6669)
     for feature_dir in candidates:
+        if is_kitty_specs_residue(feature_dir, repo_root=repo_root, tracked=tracked):
+            logger.info("Skipping %s", residue_notice(f"{KITTY_SPECS_DIR}/{feature_dir.name}"))
+            results.append(CutoverResult(slug=feature_dir.name, flipped=False, residue=True))
+            continue
         try:
             results.append(cutover_mission(feature_dir, dry_run=dry_run))
         except PlacementMismatchError as exc:

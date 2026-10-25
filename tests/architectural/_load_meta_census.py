@@ -143,6 +143,8 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 # purpose — that is the anti-rot mechanic, mirroring the allow-list staleness
 # detection in ``tests/architectural/test_inline_meta_read_gate.py``.
 ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
+    # malformed meta.json is already reported by classify_meta_json in the same scan (#6668)
+    ("src/specify_cli/audit/classifiers/fabricated_identity.py", "fabricated_identity_finding"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_apply_coord_staleness_fixes"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_collect_coordination_findings"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "check_and_warn_coord_staleness"): (1, "silent-by-contract"),

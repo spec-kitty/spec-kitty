@@ -17,7 +17,7 @@ from typing import Any
 from specify_cli.context.mission_resolver import is_kitty_specs_residue
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
-from specify_cli.mission_metadata import write_meta
+from specify_cli.mission_metadata import baseline_slug_fields, write_meta
 from specify_cli.status import mission_write_lock
 
 _BRANCH_PATTERNS = (
@@ -155,22 +155,10 @@ def build_baseline_feature_meta(
     """
     if is_kitty_specs_residue(feature_dir, repo_root=repo_root):
         return existing_meta
-    feature_slug = feature_dir.name
-    feature_number, _, slug_tail = feature_slug.partition("-")
     meta = dict(existing_meta or {})
 
-    _set_if_blank(
-        meta,
-        "mission_number",
-        feature_number if feature_number.isdigit() else "",
-    )
-    _set_if_blank(meta, "slug", feature_slug)
-    _set_if_blank(meta, "mission_slug", feature_slug)
-    _set_if_blank(
-        meta,
-        "friendly_name",
-        slug_tail.replace("-", " ").strip() or feature_slug,
-    )
+    for key, value in baseline_slug_fields(feature_dir.name).items():
+        _set_if_blank(meta, key, value)
     _set_if_blank(meta, "mission_type", infer_mission(feature_dir, existing_meta=meta))
     _set_if_blank(
         meta,

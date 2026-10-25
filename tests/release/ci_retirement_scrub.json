@@ -319,7 +319,8 @@
         "**/kernel/git/paths.py",
         "**/kernel/git/runner.py",
         "**/kernel/guarded_read.py",
-        "**/charter/activation/mission_type_key.py"
+        "**/charter/activation/mission_type_key.py",
+        "**/mission_runtime/identity.py"
       ],
       "note": "Every Mission file plus every input that can change the mission-state audit verdict (#5864, #6058): the reducer dependency manifests, the audit-path CLI modules, the workflow and renderer; non-src, no --cov subject."
     }

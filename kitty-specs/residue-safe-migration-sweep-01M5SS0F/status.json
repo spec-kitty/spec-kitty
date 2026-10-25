@@ -1,0 +1,259 @@
+{
+  "event_count": 64,
+  "last_event_id": "01M5TDAKWA4CVJWDG29CACXKAH",
+  "materialized_at": "2026-10-25T20:51:39.018116+00:00",
+  "mission_number": "241",
+  "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDA1AB9BC9TSKBMWB80996",
+      "last_transition_at": "2026-10-25T20:51:20.011191+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T16:38:53Z – claude – shell_pid=8973 – Tests: uv run --frozen pytest tests/context tests/specify_cli/migration/test_residue_dirs_left_untouched_6627.py tests/specify_cli/migration/test_normalize_mission_lifecycle.py tests/integration/migration/test_upgrade_residue_identity_6627.py -> 93 passed (before new file); new tests/context/test_is_kitty_specs_residue_git_aware.py + tests/architectural/test_migration_walkers_use_mission_predicate.py -> 30 passed. ruff check/format exit 0; mypy --strict exit 0 (needs --python-executable of uv venv; default run hits pre-existing platformdirs stub error in kernel/paths.py). T005: no #6627 verdicts changed (their fixtures have no tracked kitty-specs); only RESIDUE_SKIP_WARNING import re-pinned to residue_notice.",
+        "Ready for review",
+        "- 2026-10-25T17:12:38Z – unknown – out-of-map: _cutover_doctor residue reason now from shared mission_resolver text (review cycle 1 issue 2, orchestrator ruling)",
+        "- 2026-10-25T17:12:41Z – unknown – Cycle 2 tests: pytest tests/context + 6 residue/migration/doctor/architectural files = 136 passed; test_is_kitty_specs_residue_git_aware.py 24 passed (exact git-process counts 2/0/0/2); ruff check, format, mypy --strict clean",
+        "Cycle 2: review feedback addressed",
+        "Review passed (cycle 2): all 4 cycle-1 issues fixed; RESIDUE_NOTICE sole residue text in src/ (doctor out-of-map edit recorded); process-level git spy catches kernel calls (mutant 2->152); corrupt-index test red on 622f9030, green on HEAD; 136 prescribed passed, blast radius 1456 passed + 1 env red; ruff/format clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28107,
+      "shell_pid_created_at": "1792948485.26",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDA8H6GY57SS2R49GTDGGG",
+      "last_transition_at": "2026-10-25T20:51:27.398512+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T17:44:05Z – claude – shell_pid=29821 – Added settled_in_selection_view + shared _settled_in_view predicate (registry.py), _residue_successor.py (predecessor_settled, partition_kitty_specs, residue_warnings), 12 tests. Ran: pytest test_residue_successor_plumbing_6669.py = 12 passed; registry/auto-discovery/order-manifest set (17 files) = 310 passed 1 skipped; ruff check/format --force-exclude/mypy --strict exit 0.",
+        "Ready for review",
+        "- 2026-10-25T18:24:57Z – unknown – Cycle 2: pytest test_residue_successor_plumbing_6669.py = 15 passed; coverage _residue_successor 100% (30/30), registry 90% (84 stmts, 8 miss); ruff check, ruff format --check --force-exclude, mypy --strict clean. Added probe non-timeout degradation, timeout re-raise, worktree checkout_root tests.",
+        "Cycle 2: probe-branch tests + worktree pin",
+        "Review passed (cycle 2): the _probe_tracked degrade and timeout branches are now tested through the module-level tracked_mission_paths seam that the code calls; a real git-worktree test pins checkout_root=<wt> and project-relative warnings; _residue_successor at 100% coverage, new registry lines covered; 15 passed; ruff, format and mypy --strict clean; source unchanged since cycle 1"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4099,
+      "shell_pid_created_at": "1792952787.03",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDAH2T1SRS1F0YA3S1RP0E",
+      "last_transition_at": "2026-10-25T20:51:36.154836+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T19:07:16Z – claude – shell_pid=6610 – Ran: Test Strategy file set (208 passed, 1 skipped); 6589 pins file 16 passed; tests/specify_cli/upgrade + tests/upgrade -n 8: 2649 passed, 15 skipped, 9 failed (all tests/upgrade/test_mission_corpus_recovery.py, known shallow-clone red). ruff check/format exit 0; mypy --strict on new modules + supersession exit 0 when base.py and shipped modules are included (follow_imports=skip artefact otherwise, same on shipped migrations). NFR-001 diff empty. No write-site gate fired for 3.1.1 successor; no out-of-map gate-entry edits. Gate files edited (in owned_files): test_no_dead_modules.py, test_migration_walkers_use_mission_predicate.py. 0.9.0 successor not added to dead-module allowlist (imported by 0.9.1 successor, would be stale).",
+        "Ready for review",
+        "Review passed: four residue-safe successors (0.9.0/0.9.1 subclass via module alias, 2.0.6/3.1.1 re-walk over frozen helpers) with settled-gated detect, inherited routing attrs, manifest ties, supersession entries; NFR-001 diff empty vs origin/main; repair parity verified against frozen modules; 9 targeted mutants, 8 killed; clear+rediscover probe ok; gates green. Non-blocking: partition_checkout_specs belongs in _residue_successor.py (follow-up); transitive _reaches_predicate could be narrowed to _GUARDED_SEAMS hops; dry-run 'Skip (no frontmatter)' string parity untested; lane-local test_no_dead_symbols red on WP01's residue_notice_path resolves with WP04."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 29269,
+      "shell_pid_created_at": "1792955593.31",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDABH7SFQDWT6ZWC1NTDVC",
+      "last_transition_at": "2026-10-25T20:51:30.471797+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T17:47:18Z – claude – shell_pid=29821 – Collection points (runner.py): main-checkout loop in _upgrade (migration_result.warnings -> result.warnings) and worktree loop in _upgrade_worktrees (Worktree <name>: prefixed migration_result.warnings); both now go through _append_warnings with one per-run set self._seen_residue (reset in upgrade() and upgrade_worktrees_only()). Untouched by design: norm_changes (legacy-ID normalization), _commit_worktree_churn lines, can_apply/error lines, and the already-collapsed worktrees_result warnings re-extended into result.warnings (lines ~290/352); CLI renderers (outcome.warnings(), --json 'warnings') read result.warnings, no rendering filter. Tests: tests/upgrade/test_residue_notice_collapse.py 11 passed; broad tests/upgrade subset (74 MigrationRunner-related files, -n 6 --dist loadfile) 626 passed 1 skipped. ruff check/format clean; mypy --strict on runner.py has 1 pre-existing no-any-return at _aligned_worktree_timestamp (also red on baseline).",
+        "Ready for review",
+        "Review passed: _append_warnings keyed on resolved folder path, one seen-set shared by main loop and worktree loop (worktrees run after main, first line kept), reset per public entry; no double extend; JSON/human both read result.warnings. 11 tests green, mutation (plain extend) fails 4/5 runner tests; 1058 passed/1 skipped over 63 runner-related upgrade test files; ruff/format clean; mypy runner.py:909 no-any-return pre-existing (untouched code, follow_imports=skip), test-file BaseMigration-Any identical to sibling test_worktree_stamp_guard.py. Non-blocking: worktree can_apply 'Cannot apply' reasons and failed-migration warnings are not routed through the collapse (no residue text reaches them today)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 17166,
+      "shell_pid_created_at": "1792950921.81",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDAE98S0M3331RVNH09B0R",
+      "last_transition_at": "2026-10-25T20:51:33.288284+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T17:44:21Z – claude – shell_pid=29821 – out-of-map: cutover_repo threads tracked= once per walk (WP01 review item 7)",
+        "- 2026-10-25T17:48:05Z – claude – shell_pid=29821 – tests/specify_cli/migration -n6: 452 passed 1 skipped 1 failed (known test_corpus_wp_snapshot_parity); backfill CLI + integration backfill + json_contract_enumeration + walkers_use_mission_predicate + walker_gate: 158 passed; new file 8 passed; ruff/format/mypy --strict exit 0",
+        "Ready for review",
+        "Review passed (reviewer-renata): _mission_dirs, _move_derived_files and cutover_repo filter residue via is_kitty_specs_residue with one tracked probe per walk (measured 2 git calls/walk for tracked repos). Log-only reporting matches the WP's permitted option; explicit residue --mission is refused upfront by the resolver. Out-of-map edit to runtime_state_cutover.cutover_repo (WP01 file, operator ruling) leaves result shape, doctor and JSON unchanged; no other lane touches these files. Tests: migration 452 passed/1 env red (corpus parity, live mission); CLI+integration+JSON contract 147 passed; walker gates 11 passed; ruff/format/mypy strict clean. Non-blocking follow-ups for WP03/WP07: (1) consolidate the 3 copies of the GitCommandError->None-except-timeout probe (mission_resolver.is_kitty_specs_residue, WP02 _residue_successor._probe_tracked, WP05 probe_tracked_mission_paths) into one mission_resolver helper and drop runner->backfill_runtime_state import; (2) runtime_state_cutover.py:376-378 docstring is false in file-presence mode (cutover_mission re-probes per folder: 51 probes/103 git calls for 50 folders with ignored kitty-specs); (3) INFO log is invisible on the CLI (handler at WARNING), so backfill-wp-status walk skips are silent to operators; consider an additive residue_directories field; (4) add git-count and non-git tests for _move_derived_files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19956,
+      "shell_pid_created_at": "1792950966.41",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDA507NGZKWJX3ADC2ZT91",
+      "last_transition_at": "2026-10-25T20:51:23.783568+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T16:41:38Z – claude – shell_pid=8973 – Out-of-map: edited existing src/specify_cli/mission_metadata.py (added baseline_slug_fields; the module already existed and is already in the audit closure) and tests/audit routing needed no edit (derived test passes). Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release = 576 passed, 7 skipped. ruff/format/mypy --strict exit 0. Import closure of audit.engine: 835 -> 836 modules.",
+        "Ready for review",
+        "- 2026-10-25T17:26:53Z – unknown – out-of-map: tests/architectural/_load_meta_census.py gained a silent-by-contract row for fabricated_identity_finding (malformed meta.json is already reported by classify_meta_json); the engine holds no loaded meta to pass in",
+        "- 2026-10-25T17:26:56Z – unknown – Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release tests/architectural/test_lifted_root_meta_fail_closed_census.py -n 4 --dist loadfile = 590 passed, 7 skipped; ruff check/format and mypy --strict clean; mutant (tracked-meta check removed) fails test_untracked_meta_json_is_a_negative",
+        "Cycle 2: review feedback addressed",
+        "Review passed (cycle 2): census gate green with a verified silent-by-contract row (malformed meta.json yields CORRUPT_JSON ERROR from classify_meta_json in the same scan); untracked-meta negative now isolated and kills the mutant; .lock positive and tasks/ negative added; corpus test unmarked slow. 590 passed, 7 skipped; ruff/format clean; no src change since cycle 1."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 12513,
+      "shell_pid_created_at": "1792949894.9",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5TDAKWA4CVJWDG29CACXKAH",
+      "last_transition_at": "2026-10-25T20:51:39.018116+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-25T20:24:47Z – claude – shell_pid=1485 – WP07 done (lane-g, commits 5a9af4fc 9eb5cce2 bd61cbbd 97db9aa3 121e9f9a). \nTests (pytest, lane worktree): [1] tests/integration/migration tests/specify_cli/migration tests/specify_cli/upgrade/test_residue*.py tests/upgrade/test_residue_notice_collapse.py tests/context tests/audit/test_fabricated_identity_finding.py tests/cli/test_migrate_backfill_wp_status.py tests/contract/test_mission_status_reality.py -n 4 --dist loadfile: 1603 passed, 6 skipped, 9 failed (all in tests/contract/test_mission_status_reality.py). [2] arch gates test_migration_order_manifest, test_migration_walkers_use_mission_predicate, test_no_dead_modules, test_no_dead_symbols (green here, incl. residue_notice_path), test_no_legacy_terminology, test_mission_resolver_walker_gate + test_corpus_wp_snapshot_parity: 181 passed. [3] test_untrusted_path_containment: 12 passed after re-pointing inventory.md rows at _partition_mission_dirs. Docs: check_changelog_style 0 errors; check_docs_freshness --ci errors=0 (HELP-DRIFT/link 403 warnings pre-existing); docs_index --write run.\nReds: 8 of the 9 contract failures also fail with this Mission dir moved away (environmental: resolver/remote). The 9th, test_the_disagreement_list_does_not_grow_beyond_the_pinned_missions, is caused by this live Mission (0 snapshot WPs in the lane copy, 7 WP files); the fixture header is shrink-only (never add a name), so it was NOT edited; needs operator decision (clears once status+files land together at consolidation).\nNFR-001: git diff --diff-filter=MDR origin/main -- src/specify_cli/upgrade/migrations/m_*.py prints nothing.\nC-003/C-004: git diff --stat origin/main -- src/specify_cli/status/ src/specify_cli/frontmatter.py src/specify_cli/upgrade/feature_meta.py => only src/specify_cli/upgrade/feature_meta.py | 18 +++---------------  (3 insertions, 15 deletions: the WP06 baseline_slug_fields extraction); status/ and frontmatter.py untouched.\nSC trace: SC-001/SC-002 test_upgrade_residue_with_mission_files_6669.py::test_upgrade_leaves_every_mission_shaped_residue_untouched_and_still_repairs_missions (+ ::test_upgrade_still_migrates_a_committed_legacy_mission_beside_residue); #6627 guard test_upgrade_residue_identity_6627.py green. SC-003 WP03 parity cases test_residue_safe_successors_6669.py::test_lane_successors_repair_exactly_what_the_shipped_class_repairs, test_a_mission_beside_residue_is_still_repaired, and WP02 equivalence test. SC-004 WP06 tests/audit/test_fabricated_identity_finding.py.\nRed-first evidence: ran the new guard (import of residue_notice stubbed) against origin/main 1ec38c99 in a scratch worktree: FAILED, upgrade changed residue folder res-tasks-wp: added meta.json, status.events.jsonl, status.json and rewrote tasks/WP01-leftover.md; the legacy-Mission control passed. Original form was also red in PR #6672 CI.\nFollow-ups folded in: single probe_tracked_mission_paths (mission_resolver), backfill-wp-status residue_directories JSON + human output, cutover docstring, git-call-count tests, non-git control, partition_checkout_specs moved to _residue_successor.py, walker gate hops restricted to _GUARDED_SEAMS (+self-mutation test), Skip (no frontmatter) pin, mypy no-any-return fixed, LIVE_COORDINATION_SKIPS entry.",
+        "Ready for review: WP07 brief plus review follow-ups 1-8",
+        "Review passed: guard covers all 5 residue shapes (+snapshot-with-log) and both controls, p0_repro dropped, notice named exactly once; ADR 2026-10-17-1 Amendment 2026-10-25b matches registry/order_manifest/supersession; CHANGELOG Fixed #6669 and Added #6668 accurate; LIVE_COORDINATION_SKIPS entry; NFR-001 empty. Follow-ups: single probe_tracked_mission_paths (no duplicate impl left), backfill-wp-status residue_directories + human notices with tests, cutover docstring, git-count tests, partition_checkout_specs moved, walker gate restricted to _GUARDED_SEAMS with self-mutation test, inventory re-point faithful (lines 1271/1274 verified). 404 targeted+arch tests green; ruff/format clean; mypy only the known BaseMigration Any. Non-blocking: backfill-wp-status probes git twice; _reaches_predicate matches seam names across modules; remaining raw tracked_mission_paths callers (audit engine, normalize_mission_lifecycle, mission_state) are unhardened; LIVE_COORDINATION_SKIPS entry must be removed at closeout."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7588,
+      "shell_pid_created_at": "1792960230.93",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    }
+  }
+}

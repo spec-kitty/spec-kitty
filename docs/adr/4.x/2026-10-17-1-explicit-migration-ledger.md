@@ -638,3 +638,67 @@ reproduction stamped there would never witness the bug.
 **Accepted loss.** A project an earlier build already seeded keeps its list. The successor only
 warns when a present list holds every available artifact while the interview selected fewer,
 and it names `charter interview --narrow-activation` and `charter activate <kind> <id> --only`.
+## Amendment 2026-10-25b (#6669: residue-aware successors)
+
+**Problem.** Four shipped migrations enumerate every `kitty-specs/` child and write into it:
+`0.9.0_frontmatter_only_lanes`, `0.9.1_complete_migration`, `2.0.6_consistency_sweep` and
+`3.1.1_normalize_status_json`. A residue folder (no `spec.md` or `meta.json` on disk, and git does
+not recognize it as a Mission) therefore had its lane folders flattened, its work packages
+rewritten, a baseline `meta.json` written and a `status.json` normalised. Their modules are
+byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
+
+**Decision (operator ruling, 2026-10-25).** Each is superseded, through the table of Amendment
+2026-10-25, by a successor that is a **new migration**, not a rewrite of the old module:
+
+| Superseded (recorded no-op) | Successor |
+|-----------------------------|-----------|
+| `0.9.0_frontmatter_only_lanes` | `0.9.0_residue_safe_frontmatter_only_lanes` |
+| `0.9.1_complete_migration` | `0.9.1_residue_safe_complete_migration` |
+| `2.0.6_consistency_sweep` | `2.0.6_residue_safe_consistency_sweep` |
+| `3.1.1_normalize_status_json` | `3.1.1_residue_safe_normalize_status_json` |
+
+- **New migrations, not substitutes.** A `SupersededMigration` substitute is a no-op by design, so
+  it cannot carry the repair. The successor must repair the same real Missions, so it subclasses the
+  shipped class (every repair is inherited) and overrides only what decides which folders count.
+  The shipped module is imported as a module alias, never the class by name: `auto_discover_migrations`
+  skips a module whose `dir()` holds a class with an already-registered `migration_id`, so a name
+  import would make the successor vanish after `MigrationRegistry.clear()`.
+- **Same slot.** Each successor sits immediately after its predecessor in `order_manifest.txt`, with
+  a `# tie:` annotation, because the successor has the predecessor's `target_version`. A later step
+  (the lifecycle normalisation, the status migrations) must see the successor's output exactly where
+  it saw the predecessor's. `tests/architectural/test_migration_order_manifest.py` still gates the
+  order; `test_each_successor_sits_right_after_its_predecessor_in_the_order_manifest` pins the slot.
+- **The selection-view gate.** A project that already ran the predecessor must not run the successor
+  on top of it. Each successor's `detect()` returns False when
+  `registry.settled_in_selection_view(project_path, predecessor_id)` is True. That helper uses the one
+  predicate of `MigrationRegistry.get_applicable` (`_settled_in_view`): the id is a `success` record
+  in its authoritative partition, or an unsettled ledger-adoption migration will settle it on apply.
+  Reading the ledger directly would miss the second case, so the successor would repair a project the
+  adoption backfill is about to mark as done. The gate is a `detect()` guard only: selection stays
+  ledger-diff (§3), and `detect()` remains the runner's idempotency check.
+- **One residue rule, one walk.** The successors share `_residue_successor.py` (a non-migration
+  module, never auto-discovered): the predecessor-settled check, `partition_kitty_specs` /
+  `partition_checkout_specs` (a Mission walk that also covers `.worktrees/*/kitty-specs/`, each
+  worktree judged against itself as the checkout root) and one residue notice per folder. The tracked
+  paths are probed once per walk with `mission_resolver.probe_tracked_mission_paths`.
+  `tests/architectural/test_migration_walkers_use_mission_predicate.py` fails a walker that does not
+  reach `is_kitty_specs_residue` / `is_mission_dir`.
+- **No edit to a shipped module.** `git diff --diff-filter=MDR origin/main -- 'src/specify_cli/upgrade/migrations/m_*.py'`
+  prints nothing.
+
+**Accepted residuals.**
+
+- **C-006: a retry is lost on first adoption.** A pre-ledger project whose `metadata.yaml` records a
+  predecessor as `failed` or `skipped` at a version above it has the successor stamped as settled by
+  the first-adoption backfill (ADR Amendment 2026-10-20: it settles every migration below the recorded
+  version). The backfill migration is frozen (C-006), so the repair the predecessor never finished is
+  not retried by the successor. `test_c006_a_failed_predecessor_at_a_higher_version_is_settled_by_adoption`
+  pins the behaviour as current, not as a goal.
+- **A stale "pending" listing.** A `skipped` record does not settle a migration (§3, Amendment
+  2026-10-25), and an inert successor is `skipped`. On a project whose predecessor already ran,
+  `migrate ledger` and `upgrade --dry-run --verbose` therefore keep listing the successor as not yet
+  applied, and the runner re-skips it every run. This is idempotent and harmless; marking it in the
+  read surface is left for later, with the same item for the superseded ids.
+- **Git-aware residue.** In a project where git tracks some Mission path, a committed folder holding only
+  `tasks.md` or `tasks/` counts as residue, and the successors leave it alone. The notice names the
+  folder and the remedy (add a `spec.md` or `meta.json`, or remove the folder).

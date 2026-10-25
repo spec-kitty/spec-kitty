@@ -282,6 +282,23 @@ def tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
         return None
 
 
+def probe_tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
+    """The one ``tracked=`` probe for residue-aware walkers (#6669): :func:`tracked_mission_paths`, hardened.
+
+    A :class:`GitCommandError` (e.g. a corrupt index) degrades to ``None``
+    ("probed, no usable git": the predicate's file-presence mode, never a
+    crash); a timeout is a real failure and is re-raised. Walkers call this once
+    per walk and pass the result as ``tracked=``; the lazy branch of
+    :func:`is_kitty_specs_residue` uses it too, so no seam owns a second copy.
+    """
+    try:
+        return tracked_mission_paths(repo_root)
+    except GitCommandError as exc:
+        if exc.timed_out:
+            raise
+        return None
+
+
 def _carries_identity(path: Path) -> bool:
     """True when ``path/meta.json`` parses and holds a non-empty string ``mission_id``."""
     data = load_meta(path, on_malformed="none")
@@ -323,29 +340,82 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
         return _markers_exist(path)
 
 
-def is_kitty_specs_residue(path: Path, *, repo_root: Path | None = None, tracked: frozenset[str] | None = None) -> bool:
-    """Whether a write seam must leave the ``kitty-specs/`` child *path* untouched as residue (#6627).
+class _Unset:
+    """Type of :data:`_UNSET`: "the caller passed no ``tracked=`` set" (distinct from ``None``)."""
+
+
+_UNSET = _Unset()
+
+#: The one operator-facing text for a ``kitty-specs/`` residue directory (#6627, #6668); every
+#: residue-aware step renders it through :func:`residue_notice`.
+RESIDUE_NOTICE = (
+    "not a Mission (residue directory {path}: no mission_id, and no spec.md or meta.json on disk or in git); "
+    "left untouched. Add a spec.md or meta.json to make it a Mission, or remove the folder."
+)
+_RESIDUE_NOTICE_HEAD, _, _RESIDUE_NOTICE_TAIL = RESIDUE_NOTICE.partition("{path}")
+_RESIDUE_NOTICE_RE = re.compile(re.escape(_RESIDUE_NOTICE_HEAD) + r"(?P<path>.+?)" + re.escape(_RESIDUE_NOTICE_TAIL))
+
+
+def residue_notice(rel_path: str) -> str:
+    """Render :data:`RESIDUE_NOTICE` for *rel_path* (POSIX, relative to the checkout being upgraded)."""
+    return RESIDUE_NOTICE.format(path=rel_path)
+
+
+def residue_notice_path(line: str) -> str | None:
+    """Return the folder path embedded in a residue-notice *line*, or ``None`` for any other line.
+
+    Tolerates a caller prefix such as ``"<slug>: "`` or ``"Worktree wt1: "``.
+    """
+    match = _RESIDUE_NOTICE_RE.search(line)
+    return match.group("path") if match else None
+
+
+def _git_aware_mode(tracked: frozenset[str] | None) -> bool:
+    """Git-aware mode applies iff git tracks at least one path under ``kitty-specs/``."""
+    return bool(tracked)
+
+
+def is_kitty_specs_residue(
+    path: Path,
+    *,
+    repo_root: Path | None = None,
+    tracked: frozenset[str] | None | _Unset = _UNSET,
+) -> bool:
+    """Whether a write seam must leave the ``kitty-specs/`` child *path* untouched as residue (#6627, #6668).
 
     The one rule for every seam that writes into (or mints an identity for) a
-    directory a ``kitty-specs/`` walker hands it: *path* holds none of the
-    Mission artifacts in :data:`_MISSION_CONTENT` **and** :func:`is_mission_dir`
-    rejects it. The first clause keeps every legacy or uncommitted Mission
-    repairable (one created while ``kitty-specs/`` was gitignored, before
-    0.12.1; a pre-identity Mission with only ``tasks/`` and ``tasks.md``; a
-    ``meta.json`` without ``mission_id`` that was never committed): a write seam
-    cannot tell such a directory from residue, so it errs toward repairing it.
-    What a branch switch strands (an untracked ``decisions/``, a ``*.lock``)
-    holds none of them, because git removes every tracked file on checkout.
-    The second clause keeps a Mission whose tracked marker is deleted in the
-    working tree. *repo_root*
-    defaults to the parent of ``kitty-specs/``; *tracked* is the optional batch
-    set of :func:`tracked_mission_paths`. A directory outside ``kitty-specs/``
-    is never residue here (the predicate is defined only for ``kitty-specs/``
-    children), so callers keep their own behaviour for it.
+    directory a ``kitty-specs/`` walker hands it. Cheap checks come first: a
+    child of anything but ``kitty-specs/``, or a folder holding ``spec.md`` or
+    ``meta.json`` on disk, is never residue and costs no git call.
+
+    Two modes, chosen by *tracked* (the optional batch set of
+    :func:`tracked_mission_paths`; computed once when the caller passes none,
+    while an explicit ``None`` means the walker already probed and git is
+    unusable):
+
+    * **Git-aware** (git tracks at least one path under ``kitty-specs/``): a
+      folder is residue when :func:`is_mission_dir` rejects it, whatever else it
+      holds. Accepted cost (operator ruling): a committed, pre-identity folder
+      with only ``tasks.md`` / ``tasks/`` is residue. A Mission whose tracked
+      marker was deleted on disk is still a Mission (``is_mission_dir`` rule 2).
+    * **File-presence** (non-git, unusable git, an ignored ``kitty-specs/``, an
+      untracked project nested in a parent repository): residue only when none
+      of :data:`_MISSION_CONTENT` exists, so legacy and uncommitted Missions stay
+      repairable.
+
+    *repo_root* defaults to the parent of ``kitty-specs/``.
     """
-    if path.parent.name != KITTY_SPECS_DIR or any((path / name).exists() for name in _MISSION_CONTENT):
+    if path.parent.name != KITTY_SPECS_DIR or _markers_exist(path):
         return False
-    return not is_mission_dir(path, repo_root=repo_root if repo_root is not None else path.parent.parent, tracked=tracked)
+    root = repo_root if repo_root is not None else path.parent.parent
+    if isinstance(tracked, _Unset):
+        tracked = probe_tracked_mission_paths(root)
+    if _git_aware_mode(tracked):
+        return not is_mission_dir(path, repo_root=root, tracked=tracked)
+    if any((path / name).exists() for name in _MISSION_CONTENT):
+        return False
+    # No markers exist here, so an empty set answers exactly as the non-git fallback would, with no git call.
+    return not is_mission_dir(path, repo_root=root, tracked=tracked if tracked is not None else frozenset())
 
 
 def _markers_exist(path: Path) -> bool:

@@ -1,0 +1,139 @@
+{
+  "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_is_kitty_specs_residue_git_aware.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:37:50.292827+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_is_kitty_specs_residue_git_aware.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:37:55.212078+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_migration_walkers_use_mission_predicate.py; tests/specify_cli/migration/test_residue_shared_walkers_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:00.137449+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:05.386106+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:11.641763+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_migration_order_manifest.py; tests/specify_cli/upgrade/test_residue_safe_successors_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:16.707816+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_residue_successor_plumbing_6669.py; tests/specify_cli/upgrade/test_residue_safe_successors_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:21.537647+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_residue_notice_collapse.py; tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:26.143391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:31.029718+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/audit/test_fabricated_identity_finding.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:36.265516+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/audit/test_fabricated_identity_finding.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:40.960996+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/audit/test_fabricated_identity_finding.py; tests/upgrade/test_feature_meta.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:45.776083+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_migration_walkers_use_mission_predicate.py (lane-g 121e9f9a; 245 passed in the per-FR evidence run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T20:38:50.735169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -441,7 +441,7 @@ def test_json_payload_shape_is_stable(repo: Path) -> None:
 
     payload = _json(_invoke(repo, "--json"))
 
-    assert set(payload) == {"dry_run", "result", "mission", "summary", "manifest", "missions"}
+    assert set(payload) == {"dry_run", "result", "mission", "summary", "manifest", "residue_directories", "missions"}
     assert payload["result"] == "success" and payload["mission"] is None
     assert set(payload["summary"]) == {
         "scanned",
@@ -472,6 +472,48 @@ def test_json_payload_shape_is_stable(repo: Path) -> None:
         "error",
     }
     assert payload["missions"][0]["files_only"] == ["WP02", "WP03"]
+
+
+def _add_residue(repo: Path, name: str) -> Path:
+    """A ``kitty-specs/`` child that is not a Mission (#6669): no marker, no Mission content."""
+    folder = repo / "kitty-specs" / name
+    (folder / "decisions").mkdir(parents=True)
+    (folder / "decisions" / "index.json").write_text("{}\n", encoding="utf-8")
+    return folder
+
+
+def test_json_names_residue_directories_and_leaves_them_untouched(repo: Path) -> None:
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+    _add_residue(repo, "ghost-folder")
+    before = _tree_bytes(repo / "kitty-specs" / "ghost-folder")
+
+    payload = _json(_invoke(repo, "--json"))
+
+    assert payload["residue_directories"] == ["ghost-folder"]
+    assert [row["slug"] for row in payload["missions"]] == [_SLUG_ONE]
+    assert _tree_bytes(repo / "kitty-specs" / "ghost-folder") == before
+
+
+def test_json_residue_directories_is_empty_without_residue(repo: Path) -> None:
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+
+    assert _json(_invoke(repo, "--json"))["residue_directories"] == []
+
+
+def test_human_output_names_each_residue_directory(repo: Path) -> None:
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+    _add_residue(repo, "ghost-folder")
+
+    out = " ".join(_invoke(repo).output.split())
+
+    assert out.count("kitty-specs/ghost-folder") == 1
+    assert "residue directory" in out
+
+
+def test_human_output_names_no_residue_when_there_is_none(repo: Path) -> None:
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+
+    assert "residue" not in _invoke(repo).output
 
 
 def test_human_summary_names_every_counter(repo: Path) -> None:

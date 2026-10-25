@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.context.mission_resolver import is_kitty_specs_residue, tracked_mission_paths
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, residue_notice, tracked_mission_paths
 from specify_cli.migration.backfill_identity import (
     backfill_mission,
     backfill_wp_ids,
@@ -21,8 +21,6 @@ from specify_cli.status import generate_progress_json
 from specify_cli.status import write_derived_views
 
 
-#: Warning for a ``kitty-specs/`` residue directory (:func:`is_kitty_specs_residue`, #6627).
-RESIDUE_SKIP_WARNING = "not a Mission (residue directory: no Mission files, only leftovers such as decisions/); left untouched"
 
 
 @dataclass
@@ -193,6 +191,14 @@ def _finalize_lifecycle_projection(
             result.warnings.append(f"Lifecycle preview unavailable: {exc}")
 
 
+def _repo_relative(path: Path, repo_root: Path) -> str:
+    """POSIX path of *path* relative to *repo_root* (the notice must be unambiguous across worktrees)."""
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def normalize_repo(
     repo_root: Path,
     *,
@@ -213,7 +219,7 @@ def normalize_repo(
         result = NormalizeMissionLifecycleResult(slug=slug, status="skipped")
         if is_kitty_specs_residue(feature_dir, repo_root=repo_root, tracked=tracked):
             # #6627: residue (e.g. an untracked decisions/ leftover) is reported, never given an identity.
-            result.warnings.append(RESIDUE_SKIP_WARNING)
+            result.warnings.append(residue_notice(_repo_relative(feature_dir, repo_root)))
             results.append(result)
             continue
         meta = _load_meta_for_normalization(feature_dir, result)

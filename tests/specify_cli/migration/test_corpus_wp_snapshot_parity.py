@@ -24,8 +24,8 @@ committed ``kitty-specs/<slug>/`` that has WP files *or* a snapshot WP:
   for the same reason. It uses the repair CLI's own detector
   (``wp_status_backfill.coordination_surface_is_live``) and is always listed in the
   gate's failure and diagnostic output so it cannot hide. The skip is BOUNDED: every
-  skipped Mission must appear in :data:`LIVE_COORDINATION_SKIPS` with a reason (empty
-  today -- no committed Mission has a live coordination surface), and a listed Mission
+  skipped Mission must appear in :data:`LIVE_COORDINATION_SKIPS` with a reason (only a
+  Mission still open on its own coordination branch is listed), and a listed Mission
   that is no longer skipped fails as stale. The detector fails closed (an unprovable
   surface reads as live), so without the bound a detector fault would silently turn the
   gate into a pass for exactly the Missions it cannot verify.
@@ -123,12 +123,14 @@ class MissionParity:
 
 
 #: The exact set of Missions the gate may skip because their status authority is a live
-#: coordination surface: ``{slug: reason}``. EMPTY today (verified over the whole
-#: committed corpus when the gate landed): the corpus is committed on the primary branch
-#: and none of its Missions keeps a live coordination branch. A Mission added here needs
-#: a reason a reviewer can check and leaves the list when it is consolidated; an
+#: coordination surface: ``{slug: reason}``. The committed corpus is on the primary
+#: branch and a consolidated Mission keeps no live coordination branch, so the list
+#: holds only a Mission still open on its own branch. A Mission added here needs a
+#: reason a reviewer can check and leaves the list when it is consolidated; an
 #: unlisted skip fails the gate rather than passing it.
-LIVE_COORDINATION_SKIPS: dict[str, str] = {}
+LIVE_COORDINATION_SKIPS: dict[str, str] = {
+    "residue-safe-migration-sweep-01M5SS0F": "this Mission's coordination branch is live until it is consolidated (#6669)",
+}
 
 
 def _test_checkout_root() -> Path:

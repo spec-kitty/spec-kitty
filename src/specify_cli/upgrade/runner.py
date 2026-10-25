@@ -16,6 +16,7 @@ from rich.console import Console
 
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError, resolve_canonical_repo_root
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
+from specify_cli.context.mission_resolver import residue_notice_path
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
@@ -159,6 +160,23 @@ def _worktrees_to_upgrade(worktrees_dir: Path) -> list[Path]:
     return [worktree for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name) if worktree.is_dir() and not _is_integrating_worktree(worktree)]
 
 
+def _append_warnings(target: list[str], new: list[str], *, checkout_root: Path, seen: set[Path]) -> None:
+    """Append *new* to *target*, naming each residue folder at most once per run (#6669, FR-008).
+
+    A residue notice is keyed on the resolved folder it names under
+    *checkout_root*; the first line seen for a folder is kept and later ones are
+    dropped. Every other warning is appended unchanged, in order.
+    """
+    for line in new:
+        rel_path = residue_notice_path(line)
+        if rel_path is not None:
+            key = (checkout_root / rel_path).resolve()
+            if key in seen:
+                continue
+            seen.add(key)
+        target.append(line)
+
+
 def _commit_worktree_churn(
     worktree: Path,
     *,
@@ -213,6 +231,8 @@ class MigrationRunner:
         self.console = console or Console()
         self.detector = VersionDetector(project_path)
         self._repository_probe = RepositoryProbe(project_path)
+        # Resolved residue folders already named in this run's warnings (#6669).
+        self._seen_residue: set[Path] = set()
 
     def upgrade(
         self,
@@ -240,6 +260,7 @@ class MigrationRunner:
         inside the upgrade-only legacy activation scope of the project
         (:func:`~specify_cli.upgrade.migrations.base.legacy_upgrade_scope`).
         """
+        self._seen_residue = set()
         with legacy_upgrade_scope(self.project_path):
             return self._upgrade(target_version, dry_run=dry_run, include_worktrees=include_worktrees, auto_commit=auto_commit)
 
@@ -322,7 +343,7 @@ class MigrationRunner:
         # Apply each migration to main project
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
-            result.warnings.extend(migration_result.warnings)
+            _append_warnings(result.warnings, migration_result.warnings, checkout_root=self.project_path, seen=self._seen_residue)
             # Preserve each migration's structured payload so the CLI --json
             # layer can surface schema-shaped reports (Finding 2 / review
             # cycle 1). We record applied and skipped results alike so
@@ -389,6 +410,7 @@ class MigrationRunner:
         Returns:
             Dict with ``warnings`` and ``errors`` lists.
         """
+        self._seen_residue = set()
         with legacy_upgrade_scope(self.project_path):
             return self._upgrade_worktrees(target_version, [], dry_run, auto_commit=auto_commit)
 
@@ -768,7 +790,12 @@ class MigrationRunner:
                         "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
                     ):
                         worktree_metadata_dirty = True
-                    result["warnings"].extend([f"Worktree {worktree.name}: {w}" for w in migration_result.warnings])
+                    _append_warnings(
+                        result["warnings"],
+                        [f"Worktree {worktree.name}: {w}" for w in migration_result.warnings],
+                        checkout_root=worktree,
+                        seen=self._seen_residue,
+                    )
                 else:
                     if not dry_run:
                         self._record_migration_result(

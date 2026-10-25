@@ -36,6 +36,24 @@ META_FILENAME: str = "meta.json"
 _UTF8: str = "utf-8"
 _UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
 
+
+def baseline_slug_fields(slug: str) -> dict[str, str]:
+    """The slug-derived ``meta.json`` fields of a baseline Mission (FR-012).
+
+    The one owner of that shape: the upgrade baseline builder fills blanks from
+    it and the audit's fabricated-identity classifier compares against it.
+    ``mission_number`` is the numeric prefix as text or ``""``; ``friendly_name``
+    is the slug tail with ``-`` replaced by spaces, or the slug itself.
+    """
+    number, _, tail = slug.partition("-")
+    return {
+        "mission_number": number if number.isdigit() else "",
+        "slug": slug,
+        "mission_slug": slug,
+        "friendly_name": tail.replace("-", " ").strip() or slug,
+    }
+
+
 # Malformed-JSON policy for :func:`load_meta` (FR-006a). One of:
 #   "raise" -- raise ValueError (canonical contract (a)).
 #   "empty" -- swallow and return ``{}`` (silent contract (c)).

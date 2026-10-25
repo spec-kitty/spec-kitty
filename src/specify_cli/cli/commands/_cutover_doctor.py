@@ -36,6 +36,8 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
+from specify_cli.context.mission_resolver import residue_notice
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.migration.runtime_state_cutover import CutoverResult, cutover_repo
 
 from ._doctor_shared import console
@@ -72,7 +74,6 @@ class CutoverAuditEntry:
 _NO_LEGACY_RUNTIME_REASON = "no legacy runtime to migrate"
 _WOULD_FLIP_REASON = "verify passed -- cut over (or already flipped)"
 _NOT_MIGRATED_REASON = "not yet migrated (no verify result)"
-_RESIDUE_REASON = "not a Mission (residue directory) -- nothing to cut over"
 
 
 def _reason_for(result: CutoverResult) -> str:
@@ -81,7 +82,7 @@ def _reason_for(result: CutoverResult) -> str:
     See the module docstring for the full derivation contract.
     """
     if result.residue:
-        return _RESIDUE_REASON
+        return residue_notice(f"{KITTY_SPECS_DIR}/{result.slug}")
     if result.error is not None:
         # ``CutoverResult`` resolves as ``Any`` under this narrow-file-path
         # mypy run (the ``specify_cli.*`` ``follow_imports = "skip"`` override

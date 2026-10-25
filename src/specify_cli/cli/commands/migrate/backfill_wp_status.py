@@ -41,11 +41,12 @@ from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.context.mission_resolver import list_missions_for_selection
+from specify_cli.context.mission_resolver import list_missions_for_selection, residue_notice
 from specify_cli.migration.backfill_runtime_state import (
     MissionSelectorRejectedError,
     WpStatusBackfillResult,
     apply_wp_status_backfill_repo,
+    residue_mission_dirs,
 )
 from specify_cli.migration.wp_status_backfill import COORD_SURFACE_LIVE, COORD_SURFACE_LIVE_MESSAGE
 
@@ -270,8 +271,13 @@ def build_payload(
     mission: str | None,
     manifest_path: Path | None,
     manifest: Mapping[str, str],
+    residue_directories: Sequence[str] = (),
 ) -> dict[str, Any]:
-    """The stable ``--json`` payload (keys are pinned by ``tests/cli``)."""
+    """The stable ``--json`` payload (keys are pinned by ``tests/cli``).
+
+    ``residue_directories`` (additive, #6669) names the ``kitty-specs/`` children the walk
+    left untouched because they are not Missions; it is ``[]`` when there are none.
+    """
     summary = build_summary(results)
     return {
         "dry_run": dry_run,
@@ -283,6 +289,7 @@ def build_payload(
             "entries": len(manifest),
             "unused": unused_manifest_entries(manifest, results),
         },
+        "residue_directories": list(residue_directories),
         "missions": [_mission_row(result) for result in results],
     }
 
@@ -336,11 +343,17 @@ def _print_unused_warnings(unused: Sequence[Mapping[str, str]]) -> None:
         console.print(_COMPLETE_FIRST_RUN_NOTE)
 
 
+def _print_residue_notices(residue_directories: Sequence[str]) -> None:
+    for name in residue_directories:
+        console.print(f"[yellow]skipped[/yellow] {escape(residue_notice(f'kitty-specs/{name}'))}")
+
+
 def render_summary(payload: Mapping[str, Any], results: Sequence[WpStatusBackfillResult]) -> None:
     """Print the human summary for a completed run."""
     dry_run = bool(payload["dry_run"])
     _print_counters(payload["summary"], dry_run=dry_run)
     _print_mission_lines(results, dry_run=dry_run)
+    _print_residue_notices(payload["residue_directories"])
     _print_unused_warnings(payload["manifest"]["unused"])
     if dry_run:
         console.print("\n[dim]Dry run — no files were modified.[/dim]")
@@ -373,7 +386,7 @@ def _validate_and_apply(
     dry_run: bool,
     evidence_manifest: Path | None,
     json_output: bool,
-) -> tuple[list[WpStatusBackfillResult], dict[str, str]]:
+) -> tuple[list[WpStatusBackfillResult], dict[str, str], list[str]]:
     """Validate the inputs, then run the repair; selector refusals become ``BackfillWpStatusError``.
 
     ``MISSION_SELECTOR_REJECTED`` is reserved for the selector itself: a
@@ -388,9 +401,10 @@ def _validate_and_apply(
         raise BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)) from exc
     try:
         results = apply_wp_status_backfill_repo(repo_root, mission=scope, dry_run=dry_run, evidence=manifest or None)
+        residue = [folder.name for folder in residue_mission_dirs(repo_root, scope)]
     except MissionSelectorRejectedError as exc:
         raise BackfillWpStatusError(ERR_BAD_SELECTOR, str(exc)) from exc
-    return results, manifest
+    return results, manifest, residue
 
 
 def run_backfill_wp_status(
@@ -409,12 +423,12 @@ def run_backfill_wp_status(
     per-Mission failures never abort the walk; any of them yields exit 1.
     """
     try:
-        results, manifest = _validate_and_apply(repo_root, mission=mission, dry_run=dry_run, evidence_manifest=evidence_manifest, json_output=json_output)
+        results, manifest, residue = _validate_and_apply(repo_root, mission=mission, dry_run=dry_run, evidence_manifest=evidence_manifest, json_output=json_output)
     except BackfillWpStatusError as exc:
         _emit_failure(exc, json_output=json_output)
         return 1
 
-    payload = build_payload(results, dry_run=dry_run, mission=mission, manifest_path=evidence_manifest, manifest=manifest)
+    payload = build_payload(results, dry_run=dry_run, mission=mission, manifest_path=evidence_manifest, manifest=manifest, residue_directories=residue)
     if json_output:
         console.emit_json(payload)
     else:

@@ -32,6 +32,7 @@ from pathlib import Path
 
 from kernel.clock import now_utc_iso
 from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
+from specify_cli.context.mission_resolver import is_kitty_specs_residue, probe_tracked_mission_paths, residue_notice
 from specify_cli.core.atomic import atomic_write
 from specify_cli.migration.schema_version import CURRENT_SCHEMA_VERSION
 
@@ -335,14 +336,23 @@ def _move_derived_files(repo_root: Path) -> list[str]:
     """Move status.json files to .kittify/derived/<slug>/status.json.
 
     Returns list of moved file descriptions.
+
+    A ``kitty-specs/`` child that is residue, not a Mission (#6669), is skipped
+    (the git ``tracked`` set is computed once per walk). Reporting choice: the
+    skip is logged only, through ``residue_notice``; ``MigrationReport`` is
+    unchanged, so upgrade output never names the folder a second time.
     """
     moved: list[str] = []
     kitty_specs = repo_root / "kitty-specs"
     if not kitty_specs.is_dir():
         return moved
 
+    tracked = probe_tracked_mission_paths(repo_root)
     for feature_dir in sorted(kitty_specs.iterdir()):
         if not feature_dir.is_dir():
+            continue
+        if is_kitty_specs_residue(feature_dir, repo_root=repo_root, tracked=tracked):
+            logger.info("Skipping %s", residue_notice(f"kitty-specs/{feature_dir.name}"))
             continue
 
         status_json = feature_dir / "status.json"
