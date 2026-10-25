@@ -159,7 +159,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Gate from scratch draft plus the two WP gaps closed: any-.jsonl raw census (empty ledger) and pinned unresolved log-shaped writes (3). Red-first: over origin/main src the raw census reports exactly the eight G-5 appends. Door ledger keyed (module, function, door), not (module, path expression): function names are stable where path expressions are shared helpers. Docs: lock column, G-1/G-2 partly closed, G-5 closed, events-in-core interim section, changelog Fixed + Internal. Gates 32+28 passed; docs tests 395 passed; changelog style 0 errors.",
-        "Review-feedback-1 folded: censuses on the shared resolver (opt-in method helpers + common suffix), kitty-ops trails/index/provenance now resolve (red-first: all ten routed appends over origin/main); attribute-form contract-writer door; scan ~3.5 s with timing test; docs stale claims fixed. Gate suite 115 passed; docs 357 passed."
+        "Review-feedback-1 folded: censuses on the shared resolver (opt-in method helpers + common suffix), kitty-ops trails/index/provenance now resolve (red-first: all ten routed appends over origin/main); attribute-form contract-writer door; scan ~3.5 s with timing test; docs stale claims fixed. Gate suite 115 passed; docs 357 passed.",
+        "Cycle 2 approved (reviewer-renata, independent review): all three cycle-1 blockers fixed and verified; the shared resolver's options are opt-in so the status gate is unchanged; red-first over origin/main reports the 10 routed appends; writer.py rogue-method and helper-local mutations now reported; attribute-form persistence.append_event door works under every alias; scan 3.5 s over src/ (NFR-004). Approval recorded by the orchestrator after removing a coordination file merged onto the lane (move-task lane-hygiene refusal)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
