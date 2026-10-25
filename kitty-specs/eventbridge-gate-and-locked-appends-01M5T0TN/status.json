@@ -95,7 +95,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "writer.py appends locked, identity check as precondition, family lock; 4 tests red before, 10 green after; tests/specify_cli/invocation 612 passed",
-        "Review-feedback-1 folded (c8bdc7c2): symlink maps to InvocationWriteError with the base message; trailing newline dropped at both no-follow callers; three refusal tests with byte-identity. writer.py 167-170/183 covered. invocation + status gate: 653 passed, 5 skipped; ruff/format/mypy clean."
+        "Review-feedback-1 folded (c8bdc7c2): symlink maps to InvocationWriteError with the base message; trailing newline dropped at both no-follow callers; three refusal tests with byte-identity. writer.py 167-170/183 covered. invocation + status gate: 653 passed, 5 skipped; ruff/format/mypy clean.",
+        "Review passed (cycle 2, reviewer-renata): both cycle-1 blockers fixed in c8bdc7c2. EventLogSymlinkError maps to InvocationWriteError('Failed to open invocation record safely: ...'); not-JSON, no-started-event and post-pre-check symlink refusals are tested, and each asserts the file is unchanged. The identity check runs as the precondition under the kitty-ops family lock; index and closure spine take the locked no-follow 0o600 door; the trailing-newline nit is fixed. Tests: tests/specify_cli/invocation plus the gate, 653 passed, 5 skipped; writer consumers plus tests/invocation, 266 passed, 1 skipped; writer.py coverage 96%, and every new branch is covered. ruff, format and mypy are clean. Coordination note: WP03 also edits tests/architectural/test_status_events_writes_gate.py (the locked door counted in the ops-index census), which is outside its write_scope. WP05 reuses helpers from that file and must build on this change."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
