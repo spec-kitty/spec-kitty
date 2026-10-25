@@ -77,11 +77,11 @@
     {
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "test",
+      "evidence": "tests/{runtime/test_run_journal,specify_cli/events/test_decision_log,specify_cli/mission_v1/test_events,policy/test_audit,specify_cli/missions/test_archive,charter/activation/test_encoding_provenance}_locked_append.py, tests/specify_cli/invocation/test_locked_lifecycle_and_propagation.py; lane-e combined tree: 521 passed, 2 skipped (Mission tests + layer/boundary/lock gates)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T21:38:50.629381+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
