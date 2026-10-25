@@ -100,7 +100,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-25T17:47:18Z – claude – shell_pid=29821 – Collection points (runner.py): main-checkout loop in _upgrade (migration_result.warnings -> result.warnings) and worktree loop in _upgrade_worktrees (Worktree <name>: prefixed migration_result.warnings); both now go through _append_warnings with one per-run set self._seen_residue (reset in upgrade() and upgrade_worktrees_only()). Untouched by design: norm_changes (legacy-ID normalization), _commit_worktree_churn lines, can_apply/error lines, and the already-collapsed worktrees_result warnings re-extended into result.warnings (lines ~290/352); CLI renderers (outcome.warnings(), --json 'warnings') read result.warnings, no rendering filter. Tests: tests/upgrade/test_residue_notice_collapse.py 11 passed; broad tests/upgrade subset (74 MigrationRunner-related files, -n 6 --dist loadfile) 626 passed 1 skipped. ruff check/format clean; mypy --strict on runner.py has 1 pre-existing no-any-return at _aligned_worktree_timestamp (also red on baseline).",
-        "Ready for review"
+        "Ready for review",
+        "Review passed: _append_warnings keyed on resolved folder path, one seen-set shared by main loop and worktree loop (worktrees run after main, first line kept), reset per public entry; no double extend; JSON/human both read result.warnings. 11 tests green, mutation (plain extend) fails 4/5 runner tests; 1058 passed/1 skipped over 63 runner-related upgrade test files; ruff/format clean; mypy runner.py:909 no-any-return pre-existing (untouched code, follow_imports=skip), test-file BaseMigration-Any identical to sibling test_worktree_stamp_guard.py. Non-blocking: worktree can_apply 'Cannot apply' reasons and failed-migration warnings are not routed through the collapse (no residue text reaches them today)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
