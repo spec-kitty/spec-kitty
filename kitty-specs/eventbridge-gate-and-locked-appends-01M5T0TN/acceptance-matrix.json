@@ -2,7 +2,7 @@
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_number": "",
   "mission_type": "",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -107,11 +107,11 @@
     {
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "test",
+      "evidence": "#6193 retirement marker in kernel/event_log_append.py and every routed module (grep); gate ledger entries marked #6193; lane-e combined tree: 521 passed, 2 skipped (Mission tests + layer/boundary/lock gates)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T21:39:07.379232+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
