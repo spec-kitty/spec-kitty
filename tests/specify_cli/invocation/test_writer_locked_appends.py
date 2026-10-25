@@ -1,0 +1,143 @@
+"""Op-record appends take the interim event-log lock (#6606).
+
+The ``kitty-ops`` index, the closure spine and the per-Op trails used an
+unlocked ``O_APPEND`` handle. They now go through ``kernel.event_log_append``:
+one locked write, a torn last line refused, the started-event identity checked
+under the same lock, and one lock file for every per-Op trail.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+import kernel.event_log_append as event_log_append
+import specify_cli.invocation.writer as writer_module
+
+from kernel.event_log_append import EventLogLockTimeoutError, EventLogTornTailError, event_log_lock, event_log_lock_path
+from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
+from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
+from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter, append_op_closure, op_closures_path
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+_ID = "01KPQRX2EVGMRVB4Q1JQBAZJV3"
+_TORN = b'{"torn":'
+
+
+def _started(invocation_id: str = _ID) -> OpStartedEvent:
+    return OpStartedEvent(
+        invocation_id=invocation_id,
+        profile_id="implementer-fixture",
+        action="implement",
+        request_text="implement the work package",
+        actor="claude",
+        mode_of_work="task_execution",
+        governance_context_hash="abcdef0123456789",
+        governance_context_available=True,
+        started_at="2026-04-21T10:00:00Z",
+    )
+
+
+def _completed(invocation_id: str = _ID) -> OpCompletedEvent:
+    return OpCompletedEvent(invocation_id=invocation_id, completed_at="2026-04-21T10:05:00Z", outcome="done", closed_by="agent")
+
+
+@pytest.fixture
+def writer(tmp_path: Path) -> InvocationWriter:
+    return InvocationWriter(tmp_path)
+
+
+def test_completed_appends_after_a_whole_started_line(writer: InvocationWriter) -> None:
+    path = writer.write_started(_started())
+    writer.write_completed(_completed())
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert [line.count('"event"') for line in lines] == [1, 1]
+    assert lines[1] == _completed().to_jsonl_line()
+
+
+def test_completed_refuses_a_torn_trail_and_leaves_it_byte_identical(writer: InvocationWriter) -> None:
+    path = writer.write_started(_started())
+    path.write_bytes(path.read_bytes() + _TORN)
+    before = path.read_bytes()
+    with pytest.raises(InvocationError, match="unreadable"):
+        writer.write_completed(_completed())
+    assert path.read_bytes() == before
+
+
+def test_correlation_link_refuses_a_torn_trail(writer: InvocationWriter) -> None:
+    path = writer.write_started(_started())
+    path.write_bytes(path.read_bytes() + _TORN)
+    before = path.read_bytes()
+    with pytest.raises(InvocationError):
+        writer.append_correlation_link(_ID, ref="docs/x.md")
+    assert path.read_bytes() == before
+
+
+def test_second_completion_is_still_refused(writer: InvocationWriter) -> None:
+    writer.write_started(_started())
+    writer.write_completed(_completed())
+    with pytest.raises(AlreadyClosedError):
+        writer.write_completed(_completed())
+
+
+def test_missing_trail_is_still_not_found(writer: InvocationWriter) -> None:
+    with pytest.raises(InvocationError, match="not found"):
+        writer.append_correlation_link(_ID, ref="docs/x.md")
+
+
+def test_closure_spine_refuses_a_torn_tail(tmp_path: Path) -> None:
+    path = op_closures_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(_TORN)
+    with pytest.raises(EventLogTornTailError):
+        append_op_closure(tmp_path, _completed())
+    assert path.read_bytes() == _TORN
+
+
+def test_index_append_never_extends_a_torn_tail(writer: InvocationWriter, tmp_path: Path) -> None:
+    index = tmp_path / EVENTS_DIR / "ops-index.jsonl"
+    index.parent.mkdir(parents=True)
+    index.write_bytes(_TORN)
+    writer.write_started(_started())  # the index is a performance aid: refused silently
+    assert index.read_bytes() == _TORN
+
+
+def test_a_held_family_lock_refuses_the_append(writer: InvocationWriter, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = writer.write_started(_started())
+    before = path.read_bytes()
+    real_append = event_log_append.append_event_log_lines
+
+    def short_wait(log: Path, lines: list[str], **kwargs: Any) -> None:
+        kwargs["timeout_s"] = 0.2
+        real_append(log, lines, **kwargs)
+
+    monkeypatch.setattr(writer_module, "append_event_log_lines", short_wait)
+    with event_log_lock(tmp_path / EVENTS_DIR), pytest.raises(InvocationWriteError) as excinfo:
+        writer.write_completed(_completed())
+    assert isinstance(excinfo.value.__cause__, EventLogLockTimeoutError)
+    assert path.read_bytes() == before
+
+
+def test_per_op_trails_share_one_family_lock(writer: InvocationWriter, tmp_path: Path) -> None:
+    first = writer.write_started(_started())
+    second = writer.write_started(_started("01KPQRX2EVGMRVB4Q1JQBAZJV4"))
+    writer.write_completed(_completed())
+    writer.write_completed(_completed("01KPQRX2EVGMRVB4Q1JQBAZJV4"))
+    family_lock = event_log_lock_path(tmp_path / EVENTS_DIR)
+    assert family_lock.exists()
+    assert event_log_lock_path(first) != family_lock
+    assert not event_log_lock_path(second).exists()
+
+
+def test_symlinked_trail_is_still_refused(writer: InvocationWriter, tmp_path: Path) -> None:
+    real = writer.write_started(_started())
+    target = tmp_path / "elsewhere.jsonl"
+    target.write_bytes(real.read_bytes())
+    real.unlink()
+    real.symlink_to(target)
+    with pytest.raises((InvocationError, ValueError)):
+        writer.write_completed(_completed())
+    assert target.read_bytes().count(b"\n") == 1
