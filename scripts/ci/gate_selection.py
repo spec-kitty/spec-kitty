@@ -20,7 +20,9 @@ Public API:
 
 from __future__ import annotations
 
+import ast
 import fnmatch
+import functools
 import json
 import re
 from collections.abc import Iterable
@@ -99,17 +101,46 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "cli_lifecycle": frozenset({"agent", "core_misc"}),
 }
 
-# Dependency-lock fan-out (#6238). NON-CENSUS BY DESIGN: a lock file is not a pack path, so the
-# consumer census derives nothing for it; keeping it OUT of GROUP_MODULE_FANOUT / FANOUT_GROUPS
-# leaves the census, census-routing and census-cost machinery pack-scoped. The spec-kitty-events
-# bump (#6205) changed the reducer through uv.lock alone and selected neither shard. Operator
-# ruling (decision 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is deliberately NOT in the group,
-# so a manifest rename or non-version edit never triggers the upgrade shards.
-DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]] = {
-    "reducer_lock": frozenset({"upgrade", "status"}),
+# Dependency-lock fan-out (#6238, #6605). Kept OUT of the pack consumer census: a lock file is not a
+# pack path, so GROUP_MODULE_FANOUT / FANOUT_GROUPS and the census, census-routing and census-cost
+# machinery stay pack-scoped. The spec-kitty-events bump (#6205) changed the reducer through uv.lock
+# alone and selected neither the upgrade nor the status shard. Operator ruling (decision
+# 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is deliberately NOT in the group, so a manifest rename or
+# non-version edit never triggers these shards.
+#
+# The ``reducer_lock`` module set is DERIVED, not hand-listed (#6605): ``derive_reducer_lock_fanout``
+# runs an import census and routes the registry modules that own (1) every ``src/**`` or ``tests/**``
+# file that imports ``spec_kitty_events`` (statically or through ``import_module``/``__import__``), and
+# (2) every ``src/**`` file that reads the CLI reducer (``specify_cli.status.reducer``, or
+# ``materialize``/``materialize_snapshot``/``reduce`` from ``specify_cli.status``), which is how
+# consolidation, lanes and upgrade consume a reducer change. The table below is its only hand input;
+# tests/ci/test_reducer_lock_census.py reds on an importer no module owns and the table does not
+# cover, and on a stale entry. DEPENDENCY_MODULE_FANOUT is bound on first use
+# (``dependency_module_fanout``), not on import, and only a diff matching ``reducer_lock`` uses it.
+#
+# ``src/**`` events importers no registry row roots (a src change there is already run-all, FR-004),
+# mapped to the modules whose per-PR tests exercise them. Keys are a file or a ``/``-terminated prefix.
+REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {
+    "src/specify_cli/decisions/": (
+        frozenset({"core_misc"}),
+        "no registry row roots src/specify_cli/decisions/**; its per-PR tests are tests/decisions (core_misc)",
+    ),
+    "src/specify_cli/migration/mission_state.py": (
+        frozenset({"status", "unit", "upgrade"}),
+        "no registry row roots src/specify_cli/migration/**; tests/status, tests/unit/migration and tests/upgrade exercise it",
+    ),
+    "src/specify_cli/retrospective/": (
+        frozenset({"agent", "cli", "status"}),
+        "no registry row roots src/specify_cli/retrospective/**; tests/agent, tests/cli and tests/status exercise its events module",
+    ),
 }
+EVENTS_PACKAGE = "spec_kitty_events"
+# The dependency-lock groups (keys of DEPENDENCY_MODULE_FANOUT), named without running the census.
+DEPENDENCY_GROUPS = frozenset({"reducer_lock"})
+# Declared for type checkers only; the value is served by the module ``__getattr__`` below.
+DEPENDENCY_MODULE_FANOUT: dict[str, frozenset[str]]
 
-# CLI command fan-out (#6221). NON-CENSUS BY DESIGN, exactly like DEPENDENCY_MODULE_FANOUT above:
+# CLI command fan-out (#6221). Outside the pack consumer census BY DESIGN, like DEPENDENCY_MODULE_FANOUT above:
 # these groups glob src/specify_cli/cli/commands/** files, which the pack-scoped consumer census does
 # not record, so they are kept OUT of GROUP_MODULE_FANOUT / FANOUT_GROUPS to leave the census,
 # census-routing and census-cost machinery pack-scoped (test_fanout_derivation.py requires every
@@ -536,8 +567,207 @@ def select_modules(
     if mode == "full" or selection.unmatched_src:
         return modules
     src_selected = selection.matched_groups & modules
-    for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items(), *CLI_COMMAND_MODULE_FANOUT.items()):
+    # The dependency fan-out runs the import census, so only a diff matching its group pays for it.
+    dependency = dependency_module_fanout() if selection.matched_groups & DEPENDENCY_GROUPS else {}
+    for group, targets in (*GROUP_MODULE_FANOUT.items(), *dependency.items(), *CLI_COMMAND_MODULE_FANOUT.items()):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
     return src_selected | test_selected
+
+
+_DYNAMIC_IMPORTERS = frozenset({"import_module", "__import__"})
+# The CLI reducer's entry points (second census level): any import from the reducer module, or these
+# names from the status package.
+_REDUCER_MODULE = "specify_cli.status.reducer"
+_STATUS_PACKAGE = "specify_cli.status"
+_REDUCER_ENTRY_NAMES = frozenset({"materialize", "materialize_snapshot", "reduce"})
+
+
+def _is_events_module(name: str | None) -> bool:
+    return (name or "").split(".")[0] == EVENTS_PACKAGE
+
+
+def _imports_events(tree: ast.AST) -> bool:
+    """Whether ``tree`` imports ``spec_kitty_events`` anywhere (top-level, function-local, or through
+    ``importlib.import_module`` / ``__import__`` with a literal module name)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(_is_events_module(alias.name) for alias in node.names):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and _is_events_module(node.module):
+            return True
+        if isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
+            if name in _DYNAMIC_IMPORTERS and _is_events_module(node.args[0].value):
+                return True
+    return False
+
+
+def _reads_cli_reducer(tree: ast.AST) -> bool:
+    """Whether ``tree`` imports the CLI reducer's entry points (see ``_REDUCER_ENTRY_NAMES``)."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(alias.name == _REDUCER_MODULE for alias in node.names):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.level == 0:
+            if node.module == _REDUCER_MODULE:
+                return True
+            if node.module == _STATUS_PACKAGE and any(alias.name in _REDUCER_ENTRY_NAMES for alias in node.names):
+                return True
+    return False
+
+
+@dataclass(frozen=True)
+class _ImportScan:
+    events: tuple[str, ...]
+    reducer_readers: tuple[str, ...]
+
+
+def _scan_imports(repo_root: Path | None) -> _ImportScan:
+    """One pass over ``src/**`` and ``tests/**``: the ``spec_kitty_events`` importers, and the ``src/**``
+    readers of the CLI reducer, as sorted repo-relative POSIX paths. Only a file that mentions one of
+    the names is decoded and parsed; such a file that does not parse RAISES, because an unreadable
+    importer must red, not silently drop out of the fan-out."""
+    root = repo_root or _REPO_ROOT
+    events: list[str] = []
+    readers: list[str] = []
+    events_marker, reducer_marker = EVENTS_PACKAGE.encode(), _STATUS_PACKAGE.encode()
+    for top in ("src", "tests"):
+        for path in sorted((root / top).rglob("*.py")):
+            try:
+                raw = path.read_bytes()
+                maybe_events = events_marker in raw
+                maybe_reader = top == "src" and reducer_marker in raw
+                if not (maybe_events or maybe_reader):
+                    continue
+                tree = ast.parse(raw.decode("utf-8"))
+            except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as exc:
+                raise ValueError(f"cannot read {path} for the {EVENTS_PACKAGE} import census: {exc!r}") from exc
+            rel = path.relative_to(root).as_posix()
+            if maybe_events and _imports_events(tree):
+                events.append(rel)
+            elif maybe_reader and _reads_cli_reducer(tree):
+                readers.append(rel)
+    return _ImportScan(events=tuple(events), reducer_readers=tuple(readers))
+
+
+def events_importers(repo_root: Path | None = None) -> tuple[str, ...]:
+    """Every ``src/**`` and ``tests/**`` Python file that imports ``spec_kitty_events``, sorted."""
+    return _scan_imports(repo_root).events
+
+
+def _unowned_cover(path: str) -> str | None:
+    return next((key for key in REDUCER_LOCK_UNOWNED_IMPORTERS if path == key or (key.endswith("/") and path.startswith(key))), None)
+
+
+@dataclass(frozen=True)
+class ReducerLockCensus:
+    """The import census behind the ``reducer_lock`` fan-out.
+
+    ``src_owners`` maps each ``src/**`` events importer to the registry modules it routes; ``unrouted``
+    lists those no module owns and no REDUCER_LOCK_UNOWNED_IMPORTERS entry covers. ``reducer_owners``
+    maps each ``src/**`` reader of the CLI reducer to the modules owning it (a reader no module owns is
+    already a run-all src path and adds nothing). ``test_importers`` / ``test_modules`` are the
+    ``tests/**`` events importers and the modules owning them as test paths.
+    """
+
+    src_owners: dict[str, frozenset[str]]
+    unrouted: tuple[str, ...]
+    reducer_owners: dict[str, frozenset[str]]
+    test_importers: tuple[str, ...]
+    test_modules: frozenset[str]
+
+    @property
+    def modules(self) -> frozenset[str]:
+        derived = set(self.test_modules)
+        for members in (*self.src_owners.values(), *self.reducer_owners.values()):
+            derived |= members
+        return frozenset(derived)
+
+
+def _root_owners(path: str, rows: list[dict[str, Any]]) -> frozenset[str]:
+    return frozenset(str(row["module"]) for row in rows if any(fnmatch.fnmatch(path, str(glob)) for glob in row.get("roots") or ()))
+
+
+def derive_reducer_lock_fanout(
+    *,
+    repo_root: Path | None = None,
+    router: Router | None = None,
+    registry_path: Path | None = None,
+) -> ReducerLockCensus:
+    """Run the import census and route every importer (#6605).
+
+    A ``src/**`` events importer routes the modules whose registry ``roots`` own it, or the modules its
+    REDUCER_LOCK_UNOWNED_IMPORTERS entry names; a ``src/**`` reader of the CLI reducer routes the
+    modules that own it; the ``tests/**`` events importers route the modules that own them as test
+    paths (the same registry mapping a tests-only diff uses).
+    """
+    router = router or load_router()
+    rows = _registry_rows(registry_path)
+    modules = frozenset(str(row["module"]) for row in rows)
+    scan = _scan_imports(repo_root)
+    src_owners: dict[str, frozenset[str]] = {}
+    unrouted: list[str] = []
+    for path in (p for p in scan.events if p.startswith("src/")):
+        owned = _root_owners(path, rows)
+        cover = None if owned else _unowned_cover(path)
+        if cover is not None:
+            owned = REDUCER_LOCK_UNOWNED_IMPORTERS[cover][0] & modules
+        if not owned:
+            unrouted.append(path)
+        src_owners[path] = owned
+    tests = tuple(p for p in scan.events if p.startswith("tests/"))
+    return ReducerLockCensus(
+        src_owners=src_owners,
+        unrouted=tuple(unrouted),
+        reducer_owners={path: _root_owners(path, rows) for path in scan.reducer_readers},
+        test_importers=tests,
+        test_modules=_modules_for_test_paths(list(tests), router=router, registry_path=registry_path, modules=modules),
+    )
+
+
+# The nightly ``events-latest`` lane (#6605, operator ruling 2026-10-22) resolves the NEWEST
+# spec-kitty-events the pyproject range allows into a throwaway lock and runs these paths, plus every
+# census test importer outside them: the reducer-verdict pins, the consumer contract, the
+# status/consolidation/upgrade reducer consumers. The resolved-version envelope pin
+# (tests/contract/test_events_envelope_matches_resolved_version.py) is left out on purpose: it needs a
+# committed snapshot for the resolved version, so it would red on every new upstream release, compatible
+# or not, and bury a real break; the job reports a release without a snapshot as a notice instead.
+EVENTS_LATEST_EXCLUDED: frozenset[str] = frozenset({"tests/contract/test_events_envelope_matches_resolved_version.py"})
+EVENTS_LATEST_LANE_PATHS: tuple[str, ...] = (
+    "tests/migration",
+    "tests/contract/spec_kitty_events_consumer",
+    "tests/status",
+    "tests/consolidation",
+    "tests/upgrade/test_mission_corpus_recovery.py",
+)
+
+
+def events_latest_lane_paths(repo_root: Path | None = None) -> tuple[str, ...]:
+    """The ``events-latest`` nightly lane's pytest paths: EVENTS_LATEST_LANE_PATHS, then every
+    ``tests/**/test_*.py`` ``spec_kitty_events`` importer they do not already contain, less
+    EVENTS_LATEST_EXCLUDED (sorted; helpers such as factories are reached through their tests)."""
+    extra = [
+        path
+        for path in events_importers(repo_root)
+        if path.startswith("tests/")
+        and path.rsplit("/", 1)[-1].startswith("test_")
+        and path not in EVENTS_LATEST_EXCLUDED
+        and not any(_within(path, base) for base in EVENTS_LATEST_LANE_PATHS)
+    ]
+    return (*EVENTS_LATEST_LANE_PATHS, *extra)
+
+
+@functools.cache
+def dependency_module_fanout() -> dict[str, frozenset[str]]:
+    """The dependency-lock fan-out, derived once per process (the census walks ``src/`` and
+    ``tests/``, so it runs on first use, not on import)."""
+    return {"reducer_lock": derive_reducer_lock_fanout().modules}  # keys == DEPENDENCY_GROUPS
+
+
+def __getattr__(name: str) -> Any:
+    # PEP 562: ``DEPENDENCY_MODULE_FANOUT`` stays importable as a module constant while the census
+    # behind it runs lazily (see dependency_module_fanout).
+    if name == "DEPENDENCY_MODULE_FANOUT":
+        return dependency_module_fanout()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -1,4 +1,4 @@
-"""Pin the CI routing of ``uv.lock`` to the upgrade and status shards (#6238).
+"""Pin the CI routing of ``uv.lock`` to the upgrade and status shards (#6238), at least.
 
 The spec-kitty-events bump (#6205) changed the reducer through ``uv.lock`` and selected
 neither the ``upgrade`` nor the ``status`` module shard, so the break reached ``main``.
@@ -53,4 +53,5 @@ def test_router_filter_is_exactly_the_lock_file() -> None:
 
 def test_dependency_fanout_stays_outside_the_pack_census() -> None:
     assert GROUP not in FANOUT_GROUPS
-    assert DEPENDENCY_MODULE_FANOUT[GROUP] == frozenset({"upgrade", "status"})
+    # #6605: the set itself is census-derived and gated by test_reducer_lock_census.py.
+    assert DEPENDENCY_MODULE_FANOUT[GROUP] >= frozenset({"upgrade", "status"})

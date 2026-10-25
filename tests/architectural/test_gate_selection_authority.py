@@ -307,8 +307,9 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     )
     assert GROUP_MODULE_FANOUT["cli_lifecycle"] == frozenset({"agent", "core_misc"})
     assert GROUP_MODULE_FANOUT["mission_type_definitions"] == frozenset({"charter", "core_misc", "upgrade"})
-    # #6238: the non-census dependency fan-out, pinned separately from the pack fan-out.
-    assert DEPENDENCY_MODULE_FANOUT["reducer_lock"] == frozenset({"upgrade", "status"})
+    # #6238 / #6605: the dependency fan-out is census-derived (tests/ci/test_reducer_lock_census.py owns
+    # its drift gate); pinned here only by its historical floor, so a census break cannot shrink it.
+    assert DEPENDENCY_MODULE_FANOUT["reducer_lock"] >= frozenset({"upgrade", "status", "consolidation"})
     # #6221: the non-census cli/commands fan-out is non-empty and generalises cli_lifecycle.
     assert CLI_COMMAND_MODULE_FANOUT, "the cli/commands fan-out must not be empty"
     for group, targets in (*GROUP_MODULE_FANOUT.items(), *DEPENDENCY_MODULE_FANOUT.items(), *CLI_COMMAND_MODULE_FANOUT.items()):

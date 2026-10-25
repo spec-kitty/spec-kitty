@@ -12,8 +12,10 @@ from specify_cli.status.models import (
     ReviewApproval,
     StatusEvent,
     StatusSnapshot,
+    SubtaskStatus,
     ULID_PATTERN,
     VerificationResult,
+    WPInnerStateDelta,
 )
 
 pytestmark = pytest.mark.fast
@@ -326,3 +328,16 @@ class TestStatusSnapshot:
 
         with pytest.raises(KeyError, match="mission_slug"):
             StatusSnapshot.from_dict(data)
+
+
+class TestWPInnerStateDeltaSubtasks:
+    def test_not_applicable_reads_as_skipped(self) -> None:
+        """#6605: the events package's replay fixture ``skipped_subtask`` carries ``not_applicable``,
+        the input alias of ``skipped``; the CLI must read it as ``skipped`` instead of failing."""
+        delta = WPInnerStateDelta.from_dict({"subtasks": {"T001": "done", "T002": "skipped", "T003": "not_applicable"}})
+        assert delta.subtasks == {"T001": Lane.DONE, "T002": SubtaskStatus.SKIPPED, "T003": SubtaskStatus.SKIPPED}
+        assert delta.to_dict()["subtasks"]["T003"] == "skipped"
+
+    def test_unknown_subtask_value_still_raises(self) -> None:
+        with pytest.raises(ValueError):
+            WPInnerStateDelta.from_dict({"subtasks": {"T001": "nope"}})

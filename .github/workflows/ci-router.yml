@@ -139,7 +139,8 @@ jobs:
       # gates no job BY DESIGN (fanned out to charter/core_misc/upgrade). Never in the unmatched loop.
       mission_type_definitions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_type_definitions }}
       # Reducer-lock group (#6238): non-src, like mission_type_definitions above; gates no job BY DESIGN
-      # (fanned out to upgrade + status via gate_selection.DEPENDENCY_MODULE_FANOUT). Never in the unmatched loop.
+      # (fanned out via gate_selection.DEPENDENCY_MODULE_FANOUT to every module the spec_kitty_events import
+      # census routes, #6605). Never in the unmatched loop.
       reducer_lock: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.reducer_lock }}
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
@@ -278,7 +279,8 @@ jobs:
             # Reducer-lock group (#6238): NON-src, so it can never mask an unmapped src/** change. A
             # uv.lock-only bump (the spec-kitty-events 10.4.6 bump, #6205) changes the reducer yet
             # selected neither the upgrade nor the status shard. Fanned out by
-            # gate_selection.DEPENDENCY_MODULE_FANOUT (non-census); gates no router job BY DESIGN.
+            # gate_selection.DEPENDENCY_MODULE_FANOUT, derived from the spec_kitty_events import census
+            # (#6605; outside the pack census); gates no router job BY DESIGN.
             # Operator ruling (decision 01M4XV6HM7WHEB2B8QG67N29HT): pyproject.toml is NOT listed, so a
             # manifest rename or non-version edit never triggers the upgrade shards.
             reducer_lock:

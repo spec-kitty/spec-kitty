@@ -337,7 +337,8 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   ``GROUP_MODULE_FANOUT`` and pinned by the same test file.
 #
 # * ``reducer_lock`` (#6238) — ``uv.lock`` alone. Gates no router job BY DESIGN; fanned out to
-#   upgrade + status by the non-census ``DEPENDENCY_MODULE_FANOUT``. ``pyproject.toml`` is
+#   every ``spec_kitty_events`` consumer module by ``DEPENDENCY_MODULE_FANOUT``, derived from an
+#   import census (#6605; outside the pack census). ``pyproject.toml`` is
 #   deliberately absent (operator ruling).
 #
 # * the ``cli_cmd_*`` family (#6221) — the per-command fan-out groups generalising ``cli_lifecycle``

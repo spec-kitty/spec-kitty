@@ -1713,13 +1713,115 @@ jobs:
           python3 scripts/ci/nightly_escalation.py --suite-key mission-state-audit --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   # ---------------------------------------------------------------------------
+  # events-latest (#6605, operator ruling 2026-10-22): spec-kitty-events ships reducer
+  # changes in patch releases, and pyproject.toml keeps the bounded range (>=11.0.0,<12).
+  # This lane resolves the NEWEST spec-kitty-events that range allows into the runner's
+  # throwaway copy of uv.lock (`uv lock --upgrade-package`; the job has contents: read and
+  # never commits or pushes), then runs the events-consumer tests against it: the paths
+  # gate_selection.events_latest_lane_paths() returns (the reducer-verdict pins, the
+  # consumer contract, the status/consolidation/upgrade consumers, and every test file the
+  # spec_kitty_events import census finds). The resolved-version envelope pin is left out:
+  # a release with no committed snapshot is a notice here, so this lane reds only on a break. An upstream
+  # release that breaks core reds here within a day, before a user installs it. A red run
+  # opens or refreshes a deduped issue through nightly_escalation.py, like every lane here.
+  # A directory lane: a zero-collected exit 5 is red (FIND-2, #5034), the exit var
+  # defaults to `:-1` (FIND-1).
+  # ---------------------------------------------------------------------------
+  events-latest:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Events consumers on the newest allowed spec-kitty-events (nightly-only, #6605)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history: tests/upgrade/test_mission_corpus_recovery.py `git archive`s historical
+          # mission SHAs, which a shallow checkout does not contain (same reason as module-tests.yml).
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Resolve the newest spec-kitty-events the range allows (throwaway lock, never committed)
+        shell: bash
+        run: |
+          pinned=$(uv export --frozen --no-hashes --all-extras --no-emit-project | grep -E '^spec-kitty-events==' || true)
+          uv lock --upgrade-package spec-kitty-events
+          resolved=$(uv export --locked --no-hashes --all-extras --no-emit-project | grep -E '^spec-kitty-events==' || true)
+          echo "::notice::spec-kitty-events pinned in uv.lock: ${pinned:-unknown}; newest allowed by pyproject.toml: ${resolved:-unknown}"
+          git --no-pager diff --stat -- uv.lock
+          # The envelope pin is left out of this lane (gate_selection.EVENTS_LATEST_EXCLUDED): a newer
+          # release with no committed snapshot is reported here, not as a red.
+          version="${resolved#spec-kitty-events==}"
+          if [ -n "$version" ] && [ ! -f "tests/contract/snapshots/spec-kitty-events-${version}.json" ]; then
+            echo "::notice::spec-kitty-events ${version} has no envelope snapshot yet; when core bumps to it, run scripts/snapshot_events_envelope.py"
+          fi
+
+      - name: Sync dev environment against the upgraded lock
+        shell: bash
+        run: uv sync --locked --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+
+      - name: Run events-consumer tests on the newest allowed spec-kitty-events (run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mapfile -t paths < <(uv run --no-sync python -c 'from scripts.ci.gate_selection import events_latest_lane_paths; print(*events_latest_lane_paths(), sep="\n")')
+          if [ "${#paths[@]}" -eq 0 ]; then
+            # An empty list would make bare pytest run the whole suite; fail closed instead.
+            echo "::error::events_latest_lane_paths() returned no paths"
+            echo "EVENTS_LATEST_EXIT=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "::notice::events-latest runs ${#paths[@]} paths: ${paths[*]}"
+          uv run --no-sync pytest "${paths[@]}" -m "not stress and not timing" -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-events-latest.xml
+          code=$?
+          echo "EVENTS_LATEST_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::events-latest suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly events-latest reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-events-latest-reports
+          path: out/reports/
+
+      - name: Escalate events-latest red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${EVENTS_LATEST_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key events-latest --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-events-latest.xml
+
+      - name: Fail the job if the events-latest suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key events-latest --xunit out/reports/xunit-nightly-events-latest.xml --log-step 'Run events-consumer tests on the newest allowed spec-kitty-events (run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${EVENTS_LATEST_EXIT:-1}" -ne 0 ]; then
+            echo "::error::events-latest suite exited ${EVENTS_LATEST_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "events-latest suite passed (exit 0)."
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, acceptance-bdd, acceptance-bdd-escalation]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1742,5 +1844,6 @@ jobs:
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
           echo "universe-equivalence: ${{ needs.universe-equivalence.result }}"
           echo "mission-state-audit: ${{ needs.mission-state-audit.result }}"
+          echo "events-latest: ${{ needs.events-latest.result }}"
           echo "acceptance-bdd: ${{ needs.acceptance-bdd.result }}"
           echo "acceptance-bdd-escalation: ${{ needs.acceptance-bdd-escalation.result }}"

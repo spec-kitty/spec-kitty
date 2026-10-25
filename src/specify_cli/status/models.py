@@ -119,6 +119,8 @@ class SubtaskStatus(StrEnum):
 
 Status = Lane
 SubtaskValue: TypeAlias = Lane | SubtaskStatus
+# Input alias of SubtaskStatus.SKIPPED; read, never written (WPInnerStateDelta.from_dict).
+_SUBTASK_NOT_APPLICABLE = "not_applicable"
 
 #: Subtask values that count as "finished" for the review gate: completed work
 #: (``Lane.DONE``) or a deliberate operator decision not to do it (``skipped``).
@@ -757,7 +759,11 @@ class WPInnerStateDelta:
         subtasks_raw = data.get("subtasks")
         subtasks: dict[str, SubtaskValue] | None = None
         if subtasks_raw is not None:
-            subtasks = {str(sid): SubtaskStatus(value) if value == SubtaskStatus.SKIPPED else Lane(value) for sid, value in subtasks_raw.items()}
+            # ``not_applicable`` is an input alias of ``skipped`` (as in spec_kitty_events.diary and
+            # ``agent tasks mark-status``): normalize it so a diary carrying it replays, never persist it.
+            subtasks = {
+                str(sid): SubtaskStatus.SKIPPED if value in (SubtaskStatus.SKIPPED, _SUBTASK_NOT_APPLICABLE) else Lane(value) for sid, value in subtasks_raw.items()
+            }
         review_raw = data.get("review")
         review = ReviewOverride.from_dict(review_raw) if review_raw is not None else None
         shell_pid_raw = data.get("shell_pid")

@@ -71,6 +71,8 @@ _DIRECTORY_LANES = {
     # The integration slice is marker-selected, but an empty collect is the
     # lost signal, not a legitimate skip. It fails closed on exit 5.
     "integration-slice": "INTEGRATION_SLICE_EXIT",
+    # #6605: the events consumers on the newest spec-kitty-events the range allows.
+    "events-latest": "EVENTS_LATEST_EXIT",
 }
 
 _ALL_EXIT_VARS = [var for var, _job in _MARKER_LANES.values()] + list(_DIRECTORY_LANES.values())
