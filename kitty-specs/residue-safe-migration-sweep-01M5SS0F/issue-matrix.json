@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6589": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context: supersession mechanism precedent (ADR 2026-10-17-1 Amendment 2026-10-25)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6627": {
