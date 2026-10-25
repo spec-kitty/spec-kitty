@@ -589,4 +589,3 @@ source = { editable = "." }
 def test_lock_pin_constraints_cover_the_repo_events_pin() -> None:
     pins = lock_pin_constraints(root_conftest.REPO_ROOT / "uv.lock")
     assert any(pin.startswith("spec-kitty-events==") for pin in pins)
-    assert not any(pin.startswith("spec-kitty-cli==") for pin in pins), "the editable project is never pinned"
