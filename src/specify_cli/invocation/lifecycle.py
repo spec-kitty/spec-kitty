@@ -29,6 +29,7 @@ and ``data-model.md`` §4.
 
 from __future__ import annotations
 
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import UTC, datetime, now_utc
 import json
 from collections import defaultdict
@@ -61,9 +62,8 @@ def append_lifecycle_record(repo_root: Path, record: ProfileInvocationRecord) ->
     removes an existing line.
     """
     path = lifecycle_log_path(repo_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(record.to_json_line() + "\n")
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    append_event_log_lines(path, [record.to_json_line()], create_parents=True)
     return path
 
 

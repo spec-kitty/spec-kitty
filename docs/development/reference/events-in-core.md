@@ -2,7 +2,7 @@
 title: Events in core
 description: 'Contributor rules for writing and reading event logs in core today, what not to do, and how to adopt a new spec-kitty-events release without a red nightly.'
 doc_status: active
-updated: '2026-10-22'
+updated: '2026-10-25'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -39,8 +39,9 @@ Rules:
 
 - **Never `open(path, "a")` an event log.** A plain append has no lock and no torn-tail
   check. `tests/architectural/test_status_events_writes_gate.py` rejects any write to
-  `status.events.jsonl` outside `status/store.py` and its ledgered sites. Other logs
-  have no gate yet, which is a gap to close, not a license.
+  `status.events.jsonl` outside `status/store.py` and its ledgered sites, and
+  `tests/architectural/test_event_log_writes_gate.py` does the same for every other log
+  (see [Appending to an event log (interim)](#appending-to-an-event-log-interim)).
 - **Never import from `specify_cli.status._unsafe`.** Its `ALLOWED_CALLERS` list is
   shrink-only; adding a module fails `test_status_unsafe_allowlist.py`.
 - **Never add a new `canonical-producer-exempt` marker or a new local envelope.**
@@ -58,6 +59,43 @@ Rules:
   (`.kittify/migration-ledger.jsonl`, `upgrade/ledger.py`) and the activation ledger
   (`.kittify/charter/activation.yaml`) are state ledgers, not event logs. Never write
   bare "the ledger".
+
+## Appending to an event log (interim)
+
+Until the Java write service owns a log (#6193), an append to any event log other than
+`status.events.jsonl` and `canonical-events.jsonl` goes through one door,
+`kernel.event_log_append` (#6606). Those two keep the Mission status lock and the
+`status.store` primitives.
+
+- **Call `append_event_log_lines(path, lines)`.** Pass complete serialized rows without a
+  trailing newline; the door adds the framing. You keep serializing your own row bytes:
+  the door checks framing, never content, because the write service is the validation
+  authority (operator ruling of 2026-10-25 on #6117).
+- **The lock contract.** The lock is anchored on the log, or on the family directory for
+  one-file-per-record logs (`kitty-ops/<op>.jsonl`). It lives at
+  `<git-common-dir>/spec-kitty-locks/event-logs/<sha256[:32]>.lock`, so every worktree of a
+  repository shares it; outside a git repository it is `<anchor>.event-log.lock`. The wait
+  is bounded (`EVENT_LOG_LOCK_TIMEOUT_S`, 10 s). Under the lock, a log whose last byte is
+  not LF is refused, then the whole unit is written in one `O_APPEND` write and fsynced.
+  The Java writer takes the same lock files (ADR 2026-10-22-1 D-4).
+- **Refusals are `OSError`s with a `code`:** `EVENT_LOG_TORN_TAIL`,
+  `EVENT_LOG_LOCK_TIMEOUT`, `EVENT_LOG_LOCK_UNAVAILABLE` (git cannot be invoked, so the
+  append refuses rather than lock where other writers do not), `EVENT_LOG_SYMLINK` and
+  `EVENT_LOG_SHORT_WRITE`. A caller that already treats an I/O error as non-fatal keeps
+  doing so; decide deliberately if yours should surface it.
+- **A check that must see the current file** (an identity check, "already closed") goes in
+  the `precondition` callback so it runs under the lock; `event_log_lock(path)` holds the
+  lock for a read-modify-write such as the glossary contract write.
+- **The gate.** `tests/architectural/test_event_log_writes_gate.py` ledgers every caller of
+  the door and of `spec_kitty_events.persistence.append_event` (under any alias) by module
+  and function, fails a raw write whose path it resolves to a named log or any other
+  `.jsonl`, and pins raw writes whose path reads like a log. A new caller is added to its
+  ledger in the change that adds it. It cannot see a path that arrives only as a parameter
+  whose callers disagree, a path built from a glob, or an imported constant with a neutral
+  name, so do not lean on it: use the door.
+- **Retirement.** Each log's interim append, and its ledger entry, is deleted when the
+  write service takes that log over whole (#6193); the module goes with the last one.
+  Do not build new behaviour on it.
 
 ## Reading events
 

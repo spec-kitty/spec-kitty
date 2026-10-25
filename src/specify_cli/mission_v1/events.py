@@ -16,6 +16,7 @@ import json
 import logging
 from pathlib import Path
 
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
@@ -61,9 +62,8 @@ def emit_event(
 def _write_event(feature_dir: Path, event: dict) -> None:
     """Append event as a JSON line to the mission events log."""
     events_file = feature_dir / MISSION_EVENTS_FILE
-    line = json.dumps(event, sort_keys=True) + "\n"
-    with open(events_file, "a", encoding="utf-8") as f:
-        f.write(line)
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    append_event_log_lines(events_file, [json.dumps(event, sort_keys=True)])
 
 
 def _read_events(feature_dir: Path) -> list[dict]:

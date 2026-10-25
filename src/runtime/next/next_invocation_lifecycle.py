@@ -62,12 +62,16 @@ was never actually checked there):
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, cast
 
+from kernel.event_log_append import EventLogAppendError
 from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for
 
 from specify_cli.core.paths import MissionMetaReadError
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "AmbiguousPendingDecisionError",
@@ -211,12 +215,18 @@ def pair_previous_lifecycle_record(
         phase = "failed"
         reason = result  # "failed" or "blocked" — preserves caller intent
 
-    write_paired_completion(
-        _store_root(repo_root_path, owned),
-        started=started,
-        phase=phase,
-        reason=reason,
-    )
+    try:
+        write_paired_completion(
+            _store_root(repo_root_path, owned),
+            started=started,
+            phase=phase,
+            reason=reason,
+        )
+    except EventLogAppendError as exc:
+        # #6606: the lifecycle log is observability. A refused interim append
+        # (a torn last line, a held lock) is reported and `next` carries on,
+        # as the issuance write above already does for any I/O error.
+        logger.warning("Lifecycle completion not recorded: %s", exc)
 
 
 def write_issuance_lifecycle_record(

@@ -99,6 +99,7 @@ else:
     import fcntl  # noqa: F401  (imported lazily under POSIX guard)
 
 __all__ = [
+    "LOCK_DIRECTORY",
     "STALE_AFTER_S_DEFAULT",
     "LockAcquireTimeout",
     "LockNotAcquired",
@@ -108,6 +109,15 @@ __all__ = [
     "machine_file_lock",
 ]
 
+
+LOCK_DIRECTORY = "spec-kitty-locks"
+"""Directory name, under a checkout's git common dir, holding Spec Kitty's file locks.
+
+Lives in the kernel so every lock family rooted there (the status lock, the
+verdict-save queue, the interim event-log lock of
+:mod:`kernel.event_log_append`) names it once; ``specify_cli.core.checkout_file_lock``
+re-exports it.
+"""
 
 STALE_AFTER_S_DEFAULT: float = 60.0
 """Default age threshold (seconds) above which a lock record is considered stale.

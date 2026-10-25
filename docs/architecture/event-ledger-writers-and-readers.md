@@ -2,7 +2,7 @@
 title: Event Ledger Writers and Readers
 description: 'Current-state map of every event log and ledger core writes and reads, the target the event ADRs set, and a cited gap table with remedies and tracker items.'
 doc_status: active
-updated: '2026-10-22'
+updated: '2026-10-25'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -59,18 +59,26 @@ contract (`spec-kitty-events` `docs/api/ledger-write-contract.md`).
 | same file, retrospective run-terminus (superseded, no new callers) | `retrospective/events.py`, `append_raw_rows_atomic` under `retro_status_lock` | own envelope | No | Yes | No |
 | same file, retrospective lifecycle | `retrospective/lifecycle_events.py` (`_append_retro_lifecycle_event`, `_locked_append`) | integer `schema_version` | No | Yes | **No** |
 | same file, backfill migrations and whole-log rewrites | `migration/backfill_runtime_state.py`, `migration/verdict_provenance_backfill.py`, `migration/rebuild_state.py`, `consolidation/bookkeeping_projection.py`, the merge driver `event_log_merge.py` | synthesized or rewritten rows | No | Mostly | No |
-| `.kittify/events/glossary/<mission_id>.events.jsonl` | `src/glossary/events.py:41` imports `spec_kitty_events.persistence.append_event`; torn-tail repair under a lock | package models | **Yes, the only user** | Yes | No |
-| `kitty-ops/<op>.jsonl`, `ops-index.jsonl`, `op-closures.jsonl` | `invocation/writer.py:233` `write_started`, `:260` `write_completed`, `:194` `_append_line_no_follow` (`O_APPEND`, `O_NOFOLLOW`), `:42` `append_op_closure` | Op record schema v2 | No | Per-file create | No |
-| `kitty-ops/lifecycle.jsonl` | `invocation/lifecycle.py:57` `append_lifecycle_record`, plain `open("a")` at `:65` | Op lifecycle record | No | **No** | No |
-| `kitty-ops/propagation-errors.jsonl` | `invocation/propagator.py`, plain append from a background thread | own dict | No | **No** | No |
-| `.kittify/runtime/runs/<run>/run.events.jsonl` | `src/runtime/next/_internal_runtime/engine.py:107` `_append_event` (`open("a")` + fsync), marked `canonical-producer-exempt: #1248` (`:109`) | `{event_type, timestamp, payload}`, no `event_id`, no version | No | **No** | No |
-| `kitty-specs/<m>/decisions.events.jsonl` | `events/decision_log.py:248` `DecisionGitLog._append_to_file`, plain `open("a")` at `:252`, then `safe_commit` | sanitized `mission_next` payload | No | **No** | No |
-| `kitty-specs/<m>/mission-events.jsonl` | `mission_v1/events.py:60` `_write_event`, plain `open("a")` | own dict | No | **No** | No |
-| `kitty-specs/<m>/policy-audit.jsonl`, `.kittify/archive/archived-missions.jsonl`, `.kittify/encoding-provenance/global.jsonl` | `policy/audit.py`, `missions/_archive.py`, `charter/activation/_io.py` | own dicts | No | **No** | No |
+| `.kittify/events/glossary/<mission_id>.events.jsonl` | `src/glossary/events.py:41` imports `spec_kitty_events.persistence.append_event`; torn-tail repair under a lock | package models | **Yes, the only user** | Yes (repair lock, and the contract write under the interim lock, #6606) | No |
+| `kitty-ops/<op>.jsonl`, `ops-index.jsonl`, `op-closures.jsonl` | `invocation/writer.py:223` `write_started` (exclusive create), `:250` `write_completed` and `_append_validated` (the per-Op trail), `:188` `_append_line_no_follow` (index and closure spine, no-follow), `:42` `append_op_closure` | Op record schema v2 | No | Per-file exclusive create; every append Yes (interim lock, #6606), one lock for the `kitty-ops/` family | No |
+| `kitty-ops/lifecycle.jsonl` | `invocation/lifecycle.py:58` `append_lifecycle_record` | Op lifecycle record | No | Yes (interim lock, #6606) | No |
+| `kitty-ops/propagation-errors.jsonl` | `invocation/propagator.py`, from a background thread | own dict | No | Yes (interim lock, #6606) | No |
+| `.kittify/runtime/runs/<run>/run.events.jsonl` | `src/runtime/next/_internal_runtime/engine.py:108` `_append_event`, marked `canonical-producer-exempt: #1248` (`:110`) | `{event_type, timestamp, payload}`, no `event_id`, no version | No | Yes (interim lock, #6606) | No |
+| `kitty-specs/<m>/decisions.events.jsonl` | `events/decision_log.py:249` `DecisionGitLog._append_to_file`, then `safe_commit` | sanitized `mission_next` payload | No | Yes (interim lock, #6606) | No |
+| `kitty-specs/<m>/mission-events.jsonl` | `mission_v1/events.py:62` `_write_event` | own dict | No | Yes (interim lock, #6606) | No |
+| `kitty-specs/<m>/policy-audit.jsonl`, `.kittify/archive/archived-missions.jsonl`, `.kittify/encoding-provenance/global.jsonl` | `policy/audit.py`, `missions/_archive.py`, `charter/activation/_io.py` | own dicts | No | Yes (interim lock, #6606) | No |
 | Migration ledger (state ledger) | `upgrade/ledger.py:248` `Ledger.append`, `:255` `append_many`: full-file atomic rewrite, deliberately not `O_APPEND` | `{id, applied_at, result, identity, content_hash, cli_version}` | n/a | No lock | n/a |
 | Activation ledger (state ledger) | `charter.activation.activation_ledger` `prepare_ledger_write` | YAML state | n/a | n/a | n/a |
 
 What holds today:
+
+- **One interim lock for every other event log (#6606).** `kernel.event_log_append`
+  (`append_event_log_lines`, `event_log_lock`) anchors a lock on the log (or, for
+  `kitty-ops/<op>.jsonl`, on the family directory) at
+  `<git-common-dir>/spec-kitty-locks/event-logs/<sha256[:32]>.lock`, refuses a log whose
+  last byte is not LF, and writes the unit in one `O_APPEND` write plus `fsync`. It checks
+  line framing only, never row content. It retires per log at the #6193 handover;
+  `status.events.jsonl` and `canonical-events.jsonl` keep the Mission status lock.
 
 - `status.events.jsonl` has a disciplined write funnel. Raw append primitives are
   importable only from the nine modules in `status/_unsafe.py:75-113`
@@ -84,10 +92,14 @@ What holds today:
 What does not hold:
 
 - There is **no single canonical writer**. About fifteen append implementations live in
-  more than twelve modules and write at least six row shapes. No `EventBridge` module
-  exists in `src/`.
-- Eight writers append with an unlocked `open("a")` and no torn-tail check, and none of
-  their files has a writes gate.
+  more than twelve modules and write at least six row shapes. The EventBridge port
+  exists only as a skeleton (#6603): the three work package transition doors call it,
+  and every other writer still appends on its own.
+- ~~Eight writers append with an unlocked `open("a")` and no torn-tail check.~~ Since
+  #6606 every one of them, the Op record appends and the glossary contract write take the
+  one interim lock (`kernel.event_log_append`; contract above) and refuse a torn tail.
+  `tests/architectural/test_event_log_writes_gate.py` ledgers every caller and fails a new
+  raw writer (#6603).
 - Two whole-log writers serialize with their own `json.dumps(..., sort_keys=True)`
   (`migration/rebuild_state.py`, `event_log_merge.py`) instead of
   `store.serialize_event_line`, which calls itself "the one authority for the on-disk
@@ -202,11 +214,11 @@ flowchart LR
 
 | ID | Gap | Evidence | ADR clause | Proposed remedy | Tracker |
 |---|---|---|---|---|---|
-| G-1 | No single canonical writer; about fifteen append implementations | table above; no `EventBridge` in `src/`; `status/_unsafe.py:75-113` contains only `status.events.jsonl` writers | 2026-10-14-1 D-1, D-2 | Port skeleton grown from `RuntimeEventEmitter`, the WP transition first behind the two existing doors (`emit.py:831`, `transaction.py:985`), per the ADR's own migration-order default | file new (supersedes the premise of #1927) |
-| G-2 | No writes gate for event logs other than `status.events.jsonl` | `tests/architectural/test_status_events_writes_gate.py` covers one file | 2026-10-14-1 Confirmation (gate over `*.events.jsonl`, `canonical-events.jsonl`, `run.events.jsonl`, `mission-events.jsonl`, `kitty-ops/*.jsonl`) | Extend the gate to every named file, frozen at today's writers, draining with G-1 | file new (with G-1) |
+| G-1 | **Partly closed (#6603):** the EventBridge port skeleton exists (`runtime/next/event_bridge.py`; local file adapter `specify_cli/events/event_bridge.py`) and the three work package transition doors call it; every other writer remains. No single canonical writer; about fifteen append implementations | table above; `runtime/next/event_bridge.py` (port), `specify_cli/events/event_bridge.py` (local file adapter); `status/_unsafe.py:75-113` contains only `status.events.jsonl` writers | 2026-10-14-1 D-1, D-2 | Done for the WP transition (the flat doors `_persist_prepared` and `emit_status_transition_batch`, and `BookkeepingTransaction.append_events`, call `record_work_package_transition`); next, move the other writers behind the port, one log at a time (#6193), with the Java write service's client as the adapter (#6675) | file new (supersedes the premise of #1927) |
+| G-2 | **Partly closed (#6603):** `tests/architectural/test_event_log_writes_gate.py` freezes the door callers, raw writers and unresolved log-shaped writes of every named log; it drains as each log moves (#6193). Open: the gate drains only as logs move to the write service, and the residuals in its docstring (parameter-only and glob-built paths) | `tests/architectural/test_status_events_writes_gate.py` (`status.events.jsonl`) and `tests/architectural/test_event_log_writes_gate.py` (every other named log) | 2026-10-14-1 Confirmation (gate over `*.events.jsonl`, `canonical-events.jsonl`, `run.events.jsonl`, `mission-events.jsonl`, `kitty-ops/*.jsonl`) | Extend the gate to every named file, frozen at today's writers, draining with G-1 | file new (with G-1) |
 | G-3 | Docs say the status path is Lamport-ordered; it is wall clock | `status/reducer.py:17-18`, `:205`, `:401`; ADR 2026-10-14-1 "Reducer duality" bullet; ADR 2026-02-09-3 (sort "primary: `logical_clock`", "`status emit` ticks the logical clock", the gate "uses the Lamport reduction wrapper"); ADR 2026-10-01-2 (overview "through the Lamport reducer", "ports the Lamport reduction"); `docs/architecture/diagrams/01_context/README.md`, `02_containers/README.md`; `docs/plans/domains/api-dashboard-domain-plan.md` | 2026-02-09-3 Decision; 2026-10-01-2 D-5 | Factual amendments (wording only); whether to make ordering truly Lamport-primary is an operator decision needing a clock on CLI rows (events #72) | file new (#6213 closed after step 1 only) |
 | G-4 | Java read API does not port the #4941 approved-departure lift | `StatusReducer.java` Javadoc on `PORTED_EVENTS_VERSION` ("NOT yet ported"); `AtThenEventId.java` plain `(at, event_id)`; no golden covers the clock-ahead case | 2026-10-01-2 D-11 (conformance to the Python reducer) | Add the clock-ahead golden, port the lift before more read routes ship | #6268 |
-| G-5 | Eight unlocked plain appends, no torn-tail refusal | `invocation/lifecycle.py:65`, `events/decision_log.py:252`, `mission_v1/events.py:60-66`, `engine.py:107-123`, `policy/audit.py`, `missions/_archive.py`, `invocation/propagator.py`, `charter/activation/_io.py` | 2026-10-14-1 D-1 | Route through `persistence.append_event` where a model exists; otherwise its `O_APPEND` single write and torn-tail check | file new (Op family: #6564) |
+| G-5 | ~~Eight unlocked plain appends, no torn-tail refusal~~ **Closed (#6606):** each takes the interim lock in `kernel.event_log_append` and refuses a torn tail | `invocation/lifecycle.py:65`, `events/decision_log.py:252`, `mission_v1/events.py:60-66`, `engine.py:107-123`, `policy/audit.py`, `missions/_archive.py`, `invocation/propagator.py`, `charter/activation/_io.py` | 2026-10-14-1 D-1 | Route through `persistence.append_event` where a model exists; otherwise its `O_APPEND` single write and torn-tail check | file new (Op family: #6564) |
 | G-6 | Decision-point rows bypass the contract writer the library publishes for them | `decisions/emit.py:117-152`; `spec-kitty-events` `docs/api/ledger-write-contract.md`, "Unclocked envelopes" | 2026-10-13-2 D-1 ("the CLI then writes from the package's models") | Migrate this family next after glossary | #6412 |
 | G-7 | Internal lifecycle modules and their exemptions remain | `status/lifecycle_events.py` (`"5.0.0"`, `#1198` at `:303`, `:314`); `retrospective/lifecycle_events.py`; 15 `canonical-producer-exempt` markers in `src/` | 2026-10-14-1 D-4 | Retire after G-1; payload models first (#6438) | #6185 (blocked on owner ruling), #6438 |
 | G-8 | Side effects still inline in the shells | `coordination/transaction.py` commit path; `events/decision_log.py` swallows a failed commit as a warning | 2026-10-14-1 D-5 | Consumers after G-1; make the decision-log commit failure a recorded, rerunnable failure | file new (later step) |

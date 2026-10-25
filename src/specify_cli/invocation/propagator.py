@@ -33,6 +33,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
@@ -239,15 +240,14 @@ def _log_propagation_error(
     """Append propagation failure to the local error log.  Never raises."""
     try:
         error_log = repo_root / PROPAGATION_ERRORS_PATH
-        error_log.parent.mkdir(parents=True, exist_ok=True)
         entry = {
             "invocation_id": record.invocation_id,
             "event": record.event,
             "error": error,
             "at": now_utc_iso(),
         }
-        with error_log.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+        # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+        append_event_log_lines(error_log, [json.dumps(entry)], create_parents=True)
     except Exception:  # noqa: BLE001
         pass  # Error logging must never raise
 

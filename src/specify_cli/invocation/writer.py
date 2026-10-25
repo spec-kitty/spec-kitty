@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
-import os
 import re
-from collections.abc import Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, TextIO
+from typing import TYPE_CHECKING
 
 from kernel.clock import now_utc_iso
+from kernel.event_log_append import EventLogSymlinkError, EventLogTornTailError, append_event_log_lines
 from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError, LegacyRecordError
@@ -28,6 +26,8 @@ EVENTS_DIR = "kitty-ops"
 INDEX_PATH = "kitty-ops/ops-index.jsonl"
 OP_CLOSURES_FILENAME = "op-closures.jsonl"
 OP_CLOSURES_RELATIVE_PATH = Path(EVENTS_DIR) / OP_CLOSURES_FILENAME
+#: Permission bits of a new Op-record file (owner read/write only).
+_RECORD_MODE = 0o600
 
 # RFC 3986 scheme followed by ``://``. Two or more characters so a Windows
 # drive letter (``C:/x``, ``C:\\x``) is never mistaken for a URL scheme (#5270).
@@ -52,7 +52,7 @@ def append_op_closure(repo_root: Path, record: OpCompletedEvent) -> Path:
     """
     path = op_closures_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    InvocationWriter._append_line_no_follow(path, record.to_jsonl_line() + "\n")
+    InvocationWriter._append_line_no_follow(path, record.to_jsonl_line())
     return path
 
 
@@ -146,63 +146,53 @@ class InvocationWriter:
             )
         return candidate
 
-    @contextlib.contextmanager
-    def _validated_append_handle(
+    def _append_validated(
         self,
         path: Path,
         invocation_id: str,
-    ) -> Iterator[TextIO]:
-        """Open one existing trail inode and verify its started-event identity."""
-        no_follow = getattr(os, "O_NOFOLLOW", 0)
-        if no_follow == 0 and path.is_symlink():
-            raise InvocationError(f"Refusing symbolic-link invocation record: {path}")
-        try:
-            fd = os.open(path, os.O_RDWR | os.O_APPEND | no_follow)
-        except FileNotFoundError as exc:
-            raise InvocationError(
-                f"Invocation record not found: {invocation_id}"
-            ) from exc
-        except OSError as exc:
-            raise InvocationWriteError(
-                f"Failed to open invocation record safely: {exc}"
-            ) from exc
-        with os.fdopen(fd, "a+", encoding="utf-8") as handle:
-            handle.seek(0)
+        line: str,
+        *,
+        refuse_if_completed: bool = False,
+    ) -> None:
+        """Append *line* to one existing trail after verifying its started-event identity.
+
+        The identity check and the append run under the interim event-log lock
+        (#6606), anchored on the ``kitty-ops`` directory so one lock file serves
+        every per-Op trail. Nothing is written when the check refuses.
+        """
+
+        def check(existing: bytes) -> None:
             try:
-                rows = [
-                    json.loads(line)
-                    for line in handle.read().splitlines()
-                    if line.strip()
-                ]
-            except (json.JSONDecodeError, OSError) as exc:
-                raise InvocationError(
-                    f"Invocation record is unreadable: {invocation_id}"
-                ) from exc
+                rows = [json.loads(row) for row in existing.decode("utf-8").splitlines() if row.strip()]
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
             if not rows or rows[0].get("event") != "started":
-                raise InvocationError(
-                    f"Invocation record has no started event: {invocation_id}"
-                )
+                raise InvocationError(f"Invocation record has no started event: {invocation_id}")
             embedded_id = rows[0].get("invocation_id")
             if embedded_id != invocation_id:
-                raise InvocationError(
-                    "Invocation record identity mismatch: "
-                    f"requested={invocation_id!r}, embedded={embedded_id!r}"
-                )
-            yield handle
+                raise InvocationError(f"Invocation record identity mismatch: requested={invocation_id!r}, embedded={embedded_id!r}")
+            if refuse_if_completed and any(row.get("event") == "completed" for row in rows):
+                raise AlreadyClosedError(invocation_id)
+
+        try:
+            # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+            append_event_log_lines(path, [line], lock_anchor=self._dir, create=False, no_follow=True, mode=_RECORD_MODE, precondition=check)
+        except FileNotFoundError as exc:
+            raise InvocationError(f"Invocation record not found: {invocation_id}") from exc
+        except EventLogSymlinkError as exc:
+            raise InvocationWriteError(f"Failed to open invocation record safely: {exc}") from exc
+        except EventLogTornTailError as exc:
+            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
 
     @staticmethod
     def _append_line_no_follow(path: Path, line: str) -> None:
-        """Append one line without following a pre-planted final symlink."""
-        no_follow = getattr(os, "O_NOFOLLOW", 0)
-        if no_follow == 0 and path.is_symlink():
-            raise OSError(f"refusing symbolic link: {path}")
-        fd = os.open(
-            path,
-            os.O_WRONLY | os.O_APPEND | os.O_CREAT | no_follow,
-            0o600,
-        )
-        with os.fdopen(fd, "a", encoding="utf-8") as handle:
-            handle.write(line)
+        """Append one line without following a pre-planted final symlink.
+
+        Goes through the interim event-log lock (#6606): one locked
+        ``O_APPEND`` write, refusing a torn last line.
+        """
+        # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+        append_event_log_lines(path, [line], no_follow=True, mode=_RECORD_MODE)
 
     def _append_to_index(self, record: OpStartedEvent) -> None:
         """Append a lightweight entry to the invocation index.
@@ -226,7 +216,7 @@ class InvocationWriter:
                     "started_at": record.started_at,
                 }
             )
-            self._append_line_no_follow(index_path, entry + "\n")
+            self._append_line_no_follow(index_path, entry)
         except OSError:
             pass  # index is a performance aid; silently degrade
 
@@ -266,16 +256,7 @@ class InvocationWriter:
         """
         path = self.invocation_path(record.invocation_id)
         try:
-            with self._validated_append_handle(path, record.invocation_id) as handle:
-                handle.seek(0)
-                existing = [
-                    json.loads(line)
-                    for line in handle.read().splitlines()
-                    if line.strip()
-                ]
-                if any(entry.get("event") == "completed" for entry in existing):
-                    raise AlreadyClosedError(record.invocation_id)
-                handle.write(record.to_jsonl_line() + "\n")
+            self._append_validated(path, record.invocation_id, record.to_jsonl_line(), refuse_if_completed=True)
         except (AlreadyClosedError, InvocationError, InvocationWriteError):
             raise
         except OSError as e:
@@ -317,8 +298,7 @@ class InvocationWriter:
         else:
             entry["sha"] = sha
         try:
-            with self._validated_append_handle(path, invocation_id) as handle:
-                handle.write(json.dumps(entry) + "\n")
+            self._append_validated(path, invocation_id, json.dumps(entry))
         except (InvocationError, InvocationWriteError):
             raise
         except OSError as e:
@@ -347,7 +327,6 @@ class InvocationWriter:
                 "invocation_id": invocation_id,
             }
             entry.update(bundle.to_dict())
-            with self._validated_append_handle(path, invocation_id) as handle:
-                handle.write(json.dumps(entry) + "\n")
+            self._append_validated(path, invocation_id, json.dumps(entry))
         except (OSError, InvocationError, InvocationWriteError, ValueError):
             pass
