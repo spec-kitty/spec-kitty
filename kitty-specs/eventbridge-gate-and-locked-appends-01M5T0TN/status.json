@@ -1,7 +1,7 @@
 {
-  "event_count": 41,
-  "last_event_id": "01M5TFGYY4C7P7ANDHBWJTAAX3",
-  "materialized_at": "2026-10-25T21:30:04.100890+00:00",
+  "event_count": 42,
+  "last_event_id": "01M5TFH22FN3ZNDY3AJ5B9VGY1",
+  "materialized_at": "2026-10-25T21:30:07.311926+00:00",
   "mission_number": "",
   "mission_slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "mission_type": "",
@@ -10,10 +10,10 @@
     "approved": 4,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -153,9 +153,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "claimed",
-      "last_event_id": "01M5TFGYY4C7P7ANDHBWJTAAX3",
-      "last_transition_at": "2026-10-25T21:30:04.100890+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M5TFH22FN3ZNDY3AJ5B9VGY1",
+      "last_transition_at": "2026-10-25T21:30:07.311926+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Gate from scratch draft plus the two WP gaps closed: any-.jsonl raw census (empty ledger) and pinned unresolved log-shaped writes (3). Red-first: over origin/main src the raw census reports exactly the eight G-5 appends. Door ledger keyed (module, function, door), not (module, path expression): function names are stable where path expressions are shared helpers. Docs: lock column, G-1/G-2 partly closed, G-5 closed, events-in-core interim section, changelog Fixed + Internal. Gates 32+28 passed; docs tests 395 passed; changelog style 0 errors."
