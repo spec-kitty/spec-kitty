@@ -67,11 +67,11 @@
     {
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "test",
+      "evidence": "tests/kernel/test_event_log_append.py (torn-tail refusal, single O_APPEND write, fsync, test_concurrent_writers_never_interleave); lane-e combined tree: 521 passed, 2 skipped (Mission tests + layer/boundary/lock gates)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-25T21:38:45.092490+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
