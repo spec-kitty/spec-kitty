@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
+  "mission_id": "01M5SS0FBR3MKEB8X0CRYZC3AC",
+  "mission_branch": "kitty/mission-residue-safe-migration-sweep-01M5SS0F",
+  "target_branch": "fix/residue-safe-migration-sweep",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/context/mission_resolver.py",
+        "src/specify_cli/migration/normalize_mission_lifecycle.py",
+        "src/specify_cli/migration/runtime_state_cutover.py",
+        "tests/context/test_is_kitty_specs_residue_git_aware.py",
+        "tests/specify_cli/migration/test_normalize_mission_lifecycle.py",
+        "tests/specify_cli/migration/test_residue_dirs_left_untouched_6627.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/audit/classifiers/fabricated_identity.py",
+        "src/specify_cli/audit/engine.py",
+        "src/specify_cli/audit/models.py",
+        "src/specify_cli/upgrade/feature_meta.py",
+        "tests/audit/test_fabricated_identity_finding.py",
+        "tests/audit/test_residue_directory_finding.py",
+        "tests/upgrade/test_feature_meta.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/_residue_successor.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_1_residue_safe_normalize_status_json.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "src/specify_cli/upgrade/registry.py",
+        "src/specify_cli/upgrade/supersession.py",
+        "tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py",
+        "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/runner.py",
+        "tests/upgrade/test_residue_notice_collapse.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py",
+        "tests/specify_cli/upgrade/test_residue_safe_lane_successors_6669.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "src/specify_cli/migration/runner.py",
+        "tests/architectural/test_migration_walkers_use_mission_predicate.py",
+        "tests/specify_cli/migration/test_residue_shared_walkers_6669.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "docs/changelog/CHANGELOG.md",
+        "tests/integration/migration/test_upgrade_residue_identity_6627.py",
+        "tests/integration/migration/test_upgrade_residue_with_mission_files_6669.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-10-25T16:03:32.101469+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c34ce72dad0ccdb44a34a7a0fac0efe660a3cb80"
+}
