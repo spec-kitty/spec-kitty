@@ -141,3 +141,33 @@ def test_symlinked_trail_is_still_refused(writer: InvocationWriter, tmp_path: Pa
     with pytest.raises((InvocationError, ValueError)):
         writer.write_completed(_completed())
     assert target.read_bytes().count(b"\n") == 1
+
+
+def test_trail_swapped_for_a_symlink_after_the_path_check_is_a_write_error(writer: InvocationWriter, tmp_path: Path) -> None:
+    # The race ``invocation_path`` cannot see: the trail becomes a symlink after
+    # its own check. Same type and message as the pre-lock O_NOFOLLOW open.
+    real = writer.write_started(_started())
+    target = tmp_path / "elsewhere.jsonl"
+    target.write_bytes(real.read_bytes())
+    real.unlink()
+    real.symlink_to(target)
+    with pytest.raises(InvocationWriteError, match="Failed to open invocation record safely"):
+        writer._append_validated(real, _ID, _completed().to_jsonl_line())
+    assert target.read_bytes().count(b"\n") == 1
+
+
+def test_a_trail_line_that_is_not_json_is_unreadable(writer: InvocationWriter) -> None:
+    path = writer.write_started(_started())
+    path.write_bytes(b"not json\n")
+    with pytest.raises(InvocationError, match="unreadable"):
+        writer.write_completed(_completed())
+    assert path.read_bytes() == b"not json\n"
+
+
+def test_a_trail_without_a_started_event_is_refused(writer: InvocationWriter) -> None:
+    path = writer.write_started(_started())
+    body = _completed().to_jsonl_line().encode("utf-8") + b"\n"
+    path.write_bytes(body)
+    with pytest.raises(InvocationError, match="no started event"):
+        writer.append_correlation_link(_ID, ref="docs/x.md")
+    assert path.read_bytes() == body

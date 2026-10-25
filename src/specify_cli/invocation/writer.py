@@ -52,7 +52,7 @@ def append_op_closure(repo_root: Path, record: OpCompletedEvent) -> Path:
     """
     path = op_closures_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    InvocationWriter._append_line_no_follow(path, record.to_jsonl_line() + "\n")
+    InvocationWriter._append_line_no_follow(path, record.to_jsonl_line())
     return path
 
 
@@ -180,7 +180,7 @@ class InvocationWriter:
         except FileNotFoundError as exc:
             raise InvocationError(f"Invocation record not found: {invocation_id}") from exc
         except EventLogSymlinkError as exc:
-            raise InvocationError(f"Refusing symbolic-link invocation record: {path}") from exc
+            raise InvocationWriteError(f"Failed to open invocation record safely: {exc}") from exc
         except EventLogTornTailError as exc:
             raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
 
@@ -192,7 +192,7 @@ class InvocationWriter:
         ``O_APPEND`` write, refusing a torn last line.
         """
         # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
-        append_event_log_lines(path, [line.removesuffix("\n")], no_follow=True, mode=_RECORD_MODE)
+        append_event_log_lines(path, [line], no_follow=True, mode=_RECORD_MODE)
 
     def _append_to_index(self, record: OpStartedEvent) -> None:
         """Append a lightweight entry to the invocation index.
@@ -216,7 +216,7 @@ class InvocationWriter:
                     "started_at": record.started_at,
                 }
             )
-            self._append_line_no_follow(index_path, entry + "\n")
+            self._append_line_no_follow(index_path, entry)
         except OSError:
             pass  # index is a performance aid; silently degrade
 
