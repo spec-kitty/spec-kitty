@@ -36,6 +36,7 @@ from glossary.semantic_events import (
     EVT_SEMANTIC_CHECK_EVALUATED,
 )
 from kernel.clock import now_utc_iso
+from kernel.event_log_append import event_log_lock
 from kernel.locks import machine_file_lock
 from spec_kitty_events.persistence import LedgerTornTailError
 from spec_kitty_events.persistence import append_event as _ledger_append
@@ -109,14 +110,23 @@ def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
         event_dict: JSON-serializable event payload
         event_log_path: Path to the .events.jsonl file
 
+    The append, and any repair, run under the interim event-log lock
+    (``kernel.event_log_append``, #6606), so the contract writer's advisory
+    torn-tail check is no longer racy against a second writer of this log.
+
     Raises:
         spec_kitty_events.persistence.LedgerAppendError: the record was refused.
+        kernel.event_log_append.EventLogAppendError: the lock could not be taken.
     """
-    try:
-        _ledger_append(event_dict, event_log_path)
-    except LedgerTornTailError:
-        _repair_torn_tail(event_log_path)
-        _ledger_append(event_dict, event_log_path)
+    # The library creates the parent too; the lock path is resolved from it.
+    event_log_path.parent.mkdir(parents=True, exist_ok=True)
+    # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+    with event_log_lock(event_log_path):
+        try:
+            _ledger_append(event_dict, event_log_path)
+        except LedgerTornTailError:
+            _repair_torn_tail(event_log_path)
+            _ledger_append(event_dict, event_log_path)
 
 
 def _complete_length(handle: Any, size: int) -> int:

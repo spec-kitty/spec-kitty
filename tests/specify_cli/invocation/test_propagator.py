@@ -238,7 +238,8 @@ def test_propagator_error_log_never_raises_on_disk_full(tmp_path: pytest.TempPat
     """If propagation error log itself fails (disk full), no exception raised."""
     record = make_started_record()
 
-    # Patch open() to raise OSError simulating a full disk
-    with patch("builtins.open", side_effect=OSError("disk full")):
+    # The error log goes through the interim locked append (#6606); make it
+    # raise OSError, simulating a full disk.
+    with patch("specify_cli.invocation.propagator.append_event_log_lines", side_effect=OSError("disk full")):
         # Must not raise
         _log_propagation_error(tmp_path, record, "test error")

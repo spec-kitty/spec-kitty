@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import assert_safe_path_segment
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 
 from mission_runtime import (
@@ -246,11 +247,15 @@ class DecisionGitLog:
         }
 
     def _append_to_file(self, record: dict[str, Any]) -> None:
-        """Write a JSON line to decisions.events.jsonl (creates parents)."""
-        self._decisions_file.parent.mkdir(parents=True, exist_ok=True)
+        """Write a JSON line to decisions.events.jsonl (creates parents).
+
+        The file is committed and carried to other clones by a merge driver,
+        so a torn last line is refused under the interim event-log lock rather
+        than extended (#6606).
+        """
         line = json.dumps(record, sort_keys=True, separators=(",", ":"))
-        with self._decisions_file.open("a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
+        # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+        append_event_log_lines(self._decisions_file, [line], create_parents=True)
 
     def _append_decision_event(self, event_type: str, payload: Any) -> None:
         """Build, sanitize, and append an event envelope."""

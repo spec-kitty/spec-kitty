@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ulid as _ulid_mod
+from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc_iso
 from kernel.errors import KittyInternalConsistencyError
 
@@ -243,9 +244,8 @@ def _write_provenance(content: CharterContent, *, bypass_used: bool) -> None:
     record = _build_provenance_record(content, bypass_used=bypass_used)
     provenance_path = _route_provenance_path(content.source_path)
     try:
-        provenance_path.parent.mkdir(parents=True, exist_ok=True)
-        with provenance_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, sort_keys=True) + "\n")
+        # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+        append_event_log_lines(provenance_path, [json.dumps(record, sort_keys=True)], create_parents=True)
     except OSError:
         # Non-fatal: provenance write failure must not break ingest.
         logger.warning("Failed to write encoding provenance to %s", provenance_path)

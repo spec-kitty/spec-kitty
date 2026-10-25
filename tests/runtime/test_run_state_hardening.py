@@ -369,8 +369,15 @@ def test_append_event_journal_lines_are_whole_even_when_fsync_fails(tmp_path: Pa
     journal = run_dir / "run.events.jsonl"
     first_line = journal.read_bytes()
 
-    def _fail(_fd: int) -> None:
-        raise OSError("simulated kill at fsync")
+    real_fsync = os.fsync
+    journal_inode = journal.stat().st_ino
+
+    def _fail(fd: int) -> None:
+        # Only the journal's own fsync dies; the interim event-log lock (#6606)
+        # fsyncs its lock record first, and that must still succeed.
+        if os.fstat(fd).st_ino == journal_inode:
+            raise OSError("simulated kill at fsync")
+        real_fsync(fd)
 
     monkeypatch.setattr(os, "fsync", _fail)
     with pytest.raises(OSError):
