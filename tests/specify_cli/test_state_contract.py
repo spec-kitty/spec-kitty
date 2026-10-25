@@ -220,11 +220,15 @@ def test_get_surfaces_by_authority_derived():
 # ---------------------------------------------------------------------------
 
 
-def test_runtime_gitignore_entries_exact():
-    """Gitignore entries must contain all expected canonical patterns."""
+def test_runtime_gitignore_entries_exact() -> None:
+    """Gitignore entries must contain all expected canonical patterns.
+
+    ``.agents/skills/`` is not among them (#6474): a team's own skills share
+    that root, so only Spec Kitty's skill folders are ignored, narrowly,
+    through the configured-agent block (``agent_ignore_entries``).
+    """
     entries = get_runtime_gitignore_entries()
     expected = [
-        ".agents/skills/",
         ".kittify/charter/context-state.json",
         ".kittify/derived/",
         ".kittify/dossiers/",
@@ -249,6 +253,9 @@ def test_runtime_gitignore_entries_exact():
         "kitty-specs/*/.kittify/dossiers/",
     ]
     assert entries == expected
+    shared_skills = next(s for s in STATE_SURFACES if s.name == "shared_skills_projection")
+    assert shared_skills.git_class == GitClass.IGNORED
+    assert shared_skills.ignored_via_agent_block
 
 
 def test_missions_pycache_not_collapsed():

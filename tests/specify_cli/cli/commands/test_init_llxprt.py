@@ -71,7 +71,12 @@ def _render_llxprt(command: str) -> str:
     )
 
 
-def test_init_llxprt_registers_agent_and_gitignores_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_init_llxprt_registers_agent_and_gitignores_its_generated_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """``init`` ignores only the files Spec Kitty owns in ``.llxprt/`` (#6474).
+
+    The team's own ``.llxprt/`` config stays committable, so the whole folder
+    is not ignored; the generated command files and the API-key file are.
+    """
     app, output = _make_app()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
@@ -84,7 +89,9 @@ def test_init_llxprt_registers_agent_and_gitignores_directory(monkeypatch: pytes
     assert "llxprt" in load_agent_config(project_path).available
 
     gitignore_lines = (project_path / ".gitignore").read_text(encoding="utf-8").splitlines()
-    assert ".llxprt/" in gitignore_lines
+    assert ".llxprt/commands/spec-kitty.*" in gitignore_lines
+    assert ".llxprt/.env" in gitignore_lines
+    assert ".llxprt/" not in gitignore_lines
 
     assert "/spec-kitty.specify" in output.getvalue()
 

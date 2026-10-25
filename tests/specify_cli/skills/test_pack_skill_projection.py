@@ -510,7 +510,7 @@ def test_projection_lists_pack_skill_folders_in_the_gitignore_block(project: Pat
     assert f".claude/skills/{RENDERED}/" in text
     assert f".agents/skills/{RENDERED}/" in text
 
-    support.write_config(project, tmp_path / "pack", extra="agents:\n  available:\n    - claude\n    - codex\nactivated_skills: []\n")
+    support.write_config(project, tmp_path / "pack", extra=CONFIG_EXTRA, ledger=NOTHING_IN_FORCE)
     project_pack_skills(project, registry=resolve_project_skill_catalog(project, builtin=shipped))
 
     assert f".claude/skills/{RENDERED}/" not in (project / ".gitignore").read_text(encoding="utf-8")
