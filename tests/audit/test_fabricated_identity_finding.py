@@ -12,7 +12,11 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.audit import AuditOptions, run_audit
-from specify_cli.audit.classifiers.fabricated_identity import fabricated_identity_signals
+from specify_cli.audit.classifiers.fabricated_identity import (
+    _number_matches,
+    _signal_tracked_allowlist,
+    fabricated_identity_signals,
+)
 from specify_cli.audit.models import TEAMSPACE_BLOCKER_CODES
 from specify_cli.cli.commands import doctor
 from specify_cli.context.mission_resolver import tracked_mission_paths
@@ -139,6 +143,39 @@ def test_untracked_meta_json_is_a_negative(tmp_path: Path) -> None:
     assert _audit(tmp_path)[1] == []
 
 
+def test_a_committed_non_allow_listed_file_deleted_only_on_disk_is_a_negative(tmp_path: Path) -> None:
+    """The git-tracked half of the allow-list check: disk alone looks clean, the index still holds research.md."""
+    repo = _committed_repo(tmp_path, extra=("research.md",))
+    (repo / "kitty-specs" / SLUG / "research.md").unlink()
+
+    assert _audit(repo)[1] == []
+
+
+@pytest.mark.parametrize("letter", ["I", "L", "O", "U"])
+def test_a_slug_tail_with_a_non_crockford_letter_has_no_mid8(tmp_path: Path, letter: str) -> None:
+    slug = f"my-mission-01M5JYR{letter}"
+    repo = _committed_repo(tmp_path, slug=slug, meta=_meta(slug))
+
+    assert _audit(repo)[1] == []
+
+
+def test_allowlist_signal_is_false_without_a_tracked_set(tmp_path: Path) -> None:
+    assert _signal_tracked_allowlist(tmp_path / "kitty-specs" / SLUG, tmp_path, None) is False
+
+
+def test_allowlist_signal_is_false_for_a_folder_outside_the_repository(tmp_path: Path) -> None:
+    repo, elsewhere = tmp_path / "repo", tmp_path / "elsewhere"
+    repo.mkdir()
+    elsewhere.mkdir()
+
+    assert _signal_tracked_allowlist(elsewhere, repo, frozenset({"kitty-specs/x/meta.json"})) is False
+
+
+def test_a_boolean_mission_number_never_matches() -> None:
+    assert _number_matches(True, "1") is False
+    assert _number_matches(1, "1") is True
+
+
 def test_stray_lock_file_is_allow_listed(tmp_path: Path) -> None:
     repo = _committed_repo(tmp_path, extra=("foo.lock",))
 
@@ -187,11 +224,14 @@ def test_this_repository_corpus_has_no_matches() -> None:
         pytest.skip("not a git checkout")
     specs = repo_root / "kitty-specs"
     hits = []
+    inspected = 0
     for folder in sorted(p for p in specs.iterdir() if p.is_dir()):
         try:
             meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        inspected += 1
         if fabricated_identity_signals(folder, repo_root=repo_root, tracked=tracked, meta=meta):
             hits.append(folder.name)
+    assert inspected > 0, "the corpus scan inspected no folder with a parsed meta.json, so it proves nothing"
     assert hits == []
