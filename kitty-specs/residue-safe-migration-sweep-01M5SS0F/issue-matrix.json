@@ -85,7 +85,7 @@
       "wp": null
     },
     "#6668": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Closed by WP06 FABRICATED_IDENTITY_SUSPECTED audit finding",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: pr_or_commit_ref>",
-      "verdict": "not-applicable",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP06"
     },
     "#6669": {
       "evidence_ref": "Closed by WP01-WP05 (residue rule, successors, walkers) and the WP07 guard",
