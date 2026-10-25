@@ -3,7 +3,7 @@ title: 'ADR: the applied-migration ledger is an explicit, two-partition record t
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
 date: '2026-10-17'
-updated: '2026-10-22'
+updated: '2026-10-25'
 ---
 
 **Status:** Accepted (2026-10-17).
@@ -584,3 +584,46 @@ provided:
 row; the rc8 migration does. The #5443 upgrade-commit tests now use the untrack of
 `3.2.0rc35_kittify_runtime_git_hygiene`. Other shipped migrations with the same re-selection shape
 (`0.4.8_gitignore_agents`, `3.1.2_globalize_commands`, #6547) are not changed here.
+
+## Amendment 2026-10-25 (#6629: the interview promotion is superseded)
+
+**Decision.** `unify_charter_activation_promote_answers` is superseded by
+`4.0.0rc8_promote_interview_selections`, through the same `SUPERSEDED_MIGRATIONS` table and
+with its module left byte-identical (DIRECTIVE_044). The shipped step seeded an absent
+`activated_<kind>` key with the kind's whole in-force set before it appended the interview
+selections. `charter synthesize` then read that list as an operator's activation: it demanded a
+companion tactic per directive and skipped the fresh-project seed. The step also read only
+`.kittify/config.yaml`, so after the keys had moved it wrote a stale second list there (#6549).
+
+The successor works differently:
+
+- it is listed after `4.0.0rc8_activation_ledger`;
+- it appends only the interview selections a present list lacks, writing through the activation
+  write target and the promotion primitive;
+- it never writes an absent key.
+
+**Settling.** The successor's `detect()` is always True, and `apply()` succeeds even when nothing is
+left to promote. Its first run is therefore recorded `success` and settles it. A `skipped` record would re-select it on every upgrade (the
+correction above), and that run would append the interview ids back into a list an operator
+had narrowed with `charter activate --only`.
+
+**Only where the shipped step never settled.** Since #2526 the interview record has not been an
+activation source, so promotion is a one-time backstop for a project that crosses that change.
+When the Migration Ledger records `unify_charter_activation_promote_answers` as `success`, a
+present list that lacks an interview id has had it removed, or never had it in force, so the
+successor appends nothing. That record exists when the shipped step ran, or when the adoption
+backfill settled it for a project created after it. Appending would change activation silently
+(#6499). This adds a reading rule. A successor may read the tracked record of the migration it
+supersedes. It never branches on the record of any other migration: the Migration Ledger stays
+the selection authority, not a general state input.
+
+**Version.** The successor sits at 4.0.0rc8. The ledger-adoption backfill settles only steps
+below both the recorded version and 4.0.0rc8, so it is never settled without running.
+`tests/specify_cli/upgrade/test_upgrade_keeps_absent_activation_6629.py` drives a project stamped
+below 3.2.6rc1 through the runner and `charter synthesize --dry-run --json`. On a project stamped
+above 3.2.6rc1, adoption settles the shipped step without running it in that upgrade, so a
+reproduction stamped there would never witness the bug.
+
+**Accepted loss.** A project an earlier build already seeded keeps its list. The successor only
+warns when a present list holds every available artifact while the interview selected fewer,
+and it names `charter interview --narrow-activation` and `charter activate <kind> <id> --only`.

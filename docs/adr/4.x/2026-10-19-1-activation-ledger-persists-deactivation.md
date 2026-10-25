@@ -3,12 +3,12 @@ title: 'ADR: one activation ledger persists deactivation, and nothing silently r
 description: 'Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated.'
 status: Accepted
 date: '2026-10-19'
-updated: '2026-10-21'
+updated: '2026-10-25'
 ---
 
 # One activation ledger persists deactivation, and nothing silently reinstalls it
 
-**Status:** Accepted (2026-10-19); amended 2026-10-20 (see the amendment at the end).
+**Status:** Accepted (2026-10-19); amended 2026-10-20 and 2026-10-25 (see the amendments at the end).
 
 **Date:** 2026-10-19
 
@@ -450,3 +450,31 @@ business. A malformed or changed-meanwhile project fails the narrow command with
   allow lists only. A deny entry recorded for the old id between a skipped or refused rename and its
   later run goes stale, and the renamed directive is back in force. Operator ruling 2026-10-21:
   document it and follow up in #6565; FR-014 stays absolute (no migration-reachable deny change).
+
+## Amendment 2026-10-25 (#6629): an upgrade never writes an absent activation key
+
+**Decision.** `unify_charter_activation_promote_answers` seeded an absent `activated_<kind>` key
+with the kind's whole in-force set before it appended the interview selections. It is now a
+recorded no-op, superseded by `4.0.0rc8_promote_interview_selections` (ADR 2026-10-17-1,
+Amendment 2026-10-25, #6629). The successor:
+
+- writes through the activation ledger seam;
+- appends only to a present list;
+- never writes an absent key.
+
+So after an upgrade, an absent key still means "every available artifact is in force, and no
+operator chose a list". `charter synthesize` keeps its fresh-project seed and does not demand a
+companion tactic per directive.
+
+**Residual closed.** The deny-spelling residual above (the shipped promotion compared deny entries
+as raw spellings) is closed. The successor compares deny entries as stems, so a deny entry spelled
+by its declared id is honoured.
+
+**Residual kept.** Two operator-time writers still turn an absent key into the full in-force set
+when they add to it:
+
+- `charter interview` without `--narrow-activation`;
+- a first `charter activate <kind> <id>` without `--only`.
+
+Running either after the upgrade brings the #6629 synthesis behaviour back. #6408 owns those
+writers. This amendment changes only what an upgrade writes.

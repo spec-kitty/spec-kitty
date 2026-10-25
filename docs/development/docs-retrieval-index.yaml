@@ -3858,6 +3858,7 @@ pages:
     - {slug: "3-a-clone-local-effect-is-present-only-inside-a-git-repository", text: "3. A clone-local effect is \"present\" only inside a git repository", level: 3}
     - {slug: "amendment-2026-10-22-6582-the-lead-block-the-charter-pack-cutover-after-its-prerequisites", text: "Amendment 2026-10-22 (#6582: the lead block, the charter-pack cutover after its prerequisites)", level: 2}
     - {slug: "amendment-2026-10-25-6589-superseding-a-shipped-migration-without-editing-it", text: "Amendment 2026-10-25 (#6589: superseding a shipped migration without editing it)", level: 2}
+    - {slug: "amendment-2026-10-25-6629-the-interview-promotion-is-superseded", text: "Amendment 2026-10-25 (#6629: the interview promotion is superseded)", level: 2}
   - path: "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md"
     title: "ADR: one activation ledger persists deactivation, and nothing silently reinstalls it"
     divio_type: "none"
@@ -3890,6 +3891,7 @@ pages:
     - {slug: "the-divergence-register", text: "The divergence register", level: 3}
     - {slug: "decision-7-corrected", text: "Decision 7, corrected", level: 3}
     - {slug: "residuals", text: "Residuals", level: 3}
+    - {slug: "amendment-2026-10-25-6629-an-upgrade-never-writes-an-absent-activation-key", text: "Amendment 2026-10-25 (#6629): an upgrade never writes an absent activation key", level: 2}
   - path: "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md"
     title: "ADR: command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills"
     divio_type: "none"
