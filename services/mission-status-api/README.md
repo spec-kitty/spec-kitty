@@ -210,6 +210,7 @@ The root project holds everything else:
 From this directory, with placeholders for what is yours:
 
 - `./gradlew check` runs the JVM tests of all three projects, the architecture rules, the coverage floors (the JaCoCo gate of the root project counts the libraries' classes and test runs too) and the replay of the native request set against the JVM service. The build needs the contract document as `-PcontractBundle=<file> -PcontractBundleSha256=<digest>`.
+- A library test runs as `./gradlew :event-log:test --tests '*StatusReducerTest'` (or `:domain-model:test`); a root `--tests` filter matches only the root project's tests, and the root `test` task fails when it matches none.
 - `./gradlew nativeCompile nativeTest` builds the native binary and runs the tests tagged for it.
 - `./gradlew nativeSmoke -PnativeBinary=<path of the built binary>` starts the binary and replays `src/test/resources/nativesmoke/requests.json` byte for byte against its goldens, in two stages: `base` (the golden set, every refusal code and an append-while-open stream round trip) and `hostOrigin` (the Host and Origin refusals and their accepted controls). It writes a digest of the response bodies; the four CI legs must write the same digest.
   The replay also counts the service's child processes before and after the requests and requires the count not to move; a child the binary already had when it became ready (on Windows, the console host) is not a process the replay started.
