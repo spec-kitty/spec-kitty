@@ -11,6 +11,7 @@ import os
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,6 +72,13 @@ def test_appends_one_unit_with_exact_bytes(log: Path) -> None:
 def test_refuses_bad_framing_without_touching_the_log(log: Path, lines: Sequence[str]) -> None:
     with pytest.raises(ValueError, match="line"):
         append_event_log_lines(log, lines)
+    assert not log.exists()
+
+
+def test_refuses_non_str_lines(log: Path) -> None:
+    not_text: list[Any] = [b"bytes"]
+    with pytest.raises(TypeError, match="str"):
+        append_event_log_lines(log, not_text)
     assert not log.exists()
 
 
@@ -167,16 +175,17 @@ def test_follows_a_symlink_when_allowed(log: Path, tmp_path: Path) -> None:
 
 
 def test_fsyncs_the_log(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    synced: list[int] = []
+    synced_inodes: list[int] = []
     real_fsync = os.fsync
 
     def recording_fsync(fd: int) -> None:
-        synced.append(fd)
+        synced_inodes.append(os.fstat(fd).st_ino)
         real_fsync(fd)
 
     monkeypatch.setattr(os, "fsync", recording_fsync)
     append_event_log_lines(log, ["x"])
-    assert synced  # the lock record and the log unit are both fsynced
+    # The lock record is fsynced too; the log's own inode must be among them.
+    assert log.stat().st_ino in synced_inodes
 
 
 def test_short_write_is_reported(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,7 +214,24 @@ def test_every_refusal_is_an_oserror() -> None:
 def test_lock_path_lives_under_the_git_common_dir(log: Path, repo: Path) -> None:
     lock = event_log_lock_path(log)
     assert lock.parent == (repo / ".git").resolve() / "spec-kitty-locks" / "event-logs"
-    assert len(lock.stem) == 32
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX absolute path; normcase is the identity there")
+def test_lock_path_digest_golden_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Contract rule 1 pinned by value: sha256 of the UTF-8 resolved path, first 32 hex.
+
+    The Java writer (#6193) must compute this same name for this same path.
+    """
+    monkeypatch.setattr(event_log_append, "git_common_dir", lambda _path: tmp_path)
+    anchor = Path("/srv/repo/kitty-specs/m/decisions.events.jsonl")
+    assert event_log_lock_path(anchor) == tmp_path / "spec-kitty-locks" / "event-logs" / "5d011f83a018c89fa185a10c696c8293.lock"
+
+
+def test_lock_path_does_not_depend_on_the_working_directory(log: Path, repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from_repo = event_log_lock_path(log)
+    monkeypatch.chdir(tmp_path)
+    clear_caches()
+    assert event_log_lock_path(log) == from_repo
 
 
 def test_lock_path_is_shared_by_every_worktree_of_one_repository(repo: Path, tmp_path: Path) -> None:

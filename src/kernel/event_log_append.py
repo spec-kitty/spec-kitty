@@ -225,6 +225,8 @@ def append_event_log_lines(
 def _encode_unit(lines: Sequence[str]) -> bytes:
     if isinstance(lines, str) or not lines:
         raise ValueError("append_event_log_lines needs a non-empty sequence of lines")
+    if not all(isinstance(line, str) for line in lines):
+        raise TypeError("event-log lines must be str (pre-serialised rows)")
     if any(terminator in line for line in lines for terminator in _LINE_TERMINATORS):
         raise ValueError("an event-log line must not contain a line terminator")
     return "".join(f"{line}\n" for line in lines).encode("utf-8")
