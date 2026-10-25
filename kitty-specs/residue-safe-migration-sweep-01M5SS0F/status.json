@@ -1,7 +1,7 @@
 {
-  "event_count": 28,
-  "last_event_id": "01M5T1K5GDBAW59J0A8EYRV6GZ",
-  "materialized_at": "2026-10-25T17:26:36.291724+00:00",
+  "event_count": 30,
+  "last_event_id": "01M5T1MBQ0680V2AQAQFCBXKD1",
+  "materialized_at": "2026-10-25T17:27:15.411734+00:00",
   "mission_number": "",
   "mission_slug": "residue-safe-migration-sweep-01M5SS0F",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
+    "in_progress": 4,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -95,11 +95,15 @@
       "shell_pid_created_at": "1792949129.16"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M5SWTVZPH5JAWGKX5Z1VXM15",
-      "last_transition_at": "2026-10-25T16:03:25.814542+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M5T1MBQ0680V2AQAQFCBXKD1",
+      "last_transition_at": "2026-10-25T17:27:15.411734+00:00",
+      "shell_pid": 29821,
+      "shell_pid_created_at": "1792949129.16"
     },
     "WP06": {
       "actor": "claude",
@@ -114,7 +118,9 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-25T16:41:38Z – claude – shell_pid=8973 – Out-of-map: edited existing src/specify_cli/mission_metadata.py (added baseline_slug_fields; the module already existed and is already in the audit closure) and tests/audit routing needed no edit (derived test passes). Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release = 576 passed, 7 skipped. ruff/format/mypy --strict exit 0. Import closure of audit.engine: 835 -> 836 modules.",
-        "Ready for review"
+        "Ready for review",
+        "- 2026-10-25T17:26:53Z – unknown – out-of-map: tests/architectural/_load_meta_census.py gained a silent-by-contract row for fabricated_identity_finding (malformed meta.json is already reported by classify_meta_json); the engine holds no loaded meta to pass in",
+        "- 2026-10-25T17:26:56Z – unknown – Tests: pytest tests/audit tests/upgrade/test_feature_meta.py tests/integration/migration/test_residue_dir_not_treated_as_mission.py tests/ci/test_mission_state_audit_routing.py tests/release tests/architectural/test_lifted_root_meta_fail_closed_census.py -n 4 --dist loadfile = 590 passed, 7 skipped; ruff check/format and mypy --strict clean; mutant (tracked-meta check removed) fails test_untracked_meta_json_is_a_negative"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -128,10 +134,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T023": "planned",
-        "T024": "planned",
-        "T025": "planned",
-        "T026": "planned"
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
       }
     },
     "WP07": {
