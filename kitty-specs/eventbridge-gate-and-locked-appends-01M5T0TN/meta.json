@@ -14,9 +14,8 @@
   "accepted_by": "claude",
   "accepted_from_commit": "4c14098af5de03dec97426cf11923aaac8f4ba6a",
   "baseline_merge_commit": "ebb95d7f14444af1c01a9f61d04dcb07d2d5d5e6",
-  "coordination_branch": "kitty/mission-eventbridge-gate-and-locked-appends-01M5T0TN",
   "created_at": "2026-10-25T17:13:14.081367+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "EventBridge port, event-log writes gate and locked appends",
   "merged_at": "2026-10-25T21:43:39.722682+00:00",
   "merged_commit": "0239629f5427795c3a49372debba43e726a2ec90",
@@ -31,7 +30,6 @@
   "slug": "eventbridge-gate-and-locked-appends-01M5T0TN",
   "status_phase": "1",
   "target_branch": "issue-6603-6606-eventbridge-gate-and-locked-appends",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-25T17:33:10.883790+00:00"
 }
