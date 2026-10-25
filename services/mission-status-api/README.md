@@ -192,17 +192,24 @@ Native binaries for Linux x64, Linux arm64, macOS arm64 and Windows x64 are buil
 
 Root package `org.speckitty.missionstatus`. The service is a read-only query side; the command side is reserved and does not exist.
 
+The build has three Gradle projects, the first three of the four modules of #6117 decision 12. The root project is the `query-service` deployable (this service); the two libraries were extracted from it by #6192 and keep their package names, so the architecture rules below still cover their classes:
+
+- `domain-model/` holds `domain.model`: the Mission status types (Mission, work package, lane, status event and snapshot). It declares no dependency and uses no `java.io` or `java.nio.file`; `DomainModelBoundaryTest` holds it to the JDK packages of rule 1b.
+- `event-log/` holds the event-log reader and fold: `adapter.out.filesystem.codec` (the line decoder and its byte rules) and `domain.readmodel.reducer` (the event ordering and `StatusReducer`). Among project modules it depends on `domain-model` only; its one library is the Jackson streaming parser, which only the codec may use. `EventLogBoundaryTest` holds each of the two packages to its own allowlist and the module to those two packages; neither opens a file. The read side's file reading (`FilesystemMissionEventSourceLedger`, with the tail-cursor byte rules) stays in this service for now; the write side (#6193) adds its append adapter to this module under a rule of its own.
+
+The root project holds everything else:
+
 - `application.query`: `MissionStatusQueryService`, `ProjectionCache`, and `stream` (`ChangeFeed`, `StreamSubscriber`, `Resume`, `StreamSettings`).
 - `application.query.port.in` and `application.query.port.out` hold interfaces only (`MissionStatusQuery`, `Subscription`; `MissionEventSource`). Their value types are in `dto`, their failures in `exceptions`.
 - `application.command`: reserved. Nothing in `application.query` may depend on it (an architecture rule).
-- `domain.model`, `domain.readmodel` (`overview`, `reducer`, `paging`, `cursor`) and `domain.redaction`.
+- `domain.readmodel` (`overview`, `paging`, `cursor`, `artifact`) and `domain.redaction`.
 - `adapter.in.http`, `adapter.out.filesystem` and `config`.
 
 ## Tests
 
 From this directory, with placeholders for what is yours:
 
-- `./gradlew check` runs the JVM tests, the architecture rules, the coverage floors and the replay of the native request set against the JVM service. The build needs the contract document as `-PcontractBundle=<file> -PcontractBundleSha256=<digest>`.
+- `./gradlew check` runs the JVM tests of all three projects, the architecture rules, the coverage floors (the JaCoCo gate of the root project counts the libraries' classes and test runs too) and the replay of the native request set against the JVM service. The build needs the contract document as `-PcontractBundle=<file> -PcontractBundleSha256=<digest>`.
 - `./gradlew nativeCompile nativeTest` builds the native binary and runs the tests tagged for it.
 - `./gradlew nativeSmoke -PnativeBinary=<path of the built binary>` starts the binary and replays `src/test/resources/nativesmoke/requests.json` byte for byte against its goldens, in two stages: `base` (the golden set, every refusal code and an append-while-open stream round trip) and `hostOrigin` (the Host and Origin refusals and their accepted controls). It writes a digest of the response bodies; the four CI legs must write the same digest.
   The replay also counts the service's child processes before and after the requests and requires the count not to move; a child the binary already had when it became ready (on Windows, the console host) is not a process the replay started.
