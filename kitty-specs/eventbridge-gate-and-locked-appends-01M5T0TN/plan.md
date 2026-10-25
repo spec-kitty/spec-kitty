@@ -7,14 +7,14 @@
 
 This Mission is step 0 of ADR 2026-10-22-1's migration order, and it closes the interim locking gap.
 
-1. **EventBridge port.** Add `src/runtime/next/event_bridge.py`. It grows `RuntimeEventEmitter` into the port by adding a work package transition entry point, plus a reject-on-conflict binding registry.
+1. **EventBridge port.** Add the stdlib-only leaf `src/runtime/next/event_bridge.py`: `WorkPackageTransition`, `WorkPackageTransitionPort` and the binding. `EventBridgePort` is defined beside `RuntimeEventEmitter` in `_internal_runtime/events.py`, which grows it; a leaf avoids the `_internal_runtime` → engine → `status.emit` import cycle.
    - The local file adapter, `src/specify_cli/events/event_bridge.py`, writes through today's store primitives.
-   - Both transition doors call the port.
-2. **Interim locked append.** Add `src/kernel/ledger_append.py`. It takes an exclusive `kernel.locks` lock on a per-log lock file under `<git-common-dir>/spec-kitty-locks/event-ledgers/`, refuses a torn tail, then does one `O_APPEND` `os.write` followed by `fsync`.
+   - All three transition doors call the port: flat, batch and coordination.
+2. **Interim locked append.** Add `src/kernel/event_log_append.py`. It takes an exclusive `kernel.locks` lock on a per-log (or per-family) lock file under `<git-common-dir>/spec-kitty-locks/event-logs/`, refuses a torn tail, then does one `O_APPEND` `os.write` followed by `fsync`. If git cannot be invoked, it refuses.
    - An optional precondition runs under the lock.
    - A lock-only context manager serves the glossary contract writer.
 3. **Routing.** The eight G-5 writers, the `kitty-ops` Op-record appends and the glossary append go through it. Each keeps its own row bytes.
-4. **Gate.** Add `tests/architectural/test_event_log_writes_gate.py`. It reuses the status gate's static scanner and freezes:
+4. **Gate.** Add `tests/architectural/test_event_log_writes_gate.py`. It reuses the status gate's static scanner, extracted to `tests/architectural/_write_site_scan.py`, and freezes:
    - raw writes to every named event log outside the sanctioned modules;
    - every caller of the locked door and of `persistence.append_event`;
    - unresolved `.jsonl` writes.
@@ -57,9 +57,10 @@ kitty-specs/eventbridge-gate-and-locked-appends-01M5T0TN/
 ### Source Code (repository root)
 
 ```
-src/kernel/ledger_append.py                       # new: interim locked append primitive
+src/kernel/event_log_append.py                    # new: interim locked append primitive
 src/kernel/locks.py                               # LOCK_DIRECTORY moves here (re-exported by core.checkout_file_lock)
-src/runtime/next/event_bridge.py                  # new: EventBridge port + binding
+src/runtime/next/event_bridge.py                  # new: stdlib-only port leaf + binding
+src/runtime/next/_internal_runtime/events.py      # EventBridgePort grows RuntimeEventEmitter
 src/specify_cli/events/event_bridge.py            # new: local file adapter + door accessor
 src/specify_cli/status/emit.py                    # door 1
 src/specify_cli/coordination/transaction.py       # door 2
@@ -67,7 +68,7 @@ src/specify_cli/{invocation,events,mission_v1,policy,missions}/...  # routed wri
 src/runtime/next/_internal_runtime/engine.py      # routed run journal
 src/charter/activation/_io.py                     # routed provenance
 src/glossary/events.py                            # contract append under the lock
-tests/kernel/test_ledger_append.py                # new
+tests/kernel/test_event_log_append.py             # new
 tests/architectural/test_event_log_writes_gate.py # new
 ```
 
@@ -79,17 +80,19 @@ tests/architectural/test_event_log_writes_gate.py # new
 
 - **Purpose**: one lock contract and one single-write append, so no event log interleaves or extends a torn tail.
 - **Relevant requirements**: FR-007, FR-011, NFR-002, NFR-003, C-002, C-003
-- **Affected surfaces**: `src/kernel/ledger_append.py`, `src/kernel/locks.py`, `src/specify_cli/core/checkout_file_lock.py`
+- **Affected surfaces**: `src/kernel/event_log_append.py`, `src/kernel/locks.py`, `src/specify_cli/core/checkout_file_lock.py`
 - **Sequencing/depends-on**: none
 - **Risks**:
   - The lock path must be identical across worktrees: resolve the git common dir, and hash the resolved, case-normalised log path.
-  - Without git, the lock falls back to a sibling lock file.
+  - Without git, the lock falls back to `<log>.event-log.lock`; if git cannot be invoked, the append refuses.
+  - A missing parent raises before any lock is touched (the #6367 marker class).
+  - Per-record logs (`kitty-ops/<op>.jsonl`) share one family lock.
 
 ### IC-02 — Route the unlocked writers
 
 - **Purpose**: every G-5 writer, the Op-record appends and the glossary append take the lock.
 - **Relevant requirements**: FR-008, FR-009, FR-010, NFR-001
-- **Affected surfaces**: `invocation/lifecycle.py`, `invocation/propagator.py`, `invocation/writer.py`, `events/decision_log.py`, `mission_v1/events.py`, `runtime/next/_internal_runtime/engine.py`, `policy/audit.py`, `missions/_archive.py`, `charter/activation/_io.py`, `glossary/events.py`
+- **Affected surfaces**: `invocation/lifecycle.py`, `invocation/propagator.py`, `invocation/writer.py`, `runtime/next/next_invocation_lifecycle.py` (pairing warns on refusal), `events/decision_log.py`, `mission_v1/events.py`, `runtime/next/_internal_runtime/engine.py`, `policy/audit.py`, `missions/_archive.py`, `charter/activation/_io.py`, `glossary/events.py`
 - **Sequencing/depends-on**: IC-01
 - **Risks**:
   - Keep each writer's bytes and its parent-directory behaviour.
@@ -100,17 +103,18 @@ tests/architectural/test_event_log_writes_gate.py # new
 
 - **Purpose**: the work package transition reaches the log through one port (ADR D-2, open question 6 default).
 - **Relevant requirements**: FR-001 to FR-004, C-001, C-004, C-005
-- **Affected surfaces**: `runtime/next/event_bridge.py`, `specify_cli/events/event_bridge.py`, `status/emit.py`, `coordination/transaction.py`, `status/_unsafe.py` (`ALLOWED_CALLERS`: the adapter replaces nothing; it is added as the door both shells share)
+- **Affected surfaces**: `runtime/next/event_bridge.py`, `runtime/next/_internal_runtime/events.py`, `specify_cli/events/event_bridge.py`, `status/emit.py`, `coordination/transaction.py`, `status/_unsafe.py` (`ALLOWED_CALLERS`: a swap; `coordination.transaction` no longer imports a door and leaves, and the adapter enters)
 - **Sequencing/depends-on**: none
 - **Risks**:
   - Import cycles between status and runtime: the adapter imports lazily.
-  - The shrink-only allowlist gains the adapter module. ADR D-1 says the primitives become private to the bridge, so this is the intended direction, not a new writer.
+  - The shrink-only allowlist does not grow: the transaction entry is swapped for the adapter. ADR D-1 says the primitives become private to the bridge.
+  - The binding is the second half of the one port, not a second emitter registry; a tripwire pins that open-core binds none outside tests.
 
 ### IC-04 — Multi-log writes gate and docs
 
 - **Purpose**: a new event-log writer fails CI; the docs record the lock contract and the port.
 - **Relevant requirements**: FR-005, FR-006, NFR-004
-- **Affected surfaces**: `tests/architectural/test_event_log_writes_gate.py`, `docs/architecture/event-ledger-writers-and-readers.md`, `docs/development/reference/events-in-core.md`, `docs/changelog/CHANGELOG.md`
+- **Affected surfaces**: `tests/architectural/test_event_log_writes_gate.py`, `tests/architectural/_write_site_scan.py` (extracted), `tests/architectural/test_status_events_writes_gate.py`, `docs/architecture/event-ledger-writers-and-readers.md`, `docs/development/reference/events-in-core.md`, `docs/changelog/CHANGELOG.md`
 - **Sequencing/depends-on**: IC-02, IC-03 (it freezes the post-routing writers)
 - **Risks**:
   - The static resolver misses dynamic paths. Unresolved `.jsonl` writes are pinned, not passed.

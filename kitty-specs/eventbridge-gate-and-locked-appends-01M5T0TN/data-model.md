@@ -19,8 +19,10 @@
 One or more `str` lines, each without `\n`. They are joined with `\n` plus a final `\n` and encoded as UTF-8: one `os.write`, then `fsync`.
 
 **Refusals (all subclass `OSError`):**
-- `LedgerTornTailError` (`LEDGER_TORN_TAIL`)
-- `LedgerLockTimeoutError` (`LEDGER_LOCK_TIMEOUT`)
-- `LedgerShortWriteError` (`LEDGER_SHORT_WRITE`)
+- `EventLogTornTailError` (`EVENT_LOG_TORN_TAIL`)
+- `EventLogLockTimeoutError` (`EVENT_LOG_LOCK_TIMEOUT`)
+- `EventLogLockUnavailableError` (`EVENT_LOG_LOCK_UNAVAILABLE`)
+- `EventLogSymlinkError` (`EVENT_LOG_SYMLINK`)
+- `EventLogShortWriteError` (`EVENT_LOG_SHORT_WRITE`)
 
 A precondition error is the caller's own exception type, raised before any byte is written.

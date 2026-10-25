@@ -12,11 +12,11 @@
 - **Primary actor:** a Spec Kitty maintainer who changes how the CLI records events, and every operator whose Mission writes event logs.
 - **Trigger:** the CLI or runtime appends a row to an event log. That covers a work package transition, a run-journal entry, a decision answer, an Op record, an audit row, an archive record or a provenance row.
 - **Desired outcome:**
-  - every work package transition reaches the log through one EventBridge port;
+  - every work package transition reaches the log through one EventBridge port, from all three of its doors (the flat shell, the batch door and the coordination transaction);
   - every other event log is covered by a writes gate that names today's writers;
   - no event log is appended without the one interim ledger lock.
   This gives the Java write service (#6193) one door and one lock contract to take over.
-- **Rule that must always hold:** an append either lands as whole lines, or it refuses and leaves the log byte-identical. It never extends a torn last line and never interleaves with another writer.
+- **Rule that must always hold:** an append either lands as whole lines, or it refuses and leaves the log byte-identical. It never extends a torn last line and never interleaves with another writer. `status.events.jsonl` and `canonical-events.jsonl` keep the status lock (C-005); every other event log takes the interim ledger lock.
 - **Boundaries:**
   - No live transport. The loopback HTTP client is #6675.
   - No new Python-side validation authority, because the service will be authoritative.
@@ -31,13 +31,13 @@ A maintainer moves a work package. The CLI builds the transition exactly as toda
 
 **Why this priority**: ADR 2026-10-14-1 D-2 and ADR 2026-10-22-1 step 0 make the port the first step of the migration. Every later step, including the Java client, plugs in here.
 
-**Independent Test**: Bind a recording test adapter, move a work package through each door (the flat shell and the coordination transaction), and observe one port call per transition, carrying the rows and the resolved write location. Unbind it, and the log bytes match the pre-change bytes.
+**Independent Test**: Bind a recording test adapter, move a work package through each door (the flat shell, the batch door and the coordination transaction), and observe one port call per transition, carrying the rows and the resolved write location. Unbind it, and the log bytes match the pre-change bytes.
 
 **Acceptance Scenarios**:
 
 1. **Given** no adapter is bound, **When** a work package transitions through either door, **Then** the log gains the same rows, byte for byte, as before this Mission.
 2. **Given** a recording adapter is bound, **When** a work package transitions, **Then** the adapter receives exactly one call with the transition and its annotation as one unit, and nothing is written by any other path.
-3. **Given** the domain code that calls the port, **When** its imports are inspected, **Then** it depends only on the port, not on the store's append primitives.
+3. **Given** the three doors, **When** their source is inspected, **Then** they call the port and name none of the store's append primitives.
 
 ---
 
@@ -73,7 +73,11 @@ Two processes, or a background thread and the main thread, append to the same lo
 
 ### Edge Cases
 
-- **Not a git repository** (an ad-hoc directory): the lock file falls back to a sibling of the log, and the append still locks.
+- **Not a git repository** (an ad-hoc directory): the lock file falls back to the sibling `<log>.event-log.lock`, and the append still locks.
+- **Git cannot be invoked** in a real checkout: the append refuses with a named error and writes nothing. It never locks somewhere the other writers do not.
+- **Parent directory missing** for a writer that never created it: the append raises `FileNotFoundError` as today, and no lock or directory is created.
+- **One file per record** (`kitty-ops/<op>.jsonl`): the files share one family lock anchored on their directory, so lock files do not grow with the number of Ops.
+- **`spec-kitty next --result` with a torn `lifecycle.jsonl`:** the pairing write is observability, so it warns and the loop continues, as the issuance write already does.
 - **Log does not exist yet:** it is created with its parent directory, as today. Op-record appends that require an existing file keep refusing a missing one.
 - **A caller swallows failures today** (decision log, Mission v1 events, propagation errors, the Op index): a refusal is swallowed the same way, because the new errors are I/O errors.
 - **The Op record's identity check:** it runs under the same lock as its append, so an identity check and an append cannot be split by another writer.
@@ -82,7 +86,7 @@ Two processes, or a background thread and the main thread, append to the same lo
 ## Domain Language
 
 - **EventBridge port:** the domain-owned interface through which the domain records facts, grown from `RuntimeEventEmitter`. Do not call it "the writer": the writer is an adapter behind it.
-- **Interim ledger lock:** the one exclusive lock contract every event-log append takes until the #6193 handover. Not "the status lock" (`feature_status_lock`), which stays the status log's own.
+- **Interim ledger lock:** the one exclusive lock contract every event-log append outside the status logs takes until the #6193 handover. Not "the status lock" (`feature_status_lock`), which stays the status log's own (`status.events.jsonl`, `canonical-events.jsonl`).
 - **Torn tail:** a log whose last byte is not a newline.
 
 ## Requirements *(mandatory)*
@@ -92,12 +96,12 @@ Two processes, or a background thread and the main thread, append to the same lo
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
 | FR-001 | EventBridge port | As a maintainer, I want an EventBridge port grown from `RuntimeEventEmitter` (Mission state advance entry points plus a work package transition entry point) so that the domain depends on one interface, not on the writer. | High | Open | [build] | no — a test adapter must satisfy the port type and be reachable through the binding |
-| FR-002 | Both transition doors go through the port | As a maintainer, I want `_persist_prepared` (flat shell) and `BookkeepingTransaction.append_events` (coordination shell) to hand their durability unit to the port so that the transition has one entry point. | High | Open | [build] | no — a bound recording adapter must observe the call from each door |
+| FR-002 | All three transition doors go through the port | As a maintainer, I want `_persist_prepared` (flat shell), `emit_status_transition_batch` (batch door) and `BookkeepingTransaction.append_events` (coordination shell) to hand their durability unit to the port so that the transition has one entry point. | High | Open | [build] | no — a bound recording adapter must observe the call from each door |
 | FR-003 | Local file adapter keeps today's bytes | As an operator, I want the default adapter to write through today's store primitives so that logs, ordering and reducer outcomes are unchanged. | High | Open | [ratchet] | yes — paired with FR-002's recording-adapter control on the same fixture |
-| FR-004 | Binding at the composition root | As a maintainer, I want an adapter to be bindable once (reject-on-conflict, like the emitter registry) and resettable in tests so that the Java client (#6675) can plug in later without a second seam. | Medium | Open | [build] | no — a conflicting second binding must raise |
+| FR-004 | Binding at the composition root | As a maintainer, I want an adapter to be bindable once (reject-on-conflict, like the emitter registry) and resettable in tests so that the Java client (#6675) can plug in later without a second seam; open-core binds none outside tests (tripwire). | Medium | Open | [build] | no — a conflicting second binding must raise |
 | FR-005 | Multi-log writes gate | As a maintainer, I want an architectural gate over every event log the ADR Confirmation names (run journal, decisions, Mission events, `kitty-ops/*.jsonl`, `canonical-events.jsonl`, glossary logs) plus the other G-5 logs, frozen at today's writers, so that a new writer fails. | High | Open | [build] | no — synthetic writers for each log must be reported |
 | FR-006 | Gate non-vacuity | As a maintainer, I want the gate to fail when it finds no writers, or when a ledger entry is stale, so that it cannot pass by matching nothing. | High | Open | [build] | no — the floor tests are fed to the same scanner |
-| FR-007 | One interim locked append primitive | As an operator, I want one append primitive that takes the interim ledger lock, refuses a torn tail, writes the unit in one `O_APPEND` write and fsyncs it, so that no append interleaves or extends a torn line. | High | Open | [build] | no — torn-tail and concurrency tests fail without it |
+| FR-007 | One interim locked append primitive | As an operator, I want one append primitive that takes the interim ledger lock, refuses a torn tail, writes the unit in one `O_APPEND` write and fsyncs it, so that no append interleaves or extends a torn line. The lock is anchored on the log, or on the family directory for one-file-per-record logs. | High | Open | [build] | no — torn-tail and concurrency tests fail without it |
 | FR-008 | Route the eight unlocked appends | As an operator, I want the Op lifecycle, propagation-error, decision log, Mission v1 events, run journal, policy audit, archive registry and encoding provenance appends to go through the primitive, each keeping its row bytes. | High | Open | [build] | no — each writer's torn-tail refusal test fails before routing |
 | FR-009 | Route the Op-record appends | As an operator, I want the `kitty-ops` index, closure spine and per-Op appends (`invocation/writer.py`) to take the same lock, with the identity check under the lock, so that one lock contract covers every append. | High | Open | [build] | no — torn-tail and lock tests fail before routing |
 | FR-010 | Lock the glossary contract append | As an operator, I want the glossary's contract-writer append (`persistence.append_event`) to run under the same lock so that its advisory torn-tail check is no longer racy. | Medium | Open | [build] | no — a lock-held test observes the append waiting |
@@ -132,7 +136,7 @@ Two processes, or a background thread and the main thread, append to the same lo
 ### Measurable Outcomes
 
 - **SC-001:** 0 unlocked plain appends to any named event log remain in `src/`, checked by the writes gate. — [build] · no-op passable: no
-- **SC-002:** both work package transition doors reach the log only through the port, shown by a recording adapter in 2 of 2 doors. — [build] · no-op passable: no
+- **SC-002:** every work package transition door reaches the log only through the port, shown by a recording adapter in 3 of 3 doors. — [build] · no-op passable: no
 - **SC-003:** a torn tail is refused by 100% of the routed writers, and the file stays byte-identical. — [build] · no-op passable: no
 - **SC-004:** existing status, decisions, runtime, invocation and consolidation suites pass unchanged. — [ratchet] · no-op passable: yes — paired with SC-002 and SC-003
 
