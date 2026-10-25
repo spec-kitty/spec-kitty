@@ -26,15 +26,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from kernel.locks import LockAcquireTimeout, LockRecord, SyncMachineFileLock
+from kernel.locks import LOCK_DIRECTORY, LockAcquireTimeout, LockRecord, SyncMachineFileLock
 
-LOCK_DIRECTORY = "spec-kitty-locks"
-"""Directory name, under a checkout's git common dir, holding Spec Kitty's file locks.
-
-The single named constant for a literal that used to be hardcoded separately
-in ``verdict_commit_queue.py`` and ``status/locking.py`` (Sonar S1192 across
-the module boundary).
-"""
+# ``LOCK_DIRECTORY`` (the ``spec-kitty-locks`` directory name under the git
+# common dir) moved to ``kernel.locks`` so kernel lock families can name it
+# too (#6606); this module keeps re-exporting it for its existing importers.
 
 __all__ = ["LOCK_DIRECTORY", "acquire_or_raise"]
 
