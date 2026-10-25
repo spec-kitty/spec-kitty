@@ -60,6 +60,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6367": {
+      "evidence_ref": "Cited for context in the planning artifacts (exemption marker, prior fix, or numbered finding); this Mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6412": {
       "evidence_ref": "Cited for context (epic, handover target, adjacent scope); this Mission owes it no work",
       "fr": null,
