@@ -35,6 +35,7 @@ from specify_cli.context.mission_resolver import (
 )
 from specify_cli.status import IdentityState, audit_repo, find_ambiguous_selectors, find_duplicate_prefixes
 
+from .classifiers.fabricated_identity import fabricated_identity_finding
 from .classifiers.decisions_events import classify_decisions_events_jsonl
 from .classifiers.handoff_events import classify_handoff_events_jsonl
 from .classifiers.meta import classify_meta_json
@@ -198,6 +199,10 @@ def _scan_missions(
         if identity_state is not None:
             all_findings.extend(identity_state_to_findings(identity_state, candidate))
 
+        # 9. Fabricated identity (needs the git-tracked set, so only in the repo scan)
+        if repo_root is not None:
+            all_findings.extend(fabricated_identity_finding(candidate, repo_root=repo_root, tracked=tracked))
+
         # Sort by (artifact_path, code) for determinism before constructing the result.
         sorted_findings = sorted(all_findings, key=lambda f: (f.artifact_path, f.code))
 
@@ -220,8 +225,8 @@ def _residue_result(candidate: Path) -> MissionAuditResult:
         artifact_path=".",
         detail=(
             "directory holds no tracked spec.md or meta.json and no mission_id; not a Mission. "
-            "If this is a Mission created before identity existed, run "
-            "`spec-kitty migrate backfill-identity` (or commit its spec.md)"
+            "To make it a Mission, commit a spec.md or meta.json (in a project outside git, adding one is enough), "
+            "then run `spec-kitty upgrade`; or remove the folder"
         ),
     )
     return MissionAuditResult(mission_slug=candidate.name, mission_dir=candidate, findings=[finding])

@@ -52,8 +52,12 @@ def test_residue_yields_one_non_blocking_finding_and_no_identity_missing(repo: P
     report = run_audit(AuditOptions(repo_root=repo, scan_root=scan_root))
     (ghost,) = (m for m in report.missions if m.mission_slug == "ghost-01ABCDEF")
     assert [f.code for f in ghost.findings] == ["RESIDUE_DIRECTORY"]
-    # The operator is told how to recover a pre-identity Mission that was mis-read as residue.
-    assert "spec-kitty migrate backfill-identity" in ghost.findings[0].detail
+    # The remedy works for the predicate that decided residue: commit a marker, then upgrade; or remove the folder.
+    detail = ghost.findings[0].detail
+    assert "commit a spec.md or meta.json" in detail
+    assert "spec-kitty upgrade" in detail
+    assert "or remove the folder" in detail
+    assert "backfill-identity" not in detail
     assert not any(is_teamspace_blocker(f) for f in ghost.findings)
 
 

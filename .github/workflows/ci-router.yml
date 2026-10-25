@@ -440,6 +440,8 @@ jobs:
               - '**/kernel/git/runner.py'
               - '**/kernel/guarded_read.py'
               - '**/charter/activation/mission_type_key.py'
+              # #6668: the fabricated-identity classifier takes the slug's mid8 from mid8_from_slug.
+              - '**/mission_runtime/identity.py'
             # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): NON-src (not in
             # the unmatched loop). No job gates on this group BY DESIGN: the seed CLI scenarios run
             # inside the nightly acceptance-bdd job, so a PR touching them needs no JDK per-PR home.

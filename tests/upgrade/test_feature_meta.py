@@ -217,3 +217,28 @@ class TestInferTargetBranch:
         )
         monkeypatch.setattr(_MONKEYPATCH_TARGET, lambda _r: "main")
         assert infer_target_branch(feature_dir, repo_root) == "2.x"
+
+
+@pytest.mark.parametrize("slug", ["042-x", "my-mission-01M5JYRC", "single"])
+def test_baseline_builder_slug_fields_equal_the_shared_helper(tmp_path: Path, slug: str) -> None:
+    """The builder's slug-derived fields come from the one owner, ``baseline_slug_fields`` (FR-012)."""
+    from specify_cli.mission_metadata import baseline_slug_fields
+
+    feature_dir = tmp_path / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+    meta = build_baseline_feature_meta(feature_dir, tmp_path)
+
+    assert meta is not None
+    expected = baseline_slug_fields(slug)
+    assert {key: meta[key] for key in expected} == expected
+
+
+def test_baseline_slug_fields_values() -> None:
+    from specify_cli.mission_metadata import baseline_slug_fields
+
+    assert baseline_slug_fields("042-x") == {"mission_number": "042", "slug": "042-x", "mission_slug": "042-x", "friendly_name": "x"}
+    assert baseline_slug_fields("my-mission-01M5JYRC")["mission_number"] == ""
+    assert baseline_slug_fields("my-mission-01M5JYRC")["friendly_name"] == "mission 01M5JYRC"
+    assert baseline_slug_fields("single")["friendly_name"] == "single"

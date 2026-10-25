@@ -34,6 +34,11 @@ TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
 #: Reported at INFO and deliberately absent from ``TEAMSPACE_BLOCKER_CODES``.
 RESIDUE_DIRECTORY = "RESIDUE_DIRECTORY"
 
+#: A committed ``meta.json`` that looks fabricated by a baseline writer: allow-listed
+#: contents only, baseline slug fields, and a ``mission_id`` that contradicts the slug's
+#: mid8 (#6668). Reported at WARNING and deliberately absent from ``TEAMSPACE_BLOCKER_CODES``.
+FABRICATED_IDENTITY_SUSPECTED = "FABRICATED_IDENTITY_SUSPECTED"
+
 _MISSION_ROOT_DIRNAME = KITTY_SPECS_DIR
 
 
