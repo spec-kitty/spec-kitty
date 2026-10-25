@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-25T17:15:53.537017Z",
+      "decision_id": "01M5T0ZHT04J7PWFV9DRCEVVGY",
+      "final_answer": "successor migration leaves absent key absent (issue #6629 fix shape 1). Chosen by the semi-auto runner under the operator's fix-now ruling: a provenance key would be refused by the activation ledger's L1 validation (unknown non-deny key fails closed, also on older rc8 CLIs) and could not be backfilled for already-seeded projects; recorded as an operator question in the PR.",
+      "input_key": "fix_shape",
+      "mission_id": "01M5T0YEQ79NXQCP88NW5EZJV7",
+      "mission_slug": "upgrade-keeps-absent-activation-absent-01M5T0YE",
+      "opened_by": "cli",
+      "options": [
+        "successor migration leaves absent key absent",
+        "seeded-provenance marker in activation.yaml",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which fix shape: leave an absent key absent at upgrade (successor migration), or record provenance for seeded entries in the activation ledger?",
+      "rationale": null,
+      "resolved_at": "2026-10-25T17:16:02.119006Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fix-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5T0YEQ79NXQCP88NW5EZJV7",
+  "version": 1
+}

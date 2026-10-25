@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-25T17:15:24.977789+00:00",
+  "flattened": false,
+  "friendly_name": "Upgrade keeps an absent activation key absent",
+  "mid8": "01M5T0YE",
+  "mission_id": "01M5T0YEQ79NXQCP88NW5EZJV7",
+  "mission_number": null,
+  "mission_slug": "upgrade-keeps-absent-activation-absent-01M5T0YE",
+  "mission_type": "software-dev",
+  "purpose_context": "unify_charter_activation_promote_answers seeds an absent activated_<kind> key with every built-in artifact, which makes charter synthesize demand 38 companion tactics and skip the fresh-project seed. A successor migration promotes interview selections through the activation ledger and leaves an absent key absent when nothing would drop.",
+  "purpose_tldr": "An upgrade no longer turns an absent activation key into a full list, so charter synthesize and implement keep working (#6629)",
+  "slug": "upgrade-keeps-absent-activation-absent-01M5T0YE",
+  "target_branch": "issue-6629-upgrade-seeded-activation-provenance",
+  "topology": "single_branch"
+}

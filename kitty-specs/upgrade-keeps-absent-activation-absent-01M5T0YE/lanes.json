@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-keeps-absent-activation-absent-01M5T0YE",
+  "mission_id": "01M5T0YEQ79NXQCP88NW5EZJV7",
+  "mission_branch": "issue-6629-upgrade-seeded-activation-provenance",
+  "target_branch": "issue-6629-upgrade-seeded-activation-provenance",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/activation_engine.py",
+        "src/charter/activation/api.py",
+        "src/charter/activation/effective_set.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_promote_interview_selections.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "src/specify_cli/upgrade/supersession.py",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/architectural/test_deny_list_survives_upgrade.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/specify_cli/upgrade/test_m_4_0_0rc8_promote_interview_selections.py",
+        "tests/specify_cli/upgrade/test_requires_git_repository_audit.py",
+        "tests/specify_cli/upgrade/test_unify_charter_activation_migration.py",
+        "tests/specify_cli/upgrade/test_upgrade_keeps_absent_activation_6629.py",
+        "tests/upgrade/test_consolidate_charter_bundle_migration.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-25T17:52:39.535170+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "257b7a5d54b95ac831e80dcf6c4d6e3bf4dc8cab"
+}

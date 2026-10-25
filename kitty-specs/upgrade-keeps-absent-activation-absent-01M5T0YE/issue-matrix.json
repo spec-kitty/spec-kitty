@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#2577": {
+      "evidence_ref": "Context citation only: behaviour this mission preserves or references; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4785": {
+      "evidence_ref": "Context citation only: behaviour this mission preserves or references; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6408": {
+      "evidence_ref": "Context citation only: behaviour this mission preserves or references; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6423": {
+      "evidence_ref": "Context citation only: behaviour this mission preserves or references; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6499": {
+      "evidence_ref": "Context citation only: behaviour this mission preserves or references; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6549": {
+      "evidence_ref": "6dd74c84: the superseded promotion no longer runs; the successor reads and writes the activation ledger, never config.yaml (test_an_absent_key_stays_absent_on_a_ledger_project, test_a_present_ledger_list_gains_exactly_the_missing_selection). Stray copies an earlier build wrote are not repaired here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6589": {
+      "evidence_ref": "Context citation: reuses the #6589 supersession mechanism; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6629": {
+      "evidence_ref": "6dd74c84: successor 4.0.0rc8_promote_interview_selections never writes an absent key; tests/specify_cli/upgrade/test_upgrade_keeps_absent_activation_6629.py red on main, green here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

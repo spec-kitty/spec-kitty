@@ -1,0 +1,86 @@
+{
+  "event_count": 17,
+  "last_event_id": "01M5T59BDRQMRFZHQ5R24V9KW3",
+  "materialized_at": "2026-10-25T18:31:08.984915+00:00",
+  "mission_number": "",
+  "mission_slug": "upgrade-keeps-absent-activation-absent-01M5T0YE",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5T4DP5VKTG92207C6B1KFH3",
+      "last_transition_at": "2026-10-25T18:16:02.491083+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: successor migration, supersession, seam re-exports, gate updates; red-first proven",
+        "Cycle 1 feedback addressed: malformed activation ledger -> MigrationStateUnreadableError; branch tests added; mypy invocation includes activation_engine.py",
+        "Review passed (cycle 2): malformed activation ledger now re-raised as MigrationStateUnreadableError (runner fails the run, reproduced); doctrine-root, unrepresentable-id and duplicate branches tested; 166 passed on the targeted suite; ruff/format/C901/mypy (with activation_engine.py) clean; shipped module byte-identical"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5343,
+      "shell_pid_created_at": "1792951939.92",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5T59BDRQMRFZHQ5R24V9KW3",
+      "last_transition_at": "2026-10-25T18:31:08.984915+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pins, docstrings, ADR amendment, CHANGELOG; docs-lint 0 errors; freshness 0 errors",
+        "Review passed: deny gate/shipped pins/docstrings/ADR amendment/CHANGELOG accurate to code; 173 passed; docs-lint 0 errors; freshness errors=0; shipped modules byte-identical; minor: ADR 'Version' paragraph last sentence should say adoption settles the shipped step without running it in that upgrade (an earlier upgrade may have run it)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261025",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23799,
+      "shell_pid_created_at": "1792952918.64",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}
