@@ -54,11 +54,16 @@
     "WP02": {
       "actor": "claude",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "in_progress",
       "last_event_id": "01M5T4RZB7FQV040G01CAPT9ZK",
       "last_transition_at": "2026-10-25T18:22:12.315301+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 13807,
       "shell_pid_created_at": "1792952504.32"
     },
