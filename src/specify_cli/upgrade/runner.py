@@ -753,10 +753,12 @@ class MigrationRunner:
                 # settled, when the migration was never actually evaluated.
                 try:
                     migration_needed = migration.detect(worktree)
-                except (GitignorePathError, MigrationStateUnreadableError) as exc:
+                except (GitCommandError, GitignorePathError, MigrationStateUnreadableError) as exc:
                     worktree_errored = True
                     # Fatal like a failed apply(): a migration that was never evaluated is not a success (#5746).
-                    error_message = f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
+                    # A git probe failure (e.g. a timeout) is the same retryable failure as on main (#6669).
+                    reason = f"git failed ({exc})" if isinstance(exc, GitCommandError) else str(exc)
+                    error_message = f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {reason}"
                     result["errors"].append(error_message)
                     result["worktree_failures"].append(error_message)
                     if not dry_run and self._record_migration_result(
@@ -764,7 +766,7 @@ class MigrationRunner:
                         worktree,
                         migration,
                         "failed",
-                        f"Cannot safely detect: {exc}",
+                        f"Cannot safely detect: {reason}",
                     ):
                         worktree_metadata_dirty = True
                     continue
@@ -790,6 +792,12 @@ class MigrationRunner:
 
                 try:
                     migration_result = migration.apply(worktree, dry_run=dry_run)
+                except GitCommandError as exc:
+                    # As on main (#6669): apply() may already have written, so a recorded failed apply, never a crash.
+                    migration_result = MigrationResult(
+                        success=False,
+                        errors=[f"Cannot apply {migration.migration_id}: git failed ({exc})"],
+                    )
                 except (GitignorePathError, MigrationStateUnreadableError) as exc:
                     worktree_errored = True
                     error_message = f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"

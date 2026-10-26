@@ -1000,19 +1000,28 @@ class _ProbeFailsIn(BaseMigration):
         raise _timeout()
 
 
+@pytest.mark.parametrize("checkout", ["main", "worktree"])
 @pytest.mark.parametrize("phase", ["detect", "apply"])
-def test_the_runner_records_a_git_command_error_as_a_failure_and_does_not_raise(tmp_path: Path, phase: str) -> None:
-    project = _plain_project(tmp_path)
-    ProjectMetadata(version="3.0.0", initialized_at=now_utc()).save(project / ".kittify")
+def test_the_runner_records_a_git_command_error_as_a_failure_and_does_not_raise(tmp_path: Path, phase: str, checkout: str) -> None:
     migration = _ProbeFailsIn()
     migration.phase = phase
+    if checkout == "main":
+        project = _plain_project(tmp_path)
+        ProjectMetadata(version="3.0.0", initialized_at=now_utc()).save(project / ".kittify")
+        result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
+        assert status == "failed"
+        assert result.success is False
+        errors = result.errors
+    else:  # the per-worktree loop of `upgrade`, which runs after main's metadata is final
+        repo = _tracked_project(tmp_path, worktree=True)
+        project = repo / ".worktrees" / "wt1"
+        ProjectMetadata(version="3.0.0", initialized_at=now_utc()).save(project / ".kittify")
+        errors = MigrationRunner(repo)._upgrade_worktrees(TARGET, [migration], False)["worktree_failures"]
 
-    result, status = MigrationRunner(project)._apply_migration(migration, ProjectMetadata.load(project / ".kittify"), dry_run=False)
-
-    assert status == "failed"
-    assert result.success is False
-    assert "git failed" in result.errors[0]
-    assert migration.migration_id in {record.id for record in MigrationLedger(project).applicable_records_for(migration)}
+    assert len(errors) == 1
+    assert "git failed" in errors[0]
+    records = {record.id: record.result for record in MigrationLedger(project).applicable_records_for(migration)}
+    assert records == {migration.migration_id: "failed"}
 
 
 def test_the_runner_records_a_probe_timeout_in_a_real_successor_as_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
