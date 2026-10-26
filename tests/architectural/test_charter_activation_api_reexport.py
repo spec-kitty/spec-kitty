@@ -50,6 +50,8 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("RequiredOmission", "charter.activation.activation_ledger"),
     ("ledger_findings", "charter.activation.activation_ledger"),
     ("required_not_in_force", "charter.activation.activation_ledger"),
+    ("RequiringPack", "charter.activation.org_pack_discovery"),
+    ("read_org_required_provenance", "charter.activation.org_pack_discovery"),
     ("EffectiveSet", "charter.activation.activation_engine"),
     ("deny_delta", "charter.activation.activation_engine"),
     ("restamp_bundle_hash", "charter.activation.bundle_restamp"),

@@ -11,7 +11,14 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.activation.api import IdentityIndex, RequiredOmission, load_activation_ledger, required_not_in_force
+from charter.activation.api import (
+    IdentityIndex,
+    RequiredOmission,
+    RequiringPack,
+    load_activation_ledger,
+    read_org_required_provenance,
+    required_not_in_force,
+)
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
@@ -23,7 +30,6 @@ from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
-from charter.activation.org_pack_discovery import RequiringPack, read_org_required_provenance
 
 __all__ = ["charter_list_app"]
 

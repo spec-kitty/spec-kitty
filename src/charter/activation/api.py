@@ -187,6 +187,14 @@ from charter.activation.activation_ledger import (
     required_not_in_force as required_not_in_force,
 )
 
+# The org required floor with provenance (#6417): ``charter list`` names the
+# org-required ids an absent allow list leaves in force. Public per
+# charter.activation.org_pack_discovery.__all__.
+from charter.activation.org_pack_discovery import (
+    RequiringPack as RequiringPack,
+    read_org_required_provenance as read_org_required_provenance,
+)
+
 # Agent Skills specification limits (#6475) -- the frontmatter name/description
 # caps the command-skill renderer in specify_cli.skills enforces. Public per
 # charter.activation.skill_preparation.
@@ -223,6 +231,7 @@ __all__ = [
     "PromotionOutcome",
     "RenameReport",
     "RequiredOmission",
+    "RequiringPack",
     "UnrepresentableDirectiveIdError",
     "append_synthesized_activations",
     "apply_ledger_migration",
@@ -239,6 +248,7 @@ __all__ = [
     "org_required_stems",
     "plan_ledger_migration",
     "promote_activations",
+    "read_org_required_provenance",
     "read_mission_type",
     "refuse_unmigrated_deny_write",
     "rename_legacy_project_intent_directive",
