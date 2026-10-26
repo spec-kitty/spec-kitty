@@ -499,7 +499,7 @@ def _evaluate_issue_matrix_completeness_gate(
         )
 
 
-def _no_matrix_terminality_pass(reason: str) -> GateResult:
+def _no_matrix_terminality_pass() -> GateResult:
     """PASS for a Mission with no gating reference and no issue matrix to read (#6653).
 
     Says what was checked: nothing, because there is no matrix. The
@@ -508,7 +508,26 @@ def _no_matrix_terminality_pass(reason: str) -> GateResult:
     return GateResult(
         gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
         verdict=GateVerdict.PASS,
-        details=f"No gating issue references and no issue matrix{reason} — nothing to enforce",
+        details="No gating issue references and no issue matrix — nothing to enforce",
+        blocking=False,
+    )
+
+
+def _unread_matrix_terminality_pass(exc: RuntimeError) -> GateResult:
+    """PASS for a Mission with no gating reference whose matrix could not be located or read.
+
+    Never claims the matrix is absent (#6653 review): the probe's code, or the
+    error type, is named so an operator can tell a missing matrix from a
+    failed read.
+    """
+    reason = getattr(exc, "code", None) or type(exc).__name__
+    return GateResult(
+        gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+        verdict=GateVerdict.PASS,
+        details=(
+            f"No gating issue references; issue matrix not read ({reason}: {exc}) — "
+            "nothing enforced. Re-run once the matrix is readable if this Mission recorded verdicts."
+        ),
         blocking=False,
     )
 
@@ -555,7 +574,6 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
     """
     try:
         from mission_runtime import (
-            IssueMatrixRefReadError,
             MissionArtifactKind,
             resolve_artifact_surface,
             resolve_issue_matrix_partition,
@@ -576,17 +594,21 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
         # #6653: with zero gating references an EXISTING matrix is still
         # evaluated -- its verdicts are the operator's record, and an
         # ``in-mission`` row must not land. #5222 leg 1 (FR-001) still holds:
-        # a coordination Mission that never authored a matrix at its ref is
-        # "no matrix", not a probe failure. With gating references the read
-        # stays fail-closed (re-raised into this gate's FAIL arm).
+        # a Mission that cites no gating issue is never failed by the
+        # partition probe (``IssueMatrixRefReadError`` for a coordination ref
+        # that never authored a matrix, ``ActionContextError``, a lifecycle
+        # probe error -- all ``RuntimeError``). The upstream codes cannot tell
+        # "never authored" from "could not read", so the PASS says the matrix
+        # was not read rather than that none exists. With gating references
+        # the read stays fail-closed (re-raised into this gate's FAIL arm).
         try:
             primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
                 repo_root, mission_slug
             )
-        except IssueMatrixRefReadError as exc:
+        except RuntimeError as exc:
             if has_gating_refs:
                 raise
-            return _no_matrix_terminality_pass(f" ({exc.code})")
+            return _unread_matrix_terminality_pass(exc)
 
         if isinstance(coord_matrix_source, str):
             # Post-consolidation: no on-disk coord dir. ``feature_dir`` is
@@ -614,7 +636,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
                 blocking=is_blocking,
             )
         if not has_gating_refs and not issue_matrix_artifact_present(feature_dir_for_blocker, content=matrix_content):
-            return _no_matrix_terminality_pass("")
+            return _no_matrix_terminality_pass()
         return GateResult(
             gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
             verdict=GateVerdict.PASS,

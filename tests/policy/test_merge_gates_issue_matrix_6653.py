@@ -156,3 +156,55 @@ class TestZeroGatingReferencesWithoutAMatrix:
 
         assert gate.verdict == GateVerdict.PASS, gate.details
         assert overall_pass is True
+
+
+class TestUnreadMatrix:
+    """Review follow-up: a failed matrix read is reported as unread, never as absent."""
+
+    @staticmethod
+    def _failing_partition(monkeypatch: pytest.MonkeyPatch) -> None:
+        import mission_runtime
+
+        class _ProbeFailure(RuntimeError):
+            code = "SIMULATED_PROBE_FAILURE"
+
+        def _raise(*_args: object, **_kwargs: object) -> object:
+            raise _ProbeFailure("git show timed out")
+
+        monkeypatch.setattr(mission_runtime, "resolve_issue_matrix_partition", _raise)
+
+    def test_zero_refs_unread_matrix_passes_and_says_it_was_not_read(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(_base, "_GATING_SPEC_TEXT", _NO_REFS_SPEC)
+        mission_slug = _build_lanes_mission(repo, mid8="01M6653K", primary_matrix={_UNCITED: "in-mission"})
+        self._failing_partition(monkeypatch)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS
+        assert "not read" in gate.details
+        assert "SIMULATED_PROBE_FAILURE" in gate.details
+        assert "no issue matrix" not in gate.details.lower()
+        assert overall_pass is True
+
+    def test_gating_refs_unread_matrix_still_fails_closed(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01M6653L", primary_matrix={_ISSUE_KEY: "fixed"})
+        self._failing_partition(monkeypatch)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL
+        assert gate.blocking is True
+        assert overall_pass is False
+
+    def test_coord_ref_without_a_matrix_is_reported_as_not_read(self, repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5222 F1 shape: PASS, and the text names the probe code instead of claiming absence."""
+        monkeypatch.setattr(_base, "_GATING_SPEC_TEXT", _NO_REFS_SPEC)
+        mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01M6653M", primary_matrix=None, coord_matrix=None)
+
+        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS
+        assert "not read" in gate.details
