@@ -253,7 +253,7 @@
       "wp": "WP02"
     },
     "#6654": {
-      "evidence_ref": "WP01 (lane a)",
+      "evidence_ref": "WP01 lane a: 986c8d4b (red test), 278cfbb8 (shlex.join)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -261,7 +261,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#6682": {
