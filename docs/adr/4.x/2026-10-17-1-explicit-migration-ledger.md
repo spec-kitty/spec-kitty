@@ -663,7 +663,10 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
   - **Subclass (`0.9.0`, `0.9.1`).** The successor subclasses the shipped class, so the shipped walk
     still runs and every repair is inherited. It is made residue-safe only by the methods it
     overrides: `_is_legacy_format` (0.9.0), `_has_remaining_lane_dirs` and
-    `_normalize_all_frontmatter` (0.9.1). The walker gate pins each override to the residue predicate.
+    `_normalize_all_frontmatter` (0.9.1). Both also list `ResidueSafeLaneSuccessorMixin` first in
+    their bases; it carries the shared `detect`/`apply` wrappers and the `_is_residue` decision the
+    overrides call. The walker gate pins each override, and the mixin's `_is_residue`, to the residue
+    predicate.
   - **Re-implementation (`2.0.6`, `3.1.1`).** The successor subclasses `BaseMigration`, re-implements
     `detect`/`apply` over the Mission folders that `partition_kitty_specs` returns (3.1.1 also its
     status writer), and reuses the shipped module's helpers (`_repair_feature`,
@@ -689,7 +692,7 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
   adoption backfill is about to mark as done. The gate is a `detect()` guard only: selection stays
   ledger-diff (§3), and `detect()` remains the runner's idempotency check.
 - **One residue rule, one walk.** The successors share `_residue_successor.py` (a non-migration
-  module, never auto-discovered): the predecessor-settled check, `partition_kitty_specs` /
+  module, never auto-discovered): the lane mixin, `partition_kitty_specs` /
   `partition_checkout_specs` (a Mission walk that also covers `.worktrees/*/kitty-specs/`, each
   worktree judged against itself as the checkout root) and one residue notice per folder. The tracked
   paths are probed once per walk with `mission_resolver.probe_tracked_mission_paths`.
@@ -704,8 +707,10 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
   predecessor as `failed` or `skipped` at a version above it has the successor stamped as settled by
   the first-adoption backfill (ADR Amendment 2026-10-20: it settles every migration below the recorded
   version). The backfill migration is frozen (C-006), so the repair the predecessor never finished is
-  not retried by the successor. `test_c006_a_failed_predecessor_at_a_higher_version_is_settled_by_adoption`
-  pins the behaviour as current, not as a goal.
+  not retried by the successor. Neither a selection-view hook (the backfill still writes the
+  `success` record the runner's skip gate reads) nor a manifest slot change reopens it without
+  frozen code or a manifest-semantics change. `test_c006_an_unsettled_predecessor_record_still_lets_the_successor_run`
+  asserts the desired retry as a strict `xfail`.
 - **A stale "pending" listing.** A `skipped` record does not settle a migration (§3, Amendment
   2026-10-25), and an inert successor is `skipped`. On a project whose predecessor already ran,
   `migrate ledger` and `upgrade --dry-run --verbose` therefore keep listing the successor as not yet
@@ -714,3 +719,16 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
 - **Git-aware residue.** In a project where git tracks some Mission path, a committed folder holding only
   `tasks.md` or `tasks/` counts as residue, and the successors leave it alone. The notice names the
   folder and the remedy (add a `spec.md` or `meta.json`, or remove the folder).
+- **The audit's residue rule is stricter than upgrade's.** `RESIDUE_DIRECTORY` uses strict
+  `is_mission_dir`. Without usable git, or with `kitty-specs/` ignored, it reports a folder holding
+  only `plan.md` or `tasks.md` as residue, while upgrade's file-presence mode treats that folder as a
+  Mission and repairs it.
+- **The mode flips on one tracked file.** Git-aware mode applies as soon as git tracks any path under
+  `kitty-specs/`. In a project where `kitty-specs/` is gitignored but one file was force-added,
+  untracked legacy Missions without `spec.md` or `meta.json` become residue and are left alone.
+- **`FABRICATED_IDENTITY_SUSPECTED` false negative.** The finding compares the slug's trailing mid8
+  with the `mission_id`. A fabricated `meta.json` in a legacy `NNN-slug` residue folder, whose slug
+  carries no mid8, is not flagged.
+- **A degraded probe only warns.** A non-timeout git failure of the tracked-path probe (for example a
+  corrupt index) falls back to file-presence mode and logs one warning per checkout and run. A timeout
+  is a retryable `failed` record, in the main checkout and in each worktree.

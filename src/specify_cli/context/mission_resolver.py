@@ -429,6 +429,9 @@ def is_kitty_specs_residue(
       of :data:`_MISSION_CONTENT` exists, so legacy and uncommitted Missions stay
       repairable.
 
+    The mode flips on one tracked path: with ``kitty-specs/`` gitignored but one file force-added,
+    untracked legacy Missions without ``spec.md`` or ``meta.json`` become residue (accepted residual).
+
     *repo_root* defaults to the parent of ``kitty-specs/``.
     """
     if path.parent.name != KITTY_SPECS_DIR or _markers_exist(path):

@@ -152,6 +152,7 @@ With `--json`, the command prints one object:
 | `manifest.path` | The manifest path, or `null` |
 | `manifest.entries` | Number of manifest entries |
 | `manifest.unused` | Entries that had no effect, each `{mission, reason}` where `reason` is `not in scope` (`--mission` named another Mission), `nothing to seed`, or `coordination surface live` (the Mission was refused) |
+| `residue_directories` | The `kitty-specs/` folders the walk left untouched because they are not Missions (no `spec.md` or `meta.json`); `[]` when there are none |
 | `missions` | One row per Mission: `slug`, `seeded`, `would_seed`, `files_only`, `snapshot_only`, `malformed`, `terminal_reason`, `status_json_refreshed`, `refresh_error`, `skip_reason` (`COORD_SURFACE_LIVE` for a refused Mission), `error` |
 
 A failure before any write prints `{"success": false, "error_code": ..., "error": ...}`
