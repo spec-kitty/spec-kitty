@@ -41,6 +41,7 @@ in-memory list) on every ``resolve``/``all_missions`` call.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+import logging
 import os
 import re
 from collections.abc import Iterator
@@ -52,6 +53,8 @@ from kernel.git import GitCommandError, is_tracked, run_git, tracked_paths
 from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
+
+_logger = logging.getLogger(__name__)
 
 # NOTE: this module deliberately declares no ``__all__``. The dead-symbol gate
 # (``tests/architectural/test_no_dead_symbols.py``) treats an ``__all__`` member
@@ -287,7 +290,8 @@ def probe_tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
 
     A :class:`GitCommandError` (e.g. a corrupt index) degrades to ``None``
     ("probed, no usable git": the predicate's file-presence mode, never a
-    crash); a timeout is a real failure and is re-raised. Write seams and
+    crash) and logs one warning per checkout root and run; a timeout is a real
+    failure and is re-raised. Write seams and
     walkers call this once per walk and pass the result as ``tracked=``; the
     lazy branch of :func:`is_kitty_specs_residue` uses it too. Read-only
     reporters (the audit engine, the migration-state scan) deliberately call
@@ -299,7 +303,26 @@ def probe_tracked_mission_paths(repo_root: Path) -> frozenset[str] | None:
     except GitCommandError as exc:
         if exc.timed_out:
             raise
+        _warn_probe_degraded(repo_root, exc)
         return None
+
+
+#: Checkout roots whose degraded probe was already reported in this process (one warning per run).
+_DEGRADED_PROBE_ROOTS: set[Path] = set()
+
+
+def _warn_probe_degraded(repo_root: Path, exc: GitCommandError) -> None:
+    """Warn once per checkout root and run that residue checks fell back to file presence (#6669)."""
+    key = repo_root.resolve()
+    if key in _DEGRADED_PROBE_ROOTS:
+        return
+    _DEGRADED_PROBE_ROOTS.add(key)
+    _logger.warning(
+        "git could not list tracked kitty-specs/ paths in %s (%s); residue checks fall back to file presence, "
+        "so a folder holding only tasks or status files is treated as a Mission. Repair the git index and re-run.",
+        repo_root,
+        exc,
+    )
 
 
 def _carries_identity(path: Path) -> bool:

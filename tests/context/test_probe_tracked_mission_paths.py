@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -40,10 +41,17 @@ def test_outside_a_work_tree_is_none(tmp_path: Path) -> None:
     assert probe_tracked_mission_paths(tmp_path) is None
 
 
-def test_a_git_command_error_degrades_to_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_git_command_error_degrades_to_none_and_warns_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     monkeypatch.setattr(mission_resolver, "tracked_mission_paths", _failing(tmp_path, timed_out=False))
 
-    assert probe_tracked_mission_paths(tmp_path) is None
+    with caplog.at_level(logging.WARNING, logger=mission_resolver.__name__):
+        assert probe_tracked_mission_paths(tmp_path) is None
+        assert probe_tracked_mission_paths(tmp_path) is None  # a second walk in the same run
+
+    warnings = [r for r in caplog.records if r.name == mission_resolver.__name__ and r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "fall back to file presence" in warnings[0].getMessage()
+    assert "corrupt index" in warnings[0].getMessage()
 
 
 def test_a_timeout_is_reraised(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
