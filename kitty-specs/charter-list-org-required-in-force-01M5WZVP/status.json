@@ -1,0 +1,36 @@
+{
+  "event_count": 2,
+  "last_event_id": "01M5X06EEQZG3FRXC2NWH5NZK0",
+  "materialized_at": "2026-10-26T20:59:54.199129+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-list-org-required-in-force-01M5WZVP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 2
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M5X06B6XMJ4KRNS5V8HYEDXQ",
+      "last_transition_at": "2026-10-26T20:59:50.877538+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M5X06EEQZG3FRXC2NWH5NZK0",
+      "last_transition_at": "2026-10-26T20:59:54.199129+00:00"
+    }
+  }
+}

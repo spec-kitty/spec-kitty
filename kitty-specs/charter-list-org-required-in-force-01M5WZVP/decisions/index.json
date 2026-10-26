@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-26T20:54:12.955848Z",
+      "decision_id": "01M5WZW16V06ARQ43WD31D7M5F",
+      "final_answer": "Leave it out (not in force; doctor reports the floor) - operator ruling 1 for #6417: an id no layer provides is not claimed in force",
+      "input_key": "unprovided_required_id",
+      "mission_id": "01M5WZVPDKZCCGW0T38BA1E149",
+      "mission_slug": "charter-list-org-required-in-force-01M5WZVP",
+      "opened_by": "cli",
+      "options": [
+        "Leave it out (not in force; doctor reports the floor)",
+        "Name it with a not-provided marker",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "An absent-key row whose org-required id no layer provides: name it in the cell, or leave it out?",
+      "rationale": null,
+      "resolved_at": "2026-10-26T20:54:21.445180Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.unprovided-required-id",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5WZVPDKZCCGW0T38BA1E149",
+  "version": 1
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "charter-list-org-required-in-force-01M5WZVP",
+  "mission_id": "01M5WZVPDKZCCGW0T38BA1E149",
+  "mission_branch": "issue-6417-charter-list-org-required",
+  "target_branch": "issue-6417-charter-list-org-required",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/CharterSteps.java",
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/activation_ledger.py",
+        "src/charter/activation/api.py",
+        "src/specify_cli/cli/commands/charter/list_cmd.py",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/charter/activation/test_required_in_force.py",
+        "tests/scenarios/charter/PROMISES.md",
+        "tests/scenarios/charter/governance-in-force/governance-in-force.feature",
+        "tests/specify_cli/cli/commands/charter/test_charter_list_commands.py",
+        "tests/specify_cli/cli/commands/charter/test_list_required_in_force.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-26T20:59:55.369016+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c149cb3d60a079a1f60cba545ffcd70c1bd0ad99"
+}
