@@ -171,7 +171,8 @@ def test_approval_without_feedback_file_keeps_the_one_line_body(tmp_path: Path) 
 
     _approve(tmp_path, feature_dir)
 
-    assert str(_cycle(feature_dir).body).strip() == _APPROVAL_LINE
+    record = (feature_dir / "tasks" / f"{_WP_ID}-test" / "review-cycle-1.md").read_text(encoding="utf-8")
+    assert record.endswith(f"---\n\n{_APPROVAL_LINE}\n")
 
 
 def test_approval_refuses_a_prior_review_cycle_as_feedback(tmp_path: Path) -> None:
