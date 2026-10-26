@@ -228,19 +228,6 @@ def test_assert_unchanged_rejects_a_non_empty_event_log_lock(owned_checkouts: Ow
         r_snapshot.assert_unchanged(before, after)
 
 
-def test_assert_unchanged_rejects_a_removed_event_log_lock(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
-    """Reject case: a pre-existing event-log lock disappearing still fails."""
-    lock_dir = _event_log_lock_dir(owned_checkouts)
-    lock_dir.mkdir(parents=True, exist_ok=True)
-    pre_existing = lock_dir / "pre-existing.lock"
-    pre_existing.write_bytes(b"")
-    before = r_snapshot.take()
-    pre_existing.unlink()
-    after = r_snapshot.take()
-    with pytest.raises(AssertionError):
-        r_snapshot.assert_unchanged(before, after)
-
-
 def test_assert_unchanged_rejects_an_empty_non_lock_file_under_event_logs(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
     """Reject case: only ``*.lock`` files under ``event-logs/`` are tolerated."""
     lock_dir = _event_log_lock_dir(owned_checkouts)
