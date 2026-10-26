@@ -364,3 +364,110 @@ def test_kept_deactivated_warning_names_the_kind_of_every_skipped_key() -> None:
     warnings = _kept_deactivated({"activated_tactics": ["t1"], "activated_styleguides": ["s1", "s2"]})
 
     assert warnings == ["kept deactivated: tactic t1", "kept deactivated: styleguide s1", "kept deactivated: styleguide s2"]
+
+
+# --- #6454: an unreadable manifest never re-roots a synthesized tactic (fail closed) ---
+
+
+def _corrupt_manifest(repo_root: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+
+    (repo_root / MANIFEST_PATH).write_text("artifacts: [\n  {kind: broken\n", encoding="utf-8")
+
+
+def _write_created_record(repo_root: Path, body: str) -> None:
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+
+    target = repo_root / CREATED_ARTIFACTS_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body, encoding="utf-8")
+
+
+def _delivered_with_corrupt_manifest(repo_root: Path, *, directives: frozenset[str]) -> frozenset[str]:
+    """Deliver through the real bundle after the overlay is written and its manifest corrupted."""
+    _write_overlay(repo_root, with_edge=True)
+    _corrupt_manifest(repo_root)
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_merged_graph(with_edge=True)):
+        bundle = _load_action_governance_bundle(
+            repo_root=repo_root,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=_pack_context(repo_root, directives=directives, tactics=_EXPLICIT_TACTICS),
+        )
+    return frozenset(bundle.tactic_ids)
+
+
+def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_created_record(tmp_path, f"created_tactics:\n  - {_REACH_ONLY}\n")
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+
+
+def test_unreadable_manifest_falls_back_to_the_legacy_tactic_record(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import _LEGACY_CREATED_TACTICS_PATH, reach_only_ids
+
+    legacy = tmp_path / _LEGACY_CREATED_TACTICS_PATH
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(f"created_tactics:\n  - {_REACH_ONLY}\n", encoding="utf-8")
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+
+
+def test_unreadable_manifest_does_not_deliver_the_tactic_of_an_inactive_directive(tmp_path: Path) -> None:
+    _write_created_record(tmp_path, f"created_tactics:\n  - {_REACH_ONLY}\n")
+
+    off = _delivered_with_corrupt_manifest(tmp_path, directives=frozenset())
+    on = _delivered_with_corrupt_manifest(tmp_path, directives=_DIRECTIVE_ON)
+
+    assert _REACH_ONLY not in off
+    assert _CONTROL in off  # control: the fixture delivers tactics at all
+    assert _REACH_ONLY in on  # control: the directive edge still delivers it
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        pytest.param(None, id="record-absent"),
+        pytest.param("created_tactics: [\n  broken\n", id="record-unparseable"),
+        pytest.param("created_tactics: not-a-list\n", id="record-wrong-shape"),
+    ],
+)
+def test_unreadable_manifest_without_a_usable_record_fails_closed(tmp_path: Path, record: str | None) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, SynthesisMembershipUnreadableError, reach_only_ids
+
+    if record is not None:
+        _write_created_record(tmp_path, record)
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
+        reach_only_ids(tmp_path, "tactic")
+
+    assert caught.value.code == "SYNTHESIS_MEMBERSHIP_UNREADABLE"
+    assert MANIFEST_PATH.as_posix() in caught.value.body
+    assert CREATED_ARTIFACTS_PATH.as_posix() in caught.value.body
+
+
+def test_unreadable_manifest_without_a_usable_record_refuses_delivery(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import SynthesisMembershipUnreadableError
+
+    with pytest.raises(SynthesisMembershipUnreadableError):
+        _delivered_with_corrupt_manifest(tmp_path, directives=frozenset())
+
+
+def test_absent_manifest_still_reads_as_nothing_synthesized(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    (tmp_path / MANIFEST_PATH).unlink()
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()
