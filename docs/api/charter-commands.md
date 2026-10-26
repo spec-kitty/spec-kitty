@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-26'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -483,13 +483,17 @@ With `--force` the same run reports `"cleared_exclusions": {"deactivated_directi
 
 ### `charter list --json`
 
-Two additions to the existing payload:
+Three additions to the existing payload:
 
 - every row of `kinds` carries `deactivated`: the kind's exclusions, sorted (`[]` when none),
   and `null` for `mission-type`, which has no exclusions;
 - a top-level `required_not_in_force` appears when an explicit allow list leaves out an
   org-required id: `{"<plural>": [{"id": "<id>", "packs": ["<pack>"]}]}`. Core keeps such an
-  id out of force; doctor reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`.
+  id out of force; doctor reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`;
+- a top-level `required_in_force` appears when a kind has no allow list and an org pack requires
+  ids of that kind: `{"<plural>": [{"id": "<id>", "packs": ["<pack>"]}]}`. Those ids are in force,
+  the same set `doctor charter-packs` reports with `source: org-required`. The human table names
+  each one in the *Activated* cell as `<id> — in force: required by '<pack>'`.
 
 The human table gains a *Deactivated* column only when something is deactivated.
 
