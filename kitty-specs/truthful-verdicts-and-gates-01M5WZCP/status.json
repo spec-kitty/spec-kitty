@@ -81,7 +81,8 @@
       "last_transition_at": "2026-10-26T22:21:42.915714+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Red-first CLI tests + ignored=True pre-check; 60 safe-commit tests pass"
+        "Red-first CLI tests + ignored=True pre-check; 60 safe-commit tests pass",
+        "Independent review (reviewer-renata): APPROVE. 60 safe-commit tests pass; probed tracked-ignored, symlink, ignored-dir, collapsed-dir and worktree-path cases. Non-blocking residual: an ignored nested git repo named by a file path now exits 1 with 'empty changeset' instead of a false success."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
