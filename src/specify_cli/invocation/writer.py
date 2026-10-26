@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -122,8 +123,8 @@ class InvocationWriter:
     """Append-only JSONL writer for per-invocation audit trail files.
 
     Append-only invariant:
-    - ``write_started`` uses exclusive-create mode (``"x"``) under the
-      ``kitty-ops`` family lock — raises on ULID collision.
+    - ``write_started`` uses an exclusive create (``O_EXCL``, mode 0600) under
+      the ``kitty-ops`` family lock — raises on ULID collision.
     - ``write_completed`` appends under the same lock (``kernel.event_log_append``).
     - No existing line is ever mutated.
     - The already-closed check prevents double-completion without mutating records.
@@ -231,8 +232,8 @@ class InvocationWriter:
     def write_started(self, record: OpStartedEvent) -> Path:
         """Write the ``started`` event. Returns the JSONL file path.
 
-        Uses exclusive-create (``"x"`` mode) to detect ULID collision
-        (extremely rare but deterministically safe).
+        Uses an exclusive create (``O_EXCL``, owner-only mode) to detect ULID
+        collision (extremely rare but deterministically safe).
 
         Also appends a lightweight entry to the invocation index at
         ``kitty-ops/ops-index.jsonl`` for fast reverse-scanning
@@ -241,13 +242,16 @@ class InvocationWriter:
         self._ensure_dir()
         path = self.invocation_path(record.invocation_id)
         try:
-            # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
+            # Exclusive create (O_EXCL) detects a ULID collision (extremely rare).
             # Optional fields (router_confidence, mission_id, wp_id, model_id)
             # are omitted when None. The create runs under the trail family's
-            # interim lock, so a concurrent append never sees the empty file.
+            # interim lock, so a concurrent append never sees the empty file,
+            # and the trail is owner-only (``_RECORD_MODE``) like the index.
             # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
-            with event_log_lock(self._dir), path.open("x", encoding="utf-8") as f:
-                f.write(record.to_jsonl_line() + "\n")
+            with event_log_lock(self._dir):
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, _RECORD_MODE)
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(record.to_jsonl_line() + "\n")
         except FileExistsError:
             raise InvocationWriteError(
                 f"ULID collision on {path} — retry with a new invocation_id"

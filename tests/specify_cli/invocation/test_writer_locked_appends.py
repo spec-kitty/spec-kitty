@@ -9,6 +9,7 @@ under the same lock, and one lock file for every per-Op trail.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -70,6 +71,17 @@ def test_started_trail_is_created_inside_the_family_lock(writer: InvocationWrite
     writer.write_started(_started())
     family = tmp_path / EVENTS_DIR
     assert seen == [("enter", family, False), ("exit", family, ["started"])]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+def test_new_trail_and_index_are_owner_only(writer: InvocationWriter, tmp_path: Path) -> None:
+    previous = os.umask(0o022)
+    try:
+        trail = writer.write_started(_started())
+    finally:
+        os.umask(previous)
+    assert trail.stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / EVENTS_DIR / "ops-index.jsonl").stat().st_mode & 0o777 == 0o600
 
 
 def test_completed_appends_after_a_whole_started_line(writer: InvocationWriter) -> None:

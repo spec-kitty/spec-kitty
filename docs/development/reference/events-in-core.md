@@ -77,6 +77,8 @@ Until the Java write service owns a log (#6193), an append to any event log othe
   repository shares it; outside a git repository it is `<anchor>.event-log.lock`. The wait
   is bounded (`EVENT_LOG_LOCK_TIMEOUT_S`, 10 s). Under the lock, a log whose last byte is
   not LF is refused, then the whole unit is written in one `O_APPEND` write and fsynced.
+  A new log is created with mode `0o666` less the umask; the `kitty-ops/` Op records
+  (per-Op trails, `ops-index.jsonl`, `op-closures.jsonl`) are created owner-only (`0600`).
   The Java writer takes the same lock files (ADR 2026-10-22-1 D-4). One exception to the
   refusal: the glossary contract writer repairs a torn tail under the lock, moving the
   fragment to a `.torn` sidecar and retrying; repair is a per-log policy above the lock.

@@ -191,7 +191,7 @@ EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType(
             "full line under its own repair lock; the append itself is the contract writer under the interim lock"
         ),
         ("specify_cli.invocation.writer", "InvocationWriter.write_started", "other .jsonl"): (
-            "exclusive create (mode 'x') of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, so it "
+            "exclusive create (O_EXCL, mode 0600) of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, so it "
             "never appends to one. It writes under the `kitty-ops` family lock (`event_log_lock`, the trail appends' "
             "anchor), so a concurrent append never sees the file before the started row lands"
         ),
