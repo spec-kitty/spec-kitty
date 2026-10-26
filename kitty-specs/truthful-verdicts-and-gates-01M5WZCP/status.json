@@ -29,6 +29,9 @@
       "last_event_id": "01M5X30B2AKN6ZHFHD50FGR19B",
       "last_transition_at": "2026-10-26T21:48:59.850515+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first approval-feedback tests; feedback file recorded, shlex-quoted replay command; 745 targeted tests pass"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 19406,
