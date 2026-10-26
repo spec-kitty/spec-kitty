@@ -60,6 +60,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4625": {
+      "evidence_ref": "Context citation (related-issue triage, history or parent epic) in research/plan/WP prompts; owed no work by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5393": {
       "evidence_ref": "Fixed on main by the NUL-safe status_entries work; WP03 adds the command-level regression test test_cli_directory_expansion_commits_a_non_ascii_file_under_its_real_name",
       "fr": null,
