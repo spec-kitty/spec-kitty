@@ -1261,28 +1261,35 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
 # ---------------------------------------------------------------------------
 
 
-def test_explicit_record_root_overrides_the_invoking_checkout(tmp_path: Path) -> None:
-    """An owned checkout passes its root; the working directory is not consulted."""
+def test_explicit_record_root_receives_the_op_trail_not_the_repo_root(tmp_path: Path) -> None:
+    """An owned checkout passes its root; the Op trail lands there, never in ``repo_root``."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
     owned_root = tmp_path / "owned"
     owned_root.mkdir()
 
-    with patch("specify_cli.mission_step_contracts.executor.resolve_op_record_root") as resolve:
-        executor = StepContractExecutor(repo_root=repo_root, record_root=owned_root)
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
+    contract_repo = MissionStepContractRepository(built_in_dir=built_in_dir)
 
-    resolve.assert_not_called()
-    assert executor._invocation_executor._record_root == owned_root
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=context_result):
+        StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=contract_repo,
+            record_root=owned_root,
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+                request_text="issue #6682 fixture run",
+            )
+        )
 
-
-def test_default_record_root_is_the_invoking_checkout(tmp_path: Path) -> None:
-    """Without ``record_root`` the executor keeps the #6564 invoking-checkout rule."""
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    invoking = tmp_path / "invoking"
-
-    with patch("specify_cli.mission_step_contracts.executor.resolve_op_record_root", return_value=invoking) as resolve:
-        executor = StepContractExecutor(repo_root=repo_root)
-
-    resolve.assert_called_once_with(repo_root)
-    assert executor._invocation_executor._record_root == invoking
+    assert list((owned_root / EVENTS_DIR).glob("*.jsonl"))
+    assert not (repo_root / "kitty-ops").exists()

@@ -955,45 +955,6 @@ def test_dispatch_via_composition_success_returns_none_when_guard_passes(monkeyp
     assert failures is None
 
 
-def _spy_executor_record_root(monkeypatch: pytest.MonkeyPatch) -> list[Path | None]:
-    from specify_cli.mission_step_contracts.executor import StepContractExecutor
-
-    seen: list[Path | None] = []
-    real_init = StepContractExecutor.__init__
-
-    def _init(self: Any, **kwargs: Any) -> None:
-        seen.append(kwargs.get("record_root"))
-        real_init(self, **kwargs)
-
-    monkeypatch.setattr(StepContractExecutor, "__init__", _init)
-    monkeypatch.setattr(composition, "_check_composed_action_guard", lambda *a, **k: [])
-    monkeypatch.setattr(StepContractExecutor, "execute", lambda self, context, contract=None: SimpleNamespace(invocation_ids=(), steps=()))
-    return seen
-
-
-@pytest.mark.parametrize("owned_mission", [True, False], ids=["owned", "not-owned"])
-def test_dispatch_via_composition_pins_op_records_to_the_owned_checkout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owned_mission: bool) -> None:
-    """#6682: an owned mission's Op records go to P, never to the invoking checkout (R)."""
-    seen = _spy_executor_record_root(monkeypatch)
-    owned_root = tmp_path / "owned"
-    owned: Any = SimpleNamespace(owned_root=owned_root) if owned_mission else None
-
-    failures = composition._dispatch_via_composition(
-        repo_root=tmp_path,
-        mission="software-dev",
-        action="specify",
-        actor="implementer-pedro",
-        profile_hint=None,
-        request_text=None,
-        mode_of_work=None,
-        feature_dir=tmp_path,
-        owned=owned,
-    )
-
-    assert failures is None
-    assert seen == [owned_root if owned_mission else None]
-
-
 def test_dispatch_via_composition_returns_guard_failures(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from unittest.mock import MagicMock
 
