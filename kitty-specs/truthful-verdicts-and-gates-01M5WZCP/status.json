@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M5X30B2AKN6ZHFHD50FGR19B",
-  "materialized_at": "2026-10-26T21:48:59.850515+00:00",
+  "event_count": 11,
+  "last_event_id": "01M5X38Q10Z95ZNB1P1980Q1QW",
+  "materialized_at": "2026-10-26T21:53:34.231446+00:00",
   "mission_number": "",
   "mission_slug": "truthful-verdicts-and-gates-01M5WZCP",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 2,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -45,11 +45,15 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M5X19S6TBXJ9VH275049PTE9",
-      "last_transition_at": "2026-10-26T21:19:12.090081+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M5X38Q10Z95ZNB1P1980Q1QW",
+      "last_transition_at": "2026-10-26T21:53:34.231446+00:00",
+      "shell_pid": 9028,
+      "shell_pid_created_at": "1793051602.25"
     },
     "WP03": {
       "actor": "claude",
