@@ -486,8 +486,10 @@ def list_cmd(
             deactivated_cells = _deactivated_cells(identity, deactivated_map.get(kind), show=show_deactivated)
 
             if show_available:
+                # An absent-key row's in-force required ids are activated, not "available" (#6417).
+                activated_set = value if value is not None else frozenset(item.artifact_id for item in in_force)
                 available_str, json_row["available"] = _available_view(
-                    manager, ctx, kind, value or frozenset(), identity, layer_roots=layer_roots, org_chain=org_chain, json_output=json_output
+                    manager, ctx, kind, activated_set, identity, layer_roots=layer_roots, org_chain=org_chain, json_output=json_output
                 )
                 table.add_row(kind, activated_str, available_str, *deactivated_cells)
             else:

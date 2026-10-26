@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.activation_ledger import RequiredInForce, required_in_force
+from charter.activation.activation_ledger import ActiveCharterConfigError, RequiredInForce, required_in_force
 from charter.activation.pack_manager import ActiveCharterManager
 from charter.offering.artifact_kinds import ArtifactKind
 from tests._factories.activation_ledger import seed_activation_ledger
@@ -99,6 +99,13 @@ def test_no_floor_reads_no_availability(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setattr(ActiveCharterManager, "list_available_detailed", _refuse)
 
     assert required_in_force(_project(tmp_path, "schema_version: 1\norg_name: acme\n")) == ()
+
+
+def test_an_unreadable_floor_raises_when_strict(tmp_path: Path) -> None:
+    root = _project(tmp_path, "required_directives: [DIRECTIVE_001\n  : : not yaml\n")
+
+    with pytest.raises(ActiveCharterConfigError):
+        required_in_force(root)
 
 
 def test_an_unreadable_floor_is_lenient_when_not_strict(tmp_path: Path) -> None:

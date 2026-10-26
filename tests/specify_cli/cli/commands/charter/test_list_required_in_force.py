@@ -127,7 +127,9 @@ def test_every_row_says_whether_the_project_has_its_own_allow_list(tmp_path: Pat
 
     for row in payload["kinds"]:
         assert isinstance(row["allow_list_present"], bool), row
-    assert _row(payload, "tactic") == {**_row(payload, "tactic"), "activated": ["tdd-red-green-refactor"], "allow_list_present": True}
+    tactic = _row(payload, "tactic")
+    assert tactic["activated"] == ["tdd-red-green-refactor"]
+    assert tactic["allow_list_present"] is True
     assert _row(payload, "mission-type")["allow_list_present"] is True
     styleguide = _row(payload, "styleguide")
     assert styleguide["allow_list_present"] is False
@@ -187,3 +189,14 @@ def test_a_required_skill_the_pack_provides_is_named_once_on_the_skill_row(tmp_p
     row = _row(_payload(root), "skill")
     assert row["activated"] == ["team-report"]
     assert row["allow_list_present"] is False
+
+
+def test_an_in_force_required_id_is_not_repeated_as_available(tmp_path: Path) -> None:
+    root = _acme_project(tmp_path)
+
+    result = _list(root, "--show-available", "--json")
+    assert result.exit_code == 0, result.output
+    directive = _row(json.loads(result.stdout), "directive")
+    assert directive["activated"] == [_REQUIRED_STEM]
+    assert _REQUIRED_STEM not in directive["available"]
+    assert directive["available"], "the other built-in directives stay available"

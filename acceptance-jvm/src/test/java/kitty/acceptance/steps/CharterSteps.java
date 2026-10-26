@@ -36,8 +36,10 @@ public final class CharterSteps {
     private static final String TEAM_PACK_DIR = ".kittify/team-pack";
     private static final String OFFERED_SKILL_ID = "team-report";
     private static final String PROJECT_RULE_MARKER = "team-rule";
-    /** Where an org pack (and the project pack) provides a directive: the flat plural folder (#6417). */
+    /** Where an org pack provides a directive: the flat plural folder (#6417). */
     private static final String RULE_FILE = "directives/team-rule.directive.yaml";
+    /** Where the project pack provides a directive: the singular kind folder ({@code PROJECT_KIND_DIRS}). */
+    private static final String PROJECT_RULE_FILE = ".kittify/charter-packs/directive/team-rule.directive.yaml";
 
     private final ScenarioContext context;
 
@@ -98,7 +100,7 @@ public final class CharterSteps {
 
     @Given("the project's own governance speaks to the same rule differently")
     public void theProjectsOwnGovernanceSpeaksToTheSameRuleDifferently() {
-        writeFile(".kittify/charter-packs/" + RULE_FILE, teamRule("use the project override"));
+        writeFile(PROJECT_RULE_FILE, teamRule("use the project override"));
     }
 
     @Given("the team pack shares a skill under a reserved name")

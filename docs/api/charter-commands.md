@@ -505,8 +505,10 @@ The payload carries `"schema_version": "2"` (#6417). Version 1 had no `schema_ve
   kind, or `null` when there are none. In force means the effective set admits the id over what
   the built-in, project and org layers provide (`charter.activation.api.required_in_force`): an
   exclusion does not remove a required id, and a required id no layer provides is not listed
-  (doctor still reports the floor). For a kind whose absent key means "all", every available,
+  (doctor still reports the floor). An org pack whose required floor cannot be read adds nothing
+  here; `doctor charter-packs` reports it as `ACTIVATION_STORE_ERROR`. For a kind whose absent key means "all", every available,
   non-excluded artifact is in force too; `activated` names only the required ones;
+- with `--show-available` or `--all`, an in-force required id is not repeated in `available`;
 - every row carries `deactivated`: the kind's exclusions, sorted (`[]` when none), and `null`
   for `mission-type`, which has no exclusions;
 - a top-level `required_not_in_force` appears when an explicit allow list leaves out an

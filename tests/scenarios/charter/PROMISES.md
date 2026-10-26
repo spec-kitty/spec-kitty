@@ -39,8 +39,8 @@ net, which stays in place. See `RESEARCH.md` for the extraction trail.
 Every scenario drives, in its Act, the command that actually performs the governed check, so a red
 is honest: `doctor charter-packs` exits non-zero (not healthy) on an unsound shared pack, and
 `charter synthesize` fails closed on a broken charter — never `charter synthesize` on a fresh
-project, which takes the seed path and evaluates nothing. Nine scenarios are bound to a real
-outcome-verb step; two are `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
+project, which takes the seed path and evaluates nothing. Of the ten scenarios, eight are bound to a
+real outcome-verb step and two are `@wip`: `SHARING-002`, because witnessing that the project's choice WINS
 over an org pack needs the black-box override + layer-provenance fixture tracked by #6137; and
 `SHARING-004` (#6418), which landed gating without ever running and was red on its first nightly
 (#6369). `GOVERNANCE-002` landed the same way (#6369) and was `@wip @defect:6417`; #6417 made
