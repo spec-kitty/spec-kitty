@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5393": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Fixed on main by the NUL-safe status_entries work; WP03 adds the command-level regression test test_cli_directory_expansion_commits_a_non_ascii_file_under_its_real_name",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
     },
     "#6417": {
       "evidence_ref": "Cited only in C-002 as a sibling slice's surface to stay off; owed no work by this Mission",
