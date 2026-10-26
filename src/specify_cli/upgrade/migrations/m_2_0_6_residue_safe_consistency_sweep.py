@@ -67,6 +67,10 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
         warnings: list[str] = []
         errors: list[str] = []
 
+        # Probe first: a git timeout must fail the run before any write, as the 0.9.x successors do (#6669).
+        kitty_specs = project_path / KITTY_SPECS_DIR
+        missions, residue = partition_kitty_specs(kitty_specs, project_path)
+
         runtime_changes, runtime_warnings = _migrate_runtime_assets(project_path, dry_run)
         changes.extend(runtime_changes)
         warnings.extend(runtime_warnings)
@@ -75,8 +79,6 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
         changes.extend(worktree_changes)
         errors.extend(worktree_errors)
 
-        kitty_specs = project_path / KITTY_SPECS_DIR
-        missions, residue = partition_kitty_specs(kitty_specs, project_path)
         for mission_dir in missions:
             feature_changes, feature_warnings = _repair_feature(mission_dir, project_path, dry_run)
             changes.extend(feature_changes)

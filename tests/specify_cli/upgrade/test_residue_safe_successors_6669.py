@@ -1028,14 +1028,19 @@ def test_the_runner_records_a_git_command_error_as_a_failure_and_does_not_raise(
     assert records == {migration.migration_id: "failed"}
 
 
-def test_the_runner_records_a_probe_timeout_in_a_real_successor_as_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(("old", "new"), [(PRED_090, NEW_090), (PRED_206, NEW_206)], ids=["0.9.0", "2.0.6"])
+def test_the_runner_records_a_probe_timeout_in_a_real_successor_as_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quiet_runtime_assets: None, old: str, new: str
+) -> None:
     repo = _tracked_project(tmp_path)
     _dirty_mission(repo, "001-legacy")
-    _ledger_era(repo, unrecorded={PRED_090, NEW_090})
+    # A legacy worktree asset the 2.0.6 sweep removes before its Mission walk: the probe must fail first.
+    _write(repo / ".worktrees" / "wt1" / ".claude" / "commands" / "spec-kitty.implement.md", "legacy\n")
+    _ledger_era(repo, unrecorded={old, new})
     before = _snapshot(repo)
     monkeypatch.setattr(_PROBE_PATH, _raise_timeout)
 
-    result, status = MigrationRunner(repo)._apply_migration(_get(NEW_090), ProjectMetadata.load(repo / ".kittify"), dry_run=False)
+    result, status = MigrationRunner(repo)._apply_migration(_get(new), ProjectMetadata.load(repo / ".kittify"), dry_run=False)
 
     assert status == "failed"
     assert not result.success
