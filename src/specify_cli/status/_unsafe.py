@@ -83,7 +83,9 @@ ALLOWED_CALLERS: frozenset[str] = frozenset(
         # the work package transition door the three shells share (the flat
         # shell, the batch door and ``BookkeepingTransaction``, family 3,
         # which left this set when its unit moved behind the port). The
-        # primitives become private to the bridge.
+        # transition doors' unit goes through the bridge; ``status.emit``
+        # (``emit_inner_state_changed``) and ``status_service`` still reach
+        # the primitives directly.
         "specify_cli.events.event_bridge",
         # Family 4: retrospective run-terminus (superseded -- no new callers),
         # ``append_raw_rows_atomic`` under ``retro_status_lock``.
