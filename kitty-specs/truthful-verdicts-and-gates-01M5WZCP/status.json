@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M5X1CBZ8XGMVH4DVD1QHB04R",
-  "materialized_at": "2026-10-26T21:20:36.831491+00:00",
+  "event_count": 6,
+  "last_event_id": "01M5X22X86REHDW8VZDGZHYM7Q",
+  "materialized_at": "2026-10-26T21:32:55.430786+00:00",
   "mission_number": "",
   "mission_slug": "truthful-verdicts-and-gates-01M5WZCP",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 2
   },
@@ -39,14 +39,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5X1CBZ8XGMVH4DVD1QHB04R",
-      "last_transition_at": "2026-10-26T21:20:36.831491+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M5X22X86REHDW8VZDGZHYM7Q",
+      "last_transition_at": "2026-10-26T21:32:55.430786+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 2987,
-      "shell_pid_created_at": "1793049618.69"
+      "shell_pid_created_at": "1793049618.69",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     }
   }
 }
