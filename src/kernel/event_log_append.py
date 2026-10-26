@@ -209,8 +209,8 @@ def append_event_log_lines(
     with event_log_lock(lock_anchor or log, timeout_s=timeout_s):
         fd = _open_for_append(log, create=create, no_follow=no_follow, mode=mode)
         try:
-            _check_existing(fd, log, precondition)
-            _write_unit(fd, log, payload)
+            pre_size = _check_existing(fd, log, precondition)
+            _write_unit(fd, log, payload, pre_size)
         finally:
             os.close(fd)
 
@@ -235,7 +235,8 @@ def _open_for_append(log: Path, *, create: bool, no_follow: bool, mode: int) -> 
         raise EventLogSymlinkError(f"{log}: refusing to append through a symbolic link") from exc
 
 
-def _check_existing(fd: int, log: Path, precondition: Precondition | None) -> None:
+def _check_existing(fd: int, log: Path, precondition: Precondition | None) -> int:
+    """Refuse a torn tail or a failed precondition; return the log's size before the write."""
     size = os.fstat(fd).st_size
     existing = _read_range(fd, 0 if precondition is not None else max(size - 1, 0), size)
     if size and existing[-1:] != _LF:
@@ -244,6 +245,7 @@ def _check_existing(fd: int, log: Path, precondition: Precondition | None) -> No
         )
     if precondition is not None:
         precondition(existing)
+    return size
 
 
 def _read_range(fd: int, offset: int, end: int) -> bytes:
@@ -260,8 +262,27 @@ def _read_range(fd: int, offset: int, end: int) -> bytes:
     return b"".join(chunks)
 
 
-def _write_unit(fd: int, log: Path, payload: bytes) -> None:
-    written = os.write(fd, payload)
-    if written != len(payload):
-        raise EventLogShortWriteError(f"{log}: short write ({written} of {len(payload)} bytes)")
+def _write_unit(fd: int, log: Path, payload: bytes, pre_size: int) -> None:
+    """Write the unit; on a partial write, cut the log back to *pre_size* before re-raising.
+
+    The lock is still held, so no other writer appended since *pre_size* was
+    read. Without the cut, a short write (or ``ENOSPC`` after a partial write)
+    leaves a torn tail that refuses every later append.
+    """
+    try:
+        written = os.write(fd, payload)
+        if written != len(payload):
+            raise EventLogShortWriteError(f"{log}: short write ({written} of {len(payload)} bytes)")
+    except OSError as exc:
+        _truncate_to(fd, pre_size, exc)
+        raise
     os.fsync(fd)
+
+
+def _truncate_to(fd: int, size: int, cause: OSError) -> None:
+    """Cut *fd* back to *size* and fsync; if that fails, raise *cause* chained to the failure."""
+    try:
+        os.ftruncate(fd, size)
+        os.fsync(fd)
+    except OSError as truncate_exc:
+        raise cause from truncate_exc

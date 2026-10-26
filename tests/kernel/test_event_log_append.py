@@ -5,6 +5,7 @@ Contract: ``kitty-specs/eventbridge-gate-and-locked-appends-01M5T0TN/contracts/i
 
 from __future__ import annotations
 
+import errno
 import json
 import multiprocessing
 import os
@@ -188,15 +189,24 @@ def test_fsyncs_the_log(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert log.stat().st_ino in synced_inodes
 
 
-def test_short_write_is_reported(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("fails_with", [EventLogShortWriteError, OSError], ids=["short-write", "enospc-after-partial"])
+def test_short_write_is_reported(log: Path, monkeypatch: pytest.MonkeyPatch, fails_with: type[OSError]) -> None:
+    """A partial write is cut back, so no torn tail blocks the next append."""
+    log.write_bytes(b'{"whole":1}\n')
     real_write = os.write
 
-    def short_unit_write(fd: int, payload: bytes) -> int:
-        return len(payload) - 1 if payload == b"xyz\n" else real_write(fd, payload)
+    def partial_unit_write(fd: int, payload: bytes) -> int:
+        if payload != b"xyz\n":
+            return real_write(fd, payload)
+        written = real_write(fd, payload[:2])
+        if fails_with is OSError:
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return written
 
-    monkeypatch.setattr(os, "write", short_unit_write)
-    with pytest.raises(EventLogShortWriteError):
+    monkeypatch.setattr(os, "write", partial_unit_write)
+    with pytest.raises(fails_with):
         append_event_log_lines(log, ["xyz"])
+    assert log.read_bytes() == b'{"whole":1}\n'
 
 
 def test_every_refusal_is_an_oserror() -> None:
