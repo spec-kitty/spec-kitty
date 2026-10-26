@@ -591,7 +591,9 @@ def _dispatch_via_composition(
 
     selected_contract = get_runtime_contract_registry().lookup(f"custom:{mission}:{action}") or contract
     try:
-        result = StepContractExecutor(repo_root=repo_root).execute(context, contract=selected_contract)
+        # An owned mission's Op records stay in P, whatever the working directory (#6682).
+        record_root = owned.owned_root if owned is not None else None
+        result = StepContractExecutor(repo_root=repo_root, record_root=record_root).execute(context, contract=selected_contract)
     except StepContractExecutionError as exc:
         # Structured CLI failure surface (FR-009) — caller turns this into a
         # Decision; no Python traceback escapes.

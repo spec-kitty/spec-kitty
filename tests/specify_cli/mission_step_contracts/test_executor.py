@@ -1254,3 +1254,35 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
     message = warnings[0].getMessage()
     assert str(org_root_b) in message
     assert "DRGLoadError" in message or "No DRG graph files found" in message
+
+
+# ---------------------------------------------------------------------------
+# #6682 — an explicit record_root pins where the Op records go
+# ---------------------------------------------------------------------------
+
+
+def test_explicit_record_root_overrides_the_invoking_checkout(tmp_path: Path) -> None:
+    """An owned checkout passes its root; the working directory is not consulted."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    owned_root = tmp_path / "owned"
+    owned_root.mkdir()
+
+    with patch("specify_cli.mission_step_contracts.executor.resolve_op_record_root") as resolve:
+        executor = StepContractExecutor(repo_root=repo_root, record_root=owned_root)
+
+    resolve.assert_not_called()
+    assert executor._invocation_executor._record_root == owned_root
+
+
+def test_default_record_root_is_the_invoking_checkout(tmp_path: Path) -> None:
+    """Without ``record_root`` the executor keeps the #6564 invoking-checkout rule."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    invoking = tmp_path / "invoking"
+
+    with patch("specify_cli.mission_step_contracts.executor.resolve_op_record_root", return_value=invoking) as resolve:
+        executor = StepContractExecutor(repo_root=repo_root)
+
+    resolve.assert_called_once_with(repo_root)
+    assert executor._invocation_executor._record_root == invoking

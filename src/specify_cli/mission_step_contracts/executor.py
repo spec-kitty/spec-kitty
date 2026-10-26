@@ -173,6 +173,7 @@ class StepContractExecutor:
         contract_repository: MissionStepContractRepository | None = None,
         invocation_executor: ProfileInvocationExecutor | None = None,
         graph: DRGGraph | None = None,
+        record_root: Path | None = None,
     ) -> None:
         self._repo_root = repo_root
         # #3525 Fold B: `resolve_org_dirs` (repository overlay) and this
@@ -187,8 +188,14 @@ class StepContractExecutor:
             project_dir=project_pack_root(repo_root) / "mission_step_contracts",
             org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
         )
+        # ``record_root`` pins where the Op records go; an owned checkout passes
+        # its own root so a command run from the repository root checkout never
+        # writes there (#6682). Otherwise the invoking checkout holds them.
         self._invocation_executor = invocation_executor or ProfileInvocationExecutor(
-            repo_root, record_root=resolve_op_record_root(repo_root)
+            repo_root,
+            record_root=record_root
+            if record_root is not None
+            else resolve_op_record_root(repo_root),
         )
         self._graph = graph
 
