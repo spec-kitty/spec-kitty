@@ -182,8 +182,10 @@ from charter.activation.activation_ledger import (
 from charter.activation.activation_ledger import (
     LedgerFinding as LedgerFinding,
     LedgerFindings as LedgerFindings,
+    RequiredInForce as RequiredInForce,
     RequiredOmission as RequiredOmission,
     ledger_findings as ledger_findings,
+    required_in_force as required_in_force,
     required_not_in_force as required_not_in_force,
 )
 
@@ -222,6 +224,7 @@ __all__ = [
     "LegacyRenameRefusedError",
     "PromotionOutcome",
     "RenameReport",
+    "RequiredInForce",
     "RequiredOmission",
     "UnrepresentableDirectiveIdError",
     "append_synthesized_activations",
@@ -242,6 +245,7 @@ __all__ = [
     "read_mission_type",
     "refuse_unmigrated_deny_write",
     "rename_legacy_project_intent_directive",
+    "required_in_force",
     "required_not_in_force",
     "requires_substantive_spec_for",
     "resolve_activation_write_target",

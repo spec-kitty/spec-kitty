@@ -1,7 +1,31 @@
 {
   "rows": {
+    "#6369": {
+      "evidence_ref": "cited for context: the PR that landed the scenario @wip",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6416": {
+      "evidence_ref": "cited for context: tag-removal precedent (migration-ledger.feature:146)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6417": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 0d0969b1 reader; WP02 renders it",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +33,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     }
   },
   "schema_version": 1

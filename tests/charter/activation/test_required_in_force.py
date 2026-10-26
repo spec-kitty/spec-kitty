@@ -37,9 +37,7 @@ def _project(root: Path, org_charter: str, **ledger: list[str]) -> Path:
     pack.mkdir(parents=True)
     (pack / "org-charter.yaml").write_text(org_charter, encoding="utf-8")
     (root / ".kittify").mkdir()
-    (root / ".kittify" / "config.yaml").write_text(
-        "charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: org-packs/acme\n", encoding="utf-8"
-    )
+    (root / ".kittify" / "config.yaml").write_text("charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: org-packs/acme\n", encoding="utf-8")
     seed_activation_ledger(root, mission_type_activations=["software-dev"], **ledger)
     return root
 

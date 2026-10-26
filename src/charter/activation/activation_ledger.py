@@ -22,14 +22,16 @@ kernel floor (:mod:`kernel.activation_ledger_store`):
 * **Error home** -- :class:`ActiveCharterConfigError` lives here;
   ``charter.activation.pack_context`` imports it back for its importers.
 * **Diagnostics** -- :func:`ledger_findings` (``spec-kitty doctor
-  charter-packs``) and :func:`required_not_in_force` (``charter list``), WP09.
+  charter-packs``), :func:`required_not_in_force` (``charter list``), WP09, and
+  :func:`required_in_force` (``charter list``, #6417).
 
 Import direction (F20): this module imports only ``kernel``,
 ``charter.offering.artifact_kinds`` and ``charter.activation.charter_yaml_io``.
-It never imports ``pack_context`` or ``pack_manager``. The diagnostics, the
-migration's bundle stamp and the identity lookups import their collaborators
-(``org_pack_discovery``, ``identity_index``, ``interview``, ``charter.bundle``)
-lazily, inside the function that needs them, because those modules import this
+It never imports ``pack_context`` or ``pack_manager`` at module scope. The
+diagnostics, the migration's bundle stamp and the identity lookups import their
+collaborators (``org_pack_discovery``, ``identity_index``, ``interview``,
+``charter.bundle``, and for :func:`required_in_force` ``pack_context``,
+``pack_manager``, ``layer_roots``) lazily, inside the function that needs them, because those modules import this
 one.
 """
 
@@ -86,6 +88,7 @@ __all__ = [
     "LedgerMigrationRefusal",
     "LedgerMigrationRefused",
     "LedgerMove",
+    "RequiredInForce",
     "RequiredOmission",
     "apply_ledger_migration",
     "config_error",
@@ -93,6 +96,7 @@ __all__ = [
     "load_activation_ledger",
     "plan_ledger_migration",
     "refuse_unmigrated_deny_write",
+    "required_in_force",
     "required_not_in_force",
     "resolve_ledger_source",
 ]
@@ -1045,11 +1049,10 @@ class LedgerFindings:
 
 
 @dataclass(frozen=True)
-class RequiredOmission:
-    """An org-required id that an explicit ``activated_<kind>`` list leaves out (FR-023, R12).
+class _RequiredId:
+    """One org-required id of *kind* and the packs that require it.
 
-    Core semantics are unchanged (ruling ``required_always_active_divergence``):
-    the explicit allow list still decides. ``packs`` are the requiring packs
+    ``packs`` are the requiring packs
     (:class:`~charter.activation.org_pack_discovery.RequiringPack`).
     """
 
@@ -1065,6 +1068,26 @@ class RequiredOmission:
     def describe_packs(self) -> str:
         """``'acme'`` or ``'base' (via 'overlay')``, comma-joined."""
         return ", ".join(str(pack.describe()) for pack in self.packs)
+
+
+@dataclass(frozen=True)
+class RequiredOmission(_RequiredId):
+    """An org-required id that an explicit ``activated_<kind>`` list leaves out (FR-023, R12).
+
+    Core semantics are unchanged (ruling ``required_always_active_divergence``):
+    the explicit allow list still decides. ``packs`` are the requiring packs
+    (:class:`~charter.activation.org_pack_discovery.RequiringPack`).
+    """
+
+
+@dataclass(frozen=True)
+class RequiredInForce(_RequiredId):
+    """An org-required id in force while its kind's allow key is absent (#6417).
+
+    In force means :meth:`PackContext.effective_ids
+    <charter.activation.pack_context.PackContext.effective_ids>` admits it over
+    what the built-in, project and org layers provide (:func:`required_in_force`).
+    """
 
 
 def _identity_index(repo_root: Path) -> IdentityLookup:
@@ -1122,6 +1145,60 @@ def required_not_in_force(
             identity = identity or _identity_index(repo_root)
             omissions.extend(_omitted(kind, allow, floor, identity))
     return tuple(omissions)
+
+
+def _provided_ids(repo_root: Path, kind: ArtifactKind) -> frozenset[str]:
+    """The config stems of *kind* the built-in, project and every org layer provide (the ``charter list --all`` scan)."""
+    # pack_manager and layer_roots import this module
+    from charter.activation.invocation_context import ProjectContext
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
+    from charter.activation.pack_manager import ActiveCharterManager
+
+    entries = ActiveCharterManager().list_available_detailed(
+        ProjectContext(repo_root=repo_root),
+        kind.operator_token,
+        layer_roots=resolve_layer_roots(repo_root),
+        org_root_chain=resolve_pack_chain(repo_root, strict=False),
+    )
+    return frozenset(entry.artifact_id for entry in entries)
+
+
+def _absent_key_floors(repo_root: Path, *, strict: bool) -> dict[ArtifactKind, Mapping[str, tuple[Any, ...]]]:
+    """The non-empty required floors of the org-requirable kinds whose allow key is absent."""
+    ledger = load_activation_ledger(repo_root, report_stray=False)
+    floors: dict[ArtifactKind, Mapping[str, tuple[Any, ...]]] = {}
+    for kind, allow in ledger.allow:
+        if allow is not None or not kind.org_requirable:
+            continue
+        floor = _required_provenance(repo_root, kind, strict=strict)
+        if floor:
+            floors[kind] = floor
+    return floors
+
+
+def required_in_force(repo_root: Path, *, strict: bool = True) -> tuple[RequiredInForce, ...]:
+    """Every org-required id in force on a kind whose allow key is absent, per kind in enum order (#6417).
+
+    In force is :meth:`PackContext.effective_ids
+    <charter.activation.pack_context.PackContext.effective_ids>` over what the
+    layers provide, never a second membership computation: the required floor
+    beats an exclusion, and a required id no layer provides is not claimed. A
+    *present* allow list is :func:`required_not_in_force`'s case (FR-023) and
+    yields nothing here. Kinds without a required floor scan nothing. With
+    *strict* an unreadable required floor raises :class:`ActiveCharterConfigError`;
+    ``charter list`` reads leniently.
+    """
+    floors = _absent_key_floors(repo_root, strict=strict)
+    if not floors:
+        return ()
+    from charter.activation.pack_context import PackContext  # pack_context imports this module
+
+    context = PackContext.from_config(repo_root)
+    in_force: list[RequiredInForce] = []
+    for kind, floor in floors.items():
+        effective = context.effective_ids(kind, _provided_ids(repo_root, kind))
+        in_force.extend(RequiredInForce(kind, stem, packs) for stem, packs in floor.items() if stem in effective)
+    return tuple(in_force)
 
 
 def _store_error(exc: ActiveCharterConfigError) -> LedgerFinding:
