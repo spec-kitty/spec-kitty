@@ -147,9 +147,15 @@ class RSnapshotter:
         between R and any owned checkout beneath it, and every owned
         transactional write already acquires this mutex there -- that
         behaviour predates this fixture and is out of scope to convert here.
-        Every OTHER shape in ``lock_files`` still fails: a second key, a
-        removed key, a changed key, a non-empty lock, or a holder sidecar.
-        The second and last named tolerance is ``home_files`` under
+        Independently of that argument, any number of newly-ADDED, EMPTY
+        event-log locks (``event-logs/<digest>.lock``, composed by
+        ``kernel.event_log_append.event_log_lock_path``) are tolerated: every
+        locked event-log append (#6606) takes one in the same shared common
+        directory, keyed on the log path, so an owned write leaves one behind
+        per log it appended to (#6682).
+        Every OTHER shape in ``lock_files`` still fails: a second status key,
+        a removed key, a changed key, a non-empty lock, or a holder sidecar.
+        The last named tolerance is ``home_files`` under
         :func:`prompt_cache_prefix` (the P-keyed prompt cache owned ``next``
         writes); every other home path, including a prompt directory keyed to a
         different checkout, still fails. ``files``, ``head``, ``index_stage`` and
@@ -157,8 +163,10 @@ class RSnapshotter:
         """
         from hashlib import sha256  # noqa: TID251 — file-integrity checksum for the R snapshot (standard SHA-256), not charter freshness hashing
 
+        from kernel.event_log_append import EVENT_LOG_LOCK_SUBDIRECTORY
         from specify_cli.status.locking import feature_status_lock_path
 
+        event_log_lock_prefix = f"{EVENT_LOG_LOCK_SUBDIRECTORY}/"
         empty_lock_hash = sha256(b"").hexdigest()
         tolerated_key = feature_status_lock_path(self._repository_root, tolerate_status_mutex_for).name if tolerate_status_mutex_for is not None else None
         prompt_prefix = prompt_cache_prefix(self._owned_root)
@@ -180,6 +188,8 @@ class RSnapshotter:
                 added = sorted(set(a) - set(b))
                 removed = sorted(set(b) - set(a))
                 changed = sorted(k for k in set(a) & set(b) if a[k] != b[k])
+                if attr == "lock_files":
+                    added = [k for k in added if not (k.startswith(event_log_lock_prefix) and k.endswith(".lock") and a[k] == empty_lock_hash)]
                 if (
                     attr == "lock_files"
                     and tolerated_key is not None

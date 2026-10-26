@@ -187,6 +187,71 @@ def test_assert_unchanged_rejects_a_removed_lock_key(owned_checkouts: OwnedCheck
         r_snapshot.assert_unchanged(before, after, tolerate_status_mutex_for=owned_checkouts.mission_slug)
 
 
+# ---------------------------------------------------------------------------
+# #6682: locked event-log appends (#6606) leave EMPTY ``event-logs/*.lock``
+# files in the git common directory R shares with every owned checkout.
+# ---------------------------------------------------------------------------
+
+
+def _event_log_lock_dir(owned_checkouts: OwnedCheckouts) -> Path:
+    from kernel.event_log_append import EVENT_LOG_LOCK_SUBDIRECTORY
+    from kernel.git_topology import git_common_dir
+    from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY
+
+    return git_common_dir(owned_checkouts.repository_root) / LOCK_DIRECTORY / EVENT_LOG_LOCK_SUBDIRECTORY
+
+
+def test_assert_unchanged_tolerates_added_empty_event_log_locks(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
+    """Accept case: several ADDED, EMPTY event-log locks, with or without the status mutex."""
+    from kernel.event_log_append import event_log_lock_path
+
+    lock_dir = _event_log_lock_dir(owned_checkouts)
+    before = r_snapshot.take()
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("a.events.jsonl", "b.events.jsonl"):
+        lock_path = event_log_lock_path(owned_checkouts.repository_root / name)
+        assert lock_path.parent == lock_dir, "control: the helper composes the canonical event-log lock path"
+        lock_path.write_bytes(b"")
+    after = r_snapshot.take()
+    r_snapshot.assert_unchanged(before, after)
+    r_snapshot.assert_unchanged(before, after, tolerate_status_mutex_for=owned_checkouts.mission_slug)
+
+
+def test_assert_unchanged_rejects_a_non_empty_event_log_lock(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
+    """Reject case: an event-log lock with content (a live holder record) still fails."""
+    lock_dir = _event_log_lock_dir(owned_checkouts)
+    before = r_snapshot.take()
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    (lock_dir / "held.lock").write_bytes(b"holder-pid-1234")
+    after = r_snapshot.take()
+    with pytest.raises(AssertionError):
+        r_snapshot.assert_unchanged(before, after)
+
+
+def test_assert_unchanged_rejects_a_removed_event_log_lock(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
+    """Reject case: a pre-existing event-log lock disappearing still fails."""
+    lock_dir = _event_log_lock_dir(owned_checkouts)
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    pre_existing = lock_dir / "pre-existing.lock"
+    pre_existing.write_bytes(b"")
+    before = r_snapshot.take()
+    pre_existing.unlink()
+    after = r_snapshot.take()
+    with pytest.raises(AssertionError):
+        r_snapshot.assert_unchanged(before, after)
+
+
+def test_assert_unchanged_rejects_an_empty_non_lock_file_under_event_logs(owned_checkouts: OwnedCheckouts, r_snapshot: RSnapshotter) -> None:
+    """Reject case: only ``*.lock`` files under ``event-logs/`` are tolerated."""
+    lock_dir = _event_log_lock_dir(owned_checkouts)
+    before = r_snapshot.take()
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    (lock_dir / "stray.holder").write_bytes(b"")
+    after = r_snapshot.take()
+    with pytest.raises(AssertionError):
+        r_snapshot.assert_unchanged(before, after)
+
+
 def test_r_snapshot_detects_home_change(owned_checkouts, r_snapshot) -> None:
     home = Path(os.environ["SPEC_KITTY_HOME"])
     before = r_snapshot.take()
