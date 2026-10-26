@@ -1,19 +1,19 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M5WZWDFJE1F3655C5C15QJKY",
-  "materialized_at": "2026-10-26T20:54:25.522422+00:00",
+  "event_count": 6,
+  "last_event_id": "01M5X1SSN2GFNQFCPC6T4F1JJC",
+  "materialized_at": "2026-10-26T21:27:56.834286+00:00",
   "mission_number": "",
   "mission_slug": "reach-only-fail-closed-01M5WZFY",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -24,16 +24,30 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M5WZWDFJE1F3655C5C15QJKY",
-      "last_transition_at": "2026-10-26T20:54:25.522422+00:00",
+      "lane": "approved",
+      "last_event_id": "01M5X1SSN2GFNQFCPC6T4F1JJC",
+      "last_transition_at": "2026-10-26T21:27:56.834286+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Claimed by claude (python-pedro)",
-        "Implementing"
+        "Implementing",
+        "Ready for review: record fallback + fail-closed membership in reach_only_ids; 58 targeted, 8920 charter+charter_offering passed; ruff/format/mypy clean",
+        "Review passed (independent reviewer-renata, claude -p): ruling met, 58 targeted passed, ruff/format/mypy clean, consumers untouched. MINOR (record lacking the kind key yields empty membership) and two NITs carried to the pre-PR squad fold."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer"
+      "review_result": {
+        "reference": "review-cycle://reach-only-fail-closed-01M5WZFY/WP01-reach-only-fail-closed/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     }
   }
 }

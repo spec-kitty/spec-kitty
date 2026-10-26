@@ -1,4 +1,18 @@
 {
+  "accept_commit": "f925c1f8a112acf2bb9f95326a3c16ec15fe5ab8",
+  "acceptance_history": [
+    {
+      "accept_commit": "f925c1f8a112acf2bb9f95326a3c16ec15fe5ab8",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-26T21:28:54.960801+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "e3c03dcdc8532d3568b1268572ca7523a237240c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-26T21:28:54.960801+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "e3c03dcdc8532d3568b1268572ca7523a237240c",
   "contracts": "none",
   "contracts_rationale": "Internal bug fix: no CLI, API or file-format interface changes; the fix changes how an existing private membership read degrades.",
   "created_at": "2026-10-26T20:47:38.397562+00:00",
@@ -13,6 +27,7 @@
   "purpose_context": "When the synthesis manifest cannot be read, reach-only membership now comes from the created-artifacts record, and when neither can be read every synthesized artifact linked from a directive is treated as reach-only, with a warning to the operator, so governance never fails open.",
   "purpose_tldr": "A corrupt synthesis manifest no longer delivers synthesized tactics or styleguides of an inactive directive",
   "slug": "reach-only-fail-closed-01M5WZFY",
+  "status_phase": "1",
   "target_branch": "issue-6454-reach-only-fail-closed",
   "topology": "single_branch"
 }

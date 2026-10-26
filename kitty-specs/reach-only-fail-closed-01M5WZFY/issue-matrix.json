@@ -1,16 +1,16 @@
 {
   "rows": {
     "#6454": {
-      "evidence_ref": "<link or commit>",
-      "fr": null,
+      "evidence_ref": "commit 94a9b9c8 (fix), d010c1a9 (red-first tests)",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006",
       "nfr": null,
-      "repo": null,
-      "sc": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001,SC-002",
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Reach-only membership fails open on an unreadable synthesis manifest",
+      "verdict": "fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1

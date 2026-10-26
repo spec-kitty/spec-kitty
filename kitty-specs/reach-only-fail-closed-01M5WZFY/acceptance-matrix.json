@@ -2,67 +2,67 @@
   "mission_slug": "reach-only-fail-closed-01M5WZFY",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "An unreadable synthesis manifest reads reach-only membership from the created-artifacts record (and the legacy tactic record); the tactic of an inactive directive is not delivered.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_reach_only_delivery.py::test_unreadable_manifest_falls_back_to_the_created_record, ::test_unreadable_manifest_with_record_does_not_deliver_the_tactic_of_an_inactive_directive, ::test_unreadable_manifest_falls_back_to_the_legacy_tactic_record (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "With neither the manifest nor the record readable, every synthesis-edge target of the kind is reach-only; a hand-authored edge target stays a root.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_reach_only_delivery.py::test_neither_source_readable_fails_closed_with_a_warning[absent|malformed|unparseable], ::test_fail_closed_does_not_deliver_the_tactic_of_an_inactive_directive (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Each degraded read logs one WARNING naming the manifest and the record.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_reach_only_delivery.py::test_unreadable_manifest_falls_back_to_the_created_record, ::test_neither_source_readable_fails_closed_with_a_warning (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Styleguides behave as tactics: the sourced styleguide stays out of the compiled roots in both degraded cases.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_styleguide_reach_only.py::test_unreadable_manifest_keeps_the_sourced_styleguide_out_of_the_compiled_roots[record-fallback|fail-closed], ::test_unreadable_manifest_names_only_the_sourced_styleguide_reach_only (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "An absent manifest leaves membership empty and logs nothing.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_reach_only_delivery.py::test_absent_manifest_is_unchanged_and_silent (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "An org-required tactic stays a root when failing closed.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/synthesizer/test_reach_only_delivery.py::test_fail_closed_keeps_an_org_required_tactic_a_root (58 passed in the two files; 8920 passed in tests/charter + tests/charter_offering)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T21:28:49.956635+00:00",
+      "notes": "Verified at the approved WP01 head"
     }
   ],
   "negative_invariants": []
