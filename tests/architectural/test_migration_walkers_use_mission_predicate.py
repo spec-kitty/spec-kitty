@@ -198,8 +198,9 @@ _SEAM_MODULES = {module.rsplit("/", 1)[-1].removesuffix(".py"): module for modul
 def _inherited_seam_methods(tree: ast.AST, fn: ast.AST) -> frozenset[str]:
     """Methods ``_GUARDED_SEAMS`` pins that *fn*'s class inherits from a base imported from the pinning module.
 
-    Only a method the imported base class itself defines counts, and only when *fn*'s own class lists that
-    base, so a ``self.<name>`` call vouches only through a pinned seam the class really inherits.
+    Only a method the imported base class itself defines counts, only when *fn*'s own class lists that
+    base, and never when that class defines the method itself (a local override shadows the seam), so a
+    ``self.<name>`` call vouches only through a pinned seam the class really inherits.
     """
     owner = next((node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and fn in node.body), None)
     if owner is None:
@@ -217,6 +218,8 @@ def _inherited_seam_methods(tree: ast.AST, fn: ast.AST) -> frozenset[str]:
         for cls in ast.walk(seam_tree):
             if isinstance(cls, ast.ClassDef) and cls.name in imported:
                 names.update(f.name for f in cls.body if isinstance(f, ast.FunctionDef) and (stem, f.name) in _SEAM_STEMS)
+    # A method the class defines itself shadows the inherited seam, so it earns no credit from the base.
+    names -= {f.name for f in owner.body if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)}
     return frozenset(names)
 
 
@@ -369,6 +372,8 @@ def test_override_dropping_its_predicate_call_fails_the_gate() -> None:
     assert not _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "True"), "_is_legacy_format"))
     assert not _reaches_predicate(*_parse_fn(mixin.format("_s.X", "not self._is_residue(p)"), "_is_legacy_format"))
     assert not _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "not self.detect(p)"), "_is_legacy_format"))
+    shadowed = mixin.format("_M, _s.X", "not self._is_residue(p)") + "    def _is_residue(self, p):\n        return False\n"
+    assert not _reaches_predicate(*_parse_fn(shadowed, "_is_legacy_format")), "a local _is_residue must not inherit the mixin's credit"
 
 
 #: The guarded seam each hand-listed walker's directories reach through its writing caller (``apply``).
