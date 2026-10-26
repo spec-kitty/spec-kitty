@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: issue-6653-terminality-all-rows
 merge_target_branch: issue-6653-terminality-all-rows
 branch_strategy: Planning artifacts for this mission were generated on issue-6653-terminality-all-rows. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6653-terminality-all-rows unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-issue-matrix-terminality-all-rows-01M5X1ZJ
+base_commit: 1b6fcc79f3424b002d85a81f85d67b9010fd1935
+created_at: '2026-10-26T22:20:41.672044+00:00'
 subtasks:
 - T001
 - T002

@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Internal gate behaviour change; no CLI flag, schema, or wire contract is added or changed.",
   "coordination_branch": "kitty/mission-issue-matrix-terminality-all-rows-01M5X1ZJ",
   "created_at": "2026-10-26T21:31:07.099677+00:00",
   "flattened": false,
@@ -14,6 +16,6 @@
   "slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
   "target_branch": "issue-6653-terminality-all-rows",
   "topology": "coord",
-  "contracts": "none",
-  "contracts_rationale": "Internal gate behaviour change; no CLI flag, schema, or wire contract is added or changed."
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-26T22:20:21.014613+00:00"
 }
