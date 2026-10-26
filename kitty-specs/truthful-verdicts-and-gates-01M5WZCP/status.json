@@ -1,20 +1,20 @@
 {
-  "event_count": 13,
-  "last_event_id": "01M5X4RSMWKM57AZHA17JW6QHD",
-  "materialized_at": "2026-10-26T22:19:49.788157+00:00",
+  "event_count": 14,
+  "last_event_id": "01M5X4W843F2N0KX6EHZF6QXJW",
+  "materialized_at": "2026-10-26T22:21:42.915714+00:00",
   "mission_number": "",
   "mission_slug": "truthful-verdicts-and-gates-01M5WZCP",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 2,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -76,14 +76,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M5X4RSMWKM57AZHA17JW6QHD",
-      "last_transition_at": "2026-10-26T22:19:49.788157+00:00",
+      "lane": "approved",
+      "last_event_id": "01M5X4W843F2N0KX6EHZF6QXJW",
+      "last_transition_at": "2026-10-26T22:21:42.915714+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Red-first CLI tests + ignored=True pre-check; 60 safe-commit tests pass"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261026",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 16644,
       "shell_pid_created_at": "1793053185.99",
