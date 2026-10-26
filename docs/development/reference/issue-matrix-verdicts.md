@@ -4,7 +4,7 @@ description: The five issue-matrix verdict values, which transitions each one ga
 doc_status: active
 audience: docs/context/audience/internal/maintainer.md
 type: reference
-updated: '2026-09-30'
+updated: '2026-10-26'
 related:
 - docs/api/cli-commands.md
 - docs/api/agent-subcommands.md
@@ -53,6 +53,42 @@ disagreement always resolves in favor of the operator's explicit verdict.
 `not-applicable` is additive: it was added alongside the four pre-existing
 values with no change to their meaning, so every `issue-matrix.json` file
 written before this change continues to validate with zero migration.
+
+## What `done` enforces
+
+At `done` (`spec-kitty consolidate`, through the `issue_matrix_verdict_terminality`
+merge gate, and `spec-kitty agent tasks move-task --to done`) the **verdict**
+decides resolution for **every** existing row, whatever its classification:
+
+- Every `in-mission` row blocks in `block` mode and warns in `warn` mode,
+  whether or not its issue is cited. An uncited row, a `context_only`
+  citation such as `see #12`, a one-digit reference the detector skips, or a
+  row recorded with `agent issue-verdict` alone all count.
+- When a matrix exists, it is judged whole, even for a Mission with zero
+  gating references: a malformed row or an unknown verdict is unresolved too.
+- A Mission with zero gating references and **no** matrix has nothing to
+  enforce and passes. After consolidation that means the coordination ref is
+  valid and holds neither `issue-matrix.json` nor `issue-matrix.md`
+  (`ISSUE_MATRIX_NOT_AUTHORED`). A deleted ref, a failed git probe or an empty
+  matrix still fails.
+- A Mission **with** gating references still needs a matrix and a row for
+  each of them (the completeness gate is unchanged); a missing matrix fails.
+
+A PASS says what it judged: `No unresolved (in-mission/unknown) rows among N
+issue-matrix row(s)`, or `No issue-matrix authored and no gating issue
+references — nothing to enforce`.
+
+`approved` is unchanged: an `in-mission` row is accepted there, and a Mission
+with zero gating references never needs a matrix to be approved.
+
+To clear a blocking row, record a terminal verdict (`fixed`,
+`verified-already-fixed`, `deferred-with-followup` or `not-applicable`):
+
+```bash
+spec-kitty agent issue-verdict --mission <handle> --issue '#5678' --verdict fixed --actor <actor> --evidence-ref <evidence>
+```
+
+Design record: [ADR 2026-10-26-1](../../adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md).
 
 ## Reference classification: which citations become gating rows
 
@@ -117,4 +153,5 @@ at the first blocked approval.
 
 - [`spec-kitty agent tasks move-task` and `spec-kitty agent issue-verdict`](../../api/agent-subcommands.md) — the generated CLI reference for the commands that read and write issue-matrix rows, including `move-task`'s `--actor`/`--reason` aliases and `issue-verdict`'s full `--help` text.
 - [CLI Command Reference](../../api/cli-commands.md)
+- [ADR 2026-10-26-1](../../adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md) — at `done`, every issue-matrix row is judged, cited or not.
 - [ADR 2026-09-20-1](../../adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md) — the design record for the `not-applicable` verdict, the classification narrowing, and how it supersedes the never-implemented WP09 `not_applicable` Gate-4 intent noted in `merge_gates.py`.

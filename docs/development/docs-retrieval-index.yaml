@@ -3943,6 +3943,25 @@ pages:
     - {slug: "a-resident-daemon-per-worktree", text: "A resident daemon per worktree", level: 3}
     - {slug: "a-resident-java-write-service-per-repository-chosen", text: "A resident Java write service per repository (chosen)", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md"
+    title: "ADR: at done, every issue-matrix row is judged, cited or not"
+    divio_type: "none"
+    abstract: "At done the verdict decides resolution for every issue-matrix row; a present matrix is judged whole even with zero gating references, and a missing one is nothing to enforce."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-at-done-the-verdict-decides-resolution-for-every-existing-row", text: "1. At `done`, the verdict decides resolution for every existing row", level: 3}
+    - {slug: "2-a-present-matrix-is-judged-whole-even-with-zero-gating-references", text: "2. A present matrix is judged whole, even with zero gating references", level: 3}
+    - {slug: "3-a-missing-matrix-is-still-nothing-to-enforce", text: "3. A missing matrix is still nothing to enforce", level: 3}
+    - {slug: "4-issue-matrix-not-authored-means-nothing-to-enforce-only-without-gating-references", text: "4. `ISSUE_MATRIX_NOT_AUTHORED` means \"nothing to enforce\" only without gating references", level: 3}
+    - {slug: "5-a-pass-says-what-it-judged", text: "5. A PASS says what it judged", level: 3}
+    - {slug: "6-approved-is-unchanged", text: "6. `approved` is unchanged", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -11702,6 +11721,7 @@ pages:
     anchors:
     - {slug: "the-two-levers", text: "The two levers", level: 2}
     - {slug: "verdict-values", text: "Verdict values", level: 2}
+    - {slug: "what-done-enforces", text: "What `done` enforces", level: 2}
     - {slug: "reference-classification-which-citations-become-gating-rows", text: "Reference classification: which citations become gating rows", level: 2}
     - {slug: "default-gating-fail-safe", text: "Default-gating fail-safe", level: 3}
     - {slug: "multi-occurrence-aggregation-implementation-target-wins", text: "Multi-occurrence aggregation: implementation-target wins", level: 3}
