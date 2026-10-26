@@ -205,7 +205,7 @@ def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
     path = Path(project_path)
     ledger = MigrationLedger(path)
     with legacy_upgrade_scope(path):
-        adopting = _pending_adoption_ids(ledger, MigrationRegistry.get_all(), path)
+        adopting = pending_adoption_ids(ledger, MigrationRegistry.get_all(), path)
         return _settled_in_view(ledger, migration, adopting)
 
 

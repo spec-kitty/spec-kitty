@@ -39,6 +39,7 @@ from specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json import Normali
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import AgentsSkillsGitignoreBackfillMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import NarrowAgentGitignoreMigration
+from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
@@ -60,6 +61,7 @@ SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
         CompleteLaneMigration,
         ConsistencySweepMigration,
         NormalizeStatusJsonMigration,
+        UnifyCharterActivationMigration,
     )
 }
 
