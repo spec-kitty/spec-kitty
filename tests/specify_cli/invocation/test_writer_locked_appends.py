@@ -8,6 +8,9 @@ under the same lock, and one lock file for every per-Op trail.
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +51,25 @@ def _completed(invocation_id: str = _ID) -> OpCompletedEvent:
 @pytest.fixture
 def writer(tmp_path: Path) -> InvocationWriter:
     return InvocationWriter(tmp_path)
+
+
+def test_started_trail_is_created_inside_the_family_lock(writer: InvocationWriter, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """F5: the exclusive create runs under the ``kitty-ops`` lock, so no append sees an empty trail."""
+    trail = tmp_path / EVENTS_DIR / f"{_ID}.jsonl"
+    seen: list[tuple[str, Path, object]] = []
+    real_lock = writer_module.event_log_lock
+
+    @contextmanager
+    def recording_lock(anchor: Path) -> Iterator[Path]:
+        seen.append(("enter", anchor, trail.exists()))
+        with real_lock(anchor) as lock_path:
+            yield lock_path
+        seen.append(("exit", anchor, [json.loads(row)["event"] for row in trail.read_text(encoding="utf-8").splitlines()]))
+
+    monkeypatch.setattr(writer_module, "event_log_lock", recording_lock)
+    writer.write_started(_started())
+    family = tmp_path / EVENTS_DIR
+    assert seen == [("enter", family, False), ("exit", family, ["started"])]
 
 
 def test_completed_appends_after_a_whole_started_line(writer: InvocationWriter) -> None:
