@@ -36,6 +36,8 @@ public final class CharterSteps {
     private static final String TEAM_PACK_DIR = ".kittify/team-pack";
     private static final String OFFERED_SKILL_ID = "team-report";
     private static final String PROJECT_RULE_MARKER = "team-rule";
+    /** Where an org pack (and the project pack) provides a directive: the flat plural folder (#6417). */
+    private static final String RULE_FILE = "directives/team-rule.directive.yaml";
 
     private final ScenarioContext context;
 
@@ -80,7 +82,7 @@ public final class CharterSteps {
     @Given("the team pack requires a rule the project did not select")
     public void theTeamPackRequiresARuleTheProjectDidNotSelect() {
         writeTeamPack(REQUIRE_RULE_ORG_CHARTER, RULE_NODES);
-        writeFile(TEAM_PACK_DIR + "/directive/team-rule.directive.yaml", teamRule("the team-wide default"));
+        writeFile(TEAM_PACK_DIR + "/" + RULE_FILE, teamRule("the team-wide default"));
     }
 
     @Given("the team pack ships an asset that points outside its own folder")
@@ -91,12 +93,12 @@ public final class CharterSteps {
     @Given("the project shares governance through a team pack speaking to a rule")
     public void theProjectSharesATeamPackSpeakingToARule() {
         writeTeamPack(VALID_ORG_CHARTER, RULE_NODES);
-        writeFile(TEAM_PACK_DIR + "/directive/team-rule.directive.yaml", teamRule("defer to the team default"));
+        writeFile(TEAM_PACK_DIR + "/" + RULE_FILE, teamRule("defer to the team default"));
     }
 
     @Given("the project's own governance speaks to the same rule differently")
     public void theProjectsOwnGovernanceSpeaksToTheSameRuleDifferently() {
-        writeFile(".kittify/charter-packs/directive/team-rule.directive.yaml", teamRule("use the project override"));
+        writeFile(".kittify/charter-packs/" + RULE_FILE, teamRule("use the project override"));
     }
 
     @Given("the team pack shares a skill under a reserved name")
@@ -219,8 +221,10 @@ public final class CharterSteps {
         }
     }
 
-    private static String teamRule(String body) {
-        return "schema_version: \"1.0\"\nid: team-rule\ntitle: Team rule\nscope: docs\nbody: >\n  " + body + "\n";
+    /** A valid directive (the {@code Directive} model): upper-case id, intent and enforcement (#6417). */
+    private static String teamRule(String intent) {
+        return "schema_version: \"1.0\"\nid: TEAM_RULE\ntitle: Team rule\nscope: docs\nintent: >\n  " + intent
+                + "\nenforcement: required\n";
     }
 
     // -- fixture content (kept inline and minimal; the richer fixtures are #6137) -----------
@@ -247,7 +251,7 @@ public final class CharterSteps {
             "nodes:\n  - id: team-report\n    kind: skills\n    title: Team report command\n    body_path: skills/team-report.skill.yaml\n";
 
     private static final String RULE_NODES =
-            "nodes:\n  - id: team-rule\n    kind: directives\n    title: Team rule\n    body_path: directive/team-rule.directive.yaml\n";
+            "nodes:\n  - id: team-rule\n    kind: directives\n    title: Team rule\n    body_path: " + RULE_FILE + "\n";
 
     private static final String ESCAPING_ASSET_NODES =
             "nodes:\n  - id: team-asset\n    kind: assets\n    title: Team asset\n    body_path: ../../../../etc/hostname\n";
