@@ -646,36 +646,6 @@ def test_persist_approved_review_cycle_quotes_reviewer_in_reproduction_command(
     ]
 
 
-def test_persist_approved_review_cycle_records_supplied_feedback_file(
-    tmp_path: Path,
-) -> None:
-    """#6652: a ``--review-feedback-file`` on an approval is recorded, not dropped.
-
-    The file goes through the provenance-guarded ``feedback_source`` leg (as the
-    rejection path does); the synthesized approval line rides along as the body
-    header so an ``--approval-ref`` token stays in the record.
-    """
-    feedback = tmp_path / "approval-feedback.md"
-    feedback.write_text("DISTINCTIVE-APPROVAL-FEEDBACK-LINE\n", encoding="utf-8")
-    st = _make_state(to="approved", reviewer="reviewer", approval_ref="PR-42")
-    st.main_repo_root = tmp_path
-    st.mission_slug = "034-feature"
-    st.task_id = "WP01"
-    st.resolved_feedback_source = feedback
-    with (
-        patch(
-            f"{_VERDICT_SEAM}.event_sourced_review_result",
-            return_value=ReviewResultLookup(slot_present=False, result=None),
-        ),
-        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
-    ):
-        tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock())
-    call_kwargs = create_mock.call_args.kwargs
-    assert call_kwargs["feedback_source"] == feedback
-    assert call_kwargs.get("body") is None
-    assert call_kwargs["body_header"] == "Approved by reviewer: PR-42\n"
-
-
 def test_persist_approved_review_cycle_noop_on_malformed_slot(tmp_path: Path) -> None:
     """Unchanged fail-safe: a damaged/malformed event-sourced slot
     (``slot_present=True, result=None``) stays a no-op -- distinct from a
@@ -1247,35 +1217,6 @@ def test_run_arbiter_override_delegates_persist_to_verdict_seam(tmp_path: Path) 
     assert result == "review-cycle://034-feature/WP01/1"
 
 
-def test_persist_approved_review_cycle_warns_when_feedback_file_is_not_recorded(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """#6652: when the approval writer writes nothing (already approved), a supplied file is warned about on stderr."""
-    feedback = tmp_path / "approval-feedback.md"
-    feedback.write_text("late feedback\n", encoding="utf-8")
-    st = _make_state(to="done")
-    st.main_repo_root = tmp_path
-    st.mission_slug = "034-feature"
-    st.task_id = "WP01"
-    st.resolved_feedback_source = feedback
-    with (
-        patch(
-            f"{_VERDICT_SEAM}.event_sourced_review_result",
-            return_value=ReviewResultLookup(
-                slot_present=True,
-                result=ReviewResult(reviewer="r", verdict="approved", reference="x"),
-            ),
-        ),
-        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
-    ):
-        assert tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock()) is None
-    create_mock.assert_not_called()
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert "was not recorded for WP01" in captured.err
-    assert "already has an approval record" in captured.err
-
-
 def test_persist_approved_review_cycle_noop_without_feedback_file_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1297,17 +1238,26 @@ def test_persist_approved_review_cycle_noop_without_feedback_file_is_silent(
 @pytest.mark.parametrize(
     ("lookup", "arbiter", "reason"),
     [
+        (
+            ReviewResultLookup(
+                slot_present=True,
+                result=ReviewResult(reviewer="r", verdict="approved", reference="x"),
+            ),
+            False,
+            "already has an approval record",
+        ),
         (ReviewResultLookup(slot_present=False, result=None), True, "arbiter override"),
         (ReviewResultLookup(slot_present=True, result=None), False, "could not be read"),
     ],
 )
-def test_persist_approved_review_cycle_warns_on_other_skip_paths(
+def test_persist_approved_review_cycle_warns_when_feedback_file_is_not_recorded(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     lookup: ReviewResultLookup,
     arbiter: bool,
     reason: str,
 ) -> None:
+    """#6652: whenever the approval writer writes nothing, a supplied file is warned about on stderr."""
     feedback = tmp_path / "approval-feedback.md"
     feedback.write_text("feedback\n", encoding="utf-8")
     st = _make_state(to="approved")
@@ -1322,7 +1272,10 @@ def test_persist_approved_review_cycle_warns_on_other_skip_paths(
     ):
         assert tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock()) is None
     create_mock.assert_not_called()
-    assert reason in capsys.readouterr().err
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "was not recorded for WP01" in captured.err
+    assert reason in captured.err
 
 
 def test_persist_approved_review_cycle_empty_feedback_file_keeps_synthesized_body(
