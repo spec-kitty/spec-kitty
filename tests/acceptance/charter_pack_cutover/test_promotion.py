@@ -36,6 +36,7 @@ from .legacy_fixtures import (
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 PROMOTED_DIRECTIVE = "001-architectural-integrity-standard"
+PRESENT_DIRECTIVE = "024-locality-of-change"
 EFFECTIVE_SET_CALLERS = (
     "src/specify_cli/cli/commands/charter/interview.py",
     "src/charter/activation/org_charter.py",
@@ -90,6 +91,12 @@ def _upgrade_unify(project: Path) -> Result:
     )
     finish(project, load_yaml(project / ".kittify" / "config.yaml"), version="3.2.5")
     return run_cli(["upgrade", "--yes", "--no-worktrees"], project)
+
+
+#: Callers that must leave an absent ``activated_directives`` key absent: the upgrade
+#: promotion (``4.0.0rc8_promote_interview_selections``, #6629) never writes an absent key,
+#: because every available artifact of the kind is already in force while it is absent.
+KEY_STAYS_ABSENT = frozenset({"upgrade_unify"})
 
 
 def _prepare_resynthesize(project: Path) -> None:
@@ -191,12 +198,30 @@ def test_fr015_promotion_preserves_effective_set(caller: str, tmp_path: Path, ch
     proposals = _spy_on_preflight(monkeypatch) if caller == "resynthesize" else []
     result = CALLERS[caller](project)
     _assert_caller_ran(caller, result)
-    assert "activated_directives" in active_charter(project), "control: the caller promoted the directive key"
+    if caller in KEY_STAYS_ABSENT:
+        assert "activated_directives" not in active_charter(project), f"{caller} wrote an absent key (#6629)"
+    else:
+        assert "activated_directives" in active_charter(project), "control: the caller promoted the directive key"
     if caller == "resynthesize":
         _assert_preflight_seeded_from_effective_set(proposals, project)
     after = expand(effective_set(project, inventory), inventory)
     lost = {kind: sorted(before[kind] - after[kind]) for kind in before if before[kind] - after[kind]}
     assert not lost, f"{caller} narrowed the effective set: {lost}"
+
+
+@covers("FR-015", "US5-1")
+def test_fr015_upgrade_promotion_appends_to_present_key(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+    """With the key present, the upgrade promotion appends the interview selection it lacks (#6629)."""
+    project = _fixture(tmp_path)
+    charter_cwd_isolation(project)
+    config = load_yaml(project / ".kittify" / "config.yaml")
+    config["activated_directives"] = [PRESENT_DIRECTIVE]
+    finish(project, config)
+    result = _upgrade_unify(project)
+    assert result.exit_code == 0, describe(result)
+    written = active_charter(project).get("activated_directives")
+    assert isinstance(written, list), written
+    assert {PRESENT_DIRECTIVE, PROMOTED_DIRECTIVE} <= {str(i) for i in written}, written
 
 
 @covers("FR-015", "US5-2")
