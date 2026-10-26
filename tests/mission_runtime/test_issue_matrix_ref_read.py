@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -371,10 +372,11 @@ def test_deleted_ref_positive_control_resolves(repo: Path) -> None:
     assert read_issue_matrix_ref_content(repo, mission_slug) == "fixed"
 
 
-def test_content_probe_error_refuses_on_a_distinct_path(repo: Path) -> None:
-    """The resolved ref is valid but the object was never committed there
-    (unreadable at ``<ref>:<path>``) -> refuse, on a DISTINCT typed path from
-    the deleted-ref leg above (never conflated)."""
+def test_never_authored_matrix_refuses_on_a_distinct_path(repo: Path) -> None:
+    """The resolved ref is valid but no matrix object was ever committed there
+    -> refuse, on a DISTINCT typed path from the deleted-ref leg above (never
+    conflated). #6653 (FR-003): that leg is now its own code,
+    ``ISSUE_MATRIX_NOT_AUTHORED``, rather than the generic probe error."""
     mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
         repo, mid8="01KZM1EE", coord_matrix_content=None, branch_coordination_before_scaffold=True
     )
@@ -382,7 +384,7 @@ def test_content_probe_error_refuses_on_a_distinct_path(repo: Path) -> None:
     with pytest.raises(IssueMatrixRefReadError) as excinfo:
         read_issue_matrix_ref_content(repo, mission_slug)
 
-    assert excinfo.value.code == "ISSUE_MATRIX_PROBE_ERROR"
+    assert excinfo.value.code == "ISSUE_MATRIX_NOT_AUTHORED"
     assert excinfo.value.code != "ISSUE_MATRIX_REF_ABSENT"
 
 
@@ -542,9 +544,11 @@ def test_legacy_markdown_failover_json_still_wins_when_both_present(repo: Path) 
     assert "fixed" in content
 
 
-def test_neither_format_at_ref_still_refuses_with_probe_error(repo: Path) -> None:
-    """Neither ``.json`` nor ``.md`` committed at the ref -> still a probe
-    error (the ``.md`` failover attempt's own absence), never a silent pass."""
+def test_neither_format_at_ref_refuses_as_not_authored(repo: Path) -> None:
+    """Neither ``.json`` nor ``.md`` committed at the ref -> still a typed
+    refusal, never a silent pass. #6653 (FR-003): positive absence of both
+    objects at a valid ref is ``ISSUE_MATRIX_NOT_AUTHORED``, distinct from a
+    probe that could not run."""
     mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
         repo, mid8="01KZM1OO", coord_matrix_content=None, branch_coordination_before_scaffold=True
     )
@@ -552,7 +556,7 @@ def test_neither_format_at_ref_still_refuses_with_probe_error(repo: Path) -> Non
     with pytest.raises(IssueMatrixRefReadError) as excinfo:
         read_issue_matrix_ref_content(repo, mission_slug)
 
-    assert excinfo.value.code == "ISSUE_MATRIX_PROBE_ERROR"
+    assert excinfo.value.code == "ISSUE_MATRIX_NOT_AUTHORED"
 
 
 def test_4959_issue_matrix_post_consolidation_served_by_standalone_read(repo: Path) -> None:
@@ -567,3 +571,248 @@ def test_4959_issue_matrix_post_consolidation_served_by_standalone_read(repo: Pa
         resolve_artifact_surface(repo, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
 
     assert read_issue_matrix_ref_content(repo, mission_slug) == "fixed"
+
+
+# ---------------------------------------------------------------------------
+# #6653 (FR-003/FR-004, NFR-002): ``ISSUE_MATRIX_NOT_AUTHORED`` is raised ONLY
+# on positive absence of BOTH objects at a valid ref. Every probe that could
+# not run, and every failed read of an object that IS present, keeps the
+# fail-closed ``ISSUE_MATRIX_PROBE_ERROR``. The controls for the other legs
+# (deleted ref, empty content, legacy ``.md``-only) are the tests above.
+# ---------------------------------------------------------------------------
+
+_NOT_AUTHORED = "ISSUE_MATRIX_NOT_AUTHORED"
+_PROBE_ERROR = "ISSUE_MATRIX_PROBE_ERROR"
+
+
+def _is_issue_matrix_probe(cmd: list[str], verb: str) -> bool:
+    """True for a ``git <verb> <ref>:<...>/issue-matrix.*`` call (show / cat-file).
+
+    Narrow on purpose: phase derivation runs other git probes (for
+    ``meta.json``), and those calls must keep using the real subprocess.
+    """
+    return len(cmd) >= 2 and cmd[0] == "git" and cmd[1] == verb and "issue-matrix." in cmd[-1]
+
+
+def _install_fake_run(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    show: BaseException | int | None = None,
+    presence: dict[str, BaseException | int] | None = None,
+) -> None:
+    """Patch ``subprocess.run`` for the issue-matrix probes only.
+
+    ``show``: an exception to raise, or a non-zero exit code to return, for
+    every ``git show`` of an issue-matrix object. ``presence``: per filename
+    suffix (``".json"`` / ``".md"``), an exception the tree-only presence
+    probe (``git ls-tree``) raises, or a non-zero exit code it returns.
+    """
+    real_run = subprocess.run
+    presence = presence or {}
+
+    def _fake(cmd: list[str], *args: Any, **kwargs: Any) -> Any:
+        if show is not None and _is_issue_matrix_probe(cmd, "show"):
+            if isinstance(show, BaseException):
+                raise show
+            return subprocess.CompletedProcess(cmd, show, stdout=b"", stderr=b"fatal: bad object")
+        if _is_issue_matrix_probe(cmd, "ls-tree"):
+            for suffix, outcome in presence.items():
+                if cmd[-1].endswith(suffix):
+                    if isinstance(outcome, BaseException):
+                        raise outcome
+                    return subprocess.CompletedProcess(cmd, outcome, stdout=b"", stderr=b"fatal: not a tree object")
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(resolution_module.subprocess, "run", _fake)
+
+
+def test_not_authored_is_not_conflated_with_ref_absent_or_empty(repo: Path) -> None:
+    """The new code is its own leg: a valid ref, neither file committed."""
+    mission_slug, _feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2AA", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    assert _branch_exists(repo, coordination_branch)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _NOT_AUTHORED
+    assert excinfo.value.code not in {"ISSUE_MATRIX_REF_ABSENT", "ISSUE_MATRIX_EMPTY_CONTENT", _PROBE_ERROR}
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param(subprocess.TimeoutExpired(cmd="git", timeout=1), id="timeout"),
+        pytest.param(FileNotFoundError("git executable not found"), id="oserror"),
+    ],
+)
+@pytest.mark.parametrize("failing_presence_probe", [".json", ".md"])
+def test_presence_probe_that_cannot_run_keeps_probe_error(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: BaseException,
+    failing_presence_probe: str,
+) -> None:
+    """NFR-002: a presence probe cannot run (timeout / OSError) on a
+    never-authored ref -> PROBE_ERROR, never NOT_AUTHORED. A probe that could
+    not run is never read as "absent". The content probes RAN and exited
+    non-zero (128), so the presence probe is the only guard exercised here."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2BB", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    _install_fake_run(monkeypatch, show=128, presence={failing_presence_probe: failure})
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        pytest.param(subprocess.TimeoutExpired(cmd="git", timeout=1), id="timeout"),
+        pytest.param(FileNotFoundError("git executable not found"), id="oserror"),
+    ],
+)
+def test_content_probe_that_cannot_run_keeps_probe_error_even_if_presence_runs(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: BaseException,
+) -> None:
+    """A content probe that timed out or could not run never becomes
+    NOT_AUTHORED, even on a never-authored ref whose presence probes would
+    work: NOT_AUTHORED needs both content probes to have RUN and failed, and
+    then both presence probes to report absence (NFR-002)."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2CC", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    _install_fake_run(monkeypatch, show=failure)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+@pytest.mark.parametrize("show_failure", [128, FileNotFoundError("git executable not found")], ids=["exit-128", "oserror"])
+def test_failed_read_of_a_present_json_object_keeps_probe_error(repo: Path, monkeypatch: pytest.MonkeyPatch, show_failure: BaseException | int) -> None:
+    """``git show`` fails (unreadable object, bad exit) while the ``.json``
+    object IS present at the ref -> PROBE_ERROR, never NOT_AUTHORED."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(repo, mid8="01KZM2DD", coord_matrix_content="fixed")
+    _install_fake_run(monkeypatch, show=show_failure)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+def test_failed_read_of_a_present_legacy_md_object_keeps_probe_error(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only the legacy ``.md`` is committed and its ``git show`` fails -> the
+    ``.md`` presence probe sees the object, so PROBE_ERROR, never NOT_AUTHORED."""
+    mission_slug, feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2EE", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    _git(repo, "checkout", "-q", coordination_branch)
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "issue-matrix.md").write_text("| issue | verdict | evidence_ref |\n|---|---|---|\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({mission_slug}): author legacy issue-matrix.md")
+    _git(repo, "checkout", "-q", f"kitty/mission-{mission_slug}")
+    _install_fake_run(monkeypatch, show=128)
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+def test_successful_read_runs_no_presence_probe(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: the presence probes run only on the failure path -- a
+    successful ``.json`` read issues no presence probe for the matrix."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(repo, mid8="01KZM2FF", coord_matrix_content="fixed")
+    real_run = subprocess.run
+    presence_probes: list[list[str]] = []
+
+    def _spy(cmd: list[str], *args: Any, **kwargs: Any) -> Any:
+        if _is_issue_matrix_probe(cmd, "ls-tree") or _is_issue_matrix_probe(cmd, "cat-file"):
+            presence_probes.append(cmd)
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(resolution_module.subprocess, "run", _spy)
+
+    assert read_issue_matrix_ref_content(repo, mission_slug) == "fixed"
+    assert presence_probes == []
+
+
+# ---------------------------------------------------------------------------
+# #6653 review cycle 1 (FR-004/NFR-002): the presence probe reads the TREE,
+# never the blob. A path listed in the tree whose object is missing or
+# unreadable is "present but unreadable" (PROBE_ERROR), never NOT_AUTHORED;
+# a ref that stops resolving between checks is not "absent" either.
+# ---------------------------------------------------------------------------
+
+
+def _unlink_loose_object(repo: Path, object_spec: str) -> None:
+    """Delete the loose object behind ``object_spec`` (no ``git gc``: that would pack it)."""
+    sha = _git(repo, "rev-parse", object_spec).stdout.strip()
+    git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir").stdout.strip())
+    loose = git_dir / "objects" / sha[:2] / sha[2:]
+    assert loose.is_file(), f"expected a loose object for {object_spec} at {loose}"
+    loose.unlink()
+
+
+def test_committed_matrix_with_missing_blob_keeps_probe_error(repo: Path) -> None:
+    """``issue-matrix.json`` IS in the coord ref's tree but its blob is gone
+    (corruption, an offline partial clone, a pruned object) -> PROBE_ERROR.
+    A matrix was committed; reading it as NOT_AUTHORED would hide its rows."""
+    mission_slug, _feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(repo, mid8="01KZM2GG", coord_matrix_content="fixed")
+    _unlink_loose_object(repo, f"{coordination_branch}:kitty-specs/{mission_slug}/issue-matrix.json")
+    show = subprocess.run(
+        ["git", "show", f"{coordination_branch}:kitty-specs/{mission_slug}/issue-matrix.json"],
+        cwd=repo,
+        capture_output=True,
+    )
+    assert show.returncode != 0  # the fixture really makes the object unreadable
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+def test_committed_legacy_md_with_missing_blob_keeps_probe_error(repo: Path) -> None:
+    """Same for the legacy ``.md``: listed in the tree, blob gone -> PROBE_ERROR."""
+    mission_slug, feature_dir, _target, coordination_branch = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2HH", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    _git(repo, "checkout", "-q", coordination_branch)
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "issue-matrix.md").write_text("| issue | verdict | evidence_ref |\n|---|---|---|\n| #77 | fixed | PR #7 |\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", f"chore({mission_slug}): author legacy issue-matrix.md")
+    _git(repo, "checkout", "-q", f"kitty/mission-{mission_slug}")
+    _unlink_loose_object(repo, f"{coordination_branch}:kitty-specs/{mission_slug}/issue-matrix.md")
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR
+
+
+@pytest.mark.parametrize("failing_presence_probe", [".json", ".md"])
+def test_presence_probe_nonzero_exit_keeps_probe_error(repo: Path, monkeypatch: pytest.MonkeyPatch, failing_presence_probe: str) -> None:
+    """The presence probe exits non-zero (e.g. 128: the ref was deleted
+    between the ref check and the presence probe) on a never-authored ref ->
+    PROBE_ERROR. Only a probe that ran cleanly and listed nothing is absence."""
+    mission_slug, _feature_dir, _target, _coord = _build_consolidated_coord_mission(
+        repo, mid8="01KZM2JJ", coord_matrix_content=None, branch_coordination_before_scaffold=True
+    )
+    _install_fake_run(monkeypatch, presence={failing_presence_probe: 128})
+
+    with pytest.raises(IssueMatrixRefReadError) as excinfo:
+        read_issue_matrix_ref_content(repo, mission_slug)
+
+    assert excinfo.value.code == _PROBE_ERROR

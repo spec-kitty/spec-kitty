@@ -2073,20 +2073,43 @@ _ISSUE_MATRIX_MD_FILENAME = "issue-matrix.md"
 _ISSUE_MATRIX_REF_ABSENT_CODE = "ISSUE_MATRIX_REF_ABSENT"
 _ISSUE_MATRIX_PROBE_ERROR_CODE = "ISSUE_MATRIX_PROBE_ERROR"
 _ISSUE_MATRIX_EMPTY_CONTENT_CODE = "ISSUE_MATRIX_EMPTY_CONTENT"
+# #6653 (FR-003): the ref is valid and neither ``issue-matrix.json`` nor
+# ``issue-matrix.md`` was ever committed there — positively observed, never
+# inferred from a probe that could not run.
+_ISSUE_MATRIX_NOT_AUTHORED_CODE = "ISSUE_MATRIX_NOT_AUTHORED"
 
 
 class IssueMatrixRefReadError(RuntimeError):
     """Typed fail-closed refusal for :func:`read_issue_matrix_ref_content` (FR-007).
 
     Never absorbed into a silent PRIMARY-residue fallback or a vacuous pass —
-    every raise here names a distinct ``code`` (deleted ref / probe error /
-    empty authored content) so a caller can tell the three fail-closed legs
-    apart (NFR-002).
+    every raise here names a distinct ``code`` so a caller can tell the four
+    fail-closed legs apart (NFR-002):
+
+    * ``ISSUE_MATRIX_REF_ABSENT`` — the resolved ref has been deleted;
+    * ``ISSUE_MATRIX_PROBE_ERROR`` — a git probe failed or could not run
+      (timeout, missing ``git``, unreadable object, failed presence probe);
+    * ``ISSUE_MATRIX_EMPTY_CONTENT`` — the authored matrix is empty;
+    * ``ISSUE_MATRIX_NOT_AUTHORED`` (#6653) — the ref is valid and neither
+      ``issue-matrix.json`` nor ``issue-matrix.md`` was ever committed there.
+      A caller may treat this as "no matrix" ONLY where an absent matrix is
+      legitimately nothing to enforce (e.g. a Mission with zero gating
+      references); everywhere else it is a refusal like the other three.
     """
 
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+class _IssueMatrixProbeExited(IssueMatrixRefReadError):
+    """``ISSUE_MATRIX_PROBE_ERROR`` from a ``git show`` that RAN and exited non-zero.
+
+    Private marker (#6653): only this shape of probe error is eligible for the
+    ``ISSUE_MATRIX_NOT_AUTHORED`` presence check. A timeout or an ``OSError``
+    is a plain :class:`IssueMatrixRefReadError` and stays a probe error. Callers
+    see the public type and the same ``code``.
+    """
 
 
 def _issue_matrix_ref(
@@ -2194,7 +2217,7 @@ def _read_issue_matrix_ref_content(repo_root: Path, ref: str, object_path: str) 
         ) from exc
     if result.returncode != 0:
         stderr = result.stderr.decode("utf-8", errors="replace").strip()
-        raise IssueMatrixRefReadError(
+        raise _IssueMatrixProbeExited(
             _ISSUE_MATRIX_PROBE_ERROR_CODE,
             f"git show {object_spec!r} failed in {repo_root}: {stderr}",
         )
@@ -2208,6 +2231,66 @@ def _ensure_issue_matrix_content_authored(content: str, *, ref: str, object_path
             _ISSUE_MATRIX_EMPTY_CONTENT_CODE,
             f"issue-matrix content at {ref}:{object_path} is empty — refusing rather than treating an empty authored set as nothing to enforce.",
         )
+
+
+def _path_absent_from_tree(repo_root: Path, ref: str, object_path: str) -> bool:
+    """``True`` only when ``git ls-tree`` RAN cleanly and lists nothing at ``object_path``.
+
+    A tree-only probe (#6653 review cycle 1): ``ls-tree`` reads the ref's
+    trees and never the blob, so a path that IS committed but whose object is
+    missing or unreadable is still listed and reads as present. ``git
+    cat-file -e`` (``lifecycle_phase._path_present_at_rev``) cannot make that
+    distinction and is deliberately not used here.
+
+    Every outcome that is not a positive absence returns ``False``: the path
+    is listed, the probe exits non-zero (including 128 for a ref that stopped
+    resolving after :func:`_ensure_issue_matrix_ref_exists` checked it), it
+    times out, or it cannot run (``OSError``).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-tree", "--full-tree", "--name-only", ref, "--", object_path],
+            cwd=repo_root,
+            capture_output=True,
+            timeout=_GIT_PROBE_TIMEOUT,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return result.returncode == 0 and not result.stdout.strip()
+
+
+def _raise_not_authored_if_absent(
+    repo_root: Path,
+    ref: str,
+    object_paths: tuple[str, ...],
+    *,
+    first_failure: IssueMatrixRefReadError,
+    original: IssueMatrixRefReadError,
+) -> None:
+    """Helper (v): the not-authored leg (#6653, FR-003/FR-004/NFR-002).
+
+    Raises ``ISSUE_MATRIX_NOT_AUTHORED`` only when BOTH content probes ran and
+    exited non-zero (``first_failure`` and ``original`` are
+    :class:`_IssueMatrixProbeExited`) AND the tree-only presence probe
+    (:func:`_path_absent_from_tree`) positively reports every path in
+    ``object_paths`` absent from ``ref``'s tree. Returns without raising in
+    every other case, so the caller re-raises its original
+    ``ISSUE_MATRIX_PROBE_ERROR``: a content probe that timed out or could not
+    run, a path that IS in the tree (its object is unreadable), or a presence
+    probe that exits non-zero, times out or cannot run.
+
+    It runs only on this failure path, at most once per object path
+    (NFR-001).
+    """
+    if not (isinstance(first_failure, _IssueMatrixProbeExited) and isinstance(original, _IssueMatrixProbeExited)):
+        return
+    if not all(_path_absent_from_tree(repo_root, ref, object_path) for object_path in object_paths):
+        return
+    raise IssueMatrixRefReadError(
+        _ISSUE_MATRIX_NOT_AUTHORED_CODE,
+        f"no issue matrix was ever committed at {ref} (looked for {', '.join(object_paths)}) in {repo_root}.",
+    ) from original
 
 
 def read_issue_matrix_ref_content(
@@ -2243,11 +2326,19 @@ def read_issue_matrix_ref_content(
     vacuously, raising :class:`IssueMatrixRefReadError` when:
 
     * the resolved ref is absent (deleted) — ``ISSUE_MATRIX_REF_ABSENT``;
-    * the content probe errors (unreadable object, path never committed at a
-      valid ref, IO error) — ``ISSUE_MATRIX_PROBE_ERROR`` (a path distinct
+    * the content probe errors or cannot run (timeout, missing ``git``,
+      unreadable object) — ``ISSUE_MATRIX_PROBE_ERROR`` (a path distinct
       from ref-absent);
     * the authored content is empty — ``ISSUE_MATRIX_EMPTY_CONTENT`` (an
-      empty matrix is never read as "nothing to enforce").
+      empty matrix is never read as "nothing to enforce");
+    * the ref is valid and neither ``issue-matrix.json`` nor
+      ``issue-matrix.md`` was ever committed there —
+      ``ISSUE_MATRIX_NOT_AUTHORED`` (#6653). Raised only when both content
+      probes ran and failed AND a tree-only presence probe (``git ls-tree``)
+      positively reports both paths absent from the ref's tree; a path that
+      is listed (an unreadable object) or a presence probe that fails or
+      cannot run keeps ``ISSUE_MATRIX_PROBE_ERROR``. Callers may treat this code as "no
+      matrix" only where an absent matrix is legitimately nothing to enforce.
 
     Legacy markdown failover (FR-013, #5222/F3): probes ``issue-matrix.json``
     at the ref first; when that specific object is absent (a probe-error,
@@ -2273,7 +2364,7 @@ def read_issue_matrix_ref_content(
             (propagated from :func:`resolve_placement_only` — no silent
             fallback), or when a PUBLISHED mission's consolidated content is
             not present on the current checkout.
-        IssueMatrixRefReadError: On any of the three fail-closed legs above.
+        IssueMatrixRefReadError: On any of the four fail-closed legs above.
         LifecyclePhaseProbeError: When an underlying git probe this function
             depends on (via :func:`resolve_lifecycle_phase`) fails for a
             reason other than "genuinely absent".
@@ -2292,7 +2383,11 @@ def read_issue_matrix_ref_content(
         if exc.code != _ISSUE_MATRIX_PROBE_ERROR_CODE:
             raise
         object_path = _issue_matrix_object_path(main_root, mission_slug, resolver=resolver, filename=_ISSUE_MATRIX_MD_FILENAME)
-        content = _read_issue_matrix_ref_content(main_root, ref, object_path)
+        try:
+            content = _read_issue_matrix_ref_content(main_root, ref, object_path)
+        except IssueMatrixRefReadError as md_exc:
+            _raise_not_authored_if_absent(main_root, ref, (json_object_path, object_path), first_failure=exc, original=md_exc)
+            raise
 
     _ensure_issue_matrix_content_authored(content, ref=ref, object_path=object_path)
     return content

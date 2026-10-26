@@ -84,7 +84,8 @@ def resolve_issue_matrix_partition(
             not present on the current checkout.
         IssueMatrixRefReadError: When the post-consolidation ref-content read
             (step 4 above) fails closed -- a deleted ref, a content-probe
-            error, or empty authored content (see
+            error, empty authored content, or no matrix file at a valid ref
+            (``ISSUE_MATRIX_NOT_AUTHORED``, #6653) (see
             :func:`~mission_runtime.resolution.read_issue_matrix_ref_content`).
     """
     primary_discovery_dir = resolve_artifact_surface(

@@ -160,7 +160,7 @@ MISSION_REVIEW_ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE: Row for issue '#789': verdi
 
 **Code**: `MISSION_REVIEW_ISSUE_MATRIX_REF_READ_FAILED`
 
-**When it fires**: The mission references gating GitHub issues, its coordination worktree is no longer materialized (consolidated away or a published mission whose Target Ref was deleted), and reading the issue-matrix content directly from the coordination branch ref failed — a deleted ref, a git probe error, or an empty authored matrix (`IssueMatrixRefReadError`, #5222).
+**When it fires**: The mission references gating GitHub issues, its coordination worktree is no longer materialized (consolidated away or a published mission whose Target Ref was deleted), and reading the issue-matrix content directly from the coordination branch ref failed — a deleted ref (`ISSUE_MATRIX_REF_ABSENT`), a git probe error or a probe that could not run (`ISSUE_MATRIX_PROBE_ERROR`), an empty authored matrix (`ISSUE_MATRIX_EMPTY_CONTENT`), or a valid ref where neither `issue-matrix.json` nor `issue-matrix.md` was ever committed (`ISSUE_MATRIX_NOT_AUTHORED`, #6653) (`IssueMatrixRefReadError`, #5222). A Mission WITH gating references fails closed on every one of these codes, `ISSUE_MATRIX_NOT_AUTHORED` included: an unauthored matrix is "nothing to enforce" only for a Mission with zero gating references, which never reaches this read.
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
