@@ -1270,13 +1270,15 @@ def _resolve_review_body(
     feedback_source: Path | None,
     body: str | None,
     sub_artifact_dir: Path,
+    body_header: str | None = None,
 ) -> str:
     """Return the review-cycle body from exactly one of ``feedback_source`` / ``body``.
 
     A ``feedback_source`` file is validated (exists, is a file, non-empty) and
     then routed through :func:`_guard_feedback_source_provenance`; a
     caller-generated ``body`` bypasses that guard (see
-    :func:`create_rejected_review_cycle`).
+    :func:`create_rejected_review_cycle`). ``body_header`` is prepended to the
+    guarded file content, never checked by the guard itself.
     """
     if feedback_source is None:
         assert body is not None
@@ -1294,7 +1296,9 @@ def _resolve_review_body(
         feedback_source=feedback_source,
         sub_artifact_dir=sub_artifact_dir,
     )
-    return resolved_body
+    if body_header is None:
+        return resolved_body
+    return f"{body_header.rstrip()}\n\n{resolved_body}"
 
 
 def _persistence_after_commit_exception(
@@ -1340,6 +1344,7 @@ def create_rejected_review_cycle(
     wp_slug: str,
     feedback_source: Path | None = None,
     body: str | None = None,
+    body_header: str | None = None,
     reviewer_agent: str = "unknown",
     affected_files: list[dict[str, str]] | None = None,
     verdict: Literal["approved", "rejected"] = "rejected",
@@ -1382,12 +1387,21 @@ def create_rejected_review_cycle(
       on-disk file to path-check either, so the path-identity arm is moot
       for this leg.
 
+    ``body_header`` (#6652, optional, ``feedback_source`` only): a
+    caller-generated line written above the reviewer's file content. The
+    approval writer uses it to keep its ``Approved by {reviewer}: {reference}``
+    line (the only durable copy of an ``--approval-ref`` token) when the
+    reviewer also supplies a feedback file. The file itself still goes through
+    :func:`_guard_feedback_source_provenance`.
+
     ``owned`` is the validated owned checkout, when the command runs against
     one. Every directory, placement ref and evidence path is then derived from
     the fact (``owned.owned_root``), never from ``main_repo_root``.
     """
     if (feedback_source is None) == (body is None):
         raise ReviewCycleError("create_rejected_review_cycle requires exactly one of feedback_source or body")
+    if body_header is not None and feedback_source is None:
+        raise ReviewCycleError("create_rejected_review_cycle accepts body_header only with feedback_source")
 
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
@@ -1412,6 +1426,7 @@ def create_rejected_review_cycle(
         feedback_source=feedback_source,
         body=body,
         sub_artifact_dir=sub_artifact_dir,
+        body_header=body_header,
     )
 
     parsed_affected: list[AffectedFile] = [AffectedFile(path=affected["path"], line_range=affected.get("line_range")) for affected in affected_files or []]

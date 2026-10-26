@@ -374,3 +374,58 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
     ).stdout
     assert destination == cycle2.read_bytes()
     assert "Approved by" in cycle2.read_text(encoding="utf-8")
+
+
+def test_approval_with_real_feedback_file_records_its_content(
+    tmp_path: Path,
+) -> None:
+    """#6652: ``--review-feedback-file`` on an approval lands in the committed
+    approval cycle, and a byte-identical file on a later approval (the M1 shape,
+    with a reviewer-supplied file instead of a synthesized body) still succeeds.
+    """
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    _init_repo(tmp_path)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed approval feedback fixture"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    ports = _fake_ports(feature_dir)
+    wp_dir = feature_dir / "tasks" / wp_file.stem
+    _seed_lanes_json(feature_dir, _MISSION, _WP_ID)
+    approval_feedback = tmp_path / "approval-feedback.md"
+    approval_feedback.write_text(
+        "# Review\n\nDISTINCTIVE-APPROVAL-FEEDBACK-LINE: alpha() checked; tests pass.\n",
+        encoding="utf-8",
+    )
+
+    for cycle, rejection_text in ((1, "first pass needs work"), (3, "second pass needs work")):
+        _seed_wp_event(feature_dir, _WP_ID, "in_review")
+        rejection = tmp_path / f"rejection-{cycle}.md"
+        rejection.write_text(f"**Issue**: {rejection_text}.\n", encoding="utf-8")
+        _run_move(tmp_path, to="planned", ports=ports, review_feedback_file=rejection)
+        _seed_rejection_result_event(feature_dir, _WP_ID)
+
+        _seed_wp_event(feature_dir, _WP_ID, "in_review")
+        _run_move(
+            tmp_path,
+            to="approved",
+            ports=ports,
+            note="Review passed",
+            review_feedback_file=approval_feedback,
+        )
+
+    approval_cycle = wp_dir / "review-cycle-2.md"
+    text = approval_cycle.read_text(encoding="utf-8")
+    assert "Approved by" in text
+    assert "DISTINCTIVE-APPROVAL-FEEDBACK-LINE: alpha() checked; tests pass." in text
+    committed = subprocess.run(
+        ["git", "log", "--all", "-p"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "DISTINCTIVE-APPROVAL-FEEDBACK-LINE" in committed

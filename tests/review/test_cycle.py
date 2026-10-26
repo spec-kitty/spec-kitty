@@ -68,6 +68,77 @@ def test_create_rejected_cycle_returns_canonical_pointer_and_review_result(tmp_p
     assert validate_review_artifact_file(created.artifact_path).body.startswith("**Issue**")
 
 
+def _seed_wp(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    return repo
+
+
+def test_body_header_is_prepended_to_feedback_source_content(tmp_path: Path) -> None:
+    """#6652: an approval records the reviewer's file below the synthesized approval line."""
+    repo = _seed_wp(tmp_path)
+    feedback = tmp_path / "approval-feedback.md"
+    feedback.write_text("DISTINCTIVE-APPROVAL-FEEDBACK-LINE: alpha() checked.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        body_header="Approved by reviewer: approval:WP01\n",
+        reviewer_agent="reviewer",
+        verdict="approved",
+    )
+
+    body = validate_review_artifact_file(created.artifact_path).body
+    assert body.startswith("Approved by reviewer: approval:WP01\n")
+    assert "DISTINCTIVE-APPROVAL-FEEDBACK-LINE: alpha() checked." in body
+
+
+def test_body_header_does_not_bypass_feedback_provenance_guard(tmp_path: Path) -> None:
+    """A header never launders a prior review-cycle artifact submitted as feedback (#990/#2996(b))."""
+    repo = _seed_wp(tmp_path)
+    first = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="**Issue**: first pass.\n",
+        reviewer_agent="reviewer",
+    )
+    copied = tmp_path / "copied-cycle.md"
+    copied.write_bytes(first.artifact_path.read_bytes())
+
+    with pytest.raises(ReviewCycleError, match="parses as a review-cycle artifact"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            feedback_source=copied,
+            body_header="Approved by reviewer: approval:WP01\n",
+            reviewer_agent="reviewer",
+            verdict="approved",
+        )
+
+
+def test_body_header_requires_feedback_source(tmp_path: Path) -> None:
+    with pytest.raises(ReviewCycleError, match="body_header"):
+        create_rejected_review_cycle(
+            main_repo_root=tmp_path,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="synthesized\n",
+            body_header="Approved by reviewer: approval:WP01\n",
+        )
+
+
 def test_empty_feedback_fails_before_artifact_write(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

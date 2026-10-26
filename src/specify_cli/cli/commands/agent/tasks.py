@@ -779,7 +779,9 @@ def move_task(
                 "Path to review feedback file. Required for review-rejection edges "
                 "(--to planned, incl. with --force; and in_review->in_progress). "
                 "Recorded as the transition's on-wire review_ref rationale; omitting "
-                "it makes the status event contract-invalid and hosted sync drops it."
+                "it makes the status event contract-invalid and hosted sync drops it. "
+                "On --to approved/done the file's content is recorded in the approval's "
+                "review-cycle record."
             ),
         ),
     ] = None,
