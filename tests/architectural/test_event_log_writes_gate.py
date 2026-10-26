@@ -116,6 +116,7 @@ _PORT_DOOR_NAMES: frozenset[str] = frozenset({"work_package_transition_port", "r
 _PORT_OWNERS: frozenset[str] = frozenset({"runtime.next.event_bridge", "specify_cli.events.event_bridge"})
 #: The only functions that may reach the port's write door: the three
 #: transition doors (the two flat ones through ``_record_work_package_transition``).
+#: Debt: ``LEDGER_DEBT["port_callers"]``.
 EXPECTED_PORT_CALLERS: frozenset[tuple[str, str]] = frozenset(
     {
         ("specify_cli.status.emit", "_record_work_package_transition"),
@@ -129,11 +130,37 @@ _RAW_OWNERS: frozenset[str] = frozenset({"kernel.event_log_append", "specify_cli
 
 _INTERIM = "interim locked append; retires at the #6193 handover"
 
+
+@dataclass(frozen=True)
+class LedgerDebt:
+    """The price of one transient ledger family (charter standing order 5): its exit issue and owner."""
+
+    exit_issue: str
+    owner: str
+    exit_when: str
+
+    def __str__(self) -> str:
+        return f"exit {self.exit_issue} ({self.exit_when}); owner: {self.owner}"
+
+
+#: Every ledger below is transient debt that drains at the write-service
+#: handover; #6193 owns that handover, one log at a time.
+_HANDOVER_OWNER = "the #6193 write-service handover owner"
+LEDGER_DEBT: Mapping[str, LedgerDebt] = MappingProxyType(
+    {
+        "door_callers": LedgerDebt("#6193", _HANDOVER_OWNER, "each entry goes when the write service takes its log over whole"),
+        "raw_log_writers": LedgerDebt("#6193", _HANDOVER_OWNER, "each entry goes when the write service takes its log over whole"),
+        "unresolved_log_writes": LedgerDebt("#6193", _HANDOVER_OWNER, "status.events.jsonl writes; they go when the write service takes that log over"),
+        "port_callers": LedgerDebt("#6193", _HANDOVER_OWNER, "the port's local adapter is replaced by the write service's client (#6675 wires the port)"),
+    }
+)
+
 _LOCKED = "append_event_log_lines"
 
 #: Every caller of a door today: ``(module, function, door) -> call count``.
 #: Each is an interim locked append (#6606) that retires at the #6193 handover
 #: of its log; a new caller must be added here in the change that adds it.
+#: Debt: ``LEDGER_DEBT["door_callers"]``.
 EXPECTED_DOOR_CALLERS: Mapping[tuple[str, str, str], int] = MappingProxyType(
     {
         ("charter.activation._io", "_write_provenance", _LOCKED): 1,  # encoding provenance
@@ -156,7 +183,7 @@ EXPECTED_DOOR_CALLERS: Mapping[tuple[str, str, str], int] = MappingProxyType(
 #: No unlocked append is left since #6606 routed the last one through the
 #: interim door; what remains is not an append. A whole-file rewrite, merge
 #: driver or repair that names a gated log in its write path is ledgered here
-#: with its reason.
+#: with its reason. Debt: ``LEDGER_DEBT["raw_log_writers"]``.
 EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType(
     {
         ("glossary.events", "_repair_torn_tail", "glossary"): (
@@ -176,7 +203,7 @@ _STATUS_GATE = "a status.events.jsonl write the status gate ledgers (test_status
 #: Every raw write whose path the scanner cannot attribute to a log but whose
 #: expression reads like one: ``(module, function, path expression) -> reason``.
 #: Pinned so a new one is looked at; a shared appender that takes its path as a
-#: parameter lands here.
+#: parameter lands here. Debt: ``LEDGER_DEBT["unresolved_log_writes"]``.
 EXPECTED_UNRESOLVED_LOG_WRITES: Mapping[tuple[str, str, str], str] = MappingProxyType(
     {
         ("specify_cli.consolidation.bookkeeping_projection", "_project_status_bookkeeping_to_target", "trusted_target_events_path"): _STATUS_GATE,
@@ -394,7 +421,7 @@ def test_no_new_door_callers(tree_scan: TreeScan) -> None:
     over = {key: (EXPECTED_DOOR_CALLERS.get(key, 0), count) for key, count in found.items() if count > EXPECTED_DOOR_CALLERS.get(key, 0)}
     assert not over, (
         "New event-log writers (key: (ledgered, found)). An event-log append goes through the EventBridge port or, "
-        f"until its log moves (#6193), a ledgered interim locked append ({_INTERIM}): {over}"
+        f"until its log moves (#6193), a ledgered interim locked append ({_INTERIM}; {LEDGER_DEBT['door_callers']}): {over}"
     )
 
 
@@ -406,7 +433,7 @@ def test_door_ledger_is_live(tree_scan: TreeScan) -> None:
 
 def test_no_new_raw_log_writers(tree_scan: TreeScan) -> None:
     new = sorted(tree_scan.raw_writers - EXPECTED_RAW_LOG_WRITERS.keys())
-    assert not new, f"Raw writes to a gated event log; append through kernel.event_log_append ({_INTERIM}): {new}"
+    assert not new, f"Raw writes to a gated event log; append through kernel.event_log_append ({_INTERIM}; {LEDGER_DEBT['raw_log_writers']}): {new}"
 
 
 def test_raw_ledger_is_live(tree_scan: TreeScan) -> None:
@@ -418,7 +445,7 @@ def test_no_new_unresolved_log_writes(tree_scan: TreeScan) -> None:
     new = sorted(tree_scan.unresolved_writes - EXPECTED_UNRESOLVED_LOG_WRITES.keys())
     assert not new, (
         "Raw writes whose path reads like an event log but names none the gate knows; route an event-log append through "
-        f"kernel.event_log_append ({_INTERIM}), or pin the write with its reason: {new}"
+        f"kernel.event_log_append ({_INTERIM}), or pin the write with its reason ({LEDGER_DEBT['unresolved_log_writes']}): {new}"
     )
 
 
@@ -430,7 +457,7 @@ def test_unresolved_ledger_is_live(tree_scan: TreeScan) -> None:
 def test_only_the_transition_doors_reach_the_port(tree_scan: TreeScan) -> None:
     """The port's write door appends to ``status.events.jsonl`` with no FSM and no Mission lock (pre-PR squad)."""
     assert tree_scan.port_callers == EXPECTED_PORT_CALLERS, (
-        "Only the work package transition doors may reach the EventBridge port's write door "
+        f"Only the work package transition doors may reach the EventBridge port's write door ({LEDGER_DEBT['port_callers']}) "
         f"(new: {sorted(tree_scan.port_callers - EXPECTED_PORT_CALLERS)}, gone: {sorted(EXPECTED_PORT_CALLERS - tree_scan.port_callers)})"
     )
 
@@ -443,11 +470,6 @@ def test_a_new_port_caller_is_found() -> None:
     )
     assert scan_port_callers("specify_cli.rogue", ast.parse(source)) == {("specify_cli.rogue", "rogue"), ("specify_cli.rogue", "R.m")}
     assert scan_port_callers("specify_cli.events.event_bridge", ast.parse(source)) == set()
-
-
-def test_the_gate_sees_todays_writers(tree_scan: TreeScan) -> None:
-    """Non-vacuity on the real tree: the census must find the known door callers."""
-    assert len({call.key for call in tree_scan.door_calls}) >= 10
 
 
 # ---------------------------------------------------------------------------
