@@ -3859,6 +3859,7 @@ pages:
     - {slug: "amendment-2026-10-22-6582-the-lead-block-the-charter-pack-cutover-after-its-prerequisites", text: "Amendment 2026-10-22 (#6582: the lead block, the charter-pack cutover after its prerequisites)", level: 2}
     - {slug: "amendment-2026-10-25-6589-superseding-a-shipped-migration-without-editing-it", text: "Amendment 2026-10-25 (#6589: superseding a shipped migration without editing it)", level: 2}
     - {slug: "amendment-2026-10-25-6629-the-interview-promotion-is-superseded", text: "Amendment 2026-10-25 (#6629: the interview promotion is superseded)", level: 2}
+    - {slug: "amendment-2026-10-25b-6669-residue-aware-successors", text: "Amendment 2026-10-25b (#6669: residue-aware successors)", level: 2}
   - path: "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md"
     title: "ADR: one activation ledger persists deactivation, and nothing silently reinstalls it"
     divio_type: "none"
