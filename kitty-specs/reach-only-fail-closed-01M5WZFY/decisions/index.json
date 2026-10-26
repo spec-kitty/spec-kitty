@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-26T20:47:57.613904Z",
+      "decision_id": "01M5WZGJNDBHJC4JS215EJ9EGJ",
+      "final_answer": "Treat every synthesis-edge target as reach-only (no roots) and warn (operator ruling relayed by the orchestrator, 2026-10-26)",
+      "input_key": "both_unreadable_behaviour",
+      "mission_id": "01M5WZFYQZ2AS5KWR8K3HDDJCG",
+      "mission_slug": "reach-only-fail-closed-01M5WZFY",
+      "opened_by": "cli",
+      "options": [
+        "Treat every synthesis-edge target as reach-only (no roots) and warn",
+        "Raise a named error",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When neither the synthesis manifest nor the created-artifacts record can be read, what should reach-only membership do?",
+      "rationale": null,
+      "resolved_at": "2026-10-26T20:48:09.956407Z",
+      "resolved_by": null,
+      "slot_key": "specify.failure.both-unreadable",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-26T20:48:13.579550Z",
+      "decision_id": "01M5WZH28BW0HC6QNSRRGWX4JP",
+      "final_answer": "No, keep its lenient read; out of scope (it decides activation-list appends right after the run rewrote the manifest, and the created-artifacts record keeps removals sticky)",
+      "input_key": "append_path_scope",
+      "mission_id": "01M5WZFYQZ2AS5KWR8K3HDDJCG",
+      "mission_slug": "reach-only-fail-closed-01M5WZFY",
+      "opened_by": "cli",
+      "options": [
+        "No, keep its lenient read; out of scope",
+        "Yes, fall back there too",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the synthesis append path (_first_time_slugs, append_synthesized_activations) also change its reading of an unreadable manifest?",
+      "rationale": null,
+      "resolved_at": "2026-10-26T20:48:22.611591Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.append-path",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5WZFYQZ2AS5KWR8K3HDDJCG",
+  "version": 1
+}

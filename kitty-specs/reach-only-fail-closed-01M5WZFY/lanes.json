@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "reach-only-fail-closed-01M5WZFY",
+  "mission_id": "01M5WZFYQZ2AS5KWR8K3HDDJCG",
+  "mission_branch": "issue-6454-reach-only-fail-closed",
+  "target_branch": "issue-6454-reach-only-fail-closed",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/synthesizer/reach_only.py",
+        "tests/charter/synthesizer/test_reach_only_delivery.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-26T20:52:09.763727+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "af067f43a6065844450d03a18d0cea60a567ec08"
+}
