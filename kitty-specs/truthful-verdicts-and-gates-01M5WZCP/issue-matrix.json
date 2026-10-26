@@ -204,6 +204,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6632": {
+      "evidence_ref": "Context citation (related-issue triage, history or parent epic) in research/plan/WP prompts; owed no work by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6649": {
       "evidence_ref": "WP03 lane commits eba1c635 (red test) + 53ff6b08 (fix)",
       "fr": null,
