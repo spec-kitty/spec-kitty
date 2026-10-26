@@ -55,6 +55,9 @@
       "last_event_id": "01M5X3ZVK9SPKV5ZKQ7MHX38M6",
       "last_transition_at": "2026-10-26T22:06:12.585092+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first terminality tests; all in-mission rows count at done; zero-ref arm reads an existing matrix; 767 policy/tasks tests pass"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 9028,

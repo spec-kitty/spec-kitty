@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: issue-6652-verdict-gate-truthfulness
 merge_target_branch: issue-6652-verdict-gate-truthfulness
 branch_strategy: Planning artifacts for this mission were generated on issue-6652-verdict-gate-truthfulness. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6652-verdict-gate-truthfulness unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-truthful-verdicts-and-gates-01M5WZCP
+base_commit: b39d1918d2d382be3cbe9e87b6ec90f4c5de8137
+created_at: '2026-10-26T21:53:33.730627+00:00'
 subtasks:
 - T006
 - T007
