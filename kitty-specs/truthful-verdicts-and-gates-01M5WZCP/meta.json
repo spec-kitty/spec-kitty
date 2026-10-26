@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-26T20:45:52.587645+00:00",
+  "flattened": false,
+  "friendly_name": "Truthful verdicts and gates",
+  "mid8": "01M5WZCP",
+  "mission_id": "01M5WZCPRME44D1Y0HGS2NSANB",
+  "mission_number": null,
+  "mission_slug": "truthful-verdicts-and-gates-01M5WZCP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Four defects let Spec Kitty tell an operator something untrue: an approval reports its review feedback as durably persisted while discarding it, the approval's recorded replay command breaks on a multi-word reviewer, the terminality gate prints 'no unresolved rows' while an in-mission row lands, and safe-commit reports success for a named ignored file it never committed. This mission makes each report match what actually happened.",
+  "purpose_tldr": "Approvals, the issue-matrix terminality gate and safe-commit stop reporting outcomes that did not happen.",
+  "slug": "truthful-verdicts-and-gates-01M5WZCP",
+  "target_branch": "issue-6652-verdict-gate-truthfulness",
+  "topology": "lanes"
+}
