@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "mission_slug": "truthful-verdicts-and-gates-01M5WZCP",
+  "mission_id": "01M5WZCPRME44D1Y0HGS2NSANB",
+  "mission_branch": "kitty/mission-truthful-verdicts-and-gates-01M5WZCP",
+  "target_branch": "issue-6652-verdict-gate-truthfulness",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/review/cycle.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_approval_feedback_6652.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/policy/merge_gates.py",
+        "src/specify_cli/tasks/issue_matrix_approval.py",
+        "tests/policy/test_merge_gates_issue_matrix_6653.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_cli.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-26T21:19:14.928109+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2e0ee26e520a4e80b2ceee23864cb42ba98dba18"
+}
