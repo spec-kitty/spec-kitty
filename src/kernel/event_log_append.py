@@ -91,9 +91,16 @@ Precondition = Callable[[bytes], None]
 
 
 class EventLogAppendError(OSError):
-    """Base class of every refusal of the interim event-log append."""
+    """Base class of every refusal of the interim event-log append.
+
+    The message ends with ``Error code: <CODE>.`` (the consolidate
+    convention), so an operator can quote the refusal by its ``code``.
+    """
 
     code = "EVENT_LOG_APPEND_FAILED"
+
+    def __init__(self, message: str) -> None:
+        super().__init__(f"{message} Error code: {self.code}.")
 
 
 class EventLogTornTailError(EventLogAppendError):
@@ -233,7 +240,7 @@ def _open_for_append(log: Path, *, create: bool, no_follow: bool, mode: int) -> 
     try:
         return open_no_follow(log, flags, mode)
     except NoFollowPathError as exc:
-        raise EventLogSymlinkError(f"{log}: refusing to append through a symbolic link") from exc
+        raise EventLogSymlinkError(f"{log}: refusing to append through a symbolic link.") from exc
 
 
 def _check_existing(fd: int, log: Path, precondition: Precondition | None) -> int:
@@ -273,7 +280,7 @@ def _write_unit(fd: int, log: Path, payload: bytes, pre_size: int) -> None:
     try:
         written = os.write(fd, payload)
         if written != len(payload):
-            raise EventLogShortWriteError(f"{log}: short write ({written} of {len(payload)} bytes)")
+            raise EventLogShortWriteError(f"{log}: short write ({written} of {len(payload)} bytes); the append was refused.")
     except OSError as exc:
         _truncate_to(fd, pre_size, exc)
         raise

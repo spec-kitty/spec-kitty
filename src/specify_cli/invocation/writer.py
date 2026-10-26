@@ -186,7 +186,7 @@ class InvocationWriter:
         except EventLogSymlinkError as exc:
             raise InvocationWriteError(f"Failed to open invocation record safely: {exc}") from exc
         except EventLogTornTailError as exc:
-            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
+            raise InvocationError(f"Invocation record is unreadable: {invocation_id} ({exc})") from exc
 
     @staticmethod
     def _append_line_no_follow(path: Path, line: str) -> None:

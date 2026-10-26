@@ -62,7 +62,7 @@ def test_completed_refuses_a_torn_trail_and_leaves_it_byte_identical(writer: Inv
     path = writer.write_started(_started())
     path.write_bytes(path.read_bytes() + _TORN)
     before = path.read_bytes()
-    with pytest.raises(InvocationError, match="unreadable"):
+    with pytest.raises(InvocationError, match=r"unreadable: .*Error code: EVENT_LOG_TORN_TAIL\.\)$"):
         writer.write_completed(_completed())
     assert path.read_bytes() == before
 

@@ -100,6 +100,7 @@ def test_refuses_a_torn_tail_and_leaves_the_log_byte_identical(log: Path) -> Non
         append_event_log_lines(log, ['{"next":2}'])
     assert log.read_bytes() == b'{"whole":1}\n{"torn":'
     assert excinfo.value.code == "EVENT_LOG_TORN_TAIL"
+    assert str(excinfo.value).endswith("Error code: EVENT_LOG_TORN_TAIL.")
     assert isinstance(excinfo.value, OSError)
 
 
@@ -169,7 +170,7 @@ def test_no_follow_refuses_a_symlink(log: Path, tmp_path: Path) -> None:
     real = tmp_path / "real.jsonl"
     real.write_bytes(b"")
     log.symlink_to(real)
-    with pytest.raises(EventLogSymlinkError) as excinfo:
+    with pytest.raises(EventLogSymlinkError, match=r"Error code: EVENT_LOG_SYMLINK\.$") as excinfo:
         append_event_log_lines(log, ["x"], no_follow=True)
     assert isinstance(excinfo.value, OSError)
     assert real.read_bytes() == b""
@@ -212,8 +213,10 @@ def test_short_write_is_reported(log: Path, monkeypatch: pytest.MonkeyPatch, fai
         return written
 
     monkeypatch.setattr(os, "write", partial_unit_write)
-    with pytest.raises(fails_with):
+    with pytest.raises(fails_with) as excinfo:
         append_event_log_lines(log, ["xyz"])
+    if fails_with is EventLogShortWriteError:
+        assert str(excinfo.value).endswith("Error code: EVENT_LOG_SHORT_WRITE.")
     assert log.read_bytes() == b'{"whole":1}\n'
 
 
@@ -278,7 +281,7 @@ def test_git_unavailable_refuses_and_writes_nothing(log: Path, monkeypatch: pyte
         raise GitTopologyUnavailableError(path, "git: not found")
 
     monkeypatch.setattr(event_log_append, "git_common_dir", unavailable)
-    with pytest.raises(EventLogLockUnavailableError):
+    with pytest.raises(EventLogLockUnavailableError, match=r"Error code: EVENT_LOG_LOCK_UNAVAILABLE\.$"):
         append_event_log_lines(log, ["x"])
     assert not log.exists()
 
@@ -303,6 +306,7 @@ def test_lock_timeout_refuses_and_writes_nothing(log: Path) -> None:
     with event_log_lock(log), pytest.raises(EventLogLockTimeoutError) as excinfo:
         append_event_log_lines(log, ["x"], timeout_s=0.2)
     assert excinfo.value.code == "EVENT_LOG_LOCK_TIMEOUT"
+    assert str(excinfo.value).endswith("Error code: EVENT_LOG_LOCK_TIMEOUT.")
     assert not log.exists()
 
 
