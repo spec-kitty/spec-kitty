@@ -17,14 +17,9 @@ from specify_cli.context.mission_resolver import (
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 from ..registry import settled_in_selection_view
+from .base import BaseMigration, MigrationResult
 
 _WORKTREES_DIR = ".worktrees"
-
-
-def predecessor_settled(project_path: Path, predecessor_id: str) -> bool:
-    """True when *predecessor_id* is settled in the selection view of *project_path* (#6669)."""
-    settled: bool = settled_in_selection_view(project_path, predecessor_id)
-    return settled
 
 
 class ResidueProbes:
@@ -50,7 +45,7 @@ class ResidueProbes:
     def is_residue(self, folder: Path) -> bool:
         """Whether the ``kitty-specs/`` child *folder* is residue, judged against its own checkout."""
         root = folder.parent.parent
-        return is_kitty_specs_residue(folder, repo_root=root, tracked=self.tracked(root))
+        return bool(is_kitty_specs_residue(folder, repo_root=root, tracked=self.tracked(root)))
 
 
 def partition_kitty_specs(
@@ -101,3 +96,41 @@ def partition_checkout_specs(project_path: Path, probes: ResidueProbes | None = 
             missions.extend(wt_missions)
             residue.extend(wt_residue)
     return missions, residue
+
+
+class ResidueSafeLaneSuccessorMixin(BaseMigration):
+    """The ``detect`` / ``apply`` wrappers shared by the subclassing 0.9.x successors (#6669).
+
+    Listed first in the bases, before the shipped class, so ``super()`` here reaches the
+    shipped walk. The successor keeps its per-folder overrides, which call :meth:`_is_residue`.
+    ``predecessor_id`` names the superseded predecessor whose settlement makes the successor inert.
+    """
+
+    predecessor_id: str = ""
+    _probes: ResidueProbes | None = None
+
+    def _is_residue(self, feature_path: Path) -> bool:
+        """Residue decision through this run's probe cache (one git probe per checkout); uncached outside detect/apply."""
+        if self._probes is None:
+            return bool(is_kitty_specs_residue(feature_path))
+        return self._probes.is_residue(feature_path)
+
+    def detect(self, project_path: Path) -> bool:
+        if settled_in_selection_view(project_path, self.predecessor_id):
+            return False
+        self._probes = ResidueProbes()
+        try:
+            return bool(super().detect(project_path))
+        finally:
+            self._probes = None
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        # Probe every checkout before the shipped walk moves a file: a git timeout then aborts with nothing moved.
+        self._probes = ResidueProbes()
+        try:
+            _missions, residue = partition_checkout_specs(project_path, self._probes)
+            result = super().apply(project_path, dry_run)
+        finally:
+            self._probes = None
+        result.warnings.extend(residue_warnings(residue, project_path))
+        return result

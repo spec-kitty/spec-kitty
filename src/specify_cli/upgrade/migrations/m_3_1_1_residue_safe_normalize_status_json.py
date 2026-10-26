@@ -18,8 +18,8 @@ from pathlib import Path
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.status import SNAPSHOT_FILENAME, read_events, reduce
 
-from ..registry import MigrationRegistry
-from ._residue_successor import partition_kitty_specs, predecessor_settled, residue_warnings
+from ..registry import MigrationRegistry, settled_in_selection_view
+from ._residue_successor import partition_kitty_specs, residue_warnings
 from .base import BaseMigration, MigrationResult
 from .m_3_1_1_normalize_status_json import _needs_normalisation
 
@@ -56,7 +56,7 @@ class ResidueSafeNormalizeStatusJsonMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """True when any Mission's status.json is out of date."""
-        if predecessor_settled(project_path, PREDECESSOR_ID):
+        if settled_in_selection_view(project_path, PREDECESSOR_ID):
             return False
         kitty_specs = project_path / KITTY_SPECS_DIR
         missions, _residue = partition_kitty_specs(kitty_specs, project_path)

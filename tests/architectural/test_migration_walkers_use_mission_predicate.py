@@ -22,7 +22,8 @@ a residue-aware successor walks instead (``_SUPERSEDED``).
 Two successors (0.9.0, 0.9.1) take a third route: they SUBCLASS the shipped class, so the shipped walk
 still runs and is made safe only by the per-folder predicates and the frontmatter collector they override.
 Those entries are ``_SUBCLASS_GUARDED``; each override is pinned in ``_GUARDED_SEAMS`` to reach the residue
-predicate, and ``test_subclass_guarded_classification_is_true`` fails if an override disappears.
+predicate (through the inherited ``ResidueSafeLaneSuccessorMixin._is_residue``, itself pinned), and
+``test_subclass_guarded_classification_is_true`` fails if an override disappears.
 
 Blind spots of the detector (``_find_raw_walker_calls``), so a walker can hide
 from the inventory below:
@@ -115,11 +116,11 @@ _GUARDED_SEAMS = (
     ("src/specify_cli/upgrade/migrations/_residue_successor.py", "partition_kitty_specs"),
     ("src/specify_cli/upgrade/migrations/_residue_successor.py", "partition_checkout_specs"),
     ("src/specify_cli/upgrade/migrations/_residue_successor.py", "is_residue"),
+    # ResidueSafeLaneSuccessorMixin's residue decision; an override reaches it as an inherited ``self._is_residue``.
+    ("src/specify_cli/upgrade/migrations/_residue_successor.py", "_is_residue"),
     # Overrides that make the subclassed shipped 0.9.0 / 0.9.1 walks residue-safe (_SUBCLASS_GUARDED).
     ("src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py", "_is_legacy_format"),
-    ("src/specify_cli/upgrade/migrations/m_0_9_0_residue_safe_frontmatter_only_lanes.py", "_is_residue"),
     ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_has_remaining_lane_dirs"),
-    ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_is_residue"),
     ("src/specify_cli/upgrade/migrations/m_0_9_1_residue_safe_complete_migration.py", "_normalize_all_frontmatter"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_without_residue"),
 )
@@ -191,10 +192,44 @@ def _imported_seam_names(tree: ast.AST) -> frozenset[str]:
     return frozenset(names)
 
 
+_SEAM_MODULES = {module.rsplit("/", 1)[-1].removesuffix(".py"): module for module, _function in _GUARDED_SEAMS}
+
+
+def _inherited_seam_methods(tree: ast.AST, fn: ast.AST) -> frozenset[str]:
+    """Methods ``_GUARDED_SEAMS`` pins that *fn*'s class inherits from a base imported from the pinning module.
+
+    Only a method the imported base class itself defines counts, and only when *fn*'s own class lists that
+    base, so a ``self.<name>`` call vouches only through a pinned seam the class really inherits.
+    """
+    owner = next((node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and fn in node.body), None)
+    if owner is None:
+        return frozenset()
+    bases = {base.id for base in owner.bases if isinstance(base, ast.Name)}
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        stem = node.module.rsplit(".", 1)[-1]
+        if stem not in _SEAM_MODULES:
+            continue
+        imported = {alias.name for alias in node.names if (alias.asname or alias.name) in bases}
+        seam_tree = ast.parse((_REPO_ROOT / _SEAM_MODULES[stem]).read_text(encoding="utf-8"))
+        for cls in ast.walk(seam_tree):
+            if isinstance(cls, ast.ClassDef) and cls.name in imported:
+                names.update(f.name for f in cls.body if isinstance(f, ast.FunctionDef) and (stem, f.name) in _SEAM_STEMS)
+    return frozenset(names)
+
+
+def _is_self_call(call: ast.Call, names: frozenset[str]) -> bool:
+    func = call.func
+    return isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id == "self" and func.attr in names
+
+
 def _reaches_predicate(tree: ast.AST, fn: ast.AST, seen: frozenset[int] = frozenset()) -> bool:
     """True when *fn* calls a predicate, directly or through a ``_GUARDED_SEAMS`` function.
 
-    A function imported from the module that pins it in ``_GUARDED_SEAMS`` counts as reaching it.
+    A function imported from the module that pins it in ``_GUARDED_SEAMS`` counts as reaching it, and so
+    does a ``self.<method>`` call to a pinned method of an imported base class (``_inherited_seam_methods``).
 
     A same-module hop is followed only into a function listed in ``_GUARDED_SEAMS``: those are
     individually pinned to call the predicate, so an arbitrary helper that happens to share a name
@@ -205,11 +240,12 @@ def _reaches_predicate(tree: ast.AST, fn: ast.AST, seen: frozenset[int] = frozen
     seen = seen | {id(fn)}
     local = {f.name: f for f in _functions(tree) if f.name in _GUARDED_SEAM_NAMES}
     imported = _imported_seam_names(tree)
+    inherited = _inherited_seam_methods(tree, fn)
     for node in ast.walk(fn):
         if not isinstance(node, ast.Call):
             continue
         name = _called_name(node)
-        if name in _PREDICATES or name in imported:
+        if name in _PREDICATES or name in imported or _is_self_call(node, inherited):
             return True
         if name in local and _reaches_predicate(tree, local[name], seen):
             return True
@@ -323,10 +359,16 @@ def test_override_dropping_its_predicate_call_fails_the_gate() -> None:
     drops_call = legacy.format("") + seam.format("is_kitty_specs_residue(p)")
     drops_seam_body = legacy.format(" and not self._is_residue(p)") + seam.format("False")
     imports_seam = "from ._residue_successor import partition_checkout_specs\ndef _normalize_all_frontmatter(self, p):\n    return partition_checkout_specs(p)\n"
+    mixin = "from ._residue_successor import ResidueSafeLaneSuccessorMixin as _M\nclass A({}):\n    def _is_legacy_format(self, p):\n        return {}\n"
     assert _reaches_predicate(*_parse_fn(keeps, "_is_legacy_format"))
     assert not _reaches_predicate(*_parse_fn(drops_call, "_is_legacy_format"))
     assert not _reaches_predicate(*_parse_fn(drops_seam_body, "_is_legacy_format"))
     assert _reaches_predicate(*_parse_fn(imports_seam, "_normalize_all_frontmatter"))
+    # The inherited mixin seam vouches only for a class that lists the mixin, and only through the pinned method.
+    assert _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "not self._is_residue(p)"), "_is_legacy_format"))
+    assert not _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "True"), "_is_legacy_format"))
+    assert not _reaches_predicate(*_parse_fn(mixin.format("_s.X", "not self._is_residue(p)"), "_is_legacy_format"))
+    assert not _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "not self.detect(p)"), "_is_legacy_format"))
 
 
 @pytest.mark.parametrize(("module", "function"), sorted(_UNDETECTED_WALKERS))

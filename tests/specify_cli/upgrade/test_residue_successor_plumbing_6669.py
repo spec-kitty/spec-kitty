@@ -17,7 +17,6 @@ from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations._residue_successor import (
     partition_kitty_specs,
-    predecessor_settled,
     residue_warnings,
 )
 from specify_cli.upgrade.registry import MigrationRegistry, settled_in_selection_view
@@ -83,7 +82,6 @@ def test_settled_view_equals_selection_for_each_ledger_state(tmp_path: Path, sta
     expected = _MIGRATION_ID not in _selected_ids(tmp_path)
     assert settled_in_selection_view(tmp_path, _MIGRATION_ID) is expected
     assert expected is (state == "success")
-    assert predecessor_settled(tmp_path, _MIGRATION_ID) is expected
 
 
 @pytest.mark.parametrize(("version", "settled"), [("2.0.6", False), ("3.2.0", True)])

@@ -20,8 +20,8 @@ from pathlib import Path
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.runtime.doctor import check_stale_legacy_assets
 
-from ..registry import MigrationRegistry
-from ._residue_successor import partition_kitty_specs, predecessor_settled, residue_warnings
+from ..registry import MigrationRegistry, settled_in_selection_view
+from ._residue_successor import partition_kitty_specs, residue_warnings
 from .base import BaseMigration, MigrationResult
 from .m_2_0_6_consistency_sweep import (
     _cleanup_legacy_worktree_assets,
@@ -44,7 +44,7 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True when a non-residue folder, or a legacy asset, still needs 2.0.6 repair."""
-        if predecessor_settled(project_path, PREDECESSOR_ID):
+        if settled_in_selection_view(project_path, PREDECESSOR_ID):
             return False
         if check_stale_legacy_assets(project_path).passed is False:
             return True

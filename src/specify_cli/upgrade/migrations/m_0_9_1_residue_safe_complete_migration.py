@@ -16,13 +16,11 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from specify_cli.context.mission_resolver import is_kitty_specs_residue
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager, normalize_file
 
 from ..registry import MigrationRegistry
 from . import m_0_9_1_complete_lane_migration as _shipped
-from ._residue_successor import ResidueProbes, partition_checkout_specs, predecessor_settled, residue_warnings
-from .base import MigrationResult
+from ._residue_successor import ResidueSafeLaneSuccessorMixin, partition_checkout_specs
 
 PREDECESSOR_ID = "0.9.1_complete_migration"
 
@@ -41,43 +39,17 @@ def _would_change(md_file: Path) -> bool:
 
 
 @MigrationRegistry.register
-class ResidueSafeCompleteLaneMigration(_shipped.CompleteLaneMigration):
+class ResidueSafeCompleteLaneMigration(ResidueSafeLaneSuccessorMixin, _shipped.CompleteLaneMigration):
     """Complete the lane migration in every Mission, leaving ``kitty-specs/`` residue folders alone."""
 
     migration_id = "0.9.1_residue_safe_complete_migration"
     description = "Residue-safe complete lane migration + clean up worktrees + normalize frontmatter, never in a kitty-specs/ residue folder"
 
-    _probes: ResidueProbes | None = None
-
-    def _is_residue(self, feature_path: Path) -> bool:
-        """Residue decision through this run's probe cache (one git probe per checkout); uncached outside detect/apply."""
-        if self._probes is None:
-            return is_kitty_specs_residue(feature_path)
-        return self._probes.is_residue(feature_path)
+    predecessor_id = PREDECESSOR_ID
 
     def _has_remaining_lane_dirs(self, feature_path: Path) -> bool:
         """Lane folders only count in a Mission; the shipped check runs first, so a clean folder costs no git call."""
         return bool(super()._has_remaining_lane_dirs(feature_path)) and not self._is_residue(feature_path)
-
-    def detect(self, project_path: Path) -> bool:
-        if predecessor_settled(project_path, PREDECESSOR_ID):
-            return False
-        self._probes = ResidueProbes()
-        try:
-            return bool(super().detect(project_path))
-        finally:
-            self._probes = None
-
-    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        # Probe every checkout before the shipped walk moves a file: a git timeout then aborts with nothing moved.
-        self._probes = ResidueProbes()
-        try:
-            _missions, residue = partition_checkout_specs(project_path, self._probes)
-            result = super().apply(project_path, dry_run)
-        finally:
-            self._probes = None
-        result.warnings.extend(residue_warnings(residue, project_path))
-        return result
 
     def _normalize_all_frontmatter(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str], list[str]]:
         """Normalize the frontmatter of the task files of every Mission; a residue folder's files are never collected."""
