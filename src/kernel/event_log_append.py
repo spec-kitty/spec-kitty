@@ -171,7 +171,7 @@ def append_event_log_lines(
     create: bool = True,
     create_parents: bool = False,
     no_follow: bool = False,
-    mode: int = 0o644,
+    mode: int = 0o666,
     precondition: Precondition | None = None,
     timeout_s: float = EVENT_LOG_LOCK_TIMEOUT_S,
 ) -> None:
@@ -187,7 +187,8 @@ def append_event_log_lines(
             it, a missing parent raises ``FileNotFoundError`` before any lock
             is placed, so the lock never creates a directory.
         no_follow: Refuse a final-component symlink at *log*.
-        mode: Permission bits of a newly created log.
+        mode: Permission bits of a newly created log, before the umask
+            applies (the default follows the umask, like ``open("a")``).
         precondition: Called with the log's current bytes under the lock. An
             exception it raises propagates, and nothing is written.
         timeout_s: Bounded wait for the lock.

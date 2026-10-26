@@ -155,6 +155,14 @@ def test_new_log_gets_the_requested_mode(log: Path) -> None:
         pytest.skip("POSIX permission bits")
     append_event_log_lines(log, ["x"], mode=0o600)
     assert log.stat().st_mode & 0o777 == 0o600
+    # The default follows the umask, so a group-shared checkout (umask 002) gets 0664.
+    shared = log.with_name("shared.jsonl")
+    previous = os.umask(0o002)
+    try:
+        append_event_log_lines(shared, ["x"])
+    finally:
+        os.umask(previous)
+    assert shared.stat().st_mode & 0o777 == 0o664
 
 
 def test_no_follow_refuses_a_symlink(log: Path, tmp_path: Path) -> None:
